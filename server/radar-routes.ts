@@ -729,7 +729,7 @@ async function executeGoogleSearch(query: string, countryCode?: string): Promise
   const params = new URLSearchParams({
     key: GOOGLE_API_KEY,
     cx: SEARCH_ENGINE_ID,
-    q: query + ' -job -employment -manual -handbook',
+    q: query + ' -job -employment -manual -handbook -recipe -cooking -"olive oil" -"coconut oil" -"palm oil" -"essential oil" -"hair oil" -"real estate" -"legal tender" -"oil painting" -wikipedia -linkedin -youtube -amazon',
     num: '10',
   });
 
@@ -1091,6 +1091,48 @@ async function processDiscoveryResult(
     const fullDomain3 = skipDomainParts.length >= 3 ? skipDomainParts.slice(-3).join('.') : '';
     if (SKIP_DOMAINS.has(mainDomain) || SKIP_DOMAINS.has(fullDomain3)) {
       console.log(`[Radar] Skipping irrelevant domain: ${sourceDomain}`);
+      return;
+    }
+
+    const RELEVANCE_KEYWORDS = new Set([
+      'oil', 'lubricant', 'lubricating', 'lube', 'base oil', 'waste oil', 'used oil',
+      'recycl', 'refin', 're-refin', 'rerefin', 'regenerat', 'reclaim', 'recover',
+      'petroleum', 'petrochemical', 'bitumen', 'asphalt', 'grease',
+      'hazardous waste', 'industrial waste', 'waste management', 'waste treatment',
+      'environmental', 'disposal', 'collection', 'collector',
+      'distillation', 'filtration', 'purification', 'dehydration',
+      'HS 2710', 'SDS', 'TDS', 'safety data sheet',
+      'IFAT', 'Ecomondo', 'Pollutec', 'UNITI', 'ICIS', 'ADIPEC', 'Lubricant Expo',
+      'exhibitor', 'trade show', 'conference', 'expo',
+      'tender', 'permit', 'license', 'plant', 'facility', 'refinery',
+      'aceite', 'óleo', 'Altöl', 'huile', 'yağ', 'oli', 'масло', '油', 'زيت',
+      'reciclaje', 'reciclagem', 'Recycling', 'recyclage', 'geri dönüşüm', 'daur ulang',
+      're-raffinage', 'Aufbereitung', 'regeneración', 'rerrefino',
+      'import', 'export', 'customs', 'shipment', 'trade flow',
+    ]);
+
+    const combinedText = `${title} ${snippet}`.toLowerCase();
+    const relevanceHits = [...RELEVANCE_KEYWORDS].filter(kw => combinedText.includes(kw.toLowerCase()));
+    
+    if (relevanceHits.length === 0) {
+      console.log(`[Radar] PRE-SCREEN REJECT: No industry keywords in title/snippet — "${title.substring(0, 80)}"`);
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+      return;
+    }
+
+    const ANTI_KEYWORDS = [
+      'cooking oil', 'vegetable oil', 'olive oil', 'palm oil', 'coconut oil', 'sunflower oil',
+      'essential oil', 'cbd oil', 'cannabis oil', 'hair oil', 'skin oil', 'baby oil', 'massage oil',
+      'oil painting', 'oil canvas', 'oil price forecast', 'crude oil futures',
+      'legal tender', 'banknote', 'currency', 'monetary policy',
+      'steel construction', 'building construction', 'road construction',
+      'food recycling', 'plastic recycling', 'paper recycling', 'glass recycling', 'textile recycling',
+      'real estate', 'property for sale', 'apartment', 'villa for rent',
+    ];
+    const antiHits = ANTI_KEYWORDS.filter(ak => combinedText.includes(ak));
+    if (antiHits.length > 0 && relevanceHits.length <= 1) {
+      console.log(`[Radar] PRE-SCREEN REJECT: Anti-keywords detected [${antiHits.join(', ')}] — "${title.substring(0, 80)}"`);
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
       return;
     }
 
