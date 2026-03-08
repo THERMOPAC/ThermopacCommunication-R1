@@ -78,6 +78,16 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       're-refined base oil export shipment data',
       'waste petroleum oil HS 2710 trade flow',
     ],
+    tradeshow_discovery: [
+      'IFAT exhibitor waste oil recycling base oil',
+      'Ecomondo exhibitor list oil recycling regeneration',
+      'Pollutec exhibitor directory waste oil treatment',
+      'UNITI mineral oil technology congress exhibitor',
+      'ICIS world base oils conference exhibitor list',
+      'Lubricant Expo exhibitor base oil re-refining',
+      'ADIPEC exhibitor waste oil recycling company',
+      'base oil conference exhibitor directory lubricant recycling',
+    ],
     project_signal: [
       'waste oil recycling tender',
       'oil recycling plant construction',
@@ -127,6 +137,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'exportación aceite base re-refinado datos comerciales',
       'empresa importadora exportadora aceite residual',
     ],
+    tradeshow_discovery: [
+      'IFAT expositor reciclaje aceite usado',
+      'Ecomondo expositor regeneración aceite',
+      'feria reciclaje aceite expositor base oil',
+      'congreso aceite base lubricante expositor',
+    ],
     project_signal: [
       'licitación reciclaje aceite usado',
       'construcción planta reciclaje aceite',
@@ -175,6 +191,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'empresa importadora exportadora óleo residual',
       'balança comercial óleo usado re-refinado',
     ],
+    tradeshow_discovery: [
+      'IFAT expositor reciclagem óleo usado',
+      'Ecomondo expositor regeneração óleo',
+      'feira reciclagem óleo expositor base oil',
+      'congresso óleo base lubrificante expositor',
+    ],
     project_signal: [
       'licitação reciclagem óleo usado',
       'construção planta reciclagem óleo',
@@ -219,6 +241,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'Import Altöl Schmierstoff Unternehmen',
       'Export recyceltes Basisöl Außenhandel',
     ],
+    tradeshow_discovery: [
+      'IFAT Aussteller Altöl Recycling',
+      'UNITI Mineralöltechnik Kongress Aussteller',
+      'Ecomondo Aussteller Ölregeneration',
+      'Messe Altöl Aufbereitung Ausstellerliste',
+    ],
     project_signal: [
       'Altöl Recycling Ausschreibung',
       'Altöl Anlage Genehmigung',
@@ -259,6 +287,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'exportateur huile base régénérée commerce',
       'importation huile lubrifiant usagée entreprise',
       'exportation huile base recyclée données commerciales',
+    ],
+    tradeshow_discovery: [
+      'Pollutec exposant recyclage huile usagée',
+      'IFAT exposant traitement huile usagée',
+      'salon recyclage huile exposant liste',
+      'congrès huile base lubrifiants exposant',
     ],
     project_signal: [
       'appel offre recyclage huile usagée',
@@ -301,6 +335,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'atık madeni yağ ithalat ihracat şirketi',
       'geri dönüştürülmüş baz yağ ihracat verileri',
     ],
+    tradeshow_discovery: [
+      'IFAT katılımcı atık yağ geri dönüşüm',
+      'ADIPEC katılımcı yağ geri kazanım',
+      'fuar atık yağ geri dönüşüm katılımcı listesi',
+    ],
     project_signal: [
       'atık yağ geri dönüşüm ihalesi',
       'atık yağ tesisi izni',
@@ -339,6 +378,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'eksportir base oil daur ulang perdagangan',
       'impor ekspor oli bekas perusahaan',
       'data perdagangan base oil re-refining',
+    ],
+    tradeshow_discovery: [
+      'IFAT peserta pameran daur ulang oli bekas',
+      'pameran daur ulang oli peserta base oil',
+      'ADIPEC peserta pameran pengolahan minyak',
     ],
     project_signal: [
       'tender daur ulang oli bekas',
@@ -380,6 +424,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '废润滑油进出口企业',
       '再生基础油出口贸易流向',
     ],
+    tradeshow_discovery: [
+      'IFAT参展商 废油回收 基础油',
+      '润滑油展会参展商 废油再生',
+      '环保展览会参展商 废油处理',
+    ],
     project_signal: [
       '废油回收招标',
       '废油处理许可证',
@@ -418,6 +467,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'экспортер регенерированного базового масла торговля',
       'импорт экспорт отработанного масла компания',
       'торговые потоки базового масла переработка',
+    ],
+    tradeshow_discovery: [
+      'IFAT участник выставки переработка масла',
+      'выставка переработки масел участники список',
+      'конференция базовые масла участники экспоненты',
     ],
     project_signal: [
       'тендер переработка отработанного масла',
@@ -458,6 +512,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '廃潤滑油輸入輸出企業',
       '再生基油貿易フロー',
     ],
+    tradeshow_discovery: [
+      'IFAT出展者 廃油リサイクル 基油',
+      '潤滑油展示会 出展者 廃油再生',
+      '環境展示会 廃油処理 出展者リスト',
+    ],
     project_signal: [
       '廃油リサイクル入札',
       '廃油処理施設許可',
@@ -495,6 +554,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'مصدر زيت أساسي معاد تكريره تجارة',
       'استيراد تصدير زيوت مستعملة شركة',
       'بيانات تجارية زيت أساسي معاد تدويره',
+    ],
+    tradeshow_discovery: [
+      'ADIPEC عارض إعادة تدوير الزيوت',
+      'معرض البيئة عارض معالجة الزيوت المستعملة',
+      'مؤتمر الزيوت الأساسية عارضون قائمة',
     ],
     project_signal: [
       'مناقصة إعادة تدوير الزيوت',
@@ -638,7 +702,7 @@ function getScoreBand(score: number): string {
 
 function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
   const queries: { query: string; language: string; family: string }[] = [];
-  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'project_signal'];
+  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'tradeshow_discovery', 'project_signal'];
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
@@ -785,6 +849,7 @@ CRITICAL CLASSIFICATION RULES:
 7. REGULATORY DOCUMENT SIGNALS: If the source is an SDS (Safety Data Sheet), TDS (Technical Data Sheet), environmental permit, hazardous waste license, or regulatory filing, extract the COMPANY that issued/owns the document — these are extremely high-value signals. The company name, facility location, product details, and contact info are usually embedded in these documents. Set classification_confidence to 0.95+ for companies found via regulatory documents.
 8. If a URL points to a PDF document (SDS, TDS, permit, license), analyze the title and snippet carefully — they typically contain the issuing company name and product type. The company that published the SDS/TDS is the one to classify.
 9. TRADE FLOW SIGNALS: If the source contains import/export customs data, trade records, HS code 2710 shipments, or bill-of-lading data, extract the IMPORTER and EXPORTER company names. Companies importing waste oil or exporting re-refined base oil are very likely plant operators or major traders connected to re-refining plants. Set is_likely_epc_target=true for companies importing large volumes of waste oil (they likely need processing capacity).
+10. TRADE SHOW SIGNALS: If the source is a trade show exhibitor directory or conference participant list (IFAT, Ecomondo, Pollutec, UNITI, ICIS, Lubricant Expo, ADIPEC, etc.), the companies listed are pre-qualified industry participants. Extract their names, descriptions, and booth/stand info. These are high-confidence leads — set classification_confidence to 0.90+ for exhibitors at relevant industry events.
 
 Respond with JSON:
 {
