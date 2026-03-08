@@ -93,6 +93,16 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'ADIPEC exhibitor waste oil recycling company',
       'base oil conference exhibitor directory lubricant recycling',
     ],
+    directory_mining: [
+      'waste oil recycling companies list directory',
+      'used oil re-refining industry association members',
+      'GEIR re-refining members European',
+      'base oil producers association directory members',
+      'waste oil collectors registered list',
+      'licensed waste oil recyclers directory',
+      'oil recycling association member companies',
+      'hazardous waste oil processors approved list',
+    ],
     project_signal: [
       'waste oil recycling tender',
       'oil recycling plant construction',
@@ -148,6 +158,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'feria reciclaje aceite expositor base oil',
       'congreso aceite base lubricante expositor',
     ],
+    directory_mining: [
+      'directorio empresas reciclaje aceite usado',
+      'lista recicladores aceite lubricante autorizados',
+      'asociación empresas regeneración aceite miembros',
+      'registro gestores aceite usado lista',
+    ],
     project_signal: [
       'licitación reciclaje aceite usado',
       'construcción planta reciclaje aceite',
@@ -202,6 +218,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'feira reciclagem óleo expositor base oil',
       'congresso óleo base lubrificante expositor',
     ],
+    directory_mining: [
+      'diretório empresas reciclagem óleo usado',
+      'lista rerefinadores óleo lubrificante autorizados',
+      'associação empresas rerrefino óleo membros',
+      'cadastro coletores óleo usado lista IBAMA',
+    ],
     project_signal: [
       'licitação reciclagem óleo usado',
       'construção planta reciclagem óleo',
@@ -252,6 +274,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'Ecomondo Aussteller Ölregeneration',
       'Messe Altöl Aufbereitung Ausstellerliste',
     ],
+    directory_mining: [
+      'Verzeichnis Altöl Recycling Unternehmen Liste',
+      'Altöl Aufbereiter zugelassene Betriebe Liste',
+      'Verband Altöl Regeneration Mitglieder',
+      'Entsorgungsfachbetriebe Altöl Liste Verzeichnis',
+    ],
     project_signal: [
       'Altöl Recycling Ausschreibung',
       'Altöl Anlage Genehmigung',
@@ -299,6 +327,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'salon recyclage huile exposant liste',
       'congrès huile base lubrifiants exposant',
     ],
+    directory_mining: [
+      'annuaire entreprises recyclage huile usagée France',
+      'liste régénérateurs huile usagée agréés',
+      'syndicat professionnel recyclage huile membres',
+      'collecteurs huile usagée agréés liste préfecture',
+    ],
     project_signal: [
       'appel offre recyclage huile usagée',
       'permis recyclage huile usagée',
@@ -345,6 +379,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'ADIPEC katılımcı yağ geri kazanım',
       'fuar atık yağ geri dönüşüm katılımcı listesi',
     ],
+    directory_mining: [
+      'atık yağ geri dönüşüm firmaları listesi',
+      'lisanslı atık yağ geri kazanım tesisleri',
+      'atık yağ toplama firmaları lisanslı liste',
+    ],
     project_signal: [
       'atık yağ geri dönüşüm ihalesi',
       'atık yağ tesisi izni',
@@ -388,6 +427,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'IFAT peserta pameran daur ulang oli bekas',
       'pameran daur ulang oli peserta base oil',
       'ADIPEC peserta pameran pengolahan minyak',
+    ],
+    directory_mining: [
+      'daftar perusahaan daur ulang oli bekas',
+      'perusahaan pengolah limbah B3 oli bekas terdaftar',
+      'asosiasi pengolah oli bekas anggota daftar',
     ],
     project_signal: [
       'tender daur ulang oli bekas',
@@ -434,6 +478,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '润滑油展会参展商 废油再生',
       '环保展览会参展商 废油处理',
     ],
+    directory_mining: [
+      '废油回收企业名录 列表',
+      '废油再生企业资质名单',
+      '危险废物经营许可证企业名录 废油',
+    ],
     project_signal: [
       '废油回收招标',
       '废油处理许可证',
@@ -477,6 +526,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'IFAT участник выставки переработка масла',
       'выставка переработки масел участники список',
       'конференция базовые масла участники экспоненты',
+    ],
+    directory_mining: [
+      'каталог предприятий переработка отработанных масел',
+      'реестр лицензированных переработчиков масел',
+      'список компаний регенерация масел Россия',
     ],
     project_signal: [
       'тендер переработка отработанного масла',
@@ -522,6 +576,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '潤滑油展示会 出展者 廃油再生',
       '環境展示会 廃油処理 出展者リスト',
     ],
+    directory_mining: [
+      '廃油リサイクル業者一覧 名簿',
+      '産業廃棄物処理業者名簿 廃油',
+      '廃油再生事業者 許可業者リスト',
+    ],
     project_signal: [
       '廃油リサイクル入札',
       '廃油処理施設許可',
@@ -564,6 +623,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'ADIPEC عارض إعادة تدوير الزيوت',
       'معرض البيئة عارض معالجة الزيوت المستعملة',
       'مؤتمر الزيوت الأساسية عارضون قائمة',
+    ],
+    directory_mining: [
+      'دليل شركات إعادة تدوير الزيوت المستعملة',
+      'قائمة مصانع إعادة تكرير الزيوت المرخصة',
+      'سجل شركات جمع الزيوت المستعملة المعتمدة',
     ],
     project_signal: [
       'مناقصة إعادة تدوير الزيوت',
@@ -707,7 +771,7 @@ function getScoreBand(score: number): string {
 
 function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
   const queries: { query: string; language: string; family: string }[] = [];
-  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'tradeshow_discovery', 'project_signal'];
+  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'tradeshow_discovery', 'directory_mining', 'project_signal'];
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
@@ -911,6 +975,77 @@ Respond with JSON:
       project_signals: [],
     };
   }
+}
+
+async function extractCompaniesFromDirectory(
+  title: string, snippet: string, url: string, crawledContent: string
+): Promise<any[]> {
+  try {
+    const prompt = `You are an expert B2B analyst. This page appears to be a DIRECTORY, MEMBER LIST, or ASSOCIATION PAGE that lists MULTIPLE companies in the waste oil recycling / re-refining / base oil industry.
+
+Title: ${title}
+URL: ${url}
+Snippet: ${snippet}
+Page Content: ${crawledContent.substring(0, 6000)}
+
+Extract ALL companies mentioned on this page that are related to waste oil, used oil, base oil, lubricant recycling, or re-refining.
+
+For EACH company found, provide:
+- company_name: Official name
+- company_website: Their website URL if mentioned (null if not found)
+- company_type: one of: used_oil_collector, waste_oil_recycler, re_refiner, waste_management_company, lubricant_company, base_oil_company, not_relevant
+- country: Country where they operate
+- brief_description: 1 sentence about what they do
+
+ONLY include companies that deal with PETROLEUM-based oils (not cooking oil).
+Skip the directory/association itself — only extract the MEMBER companies.
+
+Respond with JSON:
+{
+  "is_directory": true/false,
+  "directory_name": "Name of the directory/association",
+  "companies": [
+    {
+      "company_name": "...",
+      "company_website": "https://... or null",
+      "company_type": "...",
+      "country": "...",
+      "brief_description": "..."
+    }
+  ]
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "You are an expert industry analyst. Extract all relevant companies from directory/member pages. Always respond with valid JSON." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    return result.is_directory ? (result.companies || []) : [];
+  } catch (error) {
+    console.error('Directory extraction error:', error);
+    return [];
+  }
+}
+
+function isLikelyDirectoryPage(title: string, snippet: string, url: string): boolean {
+  const text = `${title} ${snippet} ${url}`.toLowerCase();
+  const directorySignals = [
+    'member', 'directory', 'list of', 'our members', 'exhibitor list',
+    'participant list', 'company directory', 'association', 'registered',
+    'approved list', 'licensed', 'certified companies', '/members',
+    '/directory', '/exhibitors', '/participants',
+    'miembros', 'directorio', 'lista de', 'membros', 'diretório',
+    'Mitglieder', 'Verzeichnis', 'membres', 'annuaire',
+    'üyeler', 'anggota', 'daftar', '会员', '名录', '一覧', '名簿',
+    'участники', 'каталог', 'реестр', 'أعضاء', 'دليل', 'قائمة',
+  ];
+  return directorySignals.filter(s => text.includes(s)).length >= 1;
 }
 
 function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects: boolean): {
@@ -1137,6 +1272,87 @@ async function processDiscoveryResult(
     const antiHits = ANTI_KEYWORDS.filter(ak => combinedText.includes(ak));
     if (antiHits.length > 0 && relevanceHits.length <= 1) {
       console.log(`[Radar] PRE-SCREEN REJECT: Anti-keywords detected [${antiHits.join(', ')}] — "${title.substring(0, 80)}"`);
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+      return;
+    }
+
+    if (isLikelyDirectoryPage(title, snippet, url)) {
+      console.log(`[Radar] DIRECTORY PAGE detected: "${title.substring(0, 80)}" — extracting multiple companies`);
+      const dirCrawl = await crawlPage(url);
+      if (dirCrawl.success && dirCrawl.visibleText.length > 200) {
+        const companies = await extractCompaniesFromDirectory(title, snippet, url, dirCrawl.visibleText);
+        console.log(`[Radar] Directory yielded ${companies.length} companies from: ${url}`);
+        
+        for (const comp of companies) {
+          if (!comp.company_name || comp.company_name.length < 3 || comp.company_type === 'not_relevant') continue;
+          
+          const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
+          const compCountry = comp.country || country;
+          
+          const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
+          if (dupCheck.isDuplicate) {
+            console.log(`[Radar] Directory company "${comp.company_name}" already exists — skipping`);
+            continue;
+          }
+          
+          const isoLookup: Record<string, string> = { 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Austria': 'AT', 'Switzerland': 'CH', 'Poland': 'PL', 'Czech Republic': 'CZ', 'Romania': 'RO', 'Greece': 'GR', 'Portugal': 'PT', 'Sweden': 'SE', 'Finland': 'FI', 'Denmark': 'DK', 'Norway': 'NO', 'Turkey': 'TR', 'Brazil': 'BR', 'Mexico': 'MX', 'India': 'IN', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA', 'Russia': 'RU', 'China': 'CN', 'Japan': 'JP', 'Indonesia': 'ID', 'Nigeria': 'NG', 'South Africa': 'ZA' };
+          const compIso = isoLookup[compCountry] || isoCode;
+          
+          const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
+          
+          const typeFlags = {
+            handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(comp.company_type),
+            is_existing_rerefiner: comp.company_type === 're_refiner',
+            is_collector_only: comp.company_type === 'used_oil_collector',
+          };
+          
+          const scoringData = { company_type: comp.company_type, handles_waste_oil: typeFlags.handles_waste_oil, is_plant_opportunity: false, iso_code: compIso, feedstock_access_estimate: comp.company_type === 're_refiner' ? 60 : 40, capital_capability_estimate: comp.company_type === 're_refiner' ? 50 : 30, strategic_fit_estimate: comp.company_type === 're_refiner' ? 60 : 40, contactability_estimate: compDomain ? 40 : 10 };
+          const scoring = calculateOpportunityScore(scoringData, false, false);
+          
+          await db.execute(sql`
+            INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status,
+              company_type, company_summary, classification_confidence, overall_confidence,
+              handles_waste_oil, is_existing_rerefiner, is_collector_only, is_likely_epc_target,
+              opportunity_score, score_band, duplicate_group_id, evidence_summary)
+            VALUES (${comp.company_name}, ${compCountry}, ${compIso}, ${comp.company_website || ''}, ${compDomain || ''},
+              ${userId}, 'classified', ${comp.company_type}, ${comp.brief_description || ''},
+              ${0.85}, ${0.85}, ${typeFlags.handles_waste_oil}, ${typeFlags.is_existing_rerefiner},
+              ${typeFlags.is_collector_only}, ${false}, ${scoring.final}, ${scoring.band},
+              ${groupId}, ${'Found via directory: ' + url})
+          `);
+          console.log(`[Radar] Added directory company: ${comp.company_name} (${comp.company_type}) from ${compCountry}`);
+          
+          if (compDomain && comp.company_website) {
+            try {
+              const homeCrawl = await crawlPage(comp.company_website);
+              if (homeCrawl.success) {
+                const detailedAi = await classifyCompanyWithAI(comp.company_name, comp.brief_description || '', comp.company_website, homeCrawl.visibleText.substring(0, 5000));
+                const detailedResult = enforceClassificationConsistency(detailedAi);
+                const detailedScoring = calculateOpportunityScore(detailedResult, false, false);
+                await db.execute(sql`
+                  UPDATE radar_companies SET company_type = ${detailedResult.company_type || comp.company_type},
+                    company_summary = ${detailedResult.company_summary || comp.brief_description || ''},
+                    classification_confidence = ${Number(detailedResult.classification_confidence) || 0.85},
+                    overall_confidence = ${Number(detailedResult.classification_confidence) || 0.85},
+                    handles_waste_oil = ${detailedResult.handles_waste_oil || typeFlags.handles_waste_oil},
+                    is_existing_rerefiner = ${detailedResult.is_existing_rerefiner || typeFlags.is_existing_rerefiner},
+                    is_plant_opportunity = ${detailedResult.is_plant_opportunity || false},
+                    is_likely_epc_target = ${detailedResult.is_likely_epc_target || false},
+                    opportunity_score = ${detailedScoring.final}, score_band = ${detailedScoring.band},
+                    likely_feedstock_access = ${Number(detailedResult.feedstock_access_estimate) || 0},
+                    likely_capital_capability = ${Number(detailedResult.capital_capability_estimate) || 0},
+                    likely_strategic_fit = ${Number(detailedResult.strategic_fit_estimate) || 0},
+                    ai_reasoning_summary = ${detailedScoring.explanation}
+                  WHERE canonical_name = ${comp.company_name} AND root_domain = ${compDomain}
+                `);
+              }
+              await new Promise(resolve => setTimeout(resolve, 1500));
+            } catch (e) {
+              console.log(`[Radar] Could not crawl directory company website: ${comp.company_website}`);
+            }
+          }
+        }
+      }
       await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
       return;
     }
