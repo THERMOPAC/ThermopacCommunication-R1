@@ -94,14 +94,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'base oil conference exhibitor directory lubricant recycling',
     ],
     directory_mining: [
+      'GEIR re-refining members list site:geir-rerefining.org',
       'waste oil recycling companies list directory',
       'used oil re-refining industry association members',
-      'GEIR re-refining members European',
-      'base oil producers association directory members',
-      'waste oil collectors registered list',
-      'licensed waste oil recyclers directory',
-      'oil recycling association member companies',
-      'hazardous waste oil processors approved list',
+      'UKLA members used oil recycling association',
+      'waste oil collectors registered approved list',
+      'licensed waste oil recyclers companies directory',
+      'oil recycling association member companies list',
+      'Environment Agency registered waste oil carriers',
     ],
     project_signal: [
       'waste oil recycling tender',
@@ -719,7 +719,8 @@ const COUNTRY_LANGUAGE_MAP: Record<string, string> = {
   ZA: 'en', BR: 'pt', MX: 'es', DE: 'de', CN: 'zh', JP: 'ja', RU: 'ru',
   ES: 'es', FR: 'fr', US: 'en', GB: 'en', AU: 'en', CA: 'en', EG: 'ar',
   KE: 'en', IR: 'fa', IQ: 'ar', KW: 'ar', QA: 'ar', BH: 'ar', OM: 'ar',
-  NL: 'nl', IT: 'it',
+  NL: 'nl', IT: 'it', IE: 'en', PL: 'pl', CZ: 'cs', RO: 'ro', GR: 'el',
+  PT: 'pt', SE: 'sv', FI: 'fi', DK: 'da', NO: 'no', BE: 'nl', AT: 'de', CH: 'de',
 };
 
 function generateDomainFingerprint(name: string, domain: string): string {
@@ -776,7 +777,11 @@ function generateSearchQueries(country: string, isoCode: string, language: strin
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
     for (const q of enQueries.slice(0, 4)) {
-      queries.push({ query: `${q} ${country}`, language: 'en', family });
+      if (family === 'directory_mining' && (q.includes('GEIR') || q.includes('association') || q.includes('industry'))) {
+        queries.push({ query: q, language: 'en', family });
+      } else {
+        queries.push({ query: `${q} ${country}`, language: 'en', family });
+      }
     }
 
     if (language !== 'en') {
@@ -1037,15 +1042,32 @@ function isLikelyDirectoryPage(title: string, snippet: string, url: string): boo
   const text = `${title} ${snippet} ${url}`.toLowerCase();
   const directorySignals = [
     'member', 'directory', 'list of', 'our members', 'exhibitor list',
-    'participant list', 'company directory', 'association', 'registered',
+    'participant list', 'company directory', 'registered',
     'approved list', 'licensed', 'certified companies', '/members',
     '/directory', '/exhibitors', '/participants',
     'miembros', 'directorio', 'lista de', 'membros', 'diretório',
-    'Mitglieder', 'Verzeichnis', 'membres', 'annuaire',
+    'mitglieder', 'verzeichnis', 'membres', 'annuaire',
     'üyeler', 'anggota', 'daftar', '会员', '名录', '一覧', '名簿',
     'участники', 'каталог', 'реестр', 'أعضاء', 'دليل', 'قائمة',
   ];
-  return directorySignals.filter(s => text.includes(s)).length >= 1;
+  const directoryHits = directorySignals.filter(s => text.includes(s));
+
+  const industryContext = [
+    'oil', 'recycl', 'refin', 'waste', 'lubricant', 'base oil', 'regenerat',
+    'geir', 'rerefin', 're-refin', 'association', 'ukla', 'carrier', 'broker',
+    'aceite', 'óleo', 'altöl', 'huile', 'yağ', 'oli', 'масло', '油', 'زيت',
+  ];
+  const industryHits = industryContext.filter(s => text.includes(s));
+
+  if (directoryHits.length >= 1 && industryHits.length >= 1) return true;
+
+  const highConfidencePatterns = [
+    'geir-rerefining.org', 'geir', 'members directory', 'member companies',
+    'exhibitor directory', 'exhibitor list', 'approved carriers',
+    'registered waste', 'licensed facilities', 'companies from',
+    're-refining companies', 'oil recycl', 'member list',
+  ];
+  return highConfidencePatterns.filter(p => text.includes(p)).length >= 1;
 }
 
 function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects: boolean): {
@@ -1655,6 +1677,70 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       console.error(`Job creation error for query "${q.query}":`, error);
+    }
+  }
+
+  const KNOWN_INDUSTRY_DIRECTORIES: { url: string; name: string; region: string }[] = [
+    { url: 'https://www.geir-rerefining.org/about-us/members/', name: 'GEIR European Re-Refining Industry Members', region: 'Europe' },
+    { url: 'https://esauk.org/business-directory/wpbdp_category/full-members/', name: 'ESA UK Waste Industry Members', region: 'United Kingdom' },
+    { url: 'https://www.ukla.org.uk/links/', name: 'UKLA UK Lubricants Association Links', region: 'United Kingdom' },
+  ];
+
+  const europeanCountries = ['United Kingdom', 'Ireland', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Belgium', 'Austria', 'Switzerland', 'Poland', 'Czech Republic', 'Romania', 'Greece', 'Portugal', 'Sweden', 'Finland', 'Denmark', 'Norway', 'Turkey'];
+
+  for (const dir of KNOWN_INDUSTRY_DIRECTORIES) {
+    const shouldCrawl = dir.region === country || (dir.region === 'Europe' && europeanCountries.includes(country));
+    if (!shouldCrawl) continue;
+
+    try {
+      console.log(`[Radar] Crawling known industry directory: ${dir.name} (${dir.url})`);
+      const dirCrawl = await crawlPage(dir.url);
+      if (dirCrawl.success && dirCrawl.visibleText.length > 200) {
+        const companies = await extractCompaniesFromDirectory(dir.name, '', dir.url, dirCrawl.visibleText);
+        console.log(`[Radar] Known directory "${dir.name}" yielded ${companies.length} companies`);
+
+        for (const comp of companies) {
+          if (!comp.company_name || comp.company_name.length < 3 || comp.company_type === 'not_relevant') continue;
+
+          const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
+          const compCountry = comp.country || country;
+
+          const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
+          if (dupCheck.isDuplicate) {
+            console.log(`[Radar] Directory company "${comp.company_name}" already exists — skipping`);
+            continue;
+          }
+
+          const isoLookup: Record<string, string> = { 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Austria': 'AT', 'Switzerland': 'CH', 'Poland': 'PL', 'Czech Republic': 'CZ', 'Romania': 'RO', 'Greece': 'GR', 'Portugal': 'PT', 'Sweden': 'SE', 'Finland': 'FI', 'Denmark': 'DK', 'Norway': 'NO', 'Turkey': 'TR', 'Brazil': 'BR', 'Mexico': 'MX', 'India': 'IN', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA', 'Russia': 'RU', 'China': 'CN', 'Japan': 'JP', 'Indonesia': 'ID', 'Nigeria': 'NG', 'South Africa': 'ZA' };
+          const compIso = isoLookup[compCountry] || isoCode;
+
+          const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
+          const typeFlags = {
+            handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(comp.company_type),
+            is_existing_rerefiner: comp.company_type === 're_refiner',
+            is_collector_only: comp.company_type === 'used_oil_collector',
+          };
+          const scoringData = { company_type: comp.company_type, handles_waste_oil: typeFlags.handles_waste_oil, is_plant_opportunity: false, iso_code: compIso, feedstock_access_estimate: comp.company_type === 're_refiner' ? 60 : 40, capital_capability_estimate: comp.company_type === 're_refiner' ? 50 : 30, strategic_fit_estimate: comp.company_type === 're_refiner' ? 60 : 40, contactability_estimate: compDomain ? 40 : 10 };
+          const scoring = calculateOpportunityScore(scoringData, false, false);
+
+          await db.execute(sql`
+            INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status,
+              company_type, company_summary, classification_confidence, overall_confidence,
+              handles_waste_oil, is_existing_rerefiner, is_collector_only, is_likely_epc_target,
+              opportunity_score, score_band, duplicate_group_id, evidence_summary)
+            VALUES (${comp.company_name}, ${compCountry}, ${compIso}, ${comp.company_website || ''}, ${compDomain || ''},
+              ${userId}, 'classified', ${comp.company_type}, ${comp.brief_description || ''},
+              ${0.90}, ${0.90}, ${typeFlags.handles_waste_oil}, ${typeFlags.is_existing_rerefiner},
+              ${typeFlags.is_collector_only}, ${false}, ${scoring.final}, ${scoring.band},
+              ${groupId}, ${'Found via known directory: ' + dir.name})
+          `);
+          console.log(`[Radar] Added from known directory: ${comp.company_name} (${comp.company_type}) — ${compCountry}`);
+          totalResults++;
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (err) {
+      console.error(`[Radar] Error crawling known directory ${dir.name}:`, err);
     }
   }
 
