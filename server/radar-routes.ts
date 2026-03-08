@@ -555,10 +555,13 @@ URL: ${url}
 Snippet: ${snippet}
 ${crawledContent ? `Website Content (excerpt): ${crawledContent.substring(0, 3000)}` : ''}
 
-IMPORTANT RULES:
+CRITICAL CLASSIFICATION RULES:
 1. "company_name" must be the OFFICIAL company name in its original casing (e.g. "LWART" not "Lwart", "AVISTA OIL" not "Avista Oil"). Use UPPERCASE if the company brand is uppercase.
 2. "company_website" must be the company's OWN website URL (e.g. "https://lwart.com.br"), NOT the news article or source URL. If the source is a news article about a company, extract the actual company domain. Return null if unknown.
 3. Boolean flags MUST be consistent with company_type: if company_type is "re_refiner" then is_existing_rerefiner MUST be true and handles_waste_oil MUST be true. If company_type is "used_oil_collector" then is_collector_only MUST be true and handles_waste_oil MUST be true. If company_type is "waste_oil_recycler" then handles_waste_oil MUST be true.
+4. ONLY classify as relevant (waste_oil_recycler, re_refiner, used_oil_collector, etc.) if the company deals with PETROLEUM-BASED oils — lubricant oil, motor oil, hydraulic oil, transformer oil, industrial oil. Companies that ONLY deal with cooking oil / vegetable oil / edible oil recycling must be classified as "not_relevant" because they are NOT in the waste oil re-refining industry.
+5. Large corporations not primarily in the waste oil business (automotive OEMs, oil majors, commodity traders, retailers, banks, government agencies) should be classified as "not_relevant" unless they have a specific waste oil recycling division.
+6. Set ALL score estimates (feedstock, capital, strategic, contactability) to 0 for "not_relevant" companies.
 
 Respond with JSON:
 {
@@ -661,7 +664,7 @@ function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects:
 
 async function checkDuplicate(companyName: string, domain: string, country?: string): Promise<{ isDuplicate: boolean; duplicateOfId?: number; groupId?: string }> {
   try {
-    if (domain) {
+    if (domain && !isNewsOrMediaDomain(domain)) {
       const domainCheck = await db.execute(sql`
         SELECT id, duplicate_group_id FROM radar_companies WHERE root_domain = ${domain} LIMIT 1
       `);
@@ -672,13 +675,14 @@ async function checkDuplicate(companyName: string, domain: string, country?: str
 
     if (companyName) {
       const normalized = companyName.toLowerCase().trim()
-        .replace(/\b(ltd|llc|inc|corp|co|gmbh|sa|srl|pvt|private|limited|company)\b\.?/gi, '')
+        .replace(/\b(ltd|llc|inc|corp|co|gmbh|sa|srl|pvt|private|limited|company|soluções|ambientais|solucoes|do brasil|brazil)\b\.?/gi, '')
         .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, ' ')
         .trim();
       if (normalized.length > 3) {
         const nameCheck = await db.execute(sql`
           SELECT id, duplicate_group_id FROM radar_companies
-          WHERE LOWER(canonical_name) LIKE ${'%' + normalized.substring(0, 20) + '%'}
+          WHERE LOWER(REGEXP_REPLACE(canonical_name, '[^a-zA-Z0-9 ]', '', 'g')) LIKE ${'%' + normalized.substring(0, 20) + '%'}
           AND (country = ${country || ''} OR ${!country})
           LIMIT 1
         `);
@@ -761,6 +765,24 @@ async function processDiscoveryResult(
     const sourceDomain = extractDomain(url);
     const link = (url || '').toLowerCase();
     if (link.endsWith('.pdf') || link.includes('/manual') || link.includes('/handbook')) return;
+
+    const SKIP_DOMAINS = new Set([
+      'walmart.com', 'amazon.com', 'alibaba.com', 'ebay.com', 'linkedin.com', 'facebook.com',
+      'twitter.com', 'x.com', 'instagram.com', 'youtube.com', 'tiktok.com', 'pinterest.com',
+      'wikipedia.org', 'reddit.com', 'quora.com', 'stackoverflow.com',
+      'ford.com', 'toyota.com', 'gm.com', 'bmw.com', 'mercedes-benz.com', 'honda.com',
+      'lego.com', 'jnj.com', 'pg.com', 'nestle.com', 'unilever.com', 'coca-cola.com',
+      'apple.com', 'google.com', 'microsoft.com', 'oracle.com', 'sap.com', 'ibm.com',
+      'cmegroup.com', 'nasdaq.com', 'nyse.com', 'worldbank.org', 'imf.org',
+      'gov.br', 'gov.in', 'gov.uk', 'gov.au', 'gov.ng', 'gov.za',
+    ]);
+    const skipDomainParts = sourceDomain.split('.');
+    const mainDomain = skipDomainParts.length >= 2 ? skipDomainParts.slice(-2).join('.') : sourceDomain;
+    const fullDomain3 = skipDomainParts.length >= 3 ? skipDomainParts.slice(-3).join('.') : '';
+    if (SKIP_DOMAINS.has(mainDomain) || SKIP_DOMAINS.has(fullDomain3)) {
+      console.log(`[Radar] Skipping irrelevant domain: ${sourceDomain}`);
+      return;
+    }
 
     const isNewsSource = isNewsOrMediaDomain(sourceDomain);
     let articleContent = '';
