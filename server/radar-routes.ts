@@ -1217,9 +1217,36 @@ async function processDiscoveryResult(
 
     const groupId = generateDomainFingerprint(aiResult.company_name || title, companyDomain);
 
+    const companyName = aiResult.company_name || title;
+    const invalidNames = ['unknown', 'unclear', 'n/a', 'none', 'not found', 'not available', 'unnamed', 'descargar', 'download'];
+    if (invalidNames.includes(companyName.toLowerCase().trim()) || companyName.length < 3) {
+      console.log(`[Radar] Skipping result with invalid company name: "${companyName}"`);
+      await db.execute(sql`
+        UPDATE radar_companies SET company_type = 'not_relevant', opportunity_score = 0, score_band = 'low',
+        status = 'classified', updated_at = NOW() WHERE id = ${companyId}
+      `);
+      return;
+    }
+
+    if (companyDomain && (companyDomain.endsWith('.gob.mx') || companyDomain.endsWith('.gov.br') || 
+        companyDomain.endsWith('.gov.in') || companyDomain.endsWith('.gov.ae') || companyDomain.endsWith('.go.id') ||
+        companyDomain.endsWith('.gouv.fr') || companyDomain.endsWith('.bund.de')) &&
+        aiResult.company_type !== 'not_relevant') {
+      const govKeywords = ['secretaría', 'secretaria', 'ministerio', 'ministry', 'gobierno', 'government', 'instituto', 'comisión', 'department'];
+      const nameLC = companyName.toLowerCase();
+      if (govKeywords.some(kw => nameLC.includes(kw)) || companyName.startsWith('Ley ') || companyName.startsWith('PAPSRME')) {
+        console.log(`[Radar] Skipping government entity: "${companyName}" (${companyDomain})`);
+        await db.execute(sql`
+          UPDATE radar_companies SET company_type = 'not_relevant', opportunity_score = 0, score_band = 'low',
+          canonical_name = ${companyName}, status = 'classified', updated_at = NOW() WHERE id = ${companyId}
+        `);
+        return;
+      }
+    }
+
     await db.execute(sql`
       UPDATE radar_companies SET
-        canonical_name = ${aiResult.company_name || title},
+        canonical_name = ${companyName},
         company_type = ${aiResult.company_type || 'unclear'},
         company_summary = ${aiResult.company_summary || ''},
         website = ${companyWebsite},
