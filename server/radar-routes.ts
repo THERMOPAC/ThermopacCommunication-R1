@@ -47,10 +47,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'waste lubricating oil collection company',
     ],
     recycler_discovery: [
-      'waste oil recycler',
-      'used oil re-refinery',
-      'waste oil refining company',
-      'used oil regeneration facility',
+      'waste oil re-refinery',
+      'used oil re-refining plant',
+      'waste oil to base oil facility',
+      'used oil regeneration re-processing company',
       'waste lubricant oil re-processing plant',
       'used engine oil recycling plant',
       'waste oil to base oil re-refining',
@@ -94,9 +94,9 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'base oil conference exhibitor directory lubricant recycling',
     ],
     directory_mining: [
-      'waste oil recycling companies list directory',
+      'GEIR European re-refining industry members',
       'used oil re-refining industry association members list',
-      'waste oil collectors registered approved directory',
+      'waste oil recycling companies list directory',
       'licensed waste oil recyclers companies registry',
       'oil recycling association member companies',
       'base oil producers members directory association',
@@ -2148,6 +2148,128 @@ async function crawlDiscoveredDirectories(userId: number, country: string, isoCo
   return totalAdded;
 }
 
+const SEED_DIRECTORY_URLS: { url: string; title: string; description: string }[] = [
+  {
+    url: 'https://www.geir-rerefining.org/about-us/members/',
+    title: 'GEIR Members - European Re-Refining Industry',
+    description: 'Official member list of the European re-refining industry association (GEIR). Lists all major European re-refiners.',
+  },
+  {
+    url: 'https://www.ueil.org/about-us/structure/geir/',
+    title: 'GEIR - UEIL European Lubricant Industry',
+    description: 'European lubricant industry information about GEIR re-refining members.',
+  },
+];
+
+async function injectSeedDirectories(userId: number, country: string, isoCode: string): Promise<number> {
+  let added = 0;
+  for (const seed of SEED_DIRECTORY_URLS) {
+    try {
+      const fingerprint = crypto.createHash('sha256').update(`seed|${seed.url}`).digest('hex').substring(0, 64);
+      const existing = await db.execute(sql`
+        SELECT id FROM radar_search_results WHERE content_fingerprint = ${fingerprint} LIMIT 1
+      `);
+      if (existing.rows.length > 0) {
+        console.log(`[Radar] Seed URL already processed: ${seed.url}`);
+        continue;
+      }
+
+      const jobResult = await db.execute(sql`
+        INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
+        VALUES (${country}, ${isoCode}, 'en', ${'[SEED] ' + seed.title}, 'directory_mining', 'seed_directory', 'running', ${userId}, NOW())
+        RETURNING id
+      `);
+      const jobId = Number(jobResult.rows[0].id);
+
+      const srResult = await db.execute(sql`
+        INSERT INTO radar_search_results (search_job_id, title, url, snippet, domain, rank, content_fingerprint)
+        VALUES (${jobId}, ${seed.title}, ${seed.url}, ${seed.description}, ${extractDomain(seed.url)}, ${1}, ${fingerprint})
+        RETURNING id
+      `);
+
+      console.log(`[Radar] SEED: Crawling directory ${seed.url}`);
+      let crawledContent = '';
+      try {
+        const response = await fetch(seed.url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (response.ok) {
+          const html = await response.text();
+          crawledContent = html
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .substring(0, 8000);
+        }
+      } catch (crawlErr) {
+        console.log(`[Radar] SEED: Failed to crawl ${seed.url}`);
+      }
+
+      if (crawledContent.length > 100) {
+        const companies = await extractCompaniesFromDirectory(seed.title, seed.description, seed.url, crawledContent);
+        console.log(`[Radar] SEED: Extracted ${companies.length} companies from ${seed.url}`);
+
+        for (const comp of companies) {
+          if (!comp.company_name || comp.company_type === 'not_relevant') continue;
+          const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
+          const compCountry = comp.country || country;
+
+          const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
+          if (dupCheck.isDuplicate) {
+            console.log(`[Radar] SEED: Skip duplicate ${comp.company_name}`);
+            continue;
+          }
+
+          const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
+          const scoring = calculateOpportunityScore({
+            ...comp,
+            feedstock_access_estimate: comp.company_type === 're_refiner' ? 70 : 50,
+            capital_capability_estimate: 50,
+            strategic_fit_estimate: comp.company_type === 're_refiner' ? 80 : 60,
+            classification_confidence: 0.90,
+            handles_waste_oil: true,
+          }, false, false);
+
+          try {
+            await db.execute(sql`
+              INSERT INTO radar_companies (
+                canonical_name, country, iso_code, website, root_domain,
+                company_type, company_description, overall_confidence,
+                opportunity_score, score_band, score_explanation,
+                duplicate_group_id, status, user_id
+              ) VALUES (
+                ${comp.company_name}, ${compCountry}, ${isoCode},
+                ${comp.company_website || ''}, ${compDomain || ''},
+                ${comp.company_type}, ${comp.brief_description || ''},
+                ${0.90}, ${scoring.final}, ${scoring.band}, ${scoring.explanation},
+                ${groupId}, 'classified', ${userId}
+              )
+            `);
+            added++;
+            console.log(`[Radar] SEED: Added ${comp.company_name} (${comp.company_type}) from ${seed.url}`);
+          } catch (insertErr: any) {
+            if (insertErr.code !== '23505') console.error(`[Radar] SEED insert error:`, insertErr.message);
+          }
+        }
+      }
+
+      await db.execute(sql`
+        UPDATE radar_search_jobs SET status = 'completed', results_count = ${added}, completed_at = NOW()
+        WHERE id = ${jobId}
+      `);
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${Number(srResult.rows[0].id)}`);
+
+    } catch (err) {
+      console.error(`[Radar] SEED error for ${seed.url}:`, err);
+    }
+  }
+  console.log(`[Radar] SEED: Total ${added} companies added from seed directories`);
+  return added;
+}
+
 async function runDiscoveryJob(userId: number, country: string, isoCode: string, language: string) {
   const queries = generateSearchQueries(country, isoCode, language);
   console.log(`Starting discovery for ${country} (${isoCode}) - ${queries.length} queries`);
@@ -2232,6 +2354,10 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
       console.error(`Job creation error for query "${q.query}":`, error);
     }
   }
+
+  console.log(`[Radar] Phase 1.5: Injecting seed directory URLs for ${country}`);
+  const seedResults = await injectSeedDirectories(userId, country, isoCode);
+  totalResults += seedResults;
 
   console.log(`[Radar] Phase 2: AI-driven adaptive follow-up for ${country}`);
   const adaptiveResults = await runAdaptiveFollowUp(userId, country, isoCode, language);
