@@ -43,6 +43,8 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'used oil collector',
       're-refined base oil company',
       'waste oil processing facility',
+      'oil refining waste oil recycler',
+      'used lubricant oil collection service',
     ],
     recycler_discovery: [
       'waste oil recycler',
@@ -50,6 +52,8 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'lubricant regeneration company',
       'oil re-refining plant',
       'hazardous waste oil treatment',
+      'waste oil refining company',
+      'used oil re-refinery',
     ],
     base_oil_sellers: [
       'recycled base oil supplier',
@@ -57,6 +61,7 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'reclaimed base oil manufacturer',
       'regenerated base oil producer',
       'recycled lubricant base oil seller',
+      'base oil from recycled lubricant',
     ],
     regulatory_docs: [
       'safety data sheet re-refined base oil SDS',
@@ -706,13 +711,13 @@ function generateSearchQueries(country: string, isoCode: string, language: strin
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
-    for (const q of enQueries.slice(0, 3)) {
+    for (const q of enQueries.slice(0, 4)) {
       queries.push({ query: `${q} ${country}`, language: 'en', family });
     }
 
     if (language !== 'en') {
       const localQueries = MULTILINGUAL_QUERIES[language]?.[family] || [];
-      for (const q of localQueries.slice(0, 3)) {
+      for (const q of localQueries.slice(0, 4)) {
         queries.push({ query: `${q} ${country}`, language, family });
       }
     }
