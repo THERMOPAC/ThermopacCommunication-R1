@@ -912,13 +912,35 @@ async function crawlPage(url: string): Promise<{
     result.visibleText = text.substring(0, 10000);
 
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const emails = (truncatedHtml.match(emailRegex) || []).filter(e =>
-      !e.includes('example.') && !e.includes('sentry') && !e.includes('wixpress') && !e.endsWith('.png') && !e.endsWith('.jpg')
-    );
+    const emailNoisePatterns = [
+      'example.', 'sentry', 'wixpress', 'cloudflare', 'googleapis',
+      'webpack', 'schema.org', 'w3.org', 'mozilla.org',
+      'noreply', 'no-reply', 'mailer-daemon', 'postmaster',
+      'unsubscribe', 'bounce',
+    ];
+    const emails = (truncatedHtml.match(emailRegex) || []).filter(e => {
+      if (e.endsWith('.png') || e.endsWith('.jpg') || e.endsWith('.svg') || e.endsWith('.gif') || e.endsWith('.css') || e.endsWith('.js')) return false;
+      if (emailNoisePatterns.some(p => e.toLowerCase().includes(p))) return false;
+      if (e.length > 60) return false;
+      return true;
+    });
     result.emails = [...new Set(emails)].slice(0, 10);
 
-    const phoneRegex = /(?:\+?\d{1,4}[-.\s]?)?\(?\d{1,4}\)?[-.\s]?\d{1,4}[-.\s]?\d{1,9}/g;
-    const phones = (text.match(phoneRegex) || []).filter(p => p.replace(/\D/g, '').length >= 7 && p.replace(/\D/g, '').length <= 15);
+    const phoneRegex = /(?:\+\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{2,5}[-.\s]?\d{2,8}/g;
+    const rawPhones = (text.match(phoneRegex) || []);
+    const phones = rawPhones.filter(p => {
+      const digitsOnly = p.replace(/\D/g, '');
+      if (digitsOnly.length < 7 || digitsOnly.length > 15) return false;
+      if (p.includes('.') && !p.startsWith('+')) return false;
+      if (/^\d{4}[-–]\d{4}$/.test(p.trim())) return false;
+      if (/^\d{1,3}\.\d/.test(p.trim())) return false;
+      if (/^\d{5,9}$/.test(digitsOnly) && !p.includes(' ') && !p.includes('-') && !p.includes('(')) return false;
+      const startsWithPlus = p.trim().startsWith('+');
+      const hasAreaCode = /\(\d{2,5}\)/.test(p);
+      const hasSpacesOrDashes = /\d[-\s]\d/.test(p);
+      if (!startsWithPlus && !hasAreaCode && !hasSpacesOrDashes) return false;
+      return true;
+    });
     result.phones = [...new Set(phones)].slice(0, 10);
 
     const langMatch = truncatedHtml.match(/<html[^>]*lang=["']([a-z]{2})/i);
@@ -1639,21 +1661,6 @@ async function processDiscoveryResult(
       } catch (e) {}
     }
 
-    for (const email of allEmails) {
-      const contactType = email.includes('info@') || email.includes('contact@') ? 'generic' :
-        email.includes('sales') ? 'sales' : email.includes('project') ? 'projects' : 'unknown';
-      await db.execute(sql`
-        INSERT INTO radar_contacts (company_id, email, contact_type, source_url, confidence)
-        VALUES (${companyId}, ${email}, ${contactType}, ${url}, ${0.6})
-      `);
-    }
-    for (const phone of allPhones) {
-      await db.execute(sql`
-        INSERT INTO radar_contacts (company_id, phone, contact_type, source_url, confidence)
-        VALUES (${companyId}, ${phone}, 'generic', ${url}, ${0.5})
-      `);
-    }
-
     const hasContacts = allEmails.length > 0 || allPhones.length > 0;
     const hasProjects = (aiResult.project_signals || []).length > 0;
     const scoring = calculateOpportunityScore(aiResult, hasContacts, hasProjects);
@@ -1728,6 +1735,24 @@ async function processDiscoveryResult(
       INSERT INTO radar_sources (source_type, source_name, title, source_url, domain, country, iso_code, raw_snippet, search_job_id)
       VALUES ('search_result', ${companyDomain}, ${title}, ${url}, ${companyDomain}, ${country}, ${isoCode}, ${snippet || ''}, ${searchJobId})
     `);
+
+    const compType = aiResult.company_type || 'unclear';
+    if (compType !== 'not_relevant') {
+      for (const email of allEmails) {
+        const contactType = email.includes('info@') || email.includes('contact@') ? 'generic' :
+          email.includes('sales') ? 'sales' : email.includes('project') ? 'projects' : 'unknown';
+        await db.execute(sql`
+          INSERT INTO radar_contacts (company_id, email, contact_type, source_url, confidence)
+          VALUES (${companyId}, ${email}, ${contactType}, ${url}, ${0.6})
+        `);
+      }
+      for (const phone of allPhones) {
+        await db.execute(sql`
+          INSERT INTO radar_contacts (company_id, phone, contact_type, source_url, confidence)
+          VALUES (${companyId}, ${phone}, 'generic', ${url}, ${0.5})
+        `);
+      }
+    }
 
     for (const signal of (aiResult.project_signals || [])) {
       if (signal.confidence > 0.3) {
