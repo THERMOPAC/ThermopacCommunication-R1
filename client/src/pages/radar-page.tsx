@@ -218,7 +218,7 @@ export default function RadarPage() {
 
   const overview = (overviewData as any);
   const stats = overview?.stats || {};
-  const companies = ((companiesData as any)?.companies) || [];
+  const companies = (((companiesData as any)?.companies) || []).filter((c: any) => (Number(c.overall_confidence) || 0) >= 0.7);
   const projects = ((projectsData as any)?.projects) || [];
   const contacts = ((contactsData as any)?.contacts) || [];
   const countries = ((countriesData as any)?.countries) || [];

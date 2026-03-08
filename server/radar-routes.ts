@@ -2443,9 +2443,10 @@ router.get('/contacts', async (req: Request, res: Response) => {
     if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
 
     const result = await db.execute(sql`
-      SELECT rc.*, rco.canonical_name as company_name, rco.root_domain, rco.opportunity_score as company_score
+      SELECT rc.*, rco.canonical_name as company_name, rco.root_domain, rco.opportunity_score as company_score, rco.overall_confidence
       FROM radar_contacts rc
       LEFT JOIN radar_companies rco ON rc.company_id = rco.id
+      WHERE rco.overall_confidence >= 0.7 AND rco.company_type != 'not_relevant' AND rco.company_type != 'unclear'
       ORDER BY rc.confidence DESC, rc.created_at DESC
       LIMIT 500
     `);
@@ -2741,6 +2742,7 @@ router.get('/export/contacts', async (req: Request, res: Response) => {
       SELECT rc.*, rco.canonical_name as company_name, rco.country
       FROM radar_contacts rc
       LEFT JOIN radar_companies rco ON rc.company_id = rco.id
+      WHERE rco.overall_confidence >= 0.7 AND rco.company_type != 'not_relevant' AND rco.company_type != 'unclear'
       ORDER BY rc.confidence DESC
     `);
 
