@@ -1083,6 +1083,8 @@ async function processDiscoveryResult(
       'sciencedirect.com', 'researchgate.net', 'academia.edu', 'springer.com',
       'wiley.com', 'elsevier.com', 'nature.com', 'mdpi.com',
       'investopedia.com', 'statista.com', 'worldometers.info',
+      'bankofengland.co.uk', 'ecb.europa.eu', 'federalreserve.gov', 'bis.org',
+      'bidstats.uk', 'contractsfinder.service.gov.uk', 'ted.europa.eu',
     ]);
     const skipDomainParts = sourceDomain.split('.');
     const mainDomain = skipDomainParts.length >= 2 ? skipDomainParts.slice(-2).join('.') : sourceDomain;
