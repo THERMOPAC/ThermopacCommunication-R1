@@ -1605,4 +1605,24 @@ router.get('/export/contacts', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/clean-all', async (req: Request, res: Response) => {
+  try {
+    await db.execute(sql`DELETE FROM radar_alerts`);
+    await db.execute(sql`DELETE FROM radar_scores`);
+    await db.execute(sql`DELETE FROM radar_relationships`);
+    await db.execute(sql`DELETE FROM radar_projects`);
+    await db.execute(sql`DELETE FROM radar_contacts`);
+    await db.execute(sql`DELETE FROM radar_company_pages`);
+    await db.execute(sql`DELETE FROM radar_companies`);
+    await db.execute(sql`DELETE FROM radar_sources`);
+    await db.execute(sql`DELETE FROM radar_search_results`);
+    await db.execute(sql`DELETE FROM radar_search_jobs`);
+    console.log('[Radar] All data cleaned successfully');
+    res.json({ success: true, message: 'All radar data has been cleaned.' });
+  } catch (error: any) {
+    console.error('Clean all error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 export default router;

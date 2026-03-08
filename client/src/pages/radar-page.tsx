@@ -17,7 +17,7 @@ import {
   Radar, Globe, Building2, Search, AlertTriangle, Users, FileText, MapPin,
   TrendingUp, Download, ExternalLink, Star, Zap, Eye, CheckCircle, Clock,
   Bell, Target, Activity, BarChart3, Loader2, RefreshCw, ArrowUpRight,
-  Shield, Flame, AlertCircle, Info, ChevronRight, Play, X
+  Shield, Flame, AlertCircle, Info, ChevronRight, Play, X, Trash2
 } from "lucide-react";
 
 function getScoreBandColor(band: string) {
@@ -173,6 +173,27 @@ export default function RadarPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/radar/countries'] });
       toast({ title: "Priority Updated" });
+    },
+  });
+
+  const [cleanConfirmOpen, setCleanConfirmOpen] = useState(false);
+  const cleanAllMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/radar/clean-all');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/overview'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/countries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/discovery/jobs'] });
+      setCleanConfirmOpen(false);
+      toast({ title: "All Data Cleaned", description: "All radar discovery data has been wiped." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -910,6 +931,32 @@ export default function RadarPage() {
                     <span>Country discovery completed</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-red-200 md:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2 text-red-700"><Trash2 className="h-4 w-4" />Clean All Data (Testing)</CardTitle>
+                <CardDescription className="text-xs">Wipe all discovered companies, contacts, projects, alerts, search jobs and results. Use this to start fresh during testing.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!cleanConfirmOpen ? (
+                  <Button variant="destructive" size="sm" onClick={() => setCleanConfirmOpen(true)}>
+                    <Trash2 className="h-4 w-4 mr-2" />Clean All Radar Data
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-3 p-3 bg-red-50 rounded border border-red-200">
+                    <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                    <span className="text-sm text-red-800 font-medium">This will permanently delete all radar data. Are you sure?</span>
+                    <div className="flex gap-2 ml-auto">
+                      <Button variant="outline" size="sm" onClick={() => setCleanConfirmOpen(false)}>Cancel</Button>
+                      <Button variant="destructive" size="sm" onClick={() => cleanAllMutation.mutate()} disabled={cleanAllMutation.isPending}>
+                        {cleanAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                        Yes, Delete Everything
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
