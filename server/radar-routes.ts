@@ -94,7 +94,7 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'base oil conference exhibitor directory lubricant recycling',
     ],
     directory_mining: [
-      'GEIR European re-refining industry members',
+      'geir-rerefining.org members',
       'used oil re-refining industry association members list',
       'waste oil recycling companies list directory',
       'licensed waste oil recyclers companies registry',
@@ -2237,14 +2237,14 @@ async function injectSeedDirectories(userId: number, country: string, isoCode: s
             await db.execute(sql`
               INSERT INTO radar_companies (
                 canonical_name, country, iso_code, website, root_domain,
-                company_type, company_description, overall_confidence,
-                opportunity_score, score_band, score_explanation,
+                company_type, company_summary, overall_confidence,
+                opportunity_score, score_band,
                 duplicate_group_id, status, user_id
               ) VALUES (
                 ${comp.company_name}, ${compCountry}, ${isoCode},
                 ${comp.company_website || ''}, ${compDomain || ''},
                 ${comp.company_type}, ${comp.brief_description || ''},
-                ${0.90}, ${scoring.final}, ${scoring.band}, ${scoring.explanation},
+                ${0.90}, ${scoring.final}, ${scoring.band},
                 ${groupId}, 'classified', ${userId}
               )
             `);
@@ -2378,6 +2378,23 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
 }
 
 // ========== API ROUTES ==========
+
+router.post('/discovery/seed-directories', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const { country, isoCode } = req.body;
+    if (!country || !isoCode) {
+      return res.status(400).json({ success: false, error: 'Country and ISO code required' });
+    }
+
+    const results = await injectSeedDirectories(userId, country, isoCode);
+    res.json({ success: true, message: `Seed directory crawl complete: ${results} companies added`, added: results });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 router.post('/discovery/start', async (req: Request, res: Response) => {
   try {
