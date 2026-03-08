@@ -65,15 +65,7 @@ async function updateApiQuota(userId: number, callsUsed: number = 1): Promise<vo
 
 function enhanceSearchQuery(query: string, industry?: string, country?: string): string {
   const baseQuery = query.trim();
-  let enhancedQuery = baseQuery;
-
-  if (industry === 'oil-refining' || baseQuery.includes('oil')) {
-    enhancedQuery += ' (waste oil OR used oil OR oil recycling OR lubricant disposal)';
-  }
-
-  const customerTypes = ['company', 'business', 'manufacturer', 'service center', 'facility'];
-  const randomType = customerTypes[Math.floor(Math.random() * customerTypes.length)];
-  enhancedQuery += ` "${randomType}"`;
+  let enhancedQuery = `${baseQuery} company`;
 
   if (country && country !== 'all') {
     const countryNames: { [key: string]: string } = {
@@ -90,8 +82,7 @@ function enhanceSearchQuery(query: string, industry?: string, country?: string):
     }
   }
 
-  enhancedQuery += ' (supplier OR equipment OR service)';
-  enhancedQuery += ' -job -employment';
+  enhancedQuery += ' -job -employment -manual -filetype:pdf -handbook -instructions';
   return enhancedQuery;
 }
 
@@ -344,10 +335,15 @@ Extract and respond in JSON:
   }
 }
 
-async function storeRawResults(searchId: number, results: any[]): Promise<number[]> {
-  const storedIds: number[] = [];
+async function storeRawResults(searchId: number, results: any[]): Promise<{ rawIds: number[]; validItems: any[] }> {
+  const rawIds: number[] = [];
+  const validItems: any[] = [];
 
   for (const item of results) {
+    const link = (item.link || '').toLowerCase();
+    if (link.endsWith('.pdf') || link.includes('/manual') || link.includes('/handbook')) {
+      continue;
+    }
     const fingerprint = generateContentFingerprint(item.title || '', item.snippet || '', item.link || '');
     const domain = extractDomain(item.link || '');
 
@@ -367,7 +363,8 @@ async function storeRawResults(searchId: number, results: any[]): Promise<number
       `);
 
       if (inserted.rows.length > 0) {
-        storedIds.push(Number(inserted.rows[0].id));
+        rawIds.push(Number(inserted.rows[0].id));
+        validItems.push(item);
       }
     } catch (error: any) {
       if (error.code === '23505') continue;
@@ -375,7 +372,7 @@ async function storeRawResults(searchId: number, results: any[]): Promise<number
     }
   }
 
-  return storedIds;
+  return { rawIds, validItems };
 }
 
 async function processResultsWithLLM(
@@ -530,10 +527,10 @@ router.post('/search', async (req, res) => {
     `);
     const searchId = Number(searchRecord.rows[0].id);
 
-    const storedIds = await storeRawResults(searchId, searchResults.items || []);
+    const { rawIds, validItems } = await storeRawResults(searchId, searchResults.items || []);
 
-    if (searchResults.items && searchResults.items.length > 0) {
-      processResultsWithLLM(userId, searchId, storedIds, searchResults.items, filters).catch(error => {
+    if (validItems.length > 0) {
+      processResultsWithLLM(userId, searchId, rawIds, validItems, filters).catch(error => {
         console.error('Background LLM processing error:', error);
       });
     }
@@ -541,11 +538,11 @@ router.post('/search', async (req, res) => {
     res.json({
       success: true,
       searchId,
-      results: searchResults.items || [],
+      results: validItems,
       totalResults: parseInt(searchResults.searchInformation?.totalResults || '0'),
       remainingQuota: quotaCheck.remainingCalls - 1,
-      newResults: storedIds.length,
-      duplicatesSkipped: (searchResults.items?.length || 0) - storedIds.length
+      newResults: rawIds.length,
+      duplicatesSkipped: (searchResults.items?.length || 0) - rawIds.length
     });
   } catch (error: any) {
     console.error('Search error:', error);
