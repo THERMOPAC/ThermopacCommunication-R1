@@ -51,6 +51,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'oil re-refining plant',
       'hazardous waste oil treatment',
     ],
+    base_oil_sellers: [
+      'recycled base oil supplier',
+      're-refined base oil for sale',
+      'reclaimed base oil manufacturer',
+      'regenerated base oil producer',
+      'recycled lubricant base oil seller',
+    ],
     project_signal: [
       'waste oil recycling tender',
       'oil recycling plant construction',
@@ -74,6 +81,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'planta re-refinación aceite',
       'tratamiento aceite peligroso',
     ],
+    base_oil_sellers: [
+      'proveedor aceite base reciclado',
+      'aceite base re-refinado venta',
+      'fabricante aceite base regenerado',
+      'productor aceite base reciclado',
+    ],
     project_signal: [
       'licitación reciclaje aceite usado',
       'construcción planta reciclaje aceite',
@@ -94,6 +107,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'regeneração lubrificantes',
       'planta re-refino óleo',
     ],
+    base_oil_sellers: [
+      'fornecedor óleo base reciclado',
+      'óleo base re-refinado venda',
+      'fabricante óleo base regenerado',
+      'produtor óleo base reciclado',
+    ],
     project_signal: [
       'licitação reciclagem óleo usado',
       'construção planta reciclagem óleo',
@@ -113,6 +132,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'Schmierstoff Regeneration',
       'Altöl Raffinerie',
     ],
+    base_oil_sellers: [
+      'recyceltes Grundöl Lieferant',
+      're-raffiniertes Grundöl kaufen',
+      'regeneriertes Basisöl Hersteller',
+    ],
     project_signal: [
       'Altöl Recycling Ausschreibung',
       'Altöl Anlage Genehmigung',
@@ -130,6 +154,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'recycleur huile usagée',
       'régénération huile usagée',
       'régénération lubrifiants',
+    ],
+    base_oil_sellers: [
+      'fournisseur huile de base recyclée',
+      'huile de base re-raffinée vente',
+      'fabricant huile de base régénérée',
     ],
     project_signal: [
       'appel offre recyclage huile usagée',
@@ -149,6 +178,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'atık yağ rejenerasyon',
       'madeni yağ geri kazanım',
     ],
+    base_oil_sellers: [
+      'geri dönüştürülmüş baz yağ tedarikçisi',
+      're-rafine baz yağ satış',
+      'rejenerasyonlu baz yağ üretici',
+    ],
     project_signal: [
       'atık yağ geri dönüşüm ihalesi',
       'atık yağ tesisi izni',
@@ -165,6 +199,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'daur ulang oli bekas',
       'regenerasi oli bekas',
       'pengolahan limbah minyak',
+    ],
+    base_oil_sellers: [
+      'pemasok base oil daur ulang',
+      'base oil re-refining jual',
+      'produsen base oil regenerasi',
     ],
     project_signal: [
       'tender daur ulang oli bekas',
@@ -184,6 +223,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '润滑油再生',
       '废机油回收',
     ],
+    base_oil_sellers: [
+      '再生基础油供应商',
+      '回收基础油销售',
+      '再生基础油生产商',
+    ],
     project_signal: [
       '废油回收招标',
       '废油处理许可证',
@@ -200,6 +244,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'переработка отработанного масла',
       'регенерация масел',
       'утилизация отработанного масла',
+    ],
+    base_oil_sellers: [
+      'поставщик регенерированного базового масла',
+      'переработанное базовое масло продажа',
+      'производитель регенерированного масла',
     ],
     project_signal: [
       'тендер переработка отработанного масла',
@@ -218,6 +267,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '潤滑油再生',
       '廃油処理',
     ],
+    base_oil_sellers: [
+      'リサイクル基油サプライヤー',
+      '再精製基油販売',
+      '再生基油メーカー',
+    ],
     project_signal: [
       '廃油リサイクル入札',
     ],
@@ -234,6 +288,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'تجديد الزيوت',
       'معالجة الزيوت المستعملة',
     ],
+    base_oil_sellers: [
+      'مورد زيوت أساسية معاد تدويرها',
+      'زيوت أساسية معاد تكريرها للبيع',
+      'منتج زيوت أساسية مجددة',
+    ],
     project_signal: [
       'مناقصة إعادة تدوير الزيوت',
     ],
@@ -248,6 +307,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'अपशिष्ट तेल पुनर्चक्रण',
       'स्नेहक पुनर्जनन',
     ],
+    base_oil_sellers: [
+      'पुनर्चक्रित बेस ऑयल आपूर्तिकर्ता',
+      'पुनः शोधित बेस ऑयल बिक्री',
+      'पुनर्जनित बेस ऑयल निर्माता',
+    ],
   },
   vi: {
     company_discovery: [
@@ -259,11 +323,20 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'tái chế dầu thải',
       'tái sinh dầu nhớt',
     ],
+    base_oil_sellers: [
+      'nhà cung cấp dầu gốc tái chế',
+      'dầu gốc tái chế bán',
+      'nhà sản xuất dầu gốc tái sinh',
+    ],
   },
   nl: {
     company_discovery: [
       'afgewerkte olie recycling bedrijf',
       'afgewerkte olie verwerking',
+    ],
+    base_oil_sellers: [
+      'gerecycled basisolie leverancier',
+      'geregenereerd basisolie verkoop',
     ],
   },
   it: {
@@ -271,11 +344,19 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'azienda riciclo olio usato',
       'impianto riciclo olio usato',
     ],
+    base_oil_sellers: [
+      'fornitore olio base riciclato',
+      'olio base ri-raffinato vendita',
+    ],
   },
   fa: {
     company_discovery: [
       'شرکت بازیافت روغن مستعمل',
       'کارخانه بازیافت روغن',
+    ],
+    base_oil_sellers: [
+      'تامین کننده روغن پایه بازیافتی',
+      'روغن پایه بازیافتی فروش',
     ],
   },
 };
@@ -337,7 +418,7 @@ function getScoreBand(score: number): string {
 
 function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
   const queries: { query: string; language: string; family: string }[] = [];
-  const families = ['company_discovery', 'recycler_discovery', 'project_signal'];
+  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'project_signal'];
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
