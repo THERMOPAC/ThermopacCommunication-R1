@@ -302,6 +302,31 @@ function extractDomain(url: string): string {
   }
 }
 
+const NEWS_MEDIA_DOMAINS = [
+  'reuters.com', 'bloomberg.com', 'forbes.com', 'ft.com', 'wsj.com',
+  'bbc.com', 'bbc.co.uk', 'cnn.com', 'cnbc.com', 'nytimes.com',
+  'theguardian.com', 'aljazeera.com', 'economictimes.indiatimes.com',
+  'livemint.com', 'moneycontrol.com', 'businessinsider.com',
+  'uol.com.br', 'capitalreset.uol.com.br', 'globo.com', 'folha.uol.com.br',
+  'valor.globo.com', 'exame.com', 'infomoney.com.br',
+  'elpais.com', 'expansion.com', 'cincodias.elpais.com',
+  'handelsblatt.com', 'wiwo.de', 'faz.net', 'spiegel.de',
+  'lemonde.fr', 'lesechos.fr', 'latribune.fr',
+  'ilsole24ore.com', 'corriere.it', 'repubblica.it',
+  'linkedin.com', 'facebook.com', 'twitter.com', 'x.com',
+  'youtube.com', 'reddit.com', 'medium.com', 'wikipedia.org',
+  'en.wikipedia.org', 'news.google.com', 'google.com',
+  'yahoo.com', 'finance.yahoo.com', 'tradearabia.com',
+  'gulfnews.com', 'arabianbusiness.com', 'khaleejtimes.com',
+  'prnewswire.com', 'businesswire.com', 'globenewswire.com',
+  'marketwatch.com', 'seekingalpha.com', 'investing.com',
+];
+
+function isNewsOrMediaDomain(domain: string): boolean {
+  const d = domain.toLowerCase();
+  return NEWS_MEDIA_DOMAINS.some(nd => d === nd || d.endsWith('.' + nd));
+}
+
 function getScoreBand(score: number): string {
   if (score >= 90) return 'hot';
   if (score >= 75) return 'strong';
@@ -449,9 +474,15 @@ URL: ${url}
 Snippet: ${snippet}
 ${crawledContent ? `Website Content (excerpt): ${crawledContent.substring(0, 3000)}` : ''}
 
+IMPORTANT RULES:
+1. "company_name" must be the OFFICIAL company name in its original casing (e.g. "LWART" not "Lwart", "AVISTA OIL" not "Avista Oil"). Use UPPERCASE if the company brand is uppercase.
+2. "company_website" must be the company's OWN website URL (e.g. "https://lwart.com.br"), NOT the news article or source URL. If the source is a news article about a company, extract the actual company domain. Return null if unknown.
+3. Boolean flags MUST be consistent with company_type: if company_type is "re_refiner" then is_existing_rerefiner MUST be true and handles_waste_oil MUST be true. If company_type is "used_oil_collector" then is_collector_only MUST be true and handles_waste_oil MUST be true. If company_type is "waste_oil_recycler" then handles_waste_oil MUST be true.
+
 Respond with JSON:
 {
-  "company_name": "extracted company name",
+  "company_name": "OFFICIAL company name in original casing",
+  "company_website": "https://company-own-domain.com or null if unknown",
   "company_type": "one of: used_oil_collector, waste_oil_recycler, re_refiner, waste_management_company, lubricant_company, base_oil_company, industrial_recycler, hazardous_waste_company, trader_only, not_relevant, unclear",
   "company_summary": "2-3 sentence summary of what this company does",
   "classification_evidence": "specific text evidence supporting classification",
@@ -623,24 +654,70 @@ async function updateCountryIntelligence(isoCode: string) {
   }
 }
 
+function enforceClassificationConsistency(aiResult: any): any {
+  const type = (aiResult.company_type || '').toLowerCase();
+  if (type === 're_refiner') {
+    aiResult.is_existing_rerefiner = true;
+    aiResult.handles_waste_oil = true;
+    aiResult.is_collector_only = false;
+  } else if (type === 'used_oil_collector') {
+    aiResult.is_collector_only = true;
+    aiResult.handles_waste_oil = true;
+  } else if (type === 'waste_oil_recycler') {
+    aiResult.handles_waste_oil = true;
+    aiResult.is_collector_only = false;
+  } else if (type === 'waste_management_company' || type === 'hazardous_waste_company') {
+    aiResult.handles_waste_oil = true;
+  }
+  return aiResult;
+}
+
 async function processDiscoveryResult(
   userId: number, searchJobId: number, searchResultId: number,
   title: string, snippet: string, url: string, country: string, isoCode: string
 ) {
   try {
-    const domain = extractDomain(url);
+    const sourceDomain = extractDomain(url);
     const link = (url || '').toLowerCase();
     if (link.endsWith('.pdf') || link.includes('/manual') || link.includes('/handbook')) return;
 
-    const dupCheck = await checkDuplicate(title, domain, country);
+    const isNewsSource = isNewsOrMediaDomain(sourceDomain);
+    let articleContent = '';
+    let companyDomain = sourceDomain;
+    let companyWebsite = url;
+
+    if (isNewsSource) {
+      console.log(`[Radar] News/media source detected: ${sourceDomain} — crawling article first to extract company info`);
+      const articleCrawl = await crawlPage(url);
+      if (articleCrawl.success) {
+        articleContent = articleCrawl.visibleText;
+      }
+
+      const preClassify = await classifyCompanyWithAI(title, snippet, url, articleContent.substring(0, 5000));
+
+      if (preClassify.company_website) {
+        try {
+          const realDomain = extractDomain(preClassify.company_website);
+          if (realDomain && !isNewsOrMediaDomain(realDomain)) {
+            companyDomain = realDomain;
+            companyWebsite = preClassify.company_website;
+            console.log(`[Radar] Extracted actual company website: ${companyWebsite} (domain: ${companyDomain})`);
+          }
+        } catch (e) {
+          console.log(`[Radar] Could not parse company_website from AI: ${preClassify.company_website}`);
+        }
+      }
+    }
+
+    const dupCheck = await checkDuplicate(title, companyDomain, country);
     if (dupCheck.isDuplicate) {
       await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
       return;
     }
 
     const pagesToCrawl = ['/', '/about', '/contact', '/services', '/products'];
-    const baseUrl = `https://${domain}`;
-    let allContent = '';
+    const baseUrl = `https://${companyDomain}`;
+    let allContent = isNewsSource ? articleContent : '';
     let allEmails: string[] = [];
     let allPhones: string[] = [];
     let primaryTitle = title;
@@ -648,10 +725,20 @@ async function processDiscoveryResult(
 
     const companyResult = await db.execute(sql`
       INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status)
-      VALUES (${title}, ${country}, ${isoCode}, ${url}, ${domain}, ${userId}, 'processing')
+      VALUES (${title}, ${country}, ${isoCode}, ${companyWebsite}, ${companyDomain}, ${userId}, 'processing')
       RETURNING id
     `);
     const companyId = Number(companyResult.rows[0].id);
+
+    if (isNewsSource) {
+      await db.execute(sql`
+        INSERT INTO radar_company_pages (company_id, url, page_type, title, meta_description, visible_text,
+          detected_language, page_language, detected_emails_json, detected_phones_json, http_status, crawl_status, crawled_at)
+        VALUES (${companyId}, ${url}, 'news_article', ${title}, ${snippet},
+          ${articleContent.substring(0, 10000)}, 'en', 'en',
+          '[]', '[]', 200, 'completed', NOW())
+      `);
+    }
 
     for (const page of pagesToCrawl) {
       const pageUrl = page === '/' ? baseUrl : `${baseUrl}${page}`;
@@ -685,10 +772,23 @@ async function processDiscoveryResult(
     allEmails = [...new Set(allEmails)];
     allPhones = [...new Set(allPhones)];
 
-    const aiResult = await classifyCompanyWithAI(
+    let aiResult = await classifyCompanyWithAI(
       primaryTitle, snippet || primaryMeta, url,
       allContent.substring(0, 5000)
     );
+
+    aiResult = enforceClassificationConsistency(aiResult);
+
+    if (aiResult.company_website && !isNewsSource) {
+      try {
+        const aiDomain = extractDomain(aiResult.company_website);
+        if (aiDomain && aiDomain !== companyDomain && !isNewsOrMediaDomain(aiDomain)) {
+          companyDomain = aiDomain;
+          companyWebsite = aiResult.company_website;
+          console.log(`[Radar] AI suggested different company domain: ${companyDomain}`);
+        }
+      } catch (e) {}
+    }
 
     for (const email of allEmails) {
       const contactType = email.includes('info@') || email.includes('contact@') ? 'generic' :
@@ -709,13 +809,15 @@ async function processDiscoveryResult(
     const hasProjects = (aiResult.project_signals || []).length > 0;
     const scoring = calculateOpportunityScore(aiResult, hasContacts, hasProjects);
 
-    const groupId = generateDomainFingerprint(aiResult.company_name || title, domain);
+    const groupId = generateDomainFingerprint(aiResult.company_name || title, companyDomain);
 
     await db.execute(sql`
       UPDATE radar_companies SET
         canonical_name = ${aiResult.company_name || title},
         company_type = ${aiResult.company_type || 'unclear'},
         company_summary = ${aiResult.company_summary || ''},
+        website = ${companyWebsite},
+        root_domain = ${companyDomain},
         likely_feedstock_access = ${Number(aiResult.feedstock_access_estimate) || 0},
         likely_capital_capability = ${Number(aiResult.capital_capability_estimate) || 0},
         likely_strategic_fit = ${Number(aiResult.strategic_fit_estimate) || 0},

@@ -1059,6 +1059,9 @@ export default function RadarPage() {
                           <Badge variant="outline" className={p.crawl_status === 'completed' ? 'text-green-600' : 'text-red-600'}>
                             {p.crawl_status}
                           </Badge>
+                          {p.page_type === 'news_article' && (
+                            <Badge variant="outline" className="text-orange-600 bg-orange-50">Source Article</Badge>
+                          )}
                           <span className="truncate flex-1">{p.url}</span>
                           <Badge variant="outline">{p.detected_language}</Badge>
                           <span className="text-muted-foreground">HTTP {p.http_status}</span>
