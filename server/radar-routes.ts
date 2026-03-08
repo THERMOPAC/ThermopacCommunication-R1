@@ -94,14 +94,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'base oil conference exhibitor directory lubricant recycling',
     ],
     directory_mining: [
-      'GEIR re-refining members list site:geir-rerefining.org',
       'waste oil recycling companies list directory',
-      'used oil re-refining industry association members',
-      'UKLA members used oil recycling association',
-      'waste oil collectors registered approved list',
-      'licensed waste oil recyclers companies directory',
-      'oil recycling association member companies list',
-      'Environment Agency registered waste oil carriers',
+      'used oil re-refining industry association members list',
+      'waste oil collectors registered approved directory',
+      'licensed waste oil recyclers companies registry',
+      'oil recycling association member companies',
+      'base oil producers members directory association',
+      'hazardous waste oil handlers licensed facilities list',
+      'environmental agency waste oil carrier broker register',
     ],
     project_signal: [
       'waste oil recycling tender',
@@ -777,8 +777,12 @@ function generateSearchQueries(country: string, isoCode: string, language: strin
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
     for (const q of enQueries.slice(0, 4)) {
-      if (family === 'directory_mining' && (q.includes('GEIR') || q.includes('association') || q.includes('industry'))) {
+      const isGlobalAssociationQuery = family === 'directory_mining' && (
+        q.includes('association') || q.includes('members') || q.includes('registry')
+      );
+      if (isGlobalAssociationQuery) {
         queries.push({ query: q, language: 'en', family });
+        queries.push({ query: `${q} ${country}`, language: 'en', family });
       } else {
         queries.push({ query: `${q} ${country}`, language: 'en', family });
       }
@@ -1302,6 +1306,12 @@ async function processDiscoveryResult(
       console.log(`[Radar] DIRECTORY PAGE detected: "${title.substring(0, 80)}" — extracting multiple companies`);
       const dirCrawl = await crawlPage(url);
       if (dirCrawl.success && dirCrawl.visibleText.length > 200) {
+        try {
+          const dirIntel = await extractIntelligenceLeads(dirCrawl.visibleText.substring(0, 4000), title, url, country);
+          for (const dUrl of dirIntel.directory_urls) { discoveredDirectoryUrls.add(dUrl); console.log(`[Radar] INTELLIGENCE from directory: Linked directory → ${dUrl}`); }
+          for (const q of dirIntel.follow_up_queries) { discoveredFollowUpQueries.push(q); }
+          for (const assoc of dirIntel.association_names) { discoveredFollowUpQueries.push(`"${assoc}" members list oil recycling`); console.log(`[Radar] INTELLIGENCE from directory: Association → ${assoc}`); }
+        } catch (e) {}
         const companies = await extractCompaniesFromDirectory(title, snippet, url, dirCrawl.visibleText);
         console.log(`[Radar] Directory yielded ${companies.length} companies from: ${url}`);
         
@@ -1470,6 +1480,36 @@ async function processDiscoveryResult(
     allEmails = [...new Set(allEmails)];
     allPhones = [...new Set(allPhones)];
 
+    if (allContent.length > 500) {
+      try {
+        const intel = await extractIntelligenceLeads(allContent.substring(0, 4000), primaryTitle, url, country);
+        for (const dirUrl of intel.directory_urls) {
+          if (!discoveredDirectoryUrls.has(dirUrl)) {
+            discoveredDirectoryUrls.add(dirUrl);
+            console.log(`[Radar] INTELLIGENCE: Discovered directory URL → ${dirUrl}`);
+          }
+        }
+        for (const q of intel.follow_up_queries) {
+          discoveredFollowUpQueries.push(q);
+          console.log(`[Radar] INTELLIGENCE: Follow-up query → "${q.substring(0, 60)}"`);
+        }
+        if (intel.association_names.length > 0) {
+          for (const assoc of intel.association_names) {
+            const assocQuery = `"${assoc}" members list waste oil recycling`;
+            discoveredFollowUpQueries.push(assocQuery);
+            console.log(`[Radar] INTELLIGENCE: Association discovered → ${assoc} — queued search`);
+          }
+        }
+        for (const compName of intel.competitor_names) {
+          const compQuery = `"${compName}" waste oil recycling`;
+          discoveredFollowUpQueries.push(compQuery);
+          console.log(`[Radar] INTELLIGENCE: Competitor mentioned → ${compName} — queued search`);
+        }
+      } catch (intelErr) {
+        console.log(`[Radar] Intelligence extraction skipped for ${url}`);
+      }
+    }
+
     let aiResult = await classifyCompanyWithAI(
       primaryTitle, snippet || primaryMeta, url,
       allContent.substring(0, 5000)
@@ -1612,6 +1652,302 @@ async function processDiscoveryResult(
   }
 }
 
+async function extractIntelligenceLeads(
+  crawledContent: string, title: string, url: string, country: string
+): Promise<{ directory_urls: string[]; association_names: string[]; competitor_names: string[]; follow_up_queries: string[] }> {
+  try {
+    const prompt = `You are an intelligence analyst specializing in the waste oil recycling and re-refining industry.
+
+Analyze this crawled page content and extract INTELLIGENCE LEADS — clues that point to MORE companies, associations, directories, or registries.
+
+Page Title: ${title}
+URL: ${url}
+Target Country: ${country}
+Content (first 4000 chars): ${crawledContent.substring(0, 4000)}
+
+Extract:
+1. directory_urls: Any URLs on this page that appear to be DIRECTORIES, MEMBER LISTS, ASSOCIATION PAGES, or REGISTRIES listing multiple companies in the oil recycling/re-refining/waste management industry. Look for links containing words like "members", "directory", "list", "association", "registry", "approved", "licensed".
+2. association_names: Names of INDUSTRY ASSOCIATIONS, REGULATORY BODIES, or TRADE ORGANIZATIONS mentioned (e.g., "GEIR", "UKLA", "NAICS", environmental agencies with company registers). Only include ones relevant to waste oil/recycling/re-refining.
+3. competitor_names: Names of SPECIFIC COMPANIES mentioned on this page that are in the waste oil/base oil/re-refining sector that we should investigate.
+4. follow_up_queries: Suggested Google search queries (max 3) that would help find MORE companies in this sector based on what you learned from this page. Be specific and creative — use industry terms, regulatory frameworks, or association names found on the page.
+
+IMPORTANT: Only include items genuinely related to waste oil, used oil, base oil, lubricant recycling, or re-refining. NOT cooking oil, automotive parts, general waste.
+
+Respond with JSON:
+{
+  "directory_urls": ["https://..."],
+  "association_names": ["..."],
+  "competitor_names": ["..."],
+  "follow_up_queries": ["..."]
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are an industry intelligence analyst. Extract leads for discovering more companies. Always respond with valid JSON." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 1000,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    return {
+      directory_urls: (result.directory_urls || []).filter((u: string) => u.startsWith('http')),
+      association_names: result.association_names || [],
+      competitor_names: result.competitor_names || [],
+      follow_up_queries: result.follow_up_queries || [],
+    };
+  } catch (error) {
+    console.error('[Radar] Intelligence extraction error:', error);
+    return { directory_urls: [], association_names: [], competitor_names: [], follow_up_queries: [] };
+  }
+}
+
+const discoveredDirectoryUrls = new Set<string>();
+const discoveredFollowUpQueries: string[] = [];
+
+async function runAdaptiveFollowUp(userId: number, country: string, isoCode: string, language: string): Promise<number> {
+  let totalAdded = 0;
+
+  try {
+    const existingCompanies = await db.execute(sql`
+      SELECT canonical_name, company_type, root_domain, evidence_summary
+      FROM radar_companies
+      WHERE country = ${country} AND company_type != 'not_relevant' AND company_type != 'unclear'
+      ORDER BY opportunity_score DESC
+      LIMIT 20
+    `);
+
+    const companyContext = existingCompanies.rows.map((r: any) =>
+      `${r.canonical_name} (${r.company_type}, domain: ${r.root_domain})`
+    ).join('; ');
+
+    const allFollowUps = [...discoveredFollowUpQueries];
+
+    if (companyContext.length > 10) {
+      try {
+        const followUpPrompt = `You are an expert at finding waste oil recycling and re-refining companies globally.
+
+We have just run a discovery for ${country} and found these companies so far:
+${companyContext}
+
+Based on this context, generate 6-8 HIGHLY TARGETED Google search queries that would find ADDITIONAL companies we might have MISSED. Think about:
+1. Industry associations that list members (search for "[association name] members" or "[association] member list")
+2. Environmental regulatory registries that list licensed waste oil handlers
+3. Specific company types not well represented (re-refiners, base oil producers, feedstock suppliers)
+4. Regional/local directories or business registers for this country
+5. Trade publications or conference exhibitor lists
+6. Supply chain connections — who supplies to or buys from the companies we found?
+
+CRITICAL: Queries should be specific enough to find real company pages, NOT general articles.
+Do NOT include generic queries like "waste oil recycling companies" — those were already searched.
+Focus on ANGLES we haven't tried yet.
+
+Respond with JSON:
+{ "queries": ["query1", "query2", ...] }`;
+
+        const followUpResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: "You are a competitive intelligence specialist. Generate targeted search queries to find undiscovered companies. Always respond with valid JSON." },
+            { role: "user", content: followUpPrompt }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.5,
+          max_tokens: 800,
+        });
+
+        const followUpResult = JSON.parse(followUpResponse.choices[0].message.content || '{}');
+        const aiQueries = followUpResult.queries || [];
+        allFollowUps.push(...aiQueries);
+        console.log(`[Radar] AI generated ${aiQueries.length} adaptive follow-up queries for ${country}`);
+      } catch (err) {
+        console.error('[Radar] AI follow-up query generation error:', err);
+      }
+    }
+
+    const uniqueFollowUps = [...new Set(allFollowUps)].slice(0, 10);
+    console.log(`[Radar] Running ${uniqueFollowUps.length} adaptive follow-up queries for ${country}`);
+
+    for (const query of uniqueFollowUps) {
+      try {
+        const existing = await db.execute(sql`
+          SELECT id FROM radar_search_jobs WHERE query = ${query} AND country = ${country} LIMIT 1
+        `);
+        if (existing.rows.length > 0) {
+          console.log(`[Radar] Skipping duplicate follow-up query: "${query.substring(0, 60)}"`);
+          continue;
+        }
+
+        const jobResult = await db.execute(sql`
+          INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
+          VALUES (${country}, ${isoCode}, 'en', ${query}, 'adaptive_followup', 'ai_generated', 'running', ${userId}, NOW())
+          RETURNING id
+        `);
+        const jobId = Number(jobResult.rows[0].id);
+
+        try {
+          const searchData = await executeGoogleSearch(query, isoCode);
+          const items = searchData.items || [];
+          let count = 0;
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (!item.link || item.link.toLowerCase().endsWith('.pdf')) continue;
+
+            const fingerprint = crypto.createHash('sha256').update(`${item.title}|${item.link}`).digest('hex').substring(0, 64);
+            try {
+              const existingResult = await db.execute(sql`
+                SELECT id FROM radar_search_results WHERE content_fingerprint = ${fingerprint} LIMIT 1
+              `);
+              if (existingResult.rows.length > 0) continue;
+
+              const srResult = await db.execute(sql`
+                INSERT INTO radar_search_results (search_job_id, title, url, snippet, domain, rank, content_fingerprint)
+                VALUES (${jobId}, ${item.title || ''}, ${item.link}, ${item.snippet || ''}, ${extractDomain(item.link)}, ${i + 1}, ${fingerprint})
+                RETURNING id
+              `);
+              count++;
+              totalAdded++;
+
+              processDiscoveryResult(userId, jobId, Number(srResult.rows[0].id),
+                item.title || '', item.snippet || '', item.link, country, isoCode
+              ).catch(err => console.error('Follow-up process error:', err));
+
+            } catch (err: any) {
+              if (err.code === '23505') continue;
+            }
+          }
+
+          await db.execute(sql`
+            UPDATE radar_search_jobs SET status = 'completed', results_count = ${count}, completed_at = NOW()
+            WHERE id = ${jobId}
+          `);
+          console.log(`[Radar] Follow-up query "${query.substring(0, 50)}..." yielded ${count} new results`);
+        } catch (searchError: any) {
+          await db.execute(sql`
+            UPDATE radar_search_jobs SET status = 'failed', error_message = ${searchError.message || 'Search failed'}, completed_at = NOW()
+            WHERE id = ${jobId}
+          `);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (err) {
+        console.error(`[Radar] Follow-up query error:`, err);
+      }
+    }
+  } catch (error) {
+    console.error('[Radar] Adaptive follow-up error:', error);
+  }
+
+  return totalAdded;
+}
+
+async function crawlDiscoveredDirectories(userId: number, country: string, isoCode: string): Promise<number> {
+  let totalAdded = 0;
+  const urlsToCrawl = [...discoveredDirectoryUrls];
+
+  if (urlsToCrawl.length === 0) {
+    console.log(`[Radar] No AI-discovered directories to crawl for ${country}`);
+    return 0;
+  }
+
+  console.log(`[Radar] Crawling ${urlsToCrawl.length} AI-discovered directories for ${country}`);
+
+  const isoLookup: Record<string, string> = { 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Austria': 'AT', 'Switzerland': 'CH', 'Poland': 'PL', 'Czech Republic': 'CZ', 'Romania': 'RO', 'Greece': 'GR', 'Portugal': 'PT', 'Sweden': 'SE', 'Finland': 'FI', 'Denmark': 'DK', 'Norway': 'NO', 'Turkey': 'TR', 'Brazil': 'BR', 'Mexico': 'MX', 'India': 'IN', 'Ireland': 'IE', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA', 'Russia': 'RU', 'China': 'CN', 'Japan': 'JP', 'Indonesia': 'ID', 'Nigeria': 'NG', 'South Africa': 'ZA' };
+
+  for (const dirUrl of urlsToCrawl.slice(0, 8)) {
+    try {
+      console.log(`[Radar] Crawling discovered directory: ${dirUrl}`);
+      const dirCrawl = await crawlPage(dirUrl);
+      if (!dirCrawl.success || dirCrawl.visibleText.length < 200) {
+        console.log(`[Radar] Directory crawl failed or too short: ${dirUrl}`);
+        continue;
+      }
+
+      const companies = await extractCompaniesFromDirectory(dirCrawl.title || '', '', dirUrl, dirCrawl.visibleText);
+      console.log(`[Radar] Discovered directory yielded ${companies.length} companies from: ${dirUrl}`);
+
+      for (const comp of companies) {
+        if (!comp.company_name || comp.company_name.length < 3 || comp.company_type === 'not_relevant') continue;
+
+        const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
+        const compCountry = comp.country || country;
+        const compIso = isoLookup[compCountry] || isoCode;
+
+        const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
+        if (dupCheck.isDuplicate) {
+          console.log(`[Radar] Discovered directory company "${comp.company_name}" already exists — skipping`);
+          continue;
+        }
+
+        const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
+        const typeFlags = {
+          handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(comp.company_type),
+          is_existing_rerefiner: comp.company_type === 're_refiner',
+          is_collector_only: comp.company_type === 'used_oil_collector',
+        };
+        const scoringData = { company_type: comp.company_type, handles_waste_oil: typeFlags.handles_waste_oil, is_plant_opportunity: false, iso_code: compIso, feedstock_access_estimate: comp.company_type === 're_refiner' ? 60 : 40, capital_capability_estimate: comp.company_type === 're_refiner' ? 50 : 30, strategic_fit_estimate: comp.company_type === 're_refiner' ? 60 : 40, contactability_estimate: compDomain ? 40 : 10 };
+        const scoring = calculateOpportunityScore(scoringData, false, false);
+
+        await db.execute(sql`
+          INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status,
+            company_type, company_summary, classification_confidence, overall_confidence,
+            handles_waste_oil, is_existing_rerefiner, is_collector_only, is_likely_epc_target,
+            opportunity_score, score_band, duplicate_group_id, evidence_summary)
+          VALUES (${comp.company_name}, ${compCountry}, ${compIso}, ${comp.company_website || ''}, ${compDomain || ''},
+            ${userId}, 'classified', ${comp.company_type}, ${comp.brief_description || ''},
+            ${0.85}, ${0.85}, ${typeFlags.handles_waste_oil}, ${typeFlags.is_existing_rerefiner},
+            ${typeFlags.is_collector_only}, ${false}, ${scoring.final}, ${scoring.band},
+            ${groupId}, ${'AI-discovered directory: ' + dirUrl})
+        `);
+        console.log(`[Radar] Added from AI-discovered directory: ${comp.company_name} (${comp.company_type}) — ${compCountry}`);
+        totalAdded++;
+
+        if (compDomain && comp.company_website) {
+          try {
+            const homeCrawl = await crawlPage(comp.company_website);
+            if (homeCrawl.success) {
+              const detailedAi = await classifyCompanyWithAI(comp.company_name, comp.brief_description || '', comp.company_website, homeCrawl.visibleText.substring(0, 5000));
+              const detailedResult = enforceClassificationConsistency(detailedAi);
+              const detailedScoring = calculateOpportunityScore(detailedResult, false, false);
+              await db.execute(sql`
+                UPDATE radar_companies SET company_type = ${detailedResult.company_type || comp.company_type},
+                  company_summary = ${detailedResult.company_summary || comp.brief_description || ''},
+                  classification_confidence = ${Number(detailedResult.classification_confidence) || 0.85},
+                  overall_confidence = ${Number(detailedResult.classification_confidence) || 0.85},
+                  handles_waste_oil = ${detailedResult.handles_waste_oil || typeFlags.handles_waste_oil},
+                  is_existing_rerefiner = ${detailedResult.is_existing_rerefiner || typeFlags.is_existing_rerefiner},
+                  is_plant_opportunity = ${detailedResult.is_plant_opportunity || false},
+                  is_likely_epc_target = ${detailedResult.is_likely_epc_target || false},
+                  opportunity_score = ${detailedScoring.final}, score_band = ${detailedScoring.band},
+                  likely_feedstock_access = ${Number(detailedResult.feedstock_access_estimate) || 0},
+                  likely_capital_capability = ${Number(detailedResult.capital_capability_estimate) || 0},
+                  likely_strategic_fit = ${Number(detailedResult.strategic_fit_estimate) || 0},
+                  ai_reasoning_summary = ${detailedScoring.explanation}
+                WHERE canonical_name = ${comp.company_name} AND root_domain = ${compDomain}
+              `);
+            }
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          } catch (e) {
+            console.log(`[Radar] Could not deep-crawl discovered directory company: ${comp.company_website}`);
+          }
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    } catch (err) {
+      console.error(`[Radar] Error crawling discovered directory ${dirUrl}:`, err);
+    }
+  }
+
+  discoveredDirectoryUrls.clear();
+  discoveredFollowUpQueries.length = 0;
+  return totalAdded;
+}
+
 async function runDiscoveryJob(userId: number, country: string, isoCode: string, language: string) {
   const queries = generateSearchQueries(country, isoCode, language);
   console.log(`Starting discovery for ${country} (${isoCode}) - ${queries.length} queries`);
@@ -1680,69 +2016,13 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
     }
   }
 
-  const KNOWN_INDUSTRY_DIRECTORIES: { url: string; name: string; region: string }[] = [
-    { url: 'https://www.geir-rerefining.org/about-us/members/', name: 'GEIR European Re-Refining Industry Members', region: 'Europe' },
-    { url: 'https://esauk.org/business-directory/wpbdp_category/full-members/', name: 'ESA UK Waste Industry Members', region: 'United Kingdom' },
-    { url: 'https://www.ukla.org.uk/links/', name: 'UKLA UK Lubricants Association Links', region: 'United Kingdom' },
-  ];
+  console.log(`[Radar] Phase 2: AI-driven adaptive follow-up for ${country}`);
+  const adaptiveResults = await runAdaptiveFollowUp(userId, country, isoCode, language);
+  totalResults += adaptiveResults;
 
-  const europeanCountries = ['United Kingdom', 'Ireland', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Belgium', 'Austria', 'Switzerland', 'Poland', 'Czech Republic', 'Romania', 'Greece', 'Portugal', 'Sweden', 'Finland', 'Denmark', 'Norway', 'Turkey'];
-
-  for (const dir of KNOWN_INDUSTRY_DIRECTORIES) {
-    const shouldCrawl = dir.region === country || (dir.region === 'Europe' && europeanCountries.includes(country));
-    if (!shouldCrawl) continue;
-
-    try {
-      console.log(`[Radar] Crawling known industry directory: ${dir.name} (${dir.url})`);
-      const dirCrawl = await crawlPage(dir.url);
-      if (dirCrawl.success && dirCrawl.visibleText.length > 200) {
-        const companies = await extractCompaniesFromDirectory(dir.name, '', dir.url, dirCrawl.visibleText);
-        console.log(`[Radar] Known directory "${dir.name}" yielded ${companies.length} companies`);
-
-        for (const comp of companies) {
-          if (!comp.company_name || comp.company_name.length < 3 || comp.company_type === 'not_relevant') continue;
-
-          const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
-          const compCountry = comp.country || country;
-
-          const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
-          if (dupCheck.isDuplicate) {
-            console.log(`[Radar] Directory company "${comp.company_name}" already exists — skipping`);
-            continue;
-          }
-
-          const isoLookup: Record<string, string> = { 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Austria': 'AT', 'Switzerland': 'CH', 'Poland': 'PL', 'Czech Republic': 'CZ', 'Romania': 'RO', 'Greece': 'GR', 'Portugal': 'PT', 'Sweden': 'SE', 'Finland': 'FI', 'Denmark': 'DK', 'Norway': 'NO', 'Turkey': 'TR', 'Brazil': 'BR', 'Mexico': 'MX', 'India': 'IN', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA', 'Russia': 'RU', 'China': 'CN', 'Japan': 'JP', 'Indonesia': 'ID', 'Nigeria': 'NG', 'South Africa': 'ZA' };
-          const compIso = isoLookup[compCountry] || isoCode;
-
-          const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
-          const typeFlags = {
-            handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(comp.company_type),
-            is_existing_rerefiner: comp.company_type === 're_refiner',
-            is_collector_only: comp.company_type === 'used_oil_collector',
-          };
-          const scoringData = { company_type: comp.company_type, handles_waste_oil: typeFlags.handles_waste_oil, is_plant_opportunity: false, iso_code: compIso, feedstock_access_estimate: comp.company_type === 're_refiner' ? 60 : 40, capital_capability_estimate: comp.company_type === 're_refiner' ? 50 : 30, strategic_fit_estimate: comp.company_type === 're_refiner' ? 60 : 40, contactability_estimate: compDomain ? 40 : 10 };
-          const scoring = calculateOpportunityScore(scoringData, false, false);
-
-          await db.execute(sql`
-            INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status,
-              company_type, company_summary, classification_confidence, overall_confidence,
-              handles_waste_oil, is_existing_rerefiner, is_collector_only, is_likely_epc_target,
-              opportunity_score, score_band, duplicate_group_id, evidence_summary)
-            VALUES (${comp.company_name}, ${compCountry}, ${compIso}, ${comp.company_website || ''}, ${compDomain || ''},
-              ${userId}, 'classified', ${comp.company_type}, ${comp.brief_description || ''},
-              ${0.90}, ${0.90}, ${typeFlags.handles_waste_oil}, ${typeFlags.is_existing_rerefiner},
-              ${typeFlags.is_collector_only}, ${false}, ${scoring.final}, ${scoring.band},
-              ${groupId}, ${'Found via known directory: ' + dir.name})
-          `);
-          console.log(`[Radar] Added from known directory: ${comp.company_name} (${comp.company_type}) — ${compCountry}`);
-          totalResults++;
-        }
-      }
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    } catch (err) {
-      console.error(`[Radar] Error crawling known directory ${dir.name}:`, err);
-    }
-  }
+  console.log(`[Radar] Phase 3: Crawling AI-discovered directories for ${country}`);
+  const dirResults = await crawlDiscoveredDirectories(userId, country, isoCode);
+  totalResults += dirResults;
 
   if (totalResults > 0) {
     await createAlert('new_company_priority_country', 'info',
