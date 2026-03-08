@@ -693,9 +693,9 @@ function isNewsOrMediaDomain(domain: string): boolean {
 }
 
 function getScoreBand(score: number): string {
-  if (score >= 90) return 'hot';
-  if (score >= 75) return 'strong';
-  if (score >= 60) return 'qualified';
+  if (score >= 75) return 'hot';
+  if (score >= 60) return 'strong';
+  if (score >= 50) return 'qualified';
   if (score >= 40) return 'watchlist';
   return 'low';
 }
@@ -921,7 +921,7 @@ function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects:
   const geography = data.iso_code && ['IN', 'AE', 'SA', 'NG', 'ID', 'TR', 'BR', 'MX'].includes(data.iso_code) ? 80 : 40;
   const contactability = hasContacts ? 80 : (Number(data.contactability_estimate) || 0);
 
-  const final = Math.round(
+  let final = Math.round(
     (feedstock * SCORING_WEIGHTS.feedstock_access +
      capital * SCORING_WEIGHTS.capital_capability +
      strategic * SCORING_WEIGHTS.strategic_fit +
@@ -929,6 +929,17 @@ function calculateOpportunityScore(data: any, hasContacts: boolean, hasProjects:
      geography * SCORING_WEIGHTS.geography +
      contactability * SCORING_WEIGHTS.contactability) / 100
   );
+
+  const companyType = data.company_type || '';
+  if (['re_refiner'].includes(companyType) && final < 45) {
+    final = 45;
+  } else if (['waste_oil_recycler', 'base_oil_company'].includes(companyType) && final < 35) {
+    final = 35;
+  } else if (['used_oil_collector', 'waste_management_company'].includes(companyType) && data.handles_waste_oil && final < 25) {
+    final = 25;
+  } else if (companyType !== 'not_relevant' && data.handles_waste_oil && final < 20) {
+    final = 20;
+  }
 
   const components = {
     feedstock_access: feedstock,
@@ -1063,6 +1074,10 @@ async function processDiscoveryResult(
       'apple.com', 'google.com', 'microsoft.com', 'oracle.com', 'sap.com', 'ibm.com',
       'cmegroup.com', 'nasdaq.com', 'nyse.com', 'worldbank.org', 'imf.org',
       'gov.br', 'gov.in', 'gov.uk', 'gov.au', 'gov.ng', 'gov.za',
+      'ifat.de', 'ecomondo.com', 'pollutec.com', 'uniti.de', 'icis.com',
+      'lubricantexpo.com', 'adipec.com', 'tradekey.com', 'indiamart.com',
+      'made-in-china.com', 'globalsources.com', 'thomasnet.com',
+      'bayut.com', 'propertyfinder.ae', 'dubizzle.com',
     ]);
     const skipDomainParts = sourceDomain.split('.');
     const mainDomain = skipDomainParts.length >= 2 ? skipDomainParts.slice(-2).join('.') : sourceDomain;
