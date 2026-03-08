@@ -58,6 +58,16 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'regenerated base oil producer',
       'recycled lubricant base oil seller',
     ],
+    regulatory_docs: [
+      'safety data sheet re-refined base oil SDS',
+      'technical data sheet recycled base oil TDS',
+      'environmental permit waste oil recycling facility',
+      'hazardous waste license used oil processing',
+      'waste oil recycler environmental compliance certificate',
+      'used oil collection permit hazardous waste',
+      'base oil re-refining facility regulatory filing',
+      'waste oil treatment plant operating license',
+    ],
     project_signal: [
       'waste oil recycling tender',
       'oil recycling plant construction',
@@ -92,6 +102,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'fabricante aceite base regenerado',
       'productor aceite base reciclado',
     ],
+    regulatory_docs: [
+      'hoja de seguridad aceite base re-refinado SDS',
+      'ficha técnica aceite base reciclado',
+      'permiso ambiental planta reciclaje aceite usado',
+      'licencia residuos peligrosos aceite usado',
+      'autorización gestión aceite usado residuo peligroso',
+      'registro gestor residuos aceite lubricante usado',
+    ],
     project_signal: [
       'licitación reciclaje aceite usado',
       'construcción planta reciclaje aceite',
@@ -121,6 +139,16 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'óleo base re-refinado venda',
       'fabricante óleo base regenerado',
       'produtor óleo base reciclado',
+    ],
+    regulatory_docs: [
+      'FISPQ óleo base re-refinado ficha segurança',
+      'ficha técnica óleo base reciclado',
+      'licença ambiental planta re-refino óleo usado',
+      'autorização IBAMA coleta óleo lubrificante usado',
+      'certificado CONAMA rerrefino óleo lubrificante',
+      'alvará funcionamento reciclagem óleo usado',
+      'cadastro técnico federal IBAMA óleo usado',
+      'licença operação unidade rerrefino',
     ],
     project_signal: [
       'licitação reciclagem óleo usado',
@@ -152,6 +180,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       're-raffiniertes Grundöl kaufen',
       'regeneriertes Basisöl Hersteller',
     ],
+    regulatory_docs: [
+      'Sicherheitsdatenblatt Altöl re-raffiniertes Grundöl',
+      'technisches Datenblatt regeneriertes Basisöl',
+      'Genehmigung Altöl Aufbereitung Anlage',
+      'Abfallentsorgungslizenz Altöl Verarbeitung',
+      'BImSchG Genehmigung Altöl Recycling',
+      'Entsorgungsfachbetrieb Altöl Zertifikat',
+    ],
     project_signal: [
       'Altöl Recycling Ausschreibung',
       'Altöl Anlage Genehmigung',
@@ -178,6 +214,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'fournisseur huile de base recyclée',
       'huile de base re-raffinée vente',
       'fabricant huile de base régénérée',
+    ],
+    regulatory_docs: [
+      'fiche de données sécurité huile base régénérée FDS',
+      'fiche technique huile base re-raffinée',
+      'autorisation ICPE installation recyclage huile usagée',
+      'agrément préfectoral collecte huile usagée',
+      'déclaration ICPE traitement huile usagée',
+      'certificat conformité recyclage huile usagée',
     ],
     project_signal: [
       'appel offre recyclage huile usagée',
@@ -206,6 +250,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       're-rafine baz yağ satış',
       'rejenerasyonlu baz yağ üretici',
     ],
+    regulatory_docs: [
+      'güvenlik bilgi formu baz yağ re-rafine SDS',
+      'teknik veri sayfası geri dönüştürülmüş baz yağ',
+      'çevre izin belgesi atık yağ geri dönüşüm tesisi',
+      'tehlikeli atık lisansı atık yağ işleme',
+      'atık yağ toplama izin belgesi',
+      'çevre bakanlığı atık yağ lisansı',
+    ],
     project_signal: [
       'atık yağ geri dönüşüm ihalesi',
       'atık yağ tesisi izni',
@@ -231,6 +283,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'pemasok base oil daur ulang',
       'base oil re-refining jual',
       'produsen base oil regenerasi',
+    ],
+    regulatory_docs: [
+      'lembar data keselamatan base oil daur ulang MSDS',
+      'izin lingkungan pabrik daur ulang oli bekas',
+      'izin pengelolaan limbah B3 oli bekas',
+      'sertifikat pengelolaan limbah minyak bekas',
+      'dokumen AMDAL pengolahan oli bekas',
     ],
     project_signal: [
       'tender daur ulang oli bekas',
@@ -258,6 +317,14 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '回收基础油销售',
       '再生基础油生产商',
     ],
+    regulatory_docs: [
+      '再生基础油安全数据表 MSDS',
+      '废矿物油经营许可证',
+      '危险废物经营许可证 废润滑油',
+      '环评报告 废油再生',
+      '废油处理企业资质证书',
+      '危险废物综合经营许可证 废油',
+    ],
     project_signal: [
       '废油回收招标',
       '废油处理许可证',
@@ -283,6 +350,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'поставщик регенерированного базового масла',
       'переработанное базовое масло продажа',
       'производитель регенерированного масла',
+    ],
+    regulatory_docs: [
+      'паспорт безопасности регенерированное базовое масло',
+      'лицензия на обращение с отходами отработанное масло',
+      'разрешение на переработку отработанных масел',
+      'экологическая экспертиза завод регенерации масел',
+      'лицензия опасные отходы отработанное масло',
     ],
     project_signal: [
       'тендер переработка отработанного масла',
@@ -310,6 +384,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '再精製基油販売',
       '再生基油メーカー',
     ],
+    regulatory_docs: [
+      '再生基油 安全データシート SDS',
+      '廃油処理業 許可証',
+      '産業廃棄物処理業許可 廃油',
+      '特別管理産業廃棄物 廃油 許可',
+      '廃油再生施設 環境アセスメント',
+    ],
     project_signal: [
       '廃油リサイクル入札',
       '廃油処理施設許可',
@@ -335,6 +416,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'زيوت أساسية معاد تكريرها للبيع',
       'منتج زيوت أساسية مجددة',
     ],
+    regulatory_docs: [
+      'صحيفة بيانات السلامة زيت أساسي معاد تكريره',
+      'ترخيص بيئي مصنع إعادة تدوير الزيوت المستعملة',
+      'رخصة نفايات خطرة زيوت مستعملة',
+      'تصريح جمع ونقل الزيوت المستعملة',
+      'شهادة امتثال بيئي معالجة الزيوت',
+    ],
     project_signal: [
       'مناقصة إعادة تدوير الزيوت',
       'ترخيص مصنع إعادة تدوير الزيوت',
@@ -357,6 +445,13 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'पुनर्चक्रित बेस ऑयल आपूर्तिकर्ता',
       'पुनः शोधित बेस ऑयल बिक्री',
       'पुनर्जनित बेस ऑयल निर्माता',
+    ],
+    regulatory_docs: [
+      'सुरक्षा डेटा शीट पुनर्चक्रित बेस ऑयल',
+      'पर्यावरण अनुमति अपशिष्ट तेल प्रसंस्करण संयंत्र',
+      'खतरनाक अपशिष्ट लाइसेंस प्रयुक्त तेल',
+      'CPCB प्राधिकरण अपशिष्ट तेल पुनर्चक्रण',
+      'राज्य प्रदूषण नियंत्रण बोर्ड अपशिष्ट तेल अनुमति',
     ],
   },
   vi: {
@@ -464,7 +559,7 @@ function getScoreBand(score: number): string {
 
 function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
   const queries: { query: string; language: string; family: string }[] = [];
-  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'project_signal'];
+  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'project_signal'];
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
@@ -491,7 +586,7 @@ async function executeGoogleSearch(query: string, countryCode?: string): Promise
   const params = new URLSearchParams({
     key: GOOGLE_API_KEY,
     cx: SEARCH_ENGINE_ID,
-    q: query + ' -job -employment -filetype:pdf -manual -handbook',
+    q: query + ' -job -employment -manual -handbook',
     num: '10',
   });
 
@@ -608,6 +703,8 @@ CRITICAL CLASSIFICATION RULES:
 4. ONLY classify as relevant (waste_oil_recycler, re_refiner, used_oil_collector, etc.) if the company deals with PETROLEUM-BASED oils — lubricant oil, motor oil, hydraulic oil, transformer oil, industrial oil. Companies that ONLY deal with cooking oil / vegetable oil / edible oil recycling must be classified as "not_relevant" because they are NOT in the waste oil re-refining industry.
 5. Large corporations not primarily in the waste oil business (automotive OEMs, oil majors, commodity traders, retailers, banks, government agencies) should be classified as "not_relevant" unless they have a specific waste oil recycling division.
 6. Set ALL score estimates (feedstock, capital, strategic, contactability) to 0 for "not_relevant" companies.
+7. REGULATORY DOCUMENT SIGNALS: If the source is an SDS (Safety Data Sheet), TDS (Technical Data Sheet), environmental permit, hazardous waste license, or regulatory filing, extract the COMPANY that issued/owns the document — these are extremely high-value signals. The company name, facility location, product details, and contact info are usually embedded in these documents. Set classification_confidence to 0.95+ for companies found via regulatory documents.
+8. If a URL points to a PDF document (SDS, TDS, permit, license), analyze the title and snippet carefully — they typically contain the issuing company name and product type. The company that published the SDS/TDS is the one to classify.
 
 Respond with JSON:
 {
@@ -810,7 +907,7 @@ async function processDiscoveryResult(
   try {
     const sourceDomain = extractDomain(url);
     const link = (url || '').toLowerCase();
-    if (link.endsWith('.pdf') || link.includes('/manual') || link.includes('/handbook')) return;
+    if (link.includes('/manual') || link.includes('/handbook')) return;
 
     const SKIP_DOMAINS = new Set([
       'walmart.com', 'amazon.com', 'alibaba.com', 'ebay.com', 'linkedin.com', 'facebook.com',
