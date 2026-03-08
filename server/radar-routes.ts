@@ -43,17 +43,17 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'used oil collector',
       're-refined base oil company',
       'waste oil processing facility',
-      'oil refining waste oil recycler',
-      'used lubricant oil collection service',
+      'used motor oil recycling service',
+      'waste lubricating oil collection company',
     ],
     recycler_discovery: [
       'waste oil recycler',
-      'used oil regeneration',
-      'lubricant regeneration company',
-      'oil re-refining plant',
-      'hazardous waste oil treatment',
-      'waste oil refining company',
       'used oil re-refinery',
+      'waste oil refining company',
+      'used oil regeneration facility',
+      'waste lubricant oil re-processing plant',
+      'used engine oil recycling plant',
+      'waste oil to base oil re-refining',
     ],
     base_oil_sellers: [
       'recycled base oil supplier',
@@ -799,17 +799,23 @@ function generateSearchQueries(country: string, isoCode: string, language: strin
   return queries;
 }
 
-async function executeGoogleSearch(query: string, countryCode?: string): Promise<any> {
+async function executeGoogleSearch(query: string, countryCode?: string, startIndex?: number): Promise<any> {
   if (!GOOGLE_API_KEY || !SEARCH_ENGINE_ID) {
     throw new Error('Google Custom Search API not configured');
   }
 
+  const exclusions = ' -job -employment -manual -handbook -recipe -cooking -"olive oil" -"coconut oil" -"palm oil" -"essential oil" -"hair oil" -"skin oil" -skincare -cosmetic -beauty -perfume -"clay bar" -"real estate" -"legal tender" -"oil painting" -"crude oil futures" -wikipedia -linkedin -youtube -amazon';
+
   const params = new URLSearchParams({
     key: GOOGLE_API_KEY,
     cx: SEARCH_ENGINE_ID,
-    q: query + ' -job -employment -manual -handbook -recipe -cooking -"olive oil" -"coconut oil" -"palm oil" -"essential oil" -"hair oil" -"real estate" -"legal tender" -"oil painting" -wikipedia -linkedin -youtube -amazon',
+    q: query + exclusions,
     num: '10',
   });
+
+  if (startIndex && startIndex > 1) {
+    params.set('start', String(startIndex));
+  }
 
   if (countryCode && countryCode !== 'all') {
     params.set('cr', `country${countryCode}`);
@@ -1954,63 +1960,70 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
 
   let totalResults = 0;
 
+  const deepSearchFamilies = new Set(['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'directory_mining']);
+
   for (const q of queries) {
     try {
-      const jobResult = await db.execute(sql`
-        INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
-        VALUES (${country}, ${isoCode}, ${q.language}, ${q.query}, ${q.family}, 'search_result', 'running', ${userId}, NOW())
-        RETURNING id
-      `);
-      const jobId = Number(jobResult.rows[0].id);
+      const pagesToSearch = deepSearchFamilies.has(q.family) ? [1, 11] : [1];
 
-      try {
-        const searchData = await executeGoogleSearch(q.query, isoCode);
-        const items = searchData.items || [];
+      for (const startIdx of pagesToSearch) {
+        const pageLabel = startIdx === 1 ? '' : ' [page 2]';
+        const jobResult = await db.execute(sql`
+          INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
+          VALUES (${country}, ${isoCode}, ${q.language}, ${q.query + pageLabel}, ${q.family}, 'search_result', 'running', ${userId}, NOW())
+          RETURNING id
+        `);
+        const jobId = Number(jobResult.rows[0].id);
 
-        let count = 0;
-        for (let i = 0; i < items.length; i++) {
-          const item = items[i];
-          if (!item.link || item.link.toLowerCase().endsWith('.pdf')) continue;
+        try {
+          const searchData = await executeGoogleSearch(q.query, isoCode, startIdx);
+          const items = searchData.items || [];
 
-          const fingerprint = crypto.createHash('sha256').update(`${item.title}|${item.link}`).digest('hex').substring(0, 64);
+          let count = 0;
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (!item.link || item.link.toLowerCase().endsWith('.pdf')) continue;
 
-          try {
-            const existing = await db.execute(sql`
-              SELECT id FROM radar_search_results WHERE content_fingerprint = ${fingerprint} LIMIT 1
-            `);
-            if (existing.rows.length > 0) continue;
+            const fingerprint = crypto.createHash('sha256').update(`${item.title}|${item.link}`).digest('hex').substring(0, 64);
 
-            const srResult = await db.execute(sql`
-              INSERT INTO radar_search_results (search_job_id, title, url, snippet, domain, rank, content_fingerprint)
-              VALUES (${jobId}, ${item.title || ''}, ${item.link}, ${item.snippet || ''}, ${extractDomain(item.link)}, ${i + 1}, ${fingerprint})
-              RETURNING id
-            `);
-            count++;
-            totalResults++;
+            try {
+              const existing = await db.execute(sql`
+                SELECT id FROM radar_search_results WHERE content_fingerprint = ${fingerprint} LIMIT 1
+              `);
+              if (existing.rows.length > 0) continue;
 
-            processDiscoveryResult(userId, jobId, Number(srResult.rows[0].id),
-              item.title || '', item.snippet || '', item.link, country, isoCode
-            ).catch(err => console.error('Background process error:', err));
+              const srResult = await db.execute(sql`
+                INSERT INTO radar_search_results (search_job_id, title, url, snippet, domain, rank, content_fingerprint)
+                VALUES (${jobId}, ${item.title || ''}, ${item.link}, ${item.snippet || ''}, ${extractDomain(item.link)}, ${startIdx + i}, ${fingerprint})
+                RETURNING id
+              `);
+              count++;
+              totalResults++;
 
-          } catch (err: any) {
-            if (err.code === '23505') continue;
-            console.error('Store result error:', err);
+              processDiscoveryResult(userId, jobId, Number(srResult.rows[0].id),
+                item.title || '', item.snippet || '', item.link, country, isoCode
+              ).catch(err => console.error('Background process error:', err));
+
+            } catch (err: any) {
+              if (err.code === '23505') continue;
+              console.error('Store result error:', err);
+            }
           }
+
+          await db.execute(sql`
+            UPDATE radar_search_jobs SET status = 'completed', results_count = ${count}, completed_at = NOW()
+            WHERE id = ${jobId}
+          `);
+        } catch (searchError: any) {
+          await db.execute(sql`
+            UPDATE radar_search_jobs SET status = 'failed', error_message = ${searchError.message || 'Search failed'}, completed_at = NOW()
+            WHERE id = ${jobId}
+          `);
+          console.error(`Search failed for query "${q.query}${pageLabel}":`, searchError.message);
         }
 
-        await db.execute(sql`
-          UPDATE radar_search_jobs SET status = 'completed', results_count = ${count}, completed_at = NOW()
-          WHERE id = ${jobId}
-        `);
-      } catch (searchError: any) {
-        await db.execute(sql`
-          UPDATE radar_search_jobs SET status = 'failed', error_message = ${searchError.message || 'Search failed'}, completed_at = NOW()
-          WHERE id = ${jobId}
-        `);
-        console.error(`Search failed for query "${q.query}":`, searchError.message);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       console.error(`Job creation error for query "${q.query}":`, error);
     }
