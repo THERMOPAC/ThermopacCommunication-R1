@@ -755,6 +755,14 @@ const NEWS_MEDIA_DOMAINS = [
   'gulfnews.com', 'arabianbusiness.com', 'khaleejtimes.com',
   'prnewswire.com', 'businesswire.com', 'globenewswire.com',
   'marketwatch.com', 'seekingalpha.com', 'investing.com',
+  'letsrecycle.com', 'lube-media.com', 'fueloilnews.co.uk',
+  'businessmotoring.co.uk', 'bw-magazine.co.uk', 'mrw.co.uk',
+  'hwchamber.co.uk', 'pmmonline.co.uk', 'biofuels-news.com',
+  'chemical-recycling-europe.prezly.com', 'technavio.com',
+  'tyreandrubberrecycling.com', 'carbon-pulse.com',
+  'wastedive.com', 'waste360.com', 'recyclingtoday.com',
+  'edie.net', 'endsreport.com', 'resource.co', 'circularonline.co.uk',
+  'chemicalwatch.com', 'icis.com', 'platts.com',
 ];
 
 function isNewsOrMediaDomain(domain: string): boolean {
@@ -1674,11 +1682,29 @@ async function processDiscoveryResult(
       } catch (e) {}
     }
 
+    const resolvedName = aiResult.company_name || title;
+    const postAiDup = await checkDuplicate(resolvedName, companyDomain, country);
+    if (postAiDup.isDuplicate && postAiDup.duplicateOfId !== companyId) {
+      console.log(`[Radar] POST-AI DUPLICATE: "${resolvedName}" (${companyDomain}) matches existing ID ${postAiDup.duplicateOfId} — merging contacts`);
+      for (const email of allEmails) {
+        const contactType = email.includes('info@') || email.includes('contact@') ? 'generic' :
+          email.includes('sales') ? 'sales' : email.includes('project') ? 'projects' : 'unknown';
+        await db.execute(sql`
+          INSERT INTO radar_contacts (company_id, email, contact_type, source_url, confidence)
+          SELECT ${postAiDup.duplicateOfId}, ${email}, ${contactType}, ${url}, ${0.6}
+          WHERE NOT EXISTS (SELECT 1 FROM radar_contacts WHERE company_id = ${postAiDup.duplicateOfId} AND email = ${email})
+        `);
+      }
+      await db.execute(sql`DELETE FROM radar_companies WHERE id = ${companyId}`);
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+      return;
+    }
+
     const hasContacts = allEmails.length > 0 || allPhones.length > 0;
     const hasProjects = (aiResult.project_signals || []).length > 0;
     const scoring = calculateOpportunityScore(aiResult, hasContacts, hasProjects);
 
-    const groupId = generateDomainFingerprint(aiResult.company_name || title, companyDomain);
+    const groupId = generateDomainFingerprint(resolvedName, companyDomain);
 
     let companyName = (aiResult.company_name || title)
       .replace(/\s*[-–|:]\s*(Home|Homepage|Official Site|Official Website|Home Page|Welcome|About Us|Contact Us|Services)$/i, '')
@@ -2345,7 +2371,8 @@ router.get('/companies', async (req: Request, res: Response) => {
     if (minScore) conditions.push(`rc.opportunity_score >= ${parseFloat(minScore as string) || 0}`);
     if (search) conditions.push(`(rc.canonical_name ILIKE '%${(search as string).replace(/'/g, "''")}%' OR rc.root_domain ILIKE '%${(search as string).replace(/'/g, "''")}%')`);
 
-    conditions.push(`rc.company_type != 'not_relevant'`);
+    conditions.push(`rc.company_type NOT IN ('not_relevant', 'unclear')`);
+    conditions.push(`rc.overall_confidence >= 0.7`);
 
     if (conditions.length > 0) {
       query += ` AND ${conditions.join(' AND ')}`;
