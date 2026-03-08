@@ -64,6 +64,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'waste oil recycling permit',
       'oil regeneration plant expansion',
       'circular economy waste oil project',
+      'used oil re-refinery investment',
+      'waste oil processing license application',
+      'new base oil re-refining plant announced',
+      'used oil recycling environmental permit',
+      'oil re-refining capacity expansion project',
     ],
   },
   es: {
@@ -91,6 +96,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'licitación reciclaje aceite usado',
       'construcción planta reciclaje aceite',
       'permiso reciclaje aceite residual',
+      'inversión planta re-refinación aceite',
+      'licencia ambiental reciclaje aceite usado',
+      'ampliación capacidad re-refinación aceite',
+      'nueva planta aceite base re-refinado',
     ],
   },
   pt: {
@@ -116,6 +125,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       'licitação reciclagem óleo usado',
       'construção planta reciclagem óleo',
+      'licença ambiental re-refino óleo',
+      'investimento planta re-refino óleo lubrificante',
+      'nova planta óleo base re-refinado',
+      'ampliação capacidade re-refino óleo usado',
+      'projeto reciclagem óleo lubrificante usado',
+      'edital licitação coleta óleo usado',
     ],
   },
   de: {
@@ -140,6 +155,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       'Altöl Recycling Ausschreibung',
       'Altöl Anlage Genehmigung',
+      'Investition Altöl Aufbereitung Anlage',
+      'Umweltgenehmigung Altöl Recycling',
+      'neue Altöl Raffinerie Bau',
+      'Kapazitätserweiterung Altöl Regeneration',
     ],
   },
   fr: {
@@ -163,6 +182,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       'appel offre recyclage huile usagée',
       'permis recyclage huile usagée',
+      'investissement usine re-raffinage huile',
+      'autorisation environnementale recyclage huile',
+      'construction usine régénération huile usagée',
+      'projet nouvelle usine huile de base',
     ],
   },
   tr: {
@@ -186,6 +209,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       'atık yağ geri dönüşüm ihalesi',
       'atık yağ tesisi izni',
+      'atık yağ rafineri yatırım',
+      'çevre izni atık yağ geri dönüşüm',
+      'yeni atık yağ işleme tesisi',
+      'atık yağ kapasite artışı',
     ],
   },
   id: {
@@ -208,6 +235,9 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       'tender daur ulang oli bekas',
       'izin pabrik daur ulang oli',
+      'investasi pabrik re-refining oli bekas',
+      'izin lingkungan daur ulang oli',
+      'proyek pabrik base oil baru',
     ],
   },
   zh: {
@@ -231,6 +261,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       '废油回收招标',
       '废油处理许可证',
+      '废油再生工厂投资',
+      '废油回收环保许可',
+      '新建废油再生基地',
+      '废润滑油处理项目招标',
     ],
   },
   ru: {
@@ -253,6 +287,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     project_signal: [
       'тендер переработка отработанного масла',
       'разрешение переработка масел',
+      'строительство завода регенерации масел',
+      'инвестиции завод переработки отработанного масла',
+      'экологическое разрешение переработка масла',
+      'расширение мощностей регенерации масел',
     ],
   },
   ja: {
@@ -274,6 +312,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     ],
     project_signal: [
       '廃油リサイクル入札',
+      '廃油処理施設許可',
+      '廃油再生プラント建設',
+      '廃油リサイクル環境許可',
+      '新規廃油処理工場投資',
     ],
   },
   ar: {
@@ -295,6 +337,10 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
     ],
     project_signal: [
       'مناقصة إعادة تدوير الزيوت',
+      'ترخيص مصنع إعادة تدوير الزيوت',
+      'استثمار مصنع تكرير الزيوت المستعملة',
+      'تصريح بيئي إعادة تدوير الزيوت',
+      'إنشاء مصنع جديد للزيوت الأساسية',
     ],
   },
   hi: {
