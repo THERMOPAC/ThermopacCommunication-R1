@@ -684,6 +684,21 @@ export default function CampaignsPage() {
               )}
               Diagnose
             </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = '/api/google-ads/design-doc';
+                a.download = 'Google_Ads_API_Design_Document.doc';
+                a.click();
+              }}
+              className="flex items-center gap-2 text-xs"
+            >
+              <BarChart2 className="w-3 h-3" />
+              Download Design Doc
+            </Button>
           </div>
         )}
       </div>
