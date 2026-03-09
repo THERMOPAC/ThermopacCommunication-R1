@@ -335,6 +335,19 @@ const THERMOPAC_PRODUCTS = [
   { value: "All Products", label: "All Products" },
 ];
 
+const COUNTRY_CONTINENT: Record<string, string> = {
+  IN: "APAC", AE: "MEA", SA: "MEA", US: "NA", GB: "EU", DE: "EU", FR: "EU",
+  IT: "EU", ES: "EU", PT: "EU", BR: "LATAM", JP: "APAC", RU: "EU", CN: "APAC",
+  KR: "APAC", AU: "APAC", CA: "NA", ZA: "MEA", NG: "MEA", EG: "MEA",
+  KE: "MEA", ET: "MEA", GH: "MEA", TZ: "MEA", TR: "MEA", KW: "MEA",
+  QA: "MEA", BH: "MEA", OM: "MEA", IQ: "MEA", PK: "APAC", BD: "APAC",
+  LK: "APAC", MY: "APAC", SG: "APAC", ID: "APAC", TH: "APAC", VN: "APAC",
+  PH: "APAC", MX: "LATAM", AR: "LATAM", CO: "LATAM", CL: "LATAM", PE: "LATAM",
+  NL: "EU", BE: "EU", SE: "EU", NO: "EU", DK: "EU", FI: "EU", PL: "EU",
+  CZ: "EU", AT: "EU", CH: "EU", IE: "EU", NZ: "APAC", UZ: "APAC",
+  KZ: "APAC", AZ: "MEA", GE: "EU",
+};
+
 const AVAILABLE_COUNTRIES = [
   { code: "IN", name: "India" },
   { code: "AE", name: "UAE" },
@@ -398,6 +411,31 @@ const AVAILABLE_COUNTRIES = [
   { code: "GE", name: "Georgia" },
 ];
 
+function generateCampaignName(
+  locations: string[],
+  languages: string[],
+  product: string,
+  campaignType: string
+): string {
+  const continents = [...new Set(locations.map(c => COUNTRY_CONTINENT[c] || "GLOBAL"))];
+  const continentPart = continents.length > 2 ? "GLOBAL" : continents.join("-");
+
+  const countryPart = locations.length === 0 ? "ALL"
+    : locations.length <= 3 ? locations.join("-")
+    : `${locations.length}Countries`;
+
+  const langPart = languages.length === 0 ? "All"
+    : languages.length <= 2
+      ? languages.map(c => AVAILABLE_LANGUAGES.find(l => l.code === c)?.name || c).join("-")
+      : `${languages.length}Lang`;
+
+  const productPart = product || "General";
+
+  const typePart = campaignType || "Search";
+
+  return `${continentPart}_${countryPart}_${langPart}_${productPart}_${typePart}`;
+}
+
 const AVAILABLE_LANGUAGES = [
   { code: "en", name: "English" },
   { code: "es", name: "Spanish" },
@@ -413,6 +451,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [dailyBudget, setDailyBudget] = useState("");
   const [channelType, setChannelType] = useState("SEARCH");
   const [startDate, setStartDate] = useState("");
@@ -426,6 +465,12 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [locationSearch, setLocationSearch] = useState("");
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [productFocus, setProductFocus] = useState("");
+
+  useEffect(() => {
+    if (!nameManuallyEdited) {
+      setName(generateCampaignName(selectedLocations, selectedLanguages, productFocus, channelType));
+    }
+  }, [selectedLocations, selectedLanguages, productFocus, channelType, nameManuallyEdited]);
 
   const [aiObjective, setAiObjective] = useState("");
   const [aiProduct, setAiProduct] = useState("");
@@ -517,7 +562,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   });
 
   const resetForm = () => {
-    setStep(1); setName(""); setDailyBudget(""); setStartDate(""); setEndDate("");
+    setStep(1); setName(""); setNameManuallyEdited(false); setDailyBudget(""); setStartDate(""); setEndDate("");
     setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setSelectedLanguages(["en"]);
     setSelectedLocations(["IN"]); setLocationSearch(""); setLocationDropdownOpen(false); setProductFocus("");
     setAiSuggestions(null); setShowAiPanel(false);
@@ -592,11 +637,6 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 </Select>
               </div>
             )}
-
-            <div>
-              <Label className="text-sm font-medium">Campaign Name *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Thermopac - Heat Exchangers - India" className="mt-1" />
-            </div>
 
             <div>
               <Label className="text-sm font-medium">Product / Service Focus</Label>
@@ -740,6 +780,32 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                   })}
                 </div>
               )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-sm font-medium">Campaign Name *</Label>
+                {nameManuallyEdited && (
+                  <button
+                    type="button"
+                    onClick={() => { setNameManuallyEdited(false); setName(generateCampaignName(selectedLocations, selectedLanguages, productFocus, channelType)); }}
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" /> Auto-generate
+                  </button>
+                )}
+              </div>
+              <Input
+                value={name}
+                onChange={(e) => { setName(e.target.value); setNameManuallyEdited(true); }}
+                placeholder="Auto-generated from selections above"
+                className={`${!nameManuallyEdited ? "bg-gray-50 border-dashed" : ""}`}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {nameManuallyEdited
+                  ? "Manually edited. Click \"Auto-generate\" to reset."
+                  : "Format: [Continent]_[Country]_[Language]_[Product]_[CampaignType] — auto-updates as you change selections above."}
+              </p>
             </div>
 
             <div className="border rounded-lg overflow-hidden">
