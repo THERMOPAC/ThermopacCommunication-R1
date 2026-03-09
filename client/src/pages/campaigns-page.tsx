@@ -599,6 +599,21 @@ export default function CampaignsPage() {
     },
   });
 
+  const [diagnosticResult, setDiagnosticResult] = useState<any>(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const runDiagnostic = async () => {
+    setDiagnosticLoading(true);
+    setDiagnosticResult(null);
+    try {
+      const result = await apiRequest("GET", "/api/google-ads/diagnostic");
+      setDiagnosticResult(result);
+    } catch (err: any) {
+      setDiagnosticResult({ error: err.message });
+    } finally {
+      setDiagnosticLoading(false);
+    }
+  };
+
   const lastSync = (syncStatus.data as any[])?.[0];
 
   if (connectionStatus.isLoading) {
@@ -654,9 +669,40 @@ export default function CampaignsPage() {
               )}
               Sync Now
             </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={runDiagnostic}
+              disabled={diagnosticLoading}
+              className="flex items-center gap-2 text-xs"
+            >
+              {diagnosticLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Settings className="w-3 h-3" />
+              )}
+              Diagnose
+            </Button>
           </div>
         )}
       </div>
+
+      {diagnosticResult && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">API Diagnostic Results</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setDiagnosticResult(null)} className="text-xs h-6">Close</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-xs bg-white p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap">
+              {JSON.stringify(diagnosticResult, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
 
       {!isConnected ? (
         <SetupScreen />
