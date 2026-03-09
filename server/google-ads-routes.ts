@@ -330,56 +330,63 @@ router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Respons
     const userId = req.user!.id;
     const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID || '';
     const cleanCustomerId = customerId.replace(/-/g, '');
-    const diagnostics: any = { customerId: cleanCustomerId, tests: [] };
+    const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
+    const diagnostics: any = { customerId: cleanCustomerId, devTokenLength: devToken.length, tests: [] };
 
     const { getValidAccessToken } = await import('./google-ads-auth');
     const accessToken = await getValidAccessToken(userId);
     diagnostics.hasToken = !!accessToken;
+    diagnostics.tokenPreview = accessToken ? accessToken.substring(0, 20) + '...' : 'none';
 
-    for (const version of ['v19', 'v20', 'v18', 'v17']) {
-      try {
-        const testUrl = `https://googleads.googleapis.com/${version}/customers/${cleanCustomerId}/googleAds:search`;
-        const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
-        const headers: Record<string, string> = {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': devToken,
-          'Content-Type': 'application/json',
-        };
-        const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
-        if (loginCustomerId) {
-          headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
+    for (const version of ['v19', 'v18', 'v17']) {
+      for (const endpoint of ['search', 'searchStream']) {
+        try {
+          const testUrl = `https://googleads.googleapis.com/${version}/customers/${cleanCustomerId}/googleAds:${endpoint}`;
+          const headers: Record<string, string> = {
+            'Authorization': `Bearer ${accessToken}`,
+            'developer-token': devToken,
+            'Content-Type': 'application/json',
+          };
+          const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
+          if (loginCustomerId) {
+            headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
+          }
+          const resp = await fetch(testUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ query: 'SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1' }),
+          });
+          const body = await resp.text();
+          diagnostics.tests.push({
+            version,
+            endpoint,
+            status: resp.status,
+            ok: resp.ok,
+            body: body.substring(0, 800),
+          });
+          if (resp.ok) break;
+        } catch (err: any) {
+          diagnostics.tests.push({ version, endpoint, error: err.message });
         }
-        const resp = await fetch(testUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ query: 'SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1' }),
-        });
-        const body = await resp.text();
-        diagnostics.tests.push({
-          version,
-          status: resp.status,
-          ok: resp.ok,
-          body: body.substring(0, 500),
-        });
-      } catch (err: any) {
-        diagnostics.tests.push({ version, error: err.message });
       }
     }
 
-    try {
-      const listUrl = `https://googleads.googleapis.com/v19/customers:listAccessibleCustomers`;
-      const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
-      const resp = await fetch(listUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'developer-token': devToken,
-        },
-      });
-      const body = await resp.text();
-      diagnostics.listAccessible = { status: resp.status, body: body.substring(0, 500) };
-    } catch (err: any) {
-      diagnostics.listAccessible = { error: err.message };
+    for (const version of ['v19', 'v18', 'v17']) {
+      try {
+        const listUrl = `https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`;
+        const resp = await fetch(listUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'developer-token': devToken,
+          },
+        });
+        const body = await resp.text();
+        diagnostics[`listAccessible_${version}`] = { status: resp.status, body: body.substring(0, 500) };
+        if (resp.ok) break;
+      } catch (err: any) {
+        diagnostics[`listAccessible_${version}`] = { error: err.message };
+      }
     }
 
     res.json(diagnostics);
