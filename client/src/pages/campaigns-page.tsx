@@ -489,7 +489,11 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     onSuccess: (data: any) => {
       setAiSuggestions(data);
       if (data.campaignName && !name) setName(data.campaignName);
-      if (data.dailyBudget?.recommended && !dailyBudget) setDailyBudget(String(data.dailyBudget.recommended));
+      if (data.budgetAnalysis?.recommendedDailyBudget && !dailyBudget) {
+        setDailyBudget(String(data.budgetAnalysis.recommendedDailyBudget));
+      } else if (data.dailyBudget?.recommended && !dailyBudget) {
+        setDailyBudget(String(data.dailyBudget.recommended));
+      }
       if (data.biddingStrategy?.recommended) {
         const rec = data.biddingStrategy.recommended;
         const strategies = BIDDING_STRATEGIES[channelType]?.strategies || [];
@@ -882,8 +886,18 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                               </ul>
                             </div>
                           )}
+                          {aiSuggestions.productInsights.competitiveAdvantages && (
+                            <div className="mb-1">
+                              <p className="text-xs font-medium text-indigo-700">Competitive Advantages:</p>
+                              <ul className="text-xs text-indigo-600 space-y-0.5">
+                                {aiSuggestions.productInsights.competitiveAdvantages.map((ca: string, i: number) => (
+                                  <li key={i}>- {ca}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           {aiSuggestions.productInsights.targetBuyerPersonas && (
-                            <div>
+                            <div className="mb-1">
                               <p className="text-xs font-medium text-indigo-700">Target Buyers:</p>
                               <ul className="text-xs text-indigo-600 space-y-0.5">
                                 {aiSuggestions.productInsights.targetBuyerPersonas.map((p: string, i: number) => (
@@ -892,6 +906,27 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                               </ul>
                             </div>
                           )}
+                          {aiSuggestions.productInsights.projectValue && (
+                            <p className="text-xs text-indigo-700 font-medium">Deal Value: {aiSuggestions.productInsights.projectValue}</p>
+                          )}
+                        </div>
+                      )}
+                      {aiSuggestions.budgetAnalysis && (
+                        <div className={`border rounded p-2 ${aiSuggestions.budgetAnalysis.isAdequate ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                          <p className={`text-xs font-medium mb-1 ${aiSuggestions.budgetAnalysis.isAdequate ? 'text-green-800' : 'text-red-800'}`}>
+                            Budget Analysis {!aiSuggestions.budgetAnalysis.isAdequate && '- INCREASE RECOMMENDED'}
+                          </p>
+                          <div className="text-xs space-y-0.5">
+                            <p className={aiSuggestions.budgetAnalysis.isAdequate ? 'text-green-700' : 'text-red-700'}>
+                              Your budget: INR {aiSuggestions.budgetAnalysis.userBudget}/mo | Recommended: INR {aiSuggestions.budgetAnalysis.recommendedMonthlyBudget}/mo (INR {aiSuggestions.budgetAnalysis.recommendedDailyBudget}/day)
+                            </p>
+                            <p className={aiSuggestions.budgetAnalysis.isAdequate ? 'text-green-600' : 'text-red-600'}>{aiSuggestions.budgetAnalysis.reason}</p>
+                            {aiSuggestions.budgetAnalysis.expectedClicksPerDay && (
+                              <p className={aiSuggestions.budgetAnalysis.isAdequate ? 'text-green-600' : 'text-red-600'}>
+                                Expected: {aiSuggestions.budgetAnalysis.expectedClicksPerDay} clicks/day | {aiSuggestions.budgetAnalysis.expectedClicksPerMonth} clicks/mo
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                       {aiSuggestions.biddingStrategy && (
@@ -921,12 +956,34 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                       )}
                       {aiSuggestions.expectedPerformance && (
                         <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
-                          <p className="text-xs font-medium text-emerald-800 mb-1">Expected Performance:</p>
+                          <p className="text-xs font-medium text-emerald-800 mb-1">Expected Performance & ROI:</p>
                           <div className="grid grid-cols-2 gap-1 text-xs text-emerald-700">
                             {aiSuggestions.expectedPerformance.estimatedCtr && <p>CTR: {aiSuggestions.expectedPerformance.estimatedCtr}</p>}
                             {aiSuggestions.expectedPerformance.estimatedCpc && <p>CPC: {aiSuggestions.expectedPerformance.estimatedCpc}</p>}
                             {aiSuggestions.expectedPerformance.estimatedLeadsPerMonth && <p>Leads/mo: {aiSuggestions.expectedPerformance.estimatedLeadsPerMonth}</p>}
+                            {aiSuggestions.expectedPerformance.estimatedCostPerLead && <p>Cost/Lead: {aiSuggestions.expectedPerformance.estimatedCostPerLead}</p>}
+                            {aiSuggestions.expectedPerformance.estimatedDealValue && <p>Deal Value: {aiSuggestions.expectedPerformance.estimatedDealValue}</p>}
                             {aiSuggestions.expectedPerformance.timeToOptimize && <p>Optimize: {aiSuggestions.expectedPerformance.timeToOptimize}</p>}
+                          </div>
+                          {aiSuggestions.expectedPerformance.roiAnalysis && (
+                            <p className="text-xs text-emerald-600 mt-1 italic">{aiSuggestions.expectedPerformance.roiAnalysis}</p>
+                          )}
+                        </div>
+                      )}
+                      {aiSuggestions.deviceStrategy && (
+                        <div className="bg-slate-50 border border-slate-200 rounded p-2">
+                          <p className="text-xs font-medium text-slate-800 mb-0.5">Device Strategy:</p>
+                          <p className="text-xs text-slate-700">Desktop: {aiSuggestions.deviceStrategy.desktop} | Mobile: {aiSuggestions.deviceStrategy.mobile}</p>
+                          {aiSuggestions.deviceStrategy.recommendation && <p className="text-xs text-slate-600 italic">{aiSuggestions.deviceStrategy.recommendation}</p>}
+                        </div>
+                      )}
+                      {aiSuggestions.geographicExpansion && aiSuggestions.geographicExpansion.length > 0 && (
+                        <div className="bg-cyan-50 border border-cyan-200 rounded p-2">
+                          <p className="text-xs font-medium text-cyan-800 mb-0.5">Geographic Expansion Opportunities:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {aiSuggestions.geographicExpansion.map((geo: string, i: number) => (
+                              <span key={i} className="text-[10px] bg-cyan-100 text-cyan-700 rounded px-1.5 py-0.5 border border-cyan-200">{geo}</span>
+                            ))}
                           </div>
                         </div>
                       )}

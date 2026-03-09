@@ -752,10 +752,14 @@ router.post('/ai/campaign-suggestions', ensureAuthenticated, async (req: Request
     let pageContent = '';
     if (landingUrl) {
       try {
-        console.log(`[GoogleAds AI] Crawling landing page: ${landingUrl}`);
+        let crawlUrl = landingUrl;
+        if (!crawlUrl.startsWith('http://') && !crawlUrl.startsWith('https://')) {
+          crawlUrl = 'https://' + crawlUrl;
+        }
+        console.log(`[GoogleAds AI] Crawling landing page: ${crawlUrl}`);
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
-        const response = await fetch(landingUrl, {
+        const response = await fetch(crawlUrl, {
           signal: controller.signal,
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ThermopacBot/1.0)' },
         });
@@ -787,12 +791,12 @@ router.post('/ai/campaign-suggestions', ensureAuthenticated, async (req: Request
     const langCodes = languageCodes || ['en'];
     const isMultilingual = langCodes.length > 1;
 
-    const prompt = `You are an elite Google Ads strategist for THERMOPAC, an industrial manufacturing company. Your job is to create a HIGHLY EFFECTIVE, INTELLIGENT campaign that maximizes ROI.
+    const prompt = `You are an expert Google Ads strategist specializing in HIGH-VALUE INDUSTRIAL EPC (Engineering, Procurement, Construction) equipment campaigns. You are NOT creating a generic campaign — you are building a campaign for capital equipment worth $500K - $5M+ per project.
 
-COMPANY: THERMOPAC manufactures:
-- Re-refining Plants (used oil recycling into base oil)
-- Lube Oil Blending Plants (base oil blending into lubricants)
-- Regenerative Media Based Polishing Systems (advanced filtration/purification)
+COMPANY: THERMOPAC is a globally recognized EPC company with 31+ plants across 5 continents. They manufacture:
+- Re-refining Plants: Skid-mounted, continuous, fully automated used oil recycling plants that convert waste oil into Group I/II/III base oil. 99.5% recovery rate. Turnkey EPC solutions. Modular, expandable designs. Capacities from 10 TPD to 300 TPD.
+- Lube Oil Blending Plants: Automated blending systems for producing finished lubricants from base oils. Inline blending, batch blending, simultaneous operations.
+- Regenerative Media Based Polishing Systems: Advanced clay-free polishing technology for base oil color improvement and purification.
 
 CAMPAIGN PARAMETERS:
 - Campaign type: ${campaignType || 'SEARCH'}
@@ -810,25 +814,47 @@ EXISTING ACCOUNT DATA:
 - Campaigns: ${JSON.stringify(existingCampaigns.rows?.slice(0, 10) || [])}
 - Keywords: ${JSON.stringify(existingKeywords.rows?.slice(0, 20) || [])}
 
-YOUR TASK: Generate a complete, production-ready campaign strategy. Be extremely specific to the product "${product}".
+YOUR TASK: Generate an EXPERT-LEVEL, production-ready campaign for "${product}". This is a high-value industrial EPC product — NOT consumer goods.
+
+CRITICAL CONTEXT FOR HIGH-VALUE EPC CAMPAIGNS:
+1. BUDGET REALITY: For industrial B2B in international markets, CPC ranges from INR 130-550 (EUR 1.5-6). The user's budget of INR ${monthlyBudget || '15000'}/month may be too low. If so, recommend a higher budget (e.g., INR 45000-75000/month = INR 1500-2500/day) and explain WHY — more clicks = more leads for $1M+ projects where even 1 lead is valuable.
+2. KEYWORD QUALITY: Do NOT use generic research keywords. Use BUYER-INTENT keywords that investors, plant owners, and procurement managers actually search. Examples of BAD keywords: "beneficios planta reciclaje", "eficiencia planta". Examples of GOOD keywords: "planta reciclaje aceite usado", "proveedor planta re-refinacion aceite", "used oil recycling plant manufacturer", "buy re-refining plant".
+3. KEYWORD VOLUME: Each ad group MUST have 10-20 keywords with mixed match types. 3 keywords per ad group is far too few for industrial campaigns.
+4. AD COPY: Must show TECHNICAL CREDIBILITY and ENGINEERING expertise. Include specific numbers (99.5% recovery, 31+ plants globally, 5 continents). Avoid generic phrases like "tecnología avanzada" — use specifics like "Recuperación 85% Aceite Base" or "Planta EPC Llave en Mano".
+5. NEGATIVE KEYWORDS: Must be COMPREHENSIVE. Include both English AND local-language negatives. Must block: jobs/employment, salary, courses/training, DIY/homemade, PDF/downloads, students, price-of-oil queries, collectors, how-to queries.
+6. AD SCHEDULE: Do NOT restrict to business hours initially. Run 24/7 for first 30 days to gather data, then optimize based on actual conversion times.
+7. HEADLINES: Must communicate EPC credibility. Use numbers, technical specs, and authority signals. Example: "Planta Re-Refinación Aceite" not "Tecnología avanzada hoy". Include at least 10-15 headlines per ad group.
+8. DESCRIPTIONS: Must be engineering-focused. Example: "Tecnología avanzada para regenerar aceite lubricante usado en aceite base de alta calidad" NOT "Convierte aceite usado en nuevo".
+9. PERFORMANCE EXPECTATIONS: Be realistic for industrial EPC. CTR: 3-6%, CPC: INR 150-450, Leads: 3-8/month. Even 1 EPC project lead can justify the entire annual ad spend.
+10. GEOGRAPHIC EXPANSION: If targeting Spanish-speaking markets, consider recommending expansion to Latin American countries (Mexico, Chile, Peru, Colombia, Argentina) where there are more investors in oil recycling.
+11. DEVICE TARGETING: Recommend desktop priority (~70%) since industrial buyers research on desktop. Include mobile (~30%) but note desktop converts better for EPC.
 
 ${isMultilingual ? `CRITICAL - MULTILINGUAL CAMPAIGN REQUIRED:
 Target languages are: ${targetLangs}
-KEYWORDS: Generate keywords in ALL target languages. For each ad group, include keywords that local buyers would actually search in their native language. For example, if targeting Spanish, include "planta de re-refinación de aceite", not just English terms. Mix English and local-language keywords since some buyers search in English even in non-English countries.
-AD COPY: For EACH ad group, provide headlines and descriptions in ALL target languages using the "multilingualCopy" field. Use native-speaker quality — not literal translations. Adapt messaging to cultural context of each target market.` : `LANGUAGE NOTE: Target language is ${targetLangs}. ${langCodes[0] !== 'en' ? `Generate ALL keywords in ${targetLangs} — these are what local buyers will search for. Also include a few English keywords since some B2B buyers search in English. Headlines and descriptions must be in ${targetLangs}.` : 'Generate keywords in English.'}`}
+KEYWORDS: Generate keywords in ALL target languages. Use BUYER-INTENT terms that investors/plant owners would actually search in their native language. Mix with English keywords since some B2B buyers search in English globally.
+AD COPY: For EACH ad group, provide headlines and descriptions in ALL target languages using the "multilingualCopy" field. Use native-speaker quality with technical/engineering vocabulary, not generic translations.` : `LANGUAGE NOTE: Target language is ${targetLangs}. ${langCodes[0] !== 'en' ? `Generate ALL keywords in ${targetLangs} using terms that BUYERS/INVESTORS actually search (not researchers/students). Also include English keywords since B2B industrial buyers often search in English. Headlines and descriptions must be in ${targetLangs} with technical credibility.` : 'Generate keywords in English with buyer intent focus.'}`}
 
 Respond in JSON:
 {
   "campaignName": "use format [Continent]_[Country]_[Language]_[Product]_[Type]",
+  "budgetAnalysis": {
+    "userBudget": ${monthlyBudget || 15000},
+    "isAdequate": true/false,
+    "recommendedMonthlyBudget": number in INR,
+    "recommendedDailyBudget": number in INR,
+    "reason": "explain CPC reality in target geography and why budget needs adjustment",
+    "expectedClicksPerDay": "range at recommended budget",
+    "expectedClicksPerMonth": "range at recommended budget"
+  },
   "biddingStrategy": {
     "recommended": "MANUAL_CPC | MAXIMIZE_CLICKS | MAXIMIZE_CONVERSIONS | TARGET_CPA | TARGET_ROAS | TARGET_CPV | TARGET_CPM",
-    "reason": "detailed justification based on account maturity and product type",
+    "reason": "detailed justification based on account maturity and EPC product type",
     "targetValue": null or number,
-    "phaseStrategy": "what to do after 30 days / 50 conversions"
+    "phaseStrategy": "transition plan with specific milestone (e.g., after 50 conversions switch to TARGET_CPA)"
   },
   "dailyBudget": {
-    "recommended": number,
-    "reason": "budget justification considering CPC in target geography for industrial keywords"
+    "recommended": number in INR (realistic for industrial B2B),
+    "reason": "CPC-based justification with click volume analysis"
   },
   "adGroups": [
     {
@@ -836,47 +862,58 @@ Respond in JSON:
       "theme": "what buyer intent this targets",
       "buyerStage": "awareness | consideration | decision",
       "keywords": [
-        {"text": "keyword in target language", "matchType": "BROAD|PHRASE|EXACT", "language": "language code (en/es/ar/etc)", "reason": "why this keyword drives qualified traffic", "estimatedCpc": "estimated CPC range"}
+        {"text": "buyer-intent keyword", "matchType": "BROAD|PHRASE|EXACT", "language": "language code", "reason": "why an investor/buyer would search this", "estimatedCpc": "CPC range in INR"}
       ],
-      "negativeKeywords": ["irrelevant terms to block"],
-      "headlines": ["15 headlines max 30 chars each - primary language"],
-      "descriptions": ["4 descriptions max 90 chars each - primary language"],
+      "negativeKeywords": ["comprehensive list in both English AND target language"],
+      "headlines": ["10-15 headlines max 30 chars - must show technical credibility"],
+      "descriptions": ["4 descriptions max 90 chars - engineering-focused, specific numbers"],
       ${isMultilingual ? `"multilingualCopy": {
         "languageName": {
-          "headlines": ["15 headlines in that language, max 30 chars"],
-          "descriptions": ["4 descriptions in that language, max 90 chars"]
+          "headlines": ["10-15 headlines in that language, max 30 chars, technical"],
+          "descriptions": ["4 descriptions in that language, max 90 chars, engineering-focused"]
         }
       },` : ''}
       "landingPageSuggestion": "specific page or section to link to"
     }
   ],
   "productInsights": {
-    "uniqueSellingPoints": ["USPs extracted from landing page"],
-    "competitiveAdvantages": ["what makes THERMOPAC stand out"],
-    "targetBuyerPersonas": ["who buys this product and why"]
+    "uniqueSellingPoints": ["technical USPs from landing page - specific numbers and capabilities"],
+    "competitiveAdvantages": ["what makes THERMOPAC stand out vs competitors"],
+    "targetBuyerPersonas": ["specific buyer types: investors, plant owners, procurement managers, EPC contractors"],
+    "projectValue": "estimated deal size range for this product"
   },
-  "audienceSignals": ["in-market audiences", "custom intent audiences", "affinity audiences"],
-  "scheduleRecommendation": "optimal ad schedule for target geography with timezone consideration",
-  "optimizationTips": ["actionable optimization advice specific to this product and market"],
-  "avoidKeywords": ["account-level negatives to prevent waste spend"],
+  "audienceSignals": ["in-market audiences for industrial equipment", "custom intent audiences"],
+  "deviceStrategy": {
+    "desktop": "percentage and reason",
+    "mobile": "percentage and reason",
+    "recommendation": "which device to prioritize"
+  },
+  "geographicExpansion": ["additional countries/regions to consider beyond current targeting"],
+  "scheduleRecommendation": "run 24/7 initially for 30 days, then optimize based on conversion data",
+  "optimizationTips": ["expert-level optimization advice specific to high-value EPC campaigns"],
+  "avoidKeywords": ["comprehensive account-level negatives in both English AND target language"],
   "expectedPerformance": {
-    "estimatedCtr": "expected CTR range",
-    "estimatedCpc": "expected CPC range in INR",
-    "estimatedLeadsPerMonth": "realistic lead estimate",
-    "timeToOptimize": "how long before meaningful data"
+    "estimatedCtr": "realistic CTR for industrial EPC (3-6%)",
+    "estimatedCpc": "realistic CPC range in INR for target geography",
+    "estimatedLeadsPerMonth": "realistic lead estimate for EPC",
+    "estimatedCostPerLead": "expected cost per qualified lead",
+    "estimatedDealValue": "typical project value if lead converts",
+    "roiAnalysis": "brief ROI justification (ad spend vs potential deal value)",
+    "timeToOptimize": "realistic timeline"
   }
 }
 
-RULES:
-- Headlines MUST be 30 characters or less (count carefully!)
+STRICT RULES:
+- Headlines MUST be 30 characters or less (COUNT EVERY CHARACTER including spaces)
 - Descriptions MUST be 90 characters or less
-- Use power words from landing page content when available
-- Include buyer-intent keywords specific to "${product}" (not generic industrial terms)
-- Create 3-5 ad groups organized by buyer journey stage
-- Each ad group: 10-15 keywords with mixed match types
-- Block irrelevant traffic: jobs, salary, PDF, free, DIY, training, course, internship
-- For B2B industrial: expect longer sales cycles, higher CPA (INR 500-2000), lower volume but higher value
-- If no conversion data exists, start with MANUAL_CPC to control costs while gathering data`;
+- Each ad group MUST have 10-20 keywords with mixed match types (BROAD, PHRASE, EXACT)
+- Keywords must be BUYER-INTENT, not research/educational queries
+- Negative keywords must be in BOTH English AND the target language
+- Ad copy must demonstrate ENGINEERING CREDIBILITY with specific numbers
+- Budget recommendation must be REALISTIC for industrial B2B (not just divide monthly by 30)
+- Create 3-5 ad groups: awareness (technology/industry), consideration (comparison/features), decision (buy/supplier/quote)
+- For EPC campaigns: 1 qualified lead can be worth $500K-$5M — budget accordingly
+- If user's budget is too low, say so clearly and recommend a higher amount with justification`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
