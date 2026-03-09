@@ -1,6 +1,6 @@
 import { getValidAccessToken } from './google-ads-auth';
 
-const GOOGLE_ADS_API_VERSION = 'v18';
+const GOOGLE_ADS_API_VERSION = 'v17';
 const GOOGLE_ADS_BASE_URL = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;
 
 interface GaqlResponse {
@@ -76,10 +76,17 @@ export async function executeGaql(
         let errorMessage = `Google Ads API error (${response.status})`;
         try {
           const parsed = JSON.parse(errorBody);
-          if (parsed[0]?.error?.message) {
+          if (Array.isArray(parsed) && parsed[0]?.error?.message) {
             errorMessage = parsed[0].error.message;
+          } else if (parsed?.error?.message) {
+            errorMessage = parsed.error.message;
+          } else if (parsed?.error?.status) {
+            errorMessage = `${parsed.error.status}: ${parsed.error.message || errorBody.substring(0, 200)}`;
           }
-        } catch {}
+        } catch {
+          errorMessage = `Google Ads API error (${response.status}): ${errorBody.substring(0, 300)}`;
+        }
+        console.error(`[GoogleAds] Full error details:`, errorMessage);
         throw new Error(errorMessage);
       }
 
