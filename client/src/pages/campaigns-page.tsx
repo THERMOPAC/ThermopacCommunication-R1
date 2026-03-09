@@ -1096,6 +1096,16 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                           </ul>
                         </div>
                       )}
+                      {aiSuggestions.avoidKeywords && aiSuggestions.avoidKeywords.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded p-2">
+                          <p className="text-xs font-medium text-red-800 mb-0.5">Account-Level Negative Keywords:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {aiSuggestions.avoidKeywords.map((nk: string, i: number) => (
+                              <span key={i} className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 border border-red-200">-{nk}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {aiSuggestions.scheduleRecommendation && (
                         <div className="bg-gray-50 border border-gray-200 rounded p-2">
                           <p className="text-xs"><span className="font-medium">Schedule:</span> {aiSuggestions.scheduleRecommendation}</p>

@@ -817,17 +817,19 @@ EXISTING ACCOUNT DATA:
 YOUR TASK: Generate an EXPERT-LEVEL, production-ready campaign for "${product}". This is a high-value industrial EPC product — NOT consumer goods.
 
 CRITICAL CONTEXT FOR HIGH-VALUE EPC CAMPAIGNS:
-1. BUDGET REALITY: For industrial B2B in international markets, CPC ranges from INR 130-550 (EUR 1.5-6). The user's budget of INR ${monthlyBudget || '15000'}/month may be too low. If so, recommend a higher budget (e.g., INR 45000-75000/month = INR 1500-2500/day) and explain WHY — more clicks = more leads for $1M+ projects where even 1 lead is valuable.
-2. KEYWORD QUALITY: Do NOT use generic research keywords. Use BUYER-INTENT keywords that investors, plant owners, and procurement managers actually search. Examples of BAD keywords: "beneficios planta reciclaje", "eficiencia planta". Examples of GOOD keywords: "planta reciclaje aceite usado", "proveedor planta re-refinacion aceite", "used oil recycling plant manufacturer", "buy re-refining plant".
-3. KEYWORD VOLUME: Each ad group MUST have 10-20 keywords with mixed match types. 3 keywords per ad group is far too few for industrial campaigns.
-4. AD COPY: Must show TECHNICAL CREDIBILITY and ENGINEERING expertise. Include specific numbers (99.5% recovery, 31+ plants globally, 5 continents). Avoid generic phrases like "tecnología avanzada" — use specifics like "Recuperación 85% Aceite Base" or "Planta EPC Llave en Mano".
-5. NEGATIVE KEYWORDS: Must be COMPREHENSIVE. Include both English AND local-language negatives. Must block: jobs/employment, salary, courses/training, DIY/homemade, PDF/downloads, students, price-of-oil queries, collectors, how-to queries.
-6. AD SCHEDULE: Do NOT restrict to business hours initially. Run 24/7 for first 30 days to gather data, then optimize based on actual conversion times.
-7. HEADLINES: Must communicate EPC credibility. Use numbers, technical specs, and authority signals. Example: "Planta Re-Refinación Aceite" not "Tecnología avanzada hoy". Include at least 10-15 headlines per ad group.
-8. DESCRIPTIONS: Must be engineering-focused. Example: "Tecnología avanzada para regenerar aceite lubricante usado en aceite base de alta calidad" NOT "Convierte aceite usado en nuevo".
-9. PERFORMANCE EXPECTATIONS: Be realistic for industrial EPC. CTR: 3-6%, CPC: INR 150-450, Leads: 3-8/month. Even 1 EPC project lead can justify the entire annual ad spend.
-10. GEOGRAPHIC EXPANSION: If targeting Spanish-speaking markets, consider recommending expansion to Latin American countries (Mexico, Chile, Peru, Colombia, Argentina) where there are more investors in oil recycling.
-11. DEVICE TARGETING: Recommend desktop priority (~70%) since industrial buyers research on desktop. Include mobile (~30%) but note desktop converts better for EPC.
+1. BIDDING STRATEGY — CRITICAL: With ZERO conversion data, you MUST recommend MANUAL_CPC or MAXIMIZE_CLICKS. NEVER recommend MAXIMIZE_CONVERSIONS or TARGET_CPA for a new account — Google's algorithm needs 30-50 conversions first. Phase plan: Start MANUAL_CPC → after 30-50 conversions switch to TARGET_CPA.
+2. BUDGET REALITY: For industrial B2B in international markets, CPC ranges from INR 130-550 (EUR 1.5-6). The user's budget of INR ${monthlyBudget || '15000'}/month may be too low. If so, recommend a higher budget (e.g., INR 45000-75000/month = INR 1500-2500/day) and explain WHY — more clicks = more leads for $1M+ projects where even 1 lead is valuable.
+3. KEYWORD QUALITY: Do NOT use generic research keywords. Use BUYER-INTENT keywords that investors, plant owners, and procurement managers actually search. Examples of BAD keywords: "beneficios planta reciclaje", "eficiencia planta". Examples of GOOD keywords: "planta reciclaje aceite usado", "proveedor planta re-refinacion aceite", "used oil recycling plant manufacturer", "buy re-refining plant".
+4. KEYWORD VOLUME — CRITICAL: The TOTAL campaign must have AT LEAST 20-30 keywords across all ad groups. Each ad group MUST have 7-12 keywords with mixed match types. 3-4 keywords per ad group is far too few — Google cannot explore enough search terms. For Spanish campaigns, include keywords like: "planta regeneracion aceite lubricante", "tecnologia regeneracion aceite usado", "planta destilacion aceite usado", "planta reciclaje aceite industrial", "proveedor planta regeneracion aceite", "maquina reciclaje aceite lubricante", "planta regeneracion aceite industrial". Also include a "Recycler Upgrade" ad group targeting existing waste oil collection companies who want to upgrade to re-refining: "empresas reciclaje aceite usado", "empresa gestion aceite usado", "recoleccion aceite usado empresa".
+5. AD COPY: Must show TECHNICAL CREDIBILITY and ENGINEERING expertise. Include specific numbers (99.5% recovery, 31+ plants globally, 5 continents, TWFE technology). Avoid generic phrases like "tecnología avanzada" — use specifics like "Recuperación 99.5% Aceite Base" or "Planta EPC Llave en Mano" or "Tecnología TWFE Avanzada".
+6. NEGATIVE KEYWORDS — IMPORTANT: Must be COMPREHENSIVE in both English AND target language. MUST block: jobs/empleo, salary/salario, courses/curso, training/entrenamiento, DIY/casero, PDF, students/estudiantes, how-to/como hacer, manual, que es. NEVER add "price"/"precio" as a negative keyword — many serious investors search "precio planta reciclaje aceite usado" and those are qualified buyers.
+7. AD SCHEDULE: Do NOT restrict to business hours initially. Run 24/7 for first 30 days to gather data, then optimize based on actual conversion times. Many industrial searches happen in evenings and early mornings.
+8. HEADLINES: Must communicate EPC credibility. Use numbers, technical specs, and authority signals. Example: "31+ Plantas Globales", "99.5% Recuperación Aceite", "EPC Llave en Mano", "Tecnología TWFE Avanzada". Include at least 10-15 headlines per ad group.
+9. DESCRIPTIONS: Must be engineering-focused with specific technology names. Example: "Tecnología TWFE para regenerar aceite lubricante usado en aceite base de alta calidad" NOT "Convierte aceite usado en nuevo". "Plantas EPC completas para reciclaje industrial de aceite usado" NOT "Solución de reciclaje".
+10. PERFORMANCE EXPECTATIONS: Be realistic for industrial EPC. CTR: 3-6%, CPC: INR 150-450, Leads: 3-8/month. Even 1 EPC project lead can justify the entire annual ad spend.
+11. GEOGRAPHIC EXPANSION: If targeting Spanish-speaking markets, recommend expansion to Latin American countries (Mexico, Chile, Peru, Colombia, Argentina) — fastest-growing regions for used oil recycling plants.
+12. DEVICE TARGETING: Note that desktop converts better (~70%) but do NOT force device bid adjustments initially. Let Google learn for 30 days, then optimize based on data.
+13. FUTURE REMARKETING: Mention that after the search campaign gathers data, Display and YouTube remarketing should be added to retarget website visitors. Remarketing increases conversions 3-5x for EPC campaigns.
 
 ${isMultilingual ? `CRITICAL - MULTILINGUAL CAMPAIGN REQUIRED:
 Target languages are: ${targetLangs}
@@ -847,10 +849,10 @@ Respond in JSON:
     "expectedClicksPerMonth": "range at recommended budget"
   },
   "biddingStrategy": {
-    "recommended": "MANUAL_CPC | MAXIMIZE_CLICKS | MAXIMIZE_CONVERSIONS | TARGET_CPA | TARGET_ROAS | TARGET_CPV | TARGET_CPM",
-    "reason": "detailed justification based on account maturity and EPC product type",
-    "targetValue": null or number,
-    "phaseStrategy": "transition plan with specific milestone (e.g., after 50 conversions switch to TARGET_CPA)"
+    "recommended": "MANUAL_CPC (ALWAYS for new accounts with zero conversions)",
+    "reason": "with no conversion data, MANUAL_CPC gives cost control while gathering data. NEVER use MAXIMIZE_CONVERSIONS on a new account.",
+    "targetValue": null,
+    "phaseStrategy": "Phase 1: MANUAL_CPC for first 30 days. Phase 2: After 30-50 conversions, switch to TARGET_CPA for automated optimization."
   },
   "dailyBudget": {
     "recommended": number in INR (realistic for industrial B2B),
@@ -907,13 +909,19 @@ STRICT RULES:
 - Headlines MUST be 30 characters or less (COUNT EVERY CHARACTER including spaces)
 - Descriptions MUST be 90 characters or less
 - Each ad group MUST have 10-20 keywords with mixed match types (BROAD, PHRASE, EXACT)
+- BIDDING: ALWAYS recommend MANUAL_CPC for accounts with zero conversions. NEVER suggest MAXIMIZE_CONVERSIONS or TARGET_CPA without conversion history
 - Keywords must be BUYER-INTENT, not research/educational queries
-- Negative keywords must be in BOTH English AND the target language
-- Ad copy must demonstrate ENGINEERING CREDIBILITY with specific numbers
+- MINIMUM 20-30 keywords total across all ad groups. Each ad group must have 7-12 keywords
+- NEVER add "price" or "precio" as negative keywords — investors search pricing queries
+- Negative keywords must be in BOTH English AND the target language (jobs/empleo, salary/salario, curso, DIY/casero, PDF, estudiantes, como hacer, que es, manual)
+- Ad copy must demonstrate ENGINEERING CREDIBILITY with specific numbers and technology names (TWFE, 99.5%, 31+ plants)
+- Descriptions must use engineering language, not generic phrases. Reference specific technology (TWFE) and capabilities
 - Budget recommendation must be REALISTIC for industrial B2B (not just divide monthly by 30)
-- Create 3-5 ad groups: awareness (technology/industry), consideration (comparison/features), decision (buy/supplier/quote)
+- Create 4-5 ad groups: awareness (technology/industry), consideration (comparison/features), decision (buy/supplier/quote), recycler-upgrade (existing waste oil companies wanting to upgrade)
 - For EPC campaigns: 1 qualified lead can be worth $500K-$5M — budget accordingly
-- If user's budget is too low, say so clearly and recommend a higher amount with justification`;
+- If user's budget is too low, say so clearly and recommend a higher amount with justification
+- Device strategy: observe desktop vs mobile but do NOT force bid adjustments initially — let Google learn for 30 days
+- Mention remarketing as a future phase recommendation (Display + YouTube remarketing after gathering initial search data)`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
