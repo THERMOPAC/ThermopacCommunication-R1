@@ -997,6 +997,12 @@ CRITICAL CLASSIFICATION RULES:
 10. If a URL points to a PDF document (SDS, TDS, permit, license), analyze the title and snippet carefully — they typically contain the issuing company name and product type. The company that published the SDS/TDS is the one to classify.
 11. TRADE FLOW SIGNALS: If the source contains import/export customs data, trade records, HS code 2710 shipments, or bill-of-lading data, extract the IMPORTER and EXPORTER company names. Companies importing waste oil or exporting re-refined base oil are very likely plant operators or major traders connected to re-refining plants. Set is_likely_epc_target=true for companies importing large volumes of waste oil (they likely need processing capacity).
 12. TRADE SHOW SIGNALS: If the source is a trade show exhibitor directory or conference participant list (IFAT, Ecomondo, Pollutec, UNITI, ICIS, Lubricant Expo, ADIPEC, etc.), the companies listed are pre-qualified industry participants. Extract their names, descriptions, and booth/stand info. These are high-confidence leads — set classification_confidence to 0.90+ for exhibitors at relevant industry events.
+13. CONSULTING/FEASIBILITY COMPANIES: Companies that SELL feasibility studies, business plans, or project consulting (e.g. "start an oil recycling plant" guides, "cost of oil recycling factory" reports) are NOT actual recyclers. They are consulting firms. Classify as "not_relevant". Look for clues: "feasibility study", "business plan", "project cost", "how to start", "مشروع" (project/business plan in Arabic), "estudio de factibilidad", "دراسة جدوى" (feasibility study in Arabic).
+14. EQUIPMENT MANUFACTURERS: Companies that manufacture recycling equipment, machinery, boilers, reactors, or distillation units but do NOT operate recycling plants themselves should be classified as "not_relevant". They sell equipment TO recyclers but are not recyclers. Examples: filtration system makers, distillation equipment sellers, pyrolysis reactor manufacturers.
+15. SHIPBUILDERS & MARINE: Companies that build ships, barges, or marine vessels (even waste oil collection vessels) are NOT oil recyclers. Classify as "not_relevant".
+16. NGOs/FOUNDATIONS/ASSOCIATIONS: Industry associations, awareness foundations, and NGOs that promote recycling but do NOT actually collect or process oil should be classified as "not_relevant". They are advocacy bodies, not commercial operators.
+17. COUNTRY ACCURACY: The "country" and "iso_code" fields must reflect WHERE THE COMPANY ACTUALLY OPERATES, not where the Google search was targeted. If a Saudi Arabia search finds a company based in Egypt, set country to "Egypt" and iso_code to "EG". Look for headquarters location, registered address, and operational base.
+18. BRAND STORES & RETAILERS: Consumer product companies (Nike, Dyson, Clarins, YSL, Amazon, Jaguar, etc.), luxury brands, cosmetics, electronics, automotive showrooms, and e-commerce sites are always "not_relevant" regardless of any keyword matches.
 
 Respond with JSON:
 {
@@ -1331,7 +1337,26 @@ async function processDiscoveryResult(
       'ifat.de', 'ecomondo.com', 'pollutec.com', 'uniti.de', 'icis.com',
       'lubricantexpo.com', 'adipec.com', 'tradekey.com', 'indiamart.com',
       'made-in-china.com', 'globalsources.com', 'thomasnet.com',
-      'bayut.com', 'propertyfinder.ae', 'dubizzle.com',
+      'bayut.com', 'propertyfinder.ae', 'dubizzle.com', 'zillow.com', 'realtor.com',
+      'nike.com', 'nike.sa', 'adidas.com', 'puma.com', 'reebok.com', 'newbalance.com',
+      'dyson.com', 'dyson.sa', 'dyson.ae', 'dyson.co.uk', 'dyson.de',
+      'clarins.com', 'clarins.sa', 'clarins.ae', 'yslbeauty.com', 'yslbeauty.sa',
+      'kiehls.com', 'kiehls.sa', 'kiehls.ae', 'esteelauder.com', 'lancome.com',
+      'loreal.com', 'maybelline.com', 'revlon.com', 'maccosmetics.com',
+      'bobbibrown.com', 'clinique.com', 'nars.com', 'chanel.com', 'dior.com',
+      'gucci.com', 'louisvuitton.com', 'hermes.com', 'prada.com', 'burberry.com',
+      'jaguar.com', 'jaguar-saudi.com', 'landrover.com', 'bentley.com', 'rollsroyce.com',
+      'ferrari.com', 'lamborghini.com', 'porsche.com', 'audi.com', 'volvo.com',
+      'philips.com', 'samsung.com', 'lg.com', 'sony.com', 'panasonic.com',
+      'ikea.com', 'ikea.sa', 'zara.com', 'hm.com', 'mango.com', 'gap.com',
+      'amazon.sa', 'amazon.ae', 'amazon.de', 'amazon.co.uk', 'amazon.in',
+      'noon.com', 'namshi.com', 'shein.com', 'temu.com',
+      'bloomingdales.com', 'bloomingdales.sa', 'sephora.com', 'caretobeauty.com',
+      'starbucks.com', 'mcdonalds.com', 'kfc.com', 'subway.com',
+      'booking.com', 'airbnb.com', 'tripadvisor.com', 'expedia.com',
+      'goldapple.ru', 'goldapple.sa', 'sssports.com',
+      'yallamotor.com', 'carswitch.com', 'autotradersaudiarabia.com',
+      'timberland.com', 'vparts.sa', 'mourjan.com', 'haraj.com.sa',
       'steelconstruction.info', 'constructiondive.com', 'construction.com',
       'recyclingtoday.com', 'waste360.com', 'wastedive.com',
       'sciencedirect.com', 'researchgate.net', 'academia.edu', 'springer.com',
@@ -1388,6 +1413,8 @@ async function processDiscoveryResult(
       'argan oil', 'jojoba oil', 'castor oil', 'fish oil', 'cod liver oil', 'flaxseed oil',
       'avocado oil', 'almond oil', 'rosehip oil', 'neem oil', 'clove oil', 'eucalyptus oil',
       'skincare', 'cosmetic', 'beauty product', 'fragrance', 'aromatherapy', 'perfume',
+      'makeup', 'foundation', 'mascara', 'lipstick', 'concealer', 'moisturizer', 'serum',
+      'shampoo', 'conditioner', 'hair care', 'nail polish', 'body lotion', 'sunscreen',
       'oil painting', 'oil canvas', 'oil pastel', 'linseed oil artist', 'watercolour',
       'oil price forecast', 'crude oil futures', 'brent crude', 'oil trading',
       'legal tender', 'banknote', 'currency', 'monetary policy',
@@ -1418,6 +1445,15 @@ async function processDiscoveryResult(
       'school', 'university', 'college', 'student', 'scholarship',
       'church', 'mosque', 'temple', 'charity', 'donation',
       'football', 'cricket', 'rugby', 'tennis', 'golf',
+      'sneaker', 'shoe', 'footwear', 'handbag', 'luxury brand', 'watch brand',
+      'smartphone', 'laptop', 'tablet', 'headphone', 'speaker', 'television',
+      'grocery', 'supermarket', 'department store', 'shopping mall',
+      'airline', 'flight booking', 'cruise', 'travel agency',
+      'car dealership', 'car rental', 'motorcycle', 'bicycle',
+      'toy', 'game', 'puzzle', 'board game', 'video game',
+      'jewel', 'diamond', 'gold chain', 'necklace', 'bracelet', 'ring',
+      'ship building', 'shipyard', 'vessel construction', 'marine engineering',
+      'feasibility study', 'business plan template', 'how to start',
     ];
     const antiHits = ANTI_KEYWORDS.filter(ak => combinedText.includes(ak));
     if (antiHits.length > 0 && relevanceHits.length <= 1) {
@@ -1713,7 +1749,32 @@ async function processDiscoveryResult(
       .trim();
     if (companyName.length > 80) companyName = companyName.substring(0, 80).trim();
     const invalidNames = ['unknown', 'unclear', 'n/a', 'none', 'not found', 'not available', 'unnamed', 'descargar', 'download'];
-    if (invalidNames.includes(companyName.toLowerCase().trim()) || companyName.length < 3) {
+    const KNOWN_JUNK_BRANDS = [
+      'nike', 'adidas', 'puma', 'dyson', 'philips', 'samsung', 'sony', 'lg', 'panasonic',
+      'amazon', 'ikea', 'zara', 'gucci', 'prada', 'chanel', 'dior', 'hermes', 'burberry',
+      'louis vuitton', 'ferrari', 'lamborghini', 'porsche', 'bentley', 'rolls royce', 'rolls-royce',
+      'jaguar', 'land rover', 'bmw', 'mercedes', 'audi', 'volkswagen', 'volvo', 'ford',
+      'clarins', 'ysl', 'kiehl', 'estee lauder', 'lancome', 'bobbi brown', 'mac cosmetics',
+      'nars', 'clinique', 'loreal', "l'oreal", 'maybelline', 'revlon', 'sephora',
+      'starbucks', 'mcdonalds', "mcdonald's", 'kfc', 'subway', 'coca-cola', 'pepsi',
+      'apple', 'google', 'microsoft', 'oracle', 'facebook', 'meta', 'twitter',
+      'walmart', 'ebay', 'alibaba', 'temu', 'shein',
+      'grant thornton', 'kpmg', 'deloitte', 'ernst & young', 'pwc', 'accenture', 'mckinsey',
+      'air liquide', 'caterpillar', 'siemens', 'abb', 'honeywell', 'emerson', '3m',
+      'roxtec', 'eagleburgmann', 'glomacs', 'timberland', 'gold apple',
+    ];
+    const nameLC = companyName.toLowerCase().trim();
+    const isKnownJunk = KNOWN_JUNK_BRANDS.some(brand => nameLC === brand || nameLC.startsWith(brand + ' ') || nameLC.endsWith(' ' + brand));
+    if (isKnownJunk && aiResult.company_type !== 're_refiner' && aiResult.company_type !== 'waste_oil_recycler') {
+      console.log(`[Radar] POST-AI JUNK: Known non-industry brand "${companyName}" — marking not_relevant`);
+      await db.execute(sql`
+        UPDATE radar_companies SET company_type = 'not_relevant', opportunity_score = 0, score_band = 'low',
+        canonical_name = ${companyName}, status = 'classified', updated_at = NOW() WHERE id = ${companyId}
+      `);
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+      return;
+    }
+    if (invalidNames.includes(nameLC) || companyName.length < 3) {
       console.log(`[Radar] Skipping result with invalid company name: "${companyName}"`);
       await db.execute(sql`
         UPDATE radar_companies SET company_type = 'not_relevant', opportunity_score = 0, score_band = 'low',
@@ -1809,16 +1870,24 @@ async function processDiscoveryResult(
           RETURNING id
         `);
 
-        if (Number(signal.confidence) > 0.7 && compType !== 'not_relevant' && compType !== 'unclear') {
-          await createAlert('new_project_signal', 'high',
-            `Project signal: ${signal.type} - ${aiResult.company_name || title}`,
+        const relevantTypes = ['re_refiner', 'waste_oil_recycler', 'base_oil_company', 'used_oil_collector'];
+        const isHighValueType = ['re_refiner', 'waste_oil_recycler', 'base_oil_company'].includes(compType);
+        const isRelevantCompany = relevantTypes.includes(compType) && scoring.final >= 35;
+        const isHighValueSignal = ['tender', 'permit_stage', 'expansion', 'new_plant', 'upgrade_modernization', 'investment_signal'].includes(signal.type);
+        
+        if (Number(signal.confidence) > 0.7 && isRelevantCompany && isHighValueSignal) {
+          const alertPriority = (isHighValueType && scoring.final >= 60) ? 'critical' :
+            (scoring.final >= 45) ? 'high' : 'watch';
+          await createAlert('new_project_signal', alertPriority,
+            `Project signal: ${signal.type} - ${aiResult.company_name || title} (Score: ${scoring.final})`,
             signal.summary || '', companyId, Number(projectResult.rows[0]?.id), country, url);
         }
       }
     }
 
-    if (scoring.final >= 75 && compType !== 'not_relevant' && compType !== 'unclear') {
-      await createAlert('score_threshold', 'high',
+    if (scoring.final >= 70 && compType !== 'not_relevant' && compType !== 'unclear') {
+      const alertPriority = scoring.final >= 80 ? 'critical' : 'high';
+      await createAlert('score_threshold', alertPriority,
         `Hot opportunity: ${aiResult.company_name || title} (Score: ${scoring.final})`,
         `${scoring.band} opportunity in ${country}. ${scoring.explanation}`,
         companyId, undefined, country, url);
