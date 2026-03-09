@@ -8767,3 +8767,121 @@ export const insertOfferItemSchema = createInsertSchema(offerItems).omit({
 
 export type OfferItem = typeof offerItems.$inferSelect;
 export type InsertOfferItem = z.infer<typeof insertOfferItemSchema>;
+
+export const googleAdsTokens = pgTable('google_ads_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token').notNull(),
+  tokenExpiry: timestamp('token_expiry'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const googleAdsAccounts = pgTable('google_ads_accounts', {
+  id: serial('id').primaryKey(),
+  customerId: text('customer_id').notNull(),
+  descriptiveName: text('descriptive_name'),
+  currencyCode: text('currency_code'),
+  timeZone: text('time_zone'),
+  isManager: boolean('is_manager').default(false),
+  isActive: boolean('is_active').default(true),
+  linkedAt: timestamp('linked_at').defaultNow(),
+});
+
+export const gadsCampaigns = pgTable('gads_campaigns', {
+  id: serial('id').primaryKey(),
+  googleCampaignId: text('google_campaign_id').notNull().unique(),
+  accountId: integer('account_id').references(() => googleAdsAccounts.id),
+  name: text('name').notNull(),
+  status: text('status').notNull(),
+  advertisingChannelType: text('advertising_channel_type'),
+  budgetAmountMicros: numeric('budget_amount_micros', { precision: 20, scale: 0 }),
+  budgetType: text('budget_type'),
+  startDate: text('start_date'),
+  endDate: text('end_date'),
+  syncedAt: timestamp('synced_at').defaultNow(),
+});
+
+export const gadsAdGroups = pgTable('gads_ad_groups', {
+  id: serial('id').primaryKey(),
+  googleAdGroupId: text('google_ad_group_id').notNull().unique(),
+  campaignId: text('campaign_id').notNull(),
+  name: text('name').notNull(),
+  status: text('status').notNull(),
+  type: text('type'),
+  cpcBidMicros: numeric('cpc_bid_micros', { precision: 20, scale: 0 }),
+  syncedAt: timestamp('synced_at').defaultNow(),
+});
+
+export const gadsKeywords = pgTable('gads_keywords', {
+  id: serial('id').primaryKey(),
+  googleCriterionId: text('google_criterion_id').notNull().unique(),
+  adGroupId: text('ad_group_id').notNull(),
+  campaignId: text('campaign_id').notNull(),
+  text: text('text').notNull(),
+  matchType: text('match_type').notNull(),
+  status: text('status').notNull(),
+  qualityScore: integer('quality_score'),
+  syncedAt: timestamp('synced_at').defaultNow(),
+});
+
+export const gadsDailyMetrics = pgTable('gads_daily_metrics', {
+  id: serial('id').primaryKey(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  date: text('date').notNull(),
+  impressions: integer('impressions').default(0),
+  clicks: integer('clicks').default(0),
+  costMicros: numeric('cost_micros', { precision: 20, scale: 0 }).default('0'),
+  conversions: numeric('conversions', { precision: 15, scale: 2 }).default('0'),
+  conversionValue: numeric('conversion_value', { precision: 15, scale: 2 }).default('0'),
+  allConversions: numeric('all_conversions', { precision: 15, scale: 2 }).default('0'),
+  syncedAt: timestamp('synced_at').defaultNow(),
+});
+
+export const gadsSearchTerms = pgTable('gads_search_terms', {
+  id: serial('id').primaryKey(),
+  campaignId: text('campaign_id').notNull(),
+  adGroupId: text('ad_group_id').notNull(),
+  searchTerm: text('search_term').notNull(),
+  impressions: integer('impressions').default(0),
+  clicks: integer('clicks').default(0),
+  costMicros: numeric('cost_micros', { precision: 20, scale: 0 }).default('0'),
+  conversions: numeric('conversions', { precision: 15, scale: 2 }).default('0'),
+  date: text('date').notNull(),
+  syncedAt: timestamp('synced_at').defaultNow(),
+});
+
+export const gadsSyncJobs = pgTable('gads_sync_jobs', {
+  id: serial('id').primaryKey(),
+  jobType: text('job_type').notNull(),
+  status: text('status').notNull().default('pending'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  error: text('error'),
+  recordsSynced: integer('records_synced').default(0),
+  lockKey: text('lock_key').unique(),
+  lastRunAt: timestamp('last_run_at'),
+});
+
+export const gadsChangeLog = pgTable('gads_change_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id),
+  actionType: text('action_type').notNull(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  beforeValue: jsonb('before_value'),
+  afterValue: jsonb('after_value'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export type GoogleAdsToken = typeof googleAdsTokens.$inferSelect;
+export type GoogleAdsAccount = typeof googleAdsAccounts.$inferSelect;
+export type GadsCampaign = typeof gadsCampaigns.$inferSelect;
+export type GadsAdGroup = typeof gadsAdGroups.$inferSelect;
+export type GadsKeyword = typeof gadsKeywords.$inferSelect;
+export type GadsDailyMetric = typeof gadsDailyMetrics.$inferSelect;
+export type GadsSearchTerm = typeof gadsSearchTerms.$inferSelect;
+export type GadsSyncJob = typeof gadsSyncJobs.$inferSelect;
+export type GadsChangeLog = typeof gadsChangeLog.$inferSelect;

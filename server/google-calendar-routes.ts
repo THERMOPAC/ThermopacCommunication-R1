@@ -85,15 +85,15 @@ export async function handleOAuthCallback(req: any, res: any) {
       }
     }
     
-    // Check if this is a calendar or Gmail OAuth callback
-    if (stateData.service !== 'calendar' && stateData.service !== 'gmail') {
-      console.log('OAuth callback not for calendar or gmail service, ignoring');
+    // Check if this is a calendar, Gmail, or Google Ads OAuth callback
+    if (stateData.service !== 'calendar' && stateData.service !== 'gmail' && stateData.service !== 'google-ads') {
+      console.log('OAuth callback not for calendar, gmail, or google-ads service, ignoring');
       return res.redirect('/admin/meetings-management?error=invalid_state');
     }
     
     // Route to appropriate page based on service type
-    const successRedirect = stateData.service === 'gmail' ? '/emails?connected=true' : '/admin/meetings-management?connected=true';
-    errorRedirect = stateData.service === 'gmail' ? '/emails?error=auth_failed' : '/admin/meetings-management?error=auth_failed';
+    const successRedirect = stateData.service === 'gmail' ? '/emails?connected=true' : stateData.service === 'google-ads' ? '/campaigns?connected=true' : '/admin/meetings-management?connected=true';
+    errorRedirect = stateData.service === 'gmail' ? '/emails?error=auth_failed' : stateData.service === 'google-ads' ? '/campaigns?error=auth_failed' : '/admin/meetings-management?error=auth_failed';
 
     // Get user ID from state or session
     const userId = stateData.userId || req.user?.id;
@@ -117,9 +117,12 @@ export async function handleOAuthCallback(req: any, res: any) {
     console.log('Saving tokens for user:', userId);
     
     // Save tokens to appropriate location based on service type
-    if (stateData.service === 'gmail') {
+    if (stateData.service === 'google-ads') {
+      console.log('Saving Google Ads tokens to google_ads_tokens table');
+      const { saveGoogleAdsTokens } = await import('./google-ads-auth');
+      await saveGoogleAdsTokens(userId, tokens);
+    } else if (stateData.service === 'gmail') {
       console.log('Saving Gmail tokens to gmail_tokens table');
-      // Save to gmail_tokens table
       await db.insert(gmailTokens).values({
         userId,
         accessToken: tokens.access_token!,
@@ -137,14 +140,17 @@ export async function handleOAuthCallback(req: any, res: any) {
       });
     } else {
       console.log('Saving Calendar tokens to users table');
-      // Save to users table for calendar
       await googleCalendarService.saveUserTokens(userId, tokens);
     }
 
     console.log(`Google OAuth successful for ${stateData.service}`);
     
-    // For Gmail, send auto-close HTML (popup window)
+    // For Gmail/Google Ads, send auto-close HTML (popup window)
     // For Calendar, redirect to meetings page (full page flow)
+    if (stateData.service === 'google-ads') {
+      console.log('Redirecting to Google Ads page after OAuth');
+      return res.redirect(successRedirect);
+    }
     if (stateData.service === 'gmail') {
       console.log('Sending auto-close HTML for Gmail OAuth');
       res.send(`

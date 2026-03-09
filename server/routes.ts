@@ -76,6 +76,7 @@ import { default as visaManagementRoutes } from "./visa-management-routes";
 import { default as schengenRoutes } from "./schengen-routes";
 import { default as leadGenerationRoutes } from "./lead-generation-routes";
 import { default as radarRoutes } from "./radar-routes";
+import { default as googleAdsRoutes } from "./google-ads-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as llmRoutes } from "./llm-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
@@ -3567,6 +3568,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Opportunity Radar routes
   app.use('/api/radar', ensureAuthenticated, radarRoutes);
   console.log('Opportunity Radar routes registered at /api/radar');
+
+  // Google Ads routes
+  app.use('/api/google-ads', googleAdsRoutes);
+  console.log('Google Ads routes registered at /api/google-ads');
 
   // =============================================================================
   // VPN MANAGER INITIALIZATION (for SAP B1 Integration)
