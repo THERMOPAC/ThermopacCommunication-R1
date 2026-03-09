@@ -54,6 +54,7 @@ export async function syncCampaigns(userId: number): Promise<number> {
       campaign.advertising_channel_type,
       campaign_budget.amount_micros,
       campaign_budget.type,
+      campaign_budget.resource_name,
       campaign.start_date,
       campaign.end_date
     FROM campaign
@@ -66,11 +67,12 @@ export async function syncCampaigns(userId: number): Promise<number> {
     const c = row.campaign;
     const b = row.campaignBudget;
     await db.execute(sql`
-      INSERT INTO gads_campaigns (google_campaign_id, name, status, advertising_channel_type, budget_amount_micros, budget_type, start_date, end_date, synced_at)
-      VALUES (${String(c.id)}, ${c.name}, ${c.status}, ${c.advertisingChannelType || null}, ${b?.amountMicros || null}, ${b?.type || null}, ${c.startDate || null}, ${c.endDate || null}, NOW())
+      INSERT INTO gads_campaigns (google_campaign_id, name, status, advertising_channel_type, budget_amount_micros, budget_type, budget_resource_name, start_date, end_date, synced_at)
+      VALUES (${String(c.id)}, ${c.name}, ${c.status}, ${c.advertisingChannelType || null}, ${b?.amountMicros || null}, ${b?.type || null}, ${b?.resourceName || null}, ${c.startDate || null}, ${c.endDate || null}, NOW())
       ON CONFLICT (google_campaign_id) DO UPDATE SET
         name = EXCLUDED.name, status = EXCLUDED.status, advertising_channel_type = EXCLUDED.advertising_channel_type,
         budget_amount_micros = EXCLUDED.budget_amount_micros, budget_type = EXCLUDED.budget_type,
+        budget_resource_name = EXCLUDED.budget_resource_name,
         start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date, synced_at = NOW()
     `);
   }

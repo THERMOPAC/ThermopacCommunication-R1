@@ -1,18 +1,22 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
   BarChart3, TrendingUp, DollarSign, MousePointerClick, Eye, Target,
-  RefreshCw, Settings, Link2, Unlink,
+  RefreshCw, Settings, Link2, Unlink, Plus, Play, Pause, Trash2,
   Search, AlertTriangle, ChevronLeft, Loader2, CheckCircle2, XCircle,
-  Zap, BarChart2
+  Zap, BarChart2, FileText, Globe, Megaphone
 } from "lucide-react";
 
 function getDateRange(period: string): { startDate: string; endDate: string } {
@@ -275,8 +279,421 @@ function OverviewTab({ dateRange }: { dateRange: { startDate: string; endDate: s
   );
 }
 
+function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [dailyBudget, setDailyBudget] = useState("");
+  const [channelType, setChannelType] = useState("SEARCH");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [targetCpa, setTargetCpa] = useState("");
+  const [targetRoas, setTargetRoas] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/google-ads/campaigns/create", {
+      name,
+      dailyBudget: Number(dailyBudget),
+      advertisingChannelType: channelType,
+      status: "PAUSED",
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      targetCpa: targetCpa ? Number(targetCpa) : undefined,
+      targetRoas: targetRoas ? Number(targetRoas) : undefined,
+    }),
+    onSuccess: () => {
+      toast({ title: "Campaign created", description: `"${name}" has been created in paused state.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+      setName(""); setDailyBudget(""); setStartDate(""); setEndDate(""); setTargetCpa(""); setTargetRoas("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to create campaign", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5" /> Create Campaign</DialogTitle>
+          <DialogDescription>Create a new Google Ads campaign. It will be created in paused state.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Campaign Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Thermopac - India Search" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Campaign Type *</Label>
+              <Select value={channelType} onValueChange={setChannelType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SEARCH">Search</SelectItem>
+                  <SelectItem value="DISPLAY">Display</SelectItem>
+                  <SelectItem value="PERFORMANCE_MAX">Performance Max</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Daily Budget (INR) *</Label>
+              <Input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} placeholder="500" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Start Date</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>End Date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
+          {(channelType === "SEARCH" || channelType === "DISPLAY") && (
+            <div>
+              <Label>Target CPA (optional)</Label>
+              <Input type="number" value={targetCpa} onChange={(e) => setTargetCpa(e.target.value)} placeholder="Leave empty for Manual CPC" />
+              <p className="text-xs text-muted-foreground mt-1">If empty, campaign uses Manual CPC with Enhanced CPC</p>
+            </div>
+          )}
+          {channelType === "PERFORMANCE_MAX" && (
+            <div>
+              <Label>Target ROAS (optional)</Label>
+              <Input type="number" step="0.1" value={targetRoas} onChange={(e) => setTargetRoas(e.target.value)} placeholder="e.g. 3.0 for 300% ROAS" />
+              <p className="text-xs text-muted-foreground mt-1">If empty, campaign uses Maximize Conversions</p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => createMutation.mutate()} disabled={!name || !dailyBudget || createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+            Create Campaign
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateAdGroupDialog({ open, onOpenChange, campaignId }: { open: boolean; onOpenChange: (v: boolean) => void; campaignId: string }) {
+  const { toast } = useToast();
+  const [name, setName] = useState("");
+  const [cpcBid, setCpcBid] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/google-ads/ad-groups/create", {
+      name,
+      campaignId,
+      cpcBid: cpcBid ? Number(cpcBid) : undefined,
+    }),
+    onSuccess: () => {
+      toast({ title: "Ad group created", description: `"${name}" has been created.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+      setName(""); setCpcBid("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to create ad group", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Ad Group</DialogTitle>
+          <DialogDescription>Add a new ad group to this campaign.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Ad Group Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Heat Exchangers" />
+          </div>
+          <div>
+            <Label>Default CPC Bid (INR)</Label>
+            <Input type="number" value={cpcBid} onChange={(e) => setCpcBid(e.target.value)} placeholder="e.g. 10" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => createMutation.mutate()} disabled={!name || createMutation.isPending}>
+            {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Create Ad Group
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddKeywordsDialog({ open, onOpenChange, adGroupId }: { open: boolean; onOpenChange: (v: boolean) => void; adGroupId: string }) {
+  const { toast } = useToast();
+  const [keywordsText, setKeywordsText] = useState("");
+  const [matchType, setMatchType] = useState("BROAD");
+
+  const addMutation = useMutation({
+    mutationFn: () => {
+      const keywords = keywordsText.split("\n").map(k => k.trim()).filter(Boolean).map(text => ({ text, matchType }));
+      return apiRequest("POST", "/api/google-ads/keywords/add", { adGroupId, keywords });
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Keywords added", description: `${data.added} keywords added successfully.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+      setKeywordsText("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to add keywords", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Keywords</DialogTitle>
+          <DialogDescription>Enter one keyword per line.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Match Type</Label>
+            <Select value={matchType} onValueChange={setMatchType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BROAD">Broad Match</SelectItem>
+                <SelectItem value="PHRASE">Phrase Match</SelectItem>
+                <SelectItem value="EXACT">Exact Match</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Keywords (one per line) *</Label>
+            <Textarea
+              value={keywordsText}
+              onChange={(e) => setKeywordsText(e.target.value)}
+              placeholder={"heat exchanger manufacturer\nboiler manufacturer india\nthermic fluid heater"}
+              rows={6}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              {keywordsText.split("\n").filter(k => k.trim()).length} keywords
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => addMutation.mutate()} disabled={!keywordsText.trim() || addMutation.isPending}>
+            {addMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Add Keywords
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddNegativeKeywordsDialog({ open, onOpenChange, campaignId }: { open: boolean; onOpenChange: (v: boolean) => void; campaignId: string }) {
+  const { toast } = useToast();
+  const [keywordsText, setKeywordsText] = useState("");
+  const [matchType, setMatchType] = useState("BROAD");
+
+  const addMutation = useMutation({
+    mutationFn: () => {
+      const keywords = keywordsText.split("\n").map(k => k.trim()).filter(Boolean).map(text => ({ text, matchType }));
+      return apiRequest("POST", "/api/google-ads/negative-keywords/add", { campaignId, keywords });
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Negative keywords added", description: `${data.added} negative keywords added.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+      setKeywordsText("");
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to add negative keywords", description: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Negative Keywords</DialogTitle>
+          <DialogDescription>Block search terms from triggering your ads. One per line.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Match Type</Label>
+            <Select value={matchType} onValueChange={setMatchType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BROAD">Broad Match</SelectItem>
+                <SelectItem value="PHRASE">Phrase Match</SelectItem>
+                <SelectItem value="EXACT">Exact Match</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Negative Keywords (one per line) *</Label>
+            <Textarea
+              value={keywordsText}
+              onChange={(e) => setKeywordsText(e.target.value)}
+              placeholder={"free\njobs\nrecruit\nsalary"}
+              rows={6}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => addMutation.mutate()} disabled={!keywordsText.trim() || addMutation.isPending}>
+            {addMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Add Negative Keywords
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateAdDialog({ open, onOpenChange, adGroupId }: { open: boolean; onOpenChange: (v: boolean) => void; adGroupId: string }) {
+  const { toast } = useToast();
+  const [headlines, setHeadlines] = useState(["", "", ""]);
+  const [descriptions, setDescriptions] = useState(["", ""]);
+  const [finalUrl, setFinalUrl] = useState("https://thermopac.in");
+  const [path1, setPath1] = useState("");
+  const [path2, setPath2] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/google-ads/ads/create", {
+      adGroupId,
+      headlines: headlines.filter(h => h.trim()),
+      descriptions: descriptions.filter(d => d.trim()),
+      finalUrl,
+      path1: path1 || undefined,
+      path2: path2 || undefined,
+    }),
+    onSuccess: () => {
+      toast({ title: "Ad created", description: "Responsive search ad created successfully." });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to create ad", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateHeadline = (idx: number, val: string) => {
+    const h = [...headlines]; h[idx] = val; setHeadlines(h);
+  };
+  const updateDescription = (idx: number, val: string) => {
+    const d = [...descriptions]; d[idx] = val; setDescriptions(d);
+  };
+
+  const validHeadlines = headlines.filter(h => h.trim()).length;
+  const validDescriptions = descriptions.filter(d => d.trim()).length;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create Responsive Search Ad</DialogTitle>
+          <DialogDescription>Minimum 3 headlines (max 30 chars each) and 2 descriptions (max 90 chars each).</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Final URL *</Label>
+            <Input value={finalUrl} onChange={(e) => setFinalUrl(e.target.value)} placeholder="https://thermopac.in" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Display Path 1</Label>
+              <Input value={path1} onChange={(e) => setPath1(e.target.value)} placeholder="products" maxLength={15} />
+            </div>
+            <div>
+              <Label>Display Path 2</Label>
+              <Input value={path2} onChange={(e) => setPath2(e.target.value)} placeholder="boilers" maxLength={15} />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Headlines ({validHeadlines}/15, min 3)</Label>
+              {headlines.length < 15 && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setHeadlines([...headlines, ""])}>
+                  <Plus className="w-3 h-3 mr-1" /> Add
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2">
+              {headlines.map((h, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input value={h} onChange={(e) => updateHeadline(i, e.target.value)} placeholder={`Headline ${i + 1}`} maxLength={30} />
+                  <span className="text-xs text-muted-foreground self-center w-8">{h.length}/30</span>
+                  {i >= 3 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setHeadlines(headlines.filter((_, j) => j !== i))}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Descriptions ({validDescriptions}/4, min 2)</Label>
+              {descriptions.length < 4 && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setDescriptions([...descriptions, ""])}>
+                  <Plus className="w-3 h-3 mr-1" /> Add
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2">
+              {descriptions.map((d, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input value={d} onChange={(e) => updateDescription(i, e.target.value)} placeholder={`Description ${i + 1}`} maxLength={90} />
+                  <span className="text-xs text-muted-foreground self-center w-8">{d.length}/90</span>
+                  {i >= 2 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setDescriptions(descriptions.filter((_, j) => j !== i))}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {finalUrl && validHeadlines >= 3 && validDescriptions >= 2 && (
+            <Card className="bg-gray-50">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground mb-1">Ad Preview</p>
+                <p className="text-blue-700 font-medium text-sm">{headlines.filter(h => h.trim()).slice(0, 3).join(" | ")}</p>
+                <p className="text-green-700 text-xs">{finalUrl}{path1 ? `/${path1}` : ""}{path2 ? `/${path2}` : ""}</p>
+                <p className="text-sm text-gray-600 mt-1">{descriptions.filter(d => d.trim())[0]}</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={validHeadlines < 3 || validDescriptions < 2 || !finalUrl || createMutation.isPending}
+          >
+            {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Create Ad
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: string } }) {
+  const { toast } = useToast();
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
+  const [showCreateAdGroup, setShowCreateAdGroup] = useState(false);
+  const [showAddKeywords, setShowAddKeywords] = useState<string | null>(null);
+  const [showCreateAd, setShowCreateAd] = useState<string | null>(null);
+  const [showNegativeKeywords, setShowNegativeKeywords] = useState(false);
 
   const campaigns = useQuery({
     queryKey: ["/api/google-ads/campaigns", dateRange.startDate, dateRange.endDate],
@@ -289,13 +706,43 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
     enabled: !!selectedCampaign,
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("POST", `/api/google-ads/campaigns/${id}/status`, { status }),
+    onSuccess: () => {
+      toast({ title: "Campaign updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+    },
+    onError: (err: any) => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
+  });
+
+  const adGroupStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("POST", `/api/google-ads/ad-groups/${id}/status`, { status }),
+    onSuccess: () => {
+      toast({ title: "Ad group updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+    },
+    onError: (err: any) => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
+  });
+
   if (selectedCampaign) {
     const details = campaignDetails.data as any;
     return (
       <div className="space-y-4">
-        <Button variant="ghost" onClick={() => setSelectedCampaign(null)} className="flex items-center gap-1">
-          <ChevronLeft className="w-4 h-4" /> Back to Campaigns
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={() => setSelectedCampaign(null)} className="flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" /> Back to Campaigns
+          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowCreateAdGroup(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Ad Group
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowNegativeKeywords(true)}>
+              <XCircle className="w-4 h-4 mr-1" /> Negative Keywords
+            </Button>
+          </div>
+        </div>
 
         {campaignDetails.isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
@@ -303,7 +750,33 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
           <>
             <Card>
               <CardHeader>
-                <CardTitle>{details?.campaign?.name || "Campaign"}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>{details?.campaign?.name || "Campaign"}</CardTitle>
+                  <div className="flex gap-2">
+                    {details?.campaign?.status === "PAUSED" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-green-600"
+                        onClick={() => statusMutation.mutate({ id: selectedCampaign, status: "ENABLED" })}
+                        disabled={statusMutation.isPending}
+                      >
+                        <Play className="w-3 h-3 mr-1" /> Enable
+                      </Button>
+                    )}
+                    {details?.campaign?.status === "ENABLED" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-yellow-600"
+                        onClick={() => statusMutation.mutate({ id: selectedCampaign, status: "PAUSED" })}
+                        disabled={statusMutation.isPending}
+                      >
+                        <Pause className="w-3 h-3 mr-1" /> Pause
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -316,7 +789,9 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
 
             {details?.adGroups?.length > 0 && (
               <Card>
-                <CardHeader><CardTitle className="text-sm">Ad Groups ({details.adGroups.length})</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="text-sm">Ad Groups ({details.adGroups.length})</CardTitle>
+                </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
@@ -325,6 +800,7 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
                         <TableHead>Status</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead className="text-right">CPC Bid</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -334,6 +810,26 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
                           <TableCell><StatusBadge status={ag.status} /></TableCell>
                           <TableCell>{ag.type}</TableCell>
                           <TableCell className="text-right">{ag.cpc_bid_micros ? formatCurrency(Number(ag.cpc_bid_micros) / 1000000) : "-"}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              {ag.status === "PAUSED" && (
+                                <Button size="sm" variant="ghost" onClick={() => adGroupStatusMutation.mutate({ id: ag.google_ad_group_id, status: "ENABLED" })}>
+                                  <Play className="w-3 h-3 text-green-600" />
+                                </Button>
+                              )}
+                              {ag.status === "ENABLED" && (
+                                <Button size="sm" variant="ghost" onClick={() => adGroupStatusMutation.mutate({ id: ag.google_ad_group_id, status: "PAUSED" })}>
+                                  <Pause className="w-3 h-3 text-yellow-600" />
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => setShowAddKeywords(ag.google_ad_group_id)}>
+                                <Plus className="w-3 h-3 mr-1" /> Keywords
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setShowCreateAd(ag.google_ad_group_id)}>
+                                <FileText className="w-3 h-3 mr-1" /> Ad
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -371,6 +867,11 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
             )}
           </>
         )}
+
+        <CreateAdGroupDialog open={showCreateAdGroup} onOpenChange={setShowCreateAdGroup} campaignId={selectedCampaign} />
+        {showAddKeywords && <AddKeywordsDialog open={!!showAddKeywords} onOpenChange={() => setShowAddKeywords(null)} adGroupId={showAddKeywords} />}
+        {showCreateAd && <CreateAdDialog open={!!showCreateAd} onOpenChange={() => setShowCreateAd(null)} adGroupId={showCreateAd} />}
+        <AddNegativeKeywordsDialog open={showNegativeKeywords} onOpenChange={setShowNegativeKeywords} campaignId={selectedCampaign} />
       </div>
     );
   }
@@ -384,7 +885,9 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
       ) : campaignList.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No campaigns synced yet. Click "Sync Now" to pull data from Google Ads.</p>
+            <Megaphone className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-lg font-medium">No campaigns yet</p>
+            <p className="text-muted-foreground mt-1">Create your first campaign or sync existing ones from Google Ads.</p>
           </CardContent>
         </Card>
       ) : (
@@ -403,17 +906,16 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
                   <TableHead className="text-right">CTR</TableHead>
                   <TableHead className="text-right">Avg CPC</TableHead>
                   <TableHead className="text-right">Conv.</TableHead>
-                  <TableHead className="text-right">ROAS</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {campaignList.map((c: any) => (
-                  <TableRow
-                    key={c.googleCampaignId}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => setSelectedCampaign(c.googleCampaignId)}
-                  >
-                    <TableCell className="font-medium max-w-[200px] truncate">{c.name}</TableCell>
+                  <TableRow key={c.googleCampaignId} className="cursor-pointer hover:bg-muted/50">
+                    <TableCell
+                      className="font-medium max-w-[200px] truncate"
+                      onClick={() => setSelectedCampaign(c.googleCampaignId)}
+                    >{c.name}</TableCell>
                     <TableCell><StatusBadge status={c.status} /></TableCell>
                     <TableCell className="text-xs">{c.advertisingChannelType || "-"}</TableCell>
                     <TableCell className="text-right">{formatCurrency(c.budgetAmount)}</TableCell>
@@ -423,7 +925,20 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
                     <TableCell className="text-right">{c.ctr.toFixed(2)}%</TableCell>
                     <TableCell className="text-right">{formatCurrency(c.avgCpc)}</TableCell>
                     <TableCell className="text-right">{c.conversions}</TableCell>
-                    <TableCell className="text-right">{c.roas.toFixed(2)}x</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        {c.status === "PAUSED" && (
+                          <Button size="sm" variant="ghost" onClick={() => statusMutation.mutate({ id: c.googleCampaignId, status: "ENABLED" })}>
+                            <Play className="w-3 h-3 text-green-600" />
+                          </Button>
+                        )}
+                        {c.status === "ENABLED" && (
+                          <Button size="sm" variant="ghost" onClick={() => statusMutation.mutate({ id: c.googleCampaignId, status: "PAUSED" })}>
+                            <Pause className="w-3 h-3 text-yellow-600" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -585,6 +1100,7 @@ function SearchTermsTab({ dateRange }: { dateRange: { startDate: string; endDate
 export default function CampaignsPage() {
   const [period, setPeriod] = useState("last_30_days");
   const [activeTab, setActiveTab] = useState("overview");
+  const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const dateRange = getDateRange(period);
 
   const connectionStatus = useQuery({ queryKey: ["/api/google-ads/connection-status"] });
@@ -635,7 +1151,7 @@ export default function CampaignsPage() {
         </div>
 
         {isConnected && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             {lastSync && (
               <span className="text-xs text-muted-foreground">
                 Last sync: {lastSync.last_run_at ? new Date(lastSync.last_run_at).toLocaleString() : "Never"}
@@ -655,6 +1171,14 @@ export default function CampaignsPage() {
                 <SelectItem value="last_month">Last Month</SelectItem>
               </SelectContent>
             </Select>
+
+            <Button
+              onClick={() => setShowCreateCampaign(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              New Campaign
+            </Button>
 
             <Button
               variant="outline"
@@ -697,7 +1221,7 @@ export default function CampaignsPage() {
               className="flex items-center gap-2 text-xs"
             >
               <BarChart2 className="w-3 h-3" />
-              Download Design Doc
+              Design Doc
             </Button>
           </div>
         )}
@@ -752,6 +1276,8 @@ export default function CampaignsPage() {
           </TabsContent>
         </Tabs>
       )}
+
+      <CreateCampaignDialog open={showCreateCampaign} onOpenChange={setShowCreateCampaign} />
 
       {syncMutation.isPending && (
         <div className="fixed bottom-6 right-6 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50">

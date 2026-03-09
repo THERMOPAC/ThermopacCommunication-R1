@@ -8798,6 +8798,7 @@ export const gadsCampaigns = pgTable('gads_campaigns', {
   advertisingChannelType: text('advertising_channel_type'),
   budgetAmountMicros: numeric('budget_amount_micros', { precision: 20, scale: 0 }),
   budgetType: text('budget_type'),
+  budgetResourceName: text('budget_resource_name'),
   startDate: text('start_date'),
   endDate: text('end_date'),
   syncedAt: timestamp('synced_at').defaultNow(),

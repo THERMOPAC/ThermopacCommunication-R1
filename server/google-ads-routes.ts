@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { getGoogleAdsAuthUrl, exchangeGoogleAdsCode, saveGoogleAdsTokens, getGoogleAdsTokens, deleteGoogleAdsTokens } from './google-ads-auth';
-import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney } from './google-ads-client';
+import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney, moneyToMicros, createCampaignBudget, createCampaign, updateCampaignStatus, updateCampaignBudget, createAdGroup, updateAdGroupStatus, addKeywords, addNegativeKeywords, removeKeyword, createResponsiveSearchAd } from './google-ads-client';
 import { runFullSync, runMetricsSync, getSyncStatus, startSyncTimers, stopSyncTimers } from './google-ads-sync';
 
 const router = Router();
@@ -321,6 +321,230 @@ router.get('/sync/status', ensureAuthenticated, async (req: Request, res: Respon
     const status = await getSyncStatus();
     res.json(status);
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { name, dailyBudget, advertisingChannelType, status, startDate, endDate, targetCpa, targetRoas } = req.body;
+
+    if (!name || !dailyBudget || !advertisingChannelType) {
+      return res.status(400).json({ error: 'Name, daily budget, and campaign type are required' });
+    }
+
+    const budgetMicros = moneyToMicros(Number(dailyBudget));
+    const budgetResourceName = await createCampaignBudget(userId, customerId, name, budgetMicros);
+
+    const campaignResourceName = await createCampaign(userId, customerId, {
+      name,
+      budgetResourceName,
+      advertisingChannelType,
+      status: status || 'PAUSED',
+      startDate,
+      endDate,
+      targetCpa: targetCpa ? Number(targetCpa) : undefined,
+      targetRoas: targetRoas ? Number(targetRoas) : undefined,
+      networkSettings: {
+        targetGoogleSearch: true,
+        targetSearchNetwork: true,
+        targetContentNetwork: advertisingChannelType === 'DISPLAY',
+      },
+    });
+
+    res.json({ success: true, resourceName: campaignResourceName });
+  } catch (error: any) {
+    console.error('[GoogleAds] Create campaign error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/campaigns/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const campaignId = req.params.id;
+    const { status } = req.body;
+
+    if (!['ENABLED', 'PAUSED', 'REMOVED'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be ENABLED, PAUSED, or REMOVED' });
+    }
+
+    const resourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    await updateCampaignStatus(userId, customerId, resourceName, status);
+
+    await db.execute(sql`
+      UPDATE gads_campaigns SET status = ${status} WHERE google_campaign_id = ${campaignId}
+    `);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[GoogleAds] Update campaign status error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/campaigns/:id/budget', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const campaignId = req.params.id;
+    const { dailyBudget } = req.body;
+
+    if (!dailyBudget) {
+      return res.status(400).json({ error: 'Daily budget is required' });
+    }
+
+    const campaignResult = await db.execute(sql`
+      SELECT budget_resource_name FROM gads_campaigns WHERE google_campaign_id = ${campaignId}
+    `);
+
+    const campaign = campaignResult.rows[0] as any;
+    if (!campaign?.budget_resource_name) {
+      return res.status(404).json({ error: 'Campaign budget not found. Try syncing first.' });
+    }
+
+    const budgetMicros = moneyToMicros(Number(dailyBudget));
+    await updateCampaignBudget(userId, customerId, campaign.budget_resource_name, budgetMicros);
+
+    await db.execute(sql`
+      UPDATE gads_campaigns SET budget_amount_micros = ${String(budgetMicros)} WHERE google_campaign_id = ${campaignId}
+    `);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[GoogleAds] Update budget error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/ad-groups/create', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { name, campaignId, cpcBid, type } = req.body;
+
+    if (!name || !campaignId) {
+      return res.status(400).json({ error: 'Name and campaign ID are required' });
+    }
+
+    const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    const adGroupResourceName = await createAdGroup(userId, customerId, {
+      name,
+      campaignResourceName,
+      type: type || 'SEARCH_STANDARD',
+      cpcBidMicros: cpcBid ? moneyToMicros(Number(cpcBid)) : undefined,
+      status: 'ENABLED',
+    });
+
+    res.json({ success: true, resourceName: adGroupResourceName });
+  } catch (error: any) {
+    console.error('[GoogleAds] Create ad group error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/ad-groups/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const adGroupId = req.params.id;
+    const { status } = req.body;
+
+    const resourceName = `customers/${customerId}/adGroups/${adGroupId}`;
+    await updateAdGroupStatus(userId, customerId, resourceName, status);
+
+    await db.execute(sql`
+      UPDATE gads_ad_groups SET status = ${status} WHERE google_ad_group_id = ${adGroupId}
+    `);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[GoogleAds] Update ad group status error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/keywords/add', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { adGroupId, keywords } = req.body;
+
+    if (!adGroupId || !keywords?.length) {
+      return res.status(400).json({ error: 'Ad group ID and keywords are required' });
+    }
+
+    const adGroupResourceName = `customers/${customerId}/adGroups/${adGroupId}`;
+    const result = await addKeywords(userId, customerId, adGroupResourceName, keywords);
+
+    res.json({ success: true, added: result.results?.length || 0 });
+  } catch (error: any) {
+    console.error('[GoogleAds] Add keywords error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/keywords/:criterionId/remove', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { adGroupId } = req.body;
+    const criterionId = req.params.criterionId;
+
+    const resourceName = `customers/${customerId}/adGroupCriteria/${adGroupId}~${criterionId}`;
+    await removeKeyword(userId, customerId, resourceName);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[GoogleAds] Remove keyword error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/negative-keywords/add', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { campaignId, keywords } = req.body;
+
+    if (!campaignId || !keywords?.length) {
+      return res.status(400).json({ error: 'Campaign ID and keywords are required' });
+    }
+
+    const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    const result = await addNegativeKeywords(userId, customerId, campaignResourceName, keywords);
+
+    res.json({ success: true, added: result.results?.length || 0 });
+  } catch (error: any) {
+    console.error('[GoogleAds] Add negative keywords error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/ads/create', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { adGroupId, headlines, descriptions, finalUrl, path1, path2 } = req.body;
+
+    if (!adGroupId || !headlines?.length || !descriptions?.length || !finalUrl) {
+      return res.status(400).json({ error: 'Ad group ID, headlines, descriptions, and final URL are required' });
+    }
+
+    if (headlines.length < 3) return res.status(400).json({ error: 'At least 3 headlines are required' });
+    if (descriptions.length < 2) return res.status(400).json({ error: 'At least 2 descriptions are required' });
+
+    const adGroupResourceName = `customers/${customerId}/adGroups/${adGroupId}`;
+    const result = await createResponsiveSearchAd(userId, customerId, adGroupResourceName, {
+      headlines, descriptions, finalUrl, path1, path2,
+    });
+
+    res.json({ success: true, resourceName: result });
+  } catch (error: any) {
+    console.error('[GoogleAds] Create ad error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
