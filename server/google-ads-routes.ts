@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
+import OpenAI from 'openai';
 import { getGoogleAdsAuthUrl, exchangeGoogleAdsCode, saveGoogleAdsTokens, getGoogleAdsTokens, deleteGoogleAdsTokens } from './google-ads-auth';
 import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney, moneyToMicros, createCampaignBudget, createCampaign, updateCampaignStatus, updateCampaignBudget, createAdGroup, updateAdGroupStatus, addKeywords, addNegativeKeywords, removeKeyword, createResponsiveSearchAd } from './google-ads-client';
 import { runFullSync, runMetricsSync, getSyncStatus, startSyncTimers, stopSyncTimers } from './google-ads-sync';
 
 const router = Router();
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated && req.isAuthenticated()) return next();
@@ -329,7 +331,7 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
   try {
     const userId = req.user!.id;
     const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
-    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy } = req.body;
+    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType } = req.body;
 
     if (!name || !dailyBudget || !advertisingChannelType) {
       return res.status(400).json({ error: 'Name, daily budget, and campaign type are required' });
@@ -350,6 +352,8 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
       networkSettings.targetPartnerSearchNetwork = false;
     }
 
+    const effectiveVideoBidding = videoBiddingStrategy || (advertisingChannelType === 'VIDEO' ? biddingStrategyType : undefined);
+
     const campaignResourceName = await createCampaign(userId, customerId, {
       name,
       budgetResourceName,
@@ -361,7 +365,8 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
       targetCpa: targetCpa ? Number(targetCpa) : undefined,
       targetRoas: targetRoas ? Number(targetRoas) : undefined,
       targetCpv: targetCpv ? Number(targetCpv) : undefined,
-      videoBiddingStrategy: videoBiddingStrategy || undefined,
+      videoBiddingStrategy: effectiveVideoBidding,
+      biddingStrategyType: biddingStrategyType || undefined,
       networkSettings,
     });
 
@@ -634,6 +639,135 @@ router.get('/design-doc', ensureAuthenticated, async (req: Request, res: Respons
   const path = await import('path');
   const filePath = path.resolve('Google_Ads_API_Design_Document.doc');
   res.download(filePath, 'Google_Ads_API_Design_Document.doc');
+});
+
+router.post('/ai/campaign-suggestions', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { objective, product, targetAudience, geography, monthlyBudget, campaignType } = req.body;
+
+    const existingCampaigns = await db.execute(sql`
+      SELECT name, status, advertising_channel_type, budget_amount_micros FROM gads_campaigns LIMIT 20
+    `);
+    const existingKeywords = await db.execute(sql`
+      SELECT text, match_type, quality_score FROM gads_keywords WHERE status = 'ENABLED' LIMIT 50
+    `);
+
+    const prompt = `You are a Google Ads expert for THERMOPAC, an industrial manufacturing company specializing in:
+- Heat exchangers (shell & tube, plate type)
+- Thermic fluid heaters
+- Hot water generators
+- Steam boilers
+- Hot air generators  
+- Waste heat recovery systems
+- Re-refining and distillation plants/skids
+- Dehydration skids
+
+The user wants to create a new ${campaignType || 'SEARCH'} campaign.
+
+Campaign objective: ${objective || 'Generate qualified leads'}
+Product/service focus: ${product || 'All products'}
+Target audience: ${targetAudience || 'Industrial buyers, plant managers, procurement teams'}
+Target geography: ${geography || 'India, Middle East, Africa'}
+Monthly budget: INR ${monthlyBudget || '15000'}
+
+Existing campaigns: ${JSON.stringify(existingCampaigns.rows?.slice(0, 10) || [])}
+Existing keywords (performing): ${JSON.stringify(existingKeywords.rows?.slice(0, 20) || [])}
+
+Provide intelligent recommendations in JSON format:
+{
+  "campaignName": "suggested campaign name",
+  "biddingStrategy": {
+    "recommended": "MAXIMIZE_CONVERSIONS | TARGET_CPA | MANUAL_CPC | TARGET_ROAS | TARGET_CPV | TARGET_CPM",
+    "reason": "why this strategy is best for their situation",
+    "targetValue": null or number (CPA in INR or ROAS multiplier)
+  },
+  "dailyBudget": {
+    "recommended": number in INR,
+    "reason": "budget justification"
+  },
+  "adGroups": [
+    {
+      "name": "ad group name",
+      "theme": "what this group targets",
+      "keywords": [
+        {"text": "keyword", "matchType": "BROAD|PHRASE|EXACT", "reason": "why this keyword"}
+      ],
+      "negativeKeywords": ["negative keyword 1"],
+      "headlines": ["headline 1 (max 30 chars)", "headline 2", "headline 3"],
+      "descriptions": ["description 1 (max 90 chars)", "description 2"]
+    }
+  ],
+  "audienceSignals": ["audience type 1", "audience type 2"],
+  "geoTargets": ["location 1", "location 2"],
+  "scheduleRecommendation": "when to run ads (e.g. weekdays 9am-6pm IST)",
+  "optimizationTips": ["tip 1", "tip 2", "tip 3"],
+  "avoidKeywords": ["keywords to add as negatives across account"]
+}
+
+Important:
+- For a new account with no conversion data, recommend MANUAL_CPC or MAXIMIZE_CLICKS to gather data first, then switch to smart bidding after 30+ conversions
+- If they have conversion history, recommend TARGET_CPA or MAXIMIZE_CONVERSIONS
+- Consider the industrial B2B nature - longer sales cycles, higher CPA is acceptable
+- Suggest 3-5 tightly themed ad groups
+- Each ad group should have 10-15 keywords mixing match types
+- Headlines must be under 30 characters, descriptions under 90 characters
+- Include industry-specific negative keywords (jobs, salary, PDF, free, etc.)`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      response_format: { type: 'json_object' },
+    });
+
+    const suggestions = JSON.parse(completion.choices[0].message.content || '{}');
+    res.json(suggestions);
+  } catch (error: any) {
+    console.error('[GoogleAds] AI suggestion error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/ai/ad-copy', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { product, keywords, tone, language } = req.body;
+
+    const prompt = `Generate Google Ads responsive search ad copy for THERMOPAC (industrial equipment manufacturer).
+
+Product/service: ${product || 'Industrial heating equipment'}
+Target keywords: ${(keywords || []).join(', ') || 'heat exchanger, boiler, thermic fluid heater'}
+Tone: ${tone || 'Professional, technical, trustworthy'}
+Language: ${language || 'English'}
+
+Generate in JSON format:
+{
+  "headlines": ["exactly 15 headlines, each max 30 characters"],
+  "descriptions": ["exactly 4 descriptions, each max 90 characters"],
+  "displayPaths": ["path1 (max 15 chars)", "path2 (max 15 chars)"],
+  "callToAction": "recommended CTA"
+}
+
+Rules:
+- Include power words: Certified, ISO, Custom, Expert, Since 1987
+- Include CTAs: Get Quote, Call Now, Request Demo
+- Mix brand + product + benefit headlines
+- Each headline MUST be 30 characters or less
+- Each description MUST be 90 characters or less
+- Make descriptions compelling with USPs`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.8,
+      response_format: { type: 'json_object' },
+    });
+
+    const adCopy = JSON.parse(completion.choices[0].message.content || '{}');
+    res.json(adCopy);
+  } catch (error: any) {
+    console.error('[GoogleAds] AI ad copy error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

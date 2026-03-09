@@ -16,7 +16,8 @@ import {
   BarChart3, TrendingUp, DollarSign, MousePointerClick, Eye, Target,
   RefreshCw, Settings, Link2, Unlink, Plus, Play, Pause, Trash2,
   Search, AlertTriangle, ChevronLeft, Loader2, CheckCircle2, XCircle,
-  Zap, BarChart2, FileText, Globe, Megaphone
+  Zap, BarChart2, FileText, Globe, Megaphone, Sparkles, Brain,
+  Info, ArrowRight, Lightbulb, Copy, Video, Monitor, Rocket
 } from "lucide-react";
 
 function getDateRange(period: string): { startDate: string; endDate: string } {
@@ -279,163 +280,535 @@ function OverviewTab({ dateRange }: { dateRange: { startDate: string; endDate: s
   );
 }
 
+const CAMPAIGN_TYPE_INFO: Record<string, { icon: any; label: string; desc: string; best: string }> = {
+  SEARCH: { icon: Search, label: "Search", desc: "Text ads on Google Search results", best: "Best for capturing high-intent buyers searching for your products" },
+  DISPLAY: { icon: Monitor, label: "Display", desc: "Visual ads across Google Display Network", best: "Best for brand awareness and remarketing to past visitors" },
+  VIDEO: { icon: Video, label: "Video", desc: "Video ads on YouTube and partner sites", best: "Best for product demos, brand storytelling, and reaching wider audience" },
+  PERFORMANCE_MAX: { icon: Rocket, label: "Performance Max", desc: "AI-optimized ads across all Google channels", best: "Best when you have conversion tracking set up and want Google AI to optimize" },
+};
+
+const BIDDING_STRATEGIES: Record<string, { strategies: Array<{ value: string; label: string; desc: string; when: string; needsTarget: boolean; targetLabel?: string; targetPlaceholder?: string }> }> = {
+  SEARCH: {
+    strategies: [
+      { value: "MANUAL_CPC", label: "Manual CPC", desc: "You set max cost-per-click for each keyword", when: "New campaigns or when you want full control over bids", needsTarget: false },
+      { value: "MAXIMIZE_CLICKS", label: "Maximize Clicks", desc: "Google automatically sets bids to get the most clicks", when: "Building traffic and gathering data for new campaigns", needsTarget: false },
+      { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions", desc: "Google automatically sets bids to get the most conversions", when: "When you have 15+ conversions/month and conversion tracking is set up", needsTarget: false },
+      { value: "TARGET_CPA", label: "Target CPA", desc: "Google optimizes bids to hit your target cost per lead/conversion", when: "When you have 30+ conversions/month and know your ideal cost per lead", needsTarget: true, targetLabel: "Target Cost per Lead (INR)", targetPlaceholder: "e.g. 500" },
+      { value: "TARGET_ROAS", label: "Target ROAS", desc: "Google optimizes for a target return on ad spend", when: "E-commerce or when you can track revenue from ads", needsTarget: true, targetLabel: "Target ROAS", targetPlaceholder: "e.g. 3.0 for 300% return" },
+    ]
+  },
+  DISPLAY: {
+    strategies: [
+      { value: "MANUAL_CPC", label: "Manual CPC", desc: "You set max cost-per-click", when: "When starting display campaigns for the first time", needsTarget: false },
+      { value: "MAXIMIZE_CLICKS", label: "Maximize Clicks", desc: "Automatically maximize clicks within budget", when: "Driving traffic for remarketing or brand awareness", needsTarget: false },
+      { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions", desc: "Automatically maximize conversions", when: "When you have good conversion tracking and history", needsTarget: false },
+      { value: "TARGET_CPA", label: "Target CPA", desc: "Optimize for target cost per conversion", when: "When you have 30+ conversions/month from display", needsTarget: true, targetLabel: "Target CPA (INR)", targetPlaceholder: "e.g. 200" },
+    ]
+  },
+  VIDEO: {
+    strategies: [
+      { value: "TARGET_CPV", label: "Target CPV", desc: "Pay per video view (someone watches 30s or interacts)", when: "Brand awareness and product demo videos", needsTarget: true, targetLabel: "Max Cost per View (INR)", targetPlaceholder: "e.g. 2.00" },
+      { value: "TARGET_CPM", label: "Target CPM", desc: "Pay per 1,000 impressions shown", when: "Maximum reach and brand exposure campaigns", needsTarget: true, targetLabel: "Target CPM (INR)", targetPlaceholder: "e.g. 50.00" },
+      { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions", desc: "Google optimizes for conversions from video", when: "Video Action campaigns with conversion tracking", needsTarget: false },
+      { value: "TARGET_CPA", label: "Target CPA", desc: "Optimize video ads for target cost per conversion", when: "When video drives measurable leads/sales", needsTarget: true, targetLabel: "Target CPA (INR)", targetPlaceholder: "e.g. 300" },
+    ]
+  },
+  PERFORMANCE_MAX: {
+    strategies: [
+      { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions", desc: "Google AI optimizes across all channels for conversions", when: "Default for Performance Max - let Google AI optimize", needsTarget: false },
+      { value: "TARGET_ROAS", label: "Maximize Conv. Value (Target ROAS)", desc: "Google AI optimizes for conversion value with a ROAS target", when: "When you can assign values to different conversions", needsTarget: true, targetLabel: "Target ROAS", targetPlaceholder: "e.g. 3.0 for 300% return" },
+    ]
+  },
+};
+
 function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { toast } = useToast();
+  const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [dailyBudget, setDailyBudget] = useState("");
   const [channelType, setChannelType] = useState("SEARCH");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [targetCpa, setTargetCpa] = useState("");
-  const [targetRoas, setTargetRoas] = useState("");
-  const [targetCpv, setTargetCpv] = useState("");
-  const [videoBiddingStrategy, setVideoBiddingStrategy] = useState("TARGET_CPV");
+  const [biddingStrategy, setBiddingStrategy] = useState("MANUAL_CPC");
+  const [targetValue, setTargetValue] = useState("");
   const [videoSubtype, setVideoSubtype] = useState("VIDEO_ACTION");
 
-  const createMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/google-ads/campaigns/create", {
-      name,
-      dailyBudget: Number(dailyBudget),
-      advertisingChannelType: channelType,
-      advertisingChannelSubType: channelType === "VIDEO" ? videoSubtype : undefined,
-      status: "PAUSED",
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
-      targetCpa: targetCpa ? Number(targetCpa) : undefined,
-      targetRoas: targetRoas ? Number(targetRoas) : undefined,
-      targetCpv: targetCpv ? Number(targetCpv) : undefined,
-      videoBiddingStrategy: channelType === "VIDEO" ? videoBiddingStrategy : undefined,
+  const [aiObjective, setAiObjective] = useState("");
+  const [aiProduct, setAiProduct] = useState("");
+  const [aiGeography, setAiGeography] = useState("India");
+  const [aiMonthlyBudget, setAiMonthlyBudget] = useState("15000");
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+
+  const aiMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/google-ads/ai/campaign-suggestions", {
+      objective: aiObjective,
+      product: aiProduct,
+      targetAudience: "",
+      geography: aiGeography,
+      monthlyBudget: aiMonthlyBudget,
+      campaignType: channelType,
     }),
+    onSuccess: (data: any) => {
+      setAiSuggestions(data);
+      if (data.campaignName && !name) setName(data.campaignName);
+      if (data.dailyBudget?.recommended && !dailyBudget) setDailyBudget(String(data.dailyBudget.recommended));
+      if (data.biddingStrategy?.recommended) {
+        const rec = data.biddingStrategy.recommended;
+        const strategies = BIDDING_STRATEGIES[channelType]?.strategies || [];
+        if (strategies.some(s => s.value === rec)) {
+          setBiddingStrategy(rec);
+          if (data.biddingStrategy.targetValue) setTargetValue(String(data.biddingStrategy.targetValue));
+        }
+      }
+      toast({ title: "AI suggestions ready", description: "Recommendations have been applied. Review and adjust as needed." });
+    },
+    onError: (err: any) => {
+      toast({ title: "AI suggestion failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => {
+      const strategy = biddingStrategy;
+      const payload: any = {
+        name,
+        dailyBudget: Number(dailyBudget),
+        advertisingChannelType: channelType,
+        status: "PAUSED",
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      };
+
+      if (channelType === "VIDEO") {
+        payload.advertisingChannelSubType = videoSubtype;
+        payload.videoBiddingStrategy = strategy;
+        if ((strategy === "TARGET_CPV" || strategy === "TARGET_CPM") && targetValue) {
+          payload.targetCpv = Number(targetValue);
+        }
+        if (strategy === "TARGET_CPA" && targetValue) {
+          payload.targetCpa = Number(targetValue);
+        }
+      } else if (channelType === "PERFORMANCE_MAX") {
+        if (strategy === "TARGET_ROAS" && targetValue) {
+          payload.targetRoas = Number(targetValue);
+        }
+      } else {
+        if (strategy === "TARGET_CPA" && targetValue) {
+          payload.targetCpa = Number(targetValue);
+        }
+        if (strategy === "TARGET_ROAS" && targetValue) {
+          payload.targetRoas = Number(targetValue);
+        }
+      }
+
+      payload.biddingStrategyType = strategy;
+      return apiRequest("POST", "/api/google-ads/campaigns/create", payload);
+    },
     onSuccess: () => {
       toast({ title: "Campaign created", description: `"${name}" has been created in paused state.` });
       queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
       onOpenChange(false);
-      setName(""); setDailyBudget(""); setStartDate(""); setEndDate(""); setTargetCpa(""); setTargetRoas(""); setTargetCpv("");
+      resetForm();
     },
     onError: (err: any) => {
       toast({ title: "Failed to create campaign", description: err.message, variant: "destructive" });
     },
   });
 
+  const resetForm = () => {
+    setStep(1); setName(""); setDailyBudget(""); setStartDate(""); setEndDate("");
+    setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setAiSuggestions(null); setShowAiPanel(false);
+  };
+
+  const strategies = BIDDING_STRATEGIES[channelType]?.strategies || [];
+  const selectedStrategy = strategies.find(s => s.value === biddingStrategy);
+  const monthlyEstimate = dailyBudget ? (Number(dailyBudget) * 30.4).toFixed(0) : "0";
+
+  const handleChannelChange = (val: string) => {
+    setChannelType(val);
+    const defaultStrat = BIDDING_STRATEGIES[val]?.strategies[0]?.value || "MANUAL_CPC";
+    setBiddingStrategy(defaultStrat);
+    setTargetValue("");
+    setAiSuggestions(null);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5" /> Create Campaign</DialogTitle>
-          <DialogDescription>Create a new Google Ads campaign. It will be created in paused state.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Campaign Name *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Thermopac - India Search" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Campaign Type *</Label>
-              <Select value={channelType} onValueChange={setChannelType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SEARCH">Search</SelectItem>
-                  <SelectItem value="DISPLAY">Display</SelectItem>
-                  <SelectItem value="VIDEO">Video</SelectItem>
-                  <SelectItem value="PERFORMANCE_MAX">Performance Max</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Daily Budget (INR) *</Label>
-              <Input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} placeholder="500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Start Date</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-            <div>
-              <Label>End Date</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            </div>
-          </div>
-          {(channelType === "SEARCH" || channelType === "DISPLAY") && (
-            <div>
-              <Label>Target CPA (optional)</Label>
-              <Input type="number" value={targetCpa} onChange={(e) => setTargetCpa(e.target.value)} placeholder="Leave empty for Manual CPC" />
-              <p className="text-xs text-muted-foreground mt-1">If empty, campaign uses Manual CPC with Enhanced CPC</p>
-            </div>
-          )}
-          {channelType === "PERFORMANCE_MAX" && (
-            <div>
-              <Label>Target ROAS (optional)</Label>
-              <Input type="number" step="0.1" value={targetRoas} onChange={(e) => setTargetRoas(e.target.value)} placeholder="e.g. 3.0 for 300% ROAS" />
-              <p className="text-xs text-muted-foreground mt-1">If empty, campaign uses Maximize Conversions</p>
-            </div>
-          )}
-          {channelType === "VIDEO" && (
-            <div className="space-y-4">
-              <div>
-                <Label>Video Campaign Subtype</Label>
-                <Select value={videoSubtype} onValueChange={setVideoSubtype}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="VIDEO_ACTION">Video Action (Drive conversions)</SelectItem>
-                    <SelectItem value="VIDEO_REACH_TARGET_FREQUENCY">Video Reach (Brand awareness)</SelectItem>
-                    <SelectItem value="VIDEO_OUTSTREAM">Video Outstream (Mobile-only)</SelectItem>
-                    <SelectItem value="VIDEO_NON_SKIPPABLE">Non-Skippable In-Stream</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {videoSubtype === "VIDEO_ACTION" && "Best for driving website visits, leads, and conversions"}
-                  {videoSubtype === "VIDEO_REACH_TARGET_FREQUENCY" && "Best for maximizing reach and brand awareness"}
-                  {videoSubtype === "VIDEO_OUTSTREAM" && "Video ads on partner sites and apps (mobile only)"}
-                  {videoSubtype === "VIDEO_NON_SKIPPABLE" && "15-second non-skippable ads before/during videos"}
-                </p>
-              </div>
-              <div>
-                <Label>Bidding Strategy</Label>
-                <Select value={videoBiddingStrategy} onValueChange={setVideoBiddingStrategy}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="TARGET_CPV">Target CPV (Cost per View)</SelectItem>
-                    <SelectItem value="TARGET_CPM">Target CPM (Cost per 1000 Impressions)</SelectItem>
-                    <SelectItem value="MAXIMIZE_CONVERSIONS">Maximize Conversions</SelectItem>
-                    <SelectItem value="TARGET_CPA">Target CPA (Cost per Action)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {videoBiddingStrategy === "TARGET_CPV" && (
-                <div>
-                  <Label>Target CPV (INR)</Label>
-                  <Input type="number" step="0.01" value={targetCpv} onChange={(e) => setTargetCpv(e.target.value)} placeholder="e.g. 2.00" />
-                  <p className="text-xs text-muted-foreground mt-1">Maximum amount you are willing to pay per video view</p>
-                </div>
-              )}
-              {videoBiddingStrategy === "TARGET_CPM" && (
-                <div>
-                  <Label>Target CPM (INR)</Label>
-                  <Input type="number" step="0.01" value={targetCpv} onChange={(e) => setTargetCpv(e.target.value)} placeholder="e.g. 50.00" />
-                  <p className="text-xs text-muted-foreground mt-1">Target cost per 1,000 impressions</p>
-                </div>
-              )}
-              {videoBiddingStrategy === "TARGET_CPA" && (
-                <div>
-                  <Label>Target CPA (INR)</Label>
-                  <Input type="number" value={targetCpa} onChange={(e) => setTargetCpa(e.target.value)} placeholder="e.g. 100" />
-                  <p className="text-xs text-muted-foreground mt-1">Target cost per conversion action</p>
-                </div>
-              )}
-              {videoBiddingStrategy === "MAXIMIZE_CONVERSIONS" && (
-                <p className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg">Campaign will automatically set bids to get the most conversions within your budget</p>
-              )}
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => createMutation.mutate()} disabled={!name || !dailyBudget || createMutation.isPending}>
-            {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="w-5 h-5" />
             Create Campaign
-          </Button>
+            {step > 1 && <span className="text-sm font-normal text-muted-foreground ml-2">Step {step} of 3</span>}
+          </DialogTitle>
+          <DialogDescription>
+            {step === 1 && "Choose your campaign type and let AI help you set it up intelligently."}
+            {step === 2 && "Configure your bidding strategy - this determines how Google spends your budget."}
+            {step === 3 && "Review your campaign settings before creating."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === 1 && (
+          <div className="space-y-5">
+            <div>
+              <Label className="text-sm font-medium mb-3 block">What type of campaign do you want?</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(CAMPAIGN_TYPE_INFO).map(([key, info]) => {
+                  const Icon = info.icon;
+                  return (
+                    <div
+                      key={key}
+                      onClick={() => handleChannelChange(key)}
+                      className={`p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                        channelType === key ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon className={`w-4 h-4 ${channelType === key ? "text-blue-600" : "text-gray-500"}`} />
+                        <span className="font-medium text-sm">{info.label}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{info.desc}</p>
+                      <p className="text-xs text-blue-600 mt-1 font-medium">{info.best}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {channelType === "VIDEO" && (
+              <div>
+                <Label className="text-sm font-medium">Video Campaign Goal</Label>
+                <Select value={videoSubtype} onValueChange={setVideoSubtype}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VIDEO_ACTION">Drive Conversions (Video Action)</SelectItem>
+                    <SelectItem value="VIDEO_REACH_TARGET_FREQUENCY">Brand Awareness (Video Reach)</SelectItem>
+                    <SelectItem value="VIDEO_OUTSTREAM">Mobile Reach (Outstream)</SelectItem>
+                    <SelectItem value="VIDEO_NON_SKIPPABLE">Full Attention (Non-Skippable 15s)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-medium">Campaign Name *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Thermopac - Heat Exchangers - India" className="mt-1" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium">Daily Budget (INR) *</Label>
+                <Input type="number" value={dailyBudget} onChange={(e) => setDailyBudget(e.target.value)} placeholder="500" className="mt-1" />
+                {dailyBudget && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ~INR {Number(monthlyEstimate).toLocaleString()} per month
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Schedule (optional)</Label>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start" />
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowAiPanel(!showAiPanel)}
+                className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-800">AI Campaign Assistant</span>
+                  <Badge variant="outline" className="text-xs bg-purple-100 text-purple-700 border-purple-200">GPT-4o</Badge>
+                </div>
+                <ArrowRight className={`w-4 h-4 text-purple-500 transition-transform ${showAiPanel ? "rotate-90" : ""}`} />
+              </button>
+              {showAiPanel && (
+                <div className="p-3 space-y-3 border-t bg-white">
+                  <p className="text-xs text-muted-foreground">Tell me about your campaign goals and I will suggest the best strategy, budget, keywords, and ad copy.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Campaign Objective</Label>
+                      <Select value={aiObjective} onValueChange={setAiObjective}>
+                        <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select goal..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Generate qualified leads">Generate Leads</SelectItem>
+                          <SelectItem value="Increase brand awareness">Brand Awareness</SelectItem>
+                          <SelectItem value="Drive website traffic">Website Traffic</SelectItem>
+                          <SelectItem value="Promote specific product">Product Promotion</SelectItem>
+                          <SelectItem value="Retarget past visitors">Remarketing</SelectItem>
+                          <SelectItem value="Enter new market">New Market Entry</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Product/Service Focus</Label>
+                      <Select value={aiProduct} onValueChange={setAiProduct}>
+                        <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select product..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Heat Exchangers">Heat Exchangers</SelectItem>
+                          <SelectItem value="Thermic Fluid Heaters">Thermic Fluid Heaters</SelectItem>
+                          <SelectItem value="Steam Boilers">Steam Boilers</SelectItem>
+                          <SelectItem value="Hot Water Generators">Hot Water Generators</SelectItem>
+                          <SelectItem value="Hot Air Generators">Hot Air Generators</SelectItem>
+                          <SelectItem value="Waste Heat Recovery Systems">Waste Heat Recovery</SelectItem>
+                          <SelectItem value="Re-refining Plants">Re-refining Plants</SelectItem>
+                          <SelectItem value="Distillation Skids">Distillation Skids</SelectItem>
+                          <SelectItem value="All Products">All Products</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Target Geography</Label>
+                      <Input value={aiGeography} onChange={(e) => setAiGeography(e.target.value)} placeholder="India, Middle East" className="mt-1 h-8 text-xs" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Monthly Budget (INR)</Label>
+                      <Input value={aiMonthlyBudget} onChange={(e) => setAiMonthlyBudget(e.target.value)} placeholder="15000" className="mt-1 h-8 text-xs" />
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => aiMutation.mutate()}
+                    disabled={aiMutation.isPending}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    {aiMutation.isPending ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Analyzing with AI...</>
+                    ) : (
+                      <><Sparkles className="w-4 h-4 mr-2" /> Get AI Recommendations</>
+                    )}
+                  </Button>
+
+                  {aiSuggestions && (
+                    <div className="space-y-2 mt-2">
+                      {aiSuggestions.biddingStrategy && (
+                        <div className="bg-green-50 border border-green-200 rounded p-2">
+                          <div className="flex items-start gap-2">
+                            <Lightbulb className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-xs">
+                              <p className="font-medium text-green-800">Bidding: {aiSuggestions.biddingStrategy.recommended}</p>
+                              <p className="text-green-700">{aiSuggestions.biddingStrategy.reason}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {aiSuggestions.dailyBudget && (
+                        <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                          <div className="flex items-start gap-2">
+                            <DollarSign className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-xs">
+                              <p className="font-medium text-blue-800">Budget: INR {aiSuggestions.dailyBudget.recommended}/day</p>
+                              <p className="text-blue-700">{aiSuggestions.dailyBudget.reason}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {aiSuggestions.optimizationTips && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
+                          <p className="text-xs font-medium text-yellow-800 mb-1">Optimization Tips:</p>
+                          <ul className="text-xs text-yellow-700 space-y-0.5">
+                            {aiSuggestions.optimizationTips.map((tip: string, i: number) => (
+                              <li key={i} className="flex items-start gap-1"><span>-</span> {tip}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {aiSuggestions.adGroups && aiSuggestions.adGroups.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded p-2">
+                          <p className="text-xs font-medium text-purple-800 mb-1">Suggested Ad Groups ({aiSuggestions.adGroups.length}):</p>
+                          <div className="space-y-1">
+                            {aiSuggestions.adGroups.map((ag: any, i: number) => (
+                              <div key={i} className="text-xs text-purple-700">
+                                <span className="font-medium">{ag.name}</span> - {ag.theme}
+                                <span className="text-purple-500 ml-1">({ag.keywords?.length || 0} keywords)</span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-purple-500 mt-1 italic">You can create these ad groups after the campaign is set up</p>
+                        </div>
+                      )}
+                      {aiSuggestions.scheduleRecommendation && (
+                        <div className="bg-gray-50 border border-gray-200 rounded p-2">
+                          <p className="text-xs"><span className="font-medium">Schedule:</span> {aiSuggestions.scheduleRecommendation}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-3 block">How should Google spend your budget?</Label>
+              <div className="space-y-2">
+                {strategies.map((s) => (
+                  <div
+                    key={s.value}
+                    onClick={() => { setBiddingStrategy(s.value); setTargetValue(""); }}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      biddingStrategy === s.value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{s.label}</span>
+                      {biddingStrategy === s.value && <CheckCircle2 className="w-4 h-4 text-blue-600" />}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
+                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                      <Info className="w-3 h-3" /> {s.when}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedStrategy?.needsTarget && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <Label className="text-sm font-medium">{selectedStrategy.targetLabel}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={targetValue}
+                  onChange={(e) => setTargetValue(e.target.value)}
+                  placeholder={selectedStrategy.targetPlaceholder}
+                  className="mt-1 bg-white"
+                />
+              </div>
+            )}
+
+            {aiSuggestions?.biddingStrategy && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Brain className="w-4 h-4 text-purple-600" />
+                  <span className="text-xs font-medium text-purple-800">AI Recommendation</span>
+                </div>
+                <p className="text-xs text-purple-700">{aiSuggestions.biddingStrategy.reason}</p>
+                {aiSuggestions.biddingStrategy.recommended !== biddingStrategy && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 text-xs h-7 border-purple-300 text-purple-700"
+                    onClick={() => {
+                      const rec = aiSuggestions.biddingStrategy.recommended;
+                      if (strategies.some(s => s.value === rec)) {
+                        setBiddingStrategy(rec);
+                        if (aiSuggestions.biddingStrategy.targetValue) setTargetValue(String(aiSuggestions.biddingStrategy.targetValue));
+                      }
+                    }}
+                  >
+                    <Sparkles className="w-3 h-3 mr-1" /> Apply AI suggestion: {aiSuggestions.biddingStrategy.recommended}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-4">
+            <Card className="bg-gray-50">
+              <CardContent className="p-4 space-y-3">
+                <h3 className="font-medium text-sm">Campaign Summary</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Campaign Name</p>
+                    <p className="font-medium">{name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Type</p>
+                    <p className="font-medium">{CAMPAIGN_TYPE_INFO[channelType]?.label}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Daily Budget</p>
+                    <p className="font-medium">INR {Number(dailyBudget).toLocaleString()}/day (~INR {Number(monthlyEstimate).toLocaleString()}/mo)</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Bidding Strategy</p>
+                    <p className="font-medium">{selectedStrategy?.label || biddingStrategy}</p>
+                  </div>
+                  {targetValue && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">{selectedStrategy?.targetLabel}</p>
+                      <p className="font-medium">INR {targetValue}</p>
+                    </div>
+                  )}
+                  {channelType === "VIDEO" && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Video Subtype</p>
+                      <p className="font-medium">{videoSubtype.replace(/_/g, ' ')}</p>
+                    </div>
+                  )}
+                  {startDate && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Schedule</p>
+                      <p className="font-medium">{startDate} {endDate ? `to ${endDate}` : "onwards"}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Initial Status</p>
+                    <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">PAUSED</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs font-medium text-blue-800 mb-1">What happens next?</p>
+              <ul className="text-xs text-blue-700 space-y-0.5">
+                <li>1. Campaign is created in PAUSED state (no money spent)</li>
+                <li>2. Create ad groups with themed keywords</li>
+                <li>3. Write compelling ads for each ad group</li>
+                <li>4. Review everything, then Enable the campaign</li>
+              </ul>
+            </div>
+
+            {aiSuggestions?.adGroups && aiSuggestions.adGroups.length > 0 && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Brain className="w-4 h-4 text-purple-600" />
+                  <span className="text-xs font-medium text-purple-800">AI-suggested next steps after creation:</span>
+                </div>
+                <ul className="text-xs text-purple-700 space-y-0.5">
+                  {aiSuggestions.adGroups.map((ag: any, i: number) => (
+                    <li key={i}>Create ad group "{ag.name}" with {ag.keywords?.length || 0} keywords</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter className="flex items-center justify-between">
+          <div>
+            {step > 1 && (
+              <Button variant="ghost" onClick={() => setStep(step - 1)}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> Back
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
+            {step < 3 ? (
+              <Button onClick={() => setStep(step + 1)} disabled={step === 1 && (!name || !dailyBudget)}>
+                Next <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="bg-green-600 hover:bg-green-700">
+                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
+                Create Campaign
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

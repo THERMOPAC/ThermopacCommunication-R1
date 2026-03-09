@@ -255,6 +255,7 @@ export async function createCampaign(
     targetRoas?: number;
     targetCpv?: number;
     videoBiddingStrategy?: string;
+    biddingStrategyType?: string;
     networkSettings?: {
       targetGoogleSearch?: boolean;
       targetSearchNetwork?: boolean;
@@ -285,16 +286,24 @@ export async function createCampaign(
     };
   }
 
+  const strategy = params.biddingStrategyType || '';
+
   if (params.advertisingChannelType === 'SEARCH' || params.advertisingChannelType === 'DISPLAY') {
-    if (params.targetCpa) {
+    if (strategy === 'TARGET_CPA' && params.targetCpa) {
       campaign.targetCpa = { targetCpaMicros: String(moneyToMicros(params.targetCpa)) };
+    } else if (strategy === 'TARGET_ROAS' && params.targetRoas) {
+      campaign.maximizeConversionValue = { targetRoas: params.targetRoas };
+    } else if (strategy === 'MAXIMIZE_CONVERSIONS') {
+      campaign.maximizeConversions = {};
+    } else if (strategy === 'MAXIMIZE_CLICKS') {
+      campaign.maximizeClicks = {};
     } else {
       campaign.manualCpc = { enhancedCpcEnabled: true };
     }
   }
 
   if (params.advertisingChannelType === 'PERFORMANCE_MAX') {
-    if (params.targetRoas) {
+    if (strategy === 'TARGET_ROAS' && params.targetRoas) {
       campaign.maximizeConversionValue = { targetRoas: params.targetRoas };
     } else {
       campaign.maximizeConversions = {};
@@ -302,14 +311,14 @@ export async function createCampaign(
   }
 
   if (params.advertisingChannelType === 'VIDEO') {
-    const strategy = params.videoBiddingStrategy || 'TARGET_CPV';
-    if (strategy === 'TARGET_CPV' && params.targetCpv) {
+    const videoStrategy = params.videoBiddingStrategy || strategy || 'TARGET_CPV';
+    if (videoStrategy === 'TARGET_CPV') {
       campaign.manualCpv = {};
-    } else if (strategy === 'TARGET_CPM') {
+    } else if (videoStrategy === 'TARGET_CPM') {
       campaign.targetCpm = {};
-    } else if (strategy === 'MAXIMIZE_CONVERSIONS') {
+    } else if (videoStrategy === 'MAXIMIZE_CONVERSIONS') {
       campaign.maximizeConversions = {};
-    } else if (strategy === 'TARGET_CPA' && params.targetCpa) {
+    } else if (videoStrategy === 'TARGET_CPA' && params.targetCpa) {
       campaign.targetCpa = { targetCpaMicros: String(moneyToMicros(params.targetCpa)) };
     } else {
       campaign.manualCpv = {};
