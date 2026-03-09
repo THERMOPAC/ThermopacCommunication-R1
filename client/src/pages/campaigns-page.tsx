@@ -473,21 +473,22 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   }, [selectedLocations, selectedLanguages, productFocus, channelType, nameManuallyEdited]);
 
   const [aiObjective, setAiObjective] = useState("");
-  const [aiProduct, setAiProduct] = useState("");
-  const [aiGeography, setAiGeography] = useState("India");
   const [aiMonthlyBudget, setAiMonthlyBudget] = useState("15000");
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
   const aiMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/google-ads/ai/campaign-suggestions", {
-      objective: aiObjective,
-      product: aiProduct,
-      targetAudience: "",
-      geography: aiGeography,
-      monthlyBudget: aiMonthlyBudget,
-      campaignType: channelType,
-    }),
+    mutationFn: () => {
+      const geoNames = selectedLocations.map(c => AVAILABLE_COUNTRIES.find(x => x.code === c)?.name || c).join(", ");
+      return apiRequest("POST", "/api/google-ads/ai/campaign-suggestions", {
+        objective: aiObjective,
+        product: productFocus || "All Products",
+        targetAudience: "",
+        geography: geoNames || "India",
+        monthlyBudget: aiMonthlyBudget,
+        campaignType: channelType,
+      });
+    },
     onSuccess: (data: any) => {
       setAiSuggestions(data);
       if (data.campaignName && !name) setName(data.campaignName);
@@ -823,7 +824,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </button>
               {showAiPanel && (
                 <div className="p-3 space-y-3 border-t bg-white">
-                  <p className="text-xs text-muted-foreground">Tell me about your campaign goals and I will suggest the best strategy, budget, keywords, and ad copy.</p>
+                  <p className="text-xs text-muted-foreground">AI uses your product, country, and language selections above to suggest the best strategy, budget, keywords, and ad copy.</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Campaign Objective</Label>
@@ -838,27 +839,6 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                           <SelectItem value="Enter new market">New Market Entry</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Product/Service Focus</Label>
-                      <Select value={aiProduct} onValueChange={setAiProduct}>
-                        <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select product..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Heat Exchangers">Heat Exchangers</SelectItem>
-                          <SelectItem value="Thermic Fluid Heaters">Thermic Fluid Heaters</SelectItem>
-                          <SelectItem value="Steam Boilers">Steam Boilers</SelectItem>
-                          <SelectItem value="Hot Water Generators">Hot Water Generators</SelectItem>
-                          <SelectItem value="Hot Air Generators">Hot Air Generators</SelectItem>
-                          <SelectItem value="Waste Heat Recovery Systems">Waste Heat Recovery</SelectItem>
-                          <SelectItem value="Re-refining Plants">Re-refining Plants</SelectItem>
-                          <SelectItem value="Distillation Skids">Distillation Skids</SelectItem>
-                          <SelectItem value="All Products">All Products</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs">Target Geography</Label>
-                      <Input value={aiGeography} onChange={(e) => setAiGeography(e.target.value)} placeholder="India, Middle East" className="mt-1 h-8 text-xs" />
                     </div>
                     <div>
                       <Label className="text-xs">Monthly Budget (INR)</Label>
