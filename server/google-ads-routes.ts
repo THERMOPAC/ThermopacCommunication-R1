@@ -336,7 +336,7 @@ router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Respons
     const accessToken = await getValidAccessToken(userId);
     diagnostics.hasToken = !!accessToken;
 
-    for (const version of ['v18', 'v17', 'v16']) {
+    for (const version of ['v19', 'v20', 'v18', 'v17']) {
       try {
         const testUrl = `https://googleads.googleapis.com/${version}/customers/${cleanCustomerId}/googleAds:search`;
         const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
@@ -367,7 +367,7 @@ router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Respons
     }
 
     try {
-      const listUrl = `https://googleads.googleapis.com/v17/customers:listAccessibleCustomers`;
+      const listUrl = `https://googleads.googleapis.com/v19/customers:listAccessibleCustomers`;
       const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
       const resp = await fetch(listUrl, {
         method: 'GET',

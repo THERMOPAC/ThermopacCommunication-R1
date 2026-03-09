@@ -1,6 +1,6 @@
 import { getValidAccessToken } from './google-ads-auth';
 
-const GOOGLE_ADS_API_VERSION = 'v17';
+const GOOGLE_ADS_API_VERSION = 'v19';
 const GOOGLE_ADS_BASE_URL = `https://googleads.googleapis.com/${GOOGLE_ADS_API_VERSION}`;
 
 interface GaqlResponse {
