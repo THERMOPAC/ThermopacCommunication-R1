@@ -812,12 +812,10 @@ EXISTING ACCOUNT DATA:
 
 YOUR TASK: Generate a complete, production-ready campaign strategy. Be extremely specific to the product "${product}".
 
-${isMultilingual ? `CRITICAL - MULTILINGUAL AD COPY REQUIRED:
+${isMultilingual ? `CRITICAL - MULTILINGUAL CAMPAIGN REQUIRED:
 Target languages are: ${targetLangs}
-For EACH ad group, provide headlines and descriptions in ALL target languages.
-Use native-speaker quality translations, not literal translations.
-Adapt messaging to cultural context of each target market.
-Use the "multilingualCopy" field for each ad group.` : ''}
+KEYWORDS: Generate keywords in ALL target languages. For each ad group, include keywords that local buyers would actually search in their native language. For example, if targeting Spanish, include "planta de re-refinación de aceite", not just English terms. Mix English and local-language keywords since some buyers search in English even in non-English countries.
+AD COPY: For EACH ad group, provide headlines and descriptions in ALL target languages using the "multilingualCopy" field. Use native-speaker quality — not literal translations. Adapt messaging to cultural context of each target market.` : `LANGUAGE NOTE: Target language is ${targetLangs}. ${langCodes[0] !== 'en' ? `Generate ALL keywords in ${targetLangs} — these are what local buyers will search for. Also include a few English keywords since some B2B buyers search in English. Headlines and descriptions must be in ${targetLangs}.` : 'Generate keywords in English.'}`}
 
 Respond in JSON:
 {
@@ -838,7 +836,7 @@ Respond in JSON:
       "theme": "what buyer intent this targets",
       "buyerStage": "awareness | consideration | decision",
       "keywords": [
-        {"text": "keyword in primary language", "matchType": "BROAD|PHRASE|EXACT", "reason": "why this keyword drives qualified traffic", "estimatedCpc": "estimated CPC range"}
+        {"text": "keyword in target language", "matchType": "BROAD|PHRASE|EXACT", "language": "language code (en/es/ar/etc)", "reason": "why this keyword drives qualified traffic", "estimatedCpc": "estimated CPC range"}
       ],
       "negativeKeywords": ["irrelevant terms to block"],
       "headlines": ["15 headlines max 30 chars each - primary language"],

@@ -932,23 +932,101 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                       )}
                       {aiSuggestions.adGroups && aiSuggestions.adGroups.length > 0 && (
                         <div className="bg-purple-50 border border-purple-200 rounded p-2">
-                          <p className="text-xs font-medium text-purple-800 mb-1">Suggested Ad Groups ({aiSuggestions.adGroups.length}):</p>
-                          <div className="space-y-2">
+                          <p className="text-xs font-medium text-purple-800 mb-2">Suggested Ad Groups ({aiSuggestions.adGroups.length}):</p>
+                          <div className="space-y-3">
                             {aiSuggestions.adGroups.map((ag: any, i: number) => (
-                              <div key={i} className="border-b border-purple-100 pb-1 last:border-0 last:pb-0">
-                                <div className="text-xs text-purple-700">
-                                  <span className="font-medium">{ag.name}</span>
-                                  {ag.buyerStage && <Badge variant="outline" className="ml-1 text-[10px] h-4 bg-purple-100 text-purple-600 border-purple-200">{ag.buyerStage}</Badge>}
+                              <div key={i} className="bg-white border border-purple-200 rounded p-2">
+                                <div className="text-xs text-purple-700 flex items-center gap-1 mb-1">
+                                  <span className="font-semibold">{ag.name}</span>
+                                  {ag.buyerStage && <Badge variant="outline" className="text-[10px] h-4 bg-purple-100 text-purple-600 border-purple-200">{ag.buyerStage}</Badge>}
                                 </div>
-                                <p className="text-xs text-purple-600">{ag.theme}</p>
-                                <p className="text-xs text-purple-500">{ag.keywords?.length || 0} keywords | {ag.headlines?.length || 0} headlines | {ag.descriptions?.length || 0} descriptions</p>
+                                <p className="text-xs text-purple-600 mb-2">{ag.theme}</p>
+
+                                {ag.keywords && ag.keywords.length > 0 && (
+                                  <div className="mb-2">
+                                    <p className="text-xs font-medium text-purple-700 mb-0.5">Keywords ({ag.keywords.length}):</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {ag.keywords.map((kw: any, ki: number) => (
+                                        <span key={ki} className="inline-flex items-center gap-0.5 text-[10px] bg-purple-100 text-purple-700 rounded px-1.5 py-0.5 border border-purple-200">
+                                          {typeof kw === 'string' ? kw : (
+                                            <>
+                                              {kw.language && kw.language !== 'en' && <span className="bg-purple-200 text-purple-800 rounded px-1 font-medium uppercase">{kw.language}</span>}
+                                              {kw.matchType === 'EXACT' ? `[${kw.text}]` : kw.matchType === 'PHRASE' ? `"${kw.text}"` : kw.text}
+                                            </>
+                                          )}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ag.negativeKeywords && ag.negativeKeywords.length > 0 && (
+                                  <div className="mb-2">
+                                    <p className="text-xs font-medium text-red-600 mb-0.5">Negative Keywords:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {ag.negativeKeywords.map((nk: string, ni: number) => (
+                                        <span key={ni} className="inline-flex text-[10px] bg-red-50 text-red-600 rounded px-1.5 py-0.5 border border-red-200">-{nk}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ag.headlines && ag.headlines.length > 0 && (
+                                  <div className="mb-2">
+                                    <p className="text-xs font-medium text-blue-700 mb-0.5">Headlines ({ag.headlines.length}):</p>
+                                    <div className="space-y-0.5">
+                                      {ag.headlines.map((h: string, hi: number) => (
+                                        <p key={hi} className="text-[11px] text-blue-600 bg-blue-50 rounded px-1.5 py-0.5">{h} <span className="text-blue-400">({h.length} chars)</span></p>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ag.descriptions && ag.descriptions.length > 0 && (
+                                  <div className="mb-2">
+                                    <p className="text-xs font-medium text-green-700 mb-0.5">Descriptions ({ag.descriptions.length}):</p>
+                                    <div className="space-y-0.5">
+                                      {ag.descriptions.map((d: string, di: number) => (
+                                        <p key={di} className="text-[11px] text-green-600 bg-green-50 rounded px-1.5 py-0.5">{d} <span className="text-green-400">({d.length} chars)</span></p>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
                                 {ag.multilingualCopy && Object.keys(ag.multilingualCopy).length > 0 && (
-                                  <p className="text-xs text-purple-500">Multilingual copy: {Object.keys(ag.multilingualCopy).join(", ")}</p>
+                                  <div className="mt-2 border-t border-purple-100 pt-2">
+                                    <p className="text-xs font-medium text-orange-700 mb-1">Multilingual Ad Copy:</p>
+                                    {Object.entries(ag.multilingualCopy).map(([lang, copy]: [string, any]) => (
+                                      <div key={lang} className="mb-2 bg-orange-50 border border-orange-200 rounded p-1.5">
+                                        <p className="text-[10px] font-semibold text-orange-800 uppercase mb-0.5">{lang}</p>
+                                        {copy.headlines && (
+                                          <div className="mb-1">
+                                            <p className="text-[10px] text-orange-600 font-medium">Headlines:</p>
+                                            {copy.headlines.map((h: string, hi: number) => (
+                                              <p key={hi} className="text-[10px] text-orange-700 pl-1">{h}</p>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {copy.descriptions && (
+                                          <div>
+                                            <p className="text-[10px] text-orange-600 font-medium">Descriptions:</p>
+                                            {copy.descriptions.map((d: string, di: number) => (
+                                              <p key={di} className="text-[10px] text-orange-700 pl-1">{d}</p>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {ag.landingPageSuggestion && (
+                                  <p className="text-[10px] text-gray-500 mt-1">Landing page: {ag.landingPageSuggestion}</p>
                                 )}
                               </div>
                             ))}
                           </div>
-                          <p className="text-xs text-purple-500 mt-1 italic">Create these ad groups after the campaign is set up</p>
+                          <p className="text-xs text-purple-500 mt-2 italic">Create these ad groups after the campaign is set up</p>
                         </div>
                       )}
                       {aiSuggestions.optimizationTips && (
