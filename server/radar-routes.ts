@@ -1357,6 +1357,9 @@ async function processDiscoveryResult(
       'goldapple.ru', 'goldapple.sa', 'sssports.com',
       'yallamotor.com', 'carswitch.com', 'autotradersaudiarabia.com',
       'timberland.com', 'vparts.sa', 'mourjan.com', 'haraj.com.sa',
+      'pennzoil.com', 'castrol.com', 'mobil.com', 'valvoline.com', 'shell.com',
+      'bp.com', 'exxonmobil.com', 'totalenergies.com', 'chevron.com', 'sinopec.com',
+      'fuchs.com', 'motul.com', 'liqui-moly.com', 'amsoil.com', 'royalpurple.com',
       'steelconstruction.info', 'constructiondive.com', 'construction.com',
       'recyclingtoday.com', 'waste360.com', 'wastedive.com',
       'sciencedirect.com', 'researchgate.net', 'academia.edu', 'springer.com',
@@ -1762,10 +1765,15 @@ async function processDiscoveryResult(
       'grant thornton', 'kpmg', 'deloitte', 'ernst & young', 'pwc', 'accenture', 'mckinsey',
       'air liquide', 'caterpillar', 'siemens', 'abb', 'honeywell', 'emerson', '3m',
       'roxtec', 'eagleburgmann', 'glomacs', 'timberland', 'gold apple',
+      'pennzoil', 'castrol', 'mobil', 'valvoline', 'shell', 'bp', 'exxonmobil',
+      'total energies', 'totalenergies', 'chevron', 'sinopec', 'petrochina',
+      'fuchs', 'motul', 'liqui moly', 'liqui-moly', 'amsoil', 'royal purple',
+      'saudi aramco', 'aramco', 'adnoc', 'petronas', 'petrobras', 'repsol', 'eni',
+      'caltex', 'lukoil', 'gazprom', 'idemitsu', 'cosmo oil',
     ];
     const nameLC = companyName.toLowerCase().trim();
-    const isKnownJunk = KNOWN_JUNK_BRANDS.some(brand => nameLC === brand || nameLC.startsWith(brand + ' ') || nameLC.endsWith(' ' + brand));
-    if (isKnownJunk && aiResult.company_type !== 're_refiner' && aiResult.company_type !== 'waste_oil_recycler') {
+    const isKnownJunk = KNOWN_JUNK_BRANDS.some(brand => nameLC === brand || nameLC.startsWith(brand + ' ') || nameLC.endsWith(' ' + brand) || nameLC.includes(brand + '-'));
+    if (isKnownJunk) {
       console.log(`[Radar] POST-AI JUNK: Known non-industry brand "${companyName}" — marking not_relevant`);
       await db.execute(sql`
         UPDATE radar_companies SET company_type = 'not_relevant', opportunity_score = 0, score_band = 'low',
