@@ -662,7 +662,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 )}
               </div>
               <div>
-                <Label className="text-sm font-medium">Schedule (optional)</Label>
+                <Label className="text-sm font-medium">Schedule *</Label>
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start" />
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End" />
@@ -1096,7 +1096,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
             {step < 3 ? (
-              <Button onClick={() => setStep(step + 1)} disabled={step === 1 && (!name || !dailyBudget)}>
+              <Button onClick={() => setStep(step + 1)} disabled={step === 1 && (!name || !dailyBudget || !startDate)}>
                 Next <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
