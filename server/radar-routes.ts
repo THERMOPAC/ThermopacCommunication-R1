@@ -1809,7 +1809,7 @@ async function processDiscoveryResult(
           RETURNING id
         `);
 
-        if (Number(signal.confidence) > 0.7) {
+        if (Number(signal.confidence) > 0.7 && compType !== 'not_relevant' && compType !== 'unclear') {
           await createAlert('new_project_signal', 'high',
             `Project signal: ${signal.type} - ${aiResult.company_name || title}`,
             signal.summary || '', companyId, Number(projectResult.rows[0]?.id), country, url);
@@ -1817,7 +1817,7 @@ async function processDiscoveryResult(
       }
     }
 
-    if (scoring.final >= 75) {
+    if (scoring.final >= 75 && compType !== 'not_relevant' && compType !== 'unclear') {
       await createAlert('score_threshold', 'high',
         `Hot opportunity: ${aiResult.company_name || title} (Score: ${scoring.final})`,
         `${scoring.band} opportunity in ${country}. ${scoring.explanation}`,
