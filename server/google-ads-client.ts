@@ -39,7 +39,7 @@ export async function executeGaql(
   const accessToken = await getValidAccessToken(userId);
   const headers = getHeaders(accessToken);
 
-  const url = `${GOOGLE_ADS_BASE_URL}/customers/${cleanCustomerId}/googleAds:searchStream`;
+  const url = `${GOOGLE_ADS_BASE_URL}/customers/${cleanCustomerId}/googleAds:search`;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

@@ -325,4 +325,67 @@ router.get('/sync/status', ensureAuthenticated, async (req: Request, res: Respon
   }
 });
 
+router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID || '';
+    const cleanCustomerId = customerId.replace(/-/g, '');
+    const diagnostics: any = { customerId: cleanCustomerId, tests: [] };
+
+    const { getValidAccessToken } = await import('./google-ads-auth');
+    const accessToken = await getValidAccessToken(userId);
+    diagnostics.hasToken = !!accessToken;
+
+    for (const version of ['v18', 'v17', 'v16']) {
+      try {
+        const testUrl = `https://googleads.googleapis.com/${version}/customers/${cleanCustomerId}/googleAds:search`;
+        const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
+        const headers: Record<string, string> = {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': devToken,
+          'Content-Type': 'application/json',
+        };
+        const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
+        if (loginCustomerId) {
+          headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
+        }
+        const resp = await fetch(testUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ query: 'SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1' }),
+        });
+        const body = await resp.text();
+        diagnostics.tests.push({
+          version,
+          status: resp.status,
+          ok: resp.ok,
+          body: body.substring(0, 500),
+        });
+      } catch (err: any) {
+        diagnostics.tests.push({ version, error: err.message });
+      }
+    }
+
+    try {
+      const listUrl = `https://googleads.googleapis.com/v17/customers:listAccessibleCustomers`;
+      const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
+      const resp = await fetch(listUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': devToken,
+        },
+      });
+      const body = await resp.text();
+      diagnostics.listAccessible = { status: resp.status, body: body.substring(0, 500) };
+    } catch (err: any) {
+      diagnostics.listAccessible = { error: err.message };
+    }
+
+    res.json(diagnostics);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
