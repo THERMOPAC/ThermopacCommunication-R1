@@ -423,6 +423,8 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["en"]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>(["IN"]);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [productFocus, setProductFocus] = useState("");
 
   const [aiObjective, setAiObjective] = useState("");
@@ -517,7 +519,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const resetForm = () => {
     setStep(1); setName(""); setDailyBudget(""); setStartDate(""); setEndDate("");
     setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setSelectedLanguages(["en"]);
-    setSelectedLocations(["IN"]); setProductFocus("");
+    setSelectedLocations(["IN"]); setLocationSearch(""); setLocationDropdownOpen(false); setProductFocus("");
     setAiSuggestions(null); setShowAiPanel(false);
   };
 
@@ -661,47 +663,83 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </p>
             </div>
 
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Target Countries / Locations</Label>
-              <div className="border rounded-lg p-3 max-h-48 overflow-y-auto">
-                <div className="flex flex-wrap gap-1.5">
-                  {AVAILABLE_COUNTRIES.map((country) => {
-                    const isSelected = selectedLocations.includes(country.code);
+            <div className="relative">
+              <Label className="text-sm font-medium mb-1 block">Target Countries / Locations</Label>
+              <button
+                type="button"
+                onClick={() => { setLocationDropdownOpen(!locationDropdownOpen); setLocationSearch(""); }}
+                className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-white text-sm hover:border-gray-400 transition-colors"
+              >
+                <span className="truncate text-left">
+                  {selectedLocations.length === 0 ? "Select countries..." :
+                   selectedLocations.length <= 3
+                     ? selectedLocations.map(c => AVAILABLE_COUNTRIES.find(x => x.code === c)?.name || c).join(", ")
+                     : `${selectedLocations.length} countries selected`}
+                </span>
+                <ChevronLeft className={`w-4 h-4 text-gray-400 transition-transform ${locationDropdownOpen ? "rotate-90" : "-rotate-90"}`} />
+              </button>
+              {locationDropdownOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg">
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Search countries..."
+                      value={locationSearch}
+                      onChange={(e) => setLocationSearch(e.target.value)}
+                      className="h-8 text-sm"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-1">
+                    {AVAILABLE_COUNTRIES
+                      .filter(c => c.name.toLowerCase().includes(locationSearch.toLowerCase()))
+                      .map((country) => {
+                        const isSelected = selectedLocations.includes(country.code);
+                        return (
+                          <button
+                            key={country.code}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedLocations(selectedLocations.filter(c => c !== country.code));
+                              } else {
+                                setSelectedLocations([...selectedLocations, country.code]);
+                              }
+                            }}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-50 transition-colors"
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? "bg-green-600 border-green-600" : "border-gray-300"}`}>
+                              {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                            </div>
+                            {country.name}
+                          </button>
+                        );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 border-t bg-gray-50">
+                    <p className="text-xs text-muted-foreground">{selectedLocations.length} selected</p>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setSelectedLocations(AVAILABLE_COUNTRIES.map(c => c.code))} className="text-xs text-blue-600 hover:underline">Select All</button>
+                      <button type="button" onClick={() => setSelectedLocations([])} className="text-xs text-red-600 hover:underline">Clear</button>
+                      <button type="button" onClick={() => setLocationDropdownOpen(false)} className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded hover:bg-blue-700">Done</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {selectedLocations.length > 0 && !locationDropdownOpen && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {selectedLocations.map(code => {
+                    const country = AVAILABLE_COUNTRIES.find(c => c.code === code);
                     return (
-                      <button
-                        key={country.code}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            if (selectedLocations.length > 1) {
-                              setSelectedLocations(selectedLocations.filter(c => c !== country.code));
-                            }
-                          } else {
-                            setSelectedLocations([...selectedLocations, country.code]);
-                          }
-                        }}
-                        className={`px-2 py-1 rounded text-xs border transition-all ${
-                          isSelected
-                            ? "bg-green-100 text-green-800 border-green-300 font-medium"
-                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
-                        }`}
-                      >
-                        {country.name}
-                      </button>
+                      <Badge key={code} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 gap-1">
+                        {country?.name || code}
+                        <button type="button" onClick={() => setSelectedLocations(selectedLocations.filter(c => c !== code))} className="hover:text-red-600">
+                          <XCircle className="w-3 h-3" />
+                        </button>
+                      </Badge>
                     );
                   })}
                 </div>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-muted-foreground">
-                  {selectedLocations.length} countr{selectedLocations.length !== 1 ? "ies" : "y"} selected. Your ads will only show to users in these locations.
-                </p>
-                <div className="flex gap-1">
-                  <button type="button" onClick={() => setSelectedLocations(AVAILABLE_COUNTRIES.map(c => c.code))} className="text-xs text-blue-600 hover:underline">All</button>
-                  <span className="text-xs text-gray-400">|</span>
-                  <button type="button" onClick={() => setSelectedLocations(["IN"])} className="text-xs text-blue-600 hover:underline">Reset</button>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="border rounded-lg overflow-hidden">
@@ -1291,6 +1329,7 @@ function CampaignLocationsDialog({ open, onOpenChange, campaignId }: { open: boo
   const { toast } = useToast();
   const [locs, setLocs] = useState<string[]>(["IN"]);
   const [initialized, setInitialized] = useState(false);
+  const [search, setSearch] = useState("");
 
   const currentLocs = useQuery({
     queryKey: ["/api/google-ads/campaigns", campaignId, "locations"],
@@ -1317,19 +1356,22 @@ function CampaignLocationsDialog({ open, onOpenChange, campaignId }: { open: boo
     onError: (err: any) => toast({ title: "Failed to update locations", description: err.message, variant: "destructive" }),
   });
 
+  const filtered = AVAILABLE_COUNTRIES.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><MapPin className="w-5 h-5" /> Campaign Locations</DialogTitle>
-          <DialogDescription>Select which countries your ads should target. Your ads will only show to users in these locations.</DialogDescription>
+          <DialogDescription>Select which countries your ads should target.</DialogDescription>
         </DialogHeader>
         {currentLocs.isLoading ? (
           <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : (
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto p-2 border rounded-lg">
-              {AVAILABLE_COUNTRIES.map((country) => {
+            <Input placeholder="Search countries..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9" />
+            <div className="max-h-56 overflow-y-auto border rounded-lg p-1">
+              {filtered.map((country) => {
                 const isSelected = locs.includes(country.code);
                 return (
                   <button
@@ -1337,17 +1379,16 @@ function CampaignLocationsDialog({ open, onOpenChange, campaignId }: { open: boo
                     type="button"
                     onClick={() => {
                       if (isSelected) {
-                        if (locs.length > 1) setLocs(locs.filter(c => c !== country.code));
+                        setLocs(locs.filter(c => c !== country.code));
                       } else {
                         setLocs([...locs, country.code]);
                       }
                     }}
-                    className={`px-2.5 py-1.5 rounded text-xs border transition-all ${
-                      isSelected
-                        ? "bg-green-100 text-green-800 border-green-300 font-medium"
-                        : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
-                    }`}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-50 transition-colors"
                   >
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? "bg-green-600 border-green-600" : "border-gray-300"}`}>
+                      {isSelected && <CheckCircle2 className="w-3 h-3 text-white" />}
+                    </div>
                     {country.name}
                   </button>
                 );
@@ -1355,12 +1396,26 @@ function CampaignLocationsDialog({ open, onOpenChange, campaignId }: { open: boo
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">{locs.length} countr{locs.length !== 1 ? "ies" : "y"} selected</p>
-              <div className="flex gap-1">
-                <button type="button" onClick={() => setLocs(AVAILABLE_COUNTRIES.map(c => c.code))} className="text-xs text-blue-600 hover:underline">All</button>
-                <span className="text-xs text-gray-400">|</span>
-                <button type="button" onClick={() => setLocs(["IN"])} className="text-xs text-blue-600 hover:underline">Reset</button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setLocs(AVAILABLE_COUNTRIES.map(c => c.code))} className="text-xs text-blue-600 hover:underline">Select All</button>
+                <button type="button" onClick={() => setLocs([])} className="text-xs text-red-600 hover:underline">Clear</button>
               </div>
             </div>
+            {locs.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {locs.map(code => {
+                  const country = AVAILABLE_COUNTRIES.find(c => c.code === code);
+                  return (
+                    <Badge key={code} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 gap-1">
+                      {country?.name || code}
+                      <button type="button" onClick={() => setLocs(locs.filter(c => c !== code))} className="hover:text-red-600">
+                        <XCircle className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
         <DialogFooter>
