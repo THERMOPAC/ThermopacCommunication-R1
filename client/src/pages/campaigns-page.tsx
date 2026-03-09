@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -321,6 +321,34 @@ const BIDDING_STRATEGIES: Record<string, { strategies: Array<{ value: string; la
   },
 };
 
+const AVAILABLE_LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "hi", name: "Hindi" },
+  { code: "ar", name: "Arabic" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "es", name: "Spanish" },
+  { code: "pt", name: "Portuguese" },
+  { code: "ru", name: "Russian" },
+  { code: "zh", name: "Chinese" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "it", name: "Italian" },
+  { code: "nl", name: "Dutch" },
+  { code: "tr", name: "Turkish" },
+  { code: "pl", name: "Polish" },
+  { code: "th", name: "Thai" },
+  { code: "vi", name: "Vietnamese" },
+  { code: "id", name: "Indonesian" },
+  { code: "ms", name: "Malay" },
+  { code: "bn", name: "Bengali" },
+  { code: "ta", name: "Tamil" },
+  { code: "te", name: "Telugu" },
+  { code: "mr", name: "Marathi" },
+  { code: "gu", name: "Gujarati" },
+  { code: "ur", name: "Urdu" },
+];
+
 function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -332,6 +360,8 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [biddingStrategy, setBiddingStrategy] = useState("MANUAL_CPC");
   const [targetValue, setTargetValue] = useState("");
   const [videoSubtype, setVideoSubtype] = useState("VIDEO_ACTION");
+
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["en"]);
 
   const [aiObjective, setAiObjective] = useState("");
   const [aiProduct, setAiProduct] = useState("");
@@ -403,6 +433,9 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       }
 
       payload.biddingStrategyType = strategy;
+      if (selectedLanguages.length > 0) {
+        payload.languages = selectedLanguages;
+      }
       return apiRequest("POST", "/api/google-ads/campaigns/create", payload);
     },
     onSuccess: () => {
@@ -418,7 +451,8 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const resetForm = () => {
     setStep(1); setName(""); setDailyBudget(""); setStartDate(""); setEndDate("");
-    setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setAiSuggestions(null); setShowAiPanel(false);
+    setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setSelectedLanguages(["en"]);
+    setAiSuggestions(null); setShowAiPanel(false);
   };
 
   const strategies = BIDDING_STRATEGIES[channelType]?.strategies || [];
@@ -513,6 +547,40 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End" />
                 </div>
               </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Target Languages</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {AVAILABLE_LANGUAGES.map((lang) => {
+                  const isSelected = selectedLanguages.includes(lang.code);
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          if (selectedLanguages.length > 1) {
+                            setSelectedLanguages(selectedLanguages.filter(c => c !== lang.code));
+                          }
+                        } else {
+                          setSelectedLanguages([...selectedLanguages, lang.code]);
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs border transition-all ${
+                        isSelected
+                          ? "bg-blue-100 text-blue-800 border-blue-300 font-medium"
+                          : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      {lang.name}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedLanguages.length} language{selectedLanguages.length !== 1 ? "s" : ""} selected. Your ads will show to users with these language preferences.
+              </p>
             </div>
 
             <div className="border rounded-lg overflow-hidden">
@@ -755,6 +823,15 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                     </div>
                   )}
                   <div>
+                    <p className="text-xs text-muted-foreground">Languages</p>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {selectedLanguages.map(code => {
+                        const lang = AVAILABLE_LANGUAGES.find(l => l.code === code);
+                        return <Badge key={code} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">{lang?.name || code}</Badge>;
+                      })}
+                    </div>
+                  </div>
+                  <div>
                     <p className="text-xs text-muted-foreground">Initial Status</p>
                     <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">PAUSED</Badge>
                   </div>
@@ -993,6 +1070,87 @@ function AddNegativeKeywordsDialog({ open, onOpenChange, campaignId }: { open: b
   );
 }
 
+function CampaignLanguagesDialog({ open, onOpenChange, campaignId }: { open: boolean; onOpenChange: (v: boolean) => void; campaignId: string }) {
+  const { toast } = useToast();
+  const [langs, setLangs] = useState<string[]>(["en"]);
+  const [initialized, setInitialized] = useState(false);
+
+  const currentLangs = useQuery({
+    queryKey: ["/api/google-ads/campaigns", campaignId, "languages"],
+    queryFn: () => apiRequest("GET", `/api/google-ads/campaigns/${campaignId}/languages`),
+    enabled: open && !!campaignId,
+  });
+
+  const loaded = currentLangs.data as any;
+
+  useEffect(() => {
+    if (loaded?.languages?.length > 0 && !initialized) {
+      setLangs(loaded.languages);
+      setInitialized(true);
+    }
+  }, [loaded, initialized]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/google-ads/campaigns/${campaignId}/languages`, { languages: langs }),
+    onSuccess: () => {
+      toast({ title: "Languages updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+    },
+    onError: (err: any) => toast({ title: "Failed to update languages", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Globe className="w-5 h-5" /> Campaign Languages</DialogTitle>
+          <DialogDescription>Select which languages your ads should target. Users with these language preferences will see your ads.</DialogDescription>
+        </DialogHeader>
+        {currentLangs.isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2 border rounded-lg">
+              {AVAILABLE_LANGUAGES.map((lang) => {
+                const isSelected = langs.includes(lang.code);
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        if (langs.length > 1) setLangs(langs.filter(c => c !== lang.code));
+                      } else {
+                        setLangs([...langs, lang.code]);
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded text-xs border transition-all ${
+                      isSelected
+                        ? "bg-blue-100 text-blue-800 border-blue-300 font-medium"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {lang.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">{langs.length} language{langs.length !== 1 ? "s" : ""} selected</p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || langs.length === 0}>
+            {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Save Languages
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateAdDialog({ open, onOpenChange, adGroupId }: { open: boolean; onOpenChange: (v: boolean) => void; adGroupId: string }) {
   const { toast } = useToast();
   const [headlines, setHeadlines] = useState(["", "", ""]);
@@ -1132,6 +1290,7 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
   const [showAddKeywords, setShowAddKeywords] = useState<string | null>(null);
   const [showCreateAd, setShowCreateAd] = useState<string | null>(null);
   const [showNegativeKeywords, setShowNegativeKeywords] = useState(false);
+  const [showLanguages, setShowLanguages] = useState(false);
 
   const campaigns = useQuery({
     queryKey: ["/api/google-ads/campaigns", dateRange.startDate, dateRange.endDate],
@@ -1178,6 +1337,9 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
             </Button>
             <Button size="sm" variant="outline" onClick={() => setShowNegativeKeywords(true)}>
               <XCircle className="w-4 h-4 mr-1" /> Negative Keywords
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowLanguages(true)}>
+              <Globe className="w-4 h-4 mr-1" /> Languages
             </Button>
           </div>
         </div>
@@ -1310,6 +1472,7 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
         {showAddKeywords && <AddKeywordsDialog open={!!showAddKeywords} onOpenChange={() => setShowAddKeywords(null)} adGroupId={showAddKeywords} />}
         {showCreateAd && <CreateAdDialog open={!!showCreateAd} onOpenChange={() => setShowCreateAd(null)} adGroupId={showCreateAd} />}
         <AddNegativeKeywordsDialog open={showNegativeKeywords} onOpenChange={setShowNegativeKeywords} campaignId={selectedCampaign} />
+        <CampaignLanguagesDialog open={showLanguages} onOpenChange={setShowLanguages} campaignId={selectedCampaign} />
       </div>
     );
   }

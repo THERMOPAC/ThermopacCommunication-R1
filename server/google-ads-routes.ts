@@ -3,7 +3,7 @@ import { db } from './db';
 import { sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { getGoogleAdsAuthUrl, exchangeGoogleAdsCode, saveGoogleAdsTokens, getGoogleAdsTokens, deleteGoogleAdsTokens } from './google-ads-auth';
-import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney, moneyToMicros, createCampaignBudget, createCampaign, updateCampaignStatus, updateCampaignBudget, createAdGroup, updateAdGroupStatus, addKeywords, addNegativeKeywords, removeKeyword, createResponsiveSearchAd } from './google-ads-client';
+import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney, moneyToMicros, createCampaignBudget, createCampaign, updateCampaignStatus, updateCampaignBudget, createAdGroup, updateAdGroupStatus, addKeywords, addNegativeKeywords, removeKeyword, createResponsiveSearchAd, setCampaignLanguages, getCampaignLanguages, GOOGLE_ADS_LANGUAGES } from './google-ads-client';
 import { runFullSync, runMetricsSync, getSyncStatus, startSyncTimers, stopSyncTimers } from './google-ads-sync';
 
 const router = Router();
@@ -331,7 +331,7 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
   try {
     const userId = req.user!.id;
     const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
-    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType } = req.body;
+    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType, languages } = req.body;
 
     if (!name || !dailyBudget || !advertisingChannelType) {
       return res.status(400).json({ error: 'Name, daily budget, and campaign type are required' });
@@ -369,6 +369,14 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
       biddingStrategyType: biddingStrategyType || undefined,
       networkSettings,
     });
+
+    if (languages && Array.isArray(languages) && languages.length > 0) {
+      try {
+        await setCampaignLanguages(userId, customerId, campaignResourceName, languages);
+      } catch (langError: any) {
+        console.error('[GoogleAds] Language targeting error (campaign still created):', langError.message);
+      }
+    }
 
     res.json({ success: true, resourceName: campaignResourceName });
   } catch (error: any) {
@@ -536,6 +544,50 @@ router.post('/negative-keywords/add', ensureAuthenticated, async (req: Request, 
     res.json({ success: true, added: result.results?.length || 0 });
   } catch (error: any) {
     console.error('[GoogleAds] Add negative keywords error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/languages', ensureAuthenticated, async (_req: Request, res: Response) => {
+  const languages = Object.entries(GOOGLE_ADS_LANGUAGES).map(([code, lang]) => ({
+    code,
+    id: lang.id,
+    name: lang.name,
+  }));
+  res.json(languages);
+});
+
+router.get('/campaigns/:id/languages', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const campaignId = req.params.id;
+    const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    const languages = await getCampaignLanguages(userId, customerId, campaignResourceName);
+    res.json({ languages });
+  } catch (error: any) {
+    console.error('[GoogleAds] Get campaign languages error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/campaigns/:id/languages', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const campaignId = req.params.id;
+    const { languages } = req.body;
+
+    if (!languages || !Array.isArray(languages) || languages.length === 0) {
+      return res.status(400).json({ error: 'At least one language is required' });
+    }
+
+    const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    await setCampaignLanguages(userId, customerId, campaignResourceName, languages);
+
+    res.json({ success: true, languages });
+  } catch (error: any) {
+    console.error('[GoogleAds] Set campaign languages error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

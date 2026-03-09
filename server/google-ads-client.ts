@@ -445,6 +445,93 @@ export async function addNegativeKeywords(
   return mutateGoogleAds(userId, customerId, 'campaignCriteria', operations);
 }
 
+export const GOOGLE_ADS_LANGUAGES: Record<string, { id: string; name: string }> = {
+  en: { id: '1000', name: 'English' },
+  hi: { id: '1023', name: 'Hindi' },
+  ar: { id: '1019', name: 'Arabic' },
+  fr: { id: '1002', name: 'French' },
+  de: { id: '1001', name: 'German' },
+  es: { id: '1003', name: 'Spanish' },
+  pt: { id: '1014', name: 'Portuguese' },
+  ru: { id: '1031', name: 'Russian' },
+  zh: { id: '1017', name: 'Chinese (Simplified)' },
+  ja: { id: '1005', name: 'Japanese' },
+  ko: { id: '1012', name: 'Korean' },
+  it: { id: '1004', name: 'Italian' },
+  nl: { id: '1010', name: 'Dutch' },
+  tr: { id: '1037', name: 'Turkish' },
+  pl: { id: '1030', name: 'Polish' },
+  th: { id: '1044', name: 'Thai' },
+  vi: { id: '1040', name: 'Vietnamese' },
+  id: { id: '1025', name: 'Indonesian' },
+  ms: { id: '1102', name: 'Malay' },
+  bn: { id: '1056', name: 'Bengali' },
+  ta: { id: '1130', name: 'Tamil' },
+  te: { id: '1131', name: 'Telugu' },
+  mr: { id: '1128', name: 'Marathi' },
+  gu: { id: '1072', name: 'Gujarati' },
+  ur: { id: '1041', name: 'Urdu' },
+};
+
+export async function setCampaignLanguages(
+  userId: number,
+  customerId: string,
+  campaignResourceName: string,
+  languageCodes: string[]
+): Promise<any> {
+  const cleanCustomerId = customerId.replace(/-/g, '');
+
+  const existingCriteria = await executeGaql(userId, customerId,
+    `SELECT campaign_criterion.criterion_id, campaign_criterion.type FROM campaign_criterion WHERE campaign.resource_name = '${campaignResourceName}' AND campaign_criterion.type = 'LANGUAGE'`
+  );
+
+  const removeOps = existingCriteria.map((r: any) => ({
+    remove: `${campaignResourceName}/campaignCriteria/${r.campaignCriterion.criterionId}`
+  }));
+
+  if (removeOps.length > 0) {
+    await mutateGoogleAds(userId, cleanCustomerId, 'campaignCriteria', removeOps);
+  }
+
+  const addOps = languageCodes.map(code => {
+    const lang = GOOGLE_ADS_LANGUAGES[code];
+    if (!lang) throw new Error(`Unsupported language code: ${code}`);
+    return {
+      create: {
+        campaign: campaignResourceName,
+        language: { languageConstant: `languageConstants/${lang.id}` },
+      }
+    };
+  });
+
+  if (addOps.length > 0) {
+    return mutateGoogleAds(userId, cleanCustomerId, 'campaignCriteria', addOps);
+  }
+
+  return { results: [] };
+}
+
+export async function getCampaignLanguages(
+  userId: number,
+  customerId: string,
+  campaignResourceName: string
+): Promise<string[]> {
+  const results = await executeGaql(userId, customerId,
+    `SELECT campaign_criterion.language.language_constant FROM campaign_criterion WHERE campaign.resource_name = '${campaignResourceName}' AND campaign_criterion.type = 'LANGUAGE'`
+  );
+
+  const langIdToCode: Record<string, string> = {};
+  for (const [code, lang] of Object.entries(GOOGLE_ADS_LANGUAGES)) {
+    langIdToCode[lang.id] = code;
+  }
+
+  return results.map((r: any) => {
+    const constant = r.campaignCriterion?.language?.languageConstant || '';
+    const id = constant.split('/').pop();
+    return langIdToCode[id] || id;
+  }).filter(Boolean);
+}
+
 export async function removeKeyword(
   userId: number,
   customerId: string,
