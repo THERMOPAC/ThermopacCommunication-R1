@@ -322,17 +322,9 @@ const BIDDING_STRATEGIES: Record<string, { strategies: Array<{ value: string; la
 };
 
 const THERMOPAC_PRODUCTS = [
-  { value: "Heat Exchangers", label: "Heat Exchangers" },
-  { value: "Thermic Fluid Heaters", label: "Thermic Fluid Heaters" },
-  { value: "Steam Boilers", label: "Steam Boilers" },
-  { value: "Hot Water Generators", label: "Hot Water Generators" },
-  { value: "Hot Air Generators", label: "Hot Air Generators" },
-  { value: "Waste Heat Recovery Systems", label: "Waste Heat Recovery" },
   { value: "Re-refining Plants", label: "Re-refining Plants" },
-  { value: "Distillation Skids", label: "Distillation Skids" },
-  { value: "Dehydration Skids", label: "Dehydration Skids" },
   { value: "Lube Oil Blending Plants", label: "Lube Oil Blending Plants" },
-  { value: "All Products", label: "All Products" },
+  { value: "Regenerative Media Based Polishing Systems", label: "Regenerative Media Based Polishing Systems" },
 ];
 
 const COUNTRY_CONTINENT: Record<string, string> = {
