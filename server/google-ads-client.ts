@@ -566,6 +566,128 @@ export async function getCampaignLanguages(
   }).filter(Boolean);
 }
 
+export const GOOGLE_ADS_COUNTRIES: Record<string, { id: string; name: string }> = {
+  IN: { id: '2356', name: 'India' },
+  AE: { id: '2784', name: 'UAE' },
+  SA: { id: '2682', name: 'Saudi Arabia' },
+  US: { id: '2840', name: 'United States' },
+  GB: { id: '2826', name: 'United Kingdom' },
+  DE: { id: '2276', name: 'Germany' },
+  FR: { id: '2250', name: 'France' },
+  IT: { id: '2380', name: 'Italy' },
+  ES: { id: '2724', name: 'Spain' },
+  PT: { id: '2620', name: 'Portugal' },
+  BR: { id: '2076', name: 'Brazil' },
+  JP: { id: '2392', name: 'Japan' },
+  RU: { id: '2643', name: 'Russia' },
+  CN: { id: '2156', name: 'China' },
+  KR: { id: '2410', name: 'South Korea' },
+  AU: { id: '2036', name: 'Australia' },
+  CA: { id: '2124', name: 'Canada' },
+  ZA: { id: '2710', name: 'South Africa' },
+  NG: { id: '2566', name: 'Nigeria' },
+  EG: { id: '2818', name: 'Egypt' },
+  KE: { id: '2404', name: 'Kenya' },
+  ET: { id: '2231', name: 'Ethiopia' },
+  GH: { id: '2288', name: 'Ghana' },
+  TZ: { id: '2834', name: 'Tanzania' },
+  TR: { id: '2792', name: 'Turkey' },
+  KW: { id: '2414', name: 'Kuwait' },
+  QA: { id: '2634', name: 'Qatar' },
+  BH: { id: '2048', name: 'Bahrain' },
+  OM: { id: '2512', name: 'Oman' },
+  IQ: { id: '2368', name: 'Iraq' },
+  PK: { id: '2586', name: 'Pakistan' },
+  BD: { id: '2050', name: 'Bangladesh' },
+  LK: { id: '2144', name: 'Sri Lanka' },
+  MY: { id: '2458', name: 'Malaysia' },
+  SG: { id: '2702', name: 'Singapore' },
+  ID: { id: '2360', name: 'Indonesia' },
+  TH: { id: '2764', name: 'Thailand' },
+  VN: { id: '2704', name: 'Vietnam' },
+  PH: { id: '2608', name: 'Philippines' },
+  MX: { id: '2484', name: 'Mexico' },
+  AR: { id: '2032', name: 'Argentina' },
+  CO: { id: '2170', name: 'Colombia' },
+  CL: { id: '2152', name: 'Chile' },
+  PE: { id: '2604', name: 'Peru' },
+  NL: { id: '2528', name: 'Netherlands' },
+  BE: { id: '2056', name: 'Belgium' },
+  SE: { id: '2752', name: 'Sweden' },
+  NO: { id: '2578', name: 'Norway' },
+  DK: { id: '2208', name: 'Denmark' },
+  FI: { id: '2246', name: 'Finland' },
+  PL: { id: '2616', name: 'Poland' },
+  CZ: { id: '2203', name: 'Czech Republic' },
+  AT: { id: '2040', name: 'Austria' },
+  CH: { id: '2756', name: 'Switzerland' },
+  IE: { id: '2372', name: 'Ireland' },
+  NZ: { id: '2554', name: 'New Zealand' },
+  UZ: { id: '2860', name: 'Uzbekistan' },
+  KZ: { id: '2398', name: 'Kazakhstan' },
+  AZ: { id: '2031', name: 'Azerbaijan' },
+  GE: { id: '2268', name: 'Georgia' },
+};
+
+export async function setCampaignLocations(
+  userId: number,
+  customerId: string,
+  campaignResourceName: string,
+  countryCodes: string[]
+): Promise<any> {
+  const cleanCustomerId = customerId.replace(/-/g, '');
+
+  const existingCriteria = await executeGaql(userId, customerId,
+    `SELECT campaign_criterion.criterion_id, campaign_criterion.type FROM campaign_criterion WHERE campaign.resource_name = '${campaignResourceName}' AND campaign_criterion.type = 'LOCATION'`
+  );
+
+  const removeOps = existingCriteria.map((r: any) => ({
+    remove: `${campaignResourceName}/campaignCriteria/${r.campaignCriterion.criterionId}`
+  }));
+
+  if (removeOps.length > 0) {
+    await mutateGoogleAds(userId, cleanCustomerId, 'campaignCriteria', removeOps);
+  }
+
+  const addOps = countryCodes.map(code => {
+    const country = GOOGLE_ADS_COUNTRIES[code];
+    if (!country) throw new Error(`Unsupported country code: ${code}`);
+    return {
+      create: {
+        campaign: campaignResourceName,
+        location: { geoTargetConstant: `geoTargetConstants/${country.id}` },
+      }
+    };
+  });
+
+  if (addOps.length > 0) {
+    return mutateGoogleAds(userId, cleanCustomerId, 'campaignCriteria', addOps);
+  }
+
+  return { results: [] };
+}
+
+export async function getCampaignLocations(
+  userId: number,
+  customerId: string,
+  campaignResourceName: string
+): Promise<string[]> {
+  const results = await executeGaql(userId, customerId,
+    `SELECT campaign_criterion.location.geo_target_constant FROM campaign_criterion WHERE campaign.resource_name = '${campaignResourceName}' AND campaign_criterion.type = 'LOCATION'`
+  );
+
+  const geoIdToCode: Record<string, string> = {};
+  for (const [code, country] of Object.entries(GOOGLE_ADS_COUNTRIES)) {
+    geoIdToCode[country.id] = code;
+  }
+
+  return results.map((r: any) => {
+    const constant = r.campaignCriterion?.location?.geoTargetConstant || '';
+    const id = constant.split('/').pop();
+    return geoIdToCode[id] || id;
+  }).filter(Boolean);
+}
+
 export async function removeKeyword(
   userId: number,
   customerId: string,

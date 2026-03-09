@@ -17,7 +17,7 @@ import {
   RefreshCw, Settings, Link2, Unlink, Plus, Play, Pause, Trash2,
   Search, AlertTriangle, ChevronLeft, Loader2, CheckCircle2, XCircle,
   Zap, BarChart2, FileText, Globe, Megaphone, Sparkles, Brain,
-  Info, ArrowRight, Lightbulb, Copy, Video, Monitor, Rocket
+  Info, ArrowRight, Lightbulb, Copy, Video, Monitor, Rocket, MapPin
 } from "lucide-react";
 
 function getDateRange(period: string): { startDate: string; endDate: string } {
@@ -321,6 +321,83 @@ const BIDDING_STRATEGIES: Record<string, { strategies: Array<{ value: string; la
   },
 };
 
+const THERMOPAC_PRODUCTS = [
+  { value: "Heat Exchangers", label: "Heat Exchangers" },
+  { value: "Thermic Fluid Heaters", label: "Thermic Fluid Heaters" },
+  { value: "Steam Boilers", label: "Steam Boilers" },
+  { value: "Hot Water Generators", label: "Hot Water Generators" },
+  { value: "Hot Air Generators", label: "Hot Air Generators" },
+  { value: "Waste Heat Recovery Systems", label: "Waste Heat Recovery" },
+  { value: "Re-refining Plants", label: "Re-refining Plants" },
+  { value: "Distillation Skids", label: "Distillation Skids" },
+  { value: "Dehydration Skids", label: "Dehydration Skids" },
+  { value: "Lube Oil Blending Plants", label: "Lube Oil Blending Plants" },
+  { value: "All Products", label: "All Products" },
+];
+
+const AVAILABLE_COUNTRIES = [
+  { code: "IN", name: "India" },
+  { code: "AE", name: "UAE" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "US", name: "United States" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "IT", name: "Italy" },
+  { code: "ES", name: "Spain" },
+  { code: "PT", name: "Portugal" },
+  { code: "BR", name: "Brazil" },
+  { code: "JP", name: "Japan" },
+  { code: "RU", name: "Russia" },
+  { code: "CN", name: "China" },
+  { code: "KR", name: "South Korea" },
+  { code: "AU", name: "Australia" },
+  { code: "CA", name: "Canada" },
+  { code: "ZA", name: "South Africa" },
+  { code: "NG", name: "Nigeria" },
+  { code: "EG", name: "Egypt" },
+  { code: "KE", name: "Kenya" },
+  { code: "ET", name: "Ethiopia" },
+  { code: "GH", name: "Ghana" },
+  { code: "TZ", name: "Tanzania" },
+  { code: "TR", name: "Turkey" },
+  { code: "KW", name: "Kuwait" },
+  { code: "QA", name: "Qatar" },
+  { code: "BH", name: "Bahrain" },
+  { code: "OM", name: "Oman" },
+  { code: "IQ", name: "Iraq" },
+  { code: "PK", name: "Pakistan" },
+  { code: "BD", name: "Bangladesh" },
+  { code: "LK", name: "Sri Lanka" },
+  { code: "MY", name: "Malaysia" },
+  { code: "SG", name: "Singapore" },
+  { code: "ID", name: "Indonesia" },
+  { code: "TH", name: "Thailand" },
+  { code: "VN", name: "Vietnam" },
+  { code: "PH", name: "Philippines" },
+  { code: "MX", name: "Mexico" },
+  { code: "AR", name: "Argentina" },
+  { code: "CO", name: "Colombia" },
+  { code: "CL", name: "Chile" },
+  { code: "PE", name: "Peru" },
+  { code: "NL", name: "Netherlands" },
+  { code: "BE", name: "Belgium" },
+  { code: "SE", name: "Sweden" },
+  { code: "NO", name: "Norway" },
+  { code: "DK", name: "Denmark" },
+  { code: "FI", name: "Finland" },
+  { code: "PL", name: "Poland" },
+  { code: "CZ", name: "Czech Republic" },
+  { code: "AT", name: "Austria" },
+  { code: "CH", name: "Switzerland" },
+  { code: "IE", name: "Ireland" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "UZ", name: "Uzbekistan" },
+  { code: "KZ", name: "Kazakhstan" },
+  { code: "AZ", name: "Azerbaijan" },
+  { code: "GE", name: "Georgia" },
+];
+
 const AVAILABLE_LANGUAGES = [
   { code: "en", name: "English" },
   { code: "es", name: "Spanish" },
@@ -345,6 +422,8 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [videoSubtype, setVideoSubtype] = useState("VIDEO_ACTION");
 
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(["en"]);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>(["IN"]);
+  const [productFocus, setProductFocus] = useState("");
 
   const [aiObjective, setAiObjective] = useState("");
   const [aiProduct, setAiProduct] = useState("");
@@ -419,6 +498,9 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       if (selectedLanguages.length > 0) {
         payload.languages = selectedLanguages;
       }
+      if (selectedLocations.length > 0) {
+        payload.locations = selectedLocations;
+      }
       return apiRequest("POST", "/api/google-ads/campaigns/create", payload);
     },
     onSuccess: () => {
@@ -435,6 +517,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const resetForm = () => {
     setStep(1); setName(""); setDailyBudget(""); setStartDate(""); setEndDate("");
     setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setSelectedLanguages(["en"]);
+    setSelectedLocations(["IN"]); setProductFocus("");
     setAiSuggestions(null); setShowAiPanel(false);
   };
 
@@ -513,6 +596,18 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Thermopac - Heat Exchangers - India" className="mt-1" />
             </div>
 
+            <div>
+              <Label className="text-sm font-medium">Product / Service Focus</Label>
+              <Select value={productFocus} onValueChange={setProductFocus}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Select product..." /></SelectTrigger>
+                <SelectContent>
+                  {THERMOPAC_PRODUCTS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Daily Budget (INR) *</Label>
@@ -564,6 +659,49 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               <p className="text-xs text-muted-foreground mt-1">
                 {selectedLanguages.length} language{selectedLanguages.length !== 1 ? "s" : ""} selected. Your ads will show to users with these language preferences.
               </p>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Target Countries / Locations</Label>
+              <div className="border rounded-lg p-3 max-h-48 overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5">
+                  {AVAILABLE_COUNTRIES.map((country) => {
+                    const isSelected = selectedLocations.includes(country.code);
+                    return (
+                      <button
+                        key={country.code}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            if (selectedLocations.length > 1) {
+                              setSelectedLocations(selectedLocations.filter(c => c !== country.code));
+                            }
+                          } else {
+                            setSelectedLocations([...selectedLocations, country.code]);
+                          }
+                        }}
+                        className={`px-2 py-1 rounded text-xs border transition-all ${
+                          isSelected
+                            ? "bg-green-100 text-green-800 border-green-300 font-medium"
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        {country.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-muted-foreground">
+                  {selectedLocations.length} countr{selectedLocations.length !== 1 ? "ies" : "y"} selected. Your ads will only show to users in these locations.
+                </p>
+                <div className="flex gap-1">
+                  <button type="button" onClick={() => setSelectedLocations(AVAILABLE_COUNTRIES.map(c => c.code))} className="text-xs text-blue-600 hover:underline">All</button>
+                  <span className="text-xs text-gray-400">|</span>
+                  <button type="button" onClick={() => setSelectedLocations(["IN"])} className="text-xs text-blue-600 hover:underline">Reset</button>
+                </div>
+              </div>
             </div>
 
             <div className="border rounded-lg overflow-hidden">
@@ -805,12 +943,27 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                       <p className="font-medium">{startDate} {endDate ? `to ${endDate}` : "onwards"}</p>
                     </div>
                   )}
+                  {productFocus && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Product Focus</p>
+                      <p className="font-medium">{productFocus}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-muted-foreground">Languages</p>
                     <div className="flex flex-wrap gap-1 mt-0.5">
                       {selectedLanguages.map(code => {
                         const lang = AVAILABLE_LANGUAGES.find(l => l.code === code);
                         return <Badge key={code} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">{lang?.name || code}</Badge>;
+                      })}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Target Locations</p>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {selectedLocations.map(code => {
+                        const country = AVAILABLE_COUNTRIES.find(c => c.code === code);
+                        return <Badge key={code} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">{country?.name || code}</Badge>;
                       })}
                     </div>
                   </div>
@@ -1134,6 +1287,94 @@ function CampaignLanguagesDialog({ open, onOpenChange, campaignId }: { open: boo
   );
 }
 
+function CampaignLocationsDialog({ open, onOpenChange, campaignId }: { open: boolean; onOpenChange: (v: boolean) => void; campaignId: string }) {
+  const { toast } = useToast();
+  const [locs, setLocs] = useState<string[]>(["IN"]);
+  const [initialized, setInitialized] = useState(false);
+
+  const currentLocs = useQuery({
+    queryKey: ["/api/google-ads/campaigns", campaignId, "locations"],
+    queryFn: () => apiRequest("GET", `/api/google-ads/campaigns/${campaignId}/locations`),
+    enabled: open && !!campaignId,
+  });
+
+  const loaded = currentLocs.data as any;
+
+  useEffect(() => {
+    if (loaded?.locations?.length > 0 && !initialized) {
+      setLocs(loaded.locations);
+      setInitialized(true);
+    }
+  }, [loaded, initialized]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/google-ads/campaigns/${campaignId}/locations`, { locations: locs }),
+    onSuccess: () => {
+      toast({ title: "Locations updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
+      onOpenChange(false);
+    },
+    onError: (err: any) => toast({ title: "Failed to update locations", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><MapPin className="w-5 h-5" /> Campaign Locations</DialogTitle>
+          <DialogDescription>Select which countries your ads should target. Your ads will only show to users in these locations.</DialogDescription>
+        </DialogHeader>
+        {currentLocs.isLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto p-2 border rounded-lg">
+              {AVAILABLE_COUNTRIES.map((country) => {
+                const isSelected = locs.includes(country.code);
+                return (
+                  <button
+                    key={country.code}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        if (locs.length > 1) setLocs(locs.filter(c => c !== country.code));
+                      } else {
+                        setLocs([...locs, country.code]);
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded text-xs border transition-all ${
+                      isSelected
+                        ? "bg-green-100 text-green-800 border-green-300 font-medium"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {country.name}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{locs.length} countr{locs.length !== 1 ? "ies" : "y"} selected</p>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setLocs(AVAILABLE_COUNTRIES.map(c => c.code))} className="text-xs text-blue-600 hover:underline">All</button>
+                <span className="text-xs text-gray-400">|</span>
+                <button type="button" onClick={() => setLocs(["IN"])} className="text-xs text-blue-600 hover:underline">Reset</button>
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || locs.length === 0}>
+            {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Save Locations
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateAdDialog({ open, onOpenChange, adGroupId }: { open: boolean; onOpenChange: (v: boolean) => void; adGroupId: string }) {
   const { toast } = useToast();
   const [headlines, setHeadlines] = useState(["", "", ""]);
@@ -1274,6 +1515,7 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
   const [showCreateAd, setShowCreateAd] = useState<string | null>(null);
   const [showNegativeKeywords, setShowNegativeKeywords] = useState(false);
   const [showLanguages, setShowLanguages] = useState(false);
+  const [showLocations, setShowLocations] = useState(false);
 
   const campaigns = useQuery({
     queryKey: ["/api/google-ads/campaigns", dateRange.startDate, dateRange.endDate],
@@ -1323,6 +1565,9 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
             </Button>
             <Button size="sm" variant="outline" onClick={() => setShowLanguages(true)}>
               <Globe className="w-4 h-4 mr-1" /> Languages
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowLocations(true)}>
+              <MapPin className="w-4 h-4 mr-1" /> Locations
             </Button>
           </div>
         </div>
@@ -1456,6 +1701,7 @@ function CampaignsTab({ dateRange }: { dateRange: { startDate: string; endDate: 
         {showCreateAd && <CreateAdDialog open={!!showCreateAd} onOpenChange={() => setShowCreateAd(null)} adGroupId={showCreateAd} />}
         <AddNegativeKeywordsDialog open={showNegativeKeywords} onOpenChange={setShowNegativeKeywords} campaignId={selectedCampaign} />
         <CampaignLanguagesDialog open={showLanguages} onOpenChange={setShowLanguages} campaignId={selectedCampaign} />
+        <CampaignLocationsDialog open={showLocations} onOpenChange={setShowLocations} campaignId={selectedCampaign} />
       </div>
     );
   }

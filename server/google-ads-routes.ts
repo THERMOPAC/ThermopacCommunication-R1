@@ -3,7 +3,7 @@ import { db } from './db';
 import { sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { getGoogleAdsAuthUrl, exchangeGoogleAdsCode, saveGoogleAdsTokens, getGoogleAdsTokens, deleteGoogleAdsTokens } from './google-ads-auth';
-import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney, moneyToMicros, createCampaignBudget, createCampaign, updateCampaignStatus, updateCampaignBudget, createAdGroup, updateAdGroupStatus, addKeywords, addNegativeKeywords, removeKeyword, createResponsiveSearchAd, setCampaignLanguages, getCampaignLanguages, GOOGLE_ADS_LANGUAGES } from './google-ads-client';
+import { listAccessibleCustomers, getCustomerInfo, executeGaql, microsToMoney, moneyToMicros, createCampaignBudget, createCampaign, updateCampaignStatus, updateCampaignBudget, createAdGroup, updateAdGroupStatus, addKeywords, addNegativeKeywords, removeKeyword, createResponsiveSearchAd, setCampaignLanguages, getCampaignLanguages, GOOGLE_ADS_LANGUAGES, setCampaignLocations, getCampaignLocations, GOOGLE_ADS_COUNTRIES } from './google-ads-client';
 import { runFullSync, runMetricsSync, getSyncStatus, startSyncTimers, stopSyncTimers } from './google-ads-sync';
 
 const router = Router();
@@ -331,7 +331,7 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
   try {
     const userId = req.user!.id;
     const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
-    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType, languages } = req.body;
+    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType, languages, locations } = req.body;
 
     if (!name || !dailyBudget || !advertisingChannelType) {
       return res.status(400).json({ error: 'Name, daily budget, and campaign type are required' });
@@ -375,6 +375,14 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
         await setCampaignLanguages(userId, customerId, campaignResourceName, languages);
       } catch (langError: any) {
         console.error('[GoogleAds] Language targeting error (campaign still created):', langError.message);
+      }
+    }
+
+    if (locations && Array.isArray(locations) && locations.length > 0) {
+      try {
+        await setCampaignLocations(userId, customerId, campaignResourceName, locations);
+      } catch (locError: any) {
+        console.error('[GoogleAds] Location targeting error (campaign still created):', locError.message);
       }
     }
 
@@ -588,6 +596,50 @@ router.post('/campaigns/:id/languages', ensureAuthenticated, async (req: Request
     res.json({ success: true, languages });
   } catch (error: any) {
     console.error('[GoogleAds] Set campaign languages error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/countries', ensureAuthenticated, async (_req: Request, res: Response) => {
+  const countries = Object.entries(GOOGLE_ADS_COUNTRIES).map(([code, country]) => ({
+    code,
+    id: country.id,
+    name: country.name,
+  }));
+  res.json(countries);
+});
+
+router.get('/campaigns/:id/locations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const campaignId = req.params.id;
+    const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    const locations = await getCampaignLocations(userId, customerId, campaignResourceName);
+    res.json({ locations });
+  } catch (error: any) {
+    console.error('[GoogleAds] Get campaign locations error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/campaigns/:id/locations', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const campaignId = req.params.id;
+    const { locations } = req.body;
+
+    if (!locations || !Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({ error: 'At least one location is required' });
+    }
+
+    const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+    await setCampaignLocations(userId, customerId, campaignResourceName, locations);
+
+    res.json({ success: true, locations });
+  } catch (error: any) {
+    console.error('[GoogleAds] Set campaign locations error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
