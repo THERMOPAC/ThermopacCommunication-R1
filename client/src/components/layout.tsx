@@ -265,7 +265,7 @@ function Layout({ children }: LayoutProps) {
       toggle: () => setIsSalesAndMarketingMenuOpen(!isSalesAndMarketingMenuOpen),
       children: [
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
-        { icon: TrendingUp, label: "Campaigns", href: "/campaigns" },
+        { icon: TrendingUp, label: "Google Ads", href: "/campaigns" },
         { icon: Radar, label: "Opportunity Radar", href: "/radar" },
         { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
