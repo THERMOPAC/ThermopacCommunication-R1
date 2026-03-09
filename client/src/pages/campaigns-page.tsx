@@ -288,23 +288,29 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [endDate, setEndDate] = useState("");
   const [targetCpa, setTargetCpa] = useState("");
   const [targetRoas, setTargetRoas] = useState("");
+  const [targetCpv, setTargetCpv] = useState("");
+  const [videoBiddingStrategy, setVideoBiddingStrategy] = useState("TARGET_CPV");
+  const [videoSubtype, setVideoSubtype] = useState("VIDEO_ACTION");
 
   const createMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/google-ads/campaigns/create", {
       name,
       dailyBudget: Number(dailyBudget),
       advertisingChannelType: channelType,
+      advertisingChannelSubType: channelType === "VIDEO" ? videoSubtype : undefined,
       status: "PAUSED",
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       targetCpa: targetCpa ? Number(targetCpa) : undefined,
       targetRoas: targetRoas ? Number(targetRoas) : undefined,
+      targetCpv: targetCpv ? Number(targetCpv) : undefined,
+      videoBiddingStrategy: channelType === "VIDEO" ? videoBiddingStrategy : undefined,
     }),
     onSuccess: () => {
       toast({ title: "Campaign created", description: `"${name}" has been created in paused state.` });
       queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
       onOpenChange(false);
-      setName(""); setDailyBudget(""); setStartDate(""); setEndDate(""); setTargetCpa(""); setTargetRoas("");
+      setName(""); setDailyBudget(""); setStartDate(""); setEndDate(""); setTargetCpa(""); setTargetRoas(""); setTargetCpv("");
     },
     onError: (err: any) => {
       toast({ title: "Failed to create campaign", description: err.message, variant: "destructive" });
@@ -331,6 +337,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 <SelectContent>
                   <SelectItem value="SEARCH">Search</SelectItem>
                   <SelectItem value="DISPLAY">Display</SelectItem>
+                  <SelectItem value="VIDEO">Video</SelectItem>
                   <SelectItem value="PERFORMANCE_MAX">Performance Max</SelectItem>
                 </SelectContent>
               </Select>
@@ -362,6 +369,64 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               <Label>Target ROAS (optional)</Label>
               <Input type="number" step="0.1" value={targetRoas} onChange={(e) => setTargetRoas(e.target.value)} placeholder="e.g. 3.0 for 300% ROAS" />
               <p className="text-xs text-muted-foreground mt-1">If empty, campaign uses Maximize Conversions</p>
+            </div>
+          )}
+          {channelType === "VIDEO" && (
+            <div className="space-y-4">
+              <div>
+                <Label>Video Campaign Subtype</Label>
+                <Select value={videoSubtype} onValueChange={setVideoSubtype}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VIDEO_ACTION">Video Action (Drive conversions)</SelectItem>
+                    <SelectItem value="VIDEO_REACH_TARGET_FREQUENCY">Video Reach (Brand awareness)</SelectItem>
+                    <SelectItem value="VIDEO_OUTSTREAM">Video Outstream (Mobile-only)</SelectItem>
+                    <SelectItem value="VIDEO_NON_SKIPPABLE">Non-Skippable In-Stream</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {videoSubtype === "VIDEO_ACTION" && "Best for driving website visits, leads, and conversions"}
+                  {videoSubtype === "VIDEO_REACH_TARGET_FREQUENCY" && "Best for maximizing reach and brand awareness"}
+                  {videoSubtype === "VIDEO_OUTSTREAM" && "Video ads on partner sites and apps (mobile only)"}
+                  {videoSubtype === "VIDEO_NON_SKIPPABLE" && "15-second non-skippable ads before/during videos"}
+                </p>
+              </div>
+              <div>
+                <Label>Bidding Strategy</Label>
+                <Select value={videoBiddingStrategy} onValueChange={setVideoBiddingStrategy}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TARGET_CPV">Target CPV (Cost per View)</SelectItem>
+                    <SelectItem value="TARGET_CPM">Target CPM (Cost per 1000 Impressions)</SelectItem>
+                    <SelectItem value="MAXIMIZE_CONVERSIONS">Maximize Conversions</SelectItem>
+                    <SelectItem value="TARGET_CPA">Target CPA (Cost per Action)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {videoBiddingStrategy === "TARGET_CPV" && (
+                <div>
+                  <Label>Target CPV (INR)</Label>
+                  <Input type="number" step="0.01" value={targetCpv} onChange={(e) => setTargetCpv(e.target.value)} placeholder="e.g. 2.00" />
+                  <p className="text-xs text-muted-foreground mt-1">Maximum amount you are willing to pay per video view</p>
+                </div>
+              )}
+              {videoBiddingStrategy === "TARGET_CPM" && (
+                <div>
+                  <Label>Target CPM (INR)</Label>
+                  <Input type="number" step="0.01" value={targetCpv} onChange={(e) => setTargetCpv(e.target.value)} placeholder="e.g. 50.00" />
+                  <p className="text-xs text-muted-foreground mt-1">Target cost per 1,000 impressions</p>
+                </div>
+              )}
+              {videoBiddingStrategy === "TARGET_CPA" && (
+                <div>
+                  <Label>Target CPA (INR)</Label>
+                  <Input type="number" value={targetCpa} onChange={(e) => setTargetCpa(e.target.value)} placeholder="e.g. 100" />
+                  <p className="text-xs text-muted-foreground mt-1">Target cost per conversion action</p>
+                </div>
+              )}
+              {videoBiddingStrategy === "MAXIMIZE_CONVERSIONS" && (
+                <p className="text-xs text-muted-foreground bg-blue-50 p-3 rounded-lg">Campaign will automatically set bids to get the most conversions within your budget</p>
+              )}
             </div>
           )}
         </div>

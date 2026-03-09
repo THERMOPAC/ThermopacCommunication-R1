@@ -247,15 +247,19 @@ export async function createCampaign(
     name: string;
     budgetResourceName: string;
     advertisingChannelType: string;
+    advertisingChannelSubType?: string;
     status?: string;
     startDate?: string;
     endDate?: string;
     targetCpa?: number;
     targetRoas?: number;
+    targetCpv?: number;
+    videoBiddingStrategy?: string;
     networkSettings?: {
       targetGoogleSearch?: boolean;
       targetSearchNetwork?: boolean;
       targetContentNetwork?: boolean;
+      targetPartnerSearchNetwork?: boolean;
     };
   }
 ): Promise<string> {
@@ -266,13 +270,17 @@ export async function createCampaign(
     status: params.status || 'PAUSED',
   };
 
+  if (params.advertisingChannelSubType) {
+    campaign.advertisingChannelSubType = params.advertisingChannelSubType;
+  }
+
   if (params.startDate) campaign.startDate = params.startDate.replace(/-/g, '');
   if (params.endDate) campaign.endDate = params.endDate.replace(/-/g, '');
 
-  if (params.networkSettings && params.advertisingChannelType === 'SEARCH') {
+  if (params.networkSettings) {
     campaign.networkSettings = {
-      targetGoogleSearch: params.networkSettings.targetGoogleSearch ?? true,
-      targetSearchNetwork: params.networkSettings.targetSearchNetwork ?? true,
+      targetGoogleSearch: params.networkSettings.targetGoogleSearch ?? false,
+      targetSearchNetwork: params.networkSettings.targetSearchNetwork ?? false,
       targetContentNetwork: params.networkSettings.targetContentNetwork ?? false,
     };
   }
@@ -291,6 +299,22 @@ export async function createCampaign(
     } else {
       campaign.maximizeConversions = {};
     }
+  }
+
+  if (params.advertisingChannelType === 'VIDEO') {
+    const strategy = params.videoBiddingStrategy || 'TARGET_CPV';
+    if (strategy === 'TARGET_CPV' && params.targetCpv) {
+      campaign.manualCpv = {};
+    } else if (strategy === 'TARGET_CPM') {
+      campaign.targetCpm = {};
+    } else if (strategy === 'MAXIMIZE_CONVERSIONS') {
+      campaign.maximizeConversions = {};
+    } else if (strategy === 'TARGET_CPA' && params.targetCpa) {
+      campaign.targetCpa = { targetCpaMicros: String(moneyToMicros(params.targetCpa)) };
+    } else {
+      campaign.manualCpv = {};
+    }
+    campaign.videoBrandSafetySuitability = 'EXPANDED_INVENTORY';
   }
 
   const result = await mutateGoogleAds(userId, customerId, 'campaigns', [{

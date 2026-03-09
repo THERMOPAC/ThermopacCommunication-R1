@@ -329,7 +329,7 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
   try {
     const userId = req.user!.id;
     const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
-    const { name, dailyBudget, advertisingChannelType, status, startDate, endDate, targetCpa, targetRoas } = req.body;
+    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy } = req.body;
 
     if (!name || !dailyBudget || !advertisingChannelType) {
       return res.status(400).json({ error: 'Name, daily budget, and campaign type are required' });
@@ -338,20 +338,31 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
     const budgetMicros = moneyToMicros(Number(dailyBudget));
     const budgetResourceName = await createCampaignBudget(userId, customerId, name, budgetMicros);
 
+    const networkSettings: any = {
+      targetGoogleSearch: advertisingChannelType === 'SEARCH',
+      targetSearchNetwork: advertisingChannelType === 'SEARCH',
+      targetContentNetwork: advertisingChannelType === 'DISPLAY',
+    };
+    if (advertisingChannelType === 'VIDEO') {
+      networkSettings.targetGoogleSearch = false;
+      networkSettings.targetSearchNetwork = false;
+      networkSettings.targetContentNetwork = false;
+      networkSettings.targetPartnerSearchNetwork = false;
+    }
+
     const campaignResourceName = await createCampaign(userId, customerId, {
       name,
       budgetResourceName,
       advertisingChannelType,
+      advertisingChannelSubType: advertisingChannelSubType || undefined,
       status: status || 'PAUSED',
       startDate,
       endDate,
       targetCpa: targetCpa ? Number(targetCpa) : undefined,
       targetRoas: targetRoas ? Number(targetRoas) : undefined,
-      networkSettings: {
-        targetGoogleSearch: true,
-        targetSearchNetwork: true,
-        targetContentNetwork: advertisingChannelType === 'DISPLAY',
-      },
+      targetCpv: targetCpv ? Number(targetCpv) : undefined,
+      videoBiddingStrategy: videoBiddingStrategy || undefined,
+      networkSettings,
     });
 
     res.json({ success: true, resourceName: campaignResourceName });
