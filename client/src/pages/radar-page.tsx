@@ -84,7 +84,7 @@ export default function RadarPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [companyDetailOpen, setCompanyDetailOpen] = useState(false);
-  const [companyFilters, setCompanyFilters] = useState({ country: '', companyType: '', scoreBand: '', search: '' });
+  const [companyFilters, setCompanyFilters] = useState({ country: '', companyType: '', scoreBand: '', search: '', minScore: '' });
   const [discoveryCountry, setDiscoveryCountry] = useState('');
 
   const { data: overviewData, isLoading: overviewLoading } = useQuery({
@@ -458,6 +458,16 @@ export default function RadarPage() {
                 {countries.map((c: any) => (
                   <SelectItem key={c.iso_code} value={c.iso_code}>{c.country}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={companyFilters.minScore} onValueChange={v => setCompanyFilters(f => ({ ...f, minScore: v === 'default' ? '' : v }))}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="Min Score: 35" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Score 35+ (Default)</SelectItem>
+                <SelectItem value="50">Score 50+ (Quality)</SelectItem>
+                <SelectItem value="60">Score 60+ (Strong)</SelectItem>
+                <SelectItem value="70">Score 70+ (Hot)</SelectItem>
+                <SelectItem value="0">Show All</SelectItem>
               </SelectContent>
             </Select>
             <div className="ml-auto flex gap-2">

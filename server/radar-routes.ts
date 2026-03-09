@@ -1271,8 +1271,8 @@ async function updateCountryIntelligence(isoCode: string) {
   try {
     const stats = await db.execute(sql`
       SELECT
-        COUNT(*) FILTER (WHERE company_type != 'not_relevant' AND company_type != 'unclear') as relevant,
-        COUNT(*) FILTER (WHERE opportunity_score >= 75) as hot
+        COUNT(*) FILTER (WHERE company_type NOT IN ('not_relevant', 'unclear') AND overall_confidence >= 0.7 AND opportunity_score >= 35) as relevant,
+        COUNT(*) FILTER (WHERE opportunity_score >= 70) as hot
       FROM radar_companies WHERE iso_code = ${isoCode}
     `);
     const projectStats = await db.execute(sql`
@@ -2585,6 +2585,7 @@ router.get('/companies', async (req: Request, res: Response) => {
 
     conditions.push(`rc.company_type NOT IN ('not_relevant', 'unclear')`);
     conditions.push(`rc.overall_confidence >= 0.7`);
+    if (!minScore) conditions.push(`rc.opportunity_score >= 35`);
 
     if (conditions.length > 0) {
       query += ` AND ${conditions.join(' AND ')}`;
