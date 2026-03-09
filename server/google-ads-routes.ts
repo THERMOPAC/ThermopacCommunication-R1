@@ -395,4 +395,10 @@ router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Respons
   }
 });
 
+router.get('/design-doc', ensureAuthenticated, async (req: Request, res: Response) => {
+  const path = await import('path');
+  const filePath = path.resolve('Google_Ads_API_Design_Document.doc');
+  res.download(filePath, 'Google_Ads_API_Design_Document.doc');
+});
+
 export default router;

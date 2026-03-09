@@ -1,0 +1,134 @@
+const fs = require('fs');
+
+const content = fs.readFileSync('google-ads-api-design-doc.md', 'utf8');
+
+const htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Google Ads API Design Documentation</title>
+<style>
+body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 40px; }
+h1 { font-size: 18pt; color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 8px; }
+h2 { font-size: 14pt; color: #333; margin-top: 24px; }
+h3 { font-size: 12pt; color: #555; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background-color: #f0f0f0; font-weight: bold; }
+code { background-color: #f5f5f5; padding: 2px 6px; font-family: Consolas, monospace; font-size: 10pt; }
+ul, ol { margin: 8px 0; }
+li { margin: 4px 0; }
+.company { font-size: 13pt; color: #666; }
+.date { color: #888; }
+hr { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
+</style></head>
+<body>
+<h1>Google Ads API Integration - Design Documentation</h1>
+<p class="company"><strong>Company:</strong> Thermopac Process Engineering LLP</p>
+<p class="company"><strong>Tool Name:</strong> THERMOPAC Quality Management System (QMS)</p>
+<p class="date"><strong>Date:</strong> March 2026</p>
+<hr>
+
+<h2>1. Overview</h2>
+<p>The THERMOPAC QMS is an internal enterprise management system used by Thermopac Process Engineering LLP. The Google Ads API integration module provides real-time campaign performance monitoring and reporting within our internal dashboard. This is an internal tool used exclusively by our company to manage and monitor our own Google Ads advertising campaigns.</p>
+
+<h2>2. Purpose</h2>
+<p>The tool connects to the Google Ads API to:</p>
+<ul>
+<li>Sync campaign, ad group, and keyword data from our Google Ads account</li>
+<li>Display performance metrics (impressions, clicks, spend, conversions) on an internal dashboard</li>
+<li>Generate reports for internal business decision-making</li>
+<li>Monitor keyword performance and search term reports</li>
+<li>Identify wasteful ad spend through search term analysis</li>
+</ul>
+
+<h2>3. Users</h2>
+<p>This tool is used <strong>only by internal employees</strong> of Thermopac Process Engineering LLP. There are no external users. Access is restricted to authorized staff through role-based authentication.</p>
+
+<h2>4. Architecture</h2>
+<h3>4.1 Technology Stack</h3>
+<ul>
+<li><strong>Backend:</strong> Node.js with Express.js (TypeScript)</li>
+<li><strong>Frontend:</strong> React with TypeScript</li>
+<li><strong>Database:</strong> PostgreSQL</li>
+<li><strong>Authentication:</strong> Session-based authentication with role-based access control</li>
+</ul>
+
+<h3>4.2 Google Ads API Usage</h3>
+<ul>
+<li><strong>API Version:</strong> v19</li>
+<li><strong>Authentication:</strong> OAuth 2.0 with refresh tokens</li>
+<li><strong>Data Flow:</strong> Read-only — the tool only reads data from Google Ads, it does not create or modify campaigns through the API</li>
+<li><strong>Endpoints Used:</strong>
+  <ul>
+    <li><code>customers/{customerId}/googleAds:search</code> — GAQL queries for campaign, ad group, keyword, and metrics data</li>
+    <li><code>customers:listAccessibleCustomers</code> — Account discovery</li>
+  </ul>
+</li>
+</ul>
+
+<h3>4.3 Data Sync Process</h3>
+<ol>
+<li>User initiates sync from the dashboard (or scheduled automatic sync)</li>
+<li>Backend authenticates using stored OAuth 2.0 tokens</li>
+<li>GAQL queries fetch campaign structure and performance metrics</li>
+<li>Data is stored in local PostgreSQL database for dashboard display</li>
+<li>Frontend displays metrics in charts, tables, and KPI cards</li>
+</ol>
+
+<h2>5. Google Ads API Features Used</h2>
+<table>
+<tr><th>Feature</th><th>Usage</th></tr>
+<tr><td>Campaign data retrieval</td><td>Read campaign names, status, budgets</td></tr>
+<tr><td>Ad group data retrieval</td><td>Read ad group structure and settings</td></tr>
+<tr><td>Keyword data retrieval</td><td>Read keywords, match types, quality scores</td></tr>
+<tr><td>Metrics reporting</td><td>Read impressions, clicks, cost, conversions</td></tr>
+<tr><td>Search term reports</td><td>Read search terms triggering ads</td></tr>
+<tr><td>Customer account info</td><td>Read account name and ID</td></tr>
+</table>
+
+<h2>6. Campaign Types Supported</h2>
+<ul>
+<li>Search campaigns</li>
+<li>Performance Max campaigns</li>
+<li>Display campaigns</li>
+</ul>
+
+<h2>7. API Interaction Model</h2>
+<ul>
+<li><strong>Read-only access:</strong> The tool does NOT create, modify, or delete any Google Ads entities</li>
+<li><strong>Sync frequency:</strong> Structure data every 6 hours, metrics every 1 hour</li>
+<li><strong>Rate limiting:</strong> Built-in retry logic with exponential backoff</li>
+<li><strong>Error handling:</strong> Automatic token refresh on 401 errors, rate limit handling on 429 errors</li>
+</ul>
+
+<h2>8. Data Storage</h2>
+<p>All synced data is stored in our PostgreSQL database in the following tables:</p>
+<ul>
+<li><code>gads_campaigns</code> — Campaign data</li>
+<li><code>gads_ad_groups</code> — Ad group data</li>
+<li><code>gads_keywords</code> — Keyword data</li>
+<li><code>gads_daily_metrics</code> — Daily performance metrics</li>
+<li><code>gads_search_terms</code> — Search term report data</li>
+<li><code>gads_sync_jobs</code> — Sync job tracking</li>
+<li><code>google_ads_tokens</code> — OAuth tokens (encrypted)</li>
+</ul>
+
+<h2>9. Security Measures</h2>
+<ul>
+<li>OAuth 2.0 tokens stored securely in the database</li>
+<li>Session-based authentication required for all API endpoints</li>
+<li>Role-based access control limits who can view Google Ads data</li>
+<li>Developer token and credentials stored as environment secrets</li>
+<li>No Google Ads data is exposed to external parties</li>
+</ul>
+
+<h2>10. Compliance</h2>
+<ul>
+<li>The tool complies with Google Ads API Terms of Service</li>
+<li>No customer data is shared with third parties</li>
+<li>Data is used solely for internal business analytics</li>
+<li>The tool does not use App Conversion Tracking or Remarketing API</li>
+</ul>
+
+</body></html>`;
+
+fs.writeFileSync('Google_Ads_API_Design_Document.doc', htmlContent);
+console.log('DOC file created successfully');
