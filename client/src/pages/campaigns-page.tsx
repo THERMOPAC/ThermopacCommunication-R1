@@ -439,6 +439,36 @@ const AVAILABLE_LANGUAGES = [
   { code: "de", name: "German" },
 ];
 
+const LANGUAGE_COUNTRIES: Record<string, string[]> = {
+  en: ["IN", "US", "GB", "AU", "CA", "NZ", "SG", "IE", "ZA", "NG", "GH", "KE", "TZ", "ET", "PH"],
+  es: ["ES", "MX", "AR", "CO", "CL", "PE"],
+  ar: ["AE", "SA", "KW", "QA", "BH", "OM", "IQ", "EG"],
+  pt: ["BR", "PT"],
+  fr: ["FR", "BE"],
+  ja: ["JP"],
+  ru: ["RU", "KZ", "UZ"],
+  de: ["DE", "AT", "CH"],
+};
+
+function getSuggestedCountries(languages: string[], currentLocations: string[]): { code: string; name: string; language: string }[] {
+  const suggestions: { code: string; name: string; language: string }[] = [];
+  const seen = new Set(currentLocations);
+  for (const lang of languages) {
+    const countries = LANGUAGE_COUNTRIES[lang] || [];
+    const langName = AVAILABLE_LANGUAGES.find(l => l.code === lang)?.name || lang;
+    for (const cc of countries) {
+      if (!seen.has(cc)) {
+        const country = AVAILABLE_COUNTRIES.find(c => c.code === cc);
+        if (country) {
+          suggestions.push({ code: cc, name: country.name, language: langName });
+          seen.add(cc);
+        }
+      }
+    }
+  }
+  return suggestions;
+}
+
 function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -782,6 +812,46 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                   })}
                 </div>
               )}
+              {(() => {
+                const suggested = getSuggestedCountries(selectedLanguages, selectedLocations);
+                if (suggested.length === 0) return null;
+                const byLang: Record<string, typeof suggested> = {};
+                suggested.forEach(s => {
+                  if (!byLang[s.language]) byLang[s.language] = [];
+                  byLang[s.language].push(s);
+                });
+                return (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                    <p className="text-xs font-medium text-amber-800 mb-1.5">Suggested countries for your selected languages:</p>
+                    {Object.entries(byLang).map(([lang, countries]) => (
+                      <div key={lang} className="mb-1.5 last:mb-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[10px] font-semibold text-amber-700 uppercase bg-amber-100 px-1.5 py-0.5 rounded">{lang}</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedLocations([...selectedLocations, ...countries.map(c => c.code)])}
+                            className="text-[10px] text-blue-600 hover:underline font-medium"
+                          >
+                            Add all {countries.length}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {countries.map(c => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              onClick={() => setSelectedLocations([...selectedLocations, c.code])}
+                              className="text-[10px] bg-white text-amber-700 border border-amber-200 rounded px-1.5 py-0.5 hover:bg-amber-100 hover:border-amber-300 transition-colors cursor-pointer"
+                            >
+                              + {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
@@ -981,9 +1051,32 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                         <div className="bg-cyan-50 border border-cyan-200 rounded p-2">
                           <p className="text-xs font-medium text-cyan-800 mb-0.5">Geographic Expansion Opportunities:</p>
                           <div className="flex flex-wrap gap-1">
-                            {aiSuggestions.geographicExpansion.map((geo: string, i: number) => (
-                              <span key={i} className="text-[10px] bg-cyan-100 text-cyan-700 rounded px-1.5 py-0.5 border border-cyan-200">{geo}</span>
-                            ))}
+                            {aiSuggestions.geographicExpansion.map((geo: string, i: number) => {
+                              const matchedCountry = AVAILABLE_COUNTRIES.find(c => c.name.toLowerCase() === geo.toLowerCase());
+                              const alreadyAdded = matchedCountry && selectedLocations.includes(matchedCountry.code);
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  disabled={!matchedCountry || alreadyAdded}
+                                  onClick={() => {
+                                    if (matchedCountry && !alreadyAdded) {
+                                      setSelectedLocations([...selectedLocations, matchedCountry.code]);
+                                      toast({ title: `Added ${matchedCountry.name}`, description: "Country added to campaign targeting" });
+                                    }
+                                  }}
+                                  className={`text-[10px] rounded px-1.5 py-0.5 border transition-colors ${
+                                    alreadyAdded
+                                      ? "bg-green-100 text-green-700 border-green-200"
+                                      : matchedCountry
+                                      ? "bg-cyan-100 text-cyan-700 border-cyan-200 hover:bg-cyan-200 cursor-pointer"
+                                      : "bg-cyan-100 text-cyan-700 border-cyan-200"
+                                  }`}
+                                >
+                                  {alreadyAdded ? `✓ ${geo}` : matchedCountry ? `+ ${geo}` : geo}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
