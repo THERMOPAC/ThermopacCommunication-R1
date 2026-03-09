@@ -657,9 +657,12 @@ export default function RadarPage() {
         <TabsContent value="contacts" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-lg font-semibold flex items-center gap-2"><Users className="h-5 w-5" />Extracted Contacts</h2>
-            <Button variant="outline" size="sm" onClick={() => handleExport('contacts')}>
-              <Download className="h-4 w-4 mr-1" />Export
-            </Button>
+            <div className="flex gap-2 items-center">
+              <span className="text-xs text-muted-foreground">{contacts.length} contacts from qualified companies (score 35+)</span>
+              <Button variant="outline" size="sm" onClick={() => handleExport('contacts')}>
+                <Download className="h-4 w-4 mr-1" />Export
+              </Button>
+            </div>
           </div>
           {contactsLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -670,23 +673,29 @@ export default function RadarPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Confidence</TableHead>
+                    <TableHead>Contact Type</TableHead>
+                    <TableHead>Country</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {contacts.map((c: any) => (
                     <TableRow key={c.id}>
-                      <TableCell className="text-sm">{c.name || '--'}</TableCell>
+                      <TableCell className="text-sm font-medium">{c.company_name || '--'}</TableCell>
+                      <TableCell>
+                        <Badge className={`text-[10px] ${Number(c.company_score) >= 70 ? 'bg-red-100 text-red-700' : Number(c.company_score) >= 50 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {Math.round(Number(c.company_score))}
+                        </Badge>
+                      </TableCell>
+                      <TableCell><Badge variant="outline" className="text-[10px]">{formatCompanyType(c.company_type)}</Badge></TableCell>
                       <TableCell className="text-sm text-blue-600">{c.email || '--'}</TableCell>
                       <TableCell className="text-sm">{c.phone || '--'}</TableCell>
                       <TableCell><Badge variant="outline" className="text-[10px]">{c.contact_type}</Badge></TableCell>
-                      <TableCell className="text-sm">{c.company_name || '--'}</TableCell>
-                      <TableCell className="text-sm">{Math.round(Number(c.confidence) * 100)}%</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{c.country || '--'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
