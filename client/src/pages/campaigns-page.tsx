@@ -62,7 +62,7 @@ function SetupScreen() {
   const connectMutation = useMutation({
     mutationFn: async () => {
       const data = await apiRequest("GET", "/api/google-ads/auth-url");
-      window.location.href = data.url;
+      window.open(data.url, "_blank");
     },
   });
 
