@@ -466,17 +466,22 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
   const [aiObjective, setAiObjective] = useState("");
   const [aiMonthlyBudget, setAiMonthlyBudget] = useState("15000");
+  const [aiLandingUrl, setAiLandingUrl] = useState("https://thermopac.in");
   const [aiSuggestions, setAiSuggestions] = useState<any>(null);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
   const aiMutation = useMutation({
     mutationFn: () => {
       const geoNames = selectedLocations.map(c => AVAILABLE_COUNTRIES.find(x => x.code === c)?.name || c).join(", ");
+      const langNames = selectedLanguages.map(c => AVAILABLE_LANGUAGES.find(l => l.code === c)?.name || c).join(", ");
       return apiRequest("POST", "/api/google-ads/ai/campaign-suggestions", {
         objective: aiObjective,
         product: productFocus || "All Products",
         targetAudience: "",
         geography: geoNames || "India",
+        languages: langNames || "English",
+        languageCodes: selectedLanguages,
+        landingUrl: aiLandingUrl || "https://thermopac.in",
         monthlyBudget: aiMonthlyBudget,
         campaignType: channelType,
       });
@@ -816,25 +821,37 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </button>
               {showAiPanel && (
                 <div className="p-3 space-y-3 border-t bg-white">
-                  <p className="text-xs text-muted-foreground">AI uses your product, country, and language selections above to suggest the best strategy, budget, keywords, and ad copy.</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <p className="text-xs text-muted-foreground">AI analyzes your product, countries, languages, and landing page to generate targeted keywords, multilingual ad copy, and smart bidding strategy.</p>
+                  <div className="space-y-2">
                     <div>
-                      <Label className="text-xs">Campaign Objective</Label>
-                      <Select value={aiObjective} onValueChange={setAiObjective}>
-                        <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select goal..." /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Generate qualified leads">Generate Leads</SelectItem>
-                          <SelectItem value="Increase brand awareness">Brand Awareness</SelectItem>
-                          <SelectItem value="Drive website traffic">Website Traffic</SelectItem>
-                          <SelectItem value="Promote specific product">Product Promotion</SelectItem>
-                          <SelectItem value="Retarget past visitors">Remarketing</SelectItem>
-                          <SelectItem value="Enter new market">New Market Entry</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-xs">Landing Page URL</Label>
+                      <Input value={aiLandingUrl} onChange={(e) => setAiLandingUrl(e.target.value)} placeholder="https://thermopac.in" className="mt-1 h-8 text-xs" />
+                      <p className="text-xs text-muted-foreground mt-0.5">AI will crawl this page to extract product details and USPs for ad copy</p>
                     </div>
-                    <div>
-                      <Label className="text-xs">Monthly Budget (INR)</Label>
-                      <Input value={aiMonthlyBudget} onChange={(e) => setAiMonthlyBudget(e.target.value)} placeholder="15000" className="mt-1 h-8 text-xs" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Campaign Objective</Label>
+                        <Select value={aiObjective} onValueChange={setAiObjective}>
+                          <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select goal..." /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Generate qualified leads">Generate Leads</SelectItem>
+                            <SelectItem value="Increase brand awareness">Brand Awareness</SelectItem>
+                            <SelectItem value="Drive website traffic">Website Traffic</SelectItem>
+                            <SelectItem value="Promote specific product">Product Promotion</SelectItem>
+                            <SelectItem value="Retarget past visitors">Remarketing</SelectItem>
+                            <SelectItem value="Enter new market">New Market Entry</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Monthly Budget (INR)</Label>
+                        <Input value={aiMonthlyBudget} onChange={(e) => setAiMonthlyBudget(e.target.value)} placeholder="15000" className="mt-1 h-8 text-xs" />
+                      </div>
+                    </div>
+                    <div className="bg-purple-50 rounded p-2">
+                      <p className="text-xs text-purple-700">
+                        <span className="font-medium">AI will use:</span> {productFocus || "No product selected"} | {selectedLanguages.map(c => AVAILABLE_LANGUAGES.find(l => l.code === c)?.name || c).join(", ")} | {selectedLocations.length} countr{selectedLocations.length !== 1 ? "ies" : "y"}
+                      </p>
                     </div>
                   </div>
                   <Button
@@ -851,7 +868,32 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                   </Button>
 
                   {aiSuggestions && (
-                    <div className="space-y-2 mt-2">
+                    <div className="space-y-2 mt-2 max-h-96 overflow-y-auto">
+                      {aiSuggestions.productInsights && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded p-2">
+                          <p className="text-xs font-medium text-indigo-800 mb-1">Product Intelligence:</p>
+                          {aiSuggestions.productInsights.uniqueSellingPoints && (
+                            <div className="mb-1">
+                              <p className="text-xs font-medium text-indigo-700">USPs:</p>
+                              <ul className="text-xs text-indigo-600 space-y-0.5">
+                                {aiSuggestions.productInsights.uniqueSellingPoints.map((usp: string, i: number) => (
+                                  <li key={i}>- {usp}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {aiSuggestions.productInsights.targetBuyerPersonas && (
+                            <div>
+                              <p className="text-xs font-medium text-indigo-700">Target Buyers:</p>
+                              <ul className="text-xs text-indigo-600 space-y-0.5">
+                                {aiSuggestions.productInsights.targetBuyerPersonas.map((p: string, i: number) => (
+                                  <li key={i}>- {p}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {aiSuggestions.biddingStrategy && (
                         <div className="bg-green-50 border border-green-200 rounded p-2">
                           <div className="flex items-start gap-2">
@@ -859,6 +901,9 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                             <div className="text-xs">
                               <p className="font-medium text-green-800">Bidding: {aiSuggestions.biddingStrategy.recommended}</p>
                               <p className="text-green-700">{aiSuggestions.biddingStrategy.reason}</p>
+                              {aiSuggestions.biddingStrategy.phaseStrategy && (
+                                <p className="text-green-600 mt-0.5 italic">Next phase: {aiSuggestions.biddingStrategy.phaseStrategy}</p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -874,6 +919,38 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                           </div>
                         </div>
                       )}
+                      {aiSuggestions.expectedPerformance && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
+                          <p className="text-xs font-medium text-emerald-800 mb-1">Expected Performance:</p>
+                          <div className="grid grid-cols-2 gap-1 text-xs text-emerald-700">
+                            {aiSuggestions.expectedPerformance.estimatedCtr && <p>CTR: {aiSuggestions.expectedPerformance.estimatedCtr}</p>}
+                            {aiSuggestions.expectedPerformance.estimatedCpc && <p>CPC: {aiSuggestions.expectedPerformance.estimatedCpc}</p>}
+                            {aiSuggestions.expectedPerformance.estimatedLeadsPerMonth && <p>Leads/mo: {aiSuggestions.expectedPerformance.estimatedLeadsPerMonth}</p>}
+                            {aiSuggestions.expectedPerformance.timeToOptimize && <p>Optimize: {aiSuggestions.expectedPerformance.timeToOptimize}</p>}
+                          </div>
+                        </div>
+                      )}
+                      {aiSuggestions.adGroups && aiSuggestions.adGroups.length > 0 && (
+                        <div className="bg-purple-50 border border-purple-200 rounded p-2">
+                          <p className="text-xs font-medium text-purple-800 mb-1">Suggested Ad Groups ({aiSuggestions.adGroups.length}):</p>
+                          <div className="space-y-2">
+                            {aiSuggestions.adGroups.map((ag: any, i: number) => (
+                              <div key={i} className="border-b border-purple-100 pb-1 last:border-0 last:pb-0">
+                                <div className="text-xs text-purple-700">
+                                  <span className="font-medium">{ag.name}</span>
+                                  {ag.buyerStage && <Badge variant="outline" className="ml-1 text-[10px] h-4 bg-purple-100 text-purple-600 border-purple-200">{ag.buyerStage}</Badge>}
+                                </div>
+                                <p className="text-xs text-purple-600">{ag.theme}</p>
+                                <p className="text-xs text-purple-500">{ag.keywords?.length || 0} keywords | {ag.headlines?.length || 0} headlines | {ag.descriptions?.length || 0} descriptions</p>
+                                {ag.multilingualCopy && Object.keys(ag.multilingualCopy).length > 0 && (
+                                  <p className="text-xs text-purple-500">Multilingual copy: {Object.keys(ag.multilingualCopy).join(", ")}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-purple-500 mt-1 italic">Create these ad groups after the campaign is set up</p>
+                        </div>
+                      )}
                       {aiSuggestions.optimizationTips && (
                         <div className="bg-yellow-50 border border-yellow-200 rounded p-2">
                           <p className="text-xs font-medium text-yellow-800 mb-1">Optimization Tips:</p>
@@ -882,20 +959,6 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                               <li key={i} className="flex items-start gap-1"><span>-</span> {tip}</li>
                             ))}
                           </ul>
-                        </div>
-                      )}
-                      {aiSuggestions.adGroups && aiSuggestions.adGroups.length > 0 && (
-                        <div className="bg-purple-50 border border-purple-200 rounded p-2">
-                          <p className="text-xs font-medium text-purple-800 mb-1">Suggested Ad Groups ({aiSuggestions.adGroups.length}):</p>
-                          <div className="space-y-1">
-                            {aiSuggestions.adGroups.map((ag: any, i: number) => (
-                              <div key={i} className="text-xs text-purple-700">
-                                <span className="font-medium">{ag.name}</span> - {ag.theme}
-                                <span className="text-purple-500 ml-1">({ag.keywords?.length || 0} keywords)</span>
-                              </div>
-                            ))}
-                          </div>
-                          <p className="text-xs text-purple-500 mt-1 italic">You can create these ad groups after the campaign is set up</p>
                         </div>
                       )}
                       {aiSuggestions.scheduleRecommendation && (

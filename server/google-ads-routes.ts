@@ -747,7 +747,34 @@ router.get('/design-doc', ensureAuthenticated, async (req: Request, res: Respons
 
 router.post('/ai/campaign-suggestions', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const { objective, product, targetAudience, geography, monthlyBudget, campaignType } = req.body;
+    const { objective, product, targetAudience, geography, languages, languageCodes, landingUrl, monthlyBudget, campaignType } = req.body;
+
+    let pageContent = '';
+    if (landingUrl) {
+      try {
+        console.log(`[GoogleAds AI] Crawling landing page: ${landingUrl}`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const response = await fetch(landingUrl, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ThermopacBot/1.0)' },
+        });
+        clearTimeout(timeout);
+        const html = await response.text();
+        const stripped = html
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 4000);
+        pageContent = stripped;
+        console.log(`[GoogleAds AI] Crawled ${stripped.length} chars from ${landingUrl}`);
+      } catch (crawlErr: any) {
+        console.error(`[GoogleAds AI] Failed to crawl ${landingUrl}:`, crawlErr.message);
+        pageContent = 'Could not crawl landing page.';
+      }
+    }
 
     const existingCampaigns = await db.execute(sql`
       SELECT name, status, advertising_channel_type, budget_amount_micros FROM gads_campaigns LIMIT 20
@@ -756,66 +783,102 @@ router.post('/ai/campaign-suggestions', ensureAuthenticated, async (req: Request
       SELECT text, match_type, quality_score FROM gads_keywords WHERE status = 'ENABLED' LIMIT 50
     `);
 
-    const prompt = `You are a Google Ads expert for THERMOPAC, an industrial manufacturing company specializing in:
-- Heat exchangers (shell & tube, plate type)
-- Thermic fluid heaters
-- Hot water generators
-- Steam boilers
-- Hot air generators  
-- Waste heat recovery systems
-- Re-refining and distillation plants/skids
-- Dehydration skids
+    const targetLangs = languages || 'English';
+    const langCodes = languageCodes || ['en'];
+    const isMultilingual = langCodes.length > 1;
 
-The user wants to create a new ${campaignType || 'SEARCH'} campaign.
+    const prompt = `You are an elite Google Ads strategist for THERMOPAC, an industrial manufacturing company. Your job is to create a HIGHLY EFFECTIVE, INTELLIGENT campaign that maximizes ROI.
 
-Campaign objective: ${objective || 'Generate qualified leads'}
-Product/service focus: ${product || 'All products'}
-Target audience: ${targetAudience || 'Industrial buyers, plant managers, procurement teams'}
-Target geography: ${geography || 'India, Middle East, Africa'}
-Monthly budget: INR ${monthlyBudget || '15000'}
+COMPANY: THERMOPAC manufactures:
+- Re-refining Plants (used oil recycling into base oil)
+- Lube Oil Blending Plants (base oil blending into lubricants)
+- Regenerative Media Based Polishing Systems (advanced filtration/purification)
 
-Existing campaigns: ${JSON.stringify(existingCampaigns.rows?.slice(0, 10) || [])}
-Existing keywords (performing): ${JSON.stringify(existingKeywords.rows?.slice(0, 20) || [])}
+CAMPAIGN PARAMETERS:
+- Campaign type: ${campaignType || 'SEARCH'}
+- Objective: ${objective || 'Generate qualified leads'}
+- Product focus: ${product || 'All products'}
+- Target geography: ${geography || 'India'}
+- Target languages: ${targetLangs}
+- Landing URL: ${landingUrl || 'https://thermopac.in'}
+- Monthly budget: INR ${monthlyBudget || '15000'}
 
-Provide intelligent recommendations in JSON format:
+LANDING PAGE CONTENT (crawled from URL):
+${pageContent || 'No page content available - use general product knowledge'}
+
+EXISTING ACCOUNT DATA:
+- Campaigns: ${JSON.stringify(existingCampaigns.rows?.slice(0, 10) || [])}
+- Keywords: ${JSON.stringify(existingKeywords.rows?.slice(0, 20) || [])}
+
+YOUR TASK: Generate a complete, production-ready campaign strategy. Be extremely specific to the product "${product}".
+
+${isMultilingual ? `CRITICAL - MULTILINGUAL AD COPY REQUIRED:
+Target languages are: ${targetLangs}
+For EACH ad group, provide headlines and descriptions in ALL target languages.
+Use native-speaker quality translations, not literal translations.
+Adapt messaging to cultural context of each target market.
+Use the "multilingualCopy" field for each ad group.` : ''}
+
+Respond in JSON:
 {
-  "campaignName": "suggested campaign name",
+  "campaignName": "use format [Continent]_[Country]_[Language]_[Product]_[Type]",
   "biddingStrategy": {
-    "recommended": "MAXIMIZE_CONVERSIONS | TARGET_CPA | MANUAL_CPC | TARGET_ROAS | TARGET_CPV | TARGET_CPM",
-    "reason": "why this strategy is best for their situation",
-    "targetValue": null or number (CPA in INR or ROAS multiplier)
+    "recommended": "MANUAL_CPC | MAXIMIZE_CLICKS | MAXIMIZE_CONVERSIONS | TARGET_CPA | TARGET_ROAS | TARGET_CPV | TARGET_CPM",
+    "reason": "detailed justification based on account maturity and product type",
+    "targetValue": null or number,
+    "phaseStrategy": "what to do after 30 days / 50 conversions"
   },
   "dailyBudget": {
-    "recommended": number in INR,
-    "reason": "budget justification"
+    "recommended": number,
+    "reason": "budget justification considering CPC in target geography for industrial keywords"
   },
   "adGroups": [
     {
-      "name": "ad group name",
-      "theme": "what this group targets",
+      "name": "tightly themed ad group name",
+      "theme": "what buyer intent this targets",
+      "buyerStage": "awareness | consideration | decision",
       "keywords": [
-        {"text": "keyword", "matchType": "BROAD|PHRASE|EXACT", "reason": "why this keyword"}
+        {"text": "keyword in primary language", "matchType": "BROAD|PHRASE|EXACT", "reason": "why this keyword drives qualified traffic", "estimatedCpc": "estimated CPC range"}
       ],
-      "negativeKeywords": ["negative keyword 1"],
-      "headlines": ["headline 1 (max 30 chars)", "headline 2", "headline 3"],
-      "descriptions": ["description 1 (max 90 chars)", "description 2"]
+      "negativeKeywords": ["irrelevant terms to block"],
+      "headlines": ["15 headlines max 30 chars each - primary language"],
+      "descriptions": ["4 descriptions max 90 chars each - primary language"],
+      ${isMultilingual ? `"multilingualCopy": {
+        "languageName": {
+          "headlines": ["15 headlines in that language, max 30 chars"],
+          "descriptions": ["4 descriptions in that language, max 90 chars"]
+        }
+      },` : ''}
+      "landingPageSuggestion": "specific page or section to link to"
     }
   ],
-  "audienceSignals": ["audience type 1", "audience type 2"],
-  "geoTargets": ["location 1", "location 2"],
-  "scheduleRecommendation": "when to run ads (e.g. weekdays 9am-6pm IST)",
-  "optimizationTips": ["tip 1", "tip 2", "tip 3"],
-  "avoidKeywords": ["keywords to add as negatives across account"]
+  "productInsights": {
+    "uniqueSellingPoints": ["USPs extracted from landing page"],
+    "competitiveAdvantages": ["what makes THERMOPAC stand out"],
+    "targetBuyerPersonas": ["who buys this product and why"]
+  },
+  "audienceSignals": ["in-market audiences", "custom intent audiences", "affinity audiences"],
+  "scheduleRecommendation": "optimal ad schedule for target geography with timezone consideration",
+  "optimizationTips": ["actionable optimization advice specific to this product and market"],
+  "avoidKeywords": ["account-level negatives to prevent waste spend"],
+  "expectedPerformance": {
+    "estimatedCtr": "expected CTR range",
+    "estimatedCpc": "expected CPC range in INR",
+    "estimatedLeadsPerMonth": "realistic lead estimate",
+    "timeToOptimize": "how long before meaningful data"
+  }
 }
 
-Important:
-- For a new account with no conversion data, recommend MANUAL_CPC or MAXIMIZE_CLICKS to gather data first, then switch to smart bidding after 30+ conversions
-- If they have conversion history, recommend TARGET_CPA or MAXIMIZE_CONVERSIONS
-- Consider the industrial B2B nature - longer sales cycles, higher CPA is acceptable
-- Suggest 3-5 tightly themed ad groups
-- Each ad group should have 10-15 keywords mixing match types
-- Headlines must be under 30 characters, descriptions under 90 characters
-- Include industry-specific negative keywords (jobs, salary, PDF, free, etc.)`;
+RULES:
+- Headlines MUST be 30 characters or less (count carefully!)
+- Descriptions MUST be 90 characters or less
+- Use power words from landing page content when available
+- Include buyer-intent keywords specific to "${product}" (not generic industrial terms)
+- Create 3-5 ad groups organized by buyer journey stage
+- Each ad group: 10-15 keywords with mixed match types
+- Block irrelevant traffic: jobs, salary, PDF, free, DIY, training, course, internship
+- For B2B industrial: expect longer sales cycles, higher CPA (INR 500-2000), lower volume but higher value
+- If no conversion data exists, start with MANUAL_CPC to control costs while gathering data`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
