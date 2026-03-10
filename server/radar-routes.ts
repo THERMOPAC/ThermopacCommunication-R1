@@ -3254,6 +3254,68 @@ router.get('/discovery/status/:country', async (req: Request, res: Response) => 
   }
 });
 
+router.patch('/companies/:id/type', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+
+    const companyId = parseInt(req.params.id);
+    const { company_type } = req.body;
+
+    const validTypes = [
+      'used_oil_collector', 'waste_oil_recycler', 're_refiner', 'waste_management_company',
+      'lubricant_company', 'base_oil_company', 'industrial_recycler', 'hazardous_waste_company',
+      'trader_only', 'competitor', 'not_relevant', 'unclear'
+    ];
+    if (!company_type || !validTypes.includes(company_type)) {
+      return res.status(400).json({ success: false, error: 'Invalid company type' });
+    }
+
+    const company = await db.execute(sql`SELECT * FROM radar_companies WHERE id = ${companyId}`);
+    if (!company.rows.length) {
+      return res.status(404).json({ success: false, error: 'Company not found' });
+    }
+
+    const typeFlags = {
+      handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(company_type),
+      is_existing_rerefiner: company_type === 're_refiner',
+      is_collector_only: company_type === 'used_oil_collector',
+    };
+
+    const comp = company.rows[0] as any;
+    const scoringData = {
+      company_type,
+      handles_waste_oil: typeFlags.handles_waste_oil,
+      is_plant_opportunity: comp.is_plant_opportunity || false,
+      iso_code: comp.iso_code || '',
+      feedstock_access_estimate: Number(comp.likely_feedstock_access) || (company_type === 're_refiner' ? 60 : 40),
+      capital_capability_estimate: Number(comp.likely_capital_capability) || (company_type === 're_refiner' ? 50 : 30),
+      strategic_fit_estimate: Number(comp.likely_strategic_fit) || (company_type === 're_refiner' ? 60 : 40),
+      contactability_estimate: comp.root_domain ? 40 : 10,
+    };
+    const scoring = calculateOpportunityScore(scoringData, false, false);
+
+    await db.execute(sql`
+      UPDATE radar_companies SET
+        company_type = ${company_type},
+        handles_waste_oil = ${typeFlags.handles_waste_oil},
+        is_existing_rerefiner = ${typeFlags.is_existing_rerefiner},
+        is_collector_only = ${typeFlags.is_collector_only},
+        opportunity_score = ${scoring.final},
+        score_band = ${scoring.band},
+        ai_reasoning_summary = ${scoring.explanation},
+        updated_at = NOW()
+      WHERE id = ${companyId}
+    `);
+
+    console.log(`[Radar] Company ${companyId} type manually changed to ${company_type} by user ${userId}`);
+    res.json({ success: true, company_type, opportunity_score: scoring.final, score_band: scoring.band });
+  } catch (error: any) {
+    console.error('[Radar] Update company type error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.post('/companies/:id/promote', async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;

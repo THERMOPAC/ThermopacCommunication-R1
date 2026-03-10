@@ -52,6 +52,8 @@ function getCompanyTypeBadge(type: string) {
     industrial_recycler: 'bg-cyan-100 text-cyan-800',
     hazardous_waste_company: 'bg-red-100 text-red-800',
     trader_only: 'bg-gray-100 text-gray-800',
+    competitor: 'bg-rose-100 text-rose-800',
+    not_relevant: 'bg-gray-100 text-gray-400',
     unclear: 'bg-gray-100 text-gray-500',
   };
   return colors[type] || 'bg-gray-100 text-gray-600';
@@ -154,6 +156,23 @@ export default function RadarPage() {
     },
     onError: (error: any) => {
       toast({ title: "Promotion Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const changeTypeMutation = useMutation({
+    mutationFn: async ({ companyId, company_type }: { companyId: number; company_type: string }) => {
+      return apiRequest('PATCH', `/api/radar/companies/${companyId}/type`, { company_type });
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Type Updated", description: `Company type changed to ${formatCompanyType(data.company_type)}. Score recalculated: ${data.opportunity_score}` });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/companies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/radar/overview'] });
+      if (selectedCompanyId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/radar/companies', selectedCompanyId] });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -998,15 +1017,30 @@ export default function RadarPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <DialogTitle className="text-xl">{detail.company.canonical_name}</DialogTitle>
-                    <DialogDescription className="flex items-center gap-2 mt-1">
-                      <Badge className={getCompanyTypeBadge(detail.company.company_type)}>
-                        {formatCompanyType(detail.company.company_type)}
-                      </Badge>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Select
+                        value={detail.company.company_type}
+                        onValueChange={(newType) => {
+                          changeTypeMutation.mutate({ companyId: detail.company.id, company_type: newType });
+                        }}
+                      >
+                        <SelectTrigger className={`h-7 w-auto min-w-[140px] text-[11px] font-medium border-0 px-2 rounded-full ${getCompanyTypeBadge(detail.company.company_type)}`}>
+                          <SelectValue>{formatCompanyType(detail.company.company_type)}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COMPANY_TYPES.map(t => (
+                            <SelectItem key={t} value={t} className="text-xs">
+                              {formatCompanyType(t)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {changeTypeMutation.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
                       <Badge className={getScoreBandColor(detail.company.score_band)}>
                         {getScoreBandIcon(detail.company.score_band)} Score: {detail.company.opportunity_score}
                       </Badge>
-                      <span className="text-sm">{detail.company.country}</span>
-                    </DialogDescription>
+                      <span className="text-sm text-muted-foreground">{detail.company.country}</span>
+                    </div>
                   </div>
                   {!detail.company.promoted_to_crm && detail.company.company_type !== 'not_relevant' && (
                     <Button onClick={() => promoteMutation.mutate(detail.company.id)}
@@ -1164,7 +1198,7 @@ export default function RadarPage() {
 const COMPANY_TYPES = [
   'used_oil_collector', 'waste_oil_recycler', 're_refiner', 'waste_management_company',
   'lubricant_company', 'base_oil_company', 'industrial_recycler', 'hazardous_waste_company',
-  'trader_only', 'unclear'
+  'trader_only', 'competitor', 'not_relevant', 'unclear'
 ];
 
 function getScoreBandFromScore(score: number): string {
