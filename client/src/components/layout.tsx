@@ -264,7 +264,7 @@ function Layout({ children }: LayoutProps) {
         { icon: ShieldCheck, label: "Password Compliance", href: "/admin/password-compliance" }
       ]
     }] : []),
-    ...(hasViewPermission("Sales and Marketing") ? [{ 
+    ...(hasViewPermission("Digital Marketing") ? [{ 
       icon: Target, 
       label: "Digital Marketing", 
       isSubmenu: true,

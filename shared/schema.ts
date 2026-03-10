@@ -8,6 +8,7 @@ import { relations } from "drizzle-orm";
 export const modules = [
   "Administration",
   "Legal Management",
+  "Digital Marketing",
   "Sales and Marketing",
   "Finance",
   "Project Management",
