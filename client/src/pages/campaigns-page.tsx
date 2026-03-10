@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import Layout from "@/components/layout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -2586,13 +2587,16 @@ export default function CampaignsPage() {
 
   if (connectionStatus.isLoading) {
     return (
+      <Layout>
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
+      </Layout>
     );
   }
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -2758,5 +2762,6 @@ export default function CampaignsPage() {
         </div>
       )}
     </div>
+    </Layout>
   );
 }
