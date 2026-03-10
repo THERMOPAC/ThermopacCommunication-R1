@@ -286,6 +286,11 @@ export async function createCampaign(
     };
   }
 
+  campaign.geoTargetTypeSetting = {
+    positiveGeoTargetType: 'PRESENCE',
+    negativeGeoTargetType: 'PRESENCE',
+  };
+
   const strategy = params.biddingStrategyType || '';
 
   if (params.advertisingChannelType === 'SEARCH' || params.advertisingChannelType === 'DISPLAY') {

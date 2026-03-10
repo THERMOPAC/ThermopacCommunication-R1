@@ -416,6 +416,10 @@ router.post('/campaigns/preview', ensureAuthenticated, async (req: Request, res:
         startDate: startDate ? startDate.replace(/-/g, '') : undefined,
         endDate: endDate ? endDate.replace(/-/g, '') : undefined,
         networkSettings,
+        geoTargetTypeSetting: {
+          positiveGeoTargetType: 'PRESENCE',
+          negativeGeoTargetType: 'PRESENCE',
+        },
         ...( biddingConfig.type === 'MANUAL_CPC' ? { manualCpc: { enhancedCpcEnabled: true } } :
              biddingConfig.type === 'MAXIMIZE_CLICKS' ? { maximizeClicks: {} } :
              biddingConfig.type === 'MAXIMIZE_CONVERSIONS' ? { maximizeConversions: {} } :
@@ -459,6 +463,7 @@ router.post('/campaigns/preview', ensureAuthenticated, async (req: Request, res:
         languages: languageTargeting.filter((l: any) => !l.error).map((l: any) => l.name),
         locations: locationTargeting.filter((l: any) => !l.error).map((l: any) => l.name),
         searchPartners: advertisingChannelType === 'SEARCH' ? includeSearchPartners : 'N/A',
+        geoTargetingMode: 'PRESENCE only (people physically in targeted locations)',
         totalApiCalls: '3 sequential calls: 1. Create Budget → 2. Create Campaign → 3. Set Language+Location Criteria',
       },
     });

@@ -695,6 +695,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                   {previewData.summary?.searchPartners !== 'N/A' && (
                     <div><span className="text-muted-foreground">Search Partners:</span> <span className="font-medium">{previewData.summary?.searchPartners ? 'Yes' : 'No'}</span></div>
                   )}
+                  <div><span className="text-muted-foreground">Geo Mode:</span> <span className="font-medium text-green-700">Presence Only</span></div>
                 </div>
               </div>
               <div className="bg-slate-50 rounded-lg p-2.5 border">
@@ -1542,6 +1543,10 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                       <p className="text-sm font-medium">{includeSearchPartners ? "Included" : "Excluded"}</p>
                     </div>
                   )}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Geo Targeting</p>
+                    <p className="text-sm font-medium text-green-700">Presence Only</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
