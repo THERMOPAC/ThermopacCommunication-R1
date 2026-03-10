@@ -670,6 +670,22 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </div>
             )}
 
+            {channelType === "PERFORMANCE_MAX" && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">Performance Max Limitation</p>
+                    <p className="text-xs text-red-700 mt-1">
+                      Performance Max campaigns require <strong>Asset Groups</strong> (text, images, logos, videos) to serve ads.
+                      This wizard will create the campaign shell and targeting, but you must add asset groups directly in
+                      Google Ads before the campaign can be enabled. The system will block enabling until asset groups are configured.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <Label className="text-sm font-medium">Product / Service Focus</Label>
               <Select value={productFocus} onValueChange={setProductFocus}>

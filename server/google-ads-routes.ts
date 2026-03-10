@@ -405,6 +405,38 @@ router.post('/campaigns/:id/status', ensureAuthenticated, async (req: Request, r
     }
 
     const resourceName = `customers/${customerId}/campaigns/${campaignId}`;
+
+    if (status === 'ENABLED') {
+      const langCriteria = await executeGaql(userId, customerId,
+        `SELECT campaign_criterion.criterion_id FROM campaign_criterion WHERE campaign.resource_name = '${resourceName}' AND campaign_criterion.type = 'LANGUAGE' LIMIT 1`
+      );
+      const locCriteria = await executeGaql(userId, customerId,
+        `SELECT campaign_criterion.criterion_id FROM campaign_criterion WHERE campaign.resource_name = '${resourceName}' AND campaign_criterion.type = 'LOCATION' LIMIT 1`
+      );
+
+      if (!langCriteria || langCriteria.length === 0) {
+        return res.status(400).json({ error: 'Cannot enable campaign: no language targeting configured. Add at least one language before enabling.' });
+      }
+      if (!locCriteria || locCriteria.length === 0) {
+        return res.status(400).json({ error: 'Cannot enable campaign: no location targeting configured. Add at least one country/region before enabling.' });
+      }
+
+      const channelResult = await executeGaql(userId, customerId,
+        `SELECT campaign.advertising_channel_type FROM campaign WHERE campaign.resource_name = '${resourceName}'`
+      );
+      if (channelResult && channelResult.length > 0) {
+        const channelType = channelResult[0]?.campaign?.advertisingChannelType;
+        if (channelType === 'PERFORMANCE_MAX') {
+          const assetGroups = await executeGaql(userId, customerId,
+            `SELECT asset_group.id FROM asset_group WHERE campaign.resource_name = '${resourceName}' LIMIT 1`
+          );
+          if (!assetGroups || assetGroups.length === 0) {
+            return res.status(400).json({ error: 'Cannot enable Performance Max campaign: at least one asset group is required. Please create asset groups in Google Ads before enabling.' });
+          }
+        }
+      }
+    }
+
     await updateCampaignStatus(userId, customerId, resourceName, status);
 
     await db.execute(sql`

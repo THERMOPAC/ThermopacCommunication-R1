@@ -502,7 +502,7 @@ export const GOOGLE_ADS_LANGUAGES: Record<string, { id: string; name: string }> 
   te: { id: '1131', name: 'Telugu' },
   mr: { id: '1128', name: 'Marathi' },
   gu: { id: '1072', name: 'Gujarati' },
-  is: { id: '1026', name: 'Icelandic' },
+  is: { id: '1027', name: 'Icelandic' },
   be: { id: '1073', name: 'Belarusian' },
   az: { id: '1068', name: 'Azerbaijani' },
 };
