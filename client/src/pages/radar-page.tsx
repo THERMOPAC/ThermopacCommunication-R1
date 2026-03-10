@@ -600,7 +600,16 @@ export default function RadarPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">{Math.round(Number(p.project_confidence) * 100)}%</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[250px] truncate">{p.evidence_text}</TableCell>
+                      <TableCell className="text-xs max-w-[250px]">
+                        {p.source_url ? (
+                          <a href={p.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate" title={p.evidence_text || p.source_url}>
+                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{p.evidence_text || new URL(p.source_url).hostname}</span>
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground truncate">{p.evidence_text || '-'}</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
