@@ -539,9 +539,23 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     },
   });
 
+  const [includeSearchPartners, setIncludeSearchPartners] = useState(false);
+
   const createMutation = useMutation({
     mutationFn: () => {
       const strategy = biddingStrategy;
+
+      if (name.length > 128) {
+        throw new Error(`Campaign name too long (${name.length}/128 chars). Shorten the name or reduce selected countries.`);
+      }
+      if (startDate) {
+        const today = new Date().toISOString().split("T")[0];
+        if (startDate < today) throw new Error("Start date cannot be in the past.");
+      }
+      if (startDate && endDate && endDate <= startDate) {
+        throw new Error("End date must be after start date.");
+      }
+
       const payload: any = {
         name,
         dailyBudget: Number(dailyBudget),
@@ -549,6 +563,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         status: "PAUSED",
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        targetSearchNetwork: channelType === "SEARCH" ? includeSearchPartners : undefined,
       };
 
       if (channelType === "VIDEO") {
@@ -582,8 +597,16 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       }
       return apiRequest("POST", "/api/google-ads/campaigns/create", payload);
     },
-    onSuccess: () => {
-      toast({ title: "Campaign created", description: `"${name}" has been created in paused state.` });
+    onSuccess: (data: any) => {
+      if (data?.warnings && data.warnings.length > 0) {
+        toast({
+          title: "Campaign created with warnings",
+          description: data.warnings.join(" | "),
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Campaign created", description: `"${name}" has been created in paused state.` });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/google-ads"] });
       onOpenChange(false);
       resetForm();
@@ -597,7 +620,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     setStep(1); setName(""); setNameManuallyEdited(false); setDailyBudget(""); setStartDate(""); setEndDate("");
     setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setSelectedLanguages(["en"]);
     setSelectedLocations(["IN"]); setLocationSearch(""); setLocationDropdownOpen(false); setProductFocus("");
-    setAiSuggestions(null); setShowAiPanel(false);
+    setAiSuggestions(null); setShowAiPanel(false); setIncludeSearchPartners(false);
   };
 
   const strategies = BIDDING_STRATEGIES[channelType]?.strategies || [];
@@ -711,9 +734,12 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               <div>
                 <Label className="text-sm font-medium">Schedule *</Label>
                 <div className="grid grid-cols-2 gap-2 mt-1">
-                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start" />
-                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End" />
+                  <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="Start" min={new Date().toISOString().split("T")[0]} />
+                  <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="End" min={startDate || new Date().toISOString().split("T")[0]} />
                 </div>
+                {startDate && endDate && endDate <= startDate && (
+                  <p className="text-xs text-red-600 mt-1">End date must be after start date.</p>
+                )}
               </div>
             </div>
 
@@ -889,11 +915,19 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 placeholder="Auto-generated from selections above"
                 className={`${!nameManuallyEdited ? "bg-gray-50 border-dashed" : ""}`}
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                {nameManuallyEdited
-                  ? "Manually edited. Click \"Auto-generate\" to reset."
-                  : "Format: [Continent]_[Country]_[Language]_[Product]_[CampaignType] — auto-updates as you change selections above."}
-              </p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-muted-foreground">
+                  {nameManuallyEdited
+                    ? "Manually edited. Click \"Auto-generate\" to reset."
+                    : "Format: [Continent]_[Country]_[Language]_[Product]_[CampaignType] — auto-updates as you change selections above."}
+                </p>
+                <span className={`text-[10px] font-mono ${name.length > 128 ? "text-red-600 font-bold" : name.length > 100 ? "text-amber-600" : "text-muted-foreground"}`}>
+                  {name.length}/128
+                </span>
+              </div>
+              {name.length > 128 && (
+                <p className="text-xs text-red-600 mt-0.5">Name exceeds Google Ads 128-character limit. Reduce selected countries or edit manually.</p>
+              )}
             </div>
 
             <div className="border rounded-lg overflow-hidden">
@@ -1268,6 +1302,37 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               </div>
             )}
 
+            {["TARGET_CPA", "MAXIMIZE_CONVERSIONS", "TARGET_ROAS"].includes(biddingStrategy) && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">Conversion Tracking Required</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      This bidding strategy requires conversion tracking to be configured in your Google Ads account.
+                      Without it, Google cannot optimize your bids. For new campaigns, consider starting with Manual CPC to gather data first.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {channelType === "SEARCH" && (
+              <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border">
+                <input
+                  type="checkbox"
+                  id="searchPartners"
+                  checked={includeSearchPartners}
+                  onChange={(e) => setIncludeSearchPartners(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300"
+                />
+                <div>
+                  <Label htmlFor="searchPartners" className="text-sm font-medium cursor-pointer">Include Search Partners</Label>
+                  <p className="text-xs text-muted-foreground">Show ads on Google search partner sites (e.g., AOL, Ask.com). Recommended to leave OFF initially for better cost control.</p>
+                </div>
+              </div>
+            )}
+
             {aiSuggestions?.biddingStrategy && (
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -1364,9 +1429,24 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                     <p className="text-xs text-muted-foreground">Initial Status</p>
                     <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">PAUSED</Badge>
                   </div>
+                  {channelType === "SEARCH" && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Search Partners</p>
+                      <p className="text-sm font-medium">{includeSearchPartners ? "Included" : "Excluded"}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
+
+            {["TARGET_CPA", "MAXIMIZE_CONVERSIONS", "TARGET_ROAS"].includes(biddingStrategy) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                <p className="text-xs text-amber-800 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  Conversion tracking must be set up in Google Ads for {selectedStrategy?.label} to work effectively.
+                </p>
+              </div>
+            )}
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs font-medium text-blue-800 mb-1">What happens next?</p>
@@ -1405,7 +1485,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
             {step < 3 ? (
-              <Button onClick={() => setStep(step + 1)} disabled={step === 1 && (!name || !dailyBudget || !startDate)}>
+              <Button onClick={() => setStep(step + 1)} disabled={step === 1 && (!name || !dailyBudget || !startDate || name.length > 128 || (!!endDate && !!startDate && endDate <= startDate))}>
                 Next <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (

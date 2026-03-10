@@ -331,18 +331,41 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
   try {
     const userId = req.user!.id;
     const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
-    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType, languages, locations } = req.body;
+    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType, languages, locations, targetSearchNetwork } = req.body;
 
     if (!name || !dailyBudget || !advertisingChannelType) {
       return res.status(400).json({ error: 'Name, daily budget, and campaign type are required' });
     }
 
-    const budgetMicros = moneyToMicros(Number(dailyBudget));
-    const budgetResourceName = await createCampaignBudget(userId, customerId, name, budgetMicros);
+    if (name.length > 128) {
+      return res.status(400).json({ error: `Campaign name too long (${name.length} chars). Google Ads allows maximum 128 characters.` });
+    }
 
+    if (startDate) {
+      const today = new Date().toISOString().split('T')[0];
+      if (startDate < today) {
+        return res.status(400).json({ error: 'Start date cannot be in the past.' });
+      }
+    }
+    if (startDate && endDate && endDate <= startDate) {
+      return res.status(400).json({ error: 'End date must be after start date.' });
+    }
+
+    const needsConversions = ['TARGET_CPA', 'MAXIMIZE_CONVERSIONS', 'TARGET_ROAS'].includes(biddingStrategyType);
+
+    const budgetMicros = moneyToMicros(Number(dailyBudget));
+    let budgetResourceName: string;
+    try {
+      budgetResourceName = await createCampaignBudget(userId, customerId, name, budgetMicros);
+    } catch (budgetError: any) {
+      console.error('[GoogleAds] Budget creation error:', budgetError.message);
+      return res.status(500).json({ error: `Failed to create budget: ${budgetError.message}` });
+    }
+
+    const includeSearchPartners = targetSearchNetwork !== undefined ? targetSearchNetwork : false;
     const networkSettings: any = {
       targetGoogleSearch: advertisingChannelType === 'SEARCH',
-      targetSearchNetwork: advertisingChannelType === 'SEARCH',
+      targetSearchNetwork: advertisingChannelType === 'SEARCH' ? includeSearchPartners : false,
       targetContentNetwork: advertisingChannelType === 'DISPLAY',
     };
     if (advertisingChannelType === 'VIDEO') {
@@ -354,28 +377,43 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
 
     const effectiveVideoBidding = videoBiddingStrategy || (advertisingChannelType === 'VIDEO' ? biddingStrategyType : undefined);
 
-    const campaignResourceName = await createCampaign(userId, customerId, {
-      name,
-      budgetResourceName,
-      advertisingChannelType,
-      advertisingChannelSubType: advertisingChannelSubType || undefined,
-      status: status || 'PAUSED',
-      startDate,
-      endDate,
-      targetCpa: targetCpa ? Number(targetCpa) : undefined,
-      targetRoas: targetRoas ? Number(targetRoas) : undefined,
-      targetCpv: targetCpv ? Number(targetCpv) : undefined,
-      videoBiddingStrategy: effectiveVideoBidding,
-      biddingStrategyType: biddingStrategyType || undefined,
-      networkSettings,
-    });
+    let campaignResourceName: string;
+    try {
+      campaignResourceName = await createCampaign(userId, customerId, {
+        name,
+        budgetResourceName,
+        advertisingChannelType,
+        advertisingChannelSubType: advertisingChannelSubType || undefined,
+        status: status || 'PAUSED',
+        startDate,
+        endDate,
+        targetCpa: targetCpa ? Number(targetCpa) : undefined,
+        targetRoas: targetRoas ? Number(targetRoas) : undefined,
+        targetCpv: targetCpv ? Number(targetCpv) : undefined,
+        videoBiddingStrategy: effectiveVideoBidding,
+        biddingStrategyType: biddingStrategyType || undefined,
+        networkSettings,
+      });
+    } catch (campaignError: any) {
+      console.error('[GoogleAds] Campaign creation failed after budget created. Orphan budget:', budgetResourceName);
+      return res.status(500).json({ error: `Campaign creation failed: ${campaignError.message}. Note: A budget was created but the campaign was not — please check Google Ads for orphaned budgets.` });
+    }
+
+    const warnings: string[] = [];
+
+    if (needsConversions) {
+      warnings.push('This bidding strategy requires conversion tracking to be set up in your Google Ads account to optimize effectively.');
+    }
 
     if (languages && Array.isArray(languages) && languages.length > 0) {
       try {
         await setCampaignLanguages(userId, customerId, campaignResourceName, languages);
       } catch (langError: any) {
         console.error('[GoogleAds] Language targeting error (campaign still created):', langError.message);
+        warnings.push(`Language targeting failed: ${langError.message}. You must set languages manually before enabling.`);
       }
+    } else {
+      warnings.push('No language targeting set. Add languages before enabling this campaign.');
     }
 
     if (locations && Array.isArray(locations) && locations.length > 0) {
@@ -383,10 +421,17 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
         await setCampaignLocations(userId, customerId, campaignResourceName, locations);
       } catch (locError: any) {
         console.error('[GoogleAds] Location targeting error (campaign still created):', locError.message);
+        warnings.push(`Location targeting failed: ${locError.message}. You must set locations manually before enabling.`);
       }
+    } else {
+      warnings.push('No location targeting set. Add locations before enabling this campaign.');
     }
 
-    res.json({ success: true, resourceName: campaignResourceName });
+    res.json({
+      success: true,
+      resourceName: campaignResourceName,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    });
   } catch (error: any) {
     console.error('[GoogleAds] Create campaign error:', error.message);
     res.status(500).json({ error: error.message });
