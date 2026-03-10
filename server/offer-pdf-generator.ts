@@ -562,6 +562,11 @@ export class OfferPdfGenerator {
       10,
     );
 
+    if (this.data.deliveryTerms) {
+      this.drawTermsSectionHeader('DELIVERY TERMS:');
+      this.drawTermsBody(this.data.deliveryTerms, 10);
+    }
+
     this.drawTermsSectionHeader('SUPERVISION OF ERECTION AND COMMISSIONING IF REQUIRED:');
     this.drawTermsBody(
       'These charges are additional from the offer price, daily charges, hotel cost; air travel and type of travel will be indicated prior to acceptance of order.',
@@ -575,14 +580,18 @@ export class OfferPdfGenerator {
     );
 
     this.drawTermsSectionHeader('Terms of Payment');
-    this.drawTermsBody(
-      'i. 40% Contract Value by wire transfer as an advance along with Purchase Order and signing this contract',
-      10,
-    );
-    this.drawTermsBody(
-      'ii. 60% of Contract Value against the readiness of the plant in Mumbai',
-      10,
-    );
+    if (this.data.paymentTerms) {
+      this.drawTermsBody(this.data.paymentTerms, 10);
+    } else {
+      this.drawTermsBody(
+        'i. 40% Contract Value by wire transfer as an advance along with Purchase Order and signing this contract',
+        10,
+      );
+      this.drawTermsBody(
+        'ii. 60% of Contract Value against the readiness of the plant in Mumbai',
+        10,
+      );
+    }
 
     this.drawTermsSectionHeader('WHAT WE DON\'T DO:');
     this.drawTermsBullet('Architectural and civil job', 30);
