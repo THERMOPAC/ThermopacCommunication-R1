@@ -1,4 +1,5 @@
 import React from 'react';
+import Layout from "@/components/layout";
 import { Link } from 'wouter';
 import { GCSTestUploader } from '@/components/gcs-test-uploader';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { ChevronLeft } from 'lucide-react';
  */
 export default function GCSTestPage() {
   return (
+    <Layout>
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
@@ -32,5 +34,6 @@ export default function GCSTestPage() {
         <GCSTestUploader />
       </div>
     </div>
+    </Layout>
   );
 }

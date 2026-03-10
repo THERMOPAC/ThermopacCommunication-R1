@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Layout from "@/components/layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -343,6 +344,7 @@ export default function LeadGenerationPage() {
   const searchHistory = (searchHistoryData as any)?.searches || [];
 
   return (
+    <Layout>
     <TooltipProvider>
       <div className="container mx-auto p-6 max-w-7xl">
         <div className="flex items-center justify-between mb-6">
@@ -999,5 +1001,6 @@ export default function LeadGenerationPage() {
         </Dialog>
       </div>
     </TooltipProvider>
+    </Layout>
   );
 }

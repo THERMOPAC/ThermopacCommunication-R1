@@ -1,4 +1,5 @@
 import React from "react";
+import Layout from "@/components/layout";
 import { useTitle } from "react-use";
 import Project3InspectionOrderFix from "@/components/special-fixes/Project3InspectionOrderFix";
 import Project4InspectionOrderFix from "@/components/special-fixes/Project4InspectionOrderFix";
@@ -12,6 +13,7 @@ const SpecialFixesPage = () => {
   useTitle("Special Fixes | Thermopac");
 
   return (
+    <Layout>
     <div className="container mx-auto py-6">
       <div className="flex flex-col gap-6">
         <div>
@@ -66,6 +68,7 @@ const SpecialFixesPage = () => {
         </Tabs>
       </div>
     </div>
+    </Layout>
   );
 };
 
