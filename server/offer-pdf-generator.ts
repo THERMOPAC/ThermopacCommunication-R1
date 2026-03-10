@@ -334,9 +334,9 @@ export class OfferPdfGenerator {
     this.currentY += 20;
     const colWidths = isTechnical ? {
       sl: 25,
-      description: 470,
+      description: 340,
       price: 0,
-      qty: 0,
+      qty: 130,
       amount: 0,
     } : {
       sl: 25,
@@ -357,7 +357,9 @@ export class OfferPdfGenerator {
       { label: this.strings.itemDescription, width: colWidths.description },
       ...(!isTechnical ? [
         { label: this.strings.price, width: colWidths.price },
-        { label: this.strings.qty, width: colWidths.qty },
+      ] : []),
+      { label: this.strings.qty, width: colWidths.qty },
+      ...(!isTechnical ? [
         { label: `${this.strings.amount} ${this.data.currency}`, width: colWidths.amount },
       ] : []),
     ];
@@ -438,11 +440,16 @@ export class OfferPdfGenerator {
           .fontSize(isSubItem ? 7 : 8)
           .text(hidePrices ? '' : this.formatNumber(item.unitPrice), colX + 4, this.currentY + 8, { width: colWidths.price - 8, align: 'right' });
         colX += colWidths.price;
+      }
 
-        this.doc
-          .text(hidePrices ? '' : `${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
-        colX += colWidths.qty;
+      this.doc
+        .fillColor(isSubItem ? '#666666' : '#333333')
+        .font('Helvetica')
+        .fontSize(isSubItem ? 7 : 8)
+        .text(hideSubItemPrices ? '' : `${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
+      colX += colWidths.qty;
 
+      if (!isTechnical) {
         this.doc
           .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
           .text(hidePrices ? '' : this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
