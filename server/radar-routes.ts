@@ -115,6 +115,16 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'used oil recycling environmental permit',
       'oil re-refining capacity expansion project',
     ],
+    regulatory_registry: [
+      'licensed waste oil collectors register',
+      'waste oil permit holders list',
+      'hazardous waste transporter register waste oil',
+      'authorized waste oil recyclers government registry',
+      'registered waste oil carriers brokers dealers',
+      'environmental agency waste oil licensed operators',
+      'approved waste oil treatment facilities list',
+      'waste oil collection license holders directory',
+    ],
   },
   es: {
     company_discovery: [
@@ -172,6 +182,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'licencia ambiental reciclaje aceite usado',
       'ampliación capacidad re-refinación aceite',
       'nueva planta aceite base re-refinado',
+    ],
+    regulatory_registry: [
+      'registro gestores autorizados aceite usado',
+      'lista operadores autorizados residuos aceite',
+      'registro transportistas residuos peligrosos aceite',
+      'empresas autorizadas recolección aceite usado registro',
     ],
   },
   pt: {
@@ -234,6 +250,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'projeto reciclagem óleo lubrificante usado',
       'edital licitação coleta óleo usado',
     ],
+    regulatory_registry: [
+      'registro coletores óleo usado autorizados IBAMA',
+      'lista empresas licenciadas rerrefino óleo usado',
+      'cadastro transportadores resíduos perigosos óleo',
+      'empresas autorizadas coleta óleo usado registro estadual',
+    ],
   },
   de: {
     company_discovery: [
@@ -288,6 +310,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'neue Altöl Raffinerie Bau',
       'Kapazitätserweiterung Altöl Regeneration',
     ],
+    regulatory_registry: [
+      'zugelassene Altöl Sammler Register Liste',
+      'Entsorgungsfachbetrieb Altöl zugelassene Betriebe',
+      'Genehmigung Altöl Transporter Register',
+      'Abfallwirtschaft Altöl lizenzierte Betriebe Liste',
+    ],
   },
   fr: {
     company_discovery: [
@@ -341,6 +369,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'construction usine régénération huile usagée',
       'projet nouvelle usine huile de base',
     ],
+    regulatory_registry: [
+      'collecteurs agréés huile usagée liste préfecture',
+      'opérateurs autorisés traitement huile usagée registre',
+      'transporteurs agréés déchets dangereux huile registre',
+      'installations classées ICPE huile usagée liste',
+    ],
   },
   tr: {
     company_discovery: [
@@ -392,6 +426,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'yeni atık yağ işleme tesisi',
       'atık yağ kapasite artışı',
     ],
+    regulatory_registry: [
+      'lisanslı atık yağ toplayıcıları sicili',
+      'çevre bakanlığı atık yağ lisanslı tesisler listesi',
+      'tehlikeli atık taşıyıcı kayıt listesi atık yağ',
+      'onaylı atık yağ geri kazanım tesisleri kayıt',
+    ],
   },
   id: {
     company_discovery: [
@@ -439,6 +479,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'investasi pabrik re-refining oli bekas',
       'izin lingkungan daur ulang oli',
       'proyek pabrik base oil baru',
+    ],
+    regulatory_registry: [
+      'daftar perusahaan pengumpul oli bekas berizin',
+      'izin pengelolaan limbah B3 oli bekas daftar perusahaan',
+      'transporter limbah B3 oli bekas terdaftar',
+      'perusahaan pengolah oli bekas terdaftar KLHK',
     ],
   },
   zh: {
@@ -491,6 +537,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '新建废油再生基地',
       '废润滑油处理项目招标',
     ],
+    regulatory_registry: [
+      '废油回收企业许可证名录',
+      '危险废物经营许可证 废矿物油 企业名单',
+      '废油收集运输资质企业登记',
+      '废润滑油处理许可企业目录',
+    ],
   },
   ru: {
     company_discovery: [
@@ -540,6 +592,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'экологическое разрешение переработка масла',
       'расширение мощностей регенерации масел',
     ],
+    regulatory_registry: [
+      'реестр лицензированных сборщиков отработанного масла',
+      'список лицензиатов переработка отработанных масел',
+      'реестр перевозчиков опасных отходов масло',
+      'лицензированные операторы обращения с отработанными маслами',
+    ],
   },
   ja: {
     company_discovery: [
@@ -587,6 +645,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       '廃油再生プラント建設',
       '廃油リサイクル環境許可',
       '新規廃油処理工場投資',
+    ],
+    regulatory_registry: [
+      '廃油回収業者 許可 登録名簿',
+      '産業廃棄物処理業者 許可一覧 廃油',
+      '廃油運搬業者 登録リスト',
+      '認定廃油処理施設 一覧 都道府県',
     ],
   },
   ar: {
@@ -636,6 +700,12 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'تصريح بيئي إعادة تدوير الزيوت',
       'إنشاء مصنع جديد للزيوت الأساسية',
     ],
+    regulatory_registry: [
+      'سجل جامعي الزيوت المستعملة المرخصين',
+      'قائمة المنشآت المرخصة لمعالجة الزيوت المستعملة',
+      'سجل ناقلي النفايات الخطرة زيوت مستعملة',
+      'المشغلون المعتمدون لإعادة تدوير الزيوت سجل حكومي',
+    ],
   },
   hi: {
     company_discovery: [
@@ -664,6 +734,11 @@ const MULTILINGUAL_QUERIES: Record<string, Record<string, string[]>> = {
       'पुनर्चक्रित बेस ऑयल निर्यातक व्यापार',
       'प्रयुक्त तेल आयात निर्यात कंपनी',
       'बेस ऑयल व्यापार प्रवाह डेटा',
+    ],
+    regulatory_registry: [
+      'अपशिष्ट तेल संग्रहकर्ता लाइसेंस सूची CPCB',
+      'खतरनाक अपशिष्ट तेल परिवहनकर्ता पंजीकृत सूची',
+      'अधिकृत अपशिष्ट तेल पुनर्चक्रणकर्ता सरकारी रजिस्ट्री',
     ],
   },
   vi: {
@@ -780,7 +855,7 @@ function getScoreBand(score: number): string {
 
 function generateSearchQueries(country: string, isoCode: string, language: string): { query: string; language: string; family: string }[] {
   const queries: { query: string; language: string; family: string }[] = [];
-  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'tradeshow_discovery', 'directory_mining', 'project_signal'];
+  const families = ['company_discovery', 'recycler_discovery', 'base_oil_sellers', 'regulatory_docs', 'trade_flow', 'tradeshow_discovery', 'directory_mining', 'project_signal', 'regulatory_registry'];
 
   for (const family of families) {
     const enQueries = MULTILINGUAL_QUERIES.en?.[family] || [];
@@ -1163,6 +1238,55 @@ function isLikelyDirectoryPage(title: string, snippet: string, url: string): boo
     'water treatment', 'sewage', 'wastewater', 'desalination',
   ];
   if (antiDirectoryTerms.some(t => titleLC.includes(t) || urlLC.includes(t))) return false;
+
+  return true;
+}
+
+function isLikelyRegistryPage(title: string, snippet: string, url: string): boolean {
+  const text = `${title} ${snippet} ${url}`.toLowerCase();
+  const titleLC = title.toLowerCase();
+  const urlLC = url.toLowerCase();
+
+  const registrySignals = [
+    'license', 'licence', 'permit', 'approved operator', 'registered transporter',
+    'authorized recycler', 'authorised recycler', 'licensed collector', 'licenced collector',
+    'permit holder', 'registered carrier', 'registered broker', 'registered dealer',
+    'approved facility', 'licensed facility', 'certified operator', 'accredited operator',
+    'registry', 'register of', 'public register',
+    '/register', '/registry', '/permits', '/licenses', '/licences',
+    'licencia', 'permiso', 'autorizado', 'registrado',
+    'licença', 'autorizado', 'registrado', 'cadastro',
+    'genehmigung', 'zugelassen', 'lizenziert', 'registriert',
+    'autorisation', 'agréé', 'autorisé', 'enregistré',
+    'lisans', 'izin', 'onaylı', 'kayıtlı',
+    'лицензия', 'разрешение', 'реестр', 'зарегистрирован',
+    '許可', '認可', '登録', '免許',
+    'رخصة', 'تصريح', 'مرخص', 'مسجل',
+    '许可', '登记', '注册', '资质',
+  ];
+
+  const oilIndustryTerms = [
+    'oil', 'lubricant', 'base oil', 'waste oil', 'used oil', 'petroleum',
+    'refin', 're-refin', 'rerefin', 'recycl', 'hazardous waste',
+    'aceite', 'óleo', 'altöl', 'huile', 'yağ', 'масло', '油', 'زيت',
+    'waste carrier', 'waste broker', 'waste dealer',
+  ];
+
+  const hasRegistrySignal = registrySignals.some(s => text.includes(s));
+  const hasOilContext = oilIndustryTerms.some(s => text.includes(s));
+
+  if (!hasRegistrySignal) return false;
+  if (!hasOilContext) return false;
+
+  const antiRegistryTerms = [
+    'cooking', 'vegetable', 'olive', 'coconut', 'palm oil', 'sunflower',
+    'essential oil', 'cosmetic', 'beauty', 'fragrance', 'perfume',
+    'tyre', 'tire', 'pharmaceutical', 'nuclear', 'radioactive',
+    'cannabis', 'cbd', 'banking', 'finance', 'insurance',
+    'water treatment', 'sewage', 'wastewater', 'desalination',
+    'mining', 'quarry', 'construction', 'demolition',
+  ];
+  if (antiRegistryTerms.some(t => titleLC.includes(t) || urlLC.includes(t))) return false;
 
   return true;
 }
@@ -1563,6 +1687,102 @@ async function processDiscoveryResult(
               console.log(`[Radar] Could not crawl directory company website: ${comp.company_website}`);
             }
           }
+        }
+      }
+      await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
+      return;
+    }
+
+    if (isLikelyRegistryPage(title, snippet, url)) {
+      console.log(`[Radar] REGISTRY PAGE detected: "${title.substring(0, 80)}" — extracting licensed operators`);
+      const regCrawl = await crawlPage(url);
+      if (regCrawl.success && regCrawl.visibleText.length > 200) {
+        const regOilSignals = ['oil', 'lubricant', 'refin', 'recycl', 'waste', 'petroleum', 'base oil', 'hazardous'];
+        const regContentLC = regCrawl.visibleText.toLowerCase();
+        const regOilScore = regOilSignals.filter(s => regContentLC.includes(s)).length;
+        if (regOilScore >= 2) {
+          const companies = await extractCompaniesFromDirectory(title, snippet, url, regCrawl.visibleText);
+          console.log(`[Radar] Registry yielded ${companies.length} companies from: ${url}`);
+
+          for (const comp of companies) {
+            if (!comp.company_name || comp.company_name.length < 3 || comp.company_type === 'not_relevant') continue;
+
+            const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
+            const compCountry = comp.country || country;
+            const isoLookup: Record<string, string> = { 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Austria': 'AT', 'Switzerland': 'CH', 'Poland': 'PL', 'Czech Republic': 'CZ', 'Romania': 'RO', 'Greece': 'GR', 'Portugal': 'PT', 'Sweden': 'SE', 'Finland': 'FI', 'Denmark': 'DK', 'Norway': 'NO', 'Turkey': 'TR', 'Brazil': 'BR', 'Mexico': 'MX', 'India': 'IN', 'Ireland': 'IE', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA', 'Russia': 'RU', 'China': 'CN', 'Japan': 'JP', 'Indonesia': 'ID', 'Nigeria': 'NG', 'South Africa': 'ZA' };
+            const compIso = isoLookup[compCountry] || isoCode;
+
+            const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
+            if (dupCheck.isDuplicate) {
+              console.log(`[Radar] Registry company "${comp.company_name}" already exists — skipping`);
+              continue;
+            }
+
+            const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
+            const typeFlags = {
+              handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(comp.company_type),
+              is_existing_rerefiner: comp.company_type === 're_refiner',
+              is_collector_only: comp.company_type === 'used_oil_collector',
+            };
+            const scoringData = {
+              company_type: comp.company_type, handles_waste_oil: typeFlags.handles_waste_oil,
+              is_plant_opportunity: false, iso_code: compIso,
+              feedstock_access_estimate: comp.company_type === 're_refiner' ? 70 : 50,
+              capital_capability_estimate: comp.company_type === 're_refiner' ? 55 : 35,
+              strategic_fit_estimate: comp.company_type === 're_refiner' ? 65 : 45,
+              contactability_estimate: compDomain ? 50 : 15,
+            };
+            const scoring = calculateOpportunityScore(scoringData, false, false);
+
+            try {
+              await db.execute(sql`
+                INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status,
+                  company_type, company_summary, classification_confidence, overall_confidence,
+                  handles_waste_oil, is_existing_rerefiner, is_collector_only, is_likely_epc_target,
+                  opportunity_score, score_band, duplicate_group_id, evidence_summary)
+                VALUES (${comp.company_name}, ${compCountry}, ${compIso}, ${comp.company_website || ''}, ${compDomain || ''},
+                  ${userId}, 'classified', ${comp.company_type}, ${comp.brief_description || ''},
+                  ${0.92}, ${0.92}, ${typeFlags.handles_waste_oil}, ${typeFlags.is_existing_rerefiner},
+                  ${typeFlags.is_collector_only}, ${false}, ${scoring.final}, ${scoring.band},
+                  ${groupId}, ${'Regulatory registry: ' + url})
+              `);
+              console.log(`[Radar] Added registry company: ${comp.company_name} (${comp.company_type}) from ${compCountry}`);
+
+              if (compDomain && comp.company_website) {
+                try {
+                  const homeCrawl = await crawlPage(comp.company_website);
+                  if (homeCrawl.success) {
+                    const detailedAi = await classifyCompanyWithAI(comp.company_name, comp.brief_description || '', comp.company_website, homeCrawl.visibleText.substring(0, 5000));
+                    const detailedResult = enforceClassificationConsistency(detailedAi);
+                    const detailedScoring = calculateOpportunityScore(detailedResult, false, false);
+                    await db.execute(sql`
+                      UPDATE radar_companies SET company_type = ${detailedResult.company_type || comp.company_type},
+                        company_summary = ${detailedResult.company_summary || comp.brief_description || ''},
+                        classification_confidence = ${Number(detailedResult.classification_confidence) || 0.92},
+                        overall_confidence = ${Number(detailedResult.classification_confidence) || 0.92},
+                        handles_waste_oil = ${detailedResult.handles_waste_oil || typeFlags.handles_waste_oil},
+                        is_existing_rerefiner = ${detailedResult.is_existing_rerefiner || typeFlags.is_existing_rerefiner},
+                        is_plant_opportunity = ${detailedResult.is_plant_opportunity || false},
+                        is_likely_epc_target = ${detailedResult.is_likely_epc_target || false},
+                        opportunity_score = ${detailedScoring.final}, score_band = ${detailedScoring.band},
+                        likely_feedstock_access = ${Number(detailedResult.feedstock_access_estimate) || 0},
+                        likely_capital_capability = ${Number(detailedResult.capital_capability_estimate) || 0},
+                        likely_strategic_fit = ${Number(detailedResult.strategic_fit_estimate) || 0},
+                        ai_reasoning_summary = ${detailedScoring.explanation}
+                      WHERE canonical_name = ${comp.company_name} AND iso_code = ${compIso}
+                    `);
+                  }
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                } catch (e) {
+                  console.log(`[Radar] Could not deep-crawl registry company: ${comp.company_website}`);
+                }
+              }
+            } catch (insertErr: any) {
+              if (insertErr.code !== '23505') console.error(`[Radar] Registry insert error:`, insertErr.message);
+            }
+          }
+        } else {
+          console.log(`[Radar] REGISTRY SKIP: "${title.substring(0, 60)}" — crawled content not oil-relevant (score ${regOilScore})`);
         }
       }
       await db.execute(sql`UPDATE radar_search_results SET processed = TRUE WHERE id = ${searchResultId}`);
@@ -2347,6 +2567,195 @@ async function injectSeedDirectories(userId: number, country: string, isoCode: s
   return added;
 }
 
+async function runRegulatoryRegistryMining(userId: number, country: string, isoCode: string, language: string): Promise<number> {
+  let totalAdded = 0;
+  try {
+    const registryQueries: string[] = [];
+    const enRegQueries = MULTILINGUAL_QUERIES.en?.regulatory_registry || [];
+    for (const q of enRegQueries.slice(0, 4)) {
+      registryQueries.push(`${q} ${country}`);
+    }
+    if (language !== 'en') {
+      const localRegQueries = MULTILINGUAL_QUERIES[language]?.regulatory_registry || [];
+      for (const q of localRegQueries.slice(0, 4)) {
+        registryQueries.push(`${q} ${country}`);
+      }
+    }
+
+    registryQueries.push(
+      `site:gov.* "waste oil" OR "used oil" license register ${country}`,
+      `"approved" OR "authorized" "waste oil" operator list ${country}`,
+      `environmental agency "waste oil" registered carriers ${country}`,
+    );
+
+    const seen = new Set<string>();
+    const uniqueQueries = registryQueries.filter(q => {
+      const norm = q.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+      if (seen.has(norm)) return false;
+      seen.add(norm);
+      return true;
+    });
+
+    console.log(`[Radar] Phase 4: Running ${uniqueQueries.length} regulatory registry queries for ${country}`);
+
+    for (const query of uniqueQueries) {
+      try {
+        const existing = await db.execute(sql`
+          SELECT id FROM radar_search_jobs WHERE query = ${query} AND country = ${country} LIMIT 1
+        `);
+        if (existing.rows.length > 0) continue;
+
+        const jobResult = await db.execute(sql`
+          INSERT INTO radar_search_jobs (country, iso_code, language, query, query_family, source_class, status, user_id, started_at)
+          VALUES (${country}, ${isoCode}, 'en', ${query}, 'regulatory_registry', 'regulatory_registry', 'running', ${userId}, NOW())
+          RETURNING id
+        `);
+        const jobId = Number(jobResult.rows[0].id);
+
+        try {
+          const searchData = await executeGoogleSearch(query, isoCode);
+          const items = searchData.items || [];
+          let count = 0;
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (!item.link || item.link.toLowerCase().endsWith('.pdf')) continue;
+
+            const fingerprint = crypto.createHash('sha256').update(`${item.title}|${item.link}`).digest('hex').substring(0, 64);
+            try {
+              const existingResult = await db.execute(sql`
+                SELECT id FROM radar_search_results WHERE content_fingerprint = ${fingerprint} LIMIT 1
+              `);
+              if (existingResult.rows.length > 0) continue;
+
+              const isRegistry = isLikelyRegistryPage(item.title || '', item.snippet || '', item.link);
+              const isDirectory = isLikelyDirectoryPage(item.title || '', item.snippet || '', item.link);
+
+              if (isRegistry || isDirectory) {
+                const regCrawl = await crawlPage(item.link);
+                if (regCrawl.success && regCrawl.visibleText.length > 200) {
+                  const companies = await extractCompaniesFromDirectory(
+                    item.title || '', item.snippet || '', item.link, regCrawl.visibleText
+                  );
+                  console.log(`[Radar] Registry mining: ${companies.length} companies from ${item.link}`);
+
+                  for (const comp of companies) {
+                    if (!comp.company_name || comp.company_name.length < 3 || comp.company_type === 'not_relevant') continue;
+
+                    const compDomain = comp.company_website ? extractDomain(comp.company_website) : null;
+                    const compCountry = comp.country || country;
+                    const isoLookup: Record<string, string> = { 'United Kingdom': 'GB', 'Germany': 'DE', 'France': 'FR', 'Italy': 'IT', 'Spain': 'ES', 'Netherlands': 'NL', 'Belgium': 'BE', 'Austria': 'AT', 'Switzerland': 'CH', 'Poland': 'PL', 'Czech Republic': 'CZ', 'Romania': 'RO', 'Greece': 'GR', 'Portugal': 'PT', 'Sweden': 'SE', 'Finland': 'FI', 'Denmark': 'DK', 'Norway': 'NO', 'Turkey': 'TR', 'Brazil': 'BR', 'Mexico': 'MX', 'India': 'IN', 'Ireland': 'IE', 'United Arab Emirates': 'AE', 'Saudi Arabia': 'SA', 'Russia': 'RU', 'China': 'CN', 'Japan': 'JP', 'Indonesia': 'ID', 'Nigeria': 'NG', 'South Africa': 'ZA' };
+                    const compIso = isoLookup[compCountry] || isoCode;
+
+                    const dupCheck = await checkDuplicate(comp.company_name, compDomain || '', compCountry);
+                    if (dupCheck.isDuplicate) continue;
+
+                    const groupId = generateDomainFingerprint(comp.company_name, compDomain || '');
+                    const typeFlags = {
+                      handles_waste_oil: ['re_refiner', 'waste_oil_recycler', 'used_oil_collector', 'waste_management_company', 'hazardous_waste_company'].includes(comp.company_type),
+                      is_existing_rerefiner: comp.company_type === 're_refiner',
+                      is_collector_only: comp.company_type === 'used_oil_collector',
+                    };
+                    const scoring = calculateOpportunityScore({
+                      company_type: comp.company_type, handles_waste_oil: typeFlags.handles_waste_oil,
+                      is_plant_opportunity: false, iso_code: compIso,
+                      feedstock_access_estimate: comp.company_type === 're_refiner' ? 70 : 50,
+                      capital_capability_estimate: comp.company_type === 're_refiner' ? 55 : 35,
+                      strategic_fit_estimate: comp.company_type === 're_refiner' ? 65 : 45,
+                      contactability_estimate: compDomain ? 50 : 15,
+                    }, false, false);
+
+                    try {
+                      await db.execute(sql`
+                        INSERT INTO radar_companies (canonical_name, country, iso_code, website, root_domain, user_id, status,
+                          company_type, company_summary, classification_confidence, overall_confidence,
+                          handles_waste_oil, is_existing_rerefiner, is_collector_only, is_likely_epc_target,
+                          opportunity_score, score_band, duplicate_group_id, evidence_summary)
+                        VALUES (${comp.company_name}, ${compCountry}, ${compIso}, ${comp.company_website || ''}, ${compDomain || ''},
+                          ${userId}, 'classified', ${comp.company_type}, ${comp.brief_description || ''},
+                          ${0.92}, ${0.92}, ${typeFlags.handles_waste_oil}, ${typeFlags.is_existing_rerefiner},
+                          ${typeFlags.is_collector_only}, ${false}, ${scoring.final}, ${scoring.band},
+                          ${groupId}, ${'Regulatory registry: ' + item.link})
+                      `);
+                      totalAdded++;
+                      console.log(`[Radar] Registry mining added: ${comp.company_name} (${comp.company_type}) — ${compCountry}`);
+
+                      if (compDomain && comp.company_website) {
+                        try {
+                          const homeCrawl = await crawlPage(comp.company_website);
+                          if (homeCrawl.success) {
+                            const detailedAi = await classifyCompanyWithAI(comp.company_name, comp.brief_description || '', comp.company_website, homeCrawl.visibleText.substring(0, 5000));
+                            const detailedResult = enforceClassificationConsistency(detailedAi);
+                            const detailedScoring = calculateOpportunityScore(detailedResult, false, false);
+                            await db.execute(sql`
+                              UPDATE radar_companies SET company_type = ${detailedResult.company_type || comp.company_type},
+                                company_summary = ${detailedResult.company_summary || comp.brief_description || ''},
+                                classification_confidence = ${Number(detailedResult.classification_confidence) || 0.92},
+                                overall_confidence = ${Number(detailedResult.classification_confidence) || 0.92},
+                                handles_waste_oil = ${detailedResult.handles_waste_oil || typeFlags.handles_waste_oil},
+                                is_existing_rerefiner = ${detailedResult.is_existing_rerefiner || typeFlags.is_existing_rerefiner},
+                                is_plant_opportunity = ${detailedResult.is_plant_opportunity || false},
+                                is_likely_epc_target = ${detailedResult.is_likely_epc_target || false},
+                                opportunity_score = ${detailedScoring.final}, score_band = ${detailedScoring.band},
+                                likely_feedstock_access = ${Number(detailedResult.feedstock_access_estimate) || 0},
+                                likely_capital_capability = ${Number(detailedResult.capital_capability_estimate) || 0},
+                                likely_strategic_fit = ${Number(detailedResult.strategic_fit_estimate) || 0},
+                                ai_reasoning_summary = ${detailedScoring.explanation}
+                              WHERE canonical_name = ${comp.company_name} AND iso_code = ${compIso}
+                            `);
+                          }
+                          await new Promise(resolve => setTimeout(resolve, 1500));
+                        } catch (e) {
+                          console.log(`[Radar] Could not deep-crawl registry company: ${comp.company_website}`);
+                        }
+                      }
+                    } catch (insertErr: any) {
+                      if (insertErr.code !== '23505') console.error(`[Radar] Registry mining insert error:`, insertErr.message);
+                    }
+                  }
+                }
+                count++;
+              } else {
+                await db.execute(sql`
+                  INSERT INTO radar_search_results (search_job_id, title, url, snippet, domain, rank, content_fingerprint)
+                  VALUES (${jobId}, ${item.title || ''}, ${item.link}, ${item.snippet || ''}, ${extractDomain(item.link)}, ${i + 1}, ${fingerprint})
+                  RETURNING id
+                `);
+                count++;
+
+                processDiscoveryResult(userId, jobId, 0,
+                  item.title || '', item.snippet || '', item.link, country, isoCode
+                ).catch(err => console.error('Registry mining process error:', err));
+              }
+            } catch (err: any) {
+              if (err.code === '23505') continue;
+            }
+          }
+
+          await db.execute(sql`
+            UPDATE radar_search_jobs SET status = 'completed', results_count = ${count}, completed_at = NOW()
+            WHERE id = ${jobId}
+          `);
+        } catch (searchError: any) {
+          await db.execute(sql`
+            UPDATE radar_search_jobs SET status = 'failed', error_message = ${searchError.message || 'Search failed'}, completed_at = NOW()
+            WHERE id = ${jobId}
+          `);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (err) {
+        console.error(`[Radar] Registry mining query error:`, err);
+      }
+    }
+  } catch (error) {
+    console.error('[Radar] Regulatory registry mining error:', error);
+  }
+
+  console.log(`[Radar] Phase 4: Regulatory registry mining complete — ${totalAdded} companies added for ${country}`);
+  return totalAdded;
+}
+
 async function runDiscoveryJob(userId: number, country: string, isoCode: string, language: string) {
   const queries = generateSearchQueries(country, isoCode, language);
   console.log(`Starting discovery for ${country} (${isoCode}) - ${queries.length} queries`);
@@ -2358,6 +2767,7 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
     recycler_discovery: [1, 11, 21],
     base_oil_sellers: [1, 11, 21],
     directory_mining: [1, 11, 21],
+    regulatory_registry: [1, 11, 21],
     regulatory_docs: [1, 11],
     trade_flow: [1, 11],
     tradeshow_discovery: [1, 11],
@@ -2444,14 +2854,18 @@ async function runDiscoveryJob(userId: number, country: string, isoCode: string,
   const dirResults = await crawlDiscoveredDirectories(userId, country, isoCode);
   totalResults += dirResults;
 
+  console.log(`[Radar] Phase 4: Regulatory registry mining for ${country}`);
+  const registryResults = await runRegulatoryRegistryMining(userId, country, isoCode, language);
+  totalResults += registryResults;
+
   if (totalResults > 0) {
     await createAlert('new_company_priority_country', 'info',
       `Discovery complete: ${country}`,
-      `Found ${totalResults} new results for ${country}`,
+      `Found ${totalResults} new results for ${country} (including ${registryResults} from regulatory registries)`,
       undefined, undefined, country);
   }
 
-  console.log(`Discovery for ${country} complete: ${totalResults} total results from ${queries.length} queries`);
+  console.log(`Discovery for ${country} complete: ${totalResults} total results from ${queries.length} queries (${registryResults} from regulatory registries)`);
 }
 
 // ========== API ROUTES ==========

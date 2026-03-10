@@ -788,14 +788,17 @@ export default function RadarPage() {
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <p>Each country discovery runs multilingual search queries across multiple themes:</p>
                   <ul className="list-disc pl-4 space-y-1">
-                    <li>Company Discovery (English + local language)</li>
-                    <li>Recycler Discovery queries</li>
+                    <li>Company & Recycler Discovery (English + local language)</li>
+                    <li>Directory Mining & Trade Show Exhibitors</li>
+                    <li>Regulatory Registry Mining (licensed operators, permit holders)</li>
                     <li>Project Signal queries (tenders, permits, expansions)</li>
+                    <li>AI Adaptive Follow-up (GPT-generated targeted queries)</li>
                   </ul>
                   <p className="mt-2">For each result, the system:</p>
                   <ul className="list-disc pl-4 space-y-1">
                     <li>Crawls key website pages (homepage, about, contact, services, products)</li>
                     <li>Extracts emails, phones, and company details</li>
+                    <li>Detects registry/directory pages and extracts all listed companies</li>
                     <li>Classifies the company using AI (GPT-4o)</li>
                     <li>Detects project signals (tenders, permits, expansions)</li>
                     <li>Calculates opportunity score (0-100)</li>
