@@ -510,94 +510,152 @@ export class OfferPdfGenerator {
     this.currentY += 20;
   }
 
-  private drawTerms(): void {
-    this.checkPageBreak(60);
-
-    if (this.data.paymentTerms) {
-      this.doc
-        .fillColor('#003366')
-        .fontSize(10)
-        .font('Helvetica-Bold')
-        .text(this.strings.termsOfPayment, this.margin, this.currentY);
-      this.currentY += 14;
-
-      this.doc
-        .fillColor('#333333')
-        .fontSize(9)
-        .font('Helvetica')
-        .text(this.data.paymentTerms, this.margin, this.currentY, { width: this.contentWidth });
-      this.currentY += 20;
-    }
-
-    if (this.data.deliveryTerms) {
-      this.checkPageBreak(60);
-      this.doc
-        .fillColor('#003366')
-        .fontSize(10)
-        .font('Helvetica-Bold')
-        .text(this.strings.deliveryTerms, this.margin, this.currentY);
-      this.currentY += 14;
-
-      this.doc
-        .fillColor('#333333')
-        .fontSize(9)
-        .font('Helvetica')
-        .text(this.data.deliveryTerms, this.margin, this.currentY, { width: this.contentWidth });
-      this.currentY += 20;
-    }
-
-    this.checkPageBreak(60);
+  private drawTermsSectionHeader(text: string): void {
+    this.checkPageBreak(30);
     this.doc
       .fillColor('#003366')
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text(this.strings.validityOfOffer, this.margin, this.currentY);
+      .text(text, this.margin, this.currentY);
     this.currentY += 14;
+  }
 
+  private drawTermsBody(text: string, indent: number = 0): void {
+    const opts = { width: this.contentWidth - indent };
     this.doc
       .fillColor('#333333')
-      .fontSize(9)
+      .fontSize(8.5)
       .font('Helvetica')
-      .text(
-        this.strings.validityText.replace('{date}', this.formatDate(this.data.validUntil)),
-        this.margin,
-        this.currentY,
-        { width: this.contentWidth }
-      );
-    this.currentY += 20;
+      .text(text, this.margin + indent, this.currentY, opts);
+    const h = this.doc.heightOfString(text, opts);
+    this.currentY += h + 6;
+  }
+
+  private drawTermsBullet(text: string, indent: number = 20): void {
+    this.checkPageBreak(16);
+    this.doc
+      .fillColor('#333333')
+      .fontSize(8.5)
+      .font('Helvetica')
+      .text('-', this.margin + indent - 10, this.currentY)
+      .text(text, this.margin + indent, this.currentY, { width: this.contentWidth - indent });
+    const h = this.doc.heightOfString(text, { width: this.contentWidth - indent });
+    this.currentY += h + 4;
+  }
+
+  private drawTerms(): void {
+    this.checkPageBreak(60);
+
+    this.drawTermsBody(
+      'Any deviation from the standard (layout, P & ID and GA drawings) will result in additional pipes, valves, cables and tanks, if quoted above. Any additional items will be to the client\'s account.',
+    );
+    this.currentY += 4;
+
+    this.drawTermsBody(
+      '** Instrument and electrical cables: lengths and sizes are as per our standard layout and in quantities required only for interconnecting refinery panel to refinery skids and PMCC panel to transfer pumps. Any additional instrument cable, electrical cable or accessories will be to the client\'s account',
+    );
+    this.currentY += 6;
+
+    this.drawTermsSectionHeader('BASIS OF PRICES:');
+    this.drawTermsBody(
+      'The ex-factory price quoted above includes packing, wherever applicable. Forwarding, freight and insurance when not quoted separately are to be arranged by the customer. All prices quoted in ' + this.data.currency + ' and on Ex-Works basis at our Mumbai factory. The above prices are ex-works, excluding packing and forwarding if not quoted separately. Insurance if required should be arranged by the customer.',
+      10,
+    );
+
+    this.drawTermsSectionHeader('SUPERVISION OF ERECTION AND COMMISSIONING IF REQUIRED:');
+    this.drawTermsBody(
+      'These charges are additional from the offer price, daily charges, hotel cost; air travel and type of travel will be indicated prior to acceptance of order.',
+      10,
+    );
+
+    this.drawTermsSectionHeader('VALIDITY OF THE OFFER:');
+    this.drawTermsBody(
+      'Offer is only valid for 60 days from the date of this offer. Thereafter, the validity is subject to our written confirmation.',
+      10,
+    );
+
+    this.drawTermsSectionHeader('Terms of Payment');
+    this.drawTermsBody(
+      'i. 40% Contract Value by wire transfer as an advance along with Purchase Order and signing this contract',
+      10,
+    );
+    this.drawTermsBody(
+      'ii. 60% of Contract Value against the readiness of the plant in Mumbai',
+      10,
+    );
+
+    this.drawTermsSectionHeader('WHAT WE DON\'T DO:');
+    this.drawTermsBullet('Architectural and civil job', 30);
+    this.drawTermsBullet('Tank fabrication and piping fabrication', 30);
+    this.drawTermsBullet('Insulation and cladding: material supply and labor', 30);
+    this.drawTermsBullet('Electrical and instrument cable laying and connections', 30);
+    this.drawTermsBullet('Supply of locally approved Firefighting components such as deluge valves, hydrants, fire hose and fire alarm system', 30);
+
+    this.drawTermsSectionHeader('Commissioning and Final Acceptance');
+    this.drawTermsBody(
+      'Commissioning and final acceptance testing shall include mechanical and process commissioning of the Equipment to demonstrate its ability to produce products in accordance with the offer above. In performing the commissioning and testing it shall be the responsibility of Customer to provide the raw material/fuel required to operate the Equipment at desired levels, along with operational and maintenance personnel sufficient to operate the Equipment.',
+      10,
+    );
+    this.drawTermsBody(
+      'THERMOPAC\'s sole responsibility will be to provide technical assistance and guidance of the overall equipment commissioning test procedure. Equipment acceptance testing shall commence upon seven (7) calendar days\' notice by Customer to THERMOPAC that the plant has been completed to the point that such trials can begin following the delivery and installation of the equipment and structure and final installation activities of Customer.',
+      10,
+    );
+    this.drawTermsBody(
+      'THERMOPAC will then provide Customer a detailed plan for process commission of the Equipment. Final Acceptance and the date of Final Acceptance shall have deemed to have occurred upon the Equipment operating per the specifications set forth in the offer above for Twelve Hours (12) Hours Test run performance guarantee operation.',
+      10,
+    );
+    this.drawTermsBody(
+      'Services for commissioning and Final Acceptance include the services of THERMOPAC\'s representative(s) on-site for up to Three (3) days with additional Twelve Hours (12) Hours Test run performance guarantee operation after operation begins to ensure that the installation has been made in a good and workmanlike manner from the point of view of mechanical working and to set various controls that are necessary. THERMOPAC will further conduct all necessary demonstrations and training to Customer for the purpose of user education and for the operation / maintenance of the equipment.',
+      10,
+    );
+
+    this.checkPageBreak(100);
+    this.currentY += 10;
+
+    const tableTop = this.currentY;
+    const col1X = this.margin + 10;
+    const col2X = this.margin + 80;
+    const col3X = this.margin + 280;
+    const col4X = this.margin + 400;
+    const rowH = 18;
+
+    this.doc.fillColor('#003366').fontSize(8).font('Helvetica-Bold');
+    this.doc.text('Sr.', col1X, tableTop);
+    this.doc.text('Designation', col2X, tableTop);
+    this.doc.text('Type of Air Travel', col3X, tableTop);
+    this.doc.text('Daily Allowance', col4X, tableTop);
+    this.currentY = tableTop + rowH;
+
+    this.doc.fillColor('#333333').fontSize(8).font('Helvetica');
+    const travelRows = [
+      { sr: '1', designation: 'After Sales Manager', travel: 'Business Class', allowance: 'US$ 350 / Day' },
+      { sr: '2', designation: 'After Sales Engineer', travel: 'Economy Class', allowance: 'US$ 350 / Day' },
+      { sr: '3', designation: 'Assistant Engineer', travel: 'Economy Class', allowance: 'US$ 300 / Day' },
+    ];
+    for (const row of travelRows) {
+      this.doc.text(row.sr, col1X, this.currentY);
+      this.doc.text(row.designation, col2X, this.currentY);
+      this.doc.text(row.travel, col3X, this.currentY);
+      this.doc.text(row.allowance, col4X, this.currentY);
+      this.currentY += rowH;
+    }
+
+    this.currentY += 6;
+    this.drawTermsBody(
+      'Air Travel cost and lodging and food are in addition to the contract price and shall be invoiced per the above schedule based on the actual number of visits and number of days THERMOPAC personnel spend at the Site, plus actual lodging, food and travel expenses.',
+      10,
+    );
 
     if (this.data.notes) {
       this.checkPageBreak(60);
-      this.doc
-        .fillColor('#003366')
-        .fontSize(10)
-        .font('Helvetica-Bold')
-        .text(this.strings.remarks, this.margin, this.currentY);
-      this.currentY += 14;
-
-      this.doc
-        .fillColor('#333333')
-        .fontSize(9)
-        .font('Helvetica')
-        .text(this.data.notes, this.margin, this.currentY, { width: this.contentWidth });
-      this.currentY += 20;
+      this.drawTermsSectionHeader('REMARKS:');
+      this.drawTermsBody(this.data.notes, 10);
     }
 
     if (this.data.termsAndConditions) {
       this.checkPageBreak(80);
-      this.doc
-        .fillColor('#003366')
-        .fontSize(10)
-        .font('Helvetica-Bold')
-        .text(this.strings.termsAndConditions, this.margin, this.currentY);
-      this.currentY += 14;
-
-      this.doc
-        .fillColor('#333333')
-        .fontSize(9)
-        .font('Helvetica')
-        .text(this.data.termsAndConditions, this.margin, this.currentY, { width: this.contentWidth });
-      this.currentY += 20;
+      this.drawTermsSectionHeader('TERMS AND CONDITIONS:');
+      this.drawTermsBody(this.data.termsAndConditions, 10);
     }
   }
 
