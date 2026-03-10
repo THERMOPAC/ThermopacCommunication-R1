@@ -18,7 +18,7 @@ import {
   RefreshCw, Settings, Link2, Unlink, Plus, Play, Pause, Trash2,
   Search, AlertTriangle, ChevronLeft, Loader2, CheckCircle2, XCircle,
   Zap, BarChart2, FileText, Globe, Megaphone, Sparkles, Brain,
-  Info, ArrowRight, Lightbulb, Copy, Video, Monitor, Rocket, MapPin
+  Info, ArrowRight, Lightbulb, Copy, Video, Monitor, Rocket, MapPin, Mail
 } from "lucide-react";
 
 function getDateRange(period: string): { startDate: string; endDate: string } {
@@ -283,6 +283,7 @@ function OverviewTab({ dateRange }: { dateRange: { startDate: string; endDate: s
 
 const CAMPAIGN_TYPE_INFO: Record<string, { icon: any; label: string; desc: string; best: string }> = {
   SEARCH: { icon: Search, label: "Search", desc: "Text ads on Google Search results", best: "Best for capturing high-intent buyers searching for your products" },
+  DEMAND_GEN: { icon: Mail, label: "Demand Gen", desc: "Visual ads on Gmail, YouTube Home & Discover feeds", best: "Best for awareness — reach prospects on Gmail, YouTube Home, and Google Discover" },
   DISPLAY: { icon: Monitor, label: "Display", desc: "Visual ads across Google Display Network", best: "Best for brand awareness and remarketing to past visitors" },
   VIDEO: { icon: Video, label: "Video", desc: "Video ads on YouTube and partner sites", best: "Best for product demos, brand storytelling, and reaching wider audience" },
   PERFORMANCE_MAX: { icon: Rocket, label: "Performance Max", desc: "AI-optimized ads across all Google channels", best: "Best when you have conversion tracking set up and want Google AI to optimize" },
@@ -312,6 +313,14 @@ const BIDDING_STRATEGIES: Record<string, { strategies: Array<{ value: string; la
       { value: "TARGET_CPM", label: "Target CPM", desc: "Pay per 1,000 impressions shown", when: "Maximum reach and brand exposure campaigns", needsTarget: true, targetLabel: "Target CPM (INR)", targetPlaceholder: "e.g. 50.00" },
       { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions", desc: "Google optimizes for conversions from video", when: "Video Action campaigns with conversion tracking", needsTarget: false },
       { value: "TARGET_CPA", label: "Target CPA", desc: "Optimize video ads for target cost per conversion", when: "When video drives measurable leads/sales", needsTarget: true, targetLabel: "Target CPA (INR)", targetPlaceholder: "e.g. 300" },
+    ]
+  },
+  DEMAND_GEN: {
+    strategies: [
+      { value: "MAXIMIZE_CLICKS", label: "Maximize Clicks", desc: "Get the most clicks on Gmail, YouTube Home & Discover", when: "New Demand Gen campaigns building initial awareness", needsTarget: false },
+      { value: "MAXIMIZE_CONVERSIONS", label: "Maximize Conversions", desc: "Google optimizes for conversions across Gmail, YouTube & Discover", when: "When you have conversion tracking and 15+ conversions/month", needsTarget: false },
+      { value: "TARGET_CPA", label: "Target CPA", desc: "Optimize for a target cost per lead across Demand Gen surfaces", when: "When you have 30+ conversions/month and know your ideal cost per lead", needsTarget: true, targetLabel: "Target CPA (INR)", targetPlaceholder: "e.g. 300" },
+      { value: "MAXIMIZE_CONVERSION_VALUE", label: "Maximize Conv. Value", desc: "Optimize for total conversion value", when: "When you can assign values to different conversions", needsTarget: false },
     ]
   },
   PERFORMANCE_MAX: {
@@ -799,6 +808,22 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                     <SelectItem value="VIDEO_NON_SKIPPABLE">Full Attention (Non-Skippable 15s)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {channelType === "DEMAND_GEN" && (
+              <div className="bg-blue-50 border border-blue-300 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <Mail className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">Demand Gen Campaign</p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Demand Gen ads appear on <strong>Gmail Promotions/Social tabs</strong>, <strong>YouTube Home feed</strong>,
+                      and <strong>Google Discover</strong>. After creation, you must add ad assets (images, headlines, descriptions, logos)
+                      directly in Google Ads to build your creatives. Great for awareness — reach prospects before they search.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

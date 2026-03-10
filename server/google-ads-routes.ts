@@ -352,7 +352,7 @@ router.post('/campaigns/preview', ensureAuthenticated, async (req: Request, res:
       targetSearchNetwork: advertisingChannelType === 'SEARCH' ? includeSearchPartners : false,
       targetContentNetwork: advertisingChannelType === 'DISPLAY',
     };
-    if (advertisingChannelType === 'VIDEO') {
+    if (advertisingChannelType === 'VIDEO' || advertisingChannelType === 'DEMAND_GEN') {
       networkSettings.targetGoogleSearch = false;
       networkSettings.targetSearchNetwork = false;
       networkSettings.targetContentNetwork = false;
@@ -372,6 +372,16 @@ router.post('/campaigns/preview', ensureAuthenticated, async (req: Request, res:
         biddingConfig = { type: 'MAXIMIZE_CLICKS' };
       } else {
         biddingConfig = { type: 'MANUAL_CPC', enhancedCpcEnabled: true };
+      }
+    } else if (advertisingChannelType === 'DEMAND_GEN') {
+      if (strategy === 'TARGET_CPA' && targetCpa) {
+        biddingConfig = { type: 'TARGET_CPA', targetCpaMicros: String(moneyToMicros(Number(targetCpa))), targetCpaDisplay: `INR ${targetCpa}` };
+      } else if (strategy === 'MAXIMIZE_CONVERSION_VALUE') {
+        biddingConfig = { type: 'MAXIMIZE_CONVERSION_VALUE' };
+      } else if (strategy === 'MAXIMIZE_CONVERSIONS') {
+        biddingConfig = { type: 'MAXIMIZE_CONVERSIONS' };
+      } else {
+        biddingConfig = { type: 'MAXIMIZE_CLICKS' };
       }
     } else if (advertisingChannelType === 'PERFORMANCE_MAX') {
       if (strategy === 'TARGET_ROAS' && targetRoas) {
@@ -403,6 +413,7 @@ router.post('/campaigns/preview', ensureAuthenticated, async (req: Request, res:
     const warnings: string[] = [];
     if (needsConversions) warnings.push('This bidding strategy requires conversion tracking to be configured in Google Ads.');
     if (advertisingChannelType === 'PERFORMANCE_MAX') warnings.push('Performance Max campaigns require Asset Groups to serve ads. You must add asset groups in Google Ads after creation.');
+    if (advertisingChannelType === 'DEMAND_GEN') warnings.push('Demand Gen campaigns need ad assets (images, headlines, descriptions, logos) added in Google Ads after creation. Ads will appear on Gmail, YouTube Home, and Google Discover.');
     if (!languages || languages.length === 0) warnings.push('No language targeting specified.');
     if (!locations || locations.length === 0) warnings.push('No location targeting specified.');
 
@@ -514,7 +525,7 @@ router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: 
       targetSearchNetwork: advertisingChannelType === 'SEARCH' ? includeSearchPartners : false,
       targetContentNetwork: advertisingChannelType === 'DISPLAY',
     };
-    if (advertisingChannelType === 'VIDEO') {
+    if (advertisingChannelType === 'VIDEO' || advertisingChannelType === 'DEMAND_GEN') {
       networkSettings.targetGoogleSearch = false;
       networkSettings.targetSearchNetwork = false;
       networkSettings.targetContentNetwork = false;

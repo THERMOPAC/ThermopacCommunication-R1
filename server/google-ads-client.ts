@@ -307,6 +307,18 @@ export async function createCampaign(
     }
   }
 
+  if (params.advertisingChannelType === 'DEMAND_GEN') {
+    if (strategy === 'TARGET_CPA' && params.targetCpa) {
+      campaign.targetCpa = { targetCpaMicros: String(moneyToMicros(params.targetCpa)) };
+    } else if (strategy === 'MAXIMIZE_CONVERSION_VALUE') {
+      campaign.maximizeConversionValue = {};
+    } else if (strategy === 'MAXIMIZE_CONVERSIONS') {
+      campaign.maximizeConversions = {};
+    } else {
+      campaign.maximizeClicks = {};
+    }
+  }
+
   if (params.advertisingChannelType === 'PERFORMANCE_MAX') {
     if (strategy === 'TARGET_ROAS' && params.targetRoas) {
       campaign.maximizeConversionValue = { targetRoas: params.targetRoas };
