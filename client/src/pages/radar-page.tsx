@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Layout from "@/components/layout";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -231,6 +232,7 @@ export default function RadarPage() {
   };
 
   return (
+    <Layout>
     <div className="p-6 max-w-[1600px] mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -1152,6 +1154,7 @@ export default function RadarPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </Layout>
   );
 }
 
