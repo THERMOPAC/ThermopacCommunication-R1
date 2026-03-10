@@ -540,70 +540,49 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   });
 
   const [includeSearchPartners, setIncludeSearchPartners] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const buildPayload = () => {
+    const strategy = biddingStrategy;
+    if (name.length > 128) throw new Error(`Campaign name too long (${name.length}/128 chars).`);
+    if (startDate) {
+      const today = new Date().toISOString().split("T")[0];
+      if (startDate < today) throw new Error("Start date cannot be in the past.");
+    }
+    if (startDate && endDate && endDate <= startDate) throw new Error("End date must be after start date.");
+
+    const payload: any = {
+      name,
+      dailyBudget: Number(dailyBudget),
+      advertisingChannelType: channelType,
+      status: "PAUSED",
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      targetSearchNetwork: channelType === "SEARCH" ? includeSearchPartners : undefined,
+    };
+    if (channelType === "VIDEO") {
+      payload.advertisingChannelSubType = videoSubtype;
+      payload.videoBiddingStrategy = strategy;
+      if ((strategy === "TARGET_CPV" || strategy === "TARGET_CPM") && targetValue) payload.targetCpv = Number(targetValue);
+      if (strategy === "TARGET_CPA" && targetValue) payload.targetCpa = Number(targetValue);
+    } else if (channelType === "PERFORMANCE_MAX") {
+      if (strategy === "TARGET_ROAS" && targetValue) payload.targetRoas = Number(targetValue);
+    } else {
+      if (strategy === "TARGET_CPA" && targetValue) payload.targetCpa = Number(targetValue);
+      if (strategy === "TARGET_ROAS" && targetValue) payload.targetRoas = Number(targetValue);
+    }
+    payload.biddingStrategyType = strategy;
+    if (selectedLanguages.length > 0) payload.languages = selectedLanguages;
+    if (selectedLocations.length > 0) payload.locations = selectedLocations;
+    return payload;
+  };
 
   const createMutation = useMutation({
-    mutationFn: () => {
-      const strategy = biddingStrategy;
-
-      if (name.length > 128) {
-        throw new Error(`Campaign name too long (${name.length}/128 chars). Shorten the name or reduce selected countries.`);
-      }
-      if (startDate) {
-        const today = new Date().toISOString().split("T")[0];
-        if (startDate < today) throw new Error("Start date cannot be in the past.");
-      }
-      if (startDate && endDate && endDate <= startDate) {
-        throw new Error("End date must be after start date.");
-      }
-
-      const payload: any = {
-        name,
-        dailyBudget: Number(dailyBudget),
-        advertisingChannelType: channelType,
-        status: "PAUSED",
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        targetSearchNetwork: channelType === "SEARCH" ? includeSearchPartners : undefined,
-      };
-
-      if (channelType === "VIDEO") {
-        payload.advertisingChannelSubType = videoSubtype;
-        payload.videoBiddingStrategy = strategy;
-        if ((strategy === "TARGET_CPV" || strategy === "TARGET_CPM") && targetValue) {
-          payload.targetCpv = Number(targetValue);
-        }
-        if (strategy === "TARGET_CPA" && targetValue) {
-          payload.targetCpa = Number(targetValue);
-        }
-      } else if (channelType === "PERFORMANCE_MAX") {
-        if (strategy === "TARGET_ROAS" && targetValue) {
-          payload.targetRoas = Number(targetValue);
-        }
-      } else {
-        if (strategy === "TARGET_CPA" && targetValue) {
-          payload.targetCpa = Number(targetValue);
-        }
-        if (strategy === "TARGET_ROAS" && targetValue) {
-          payload.targetRoas = Number(targetValue);
-        }
-      }
-
-      payload.biddingStrategyType = strategy;
-      if (selectedLanguages.length > 0) {
-        payload.languages = selectedLanguages;
-      }
-      if (selectedLocations.length > 0) {
-        payload.locations = selectedLocations;
-      }
-      return apiRequest("POST", "/api/google-ads/campaigns/create", payload);
-    },
+    mutationFn: () => apiRequest("POST", "/api/google-ads/campaigns/create", buildPayload()),
     onSuccess: (data: any) => {
       if (data?.warnings && data.warnings.length > 0) {
-        toast({
-          title: "Campaign created with warnings",
-          description: data.warnings.join(" | "),
-          variant: "destructive",
-        });
+        toast({ title: "Campaign created with warnings", description: data.warnings.join(" | "), variant: "destructive" });
       } else {
         toast({ title: "Campaign created", description: `"${name}" has been created in paused state.` });
       }
@@ -616,11 +595,23 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     },
   });
 
+  const previewMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/google-ads/campaigns/preview", buildPayload()),
+    onSuccess: (data: any) => {
+      setPreviewData(data);
+      setShowPreview(true);
+    },
+    onError: (err: any) => {
+      toast({ title: "Preview failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const resetForm = () => {
     setStep(1); setName(""); setNameManuallyEdited(false); setDailyBudget(""); setStartDate(""); setEndDate("");
     setBiddingStrategy("MANUAL_CPC"); setTargetValue(""); setSelectedLanguages(["en"]);
     setSelectedLocations(["IN"]); setLocationSearch(""); setLocationDropdownOpen(false); setProductFocus("");
     setAiSuggestions(null); setShowAiPanel(false); setIncludeSearchPartners(false);
+    setPreviewData(null); setShowPreview(false);
   };
 
   const strategies = BIDDING_STRATEGIES[channelType]?.strategies || [];
@@ -1489,13 +1480,147 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                 Next <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
-              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="bg-green-600 hover:bg-green-700">
-                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
-                Create Campaign
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => previewMutation.mutate()}
+                  disabled={previewMutation.isPending || createMutation.isPending}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  {previewMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                  Preview API Output
+                </Button>
+                <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || previewMutation.isPending} className="bg-green-600 hover:bg-green-700">
+                  {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
+                  Create Campaign
+                </Button>
+              </>
             )}
           </div>
         </DialogFooter>
+
+        {showPreview && previewData && (
+          <div className="border-t mt-4 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-bold flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-600" />
+                Campaign Preview — API Dry Run
+              </h4>
+              <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
+                <XCircle className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {previewData.validationErrors && previewData.validationErrors.length > 0 && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-2.5 mb-3">
+                <p className="text-xs font-medium text-red-800 mb-1">Validation Errors:</p>
+                {previewData.validationErrors.map((err: string, i: number) => (
+                  <p key={i} className="text-xs text-red-700">- {err}</p>
+                ))}
+              </div>
+            )}
+
+            {previewData.warnings && previewData.warnings.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-3">
+                <p className="text-xs font-medium text-amber-800 mb-1">Warnings:</p>
+                {previewData.warnings.map((w: string, i: number) => (
+                  <p key={i} className="text-xs text-amber-700">- {w}</p>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Campaign Summary</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{previewData.summary?.name}</span></div>
+                  <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{previewData.summary?.type}</span></div>
+                  <div><span className="text-muted-foreground">Strategy:</span> <span className="font-medium">{previewData.summary?.biddingStrategy}</span></div>
+                  <div><span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-200">PAUSED</Badge></div>
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Budget</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Daily:</span> <span className="font-medium">{previewData.summary?.dailyBudget}</span></div>
+                  <div><span className="text-muted-foreground">Monthly:</span> <span className="font-medium">{previewData.summary?.monthlyBudget}</span></div>
+                  <div><span className="text-muted-foreground">Micros:</span> <span className="font-mono text-[10px]">{previewData.apiPayload?.budget?.amountMicros}</span></div>
+                  <div><span className="text-muted-foreground">Delivery:</span> <span className="font-medium">STANDARD</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Schedule</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Start:</span> <span className="font-medium">{previewData.summary?.startDate}</span></div>
+                  <div><span className="text-muted-foreground">End:</span> <span className="font-medium">{previewData.summary?.endDate}</span></div>
+                  {previewData.summary?.searchPartners !== 'N/A' && (
+                    <div><span className="text-muted-foreground">Search Partners:</span> <span className="font-medium">{previewData.summary?.searchPartners ? 'Yes' : 'No'}</span></div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">API Info</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Version:</span> <span className="font-mono">{previewData.apiVersion}</span></div>
+                  <div><span className="text-muted-foreground">Customer:</span> <span className="font-mono">{previewData.customerId}</span></div>
+                  <div><span className="text-muted-foreground">Calls:</span> <span className="font-medium">3 sequential</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200 mb-3">
+              <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Language Targeting ({previewData.apiPayload?.languageTargeting?.length || 0})</p>
+              <div className="flex flex-wrap gap-1">
+                {previewData.apiPayload?.languageTargeting?.map((l: any, i: number) => (
+                  <Badge key={i} variant="outline" className={`text-[10px] ${l.error ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-100 text-blue-700 border-blue-200"}`}>
+                    {l.name || l.code} {l.resourceName && <span className="text-[8px] font-mono ml-1 opacity-60">{l.resourceName}</span>}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-green-50 rounded-lg p-2.5 border border-green-200 mb-3">
+              <p className="text-[10px] uppercase font-bold text-green-600 mb-1">Location Targeting ({previewData.apiPayload?.locationTargeting?.length || 0})</p>
+              <div className="flex flex-wrap gap-1">
+                {previewData.apiPayload?.locationTargeting?.map((l: any, i: number) => (
+                  <Badge key={i} variant="outline" className={`text-[10px] ${l.error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+                    {l.name || l.code} {l.resourceName && <span className="text-[8px] font-mono ml-1 opacity-60">{l.resourceName}</span>}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gray-900 rounded-lg p-3 border">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase font-bold text-gray-400">Google Ads API Payload (JSON)</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] text-gray-400 hover:text-white"
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(previewData.apiPayload, null, 2));
+                    toast({ title: "Copied to clipboard" });
+                  }}
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copy JSON
+                </Button>
+              </div>
+              <pre className="text-[10px] text-green-400 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre">
+                {JSON.stringify(previewData.apiPayload, null, 2)}
+              </pre>
+            </div>
+
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+              <p className="text-xs text-blue-800 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 shrink-0" />
+                This is a dry run. No API calls were made. Once Google Ads API approval is granted, clicking "Create Campaign" will execute these 3 API calls to create the campaign in your Google Ads account.
+              </p>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

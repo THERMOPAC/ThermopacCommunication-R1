@@ -327,6 +327,147 @@ router.get('/sync/status', ensureAuthenticated, async (req: Request, res: Respon
   }
 });
 
+router.post('/campaigns/preview', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const customerId = (process.env.GOOGLE_ADS_CUSTOMER_ID || '').replace(/-/g, '');
+    const { name, dailyBudget, advertisingChannelType, advertisingChannelSubType, status, startDate, endDate, targetCpa, targetRoas, targetCpv, videoBiddingStrategy, biddingStrategyType, languages, locations, targetSearchNetwork } = req.body;
+
+    const validationErrors: string[] = [];
+    if (!name) validationErrors.push('Campaign name is required.');
+    if (!dailyBudget) validationErrors.push('Daily budget is required.');
+    if (!advertisingChannelType) validationErrors.push('Campaign type is required.');
+    if (name && name.length > 128) validationErrors.push(`Campaign name too long (${name.length}/128 chars).`);
+    if (startDate) {
+      const today = new Date().toISOString().split('T')[0];
+      if (startDate < today) validationErrors.push('Start date is in the past.');
+    }
+    if (startDate && endDate && endDate <= startDate) validationErrors.push('End date must be after start date.');
+
+    const budgetMicros = moneyToMicros(Number(dailyBudget || 0));
+    const monthlyEstimate = (Number(dailyBudget || 0) * 30.4).toFixed(2);
+
+    const includeSearchPartners = targetSearchNetwork !== undefined ? targetSearchNetwork : false;
+    const networkSettings: any = {
+      targetGoogleSearch: advertisingChannelType === 'SEARCH',
+      targetSearchNetwork: advertisingChannelType === 'SEARCH' ? includeSearchPartners : false,
+      targetContentNetwork: advertisingChannelType === 'DISPLAY',
+    };
+    if (advertisingChannelType === 'VIDEO') {
+      networkSettings.targetGoogleSearch = false;
+      networkSettings.targetSearchNetwork = false;
+      networkSettings.targetContentNetwork = false;
+      networkSettings.targetPartnerSearchNetwork = false;
+    }
+
+    let biddingConfig: any = {};
+    const strategy = biddingStrategyType || 'MANUAL_CPC';
+    if (advertisingChannelType === 'SEARCH' || advertisingChannelType === 'DISPLAY') {
+      if (strategy === 'TARGET_CPA' && targetCpa) {
+        biddingConfig = { type: 'TARGET_CPA', targetCpaMicros: String(moneyToMicros(Number(targetCpa))), targetCpaDisplay: `INR ${targetCpa}` };
+      } else if (strategy === 'TARGET_ROAS' && targetRoas) {
+        biddingConfig = { type: 'TARGET_ROAS', targetRoas: Number(targetRoas), display: `${(Number(targetRoas) * 100).toFixed(0)}% return` };
+      } else if (strategy === 'MAXIMIZE_CONVERSIONS') {
+        biddingConfig = { type: 'MAXIMIZE_CONVERSIONS' };
+      } else if (strategy === 'MAXIMIZE_CLICKS') {
+        biddingConfig = { type: 'MAXIMIZE_CLICKS' };
+      } else {
+        biddingConfig = { type: 'MANUAL_CPC', enhancedCpcEnabled: true };
+      }
+    } else if (advertisingChannelType === 'PERFORMANCE_MAX') {
+      if (strategy === 'TARGET_ROAS' && targetRoas) {
+        biddingConfig = { type: 'TARGET_ROAS', targetRoas: Number(targetRoas) };
+      } else {
+        biddingConfig = { type: 'MAXIMIZE_CONVERSIONS' };
+      }
+    } else if (advertisingChannelType === 'VIDEO') {
+      const videoStrategy = videoBiddingStrategy || strategy || 'TARGET_CPV';
+      biddingConfig = { type: videoStrategy };
+      if (videoStrategy === 'TARGET_CPV' && targetCpv) {
+        biddingConfig.targetCpv = `INR ${targetCpv}`;
+      } else if (videoStrategy === 'TARGET_CPM' && targetCpv) {
+        biddingConfig.targetCpm = `INR ${targetCpv}`;
+      }
+    }
+
+    const languageTargeting = (languages || []).map((code: string) => {
+      const lang = GOOGLE_ADS_LANGUAGES[code];
+      return lang ? { code, name: lang.name, constantId: lang.id, resourceName: `languageConstants/${lang.id}` } : { code, error: 'Unsupported language code' };
+    });
+
+    const locationTargeting = (locations || []).map((code: string) => {
+      const country = GOOGLE_ADS_COUNTRIES[code];
+      return country ? { code, name: country.name, constantId: country.id, resourceName: `geoTargetConstants/${country.id}` } : { code, error: 'Unsupported country code' };
+    });
+
+    const needsConversions = ['TARGET_CPA', 'MAXIMIZE_CONVERSIONS', 'TARGET_ROAS'].includes(strategy);
+    const warnings: string[] = [];
+    if (needsConversions) warnings.push('This bidding strategy requires conversion tracking to be configured in Google Ads.');
+    if (advertisingChannelType === 'PERFORMANCE_MAX') warnings.push('Performance Max campaigns require Asset Groups to serve ads. You must add asset groups in Google Ads after creation.');
+    if (!languages || languages.length === 0) warnings.push('No language targeting specified.');
+    if (!locations || locations.length === 0) warnings.push('No location targeting specified.');
+
+    const apiPayload = {
+      campaign: {
+        name,
+        campaignBudget: `customers/${customerId}/campaignBudgets/[AUTO_GENERATED]`,
+        advertisingChannelType,
+        advertisingChannelSubType: advertisingChannelSubType || undefined,
+        status: status || 'PAUSED',
+        startDate: startDate ? startDate.replace(/-/g, '') : undefined,
+        endDate: endDate ? endDate.replace(/-/g, '') : undefined,
+        networkSettings,
+        ...( biddingConfig.type === 'MANUAL_CPC' ? { manualCpc: { enhancedCpcEnabled: true } } :
+             biddingConfig.type === 'MAXIMIZE_CLICKS' ? { maximizeClicks: {} } :
+             biddingConfig.type === 'MAXIMIZE_CONVERSIONS' ? { maximizeConversions: {} } :
+             biddingConfig.type === 'TARGET_CPA' ? { targetCpa: { targetCpaMicros: biddingConfig.targetCpaMicros } } :
+             biddingConfig.type === 'TARGET_ROAS' ? { maximizeConversionValue: { targetRoas: biddingConfig.targetRoas } } :
+             biddingConfig.type === 'TARGET_CPV' ? { manualCpv: {} } :
+             biddingConfig.type === 'TARGET_CPM' ? { targetCpm: {} } :
+             {}
+        ),
+      },
+      budget: {
+        name: `${name}_budget_[TIMESTAMP]`,
+        amountMicros: String(budgetMicros),
+        amountDisplay: `INR ${dailyBudget}`,
+        monthlyEstimate: `INR ${monthlyEstimate}`,
+        deliveryMethod: 'STANDARD',
+        explicitlyShared: false,
+      },
+      languageTargeting,
+      locationTargeting,
+      biddingStrategy: biddingConfig,
+    };
+
+    res.json({
+      preview: true,
+      validationErrors: validationErrors.length > 0 ? validationErrors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      customerId,
+      apiVersion: 'v19',
+      apiEndpoint: `https://googleads.googleapis.com/v19/customers/${customerId}/campaigns:mutate`,
+      apiPayload,
+      summary: {
+        name,
+        type: advertisingChannelType,
+        dailyBudget: `INR ${dailyBudget}`,
+        monthlyBudget: `INR ${monthlyEstimate}`,
+        budgetMicros: String(budgetMicros),
+        biddingStrategy: strategy,
+        startDate: startDate || 'Not set',
+        endDate: endDate || 'No end date',
+        languages: languageTargeting.filter((l: any) => !l.error).map((l: any) => l.name),
+        locations: locationTargeting.filter((l: any) => !l.error).map((l: any) => l.name),
+        searchPartners: advertisingChannelType === 'SEARCH' ? includeSearchPartners : 'N/A',
+        totalApiCalls: '3 sequential calls: 1. Create Budget → 2. Create Campaign → 3. Set Language+Location Criteria',
+      },
+    });
+  } catch (error: any) {
+    console.error('[GoogleAds] Preview error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/campaigns/create', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
