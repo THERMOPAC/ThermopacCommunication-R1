@@ -89,9 +89,9 @@ export class OfferPdfGenerator {
   private currentY: number = 0;
   private data: OfferPdfData;
   private strings = ENGLISH_STRINGS;
-  private priceMode: 'combined' | 'breakup' = 'breakup';
+  private priceMode: 'combined' | 'breakup' | 'technical' = 'breakup';
 
-  constructor(data: OfferPdfData, options?: { priceMode?: 'combined' | 'breakup' }) {
+  constructor(data: OfferPdfData, options?: { priceMode?: 'combined' | 'breakup' | 'technical' }) {
     this.data = data;
     this.priceMode = options?.priceMode || 'breakup';
     this.contentWidth = this.pageWidth - 2 * this.margin;
@@ -323,15 +323,22 @@ export class OfferPdfGenerator {
   private drawItemsTable(): void {
     this.checkPageBreak(200);
 
+    const isTechnical = this.priceMode === 'technical';
+
     this.doc
       .fillColor('#003366')
       .fontSize(11)
       .font('Helvetica-Bold')
-      .text(this.strings.priceSchedule, this.margin, this.currentY);
+      .text(isTechnical ? 'TECHNICAL SPECIFICATION' : this.strings.priceSchedule, this.margin, this.currentY);
 
     this.currentY += 20;
-
-    const colWidths = {
+    const colWidths = isTechnical ? {
+      sl: 25,
+      description: 470,
+      price: 0,
+      qty: 0,
+      amount: 0,
+    } : {
       sl: 25,
       description: 250,
       price: 80,
@@ -348,9 +355,11 @@ export class OfferPdfGenerator {
     const headers = [
       { label: this.strings.sl, width: colWidths.sl },
       { label: this.strings.itemDescription, width: colWidths.description },
-      { label: this.strings.price, width: colWidths.price },
-      { label: this.strings.qty, width: colWidths.qty },
-      { label: `${this.strings.amount} ${this.data.currency}`, width: colWidths.amount },
+      ...(!isTechnical ? [
+        { label: this.strings.price, width: colWidths.price },
+        { label: this.strings.qty, width: colWidths.qty },
+        { label: `${this.strings.amount} ${this.data.currency}`, width: colWidths.amount },
+      ] : []),
     ];
 
     for (const h of headers) {
@@ -420,21 +429,24 @@ export class OfferPdfGenerator {
       colX += colWidths.description;
 
       const hideSubItemPrices = isSubItem && this.priceMode === 'combined';
+      const hidePrices = isTechnical || hideSubItemPrices;
 
-      this.doc
-        .fillColor(isSubItem ? '#666666' : '#333333')
-        .font('Helvetica')
-        .fontSize(isSubItem ? 7 : 8)
-        .text(hideSubItemPrices ? '' : this.formatNumber(item.unitPrice), colX + 4, this.currentY + 8, { width: colWidths.price - 8, align: 'right' });
-      colX += colWidths.price;
+      if (!isTechnical) {
+        this.doc
+          .fillColor(isSubItem ? '#666666' : '#333333')
+          .font('Helvetica')
+          .fontSize(isSubItem ? 7 : 8)
+          .text(hidePrices ? '' : this.formatNumber(item.unitPrice), colX + 4, this.currentY + 8, { width: colWidths.price - 8, align: 'right' });
+        colX += colWidths.price;
 
-      this.doc
-        .text(hideSubItemPrices ? '' : `${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
-      colX += colWidths.qty;
+        this.doc
+          .text(hidePrices ? '' : `${parseFloat(item.quantity)} ${item.unit}`, colX + 4, this.currentY + 8, { width: colWidths.qty - 8, align: 'center' });
+        colX += colWidths.qty;
 
-      this.doc
-        .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
-        .text(hideSubItemPrices ? '' : this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
+        this.doc
+          .font(isSubItem ? 'Helvetica' : 'Helvetica-Bold')
+          .text(hidePrices ? '' : this.formatNumber(item.totalPrice), colX + 4, this.currentY + 8, { width: colWidths.amount - 8, align: 'right' });
+      }
 
       this.currentY += rowHeight;
     }
@@ -777,7 +789,9 @@ export class OfferPdfGenerator {
     this.drawSubject();
     this.drawDearLine();
     this.drawItemsTable();
-    this.drawTotals();
+    if (this.priceMode !== 'technical') {
+      this.drawTotals();
+    }
     this.drawTerms();
     this.drawSignature();
 
@@ -800,10 +814,10 @@ export class OfferPdfGenerator {
         this.drawHeader, this.drawOfferInfo, this.drawCustomerInfo,
         this.drawSubject, this.drawDearLine,
       ]);
-      const part2Bytes = await this.generatePartBuffer([
-        this.drawItemsTable, this.drawTotals,
-        this.drawTerms, this.drawSignature,
-      ]);
+      const part2Methods = this.priceMode === 'technical'
+        ? [this.drawItemsTable, this.drawTerms, this.drawSignature]
+        : [this.drawItemsTable, this.drawTotals, this.drawTerms, this.drawSignature];
+      const part2Bytes = await this.generatePartBuffer(part2Methods);
 
       const part1Doc = await PDFLibDocument.load(part1Bytes);
       const part2Doc = await PDFLibDocument.load(part2Bytes);

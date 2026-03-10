@@ -445,7 +445,7 @@ export function OffersContent() {
     }
   };
 
-  const handleDownloadPdf = (offerId: number, priceMode: 'combined' | 'breakup') => {
+  const handleDownloadPdf = (offerId: number, priceMode: 'combined' | 'breakup' | 'technical') => {
     window.open(`/api/sales-marketing/offers/${offerId}/pdf?priceMode=${priceMode}`, '_blank');
     queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
     setPdfDownloadOfferId(null);
@@ -1076,6 +1076,12 @@ export function OffersContent() {
                 <div className="text-left">
                   <div className="font-medium">Breakup Price</div>
                   <div className="text-xs text-muted-foreground">Show main product with sub-product details and individual prices</div>
+                </div>
+              </Button>
+              <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'technical')}>
+                <div className="text-left">
+                  <div className="font-medium">Technical Offer</div>
+                  <div className="text-xs text-muted-foreground">Same as Combined Price but without any pricing - technical specification only</div>
                 </div>
               </Button>
             </div>

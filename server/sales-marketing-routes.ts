@@ -1273,7 +1273,7 @@ export function setupSalesMarketingRoutes(app: Express) {
           hsnSacCode: item.hsnSacCode || '',
           isSubItem: item.isSubItem || false,
         })),
-      }, { priceMode: priceMode as 'combined' | 'breakup' });
+      }, { priceMode: priceMode as 'combined' | 'breakup' | 'technical' });
 
       let templatePath = offer.templatePdfPath;
       let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
