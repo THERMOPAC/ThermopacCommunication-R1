@@ -55,7 +55,8 @@ import {
   ShoppingCart,
   Package,
   Search,
-  Radar
+  Radar,
+  Target
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -68,6 +69,7 @@ type LayoutProps = {
 function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
   const [location] = useLocation();
+  const [isDigitalMarketingMenuOpen, setIsDigitalMarketingMenuOpen] = useState(false);
   const [isSalesAndMarketingMenuOpen, setIsSalesAndMarketingMenuOpen] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
   const [isProcurementMenuOpen, setIsProcurementMenuOpen] = useState(false);
@@ -86,14 +88,15 @@ function Layout({ children }: LayoutProps) {
   // Send heartbeat for live user tracking across all pages
   useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
 
-  // Check if we're on any sales and marketing related page
+  const isOnDigitalMarketingPage = location === '/campaigns' ||
+                                  location === '/radar' ||
+                                  location === '/lead-generation';
+
   const isOnSalesAndMarketingPage = location === '/customers' ||
-                                  location === '/lead-generation' ||
                                   location === '/leads' ||
                                   location === '/products' ||
                                   location === '/offer-templates' ||
                                   location === '/offers' ||
-                                  location === '/campaigns' ||
                                   location === '/marketing-dashboard' ||
                                   location === '/marketing-tools';
   
@@ -154,6 +157,10 @@ function Layout({ children }: LayoutProps) {
   
   // Auto-open menus based on current page
   useEffect(() => {
+    if (isOnDigitalMarketingPage && !isDigitalMarketingMenuOpen) {
+      setIsDigitalMarketingMenuOpen(true);
+    }
+
     if (isOnSalesAndMarketingPage && !isSalesAndMarketingMenuOpen) {
       setIsSalesAndMarketingMenuOpen(true);
     }
@@ -193,7 +200,7 @@ function Layout({ children }: LayoutProps) {
     if (isOnSapPurchasingPage && !isSapPurchasingMenuOpen) {
       setIsSapPurchasingMenuOpen(true);
     }
-  }, [isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage]);
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -258,6 +265,18 @@ function Layout({ children }: LayoutProps) {
       ]
     }] : []),
     ...(hasViewPermission("Sales and Marketing") ? [{ 
+      icon: Target, 
+      label: "Digital Marketing", 
+      isSubmenu: true,
+      isOpen: isDigitalMarketingMenuOpen,
+      toggle: () => setIsDigitalMarketingMenuOpen(!isDigitalMarketingMenuOpen),
+      children: [
+        { icon: TrendingUp, label: "Google Ads", href: "/campaigns" },
+        { icon: Radar, label: "Opportunity Radar", href: "/radar" },
+        { icon: Search, label: "Lead Generation", href: "/lead-generation" },
+      ]
+    }] : []),
+    ...(hasViewPermission("Sales and Marketing") ? [{ 
       icon: Megaphone, 
       label: "Sales and Marketing", 
       isSubmenu: true,
@@ -265,9 +284,6 @@ function Layout({ children }: LayoutProps) {
       toggle: () => setIsSalesAndMarketingMenuOpen(!isSalesAndMarketingMenuOpen),
       children: [
         { icon: BarChart4, label: "Marketing Dashboard", href: "/marketing-dashboard" },
-        { icon: TrendingUp, label: "Google Ads", href: "/campaigns" },
-        { icon: Radar, label: "Opportunity Radar", href: "/radar" },
-        { icon: Search, label: "Lead Generation", href: "/lead-generation" },
         { icon: UsersRound, label: "Leads", href: "/leads" },
         { icon: Users, label: "Customers", href: "/customers" },
         { icon: Package, label: "Products", href: "/products" },
@@ -475,6 +491,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'SAP Purchasing' },
                     { type: 'submenu', label: 'Administration' },
                     { type: 'submenu', label: 'Finance' },
+                    { type: 'submenu', label: 'Digital Marketing' },
                     { type: 'submenu', label: 'Sales and Marketing' },
                     { type: 'submenu', label: 'Project Management' },
                     { type: 'submenu', label: 'Design Management' },
