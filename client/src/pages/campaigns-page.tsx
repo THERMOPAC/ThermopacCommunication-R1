@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -542,6 +542,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [includeSearchPartners, setIncludeSearchPartners] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const buildPayload = () => {
     const strategy = biddingStrategy;
@@ -600,6 +601,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     onSuccess: (data: any) => {
       setPreviewData(data);
       setShowPreview(true);
+      setTimeout(() => previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     },
     onError: (err: any) => {
       toast({ title: "Preview failed", description: err.message, variant: "destructive" });
@@ -632,17 +634,131 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5" />
-            Create Campaign
-            {step > 1 && <span className="text-sm font-normal text-muted-foreground ml-2">Step {step} of 3</span>}
+            {showPreview ? "Campaign Preview — API Dry Run" : "Create Campaign"}
+            {!showPreview && step > 1 && <span className="text-sm font-normal text-muted-foreground ml-2">Step {step} of 3</span>}
           </DialogTitle>
           <DialogDescription>
-            {step === 1 && "Choose your campaign type and let AI help you set it up intelligently."}
-            {step === 2 && "Configure your bidding strategy - this determines how Google spends your budget."}
-            {step === 3 && "Review your campaign settings before creating."}
+            {showPreview && "This is a dry-run preview of the exact API payload. No real API calls are made."}
+            {!showPreview && step === 1 && "Choose your campaign type and let AI help you set it up intelligently."}
+            {!showPreview && step === 2 && "Configure your bidding strategy - this determines how Google spends your budget."}
+            {!showPreview && step === 3 && "Review your campaign settings before creating."}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 1 && (
+        {showPreview && previewData && (
+          <div ref={previewRef}>
+            {previewData.validationErrors && previewData.validationErrors.length > 0 && (
+              <div className="bg-red-50 border border-red-300 rounded-lg p-2.5 mb-3">
+                <p className="text-xs font-medium text-red-800 mb-1">Validation Errors:</p>
+                {previewData.validationErrors.map((err: string, i: number) => (
+                  <p key={i} className="text-xs text-red-700">- {err}</p>
+                ))}
+              </div>
+            )}
+
+            {previewData.warnings && previewData.warnings.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-3">
+                <p className="text-xs font-medium text-amber-800 mb-1">Warnings:</p>
+                {previewData.warnings.map((w: string, i: number) => (
+                  <p key={i} className="text-xs text-amber-700">- {w}</p>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Campaign Summary</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{previewData.summary?.name}</span></div>
+                  <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{previewData.summary?.type}</span></div>
+                  <div><span className="text-muted-foreground">Strategy:</span> <span className="font-medium">{previewData.summary?.biddingStrategy}</span></div>
+                  <div><span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-200">PAUSED</Badge></div>
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Budget</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Daily:</span> <span className="font-medium">{previewData.summary?.dailyBudget}</span></div>
+                  <div><span className="text-muted-foreground">Monthly:</span> <span className="font-medium">{previewData.summary?.monthlyBudget}</span></div>
+                  <div><span className="text-muted-foreground">Micros:</span> <span className="font-mono text-[10px]">{previewData.apiPayload?.budget?.amountMicros}</span></div>
+                  <div><span className="text-muted-foreground">Delivery:</span> <span className="font-medium">STANDARD</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Schedule</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Start:</span> <span className="font-medium">{previewData.summary?.startDate}</span></div>
+                  <div><span className="text-muted-foreground">End:</span> <span className="font-medium">{previewData.summary?.endDate}</span></div>
+                  {previewData.summary?.searchPartners !== 'N/A' && (
+                    <div><span className="text-muted-foreground">Search Partners:</span> <span className="font-medium">{previewData.summary?.searchPartners ? 'Yes' : 'No'}</span></div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-2.5 border">
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">API Info</p>
+                <div className="space-y-1 text-xs">
+                  <div><span className="text-muted-foreground">Version:</span> <span className="font-mono">{previewData.apiVersion}</span></div>
+                  <div><span className="text-muted-foreground">Customer:</span> <span className="font-mono">{previewData.customerId}</span></div>
+                  <div><span className="text-muted-foreground">Calls:</span> <span className="font-medium">3 sequential</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200 mb-3">
+              <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Language Targeting ({previewData.apiPayload?.languageTargeting?.length || 0})</p>
+              <div className="flex flex-wrap gap-1">
+                {previewData.apiPayload?.languageTargeting?.map((l: any, i: number) => (
+                  <Badge key={i} variant="outline" className={`text-[10px] ${l.error ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-100 text-blue-700 border-blue-200"}`}>
+                    {l.name || l.code} {l.resourceName && <span className="text-[8px] font-mono ml-1 opacity-60">{l.resourceName}</span>}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-green-50 rounded-lg p-2.5 border border-green-200 mb-3">
+              <p className="text-[10px] uppercase font-bold text-green-600 mb-1">Location Targeting ({previewData.apiPayload?.locationTargeting?.length || 0})</p>
+              <div className="flex flex-wrap gap-1">
+                {previewData.apiPayload?.locationTargeting?.map((l: any, i: number) => (
+                  <Badge key={i} variant="outline" className={`text-[10px] ${l.error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+                    {l.name || l.code} {l.resourceName && <span className="text-[8px] font-mono ml-1 opacity-60">{l.resourceName}</span>}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gray-900 rounded-lg p-3 border">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase font-bold text-gray-400">Google Ads API Payload (JSON)</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[10px] text-gray-400 hover:text-white"
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(previewData.apiPayload, null, 2));
+                    toast({ title: "Copied to clipboard" });
+                  }}
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copy JSON
+                </Button>
+              </div>
+              <pre className="text-[10px] text-green-400 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre">
+                {JSON.stringify(previewData.apiPayload, null, 2)}
+              </pre>
+            </div>
+
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+              <p className="text-xs text-blue-800 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 shrink-0" />
+                This is a dry run. No API calls were made. Click "Back to Editor" to modify settings, or "Create Campaign" to execute.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!showPreview && step === 1 && (
           <div className="space-y-5">
             <div>
               <Label className="text-sm font-medium mb-3 block">What type of campaign do you want?</Label>
@@ -1253,7 +1369,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           </div>
         )}
 
-        {step === 2 && (
+        {!showPreview && step === 2 && (
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium mb-3 block">How should Google spend your budget?</Label>
@@ -1352,7 +1468,7 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
           </div>
         )}
 
-        {step === 3 && (
+        {!showPreview && step === 3 && (
           <div className="space-y-4">
             <Card className="bg-gray-50">
               <CardContent className="p-4 space-y-3">
@@ -1467,15 +1583,24 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 
         <DialogFooter className="flex items-center justify-between">
           <div>
-            {step > 1 && (
+            {showPreview ? (
+              <Button variant="ghost" onClick={() => setShowPreview(false)}>
+                <ChevronLeft className="w-4 h-4 mr-1" /> Back to Editor
+              </Button>
+            ) : step > 1 ? (
               <Button variant="ghost" onClick={() => setStep(step - 1)}>
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
-            )}
+            ) : null}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
-            {step < 3 ? (
+            {showPreview ? (
+              <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending} className="bg-green-600 hover:bg-green-700">
+                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Rocket className="w-4 h-4 mr-2" />}
+                Create Campaign
+              </Button>
+            ) : step < 3 ? (
               <Button onClick={() => setStep(step + 1)} disabled={step === 1 && (!name || !dailyBudget || !startDate || name.length > 128 || (!!endDate && !!startDate && endDate <= startDate))}>
                 Next <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
@@ -1498,129 +1623,6 @@ function CreateCampaignDialog({ open, onOpenChange }: { open: boolean; onOpenCha
             )}
           </div>
         </DialogFooter>
-
-        {showPreview && previewData && (
-          <div className="border-t mt-4 pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-bold flex items-center gap-2">
-                <FileText className="w-4 h-4 text-blue-600" />
-                Campaign Preview — API Dry Run
-              </h4>
-              <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
-                <XCircle className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {previewData.validationErrors && previewData.validationErrors.length > 0 && (
-              <div className="bg-red-50 border border-red-300 rounded-lg p-2.5 mb-3">
-                <p className="text-xs font-medium text-red-800 mb-1">Validation Errors:</p>
-                {previewData.validationErrors.map((err: string, i: number) => (
-                  <p key={i} className="text-xs text-red-700">- {err}</p>
-                ))}
-              </div>
-            )}
-
-            {previewData.warnings && previewData.warnings.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 mb-3">
-                <p className="text-xs font-medium text-amber-800 mb-1">Warnings:</p>
-                {previewData.warnings.map((w: string, i: number) => (
-                  <p key={i} className="text-xs text-amber-700">- {w}</p>
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="bg-slate-50 rounded-lg p-2.5 border">
-                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Campaign Summary</p>
-                <div className="space-y-1 text-xs">
-                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium">{previewData.summary?.name}</span></div>
-                  <div><span className="text-muted-foreground">Type:</span> <span className="font-medium">{previewData.summary?.type}</span></div>
-                  <div><span className="text-muted-foreground">Strategy:</span> <span className="font-medium">{previewData.summary?.biddingStrategy}</span></div>
-                  <div><span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="text-[10px] bg-yellow-100 text-yellow-800 border-yellow-200">PAUSED</Badge></div>
-                </div>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-2.5 border">
-                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Budget</p>
-                <div className="space-y-1 text-xs">
-                  <div><span className="text-muted-foreground">Daily:</span> <span className="font-medium">{previewData.summary?.dailyBudget}</span></div>
-                  <div><span className="text-muted-foreground">Monthly:</span> <span className="font-medium">{previewData.summary?.monthlyBudget}</span></div>
-                  <div><span className="text-muted-foreground">Micros:</span> <span className="font-mono text-[10px]">{previewData.apiPayload?.budget?.amountMicros}</span></div>
-                  <div><span className="text-muted-foreground">Delivery:</span> <span className="font-medium">STANDARD</span></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="bg-slate-50 rounded-lg p-2.5 border">
-                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Schedule</p>
-                <div className="space-y-1 text-xs">
-                  <div><span className="text-muted-foreground">Start:</span> <span className="font-medium">{previewData.summary?.startDate}</span></div>
-                  <div><span className="text-muted-foreground">End:</span> <span className="font-medium">{previewData.summary?.endDate}</span></div>
-                  {previewData.summary?.searchPartners !== 'N/A' && (
-                    <div><span className="text-muted-foreground">Search Partners:</span> <span className="font-medium">{previewData.summary?.searchPartners ? 'Yes' : 'No'}</span></div>
-                  )}
-                </div>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-2.5 border">
-                <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">API Info</p>
-                <div className="space-y-1 text-xs">
-                  <div><span className="text-muted-foreground">Version:</span> <span className="font-mono">{previewData.apiVersion}</span></div>
-                  <div><span className="text-muted-foreground">Customer:</span> <span className="font-mono">{previewData.customerId}</span></div>
-                  <div><span className="text-muted-foreground">Calls:</span> <span className="font-medium">3 sequential</span></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-200 mb-3">
-              <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Language Targeting ({previewData.apiPayload?.languageTargeting?.length || 0})</p>
-              <div className="flex flex-wrap gap-1">
-                {previewData.apiPayload?.languageTargeting?.map((l: any, i: number) => (
-                  <Badge key={i} variant="outline" className={`text-[10px] ${l.error ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-100 text-blue-700 border-blue-200"}`}>
-                    {l.name || l.code} {l.resourceName && <span className="text-[8px] font-mono ml-1 opacity-60">{l.resourceName}</span>}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-green-50 rounded-lg p-2.5 border border-green-200 mb-3">
-              <p className="text-[10px] uppercase font-bold text-green-600 mb-1">Location Targeting ({previewData.apiPayload?.locationTargeting?.length || 0})</p>
-              <div className="flex flex-wrap gap-1">
-                {previewData.apiPayload?.locationTargeting?.map((l: any, i: number) => (
-                  <Badge key={i} variant="outline" className={`text-[10px] ${l.error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-100 text-green-700 border-green-200"}`}>
-                    {l.name || l.code} {l.resourceName && <span className="text-[8px] font-mono ml-1 opacity-60">{l.resourceName}</span>}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-gray-900 rounded-lg p-3 border">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] uppercase font-bold text-gray-400">Google Ads API Payload (JSON)</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-[10px] text-gray-400 hover:text-white"
-                  onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(previewData.apiPayload, null, 2));
-                    toast({ title: "Copied to clipboard" });
-                  }}
-                >
-                  <Copy className="w-3 h-3 mr-1" /> Copy JSON
-                </Button>
-              </div>
-              <pre className="text-[10px] text-green-400 font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre">
-                {JSON.stringify(previewData.apiPayload, null, 2)}
-              </pre>
-            </div>
-
-            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
-              <p className="text-xs text-blue-800 flex items-center gap-1.5">
-                <Info className="w-3.5 h-3.5 shrink-0" />
-                This is a dry run. No API calls were made. Once Google Ads API approval is granted, clicking "Create Campaign" will execute these 3 API calls to create the campaign in your Google Ads account.
-              </p>
-            </div>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );
