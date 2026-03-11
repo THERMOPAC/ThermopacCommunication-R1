@@ -965,7 +965,91 @@ router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Respons
       }
     }
 
-    // Test 3: listAccessibleCustomers — NO customer_id, NO login-customer-id
+    // Test 3: Direct client access — search on 7811346120 WITHOUT login-customer-id
+    try {
+      const directUrl = `https://googleads.googleapis.com/${apiVersion}/customers/${customerId}/googleAds:search`;
+      const directHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': devToken,
+        'Content-Type': 'application/json',
+      };
+      const logDirectHeaders = { ...directHeaders };
+      logDirectHeaders['Authorization'] = 'Bearer [REDACTED]';
+      logDirectHeaders['developer-token'] = `[${devToken.length} chars]`;
+
+      const directResp = await fetch(directUrl, {
+        method: 'POST',
+        headers: directHeaders,
+        body: JSON.stringify({ query: 'SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1' }),
+      });
+      const directBody = await directResp.text();
+      const directRequestId = directResp.headers.get('request-id') || null;
+
+      diagnostics.directClientAccessTest = {
+        description: 'Search on 7811346120 WITHOUT login-customer-id',
+        url: directUrl,
+        method: 'POST',
+        headersSent: logDirectHeaders,
+        status: directResp.status,
+        ok: directResp.ok,
+        requestId: directRequestId,
+        body: directBody.substring(0, 1000),
+      };
+    } catch (err: any) {
+      diagnostics.directClientAccessTest = { error: err.message };
+    }
+
+    // Test 4: MCC relationship test — search on MCC 7421286903 for customer_client list
+    try {
+      const mccUrl = `https://googleads.googleapis.com/${apiVersion}/customers/${loginCustomerId}/googleAds:search`;
+      const mccHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': devToken,
+        'login-customer-id': loginCustomerId,
+        'Content-Type': 'application/json',
+      };
+      const logMccHeaders = { ...mccHeaders };
+      logMccHeaders['Authorization'] = 'Bearer [REDACTED]';
+      logMccHeaders['developer-token'] = `[${devToken.length} chars]`;
+
+      const mccResp = await fetch(mccUrl, {
+        method: 'POST',
+        headers: mccHeaders,
+        body: JSON.stringify({ query: 'SELECT customer_client.id, customer_client.descriptive_name, customer_client.manager FROM customer_client LIMIT 20' }),
+      });
+      const mccBody = await mccResp.text();
+      const mccRequestId = mccResp.headers.get('request-id') || null;
+
+      diagnostics.mccRelationshipTest = {
+        description: 'Search on MCC 7421286903 for customer_client hierarchy',
+        url: mccUrl,
+        method: 'POST',
+        headersSent: logMccHeaders,
+        status: mccResp.status,
+        ok: mccResp.ok,
+        requestId: mccRequestId,
+        body: mccBody.substring(0, 2000),
+      };
+    } catch (err: any) {
+      diagnostics.mccRelationshipTest = { error: err.message };
+    }
+
+    // Check OAuth user identity — who generated the refresh token
+    try {
+      const userinfoResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      const userinfo = await userinfoResp.json();
+      diagnostics.oauthUser = {
+        email: userinfo.email || 'unknown',
+        name: userinfo.name || 'unknown',
+        note: 'This is the Google account that authorized the OAuth refresh token. This user must have active access to both the MCC (7421286903) and client account (7811346120) in Google Ads.',
+      };
+    } catch (err: any) {
+      diagnostics.oauthUser = { error: err.message };
+    }
+
+    // Test 5: listAccessibleCustomers — NO customer_id, NO login-customer-id
     try {
       const listUrl = `https://googleads.googleapis.com/${apiVersion}/customers:listAccessibleCustomers`;
       const listHeaders: Record<string, string> = {
