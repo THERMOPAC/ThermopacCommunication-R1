@@ -219,10 +219,54 @@ export default function OfferTemplatesPage() {
             </h1>
             <p className="text-muted-foreground">Manage PDF templates by offer subject for automatic merging with quotations</p>
           </div>
-          <Button onClick={() => { resetForm(); setIsFormOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> Add Template
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowAddSubject(!showAddSubject)}>
+              <Plus className="mr-2 h-4 w-4" /> {showAddSubject ? "Cancel" : "Add Subject"}
+            </Button>
+            <Button onClick={() => { resetForm(); setIsFormOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" /> Add Template
+            </Button>
+          </div>
         </div>
+
+        {showAddSubject && (
+          <Card>
+            <CardContent className="py-4">
+              <Label className="mb-2 block">Add New Offer Subject</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={newSubjectInput}
+                  onChange={(e) => setNewSubjectInput(e.target.value)}
+                  placeholder="Enter new offer subject..."
+                  className="flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newSubjectInput.trim()) {
+                      e.preventDefault();
+                      const trimmed = newSubjectInput.trim();
+                      if (!subjectOptions.includes(trimmed)) {
+                        setCustomSubjects(prev => [...prev, trimmed]);
+                      }
+                      setNewSubjectInput("");
+                      setShowAddSubject(false);
+                      toast({ title: "Subject added", description: `"${trimmed}" is now available in the Offer Subject dropdown.` });
+                    }
+                  }}
+                />
+                <Button onClick={() => {
+                  const trimmed = newSubjectInput.trim();
+                  if (!trimmed) return;
+                  if (!subjectOptions.includes(trimmed)) {
+                    setCustomSubjects(prev => [...prev, trimmed]);
+                  }
+                  setNewSubjectInput("");
+                  setShowAddSubject(false);
+                  toast({ title: "Subject added", description: `"${trimmed}" is now available in the Offer Subject dropdown.` });
+                }}>Add Subject</Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">This subject will be available in the Offer Subject dropdown when creating or editing templates.</p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-3">
@@ -362,55 +406,15 @@ export default function OfferTemplatesPage() {
                 <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. UOR Standard Offer" />
               </div>
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label>Offer Subject <span className="text-destructive">*</span></Label>
-                  <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-blue-600 px-2" onClick={() => setShowAddSubject(!showAddSubject)}>
-                    <Plus className="h-3 w-3 mr-1" />{showAddSubject ? "Cancel" : "Add New Subject"}
-                  </Button>
-                </div>
-                {showAddSubject ? (
-                  <div className="flex gap-2">
-                    <Input
-                      value={newSubjectInput}
-                      onChange={(e) => setNewSubjectInput(e.target.value)}
-                      placeholder="Enter new offer subject..."
-                      className="flex-1"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newSubjectInput.trim()) {
-                          e.preventDefault();
-                          const trimmed = newSubjectInput.trim();
-                          if (!subjectOptions.includes(trimmed)) {
-                            setCustomSubjects(prev => [...prev, trimmed]);
-                          }
-                          setFormSubject(trimmed);
-                          setNewSubjectInput("");
-                          setShowAddSubject(false);
-                          toast({ title: "Subject added", description: `"${trimmed}" has been added and selected.` });
-                        }
-                      }}
-                    />
-                    <Button type="button" size="sm" onClick={() => {
-                      const trimmed = newSubjectInput.trim();
-                      if (!trimmed) return;
-                      if (!subjectOptions.includes(trimmed)) {
-                        setCustomSubjects(prev => [...prev, trimmed]);
-                      }
-                      setFormSubject(trimmed);
-                      setNewSubjectInput("");
-                      setShowAddSubject(false);
-                      toast({ title: "Subject added", description: `"${trimmed}" has been added and selected.` });
-                    }}>Add</Button>
-                  </div>
-                ) : (
-                  <Select value={formSubject} onValueChange={setFormSubject}>
-                    <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                    <SelectContent>
-                      {subjectOptions.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                <Label>Offer Subject <span className="text-destructive">*</span></Label>
+                <Select value={formSubject} onValueChange={setFormSubject}>
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>
+                    {subjectOptions.map(s => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Language <span className="text-destructive">*</span></Label>
