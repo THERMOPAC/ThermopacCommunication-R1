@@ -5506,8 +5506,9 @@ export type InsertBankRealizationCertificate = z.infer<typeof insertBankRealizat
 export const advanceTaxCalculations = pgTable('advance_tax_calculations', {
   id: serial('id').primaryKey(),
   
-  // User and financial year tracking
+  // User, company, and financial year tracking
   userId: integer('user_id').notNull().references(() => users.id),
+  companyName: text('company_name').notNull().default('TPEL'), // TPEL or TPBL
   financialYear: text('financial_year').notNull(), // Format: "2025-26", "2026-27"
   
   // Tax calculation inputs

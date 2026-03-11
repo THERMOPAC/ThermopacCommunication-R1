@@ -27,6 +27,7 @@ router.get('/api/advance-tax/calculations', ensureAuthenticated, async (req, res
     const calculations = await db
       .select({
         id: advanceTaxCalculations.id,
+        companyName: advanceTaxCalculations.companyName,
         financialYear: advanceTaxCalculations.financialYear,
         annualTaxableIncome: advanceTaxCalculations.annualTaxableIncome,
         taxRate: advanceTaxCalculations.taxRate,
@@ -86,6 +87,7 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
   try {
     const userId = req.user!.id;
     const {
+      companyName = 'TPEL',
       financialYear,
       annualTaxableIncome,
       taxRate,
@@ -114,11 +116,14 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
     const cessAmount = taxPlusSurcharge * cess;
     const totalTaxLiability = taxPlusSurcharge + cessAmount;
 
-    // Check if calculation already exists for this financial year (company-wide)
+    // Check if calculation already exists for this financial year + company
     const [existingCalculation] = await db
       .select()
       .from(advanceTaxCalculations)
-      .where(eq(advanceTaxCalculations.financialYear, financialYear));
+      .where(and(
+        eq(advanceTaxCalculations.financialYear, financialYear),
+        eq(advanceTaxCalculations.companyName, companyName)
+      ));
 
     let calculation;
 
@@ -127,6 +132,7 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
       [calculation] = await db
         .update(advanceTaxCalculations)
         .set({
+          companyName,
           annualTaxableIncome: annualTaxableIncome.toString(),
           taxRate: taxRate.toString(),
           surchargeRate: surchargeRate.toString(),
@@ -154,6 +160,7 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
         .insert(advanceTaxCalculations)
         .values({
           userId,
+          companyName,
           financialYear,
           annualTaxableIncome: annualTaxableIncome.toString(),
           taxRate: taxRate.toString(),

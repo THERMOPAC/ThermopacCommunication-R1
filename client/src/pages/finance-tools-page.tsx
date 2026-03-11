@@ -3452,6 +3452,7 @@ function ROICalculator() {
 
 // Tax Calculator Component (Advance Tax Calculator for Corporate Taxpayers in India)
 function TaxCalculator() {
+  const [selectedCompany, setSelectedCompany] = useState("TPEL");
   const [annualIncome, setAnnualIncome] = useState("");
   const [taxRate, setTaxRate] = useState("30"); // Default 30% for companies
   const [surchargeRate, setSurchargeRate] = useState("10");
@@ -3675,10 +3676,11 @@ function TaxCalculator() {
     setPaidSeptember(calculation.paidSeptember || "");
     setPaidDecember(calculation.paidDecember || "");
     setPaidMarch(calculation.paidMarch || "");
-    setTdsQ1(calculation.tdsQ1 || calculation.tdsCredit || "");
+    setTdsQ1(calculation.tdsQ1 || "");
     setTdsQ2(calculation.tdsQ2 || "");
     setTdsQ3(calculation.tdsQ3 || "");
     setTdsQ4(calculation.tdsQ4 || "");
+    setSelectedCompany(calculation.companyName || "TPEL");
     setSelectedFinancialYear(calculation.financialYear);
     setNotes(calculation.notes || "");
     setLoadDialogOpen(false); // Close the dialog after loading
@@ -3701,6 +3703,7 @@ function TaxCalculator() {
     }
 
     const calculationData = {
+      companyName: selectedCompany,
       financialYear: selectedFinancialYear,
       annualTaxableIncome: parseFloat(annualIncome),
       taxRate: parseFloat(taxRate),
@@ -3743,9 +3746,10 @@ function TaxCalculator() {
     
     // Create a simple text-based export (can be enhanced with a PDF library)
     const content = `
-ADVANCE TAX CALCULATOR - CORPORATE TAXPAYERS (INDIA)
+ADVANCE TAX CALCULATOR - ${selectedCompany} - CORPORATE TAXPAYERS (INDIA)
 ===================================================
 
+Company: ${selectedCompany}
 Annual Income: ₹${parseFloat(annualIncome).toLocaleString()}
 Tax Rate: ${taxRate}%
 Surcharge Rate: ${surchargeRate}%
@@ -3769,7 +3773,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'advance-tax-calculation.txt';
+    a.download = `advance-tax-${selectedCompany}-${selectedFinancialYear || 'calculation'}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -3823,7 +3827,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                               onClick={() => loadCalculation(calc)}
                             >
                               <div>
-                                <p className="font-medium">FY {calc.financialYear}</p>
+                                <p className="font-medium">{calc.companyName || 'TPEL'} - FY {calc.financialYear}</p>
                                 <p className="text-sm text-muted-foreground">
                                   Income: ₹{parseFloat(calc.annualTaxableIncome).toLocaleString()}
                                 </p>
@@ -3843,7 +3847,19 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                 </Dialog>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="company" className="text-xs">Company</Label>
+                <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TPEL">TPEL</SelectItem>
+                    <SelectItem value="TPBL">TPBL</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label htmlFor="financialYear" className="text-xs">Financial Year</Label>
                 <Select value={selectedFinancialYear} onValueChange={setSelectedFinancialYear}>
@@ -3979,7 +3995,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
           {result && (
             <Card>
               <CardHeader>
-                <CardTitle>Tax Calculation Results</CardTitle>
+                <CardTitle>Tax Calculation Results - {selectedCompany}</CardTitle>
                 <div className="flex gap-2">
                   <Button onClick={exportToPDF} variant="outline" size="sm">
                     Export to File
