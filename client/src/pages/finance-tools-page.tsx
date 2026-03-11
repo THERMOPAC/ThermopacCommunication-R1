@@ -3638,7 +3638,18 @@ function TaxCalculator() {
       interest234B = Math.round(deficientAmount234B * 0.01 * interest234BMonths);
     }
 
-    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, assessmentYearStart: assessmentYearStart.toISOString() });
+    let interestOnBalance = 0;
+    let interestOnBalanceMonths = 0;
+    if (remainingBalance > 0 && !is234BApplicable) {
+      const marchDue = new Date(fyStartYear + 1, 2, 15);
+      if (paymentDate > marchDue) {
+        interestOnBalanceMonths = getMonthsDiff(marchDue, paymentDate);
+        if (interestOnBalanceMonths < 1) interestOnBalanceMonths = 1;
+        interestOnBalance = Math.round(remainingBalance * 0.01 * interestOnBalanceMonths);
+      }
+    }
+
+    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, interestOnBalance, interestOnBalanceMonths, assessmentYearStart: assessmentYearStart.toISOString() });
   };
 
   // Helper function to load a saved calculation
@@ -4055,18 +4066,29 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                           <p className="text-red-700 font-bold mt-1">Interest u/s 234B: ₹{result.deficientAmount234B.toLocaleString()} x 1% x {result.interest234BMonths} = ₹{result.interest234B.toLocaleString()}</p>
                         </>
                       ) : (
-                        <p className="text-green-700 font-semibold mt-1">Advance tax paid is 90% or more of assessed tax - No 234B interest applicable</p>
+                        <>
+                          <p className="text-green-700 font-semibold mt-1">Advance tax paid is 90% or more of assessed tax - No 234B interest applicable</p>
+                          {result.remainingBalance > 0 && result.interestOnBalance > 0 && (
+                            <div className="mt-2 pt-2 border-t border-orange-200">
+                              <p className="text-orange-800 font-semibold">Interest on Balance Tax (Self-Assessment Tax)</p>
+                              <p className="text-orange-700 mt-1">Balance remaining: <span className="font-semibold">₹{result.remainingBalance.toLocaleString()}</span></p>
+                              <p className="text-orange-700">Interest period: March 15 to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} = <span className="font-semibold">{result.interestOnBalanceMonths} month(s)</span></p>
+                              <p className="text-red-700 font-bold mt-1">Interest on balance: ₹{result.remainingBalance.toLocaleString()} x 1% x {result.interestOnBalanceMonths} = ₹{result.interestOnBalance.toLocaleString()}</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
 
-                  {(result.totalInterest234C > 0 || result.interest234B > 0) && (
+                  {(result.totalInterest234C > 0 || result.interest234B > 0 || result.interestOnBalance > 0) && (
                     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
                       <p className="font-semibold text-red-800 text-sm">Total Interest Summary</p>
                       <div className="mt-2 text-xs space-y-1">
                         {result.totalInterest234C > 0 && <p className="text-red-700">Interest u/s 234C (deferment): <span className="font-semibold">₹{result.totalInterest234C.toLocaleString()}</span></p>}
                         {result.interest234B > 0 && <p className="text-red-700">Interest u/s 234B (default on balance): <span className="font-semibold">₹{result.interest234B.toLocaleString()}</span></p>}
-                        <p className="text-red-800 font-bold border-t border-red-300 pt-1 mt-1">Total Interest Payable: ₹{(result.totalInterest234C + (result.interest234B || 0)).toLocaleString()}</p>
+                        {result.interestOnBalance > 0 && <p className="text-red-700">Interest on balance tax (self-assessment): <span className="font-semibold">₹{result.interestOnBalance.toLocaleString()}</span></p>}
+                        <p className="text-red-800 font-bold border-t border-red-300 pt-1 mt-1">Total Interest Payable: ₹{(result.totalInterest234C + (result.interest234B || 0) + (result.interestOnBalance || 0)).toLocaleString()}</p>
                       </div>
                     </div>
                   )}
