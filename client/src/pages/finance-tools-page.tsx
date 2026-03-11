@@ -4942,7 +4942,7 @@ export default function FinanceToolsPage() {
                         Open Calculator
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Advance Tax Calculator - Corporate Taxpayers (India)</DialogTitle>
                         <DialogDescription>
