@@ -3461,10 +3461,12 @@ function TaxCalculator() {
   const [paidDecember, setPaidDecember] = useState("");
   const [paidMarch, setPaidMarch] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
+  const [finalPaymentDate, setFinalPaymentDate] = useState("");
   const [notes, setNotes] = useState("");
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [result, setResult] = useState<{
     totalTax: number;
+    totalInterest234C: number;
     instalments: Array<{
       dueDate: string;
       percentageDue: number;
@@ -3472,6 +3474,9 @@ function TaxCalculator() {
       paid: number;
       balance: number;
       interestApplicable: boolean;
+      shortfall: number;
+      delayMonths: number;
+      interest234C: number;
     }>;
   } | null>(null);
 
@@ -3530,6 +3535,14 @@ function TaxCalculator() {
     }
   }, [financialYearsData, selectedFinancialYear]);
 
+  const getMonthsDiff = (fromDate: Date, toDate: Date): number => {
+    if (toDate <= fromDate) return 0;
+    let months = (toDate.getFullYear() - fromDate.getFullYear()) * 12 + (toDate.getMonth() - fromDate.getMonth());
+    if (toDate.getDate() > fromDate.getDate()) months += 1;
+    else if (toDate.getDate() === fromDate.getDate()) months += 0;
+    return Math.max(0, months);
+  };
+
   const calculateTax = () => {
     const income = parseFloat(annualIncome);
     const baseTaxRate = parseFloat(taxRate) / 100;
@@ -3540,60 +3553,71 @@ function TaxCalculator() {
       return;
     }
 
-    // Calculate base tax
     const baseTax = income * baseTaxRate;
-    
-    // Calculate surcharge on base tax
     const surchargeAmount = baseTax * surcharge;
-    
-    // Calculate tax + surcharge
     const taxPlusSurcharge = baseTax + surchargeAmount;
-    
-    // Calculate cess on (tax + surcharge)
     const cessAmount = taxPlusSurcharge * cess;
-    
-    // Total tax liability
     const totalTax = taxPlusSurcharge + cessAmount;
 
-    // Advance tax instalment percentages and due dates
+    const fyParts = selectedFinancialYear ? selectedFinancialYear.split('-') : [];
+    const fyStartYear = fyParts.length === 2 ? parseInt('20' + fyParts[0]) : new Date().getFullYear();
+
     const instalmentSchedule = [
-      { dueDate: "15 June", percentage: 15, paid: parseFloat(paidJune) || 0 },
-      { dueDate: "15 September", percentage: 45, paid: parseFloat(paidSeptember) || 0 },
-      { dueDate: "15 December", percentage: 75, paid: parseFloat(paidDecember) || 0 },
-      { dueDate: "15 March", percentage: 100, paid: parseFloat(paidMarch) || 0 }
+      { dueDate: "15 June", percentage: 15, paid: parseFloat(paidJune) || 0, dueDateObj: new Date(fyStartYear, 5, 15) },
+      { dueDate: "15 September", percentage: 45, paid: parseFloat(paidSeptember) || 0, dueDateObj: new Date(fyStartYear, 8, 15) },
+      { dueDate: "15 December", percentage: 75, paid: parseFloat(paidDecember) || 0, dueDateObj: new Date(fyStartYear, 11, 15) },
+      { dueDate: "15 March", percentage: 100, paid: parseFloat(paidMarch) || 0, dueDateObj: new Date(fyStartYear + 1, 2, 15) }
     ];
 
-    // Calculate cumulative balances
+    const paymentDate = finalPaymentDate ? new Date(finalPaymentDate) : null;
+
     let cumulativePaid = 0;
+    let totalInterest234C = 0;
+
     const instalments = instalmentSchedule.map((instalment, index) => {
-      const taxDue = (totalTax * instalment.percentage) / 100;
-      cumulativePaid += instalment.paid;
       const cumulativeTaxDue = (totalTax * instalment.percentage) / 100;
+      cumulativePaid += instalment.paid;
       const balance = cumulativeTaxDue - cumulativePaid;
-      
-      // Interest under Section 234C is applicable if:
-      // 1. June instalment: Less than 15% paid by due date
-      // 2. September instalment: Less than 45% paid by due date (cumulative)
+      const shortfall = Math.max(0, balance);
+
       let interestApplicable = false;
-      
-      if (index === 0) { // June
+      if (index === 0) {
         interestApplicable = instalment.paid < (totalTax * 0.15);
-      } else if (index === 1) { // September
-        const totalPaidTillSeptember = (parseFloat(paidJune) || 0) + instalment.paid;
-        interestApplicable = totalPaidTillSeptember < (totalTax * 0.45);
+      } else if (index === 1) {
+        const totalPaidTillSep = (parseFloat(paidJune) || 0) + instalment.paid;
+        interestApplicable = totalPaidTillSep < (totalTax * 0.45);
+      } else if (index === 2) {
+        const totalPaidTillDec = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + instalment.paid;
+        interestApplicable = totalPaidTillDec < (totalTax * 0.75);
+      } else if (index === 3) {
+        const totalPaidTillMar = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + instalment.paid;
+        interestApplicable = totalPaidTillMar < totalTax;
+      }
+
+      let delayMonths = 0;
+      let interest234C = 0;
+
+      if (interestApplicable && shortfall > 0 && paymentDate) {
+        delayMonths = getMonthsDiff(instalment.dueDateObj, paymentDate);
+        if (delayMonths < 1 && paymentDate > instalment.dueDateObj) delayMonths = 1;
+        interest234C = Math.round(shortfall * 0.01 * delayMonths);
+        totalInterest234C += interest234C;
       }
 
       return {
         dueDate: instalment.dueDate,
         percentageDue: instalment.percentage,
-        taxDue,
+        taxDue: cumulativeTaxDue,
         paid: instalment.paid,
         balance,
-        interestApplicable
+        interestApplicable,
+        shortfall,
+        delayMonths,
+        interest234C,
       };
     });
 
-    setResult({ totalTax, instalments });
+    setResult({ totalTax, totalInterest234C, instalments });
   };
 
   // Helper function to load a saved calculation
@@ -3652,6 +3676,7 @@ function TaxCalculator() {
     setPaidSeptember("");
     setPaidDecember("");
     setPaidMarch("");
+    setFinalPaymentDate("");
     setNotes("");
     setResult(null);
   };
@@ -3669,15 +3694,17 @@ Tax Rate: ${taxRate}%
 Surcharge Rate: ${surchargeRate}%
 Health & Education Cess: ${cessRate}%
 Total Tax Liability: ₹${result.totalTax.toLocaleString()}
+${finalPaymentDate ? `Final Payment Date: ${new Date(finalPaymentDate).toLocaleDateString('en-GB')}` : ''}
 
 INSTALMENT SCHEDULE:
 -------------------
-Due Date       % Due    Tax Due         Paid           Balance        Interest Risk
+Due Date       % Due    Tax Due         Paid           Shortfall      Delay     Interest u/s 234C
 ${result.instalments.map(inst => 
-  `${inst.dueDate.padEnd(12)} ${inst.percentageDue.toString().padEnd(8)} ₹${Math.round(inst.taxDue).toLocaleString().padEnd(12)} ₹${Math.round(inst.paid).toLocaleString().padEnd(12)} ₹${Math.round(inst.balance).toLocaleString().padEnd(12)} ${inst.interestApplicable ? 'Yes' : 'No'}`
+  `${inst.dueDate.padEnd(14)} ${inst.percentageDue.toString().padEnd(8)} ₹${Math.round(inst.taxDue).toLocaleString().padEnd(14)} ₹${Math.round(inst.paid).toLocaleString().padEnd(14)} ₹${Math.round(inst.shortfall).toLocaleString().padEnd(14)} ${inst.delayMonths > 0 ? inst.delayMonths + ' mo' : '-'.padEnd(9)} ${inst.interest234C > 0 ? '₹' + inst.interest234C.toLocaleString() : '-'}`
 ).join('\n')}
+${result.totalInterest234C > 0 ? `\nTotal Interest Payable u/s 234C: ₹${result.totalInterest234C.toLocaleString()}` : ''}
 
-Note: Interest under Section 234C may apply if advance tax payments are insufficient.
+Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalment due date.
     `.trim();
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -3877,6 +3904,18 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
           </div>
 
           <div>
+            <Label htmlFor="finalPaymentDate" className="text-sm font-semibold">Final Payment Date (for Interest Calculation)</Label>
+            <Input
+              id="finalPaymentDate"
+              type="date"
+              value={finalPaymentDate}
+              onChange={(e) => setFinalPaymentDate(e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Interest u/s 234C will be calculated from each instalment due date to this date</p>
+          </div>
+
+          <div>
             <Label htmlFor="notes">Notes (Optional)</Label>
             <Input
               id="notes"
@@ -3937,41 +3976,61 @@ Note: Interest under Section 234C may apply if advance tax payments are insuffic
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="border-b">
-                          <th className="text-left p-1">Due Date</th>
-                          <th className="text-right p-1">% Due</th>
-                          <th className="text-right p-1">Tax Due</th>
-                          <th className="text-right p-1">Paid</th>
-                          <th className="text-right p-1">Balance</th>
-                          <th className="text-center p-1">Interest Risk</th>
+                        <tr className="border-b bg-gray-50">
+                          <th className="text-left p-1.5">Due Date</th>
+                          <th className="text-right p-1.5">% Due</th>
+                          <th className="text-right p-1.5">Tax Due</th>
+                          <th className="text-right p-1.5">Paid</th>
+                          <th className="text-right p-1.5">Shortfall</th>
+                          <th className="text-center p-1.5">Delay</th>
+                          <th className="text-right p-1.5">Interest u/s 234C</th>
                         </tr>
                       </thead>
                       <tbody>
                         {result.instalments.map((instalment, index) => (
                           <tr key={index} className="border-b">
-                            <td className="p-1">{instalment.dueDate}</td>
-                            <td className="text-right p-1">{instalment.percentageDue}%</td>
-                            <td className="text-right p-1">₹{Math.round(instalment.taxDue).toLocaleString()}</td>
-                            <td className="text-right p-1">₹{Math.round(instalment.paid).toLocaleString()}</td>
-                            <td className={`text-right p-1 font-semibold ${instalment.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              ₹{Math.round(instalment.balance).toLocaleString()}
+                            <td className="p-1.5">{instalment.dueDate}</td>
+                            <td className="text-right p-1.5">{instalment.percentageDue}%</td>
+                            <td className="text-right p-1.5">₹{Math.round(instalment.taxDue).toLocaleString()}</td>
+                            <td className="text-right p-1.5">₹{Math.round(instalment.paid).toLocaleString()}</td>
+                            <td className={`text-right p-1.5 font-semibold ${instalment.shortfall > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              ₹{Math.round(instalment.shortfall).toLocaleString()}
                             </td>
-                            <td className="text-center p-1">
-                              {instalment.interestApplicable ? (
-                                <span className="text-red-600 font-semibold">Yes</span>
+                            <td className="text-center p-1.5">
+                              {instalment.delayMonths > 0 ? (
+                                <span className="text-orange-600">{instalment.delayMonths} mo</span>
                               ) : (
-                                <span className="text-green-600">No</span>
+                                <span className="text-green-600">-</span>
                               )}
+                            </td>
+                            <td className={`text-right p-1.5 font-semibold ${instalment.interest234C > 0 ? 'text-red-600' : ''}`}>
+                              {instalment.interest234C > 0 ? `₹${instalment.interest234C.toLocaleString()}` : '-'}
                             </td>
                           </tr>
                         ))}
                       </tbody>
+                      {result.totalInterest234C > 0 && (
+                        <tfoot>
+                          <tr className="border-t-2 bg-red-50">
+                            <td colSpan={6} className="p-1.5 font-bold text-right text-red-700">Total Interest Payable u/s 234C:</td>
+                            <td className="text-right p-1.5 font-bold text-red-700">₹{result.totalInterest234C.toLocaleString()}</td>
+                          </tr>
+                        </tfoot>
+                      )}
                     </table>
                   </div>
                   
+                  {result.totalInterest234C > 0 && finalPaymentDate && (
+                    <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                      <p className="font-semibold text-amber-800">Interest Calculation Summary (as of {new Date(finalPaymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})</p>
+                      <p className="text-amber-700 mt-1">Interest @ 1% per month on shortfall amount from each instalment due date to {new Date(finalPaymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  
                   <div className="mt-3 text-xs text-muted-foreground">
-                    <p>• Interest under Section 234C may apply for insufficient advance tax payments</p>
-                    <p>• Minimum 15% due by June 15, 45% cumulative by September 15</p>
+                    <p>* Interest u/s 234C: 1% per month (simple) on shortfall from due date to final payment date</p>
+                    <p>* Minimum 15% due by June 15, 45% by Sep 15, 75% by Dec 15, 100% by Mar 15</p>
+                    {!finalPaymentDate && <p className="text-orange-600 mt-1">* Set a Final Payment Date to calculate actual interest payable</p>}
                   </div>
                 </div>
               </CardContent>
