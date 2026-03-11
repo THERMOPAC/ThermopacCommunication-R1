@@ -5528,6 +5528,12 @@ export const advanceTaxCalculations = pgTable('advance_tax_calculations', {
   paidDecember: decimal('paid_december', { precision: 15, scale: 2 }).default('0').notNull(),
   paidMarch: decimal('paid_march', { precision: 15, scale: 2 }).default('0').notNull(),
   
+  // TDS credit per quarter
+  tdsQ1: decimal('tds_q1', { precision: 15, scale: 2 }).default('0').notNull(),
+  tdsQ2: decimal('tds_q2', { precision: 15, scale: 2 }).default('0').notNull(),
+  tdsQ3: decimal('tds_q3', { precision: 15, scale: 2 }).default('0').notNull(),
+  tdsQ4: decimal('tds_q4', { precision: 15, scale: 2 }).default('0').notNull(),
+  
   // Calculation status and notes
   status: text('status').notNull().default('active'), // active, completed, archived
   notes: text('notes'),

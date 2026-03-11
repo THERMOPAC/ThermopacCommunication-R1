@@ -40,6 +40,10 @@ router.get('/api/advance-tax/calculations', ensureAuthenticated, async (req, res
         paidSeptember: advanceTaxCalculations.paidSeptember,
         paidDecember: advanceTaxCalculations.paidDecember,
         paidMarch: advanceTaxCalculations.paidMarch,
+        tdsQ1: advanceTaxCalculations.tdsQ1,
+        tdsQ2: advanceTaxCalculations.tdsQ2,
+        tdsQ3: advanceTaxCalculations.tdsQ3,
+        tdsQ4: advanceTaxCalculations.tdsQ4,
         status: advanceTaxCalculations.status,
         notes: advanceTaxCalculations.notes,
         createdAt: advanceTaxCalculations.createdAt,
@@ -91,6 +95,10 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
       paidSeptember = 0,
       paidDecember = 0,
       paidMarch = 0,
+      tdsQ1 = 0,
+      tdsQ2 = 0,
+      tdsQ3 = 0,
+      tdsQ4 = 0,
       notes
     } = req.body;
 
@@ -131,6 +139,10 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
           paidSeptember: paidSeptember.toString(),
           paidDecember: paidDecember.toString(),
           paidMarch: paidMarch.toString(),
+          tdsQ1: tdsQ1.toString(),
+          tdsQ2: tdsQ2.toString(),
+          tdsQ3: tdsQ3.toString(),
+          tdsQ4: tdsQ4.toString(),
           notes,
           updatedAt: new Date(),
         })
@@ -155,6 +167,10 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
           paidSeptember: paidSeptember.toString(),
           paidDecember: paidDecember.toString(),
           paidMarch: paidMarch.toString(),
+          tdsQ1: tdsQ1.toString(),
+          tdsQ2: tdsQ2.toString(),
+          tdsQ3: tdsQ3.toString(),
+          tdsQ4: tdsQ4.toString(),
           notes,
           status: 'active',
         })
@@ -173,7 +189,7 @@ router.patch('/api/advance-tax/calculations/:id/payments', ensureAuthenticated, 
   try {
     const userId = req.user!.id;
     const calculationId = parseInt(req.params.id);
-    const { paidJune, paidSeptember, paidDecember, paidMarch } = req.body;
+    const { paidJune, paidSeptember, paidDecember, paidMarch, tdsQ1, tdsQ2, tdsQ3, tdsQ4 } = req.body;
 
     // Verify ownership
     const [calculation] = await db
@@ -196,6 +212,10 @@ router.patch('/api/advance-tax/calculations/:id/payments', ensureAuthenticated, 
         paidSeptember: paidSeptember?.toString() || calculation.paidSeptember,
         paidDecember: paidDecember?.toString() || calculation.paidDecember,
         paidMarch: paidMarch?.toString() || calculation.paidMarch,
+        tdsQ1: tdsQ1?.toString() || calculation.tdsQ1,
+        tdsQ2: tdsQ2?.toString() || calculation.tdsQ2,
+        tdsQ3: tdsQ3?.toString() || calculation.tdsQ3,
+        tdsQ4: tdsQ4?.toString() || calculation.tdsQ4,
         lastPaymentDate: new Date(),
         updatedAt: new Date(),
       })
