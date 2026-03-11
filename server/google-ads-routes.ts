@@ -906,65 +906,95 @@ router.post('/ads/create', ensureAuthenticated, async (req: Request, res: Respon
 router.get('/diagnostic', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID || '';
-    const cleanCustomerId = customerId.replace(/-/g, '');
+    const customerId = '7811346120';
+    const loginCustomerId = '7421286903';
     const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
-    const diagnostics: any = { customerId: cleanCustomerId, devTokenLength: devToken.length, tests: [] };
+    const apiVersion = 'v23';
+
+    const diagnostics: any = {
+      apiVersion,
+      customerId,
+      loginCustomerId,
+      devTokenLength: devToken.length,
+      devTokenPresent: !!devToken,
+      tests: [],
+    };
 
     const { getValidAccessToken } = await import('./google-ads-auth');
     const accessToken = await getValidAccessToken(userId);
     diagnostics.hasToken = !!accessToken;
     diagnostics.tokenPreview = accessToken ? accessToken.substring(0, 20) + '...' : 'none';
 
-    for (const version of ['v19', 'v18', 'v17']) {
-      for (const endpoint of ['search', 'searchStream']) {
-        try {
-          const testUrl = `https://googleads.googleapis.com/${version}/customers/${cleanCustomerId}/googleAds:${endpoint}`;
-          const headers: Record<string, string> = {
-            'Authorization': `Bearer ${accessToken}`,
-            'developer-token': devToken,
-            'Content-Type': 'application/json',
-          };
-          const loginCustomerId = process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID;
-          if (loginCustomerId) {
-            headers['login-customer-id'] = loginCustomerId.replace(/-/g, '');
-          }
-          const resp = await fetch(testUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ query: 'SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1' }),
-          });
-          const body = await resp.text();
-          diagnostics.tests.push({
-            version,
-            endpoint,
-            status: resp.status,
-            ok: resp.ok,
-            body: body.substring(0, 800),
-          });
-          if (resp.ok) break;
-        } catch (err: any) {
-          diagnostics.tests.push({ version, endpoint, error: err.message });
-        }
+    // Check if token includes adwords scope
+    diagnostics.oauthScopeNote = 'Token should include https://www.googleapis.com/auth/adwords scope';
+
+    // Test 1 & 2: search and searchStream with customer_id and login-customer-id
+    for (const endpoint of ['search', 'searchStream']) {
+      try {
+        const testUrl = `https://googleads.googleapis.com/${apiVersion}/customers/${customerId}/googleAds:${endpoint}`;
+        const headers: Record<string, string> = {
+          'Authorization': `Bearer ${accessToken}`,
+          'developer-token': devToken,
+          'login-customer-id': loginCustomerId,
+          'Content-Type': 'application/json',
+        };
+        const logHeaders = { ...headers };
+        logHeaders['Authorization'] = 'Bearer [REDACTED]';
+        logHeaders['developer-token'] = `[${devToken.length} chars]`;
+
+        const resp = await fetch(testUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ query: 'SELECT customer.id, customer.descriptive_name FROM customer LIMIT 1' }),
+        });
+        const body = await resp.text();
+        const requestId = resp.headers.get('request-id') || null;
+
+        diagnostics.tests.push({
+          endpoint,
+          url: testUrl,
+          method: 'POST',
+          headersSent: logHeaders,
+          status: resp.status,
+          ok: resp.ok,
+          requestId,
+          body: body.substring(0, 1000),
+        });
+      } catch (err: any) {
+        diagnostics.tests.push({ endpoint, error: err.message });
       }
     }
 
-    for (const version of ['v19', 'v18', 'v17']) {
-      try {
-        const listUrl = `https://googleads.googleapis.com/${version}/customers:listAccessibleCustomers`;
-        const resp = await fetch(listUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'developer-token': devToken,
-          },
-        });
-        const body = await resp.text();
-        diagnostics[`listAccessible_${version}`] = { status: resp.status, body: body.substring(0, 500) };
-        if (resp.ok) break;
-      } catch (err: any) {
-        diagnostics[`listAccessible_${version}`] = { error: err.message };
-      }
+    // Test 3: listAccessibleCustomers — NO customer_id, NO login-customer-id
+    try {
+      const listUrl = `https://googleads.googleapis.com/${apiVersion}/customers:listAccessibleCustomers`;
+      const listHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${accessToken}`,
+        'developer-token': devToken,
+      };
+      const logListHeaders = { ...listHeaders };
+      logListHeaders['Authorization'] = 'Bearer [REDACTED]';
+      logListHeaders['developer-token'] = `[${devToken.length} chars]`;
+
+      const resp = await fetch(listUrl, {
+        method: 'GET',
+        headers: listHeaders,
+      });
+      const body = await resp.text();
+      const requestId = resp.headers.get('request-id') || null;
+
+      diagnostics.listAccessibleCustomers = {
+        url: listUrl,
+        method: 'GET',
+        headersSent: logListHeaders,
+        note: 'No customer_id or login-customer-id sent',
+        status: resp.status,
+        ok: resp.ok,
+        requestId,
+        body: body.substring(0, 1000),
+      };
+    } catch (err: any) {
+      diagnostics.listAccessibleCustomers = { error: err.message };
     }
 
     res.json(diagnostics);
