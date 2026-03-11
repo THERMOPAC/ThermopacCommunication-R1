@@ -3578,6 +3578,13 @@ function TaxCalculator() {
     let cumulativePaid = 0;
     let totalInterest234C = 0;
 
+    const nextDueDates = [
+      new Date(fyStartYear, 8, 15),
+      new Date(fyStartYear, 11, 15),
+      new Date(fyStartYear + 1, 2, 15),
+      null,
+    ];
+
     const instalments = instalmentSchedule.map((instalment, index) => {
       const cumulativeTaxDue = (totalTax * instalment.percentage) / 100;
       cumulativePaid += instalment.paid;
@@ -3589,10 +3596,14 @@ function TaxCalculator() {
       let delayMonths = 0;
       let interest234C = 0;
 
-      if (shortfall > 0 && paymentDate > instalment.dueDateObj) {
-        delayMonths = getMonthsDiff(instalment.dueDateObj, paymentDate);
-        if (delayMonths < 1) delayMonths = 1;
-        interest234C = Math.round(shortfall * 0.01 * delayMonths);
+      if (shortfall > 0) {
+        if (index < 3) {
+          delayMonths = 3;
+          interest234C = Math.round(shortfall * 0.01 * 3);
+        } else {
+          delayMonths = 1;
+          interest234C = Math.round(shortfall * 0.01 * 1);
+        }
         totalInterest234C += interest234C;
       }
 
@@ -3609,7 +3620,18 @@ function TaxCalculator() {
       };
     });
 
-    setResult({ totalTax, totalInterest234C, instalments });
+    const totalPaidAll = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + (parseFloat(paidMarch) || 0);
+    const remainingBalance = Math.max(0, totalTax - totalPaidAll);
+    let interest234B = 0;
+    let interest234BMonths = 0;
+    const assessmentYearStart = new Date(fyStartYear + 1, 3, 1);
+    if (remainingBalance > 0 && paymentDate > assessmentYearStart) {
+      interest234BMonths = getMonthsDiff(assessmentYearStart, paymentDate);
+      if (interest234BMonths < 1) interest234BMonths = 1;
+      interest234B = Math.round(remainingBalance * 0.01 * interest234BMonths);
+    }
+
+    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, interest234B, interest234BMonths, assessmentYearStart: assessmentYearStart.toISOString() });
   };
 
   // Helper function to load a saved calculation
@@ -3896,7 +3918,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
           </div>
 
           <div>
-            <Label htmlFor="finalPaymentDate" className="text-sm font-semibold">Final Payment Date (for Interest Calculation)</Label>
+            <Label htmlFor="finalPaymentDate" className="text-sm font-semibold">Final Payment Date (for Balance Tax / 234B Interest)</Label>
             <Input
               id="finalPaymentDate"
               type="date"
@@ -3974,7 +3996,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                           <th className="text-right p-1.5">Tax Due</th>
                           <th className="text-right p-1.5">Paid</th>
                           <th className="text-right p-1.5">Shortfall</th>
-                          <th className="text-center p-1.5">Delay</th>
+                          <th className="text-center p-1.5">Months</th>
                           <th className="text-right p-1.5">Interest u/s 234C</th>
                         </tr>
                       </thead>
@@ -4012,17 +4034,40 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                     </table>
                   </div>
                   
-                  {result.totalInterest234C > 0 && (
-                    <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
-                      <p className="font-semibold text-amber-800">Interest Calculation Summary (as of {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})</p>
-                      <p className="text-amber-700 mt-1">Interest @ 1% per month on shortfall amount from each instalment due date to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  {result.remainingBalance > 0 && (
+                    <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
+                      <p className="font-semibold text-orange-800 text-sm">Interest u/s 234B (Default on Balance Tax)</p>
+                      <div className="mt-2 text-xs space-y-1">
+                        <p className="text-orange-700">Balance tax remaining after advance tax: <span className="font-semibold">₹{result.remainingBalance.toLocaleString()}</span></p>
+                        <p className="text-orange-700">Assessment year starts: <span className="font-semibold">{new Date(result.assessmentYearStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></p>
+                        <p className="text-orange-700">Final payment date: <span className="font-semibold">{(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></p>
+                        {result.interest234B > 0 ? (
+                          <>
+                            <p className="text-orange-700">Delay: <span className="font-semibold">{result.interest234BMonths} month(s)</span> from Apr 1 to final payment date</p>
+                            <p className="text-red-700 font-bold mt-1">Interest u/s 234B: ₹{result.interest234B.toLocaleString()}</p>
+                          </>
+                        ) : (
+                          <p className="text-green-700 font-semibold">No 234B interest - payment made before assessment year starts</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {(result.totalInterest234C > 0 || result.interest234B > 0) && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
+                      <p className="font-semibold text-red-800 text-sm">Total Interest Summary</p>
+                      <div className="mt-2 text-xs space-y-1">
+                        {result.totalInterest234C > 0 && <p className="text-red-700">Interest u/s 234C (deferment): <span className="font-semibold">₹{result.totalInterest234C.toLocaleString()}</span></p>}
+                        {result.interest234B > 0 && <p className="text-red-700">Interest u/s 234B (default on balance): <span className="font-semibold">₹{result.interest234B.toLocaleString()}</span></p>}
+                        <p className="text-red-800 font-bold border-t border-red-300 pt-1 mt-1">Total Interest Payable: ₹{(result.totalInterest234C + (result.interest234B || 0)).toLocaleString()}</p>
+                      </div>
                     </div>
                   )}
                   
                   <div className="mt-3 text-xs text-muted-foreground">
-                    <p>* Interest u/s 234C: 1% per month (simple) on shortfall from due date to final payment date</p>
+                    <p>* Interest u/s 234C: 1% per month (simple) on shortfall for each quarter (3 months for Q1-Q3, 1 month for Q4)</p>
+                    <p>* Interest u/s 234B: 1% per month on remaining balance tax from April 1 of assessment year to actual payment date</p>
                     <p>* Minimum 15% due by June 15, 45% by Sep 15, 75% by Dec 15, 100% by Mar 15</p>
-                    {!finalPaymentDate && <p className="text-blue-600 mt-1">* Using today's date for interest calculation. Set a specific Final Payment Date for a custom calculation.</p>}
                   </div>
                 </div>
               </CardContent>
