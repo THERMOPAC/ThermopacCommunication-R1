@@ -3460,6 +3460,7 @@ function TaxCalculator() {
   const [paidSeptember, setPaidSeptember] = useState("");
   const [paidDecember, setPaidDecember] = useState("");
   const [paidMarch, setPaidMarch] = useState("");
+  const [tdsCredit, setTdsCredit] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
   const [finalPaymentDate, setFinalPaymentDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -3620,7 +3621,9 @@ function TaxCalculator() {
       };
     });
 
-    const totalPaidAll = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + (parseFloat(paidMarch) || 0);
+    const totalAdvanceTaxPaid = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + (parseFloat(paidMarch) || 0);
+    const tdsCreditAmount = parseFloat(tdsCredit) || 0;
+    const totalPaidAll = totalAdvanceTaxPaid + tdsCreditAmount;
     const remainingBalance = Math.max(0, totalTax - totalPaidAll);
     const ninetyPercentThreshold = totalTax * 0.9;
     const is234BApplicable = totalPaidAll < ninetyPercentThreshold;
@@ -3649,7 +3652,7 @@ function TaxCalculator() {
       }
     }
 
-    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, interestOnBalance, interestOnBalanceMonths, assessmentYearStart: assessmentYearStart.toISOString() });
+    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, totalAdvanceTaxPaid, tdsCreditAmount, totalPaidAll, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, interestOnBalance, interestOnBalanceMonths, assessmentYearStart: assessmentYearStart.toISOString() });
   };
 
   // Helper function to load a saved calculation
@@ -3662,6 +3665,7 @@ function TaxCalculator() {
     setPaidSeptember(calculation.paidSeptember || "");
     setPaidDecember(calculation.paidDecember || "");
     setPaidMarch(calculation.paidMarch || "");
+    setTdsCredit(calculation.tdsCredit || "");
     setSelectedFinancialYear(calculation.financialYear);
     setNotes(calculation.notes || "");
     setLoadDialogOpen(false); // Close the dialog after loading
@@ -3693,6 +3697,7 @@ function TaxCalculator() {
       paidSeptember: parseFloat(paidSeptember) || 0,
       paidDecember: parseFloat(paidDecember) || 0,
       paidMarch: parseFloat(paidMarch) || 0,
+      tdsCredit: parseFloat(tdsCredit) || 0,
       notes: notes,
     };
 
@@ -3708,6 +3713,7 @@ function TaxCalculator() {
     setPaidSeptember("");
     setPaidDecember("");
     setPaidMarch("");
+    setTdsCredit("");
     setFinalPaymentDate("");
     setNotes("");
     setResult(null);
@@ -3726,6 +3732,7 @@ Tax Rate: ${taxRate}%
 Surcharge Rate: ${surchargeRate}%
 Health & Education Cess: ${cessRate}%
 Total Tax Liability: ₹${result.totalTax.toLocaleString()}
+${result.tdsCreditAmount > 0 ? `TDS Credit During the Year: ₹${result.tdsCreditAmount.toLocaleString()}` : ''}
 ${finalPaymentDate ? `Final Payment Date: ${new Date(finalPaymentDate).toLocaleDateString('en-GB')}` : ''}
 
 INSTALMENT SCHEDULE:
@@ -3936,6 +3943,19 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
           </div>
 
           <div>
+            <Label htmlFor="tdsCredit" className="text-sm font-semibold">TDS Credit During the Year</Label>
+            <Input
+              id="tdsCredit"
+              type="number"
+              placeholder="0.00"
+              value={tdsCredit}
+              onChange={(e) => setTdsCredit(e.target.value)}
+              className="mt-1 text-right"
+            />
+            <p className="text-xs text-muted-foreground mt-1">TDS deducted at source during the financial year (reduces balance tax liability)</p>
+          </div>
+
+          <div>
             <Label htmlFor="finalPaymentDate" className="text-sm font-semibold">Final Payment Date (for Balance Tax / 234B Interest)</Label>
             <Input
               id="finalPaymentDate"
@@ -4001,6 +4021,18 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                     <Label className="text-xs text-muted-foreground">Health & Education Cess</Label>
                     <p className="font-semibold">{cessRate}%</p>
                   </div>
+                  {result.tdsCreditAmount > 0 && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">TDS Credit</Label>
+                      <p className="font-semibold text-green-600">₹{result.tdsCreditAmount.toLocaleString()}</p>
+                    </div>
+                  )}
+                  {result.tdsCreditAmount > 0 && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Net Balance Tax</Label>
+                      <p className="font-bold text-orange-600">₹{result.remainingBalance.toLocaleString()}</p>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="border-t pt-4">
@@ -4057,7 +4089,11 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                     <div className="mt-2 text-xs space-y-1">
                       <p className="text-orange-700">Total assessed tax liability: <span className="font-semibold">₹{result.totalTax.toLocaleString()}</span></p>
                       <p className="text-orange-700">90% threshold: <span className="font-semibold">₹{Math.round(result.ninetyPercentThreshold).toLocaleString()}</span></p>
-                      <p className="text-orange-700">Total advance tax paid (by Mar 31): <span className="font-semibold">₹{(result.instalments.reduce((s: number, i: any) => s + i.paid, 0)).toLocaleString()}</span></p>
+                      <p className="text-orange-700">Total advance tax paid (by Mar 31): <span className="font-semibold">₹{result.totalAdvanceTaxPaid.toLocaleString()}</span></p>
+                      {result.tdsCreditAmount > 0 && (
+                        <p className="text-orange-700">TDS credit during the year: <span className="font-semibold">₹{result.tdsCreditAmount.toLocaleString()}</span></p>
+                      )}
+                      <p className="text-orange-700">Total tax paid/credited (advance tax + TDS): <span className="font-semibold">₹{result.totalPaidAll.toLocaleString()}</span></p>
                       {result.is234BApplicable ? (
                         <>
                           <p className="text-red-700 font-semibold mt-1">Advance tax paid is less than 90% of assessed tax - 234B applicable</p>
