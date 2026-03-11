@@ -3622,16 +3622,23 @@ function TaxCalculator() {
 
     const totalPaidAll = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + (parseFloat(paidMarch) || 0);
     const remainingBalance = Math.max(0, totalTax - totalPaidAll);
+    const ninetyPercentThreshold = totalTax * 0.9;
+    const is234BApplicable = totalPaidAll < ninetyPercentThreshold;
+    const deficientAmount234B = is234BApplicable ? Math.max(0, totalTax - totalPaidAll) : 0;
     let interest234B = 0;
     let interest234BMonths = 0;
     const assessmentYearStart = new Date(fyStartYear + 1, 3, 1);
-    if (remainingBalance > 0 && paymentDate > assessmentYearStart) {
-      interest234BMonths = getMonthsDiff(assessmentYearStart, paymentDate);
-      if (interest234BMonths < 1) interest234BMonths = 1;
-      interest234B = Math.round(remainingBalance * 0.01 * interest234BMonths);
+    if (is234BApplicable && deficientAmount234B > 0) {
+      if (paymentDate > assessmentYearStart) {
+        interest234BMonths = getMonthsDiff(assessmentYearStart, paymentDate);
+        if (interest234BMonths < 1) interest234BMonths = 1;
+      } else {
+        interest234BMonths = 1;
+      }
+      interest234B = Math.round(deficientAmount234B * 0.01 * interest234BMonths);
     }
 
-    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, interest234B, interest234BMonths, assessmentYearStart: assessmentYearStart.toISOString() });
+    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, assessmentYearStart: assessmentYearStart.toISOString() });
   };
 
   // Helper function to load a saved calculation
@@ -4034,24 +4041,24 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                     </table>
                   </div>
                   
-                  {result.remainingBalance > 0 && (
-                    <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
-                      <p className="font-semibold text-orange-800 text-sm">Interest u/s 234B (Default on Balance Tax)</p>
-                      <div className="mt-2 text-xs space-y-1">
-                        <p className="text-orange-700">Balance tax remaining after advance tax: <span className="font-semibold">₹{result.remainingBalance.toLocaleString()}</span></p>
-                        <p className="text-orange-700">Assessment year starts: <span className="font-semibold">{new Date(result.assessmentYearStart).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></p>
-                        <p className="text-orange-700">Final payment date: <span className="font-semibold">{(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></p>
-                        {result.interest234B > 0 ? (
-                          <>
-                            <p className="text-orange-700">Delay: <span className="font-semibold">{result.interest234BMonths} month(s)</span> from Apr 1 to final payment date</p>
-                            <p className="text-red-700 font-bold mt-1">Interest u/s 234B: ₹{result.interest234B.toLocaleString()}</p>
-                          </>
-                        ) : (
-                          <p className="text-green-700 font-semibold">No 234B interest - payment made before assessment year starts</p>
-                        )}
-                      </div>
+                  <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
+                    <p className="font-semibold text-orange-800 text-sm">Interest u/s 234B (Default on Assessed Tax)</p>
+                    <div className="mt-2 text-xs space-y-1">
+                      <p className="text-orange-700">Total assessed tax liability: <span className="font-semibold">₹{result.totalTax.toLocaleString()}</span></p>
+                      <p className="text-orange-700">90% threshold: <span className="font-semibold">₹{Math.round(result.ninetyPercentThreshold).toLocaleString()}</span></p>
+                      <p className="text-orange-700">Total advance tax paid (by Mar 31): <span className="font-semibold">₹{(result.instalments.reduce((s: number, i: any) => s + i.paid, 0)).toLocaleString()}</span></p>
+                      {result.is234BApplicable ? (
+                        <>
+                          <p className="text-red-700 font-semibold mt-1">Advance tax paid is less than 90% of assessed tax - 234B applicable</p>
+                          <p className="text-orange-700">Deficient amount (assessed tax - advance tax paid): <span className="font-semibold">₹{result.deficientAmount234B.toLocaleString()}</span></p>
+                          <p className="text-orange-700">Interest period: April 1, {new Date(result.assessmentYearStart).getFullYear()} to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} = <span className="font-semibold">{result.interest234BMonths} month(s)</span></p>
+                          <p className="text-red-700 font-bold mt-1">Interest u/s 234B: ₹{result.deficientAmount234B.toLocaleString()} x 1% x {result.interest234BMonths} = ₹{result.interest234B.toLocaleString()}</p>
+                        </>
+                      ) : (
+                        <p className="text-green-700 font-semibold mt-1">Advance tax paid is 90% or more of assessed tax - No 234B interest applicable</p>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {(result.totalInterest234C > 0 || result.interest234B > 0) && (
                     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
@@ -4066,7 +4073,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                   
                   <div className="mt-3 text-xs text-muted-foreground">
                     <p>* Interest u/s 234C: 1% per month (simple) on shortfall for each quarter (3 months for Q1-Q3, 1 month for Q4)</p>
-                    <p>* Interest u/s 234B: 1% per month on remaining balance tax from April 1 of assessment year to actual payment date</p>
+                    <p>* Interest u/s 234B: Applicable if advance tax paid is less than 90% of assessed tax. 1% per month on deficient amount from April 1 to actual payment date</p>
                     <p>* Minimum 15% due by June 15, 45% by Sep 15, 75% by Dec 15, 100% by Mar 15</p>
                   </div>
                 </div>
