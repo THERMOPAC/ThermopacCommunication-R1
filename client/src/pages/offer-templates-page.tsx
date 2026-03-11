@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { OfferTemplate } from "@shared/schema";
 
-const subjectOptions = [
+const defaultSubjectOptions = [
   "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
   "Continuous Polishing System By Regenerative Adsorption",
   "Spares for Refinery Equipment",
@@ -56,6 +56,15 @@ export default function OfferTemplatesPage() {
   const { data: templates = [], isLoading } = useQuery<OfferTemplate[]>({
     queryKey: ['/api/sales-marketing/offer-templates'],
   });
+
+  const { data: offerSubjects = [] } = useQuery<string[]>({
+    queryKey: ['/api/sales-marketing/offer-subjects'],
+  });
+
+  const subjectOptions = useMemo(() => {
+    const merged = new Set([...defaultSubjectOptions, ...offerSubjects]);
+    return Array.from(merged).sort();
+  }, [offerSubjects]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => apiRequest('DELETE', `/api/sales-marketing/offer-templates/${id}`),

@@ -899,6 +899,16 @@ export function setupSalesMarketingRoutes(app: Express) {
 
   // ==================== OFFER TEMPLATES ====================
 
+  router.get('/offer-subjects', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const result = await db.execute(sql`SELECT DISTINCT subject FROM offers WHERE subject IS NOT NULL AND subject != '' ORDER BY subject`);
+      res.json(result.rows.map((r: any) => r.subject));
+    } catch (error) {
+      console.error('Error fetching offer subjects:', error);
+      res.status(500).json({ error: 'Failed to fetch offer subjects' });
+    }
+  });
+
   router.get('/offer-templates', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const templates = await db.select().from(offerTemplates).orderBy(offerTemplates.subject, offerTemplates.name);
