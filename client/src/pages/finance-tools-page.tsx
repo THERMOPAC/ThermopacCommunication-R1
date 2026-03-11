@@ -3569,7 +3569,7 @@ function TaxCalculator() {
       { dueDate: "15 March", percentage: 100, paid: parseFloat(paidMarch) || 0, dueDateObj: new Date(fyStartYear + 1, 2, 15) }
     ];
 
-    const paymentDate = finalPaymentDate ? new Date(finalPaymentDate) : null;
+    const paymentDate = finalPaymentDate ? new Date(finalPaymentDate) : new Date();
 
     let cumulativePaid = 0;
     let totalInterest234C = 0;
@@ -3580,26 +3580,14 @@ function TaxCalculator() {
       const balance = cumulativeTaxDue - cumulativePaid;
       const shortfall = Math.max(0, balance);
 
-      let interestApplicable = false;
-      if (index === 0) {
-        interestApplicable = instalment.paid < (totalTax * 0.15);
-      } else if (index === 1) {
-        const totalPaidTillSep = (parseFloat(paidJune) || 0) + instalment.paid;
-        interestApplicable = totalPaidTillSep < (totalTax * 0.45);
-      } else if (index === 2) {
-        const totalPaidTillDec = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + instalment.paid;
-        interestApplicable = totalPaidTillDec < (totalTax * 0.75);
-      } else if (index === 3) {
-        const totalPaidTillMar = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + instalment.paid;
-        interestApplicable = totalPaidTillMar < totalTax;
-      }
+      const interestApplicable = shortfall > 0;
 
       let delayMonths = 0;
       let interest234C = 0;
 
-      if (interestApplicable && shortfall > 0 && paymentDate) {
+      if (shortfall > 0 && paymentDate > instalment.dueDateObj) {
         delayMonths = getMonthsDiff(instalment.dueDateObj, paymentDate);
-        if (delayMonths < 1 && paymentDate > instalment.dueDateObj) delayMonths = 1;
+        if (delayMonths < 1) delayMonths = 1;
         interest234C = Math.round(shortfall * 0.01 * delayMonths);
         totalInterest234C += interest234C;
       }
@@ -4020,17 +4008,17 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                     </table>
                   </div>
                   
-                  {result.totalInterest234C > 0 && finalPaymentDate && (
+                  {result.totalInterest234C > 0 && (
                     <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
-                      <p className="font-semibold text-amber-800">Interest Calculation Summary (as of {new Date(finalPaymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})</p>
-                      <p className="text-amber-700 mt-1">Interest @ 1% per month on shortfall amount from each instalment due date to {new Date(finalPaymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                      <p className="font-semibold text-amber-800">Interest Calculation Summary (as of {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })})</p>
+                      <p className="text-amber-700 mt-1">Interest @ 1% per month on shortfall amount from each instalment due date to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                     </div>
                   )}
                   
                   <div className="mt-3 text-xs text-muted-foreground">
                     <p>* Interest u/s 234C: 1% per month (simple) on shortfall from due date to final payment date</p>
                     <p>* Minimum 15% due by June 15, 45% by Sep 15, 75% by Dec 15, 100% by Mar 15</p>
-                    {!finalPaymentDate && <p className="text-orange-600 mt-1">* Set a Final Payment Date to calculate actual interest payable</p>}
+                    {!finalPaymentDate && <p className="text-blue-600 mt-1">* Using today's date for interest calculation. Set a specific Final Payment Date for a custom calculation.</p>}
                   </div>
                 </div>
               </CardContent>
