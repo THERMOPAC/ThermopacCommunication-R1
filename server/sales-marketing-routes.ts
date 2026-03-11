@@ -3,7 +3,7 @@ import { storage } from './storage';
 import { z } from 'zod';
 import { insertLeadSchema, tankPrices, plantCosts, insertProductAttributeOptionSchema, insertProductSchema, offers, offerTemplates, productChildren as productChildrenTable } from '@shared/schema';
 import { db } from './db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { OfferPdfGenerator } from './offer-pdf-generator';
 import multer from 'multer';
 import * as fs from 'fs';
