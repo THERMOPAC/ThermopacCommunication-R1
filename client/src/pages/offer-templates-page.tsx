@@ -44,7 +44,6 @@ export default function OfferTemplatesPage() {
   const [isReplacing, setIsReplacing] = useState(false);
   const [showAddSubject, setShowAddSubject] = useState(false);
   const [newSubjectInput, setNewSubjectInput] = useState("");
-  const [customSubjects, setCustomSubjects] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileRef = useRef<HTMLInputElement>(null);
 
@@ -65,9 +64,9 @@ export default function OfferTemplatesPage() {
   });
 
   const subjectOptions = useMemo(() => {
-    const merged = new Set([...defaultSubjectOptions, ...offerSubjects, ...customSubjects]);
+    const merged = new Set([...defaultSubjectOptions, ...offerSubjects]);
     return Array.from(merged).sort();
-  }, [offerSubjects, customSubjects]);
+  }, [offerSubjects]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => apiRequest('DELETE', `/api/sales-marketing/offer-templates/${id}`),
@@ -239,28 +238,34 @@ export default function OfferTemplatesPage() {
                   onChange={(e) => setNewSubjectInput(e.target.value)}
                   placeholder="Enter new offer subject..."
                   className="flex-1"
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === 'Enter' && newSubjectInput.trim()) {
                       e.preventDefault();
                       const trimmed = newSubjectInput.trim();
-                      if (!subjectOptions.includes(trimmed)) {
-                        setCustomSubjects(prev => [...prev, trimmed]);
+                      try {
+                        await apiRequest('POST', '/api/sales-marketing/offer-subjects', { subject: trimmed });
+                        queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offer-subjects'] });
+                        setNewSubjectInput("");
+                        setShowAddSubject(false);
+                        toast({ title: "Subject added", description: `"${trimmed}" is now available in the Offer Subject dropdown.` });
+                      } catch {
+                        toast({ title: "Failed to add subject", variant: "destructive" });
                       }
-                      setNewSubjectInput("");
-                      setShowAddSubject(false);
-                      toast({ title: "Subject added", description: `"${trimmed}" is now available in the Offer Subject dropdown.` });
                     }
                   }}
                 />
-                <Button onClick={() => {
+                <Button onClick={async () => {
                   const trimmed = newSubjectInput.trim();
                   if (!trimmed) return;
-                  if (!subjectOptions.includes(trimmed)) {
-                    setCustomSubjects(prev => [...prev, trimmed]);
+                  try {
+                    await apiRequest('POST', '/api/sales-marketing/offer-subjects', { subject: trimmed });
+                    queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offer-subjects'] });
+                    setNewSubjectInput("");
+                    setShowAddSubject(false);
+                    toast({ title: "Subject added", description: `"${trimmed}" is now available in the Offer Subject dropdown.` });
+                  } catch {
+                    toast({ title: "Failed to add subject", variant: "destructive" });
                   }
-                  setNewSubjectInput("");
-                  setShowAddSubject(false);
-                  toast({ title: "Subject added", description: `"${trimmed}" is now available in the Offer Subject dropdown.` });
                 }}>Add Subject</Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">This subject will be available in the Offer Subject dropdown when creating or editing templates.</p>

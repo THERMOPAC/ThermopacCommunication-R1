@@ -8698,6 +8698,14 @@ export const insertOfferTemplateSchema = createInsertSchema(offerTemplates).omit
 export type OfferTemplate = typeof offerTemplates.$inferSelect;
 export type InsertOfferTemplate = z.infer<typeof insertOfferTemplateSchema>;
 
+// ==================== OFFER SUBJECTS ====================
+
+export const offerSubjectsTable = pgTable('offer_subjects', {
+  id: serial('id').primaryKey(),
+  subject: text('subject').notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // ==================== OFFERS / QUOTATIONS ====================
 
 export const offers = pgTable('offers', {

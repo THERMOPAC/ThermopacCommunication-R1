@@ -901,11 +901,27 @@ export function setupSalesMarketingRoutes(app: Express) {
 
   router.get('/offer-subjects', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
-      const result = await db.execute(sql`SELECT DISTINCT subject FROM offers WHERE subject IS NOT NULL AND subject != '' ORDER BY subject`);
-      res.json(result.rows.map((r: any) => r.subject));
+      const fromOffers = await db.execute(sql`SELECT DISTINCT subject FROM offers WHERE subject IS NOT NULL AND subject != ''`);
+      const fromCustom = await db.execute(sql`SELECT subject FROM offer_subjects`);
+      const allSubjects = new Set<string>();
+      fromOffers.rows.forEach((r: any) => allSubjects.add(r.subject));
+      fromCustom.rows.forEach((r: any) => allSubjects.add(r.subject));
+      res.json(Array.from(allSubjects).sort());
     } catch (error) {
       console.error('Error fetching offer subjects:', error);
       res.status(500).json({ error: 'Failed to fetch offer subjects' });
+    }
+  });
+
+  router.post('/offer-subjects', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { subject } = req.body;
+      if (!subject || !subject.trim()) return res.status(400).json({ error: 'Subject is required' });
+      await db.execute(sql`INSERT INTO offer_subjects (subject) VALUES (${subject.trim()}) ON CONFLICT (subject) DO NOTHING`);
+      res.json({ success: true, subject: subject.trim() });
+    } catch (error) {
+      console.error('Error adding offer subject:', error);
+      res.status(500).json({ error: 'Failed to add offer subject' });
     }
   });
 
