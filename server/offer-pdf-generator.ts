@@ -541,7 +541,7 @@ export class OfferPdfGenerator {
   }
 
   private drawTermsBody(text: string, indent: number = 0): void {
-    const opts = { width: this.contentWidth - indent };
+    const opts = { width: this.contentWidth - indent, align: 'justify' as const };
     this.doc
       .fillColor('#333333')
       .fontSize(8.5)
@@ -558,7 +558,7 @@ export class OfferPdfGenerator {
       .fontSize(8.5)
       .font('Helvetica')
       .text('-', this.margin + indent - 10, this.currentY)
-      .text(text, this.margin + indent, this.currentY, { width: this.contentWidth - indent });
+      .text(text, this.margin + indent, this.currentY, { width: this.contentWidth - indent, align: 'justify' as const });
     const h = this.doc.heightOfString(text, { width: this.contentWidth - indent });
     this.currentY += h + 4;
   }
