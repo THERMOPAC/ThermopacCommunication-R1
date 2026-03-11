@@ -3460,7 +3460,10 @@ function TaxCalculator() {
   const [paidSeptember, setPaidSeptember] = useState("");
   const [paidDecember, setPaidDecember] = useState("");
   const [paidMarch, setPaidMarch] = useState("");
-  const [tdsCredit, setTdsCredit] = useState("");
+  const [tdsQ1, setTdsQ1] = useState("");
+  const [tdsQ2, setTdsQ2] = useState("");
+  const [tdsQ3, setTdsQ3] = useState("");
+  const [tdsQ4, setTdsQ4] = useState("");
   const [selectedFinancialYear, setSelectedFinancialYear] = useState("");
   const [finalPaymentDate, setFinalPaymentDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -3567,11 +3570,16 @@ function TaxCalculator() {
       fyStartYear = first.length === 4 ? parseInt(first) : parseInt('20' + first);
     }
 
+    const tdsQ1Amt = parseFloat(tdsQ1) || 0;
+    const tdsQ2Amt = parseFloat(tdsQ2) || 0;
+    const tdsQ3Amt = parseFloat(tdsQ3) || 0;
+    const tdsQ4Amt = parseFloat(tdsQ4) || 0;
+
     const instalmentSchedule = [
-      { dueDate: "15 June", percentage: 15, paid: parseFloat(paidJune) || 0, dueDateObj: new Date(fyStartYear, 5, 15) },
-      { dueDate: "15 September", percentage: 45, paid: parseFloat(paidSeptember) || 0, dueDateObj: new Date(fyStartYear, 8, 15) },
-      { dueDate: "15 December", percentage: 75, paid: parseFloat(paidDecember) || 0, dueDateObj: new Date(fyStartYear, 11, 15) },
-      { dueDate: "15 March", percentage: 100, paid: parseFloat(paidMarch) || 0, dueDateObj: new Date(fyStartYear + 1, 2, 15) }
+      { dueDate: "15 June", percentage: 15, advanceTax: parseFloat(paidJune) || 0, tds: tdsQ1Amt, paid: (parseFloat(paidJune) || 0) + tdsQ1Amt, dueDateObj: new Date(fyStartYear, 5, 15) },
+      { dueDate: "15 September", percentage: 45, advanceTax: parseFloat(paidSeptember) || 0, tds: tdsQ2Amt, paid: (parseFloat(paidSeptember) || 0) + tdsQ2Amt, dueDateObj: new Date(fyStartYear, 8, 15) },
+      { dueDate: "15 December", percentage: 75, advanceTax: parseFloat(paidDecember) || 0, tds: tdsQ3Amt, paid: (parseFloat(paidDecember) || 0) + tdsQ3Amt, dueDateObj: new Date(fyStartYear, 11, 15) },
+      { dueDate: "15 March", percentage: 100, advanceTax: parseFloat(paidMarch) || 0, tds: tdsQ4Amt, paid: (parseFloat(paidMarch) || 0) + tdsQ4Amt, dueDateObj: new Date(fyStartYear + 1, 2, 15) }
     ];
 
     const paymentDate = finalPaymentDate ? new Date(finalPaymentDate) : new Date();
@@ -3612,6 +3620,8 @@ function TaxCalculator() {
         dueDate: instalment.dueDate,
         percentageDue: instalment.percentage,
         taxDue: cumulativeTaxDue,
+        advanceTax: instalment.advanceTax,
+        tds: instalment.tds,
         paid: instalment.paid,
         balance,
         interestApplicable,
@@ -3622,7 +3632,7 @@ function TaxCalculator() {
     });
 
     const totalAdvanceTaxPaid = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + (parseFloat(paidMarch) || 0);
-    const tdsCreditAmount = parseFloat(tdsCredit) || 0;
+    const tdsCreditAmount = tdsQ1Amt + tdsQ2Amt + tdsQ3Amt + tdsQ4Amt;
     const totalPaidAll = totalAdvanceTaxPaid + tdsCreditAmount;
     const remainingBalance = Math.max(0, totalTax - totalPaidAll);
     const ninetyPercentThreshold = totalTax * 0.9;
@@ -3665,7 +3675,10 @@ function TaxCalculator() {
     setPaidSeptember(calculation.paidSeptember || "");
     setPaidDecember(calculation.paidDecember || "");
     setPaidMarch(calculation.paidMarch || "");
-    setTdsCredit(calculation.tdsCredit || "");
+    setTdsQ1(calculation.tdsQ1 || calculation.tdsCredit || "");
+    setTdsQ2(calculation.tdsQ2 || "");
+    setTdsQ3(calculation.tdsQ3 || "");
+    setTdsQ4(calculation.tdsQ4 || "");
     setSelectedFinancialYear(calculation.financialYear);
     setNotes(calculation.notes || "");
     setLoadDialogOpen(false); // Close the dialog after loading
@@ -3697,7 +3710,10 @@ function TaxCalculator() {
       paidSeptember: parseFloat(paidSeptember) || 0,
       paidDecember: parseFloat(paidDecember) || 0,
       paidMarch: parseFloat(paidMarch) || 0,
-      tdsCredit: parseFloat(tdsCredit) || 0,
+      tdsQ1: parseFloat(tdsQ1) || 0,
+      tdsQ2: parseFloat(tdsQ2) || 0,
+      tdsQ3: parseFloat(tdsQ3) || 0,
+      tdsQ4: parseFloat(tdsQ4) || 0,
       notes: notes,
     };
 
@@ -3713,7 +3729,10 @@ function TaxCalculator() {
     setPaidSeptember("");
     setPaidDecember("");
     setPaidMarch("");
-    setTdsCredit("");
+    setTdsQ1("");
+    setTdsQ2("");
+    setTdsQ3("");
+    setTdsQ4("");
     setFinalPaymentDate("");
     setNotes("");
     setResult(null);
@@ -3894,65 +3913,33 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
 
           <div className="border-t pt-4">
             <Label className="text-sm font-semibold mb-2 block">Tax Already Paid</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="paidJune" className="text-xs">By 15 June</Label>
-                <Input
-                  id="paidJune"
-                  type="number"
-                  placeholder="0"
-                  value={paidJune}
-                  onChange={(e) => setPaidJune(e.target.value)}
-                  className="text-right"
-                />
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2 text-xs font-semibold text-muted-foreground">
+                <div>Quarter</div>
+                <div className="text-right">Advance Tax</div>
+                <div className="text-right">TDS Credit</div>
               </div>
-              <div>
-                <Label htmlFor="paidSeptember" className="text-xs">By 15 September</Label>
-                <Input
-                  id="paidSeptember"
-                  type="number"
-                  placeholder="0"
-                  value={paidSeptember}
-                  onChange={(e) => setPaidSeptember(e.target.value)}
-                  className="text-right"
-                />
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <Label className="text-xs">By 15 June</Label>
+                <Input id="paidJune" type="number" placeholder="0" value={paidJune} onChange={(e) => setPaidJune(e.target.value)} className="text-right h-8 text-sm" />
+                <Input id="tdsQ1" type="number" placeholder="0" value={tdsQ1} onChange={(e) => setTdsQ1(e.target.value)} className="text-right h-8 text-sm" />
               </div>
-              <div>
-                <Label htmlFor="paidDecember" className="text-xs">By 15 December</Label>
-                <Input
-                  id="paidDecember"
-                  type="number"
-                  placeholder="0"
-                  value={paidDecember}
-                  onChange={(e) => setPaidDecember(e.target.value)}
-                  className="text-right"
-                />
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <Label className="text-xs">By 15 September</Label>
+                <Input id="paidSeptember" type="number" placeholder="0" value={paidSeptember} onChange={(e) => setPaidSeptember(e.target.value)} className="text-right h-8 text-sm" />
+                <Input id="tdsQ2" type="number" placeholder="0" value={tdsQ2} onChange={(e) => setTdsQ2(e.target.value)} className="text-right h-8 text-sm" />
               </div>
-              <div>
-                <Label htmlFor="paidMarch" className="text-xs">By 15 March</Label>
-                <Input
-                  id="paidMarch"
-                  type="number"
-                  placeholder="0"
-                  value={paidMarch}
-                  onChange={(e) => setPaidMarch(e.target.value)}
-                  className="text-right"
-                />
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <Label className="text-xs">By 15 December</Label>
+                <Input id="paidDecember" type="number" placeholder="0" value={paidDecember} onChange={(e) => setPaidDecember(e.target.value)} className="text-right h-8 text-sm" />
+                <Input id="tdsQ3" type="number" placeholder="0" value={tdsQ3} onChange={(e) => setTdsQ3(e.target.value)} className="text-right h-8 text-sm" />
+              </div>
+              <div className="grid grid-cols-3 gap-2 items-center">
+                <Label className="text-xs">By 15 March</Label>
+                <Input id="paidMarch" type="number" placeholder="0" value={paidMarch} onChange={(e) => setPaidMarch(e.target.value)} className="text-right h-8 text-sm" />
+                <Input id="tdsQ4" type="number" placeholder="0" value={tdsQ4} onChange={(e) => setTdsQ4(e.target.value)} className="text-right h-8 text-sm" />
               </div>
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="tdsCredit" className="text-sm font-semibold">TDS Credit During the Year</Label>
-            <Input
-              id="tdsCredit"
-              type="number"
-              placeholder="0.00"
-              value={tdsCredit}
-              onChange={(e) => setTdsCredit(e.target.value)}
-              className="mt-1 text-right"
-            />
-            <p className="text-xs text-muted-foreground mt-1">TDS deducted at source during the financial year (reduces balance tax liability)</p>
           </div>
 
           <div>
@@ -4044,7 +4031,9 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                           <th className="text-left p-1.5">Due Date</th>
                           <th className="text-right p-1.5">% Due</th>
                           <th className="text-right p-1.5">Tax Due</th>
-                          <th className="text-right p-1.5">Paid</th>
+                          <th className="text-right p-1.5">Advance Tax</th>
+                          <th className="text-right p-1.5">TDS</th>
+                          <th className="text-right p-1.5">Total Paid</th>
                           <th className="text-right p-1.5">Shortfall</th>
                           <th className="text-center p-1.5">Months</th>
                           <th className="text-right p-1.5">Interest u/s 234C</th>
@@ -4056,7 +4045,9 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                             <td className="p-1.5">{instalment.dueDate}</td>
                             <td className="text-right p-1.5">{instalment.percentageDue}%</td>
                             <td className="text-right p-1.5">₹{Math.round(instalment.taxDue).toLocaleString()}</td>
-                            <td className="text-right p-1.5">₹{Math.round(instalment.paid).toLocaleString()}</td>
+                            <td className="text-right p-1.5">₹{Math.round(instalment.advanceTax).toLocaleString()}</td>
+                            <td className="text-right p-1.5 text-green-700">{instalment.tds > 0 ? `₹${Math.round(instalment.tds).toLocaleString()}` : '-'}</td>
+                            <td className="text-right p-1.5 font-semibold">₹{Math.round(instalment.paid).toLocaleString()}</td>
                             <td className={`text-right p-1.5 font-semibold ${instalment.shortfall > 0 ? 'text-red-600' : 'text-green-600'}`}>
                               ₹{Math.round(instalment.shortfall).toLocaleString()}
                             </td>
@@ -4076,7 +4067,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                       {result.totalInterest234C > 0 && (
                         <tfoot>
                           <tr className="border-t-2 bg-red-50">
-                            <td colSpan={6} className="p-1.5 font-bold text-right text-red-700">Total Interest Payable u/s 234C:</td>
+                            <td colSpan={8} className="p-1.5 font-bold text-right text-red-700">Total Interest Payable u/s 234C:</td>
                             <td className="text-right p-1.5 font-bold text-red-700">₹{result.totalInterest234C.toLocaleString()}</td>
                           </tr>
                         </tfoot>
