@@ -287,7 +287,7 @@ export class OfferPdfGenerator {
         introText,
         this.margin,
         this.currentY,
-        { width: this.contentWidth, lineGap: 3 }
+        { width: this.contentWidth, lineGap: 3, align: 'justify' }
       );
 
     this.currentY = this.doc.y + 30;
