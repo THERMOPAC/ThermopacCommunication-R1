@@ -42,6 +42,9 @@ export default function OfferTemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<OfferTemplate | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isReplacing, setIsReplacing] = useState(false);
+  const [showAddSubject, setShowAddSubject] = useState(false);
+  const [newSubjectInput, setNewSubjectInput] = useState("");
+  const [customSubjects, setCustomSubjects] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceFileRef = useRef<HTMLInputElement>(null);
 
@@ -62,9 +65,9 @@ export default function OfferTemplatesPage() {
   });
 
   const subjectOptions = useMemo(() => {
-    const merged = new Set([...defaultSubjectOptions, ...offerSubjects]);
+    const merged = new Set([...defaultSubjectOptions, ...offerSubjects, ...customSubjects]);
     return Array.from(merged).sort();
-  }, [offerSubjects]);
+  }, [offerSubjects, customSubjects]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => apiRequest('DELETE', `/api/sales-marketing/offer-templates/${id}`),
@@ -92,6 +95,8 @@ export default function OfferTemplatesPage() {
     setSelectedFile(null);
     setEditingTemplate(null);
     setIsFormOpen(false);
+    setShowAddSubject(false);
+    setNewSubjectInput("");
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -357,15 +362,55 @@ export default function OfferTemplatesPage() {
                 <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. UOR Standard Offer" />
               </div>
               <div>
-                <Label>Offer Subject <span className="text-destructive">*</span></Label>
-                <Select value={formSubject} onValueChange={setFormSubject}>
-                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                  <SelectContent>
-                    {subjectOptions.map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between mb-1">
+                  <Label>Offer Subject <span className="text-destructive">*</span></Label>
+                  <Button type="button" variant="ghost" size="sm" className="h-6 text-xs text-blue-600 px-2" onClick={() => setShowAddSubject(!showAddSubject)}>
+                    <Plus className="h-3 w-3 mr-1" />{showAddSubject ? "Cancel" : "Add New Subject"}
+                  </Button>
+                </div>
+                {showAddSubject ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={newSubjectInput}
+                      onChange={(e) => setNewSubjectInput(e.target.value)}
+                      placeholder="Enter new offer subject..."
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newSubjectInput.trim()) {
+                          e.preventDefault();
+                          const trimmed = newSubjectInput.trim();
+                          if (!subjectOptions.includes(trimmed)) {
+                            setCustomSubjects(prev => [...prev, trimmed]);
+                          }
+                          setFormSubject(trimmed);
+                          setNewSubjectInput("");
+                          setShowAddSubject(false);
+                          toast({ title: "Subject added", description: `"${trimmed}" has been added and selected.` });
+                        }
+                      }}
+                    />
+                    <Button type="button" size="sm" onClick={() => {
+                      const trimmed = newSubjectInput.trim();
+                      if (!trimmed) return;
+                      if (!subjectOptions.includes(trimmed)) {
+                        setCustomSubjects(prev => [...prev, trimmed]);
+                      }
+                      setFormSubject(trimmed);
+                      setNewSubjectInput("");
+                      setShowAddSubject(false);
+                      toast({ title: "Subject added", description: `"${trimmed}" has been added and selected.` });
+                    }}>Add</Button>
+                  </div>
+                ) : (
+                  <Select value={formSubject} onValueChange={setFormSubject}>
+                    <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                    <SelectContent>
+                      {subjectOptions.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div>
                 <Label>Language <span className="text-destructive">*</span></Label>
