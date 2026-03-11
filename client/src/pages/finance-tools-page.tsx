@@ -3560,7 +3560,11 @@ function TaxCalculator() {
     const totalTax = taxPlusSurcharge + cessAmount;
 
     const fyParts = selectedFinancialYear ? selectedFinancialYear.split('-') : [];
-    const fyStartYear = fyParts.length === 2 ? parseInt('20' + fyParts[0]) : new Date().getFullYear();
+    let fyStartYear = new Date().getFullYear();
+    if (fyParts.length === 2) {
+      const first = fyParts[0];
+      fyStartYear = first.length === 4 ? parseInt(first) : parseInt('20' + first);
+    }
 
     const instalmentSchedule = [
       { dueDate: "15 June", percentage: 15, paid: parseFloat(paidJune) || 0, dueDateObj: new Date(fyStartYear, 5, 15) },
