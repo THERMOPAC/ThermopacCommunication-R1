@@ -3818,9 +3818,9 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                     <div className="space-y-4">
                       {calculationsLoading ? (
                         <p className="text-center text-muted-foreground">Loading saved calculations...</p>
-                      ) : savedCalculations && savedCalculations.length > 0 ? (
+                      ) : savedCalculations && savedCalculations.filter((c: any) => (c.companyName || 'TPEL') === selectedCompany).length > 0 ? (
                         <div className="space-y-2 max-h-64 overflow-y-auto">
-                          {savedCalculations.map((calc: any) => (
+                          {savedCalculations.filter((c: any) => (c.companyName || 'TPEL') === selectedCompany).map((calc: any) => (
                             <div 
                               key={calc.id} 
                               className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
@@ -3840,7 +3840,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                           ))}
                         </div>
                       ) : (
-                        <p className="text-center text-muted-foreground">No saved calculations found</p>
+                        <p className="text-center text-muted-foreground">No saved calculations found for {selectedCompany}</p>
                       )}
                     </div>
                   </DialogContent>
