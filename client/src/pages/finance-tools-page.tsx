@@ -3694,7 +3694,7 @@ function TaxCalculator() {
 
     const totalAdvanceTaxPaid = advJune + advSept + advDec + advMar;
     const totalPaidAll = totalAdvanceTaxPaid + tdsCreditAmount;
-    const remainingBalance = Math.max(0, totalTax - totalPaidAll);
+    const remainingBalance = totalTax - totalPaidAll;
 
     const ninetyPercentThreshold = assessedTax * 0.9;
     const is234BApplicable = totalAdvanceTaxPaid < ninetyPercentThreshold;
@@ -3714,7 +3714,7 @@ function TaxCalculator() {
 
     let interestOnBalance = 0;
     let interestOnBalanceMonths = 0;
-    if (remainingBalance > 0 && !is234BApplicable) {
+    if (remainingBalance > 0 && !is234BApplicable && totalPaidAll < totalTax) {
       const marchDue = new Date(fyStartYear + 1, 2, 15);
       if (paymentDate > marchDue) {
         interestOnBalanceMonths = getMonthsDiff(marchDue, paymentDate);
@@ -3848,6 +3848,13 @@ ${result.is234BApplicable ? `\nSection 234B: Advance tax paid < 90% of Assessed 
 ${result.interestOnBalance > 0 ? `\nInterest on Balance: ₹${result.remainingBalance.toLocaleString()} x 1% x ${result.interestOnBalanceMonths} months = ₹${result.interestOnBalance.toLocaleString()}` : ''}
 
 Total Interest: ₹${(result.totalInterest234C + (result.interest234B || 0) + (result.interestOnBalance || 0)).toLocaleString()}
+` : ''}${result.remainingBalance < 0 ? `
+REFUND DUE
+----------
+Total Tax Liability: ₹${Math.round(result.totalTax).toLocaleString()}
+Total Paid (Advance Tax + TDS): ₹${result.totalPaidAll.toLocaleString()}
+Refund Amount: ₹${Math.round(Math.abs(result.remainingBalance)).toLocaleString()}
+You have paid excess tax. Claim refund by filing ITR.
 ` : ''}
 Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS only reduces tax liability, not instalment compliance.
     `.trim();
@@ -4229,12 +4236,17 @@ Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS onl
                     <Label className="text-xs text-muted-foreground">Assessed Tax (Tax - TDS)</Label>
                     <p className="font-bold text-blue-700">₹{Math.round(result.assessedTax).toLocaleString()}</p>
                   </div>
-                  {result.remainingBalance > 0 && (
+                  {result.remainingBalance > 0 ? (
                     <div>
                       <Label className="text-xs text-muted-foreground">Remaining Balance</Label>
-                      <p className="font-bold text-orange-600">₹{result.remainingBalance.toLocaleString()}</p>
+                      <p className="font-bold text-orange-600">₹{Math.round(result.remainingBalance).toLocaleString()}</p>
                     </div>
-                  )}
+                  ) : result.remainingBalance < 0 ? (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Refund Due</Label>
+                      <p className="font-bold text-green-600">₹{Math.round(Math.abs(result.remainingBalance)).toLocaleString()}</p>
+                    </div>
+                  ) : null}
                 </div>
                 
                 {result.noAdvanceTaxRequired && (
@@ -4332,6 +4344,20 @@ Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS onl
                         {result.interest234B > 0 && <p className="text-red-700">Interest u/s 234B (default): <span className="font-semibold">₹{result.interest234B.toLocaleString()}</span></p>}
                         {result.interestOnBalance > 0 && <p className="text-red-700">Interest on balance tax (self-assessment): <span className="font-semibold">₹{result.interestOnBalance.toLocaleString()}</span></p>}
                         <p className="text-red-800 font-bold border-t border-red-300 pt-1 mt-1">Total Interest Payable: ₹{(result.totalInterest234C + (result.interest234B || 0) + (result.interestOnBalance || 0)).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {result.remainingBalance < 0 && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                      <p className="font-semibold text-green-800 text-sm">Excess Tax Paid - Refund Due</p>
+                      <div className="mt-2 text-xs space-y-1">
+                        <p className="text-green-700">Total Tax Liability: <span className="font-semibold">₹{Math.round(result.totalTax).toLocaleString()}</span></p>
+                        <p className="text-green-700">Total Advance Tax Paid: <span className="font-semibold">₹{result.totalAdvanceTaxPaid.toLocaleString()}</span></p>
+                        {result.tdsCreditAmount > 0 && <p className="text-green-700">Total TDS Credit: <span className="font-semibold">₹{result.tdsCreditAmount.toLocaleString()}</span></p>}
+                        <p className="text-green-700">Total Paid (Advance Tax + TDS): <span className="font-semibold">₹{result.totalPaidAll.toLocaleString()}</span></p>
+                        <p className="text-green-800 font-bold border-t border-green-300 pt-1 mt-1">Refund Amount: ₹{Math.round(Math.abs(result.remainingBalance)).toLocaleString()}</p>
+                        <p className="text-green-600 text-xs mt-1">You have paid excess tax. You can claim a refund by filing your Income Tax Return (ITR).</p>
                       </div>
                     </div>
                   )}
