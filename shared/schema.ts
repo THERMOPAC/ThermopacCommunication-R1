@@ -5538,6 +5538,7 @@ export const advanceTaxCalculations = pgTable('advance_tax_calculations', {
   // Calculation status and notes
   status: text('status').notNull().default('active'), // active, completed, archived
   notes: text('notes'),
+  estimationData: text('estimation_data'),
   
   // Tracking
   createdAt: timestamp('created_at').defaultNow().notNull(),

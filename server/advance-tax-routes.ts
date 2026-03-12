@@ -47,6 +47,7 @@ router.get('/api/advance-tax/calculations', ensureAuthenticated, async (req, res
         tdsQ4: advanceTaxCalculations.tdsQ4,
         status: advanceTaxCalculations.status,
         notes: advanceTaxCalculations.notes,
+        estimationData: advanceTaxCalculations.estimationData,
         createdAt: advanceTaxCalculations.createdAt,
         updatedAt: advanceTaxCalculations.updatedAt,
         lastPaymentDate: advanceTaxCalculations.lastPaymentDate,
@@ -101,7 +102,8 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
       tdsQ2 = 0,
       tdsQ3 = 0,
       tdsQ4 = 0,
-      notes
+      notes,
+      estimationData
     } = req.body;
 
     // Calculate tax amounts
@@ -150,6 +152,7 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
           tdsQ3: tdsQ3.toString(),
           tdsQ4: tdsQ4.toString(),
           notes,
+          estimationData: estimationData || null,
           updatedAt: new Date(),
         })
         .where(eq(advanceTaxCalculations.id, existingCalculation.id))
@@ -179,6 +182,7 @@ router.post('/api/advance-tax/calculations', ensureAuthenticated, async (req, re
           tdsQ3: tdsQ3.toString(),
           tdsQ4: tdsQ4.toString(),
           notes,
+          estimationData: estimationData || null,
           status: 'active',
         })
         .returning();
