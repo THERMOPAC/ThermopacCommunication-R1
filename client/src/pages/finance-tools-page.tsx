@@ -3471,11 +3471,16 @@ function TaxCalculator() {
   const [loadDialogOpen, setLoadDialogOpen] = useState(false);
   const [result, setResult] = useState<{
     totalTax: number;
+    assessedTax: number;
+    tdsCreditAmount: number;
+    noAdvanceTaxRequired: boolean;
     totalInterest234C: number;
     instalments: Array<{
       dueDate: string;
       percentageDue: number;
       taxDue: number;
+      advanceTax: number;
+      tds: number;
       paid: number;
       balance: number;
       interestApplicable: boolean;
@@ -3483,6 +3488,17 @@ function TaxCalculator() {
       delayMonths: number;
       interest234C: number;
     }>;
+    remainingBalance: number;
+    totalAdvanceTaxPaid: number;
+    totalPaidAll: number;
+    deficientAmount234B: number;
+    is234BApplicable: boolean;
+    ninetyPercentThreshold: number;
+    interest234B: number;
+    interest234BMonths: number;
+    interestOnBalance: number;
+    interestOnBalanceMonths: number;
+    assessmentYearStart: string;
   } | null>(null);
 
   const { toast } = useToast();
@@ -3575,31 +3591,36 @@ function TaxCalculator() {
     const tdsQ2Amt = parseFloat(tdsQ2) || 0;
     const tdsQ3Amt = parseFloat(tdsQ3) || 0;
     const tdsQ4Amt = parseFloat(tdsQ4) || 0;
+    const tdsCreditAmount = tdsQ1Amt + tdsQ2Amt + tdsQ3Amt + tdsQ4Amt;
+
+    const assessedTax = Math.max(0, totalTax - tdsCreditAmount);
+
+    if (assessedTax <= 10000) {
+      setResult({ totalTax, assessedTax, tdsCreditAmount, noAdvanceTaxRequired: true, totalInterest234C: 0, instalments: [], remainingBalance: 0, totalAdvanceTaxPaid: 0, totalPaidAll: 0, deficientAmount234B: 0, is234BApplicable: false, ninetyPercentThreshold: 0, interest234B: 0, interest234BMonths: 0, interestOnBalance: 0, interestOnBalanceMonths: 0, assessmentYearStart: new Date(fyStartYear + 1, 3, 1).toISOString() });
+      return;
+    }
+
+    const advJune = parseFloat(paidJune) || 0;
+    const advSept = parseFloat(paidSeptember) || 0;
+    const advDec = parseFloat(paidDecember) || 0;
+    const advMar = parseFloat(paidMarch) || 0;
 
     const instalmentSchedule = [
-      { dueDate: "15 June", percentage: 15, advanceTax: parseFloat(paidJune) || 0, tds: tdsQ1Amt, paid: (parseFloat(paidJune) || 0) + tdsQ1Amt, dueDateObj: new Date(fyStartYear, 5, 15) },
-      { dueDate: "15 September", percentage: 45, advanceTax: parseFloat(paidSeptember) || 0, tds: tdsQ2Amt, paid: (parseFloat(paidSeptember) || 0) + tdsQ2Amt, dueDateObj: new Date(fyStartYear, 8, 15) },
-      { dueDate: "15 December", percentage: 75, advanceTax: parseFloat(paidDecember) || 0, tds: tdsQ3Amt, paid: (parseFloat(paidDecember) || 0) + tdsQ3Amt, dueDateObj: new Date(fyStartYear, 11, 15) },
-      { dueDate: "15 March", percentage: 100, advanceTax: parseFloat(paidMarch) || 0, tds: tdsQ4Amt, paid: (parseFloat(paidMarch) || 0) + tdsQ4Amt, dueDateObj: new Date(fyStartYear + 1, 2, 15) }
+      { dueDate: "15 June", percentage: 15, advanceTax: advJune, tds: tdsQ1Amt, dueDateObj: new Date(fyStartYear, 5, 15) },
+      { dueDate: "15 September", percentage: 45, advanceTax: advSept, tds: tdsQ2Amt, dueDateObj: new Date(fyStartYear, 8, 15) },
+      { dueDate: "15 December", percentage: 75, advanceTax: advDec, tds: tdsQ3Amt, dueDateObj: new Date(fyStartYear, 11, 15) },
+      { dueDate: "15 March", percentage: 100, advanceTax: advMar, tds: tdsQ4Amt, dueDateObj: new Date(fyStartYear + 1, 2, 15) }
     ];
 
     const paymentDate = finalPaymentDate ? new Date(finalPaymentDate) : new Date();
 
-    let cumulativePaid = 0;
+    let cumulativeAdvanceTaxPaid = 0;
     let totalInterest234C = 0;
 
-    const nextDueDates = [
-      new Date(fyStartYear, 8, 15),
-      new Date(fyStartYear, 11, 15),
-      new Date(fyStartYear + 1, 2, 15),
-      null,
-    ];
-
     const instalments = instalmentSchedule.map((instalment, index) => {
-      const cumulativeTaxDue = (totalTax * instalment.percentage) / 100;
-      cumulativePaid += instalment.paid;
-      const balance = cumulativeTaxDue - cumulativePaid;
-      const shortfall = Math.max(0, balance);
+      const cumulativeTaxDue = (assessedTax * instalment.percentage) / 100;
+      cumulativeAdvanceTaxPaid += instalment.advanceTax;
+      const shortfall = Math.max(0, cumulativeTaxDue - cumulativeAdvanceTaxPaid);
 
       const interestApplicable = shortfall > 0;
 
@@ -3623,8 +3644,8 @@ function TaxCalculator() {
         taxDue: cumulativeTaxDue,
         advanceTax: instalment.advanceTax,
         tds: instalment.tds,
-        paid: instalment.paid,
-        balance,
+        paid: instalment.advanceTax,
+        balance: cumulativeTaxDue - cumulativeAdvanceTaxPaid,
         interestApplicable,
         shortfall,
         delayMonths,
@@ -3632,13 +3653,13 @@ function TaxCalculator() {
       };
     });
 
-    const totalAdvanceTaxPaid = (parseFloat(paidJune) || 0) + (parseFloat(paidSeptember) || 0) + (parseFloat(paidDecember) || 0) + (parseFloat(paidMarch) || 0);
-    const tdsCreditAmount = tdsQ1Amt + tdsQ2Amt + tdsQ3Amt + tdsQ4Amt;
+    const totalAdvanceTaxPaid = advJune + advSept + advDec + advMar;
     const totalPaidAll = totalAdvanceTaxPaid + tdsCreditAmount;
     const remainingBalance = Math.max(0, totalTax - totalPaidAll);
-    const ninetyPercentThreshold = totalTax * 0.9;
-    const is234BApplicable = totalPaidAll < ninetyPercentThreshold;
-    const deficientAmount234B = is234BApplicable ? Math.max(0, totalTax - totalPaidAll) : 0;
+
+    const ninetyPercentThreshold = assessedTax * 0.9;
+    const is234BApplicable = totalAdvanceTaxPaid < ninetyPercentThreshold;
+    const deficientAmount234B = is234BApplicable ? Math.max(0, assessedTax - totalAdvanceTaxPaid) : 0;
     let interest234B = 0;
     let interest234BMonths = 0;
     const assessmentYearStart = new Date(fyStartYear + 1, 3, 1);
@@ -3663,7 +3684,7 @@ function TaxCalculator() {
       }
     }
 
-    setResult({ totalTax, totalInterest234C, instalments, remainingBalance, totalAdvanceTaxPaid, tdsCreditAmount, totalPaidAll, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, interestOnBalance, interestOnBalanceMonths, assessmentYearStart: assessmentYearStart.toISOString() });
+    setResult({ totalTax, assessedTax, tdsCreditAmount, noAdvanceTaxRequired: false, totalInterest234C, instalments, remainingBalance, totalAdvanceTaxPaid, totalPaidAll, deficientAmount234B, is234BApplicable, ninetyPercentThreshold, interest234B, interest234BMonths, interestOnBalance, interestOnBalanceMonths, assessmentYearStart: assessmentYearStart.toISOString() });
   };
 
   // Helper function to load a saved calculation
@@ -3750,23 +3771,30 @@ ADVANCE TAX CALCULATOR - ${selectedCompany} - CORPORATE TAXPAYERS (INDIA)
 ===================================================
 
 Company: ${selectedCompany}
+Financial Year: ${selectedFinancialYear}
 Annual Income: ₹${parseFloat(annualIncome).toLocaleString()}
 Tax Rate: ${taxRate}%
 Surcharge Rate: ${surchargeRate}%
 Health & Education Cess: ${cessRate}%
 Total Tax Liability: ₹${result.totalTax.toLocaleString()}
-${result.tdsCreditAmount > 0 ? `TDS Credit During the Year: ₹${result.tdsCreditAmount.toLocaleString()}` : ''}
-${finalPaymentDate ? `Final Payment Date: ${new Date(finalPaymentDate).toLocaleDateString('en-GB')}` : ''}
-
-INSTALMENT SCHEDULE:
+${result.tdsCreditAmount > 0 ? `Total TDS Credit: ₹${result.tdsCreditAmount.toLocaleString()}` : ''}
+Assessed Tax (Tax - TDS): ₹${Math.round(result.assessedTax).toLocaleString()}
+${result.noAdvanceTaxRequired ? '\nAssessed Tax <= Rs.10,000. No advance tax required (Section 208).\n' : ''}${finalPaymentDate ? `Final Payment Date: ${new Date(finalPaymentDate).toLocaleDateString('en-GB')}` : ''}
+${!result.noAdvanceTaxRequired ? `
+INSTALMENT SCHEDULE (based on Assessed Tax):
+Note: Only advance tax paid is checked for compliance. TDS is NOT counted as instalment payment.
 -------------------
-Due Date       % Due    Tax Due         Paid           Shortfall      Delay     Interest u/s 234C
+Due Date       % Due    Cumulative Due  Adv Tax Paid   Shortfall      Months    Interest u/s 234C
 ${result.instalments.map(inst => 
   `${inst.dueDate.padEnd(14)} ${inst.percentageDue.toString().padEnd(8)} ₹${Math.round(inst.taxDue).toLocaleString().padEnd(14)} ₹${Math.round(inst.paid).toLocaleString().padEnd(14)} ₹${Math.round(inst.shortfall).toLocaleString().padEnd(14)} ${inst.delayMonths > 0 ? inst.delayMonths + ' mo' : '-'.padEnd(9)} ${inst.interest234C > 0 ? '₹' + inst.interest234C.toLocaleString() : '-'}`
 ).join('\n')}
-${result.totalInterest234C > 0 ? `\nTotal Interest Payable u/s 234C: ₹${result.totalInterest234C.toLocaleString()}` : ''}
+${result.totalInterest234C > 0 ? `\nTotal Interest u/s 234C: ₹${result.totalInterest234C.toLocaleString()}` : ''}
+${result.is234BApplicable ? `\nSection 234B: Advance tax paid < 90% of Assessed Tax\nDeficient: ₹${result.deficientAmount234B.toLocaleString()} x 1% x ${result.interest234BMonths} months = ₹${result.interest234B.toLocaleString()}` : '\nSection 234B: Not applicable (advance tax >= 90% of assessed tax)'}
+${result.interestOnBalance > 0 ? `\nInterest on Balance: ₹${result.remainingBalance.toLocaleString()} x 1% x ${result.interestOnBalanceMonths} months = ₹${result.interestOnBalance.toLocaleString()}` : ''}
 
-Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalment due date.
+Total Interest: ₹${(result.totalInterest234C + (result.interest234B || 0) + (result.interestOnBalance || 0)).toLocaleString()}
+` : ''}
+Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS only reduces tax liability, not instalment compliance.
     `.trim();
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -4026,30 +4054,41 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                   </div>
                   {result.tdsCreditAmount > 0 && (
                     <div>
-                      <Label className="text-xs text-muted-foreground">TDS Credit</Label>
+                      <Label className="text-xs text-muted-foreground">Total TDS Credit</Label>
                       <p className="font-semibold text-green-600">₹{result.tdsCreditAmount.toLocaleString()}</p>
                     </div>
                   )}
-                  {result.tdsCreditAmount > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Assessed Tax (Tax - TDS)</Label>
+                    <p className="font-bold text-blue-700">₹{Math.round(result.assessedTax).toLocaleString()}</p>
+                  </div>
+                  {result.remainingBalance > 0 && (
                     <div>
-                      <Label className="text-xs text-muted-foreground">Net Balance Tax</Label>
+                      <Label className="text-xs text-muted-foreground">Remaining Balance</Label>
                       <p className="font-bold text-orange-600">₹{result.remainingBalance.toLocaleString()}</p>
                     </div>
                   )}
                 </div>
                 
+                {result.noAdvanceTaxRequired && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 font-semibold">No Advance Tax Required</p>
+                    <p className="text-green-700 text-sm mt-1">Assessed Tax (Total Tax - TDS) is ₹{Math.round(result.assessedTax).toLocaleString()}, which is less than or equal to ₹10,000. No advance tax instalments are required as per Section 208.</p>
+                  </div>
+                )}
+                
+                {!result.noAdvanceTaxRequired && (
                 <div className="border-t pt-4">
-                  <Label className="text-sm font-semibold mb-2 block">Advance Tax Schedule</Label>
+                  <Label className="text-sm font-semibold mb-2 block">Advance Tax Instalment Schedule (based on Assessed Tax: ₹{Math.round(result.assessedTax).toLocaleString()})</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Note: Instalment compliance is checked against cumulative advance tax paid only. TDS reduces total tax liability but is NOT counted as instalment payment.</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b bg-gray-50">
                           <th className="text-left p-1.5">Due Date</th>
                           <th className="text-right p-1.5">% Due</th>
-                          <th className="text-right p-1.5">Tax Due</th>
-                          <th className="text-right p-1.5">Advance Tax</th>
-                          <th className="text-right p-1.5">TDS</th>
-                          <th className="text-right p-1.5">Total Paid</th>
+                          <th className="text-right p-1.5">Cumulative Due</th>
+                          <th className="text-right p-1.5">Advance Tax Paid</th>
                           <th className="text-right p-1.5">Shortfall</th>
                           <th className="text-center p-1.5">Months</th>
                           <th className="text-right p-1.5">Interest u/s 234C</th>
@@ -4061,9 +4100,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                             <td className="p-1.5">{instalment.dueDate}</td>
                             <td className="text-right p-1.5">{instalment.percentageDue}%</td>
                             <td className="text-right p-1.5">₹{Math.round(instalment.taxDue).toLocaleString()}</td>
-                            <td className="text-right p-1.5">₹{Math.round(instalment.advanceTax).toLocaleString()}</td>
-                            <td className="text-right p-1.5 text-green-700">{instalment.tds > 0 ? `₹${Math.round(instalment.tds).toLocaleString()}` : '-'}</td>
-                            <td className="text-right p-1.5 font-semibold">₹{Math.round(instalment.paid).toLocaleString()}</td>
+                            <td className="text-right p-1.5">₹{Math.round(instalment.paid).toLocaleString()}</td>
                             <td className={`text-right p-1.5 font-semibold ${instalment.shortfall > 0 ? 'text-red-600' : 'text-green-600'}`}>
                               ₹{Math.round(instalment.shortfall).toLocaleString()}
                             </td>
@@ -4083,7 +4120,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                       {result.totalInterest234C > 0 && (
                         <tfoot>
                           <tr className="border-t-2 bg-red-50">
-                            <td colSpan={8} className="p-1.5 font-bold text-right text-red-700">Total Interest Payable u/s 234C:</td>
+                            <td colSpan={6} className="p-1.5 font-bold text-right text-red-700">Total Interest Payable u/s 234C:</td>
                             <td className="text-right p-1.5 font-bold text-red-700">₹{result.totalInterest234C.toLocaleString()}</td>
                           </tr>
                         </tfoot>
@@ -4094,23 +4131,19 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                   <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded">
                     <p className="font-semibold text-orange-800 text-sm">Interest u/s 234B (Default on Assessed Tax)</p>
                     <div className="mt-2 text-xs space-y-1">
-                      <p className="text-orange-700">Total assessed tax liability: <span className="font-semibold">₹{result.totalTax.toLocaleString()}</span></p>
-                      <p className="text-orange-700">90% threshold: <span className="font-semibold">₹{Math.round(result.ninetyPercentThreshold).toLocaleString()}</span></p>
+                      <p className="text-orange-700">Assessed Tax (Total Tax - TDS): <span className="font-semibold">₹{Math.round(result.assessedTax).toLocaleString()}</span></p>
+                      <p className="text-orange-700">90% of Assessed Tax: <span className="font-semibold">₹{Math.round(result.ninetyPercentThreshold).toLocaleString()}</span></p>
                       <p className="text-orange-700">Total advance tax paid (by Mar 31): <span className="font-semibold">₹{result.totalAdvanceTaxPaid.toLocaleString()}</span></p>
-                      {result.tdsCreditAmount > 0 && (
-                        <p className="text-orange-700">TDS credit during the year: <span className="font-semibold">₹{result.tdsCreditAmount.toLocaleString()}</span></p>
-                      )}
-                      <p className="text-orange-700">Total tax paid/credited (advance tax + TDS): <span className="font-semibold">₹{result.totalPaidAll.toLocaleString()}</span></p>
                       {result.is234BApplicable ? (
                         <>
-                          <p className="text-red-700 font-semibold mt-1">Advance tax paid is less than 90% of assessed tax - 234B applicable</p>
-                          <p className="text-orange-700">Deficient amount (assessed tax - advance tax paid): <span className="font-semibold">₹{result.deficientAmount234B.toLocaleString()}</span></p>
+                          <p className="text-red-700 font-semibold mt-1">Advance tax paid {"<"} 90% of Assessed Tax - Section 234B applicable</p>
+                          <p className="text-orange-700">Deficient amount (Assessed Tax - Advance Tax Paid): <span className="font-semibold">₹{result.deficientAmount234B.toLocaleString()}</span></p>
                           <p className="text-orange-700">Interest period: April 1, {new Date(result.assessmentYearStart).getFullYear()} to {(finalPaymentDate ? new Date(finalPaymentDate) : new Date()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} = <span className="font-semibold">{result.interest234BMonths} month(s)</span></p>
                           <p className="text-red-700 font-bold mt-1">Interest u/s 234B: ₹{result.deficientAmount234B.toLocaleString()} x 1% x {result.interest234BMonths} = ₹{result.interest234B.toLocaleString()}</p>
                         </>
                       ) : (
                         <>
-                          <p className="text-green-700 font-semibold mt-1">Advance tax paid is 90% or more of assessed tax - No 234B interest applicable</p>
+                          <p className="text-green-700 font-semibold mt-1">Advance tax paid {">="} 90% of Assessed Tax - No 234B interest</p>
                           {result.remainingBalance > 0 && result.interestOnBalance > 0 && (
                             <div className="mt-2 pt-2 border-t border-orange-200">
                               <p className="text-orange-800 font-semibold">Interest on Balance Tax (Self-Assessment Tax)</p>
@@ -4129,7 +4162,7 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                       <p className="font-semibold text-red-800 text-sm">Total Interest Summary</p>
                       <div className="mt-2 text-xs space-y-1">
                         {result.totalInterest234C > 0 && <p className="text-red-700">Interest u/s 234C (deferment): <span className="font-semibold">₹{result.totalInterest234C.toLocaleString()}</span></p>}
-                        {result.interest234B > 0 && <p className="text-red-700">Interest u/s 234B (default on balance): <span className="font-semibold">₹{result.interest234B.toLocaleString()}</span></p>}
+                        {result.interest234B > 0 && <p className="text-red-700">Interest u/s 234B (default): <span className="font-semibold">₹{result.interest234B.toLocaleString()}</span></p>}
                         {result.interestOnBalance > 0 && <p className="text-red-700">Interest on balance tax (self-assessment): <span className="font-semibold">₹{result.interestOnBalance.toLocaleString()}</span></p>}
                         <p className="text-red-800 font-bold border-t border-red-300 pt-1 mt-1">Total Interest Payable: ₹{(result.totalInterest234C + (result.interest234B || 0) + (result.interestOnBalance || 0)).toLocaleString()}</p>
                       </div>
@@ -4137,11 +4170,13 @@ Note: Interest u/s 234C @ 1% per month (simple) on shortfall from each instalmen
                   )}
                   
                   <div className="mt-3 text-xs text-muted-foreground">
-                    <p>* Interest u/s 234C: 1% per month (simple) on shortfall for each quarter (3 months for Q1-Q3, 1 month for Q4)</p>
-                    <p>* Interest u/s 234B: Applicable if advance tax paid is less than 90% of assessed tax. 1% per month on deficient amount from April 1 to actual payment date</p>
-                    <p>* Minimum 15% due by June 15, 45% by Sep 15, 75% by Dec 15, 100% by Mar 15</p>
+                    <p>* Assessed Tax = Total Tax Liability - Total TDS Credit. Advance tax required only if Assessed Tax exceeds ₹10,000</p>
+                    <p>* Interest u/s 234C: 1% per month on shortfall of advance tax (only) for each quarter (3 months for Q1-Q3, 1 month for Q4). TDS is NOT included in instalment compliance</p>
+                    <p>* Interest u/s 234B: Applicable if advance tax paid {"<"} 90% of Assessed Tax. 1% per month on (Assessed Tax - Advance Tax Paid) from April 1 to payment date</p>
+                    <p>* Instalment due: 15% by Jun 15, 45% by Sep 15, 75% by Dec 15, 100% by Mar 15 — all percentages of Assessed Tax</p>
                   </div>
                 </div>
+                )}
               </CardContent>
             </Card>
           )}
