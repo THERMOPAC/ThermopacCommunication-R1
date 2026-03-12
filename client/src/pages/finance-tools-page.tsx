@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle, RotateCcw } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, ArrowRight, ArrowLeft, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle, RotateCcw } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -3452,6 +3452,45 @@ function ROICalculator() {
 
 // Tax Calculator Component (Advance Tax Calculator for Corporate Taxpayers in India)
 function TaxCalculator() {
+  const [showProfitEstimation, setShowProfitEstimation] = useState(true);
+  const [sapProfit, setSapProfit] = useState("");
+  const [debitItems, setDebitItems] = useState<Record<string, string>>({
+    "Bad Debts": "",
+    "Carriage And Freight Outwards": "",
+    "Commission And Brokerage": "",
+    "Consumption": "",
+    "Depreciation Expenses": "",
+    "Discounts": "",
+    "Import Expenses": "",
+    "Labor Charges": "",
+    "Legal And Professional Charges": "",
+    "Marketing Expanse": "",
+    "Other Expense": "",
+    "Power & Fuel": "",
+    "Purchase Account": "",
+    "Rent": "",
+    "Salary": "",
+    "Wages": "",
+    "Water Charges": "",
+  });
+  const [creditItems, setCreditItems] = useState<Record<string, string>>({
+    "Commission Received": "",
+    "Duties And Taxes Received": "",
+    "Forex Gain-Loss": "",
+    "Income": "",
+    "Interest Income": "",
+    "Other Income": "",
+    "Recovery of Bad Debts": "",
+    "Estimated Sales": "",
+  });
+
+  const debitKeys = Object.keys(debitItems);
+  const creditKeys = Object.keys(creditItems);
+  const totalDebit = debitKeys.reduce((sum, k) => sum + (parseFloat(debitItems[k]) || 0), 0);
+  const totalCredit = creditKeys.reduce((sum, k) => sum + (parseFloat(creditItems[k]) || 0), 0);
+  const sapProfitVal = parseFloat(sapProfit) || 0;
+  const estimatedProfit = sapProfitVal - totalDebit + totalCredit;
+
   const [selectedCompany, setSelectedCompany] = useState("TPEL");
   const [annualIncome, setAnnualIncome] = useState("");
   const [taxRate, setTaxRate] = useState("30"); // Default 30% for companies
@@ -3806,8 +3845,128 @@ Note: Assessed Tax = Total Tax - TDS. Instalments are % of Assessed Tax. TDS onl
     URL.revokeObjectURL(url);
   };
 
+  if (showProfitEstimation) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Calculator className="h-5 w-5" />
+            SAP Profit Estimation Working Table
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowProfitEstimation(false)}
+          >
+            Skip to Tax Calculator
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">Enter SAP Profit and estimated debit/credit adjustments. The calculated Estimated Profit will be used as the Annual Taxable Income in the Advance Tax Calculator.</p>
+
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <Label className="text-sm font-semibold">SAP Profit (₹)</Label>
+          <Input
+            type="number"
+            value={sapProfit}
+            onChange={(e) => setSapProfit(e.target.value)}
+            placeholder="Enter SAP Profit"
+            className="mt-1 text-right font-semibold text-lg bg-white"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <Label className="text-sm font-semibold text-red-800 mb-2 block">Debit Adjustments</Label>
+              <div className="space-y-1.5">
+                {debitKeys.map((key) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <Label className="text-xs w-[200px] min-w-[200px] truncate" title={key}>{key}</Label>
+                    <Input
+                      type="number"
+                      value={debitItems[key]}
+                      onChange={(e) => setDebitItems(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder="0.00"
+                      className="h-7 text-xs text-right bg-white"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-2 border-t border-red-300">
+                <Label className="text-sm font-bold text-red-800">Total Debit</Label>
+                <span className="text-sm font-bold text-red-700">₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <Label className="text-sm font-semibold text-green-800 mb-2 block">Credit Adjustments</Label>
+              <div className="space-y-1.5">
+                {creditKeys.map((key) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <Label className="text-xs w-[200px] min-w-[200px] truncate" title={key}>{key}</Label>
+                    <Input
+                      type="number"
+                      value={creditItems[key]}
+                      onChange={(e) => setCreditItems(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder="0.00"
+                      className="h-7 text-xs text-right bg-white"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-2 border-t border-green-300">
+                <Label className="text-sm font-bold text-green-800">Total Credit</Label>
+                <span className="text-sm font-bold text-green-700">₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-100 border-2 border-blue-400 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-blue-700 font-medium">Estimated Profit = SAP Profit - Total Debit + Total Credit</p>
+              <p className="text-xs text-blue-600 mt-1">= ₹{sapProfitVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })} - ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })} + ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div className="text-right">
+              <Label className="text-sm font-semibold text-blue-800">Estimated Profit</Label>
+              <p className={`text-2xl font-bold ${estimatedProfit >= 0 ? 'text-blue-800' : 'text-red-700'}`}>₹{estimatedProfit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            onClick={() => {
+              setAnnualIncome(estimatedProfit > 0 ? estimatedProfit.toFixed(0) : "0");
+              setShowProfitEstimation(false);
+            }}
+            className="flex items-center gap-2"
+            disabled={!sapProfit}
+          >
+            Proceed to Tax Calculator
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowProfitEstimation(true)}
+          className="flex items-center gap-1 text-xs"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Back to SAP Profit Estimation
+        </Button>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           {/* Financial Year Selection and Database Controls */}
