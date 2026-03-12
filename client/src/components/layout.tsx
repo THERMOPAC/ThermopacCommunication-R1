@@ -339,7 +339,8 @@ function Layout({ children }: LayoutProps) {
         { icon: CheckSquare, label: "Review & Approval", href: "/design-management/reviews" },
         { icon: Briefcase, label: "Transmittals", href: "/design-management/transmittals" },
         { icon: FileCheck, label: "Standards & Templates", href: "/design-management/standards" },
-        { icon: BarChart4, label: "Reports & Analytics", href: "/design-management/reports" }
+        { icon: BarChart4, label: "Reports & Analytics", href: "/design-management/reports" },
+        { icon: Palette, label: "Design Tools", href: "/design-tools" }
       ]
     }] : []),
     ...(hasViewPermission("SAP B1 Integration") ? [{ 
