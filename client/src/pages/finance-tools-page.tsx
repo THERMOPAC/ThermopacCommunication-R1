@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, ArrowRight, ArrowLeft, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle, RotateCcw } from "lucide-react";
+import { Settings, Calculator, FileText, BarChart3, TrendingUp, Download, Save, FolderOpen, Database, Ruler, ArrowLeftRight, ArrowRight, ArrowLeft, Plus, Trash2, Calendar, DollarSign, Target, Percent, PieChart, AlertTriangle, RotateCcw, Building, CheckCircle, XCircle, MinusCircle } from "lucide-react";
 import Layout from "@/components/layout";
 
 // Loan Calculator Component
@@ -5119,6 +5119,211 @@ function CurrencyHoldingDecisionCalculator() {
   );
 }
 
+function MaxAcquisitionPriceCalculator() {
+  const [targetExitPrice, setTargetExitPrice] = useState("");
+  const [requiredIRR, setRequiredIRR] = useState("");
+  const [holdingPeriod, setHoldingPeriod] = useState("");
+  const [carpetArea, setCarpetArea] = useState("");
+  const [offeredPrice, setOfferedPrice] = useState("");
+  const [result, setResult] = useState<{
+    maxPrice: number;
+    maxTotalValue: number | null;
+    targetExitValue: number | null;
+    expectedProfit: number | null;
+    moic: number | null;
+    marginOfSafety: number | null;
+    impliedIRR: number | null;
+    dealStatus: "attractive" | "fair" | "overpriced" | null;
+  } | null>(null);
+
+  const calculate = () => {
+    const exit = parseFloat(targetExitPrice);
+    const irr = parseFloat(requiredIRR) / 100;
+    const years = parseFloat(holdingPeriod);
+    const area = carpetArea ? parseFloat(carpetArea) : null;
+    const offered = offeredPrice ? parseFloat(offeredPrice) : null;
+
+    if (!exit || !irr || !years || exit <= 0 || irr <= 0 || years <= 0) return;
+
+    const maxPrice = exit / Math.pow(1 + irr, years);
+
+    let maxTotalValue: number | null = null;
+    let targetExitValue: number | null = null;
+    let expectedProfit: number | null = null;
+    let moic: number | null = null;
+
+    if (area && area > 0) {
+      maxTotalValue = maxPrice * area;
+      targetExitValue = exit * area;
+      expectedProfit = targetExitValue - maxTotalValue;
+      moic = targetExitValue / maxTotalValue;
+    }
+
+    let marginOfSafety: number | null = null;
+    let impliedIRR: number | null = null;
+    let dealStatus: "attractive" | "fair" | "overpriced" | null = null;
+
+    if (offered && offered > 0) {
+      marginOfSafety = ((maxPrice - offered) / maxPrice) * 100;
+      impliedIRR = (Math.pow(exit / offered, 1 / years) - 1) * 100;
+      if (offered < maxPrice * 0.99) dealStatus = "attractive";
+      else if (offered > maxPrice * 1.01) dealStatus = "overpriced";
+      else dealStatus = "fair";
+    }
+
+    setResult({ maxPrice, maxTotalValue, targetExitValue, expectedProfit, moic, marginOfSafety, impliedIRR, dealStatus });
+  };
+
+  const reset = () => {
+    setTargetExitPrice("");
+    setRequiredIRR("");
+    setHoldingPeriod("");
+    setCarpetArea("");
+    setOfferedPrice("");
+    setResult(null);
+  };
+
+  const formatCurrency = (val: number) => `₹${Math.round(val).toLocaleString('en-IN')}`;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <Label className="text-sm font-semibold text-blue-800 mb-3 block">Core Inputs</Label>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Target Exit Price (₹/sq.ft) *</Label>
+                <Input type="number" value={targetExitPrice} onChange={(e) => setTargetExitPrice(e.target.value)} placeholder="e.g. 25000" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Required IRR (%) *</Label>
+                <Input type="number" value={requiredIRR} onChange={(e) => setRequiredIRR(e.target.value)} placeholder="e.g. 15" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Holding Period (Years) *</Label>
+                <Input type="number" value={holdingPeriod} onChange={(e) => setHoldingPeriod(e.target.value)} placeholder="e.g. 5" className="mt-1" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <Label className="text-sm font-semibold text-gray-700 mb-3 block">Optional Inputs</Label>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">RERA Carpet Area (sq.ft)</Label>
+                <Input type="number" value={carpetArea} onChange={(e) => setCarpetArea(e.target.value)} placeholder="e.g. 1200" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Offered Price (₹/sq.ft)</Label>
+                <Input type="number" value={offeredPrice} onChange={(e) => setOfferedPrice(e.target.value)} placeholder="e.g. 12000" className="mt-1" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={calculate} className="flex-1" disabled={!targetExitPrice || !requiredIRR || !holdingPeriod}>
+              <Calculator className="h-4 w-4 mr-2" />
+              Calculate
+            </Button>
+            <Button onClick={reset} variant="outline" className="flex-1">
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+          </div>
+
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-xs text-amber-800">
+            <p className="font-semibold mb-1">Formula</p>
+            <p>Max Acquisition Price = Target Exit Price / (1 + IRR)^Years</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {result ? (
+            <>
+              <div className="bg-blue-100 border-2 border-blue-400 rounded-lg p-4">
+                <Label className="text-xs text-blue-700">Maximum Acquisition Price</Label>
+                <p className="text-3xl font-bold text-blue-800">{formatCurrency(result.maxPrice)}<span className="text-sm font-normal text-blue-600">/sq.ft</span></p>
+                <p className="text-xs text-blue-600 mt-1">This is the most you should pay today to achieve {requiredIRR}% IRR over {holdingPeriod} years</p>
+              </div>
+
+              {result.maxTotalValue !== null && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white border rounded-lg p-3">
+                    <Label className="text-xs text-muted-foreground">Max Total Acquisition Value</Label>
+                    <p className="text-lg font-bold text-blue-700">{formatCurrency(result.maxTotalValue!)}</p>
+                  </div>
+                  <div className="bg-white border rounded-lg p-3">
+                    <Label className="text-xs text-muted-foreground">Target Exit Value</Label>
+                    <p className="text-lg font-bold text-green-700">{formatCurrency(result.targetExitValue!)}</p>
+                  </div>
+                  <div className="bg-white border rounded-lg p-3">
+                    <Label className="text-xs text-muted-foreground">Expected Profit</Label>
+                    <p className={`text-lg font-bold ${result.expectedProfit! >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(result.expectedProfit!)}</p>
+                  </div>
+                  <div className="bg-white border rounded-lg p-3">
+                    <Label className="text-xs text-muted-foreground">MOIC (Multiple on Invested Capital)</Label>
+                    <p className="text-lg font-bold text-purple-700">{result.moic!.toFixed(2)}x</p>
+                  </div>
+                </div>
+              )}
+
+              {result.dealStatus !== null && (
+                <div className={`border-2 rounded-lg p-4 ${
+                  result.dealStatus === 'attractive' ? 'bg-green-50 border-green-400' :
+                  result.dealStatus === 'fair' ? 'bg-yellow-50 border-yellow-400' :
+                  'bg-red-50 border-red-400'
+                }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    {result.dealStatus === 'attractive' ? <CheckCircle className="h-5 w-5 text-green-600" /> :
+                     result.dealStatus === 'fair' ? <MinusCircle className="h-5 w-5 text-yellow-600" /> :
+                     <XCircle className="h-5 w-5 text-red-600" />}
+                    <Label className={`text-sm font-bold ${
+                      result.dealStatus === 'attractive' ? 'text-green-800' :
+                      result.dealStatus === 'fair' ? 'text-yellow-800' :
+                      'text-red-800'
+                    }`}>
+                      Deal Assessment: {result.dealStatus === 'attractive' ? 'Attractive' : result.dealStatus === 'fair' ? 'Fair Value' : 'Overpriced'}
+                    </Label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Margin of Safety</Label>
+                      <p className={`text-lg font-bold ${result.marginOfSafety! >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {Math.round(result.marginOfSafety!)}%
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Implied IRR at Offered Price</Label>
+                      <p className={`text-lg font-bold ${result.impliedIRR! >= parseFloat(requiredIRR) ? 'text-green-600' : 'text-red-600'}`}>
+                        {Math.round(result.impliedIRR!)}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs space-y-1">
+                    <p>Offered: {formatCurrency(parseFloat(offeredPrice))}/sq.ft vs Max: {formatCurrency(result.maxPrice)}/sq.ft</p>
+                    {result.dealStatus === 'attractive' && <p className="text-green-700">The offered price is below your maximum, giving you a buffer to achieve your target IRR.</p>}
+                    {result.dealStatus === 'fair' && <p className="text-yellow-700">The offered price is close to your maximum. Returns will be near your required IRR.</p>}
+                    {result.dealStatus === 'overpriced' && <p className="text-red-700">The offered price exceeds your maximum. You will not achieve your required IRR at this price.</p>}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full min-h-[300px] text-center text-muted-foreground border rounded-lg">
+              <div>
+                <Building className="h-12 w-12 mx-auto mb-4" />
+                <p>Enter investment parameters and click Calculate</p>
+                <p className="text-xs mt-1">Determine the maximum price per sq.ft for your target IRR</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FinanceToolsPage() {
   const [activeTab, setActiveTab] = useState("calculators");
   const [isInterestCalculatorOpen, setIsInterestCalculatorOpen] = useState(false);
@@ -5134,6 +5339,7 @@ export default function FinanceToolsPage() {
   const [isRatioAnalysisOpen, setIsRatioAnalysisOpen] = useState(false);
   const [isBudgetAnalyzerOpen, setIsBudgetAnalyzerOpen] = useState(false);
   const [isCurrencyHoldingDecisionOpen, setIsCurrencyHoldingDecisionOpen] = useState(false);
+  const [isMaxAcquisitionPriceOpen, setIsMaxAcquisitionPriceOpen] = useState(false);
 
   return (
     <Layout>
@@ -5333,6 +5539,36 @@ export default function FinanceToolsPage() {
                         </DialogDescription>
                       </DialogHeader>
                       <ROICalculator />
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div>
+                    <CardTitle className="text-base">Max Acquisition Price</CardTitle>
+                    <CardDescription>
+                      Real estate investment price calculator
+                    </CardDescription>
+                  </div>
+                  <Building className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <Dialog open={isMaxAcquisitionPriceOpen} onOpenChange={setIsMaxAcquisitionPriceOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        Open Calculator
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-[95vw] w-[1100px] max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Maximum Acquisition Price Calculator</DialogTitle>
+                        <DialogDescription>
+                          Calculate the maximum price per sq.ft an investor should pay today to achieve a required IRR based on target exit price and holding period
+                        </DialogDescription>
+                      </DialogHeader>
+                      <MaxAcquisitionPriceCalculator />
                     </DialogContent>
                   </Dialog>
                 </CardContent>
