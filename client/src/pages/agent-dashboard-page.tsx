@@ -246,7 +246,7 @@ function cronDescription(cron: string): string {
   return `${cron}`;
 }
 
-function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusChange: (id: number, status: string) => void }) {
+function FindingCard({ finding }: { finding: Finding }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div
@@ -264,7 +264,6 @@ function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusCh
             <Badge className={`${agentKeyColor(finding.agentKey)} text-xs`} variant="outline">
               {agentKeyLabel(finding.agentKey)}
             </Badge>
-            {statusBadge(finding.status)}
           </div>
           <p className={`text-sm font-medium ${expanded ? '' : 'line-clamp-2'}`}>{finding.title}</p>
           <p className={`text-xs text-muted-foreground mt-0.5 whitespace-pre-line ${expanded ? '' : 'line-clamp-2'}`}>
@@ -277,26 +276,6 @@ function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusCh
             </p>
           )}
           <div className="flex items-center gap-2 mt-2">
-            {finding.status === "open" && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 text-xs"
-                onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, "acknowledged"); }}
-              >
-                Acknowledge
-              </Button>
-            )}
-            {(finding.status === "open" || finding.status === "acknowledged") && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 text-xs"
-                onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, "resolved"); }}
-              >
-                Resolve
-              </Button>
-            )}
             <span className="text-xs text-muted-foreground ml-auto">
               {finding.createdAt ? formatDistanceToNow(new Date(finding.createdAt), { addSuffix: true }) : ""}
             </span>
@@ -407,13 +386,6 @@ export default function AgentDashboardPage() {
     onError: (err: any) => {
       toast({ title: "Execution failed", description: err.message, variant: "destructive" });
     },
-  });
-
-  const updateFindingStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return apiRequest("PATCH", `/api/agents/findings/${id}/status`, { status });
-    },
-    onSuccess: () => { invalidateAll(); toast({ title: "Finding status updated" }); },
   });
 
   const stats = summary?.stats;
@@ -960,7 +932,7 @@ export default function AgentDashboardPage() {
                 ) : (
                   <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                     {filteredFindings.slice(0, 50).map(finding => (
-                      <FindingCard key={finding.id} finding={finding} onStatusChange={(id, status) => updateFindingStatusMutation.mutate({ id, status })} />
+                      <FindingCard key={finding.id} finding={finding} />
                     ))}
                   </div>
                 )}
