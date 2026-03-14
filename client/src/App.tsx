@@ -53,6 +53,8 @@ import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
 import MarketingToolsPage from "@/pages/marketing-tools-page";
 import ROICalculatorPage from "@/pages/roi-calculator-page";
 
+import AgentDashboardPage from "@/pages/agent-dashboard-page";
+
 // Finance module pages
 import FinanceDashboardPage from "@/pages/finance/finance-dashboard-page";
 import InvoicesPage from "@/pages/finance/invoices-page";
@@ -208,6 +210,9 @@ function Router() {
       <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
       <ProtectedRoute path="/marketing-tools" component={MarketingToolsPage} />
       <ProtectedRoute path="/roi-calculator" component={ROICalculatorPage} />
+      
+      {/* Agent Dashboard */}
+      <ProtectedRoute path="/agent-dashboard" component={AgentDashboardPage} />
       
       {/* Finance Module Routes */}
       <ProtectedRoute path="/finance" component={FinanceDashboardPage} />

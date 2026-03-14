@@ -56,7 +56,8 @@ import {
   Package,
   Search,
   Radar,
-  Target
+  Target,
+  Bot
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -231,6 +232,11 @@ function Layout({ children }: LayoutProps) {
       icon: Brain, 
       label: "LLM Prompt Engine", 
       href: "/llm-prompt-engine" 
+    }] : []),
+    ...(user?.role === "Superuser" ? [{ 
+      icon: Bot, 
+      label: "Agent Dashboard", 
+      href: "/agent-dashboard" 
     }] : []),
     { icon: Mail, label: "Emails", href: "/emails" },
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
@@ -453,7 +459,7 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   

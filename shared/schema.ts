@@ -8903,3 +8903,194 @@ export type GadsDailyMetric = typeof gadsDailyMetrics.$inferSelect;
 export type GadsSearchTerm = typeof gadsSearchTerms.$inferSelect;
 export type GadsSyncJob = typeof gadsSyncJobs.$inferSelect;
 export type GadsChangeLog = typeof gadsChangeLog.$inferSelect;
+
+// ============================================================
+// MULTI-AGENT INTELLIGENCE & AUTOMATION LAYER
+// ============================================================
+
+export const agentRegistry = pgTable('agent_registry', {
+  id: serial('id').primaryKey(),
+  agentKey: text('agent_key').unique().notNull(),
+  displayName: text('display_name').notNull(),
+  description: text('description'),
+  category: text('category').notNull(),
+  isEnabled: boolean('is_enabled').default(true),
+  isSuspended: boolean('is_suspended').default(false),
+  suspendedBy: integer('suspended_by').references(() => users.id),
+  suspendedReason: text('suspended_reason'),
+  suspendedAt: timestamp('suspended_at'),
+  defaultSchedule: text('default_schedule'),
+  config: jsonb('config').default({}),
+  scopingRules: jsonb('scoping_rules').default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const agentRuns = pgTable('agent_runs', {
+  id: serial('id').primaryKey(),
+  agentKey: text('agent_key').notNull(),
+  triggerType: text('trigger_type').notNull(),
+  triggerDetail: text('trigger_detail'),
+  companyScope: text('company_scope'),
+  locationScope: text('location_scope'),
+  status: text('status').notNull().default('running'),
+  startedAt: timestamp('started_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  findingsCount: integer('findings_count').default(0),
+  insightsCount: integer('insights_count').default(0),
+  recommendationsCount: integer('recommendations_count').default(0),
+  errorMessage: text('error_message'),
+  executionMetadata: jsonb('execution_metadata').default({}),
+});
+
+export const agentFindings = pgTable('agent_findings', {
+  id: serial('id').primaryKey(),
+  runId: integer('run_id').notNull().references(() => agentRuns.id),
+  agentKey: text('agent_key').notNull(),
+  fingerprint: text('fingerprint').unique().notNull(),
+  findingType: text('finding_type').notNull(),
+  severity: text('severity').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  logicType: text('logic_type').notNull().default('rule_based'),
+  dataSnapshot: jsonb('data_snapshot'),
+  relatedEntityType: text('related_entity_type'),
+  relatedEntityId: text('related_entity_id'),
+  companyName: text('company_name'),
+  location: text('location'),
+  status: text('status').notNull().default('open'),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  assignedBy: integer('assigned_by').references(() => users.id),
+  assignedAt: timestamp('assigned_at'),
+  snoozedUntil: timestamp('snoozed_until'),
+  mutedReason: text('muted_reason'),
+  dismissedBy: integer('dismissed_by').references(() => users.id),
+  dismissedReason: text('dismissed_reason'),
+  dismissedAt: timestamp('dismissed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const agentInsights = pgTable('agent_insights', {
+  id: serial('id').primaryKey(),
+  runId: integer('run_id').notNull().references(() => agentRuns.id),
+  agentKey: text('agent_key').notNull(),
+  findingIds: integer('finding_ids').array(),
+  insightType: text('insight_type').notNull(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  logicType: text('logic_type').notNull().default('llm_generated'),
+  dataSources: text('data_sources').array(),
+  companyName: text('company_name'),
+  scopePeriod: text('scope_period'),
+  metadata: jsonb('metadata').default({}),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const agentRecommendations = pgTable('agent_recommendations', {
+  id: serial('id').primaryKey(),
+  findingId: integer('finding_id').references(() => agentFindings.id),
+  insightId: integer('insight_id').references(() => agentInsights.id),
+  agentKey: text('agent_key').notNull(),
+  actionCategory: text('action_category').notNull(),
+  actionType: text('action_type').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  actionPayload: jsonb('action_payload').notNull(),
+  logicType: text('logic_type').notNull(),
+  confidence: numeric('confidence', { precision: 3, scale: 2 }),
+  priority: text('priority').default('normal'),
+  companyName: text('company_name'),
+  status: text('status').notNull().default('pending_review'),
+  requiresApproval: boolean('requires_approval').notNull().default(true),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  rejectionReason: text('rejection_reason'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const agentActions = pgTable('agent_actions', {
+  id: serial('id').primaryKey(),
+  recommendationId: integer('recommendation_id').notNull().references(() => agentRecommendations.id),
+  agentKey: text('agent_key').notNull(),
+  actionCategory: text('action_category').notNull(),
+  actionType: text('action_type').notNull(),
+  actionPayload: jsonb('action_payload').notNull(),
+  idempotencyKey: text('idempotency_key').unique().notNull(),
+  executionStatus: text('execution_status').notNull().default('pending'),
+  resultMessage: text('result_message'),
+  resultData: jsonb('result_data'),
+  executedAt: timestamp('executed_at'),
+  retryCount: integer('retry_count').default(0),
+  maxRetries: integer('max_retries').default(3),
+  nextRetryAt: timestamp('next_retry_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const agentPolicies = pgTable('agent_policies', {
+  id: serial('id').primaryKey(),
+  agentKey: text('agent_key').notNull(),
+  actionCategory: text('action_category').notNull(),
+  actionType: text('action_type').notNull(),
+  approvalMode: text('approval_mode').notNull().default('require_approval'),
+  allowedApproverRoles: text('allowed_approver_roles').array().default(['Superuser']),
+  maxActionsPerDay: integer('max_actions_per_day').default(50),
+  cooldownMinutes: integer('cooldown_minutes').default(30),
+  isEnabled: boolean('is_enabled').default(true),
+  companyScope: text('company_scope').default('ALL'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const agentSubscriptions = pgTable('agent_subscriptions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  agentKey: text('agent_key'),
+  severityFilter: text('severity_filter').array().default(['critical', 'high']),
+  findingTypes: text('finding_types').array(),
+  channel: text('channel').notNull().default('dashboard'),
+  isActive: boolean('is_active').default(true),
+  companyScope: text('company_scope').default('ALL'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const agentEntityOverrides = pgTable('agent_entity_overrides', {
+  id: serial('id').primaryKey(),
+  entityType: text('entity_type').notNull(),
+  entityId: text('entity_id').notNull(),
+  overrideType: text('override_type').notNull(),
+  reason: text('reason'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  expiresAt: timestamp('expires_at'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const agentAuditLog = pgTable('agent_audit_log', {
+  id: serial('id').primaryKey(),
+  agentKey: text('agent_key'),
+  eventType: text('event_type').notNull(),
+  actorType: text('actor_type').notNull(),
+  actorId: text('actor_id'),
+  entityType: text('entity_type'),
+  entityId: text('entity_id'),
+  companyName: text('company_name'),
+  details: jsonb('details').default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export type AgentRegistry = typeof agentRegistry.$inferSelect;
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type AgentFinding = typeof agentFindings.$inferSelect;
+export type AgentInsight = typeof agentInsights.$inferSelect;
+export type AgentRecommendation = typeof agentRecommendations.$inferSelect;
+export type AgentAction = typeof agentActions.$inferSelect;
+export type AgentPolicy = typeof agentPolicies.$inferSelect;
+export type AgentSubscription = typeof agentSubscriptions.$inferSelect;
+export type AgentEntityOverride = typeof agentEntityOverrides.$inferSelect;
+export type AgentAuditLogEntry = typeof agentAuditLog.$inferSelect;

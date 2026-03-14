@@ -68,6 +68,8 @@ import { registerFileUploadTestRoutes } from "./test/file-upload-test";
 import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
 import { registerCalibrationTestRoutes } from "./calibration-test-routes";
+import agentRoutes from "./agents/agent-routes";
+import { initializeAgentSystem } from "./agents/agent-setup";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
@@ -739,6 +741,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
+
+  // Set up Multi-Agent Intelligence Layer routes
+  app.use('/api/agents', agentRoutes);
+  initializeAgentSystem().catch(err => console.error('[AgentSystem] Initialization error:', err));
   
   // Set up advance tax calculation routes
   app.use(advanceTaxRoutes);
