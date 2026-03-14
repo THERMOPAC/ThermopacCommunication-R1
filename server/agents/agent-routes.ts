@@ -14,6 +14,16 @@ import { auditLogger } from './framework/audit-logger';
 
 const router = Router();
 
+function requireSuperuser(req: Request, res: Response, next: Function) {
+  const user = (req as any).user;
+  if (!user || user.role !== 'Superuser') {
+    return res.status(403).json({ error: 'Only Superuser role can access agent management' });
+  }
+  next();
+}
+
+router.use(requireSuperuser);
+
 router.get('/agents', async (_req: Request, res: Response) => {
   try {
     const agents = await db.select().from(agentRegistry).orderBy(agentRegistry.agentKey);

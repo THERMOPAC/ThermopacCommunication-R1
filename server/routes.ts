@@ -743,7 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/after-sales', afterSalesRoutes);
 
   // Set up Multi-Agent Intelligence Layer routes
-  app.use('/api/agents', agentRoutes);
+  app.use('/api/agents', ensureAuthenticated, agentRoutes);
   initializeAgentSystem().catch(err => console.error('[AgentSystem] Initialization error:', err));
   
   // Set up advance tax calculation routes
