@@ -275,8 +275,11 @@ export default function AgentDashboardPage() {
       return apiRequest("POST", `/api/agents/agents/${agentKey}/trigger`, { companyScope: "ALL" });
     },
     onSuccess: (_data, agentKey) => {
-      toast({ title: "Agent triggered", description: `${agentKeyLabel(agentKey)} is now running.` });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
+      toast({ title: "Agent triggered", description: `${agentKeyLabel(agentKey)} completed successfully.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/dashboard/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/findings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agents/agents"] });
     },
     onError: (err: any) => {
       toast({ title: "Trigger failed", description: err.message, variant: "destructive" });
