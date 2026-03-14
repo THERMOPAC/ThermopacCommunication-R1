@@ -65,6 +65,143 @@ class AgentDataRepository {
     }));
   }
 
+  async getOverdueTasksWithEscalation(): Promise<Array<{
+    id: number; title: string; dueDate: string; status: string; priority: string;
+    category: string; daysOverdue: number;
+    assigneeId: number | null; assigneeName: string; assigneeEmail: string;
+    creatorId: number | null; creatorName: string; creatorEmail: string;
+    assigneeManagerId: number | null; assigneeManagerName: string;
+    creatorManagerId: number | null; creatorManagerName: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT t.id, t.title, t.due_date, t.status, t.priority, t.category,
+        EXTRACT(DAY FROM NOW() - t.due_date::timestamp)::int as days_overdue,
+        t.assigned_to as assignee_id,
+        COALESCE(ua.first_name || ' ' || COALESCE(ua.last_name, ''), ua.username, 'Unassigned') as assignee_name,
+        COALESCE(ua.email, '') as assignee_email,
+        t.created_by as creator_id,
+        COALESCE(uc.first_name || ' ' || COALESCE(uc.last_name, ''), uc.username, 'Unknown') as creator_name,
+        COALESCE(uc.email, '') as creator_email,
+        ua.reporting_manager_id as assignee_manager_id,
+        COALESCE(uma.first_name || ' ' || COALESCE(uma.last_name, ''), uma.username, '') as assignee_manager_name,
+        uc.reporting_manager_id as creator_manager_id,
+        COALESCE(umc.first_name || ' ' || COALESCE(umc.last_name, ''), umc.username, '') as creator_manager_name
+      FROM tasks t
+      LEFT JOIN users ua ON t.assigned_to = ua.id
+      LEFT JOIN users uc ON t.created_by = uc.id
+      LEFT JOIN users uma ON ua.reporting_manager_id = uma.id
+      LEFT JOIN users umc ON uc.reporting_manager_id = umc.id
+      WHERE t.status NOT IN ('completed', 'cancelled')
+        AND t.due_date IS NOT NULL AND t.due_date != ''
+        AND t.due_date::date < CURRENT_DATE
+      ORDER BY days_overdue DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      dueDate: r.due_date || '',
+      status: r.status || '',
+      priority: r.priority || 'medium',
+      category: r.category || 'General',
+      daysOverdue: Number(r.days_overdue || 0),
+      assigneeId: r.assignee_id ? Number(r.assignee_id) : null,
+      assigneeName: r.assignee_name || 'Unassigned',
+      assigneeEmail: r.assignee_email || '',
+      creatorId: r.creator_id ? Number(r.creator_id) : null,
+      creatorName: r.creator_name || 'Unknown',
+      creatorEmail: r.creator_email || '',
+      assigneeManagerId: r.assignee_manager_id ? Number(r.assignee_manager_id) : null,
+      assigneeManagerName: r.assignee_manager_name || '',
+      creatorManagerId: r.creator_manager_id ? Number(r.creator_manager_id) : null,
+      creatorManagerName: r.creator_manager_name || '',
+    }));
+  }
+
+  async getRecentlyCompletedTasks(withinDays: number = 1): Promise<Array<{
+    id: number; title: string; category: string;
+    assigneeId: number | null; assigneeName: string;
+    creatorId: number | null; creatorName: string; creatorEmail: string;
+    completedAt: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT t.id, t.title, t.category,
+        t.assigned_to as assignee_id,
+        COALESCE(ua.first_name || ' ' || COALESCE(ua.last_name, ''), ua.username, 'Unknown') as assignee_name,
+        t.created_by as creator_id,
+        COALESCE(uc.first_name || ' ' || COALESCE(uc.last_name, ''), uc.username, 'Unknown') as creator_name,
+        COALESCE(uc.email, '') as creator_email,
+        t.completed_at
+      FROM tasks t
+      LEFT JOIN users ua ON t.assigned_to = ua.id
+      LEFT JOIN users uc ON t.created_by = uc.id
+      WHERE t.status = 'completed'
+        AND t.completed_at IS NOT NULL AND t.completed_at != ''
+        AND t.completed_at::timestamp > NOW() - (${withinDays} || ' days')::interval
+        AND t.assigned_to IS DISTINCT FROM t.created_by
+      ORDER BY t.completed_at DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      category: r.category || 'General',
+      assigneeId: r.assignee_id ? Number(r.assignee_id) : null,
+      assigneeName: r.assignee_name || 'Unknown',
+      creatorId: r.creator_id ? Number(r.creator_id) : null,
+      creatorName: r.creator_name || 'Unknown',
+      creatorEmail: r.creator_email || '',
+      completedAt: r.completed_at ? new Date(r.completed_at).toLocaleString() : '',
+    }));
+  }
+
+  async getUsersWithNoActiveTasks(minWorkingDays: number = 2): Promise<Array<{
+    userId: number; employeeName: string; employeeEmail: string;
+    managerId: number | null; managerName: string;
+    daysSinceLastActiveTask: number;
+  }>> {
+    const rows = await db.execute(sql`
+      WITH active_users AS (
+        SELECT u.id, 
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) as employee_name,
+          COALESCE(u.email, '') as employee_email,
+          u.reporting_manager_id,
+          COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name
+        FROM users u
+        LEFT JOIN users m ON u.reporting_manager_id = m.id
+        WHERE u.is_active = true
+          AND u.role NOT IN ('Superuser')
+      ),
+      last_task AS (
+        SELECT assigned_to, MAX(created_at::timestamp) as last_task_date
+        FROM tasks
+        WHERE status NOT IN ('completed', 'cancelled')
+        GROUP BY assigned_to
+      ),
+      active_task_count AS (
+        SELECT assigned_to, COUNT(*) as active_count
+        FROM tasks
+        WHERE status NOT IN ('completed', 'cancelled')
+        GROUP BY assigned_to
+      )
+      SELECT au.id as user_id, au.employee_name, au.employee_email,
+        au.reporting_manager_id as manager_id, au.manager_name,
+        COALESCE(EXTRACT(DAY FROM NOW() - lt.last_task_date)::int, 999) as days_since_last
+      FROM active_users au
+      LEFT JOIN active_task_count atc ON au.id = atc.assigned_to
+      LEFT JOIN last_task lt ON au.id = lt.assigned_to
+      WHERE COALESCE(atc.active_count, 0) = 0
+        AND au.reporting_manager_id IS NOT NULL
+      ORDER BY au.employee_name
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      userId: Number(r.user_id),
+      employeeName: r.employee_name || 'Unknown',
+      employeeEmail: r.employee_email || '',
+      managerId: r.manager_id ? Number(r.manager_id) : null,
+      managerName: r.manager_name || '',
+      daysSinceLastActiveTask: Number(r.days_since_last || 0),
+    }));
+  }
+
   async getUnansweredEmails(thresholdHours: number = 24): Promise<UnansweredEmail[]> {
     const rows = await db.execute(
       sql`SELECT * FROM vw_agent_unanswered_emails WHERE hours_unanswered >= ${thresholdHours} ORDER BY hours_unanswered DESC`

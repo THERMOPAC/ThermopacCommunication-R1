@@ -184,9 +184,25 @@ function agentKeyColor(key: string) {
   switch (key) {
     case "project_control": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
     case "communications": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+    case "finance_control": return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
     case "executive_mis": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
     default: return "bg-gray-100 text-gray-800";
   }
+}
+
+function findingTypeBadge(findingType: string) {
+  const typeMap: Record<string, { label: string; className: string }> = {
+    overdue: { label: 'Overdue', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200' },
+    escalation: { label: 'Escalation', className: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' },
+    completion: { label: 'Completed', className: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200' },
+    visibility: { label: 'Visibility', className: 'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-200' },
+    gap: { label: 'Gap', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200' },
+    anomaly: { label: 'Anomaly', className: 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-200' },
+    risk: { label: 'Risk', className: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' },
+    threshold: { label: 'Threshold', className: 'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-200' },
+  };
+  const info = typeMap[findingType] || { label: findingType, className: 'bg-gray-100 text-gray-700' };
+  return <Badge variant="outline" className={`${info.className} text-[10px] px-1.5 py-0`}>{info.label}</Badge>;
 }
 
 function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusChange: (id: number, status: string) => void }) {
@@ -203,6 +219,7 @@ function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusCh
             <Badge variant={severityColor(finding.severity)} className="text-xs">
               {finding.severity}
             </Badge>
+            {findingTypeBadge(finding.findingType)}
             <Badge className={`${agentKeyColor(finding.agentKey)} text-xs`} variant="outline">
               {agentKeyLabel(finding.agentKey)}
             </Badge>
@@ -254,6 +271,7 @@ export default function AgentDashboardPage() {
   const [activeTab, setActiveTab] = useState("activity");
   const [findingSeverityFilter, setFindingSeverityFilter] = useState<string>("all");
   const [findingAgentFilter, setFindingAgentFilter] = useState<string>("all");
+  const [findingTypeFilter, setFindingTypeFilter] = useState<string>("all");
 
   const { data: summary, isLoading: summaryLoading } = useQuery<DashboardSummary>({
     queryKey: ["/api/agents/dashboard/summary"],
@@ -363,6 +381,7 @@ export default function AgentDashboardPage() {
   const filteredFindings = (findings || []).filter(f => {
     if (findingSeverityFilter !== "all" && f.severity !== findingSeverityFilter) return false;
     if (findingAgentFilter !== "all" && f.agentKey !== findingAgentFilter) return false;
+    if (findingTypeFilter !== "all" && f.findingType !== findingTypeFilter) return false;
     return true;
   });
 
@@ -717,7 +736,24 @@ export default function AgentDashboardPage() {
                 <SelectItem value="all">All Agents</SelectItem>
                 <SelectItem value="project_control">Project Control</SelectItem>
                 <SelectItem value="communications">Communications</SelectItem>
+                <SelectItem value="finance_control">Finance Control</SelectItem>
                 <SelectItem value="executive_mis">Executive MIS</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={findingTypeFilter} onValueChange={setFindingTypeFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="escalation">Escalation</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="completion">Completed</SelectItem>
+                <SelectItem value="visibility">Visibility</SelectItem>
+                <SelectItem value="gap">Gap</SelectItem>
+                <SelectItem value="anomaly">Anomaly</SelectItem>
+                <SelectItem value="risk">Risk</SelectItem>
+                <SelectItem value="threshold">Threshold</SelectItem>
               </SelectContent>
             </Select>
             <span className="text-sm text-muted-foreground ml-auto">
