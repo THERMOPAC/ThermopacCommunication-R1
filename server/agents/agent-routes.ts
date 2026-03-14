@@ -371,6 +371,27 @@ router.get('/dashboard/summary', async (req: Request, res: Response) => {
   try {
     const agentsList = await db.select().from(agentRegistry);
 
+    const runStats = await db.execute(sql`
+      SELECT agent_key,
+             MAX(started_at) as last_run_at,
+             COUNT(*)::int as run_count
+      FROM agent_runs
+      GROUP BY agent_key
+    `);
+    const statsMap = new Map(
+      (runStats.rows as any[]).map((s: any) => [s.agent_key, s])
+    );
+    const enrichedAgents = agentsList.map(agent => {
+      const stats = statsMap.get(agent.agentKey);
+      return {
+        ...agent,
+        version: (agent.config as any)?.version || '1.0',
+        lastRunAt: stats?.last_run_at || null,
+        runCount: stats?.run_count || 0,
+        consecutiveFailures: 0,
+      };
+    });
+
     const openFindings = await db.select({ count: sql<number>`count(*)` })
       .from(agentFindings)
       .where(eq(agentFindings.status, 'open'));
@@ -395,7 +416,7 @@ router.get('/dashboard/summary', async (req: Request, res: Response) => {
       .limit(10);
 
     res.json({
-      agents: agentsList,
+      agents: enrichedAgents,
       stats: {
         totalAgents: agentsList.length,
         enabledAgents: agentsList.filter(a => a.isEnabled).length,
