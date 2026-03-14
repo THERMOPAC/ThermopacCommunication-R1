@@ -187,6 +187,66 @@ function agentKeyColor(key: string) {
   }
 }
 
+function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusChange: (id: number, status: string) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className="p-3 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="flex items-start gap-2">
+        {severityIcon(finding.severity)}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+            <Badge variant={severityColor(finding.severity)} className="text-xs">
+              {finding.severity}
+            </Badge>
+            <Badge className={`${agentKeyColor(finding.agentKey)} text-xs`} variant="outline">
+              {agentKeyLabel(finding.agentKey)}
+            </Badge>
+            {statusBadge(finding.status)}
+          </div>
+          <p className={`text-sm font-medium ${expanded ? '' : 'line-clamp-2'}`}>{finding.title}</p>
+          <p className={`text-xs text-muted-foreground mt-0.5 whitespace-pre-line ${expanded ? '' : 'line-clamp-2'}`}>
+            {finding.description}
+          </p>
+          {finding.suggestedAction && (
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
+              <Target className="h-3 w-3 shrink-0" />
+              {finding.suggestedAction}
+            </p>
+          )}
+          <div className="flex items-center gap-2 mt-2">
+            {finding.status === "open" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-xs"
+                onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, "acknowledged"); }}
+              >
+                Acknowledge
+              </Button>
+            )}
+            {(finding.status === "open" || finding.status === "acknowledged") && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-xs"
+                onClick={(e) => { e.stopPropagation(); onStatusChange(finding.id, "resolved"); }}
+              >
+                Resolve
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto">
+              {expanded ? 'Click to collapse' : 'Click to expand'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentDashboardPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("activity");
@@ -677,52 +737,7 @@ export default function AgentDashboardPage() {
                 ) : (
                   <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                     {filteredFindings.slice(0, 50).map(finding => (
-                      <div key={finding.id} className="p-3 rounded-lg border hover:bg-accent/50 transition-colors">
-                        <div className="flex items-start gap-2">
-                          {severityIcon(finding.severity)}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <Badge variant={severityColor(finding.severity)} className="text-xs">
-                                {finding.severity}
-                              </Badge>
-                              <Badge className={`${agentKeyColor(finding.agentKey)} text-xs`} variant="outline">
-                                {agentKeyLabel(finding.agentKey)}
-                              </Badge>
-                              {statusBadge(finding.status)}
-                            </div>
-                            <p className="text-sm font-medium truncate">{finding.title}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{finding.description}</p>
-                            {finding.suggestedAction && (
-                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 flex items-center gap-1">
-                                <Target className="h-3 w-3" />
-                                {finding.suggestedAction}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2 mt-2">
-                              {finding.status === "open" && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-xs"
-                                  onClick={() => updateFindingStatusMutation.mutate({ id: finding.id, status: "acknowledged" })}
-                                >
-                                  Acknowledge
-                                </Button>
-                              )}
-                              {(finding.status === "open" || finding.status === "acknowledged") && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-xs"
-                                  onClick={() => updateFindingStatusMutation.mutate({ id: finding.id, status: "resolved" })}
-                                >
-                                  Resolve
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <FindingCard key={finding.id} finding={finding} onStatusChange={(id, status) => updateFindingStatusMutation.mutate({ id, status })} />
                     ))}
                   </div>
                 )}

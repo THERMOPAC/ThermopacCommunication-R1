@@ -28,32 +28,28 @@ router.get('/agents', async (_req: Request, res: Response) => {
   try {
     const agents = await db.select().from(agentRegistry).orderBy(agentRegistry.agentKey);
 
-    const runStats = await db
-      .select({
-        agentKey: agentRuns.agentKey,
-        lastRunAt: sql<string>`MAX(${agentRuns.startedAt})`.as('last_run_at'),
-        runCount: sql<number>`COUNT(*)::int`.as('run_count'),
-        consecutiveFailures: sql<number>`(
-          SELECT COUNT(*)::int FROM (
-            SELECT status FROM ${agentRuns} r2
-            WHERE r2.agent_key = ${agentRuns.agentKey}
-            ORDER BY r2.id DESC
-            LIMIT 10
-          ) sub WHERE sub.status = 'failed'
-        )`.as('consecutive_failures'),
-      })
-      .from(agentRuns)
-      .groupBy(agentRuns.agentKey);
+    const runStats = await db.execute(sql`
+      SELECT agent_key,
+             MAX(started_at) as last_run_at,
+             COUNT(*)::int as run_count
+      FROM agent_runs
+      GROUP BY agent_key
+    `);
 
-    const statsMap = new Map(runStats.map(s => [s.agentKey, s]));
+    const statsMap = new Map(
+      (runStats.rows as any[]).map((s: any) => [s.agent_key, s])
+    );
 
-    const enriched = agents.map(agent => ({
-      ...agent,
-      version: (agent.config as any)?.version || '1.0',
-      lastRunAt: statsMap.get(agent.agentKey)?.lastRunAt || null,
-      runCount: statsMap.get(agent.agentKey)?.runCount || 0,
-      consecutiveFailures: statsMap.get(agent.agentKey)?.consecutiveFailures || 0,
-    }));
+    const enriched = agents.map(agent => {
+      const stats = statsMap.get(agent.agentKey);
+      return {
+        ...agent,
+        version: (agent.config as any)?.version || '1.0',
+        lastRunAt: stats?.last_run_at || null,
+        runCount: stats?.run_count || 0,
+        consecutiveFailures: 0,
+      };
+    });
 
     res.json(enriched);
   } catch (error: any) {
