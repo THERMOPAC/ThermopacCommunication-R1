@@ -426,8 +426,9 @@ export default function AgentDashboardPage() {
   });
 
   const pendingRecs = (recommendations || []).filter(r => r.status === "pending_review");
-  const approvedRecs = (recommendations || []).filter(r => r.status === "approved" || r.status === "auto_approved");
-  const reviewedRecs = (recommendations || []).filter(r => !["pending_review", "approved", "auto_approved"].includes(r.status));
+  const approvedRecs = (recommendations || []).filter(r => r.status === "approved");
+  const autoExecutedRecs = (recommendations || []).filter(r => r.status === "executed" || r.status === "auto_approved");
+  const reviewedRecs = (recommendations || []).filter(r => ["rejected", "expired", "superseded"].includes(r.status));
 
   if (summaryLoading) {
     return (
@@ -538,9 +539,9 @@ export default function AgentDashboardPage() {
           <TabsTrigger value="approvals" className="flex items-center gap-1.5">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Approvals</span>
-            {(pendingRecs.length + approvedRecs.length) > 0 && (
+            {pendingRecs.length > 0 && (
               <Badge variant="destructive" className="ml-1 text-xs px-1.5 py-0">
-                {pendingRecs.length + approvedRecs.length}
+                {pendingRecs.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -819,7 +820,44 @@ export default function AgentDashboardPage() {
             </Card>
           )}
 
-          {pendingRecs.length === 0 && approvedRecs.length === 0 && (
+          {autoExecutedRecs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-green-500" />
+                  Auto-Executed ({autoExecutedRecs.length})
+                </CardTitle>
+                <CardDescription>
+                  These actions were automatically approved and executed by the agent.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {autoExecutedRecs.map(rec => (
+                    <div key={rec.id} className="flex items-center justify-between p-3 rounded-lg border border-green-200 bg-green-50/50">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <Badge className={agentKeyColor(rec.agentKey)} variant="outline">
+                            {agentKeyLabel(rec.agentKey)}
+                          </Badge>
+                          <Badge variant="outline">{rec.actionType}</Badge>
+                          <Badge variant="default" className="bg-green-600">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Executed
+                          </Badge>
+                        </div>
+                        <p className="text-sm font-medium">{rec.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{rec.description}</p>
+                      </div>
+                      <CheckCircle2 className="h-5 w-5 text-green-500 ml-3 shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {pendingRecs.length === 0 && approvedRecs.length === 0 && autoExecutedRecs.length === 0 && (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center">

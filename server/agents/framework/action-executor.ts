@@ -108,6 +108,10 @@ export class ActionExecutor {
         executedAt: new Date(),
       }).where(eq(agentActions.id, action.id));
 
+      await db.update(agentRecommendations).set({
+        status: 'executed',
+      }).where(eq(agentRecommendations.id, recommendationId));
+
       await auditLogger.log({
         agentKey: rec.agentKey,
         eventType: 'action.completed',
