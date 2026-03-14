@@ -99,11 +99,17 @@ export class ExecutiveMISAgent implements IAgent {
       const overduePct = woStats.total > 0 ? Math.round((woStats.overdue / woStats.total) * 100) : 0;
       const severity = overduePct >= 30 ? 'critical' as const :
                        woStats.overdue >= 30 ? 'high' as const : 'medium' as const;
+      const woImpact = overduePct >= 30
+        ? 'This level of overdue work orders indicates systemic production delays that may impact delivery commitments, client satisfaction, and revenue recognition.'
+        : overduePct >= 15
+        ? 'A moderate proportion of overdue work orders suggests resource bottlenecks or scheduling issues that need management review.'
+        : 'While the percentage is manageable, the absolute count warrants attention to prevent escalation.';
+
       const result = await findingManager.createFinding({
         findingType: 'threshold_breach',
         severity,
         title: `${woStats.overdue} work orders overdue (${overduePct}% of total)`,
-        description: `There are ${woStats.overdue} overdue work orders out of ${woStats.total} total (${overduePct}%). Completed: ${woStats.completed}, In Progress: ${woStats.inProgress}.`,
+        description: `There are ${woStats.overdue} overdue work orders out of ${woStats.total} total (${overduePct}%). Completed: ${woStats.completed}, In Progress: ${woStats.inProgress}.\n\n${woImpact}`,
         logicType: 'rule_based',
         dataSnapshot: { ...woStats, overduePct },
         relatedEntityType: 'work_order',
@@ -113,11 +119,16 @@ export class ExecutiveMISAgent implements IAgent {
     }
 
     if (taskStats.overdue > 20) {
+      const taskOverduePct = taskStats.total > 0 ? Math.round((taskStats.overdue / taskStats.total) * 100) : 0;
+      const taskImpact = taskStats.overdue >= 50
+        ? 'This volume of overdue tasks suggests systematic workload management issues. Team capacity review and task prioritization exercise recommended.'
+        : 'Overdue task count is above threshold. Review for blocked items, reassignment opportunities, or scope adjustments.';
+
       const result = await findingManager.createFinding({
         findingType: 'threshold_breach',
         severity: taskStats.overdue >= 50 ? 'high' as const : 'medium' as const,
-        title: `${taskStats.overdue} tasks overdue across the platform`,
-        description: `There are ${taskStats.overdue} overdue tasks out of ${taskStats.total} total. Completed: ${taskStats.completed}, Pending: ${taskStats.pending}.`,
+        title: `${taskStats.overdue} tasks overdue across the platform (${taskOverduePct}% of total)`,
+        description: `There are ${taskStats.overdue} overdue tasks out of ${taskStats.total} total. Completed: ${taskStats.completed}, Pending: ${taskStats.pending}.\n\n${taskImpact}`,
         logicType: 'rule_based',
         dataSnapshot: taskStats,
         relatedEntityType: 'task',
@@ -127,14 +138,29 @@ export class ExecutiveMISAgent implements IAgent {
     }
 
     const totalOverdueInvoices = financeKPIs.reduce((sum, k) => sum + k.overdueInvoices, 0);
+    const totalPendingValue = financeKPIs.reduce((sum, k) => sum + (k.pendingInvoices || 0), 0);
     if (totalOverdueInvoices > 5) {
       const severity = totalOverdueInvoices >= 100 ? 'critical' as const :
                        totalOverdueInvoices >= 50 ? 'high' as const : 'medium' as const;
+      const companyBreakdown = financeKPIs
+        .filter(k => k.overdueInvoices > 0)
+        .map(k => `  • ${k.companyName}: ${k.overdueInvoices} overdue out of ${k.totalInvoices} total`)
+        .join('\n');
+      const invoiceImpact = totalOverdueInvoices >= 100
+        ? 'Critical accounts receivable situation. Overdue invoices at this scale directly impact cash flow, working capital, and may signal collection process failures.'
+        : totalOverdueInvoices >= 50
+        ? 'Significant overdue invoice volume. Cash flow impact likely material. Review aging report and escalate high-value overdue accounts.'
+        : 'Overdue invoice count above threshold. Monitor closely and review collection follow-up processes.';
+
       const result = await findingManager.createFinding({
         findingType: 'threshold_breach',
         severity,
         title: `${totalOverdueInvoices} invoices overdue across all companies`,
-        description: `There are ${totalOverdueInvoices} overdue invoices. ${financeKPIs.map(k => `${k.companyName}: ${k.overdueInvoices} overdue`).join('; ')}.`,
+        description: [
+          `There are ${totalOverdueInvoices} overdue invoices across ${financeKPIs.filter(k => k.overdueInvoices > 0).length} companies.`,
+          `\nCompany breakdown:\n${companyBreakdown}`,
+          `\n${invoiceImpact}`,
+        ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: financeKPIs,
         relatedEntityType: 'invoice',

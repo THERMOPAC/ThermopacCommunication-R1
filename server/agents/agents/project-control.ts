@@ -56,16 +56,26 @@ export class ProjectControlAgent implements IAgent {
         .sort((a, b) => b.daysOverdue - a.daysOverdue)
         .slice(0, 5);
       const topWOsList = topWOs.map(w =>
-        `  - ${w.workOrderNumber}: "${w.title}" (${w.daysOverdue} days overdue)`
+        `  • ${w.workOrderNumber}: "${w.title}" (${w.daysOverdue} days overdue)`
       ).join('\n');
+
+      const overduePct = project.totalWorkOrders > 0 ? Math.round((overdueCount / project.totalWorkOrders) * 100) : 0;
+      const impactLevel = overduePct >= 30 ? 'significant' : overduePct >= 15 ? 'moderate' : 'limited';
+      const businessImpact = [
+        `${overduePct}% of work orders in this project are overdue — indicating ${impactLevel} production schedule impact.`,
+        maxDaysOverdue >= 90 ? 'Work orders overdue by 90+ days suggest stalled production activities, potential resource reallocation needs, or blocked dependencies.' :
+        maxDaysOverdue >= 30 ? 'Work orders overdue by 30+ days may indicate resource constraints, material delays, or scope changes requiring management attention.' :
+        'Recently overdue work orders should be reviewed for scheduling adjustments.',
+      ].join('\n');
 
       const description = [
         `Project "${project.projectName}" has ${overdueCount} overdue work orders out of ${project.totalWorkOrders} total.`,
         `Work order completion: ${project.woCompletionPct}%.`,
-        `Most overdue: ${maxDaysOverdue} days.`,
+        `Worst overdue: ${maxDaysOverdue} days.`,
+        `\n${businessImpact}`,
         topWOs.length > 0 ? `\nTop overdue work orders:\n${topWOsList}` : '',
         projectWOs.length > 5 ? `\n...and ${projectWOs.length - 5} more overdue work orders.` : '',
-      ].filter(Boolean).join(' ');
+      ].filter(Boolean).join('\n');
 
       const result = await findingManager.createFinding({
         findingType: 'overdue',

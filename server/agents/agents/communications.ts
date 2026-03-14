@@ -3,6 +3,38 @@ import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
 import { agentDataRepo } from '../data-access/agent-data-repo';
 
+function getBusinessImpact(category: string, subcategory: string | null, tasks: any[]): string {
+  if (subcategory === 'BRC') {
+    return 'These tasks relate to export BRC (Bank Realisation Certificate) submission for completed invoices.\nDelayed BRC submissions may impact export compliance, foreign remittance documentation, and RBI reporting obligations.';
+  }
+  if (subcategory === 'Invoice') {
+    return 'These tasks relate to outstanding invoice follow-ups and payment collection.\nDelayed follow-ups may impact cash flow, accounts receivable aging, and customer payment discipline.';
+  }
+  if (category === 'Finance') {
+    const hasBRC = tasks.some(t => t.title?.startsWith('BRC Pending'));
+    const hasInvoice = tasks.some(t => t.title?.toLowerCase().includes('invoice') || t.title?.toLowerCase().includes('outstanding'));
+    if (hasBRC && hasInvoice) {
+      return 'These tasks include a mix of BRC submissions and invoice follow-ups.\nDelays may impact export compliance, cash flow, and financial reporting.';
+    }
+    return 'These tasks relate to financial operations and compliance.\nDelays may impact cash flow, regulatory filings, or payment cycles.';
+  }
+  if (category === 'Email') {
+    const hasTax = tasks.some(t => t.title?.toLowerCase().includes('tax') || t.title?.toLowerCase().includes('gst'));
+    const hasCompliance = tasks.some(t => t.title?.toLowerCase().includes('compliance') || t.title?.toLowerCase().includes('mandatory'));
+    if (hasTax || hasCompliance) {
+      return 'Some of these emails relate to tax or regulatory compliance matters.\nDelayed responses may result in penalties, missed filing deadlines, or audit issues.';
+    }
+    return 'Unanswered emails may result in missed business opportunities, delayed decisions, or unresolved operational issues.';
+  }
+  if (category === 'Meeting Follow-up') {
+    return 'Meeting follow-up tasks ensure commitments and action items are tracked to completion.\nDelays may cause project slippage, missed commitments, or repeated discussions on unresolved items.';
+  }
+  if (category === 'General') {
+    return 'These are general operational tasks that may span multiple departments.\nProlonged delays indicate potential workflow bottlenecks or resource constraints.';
+  }
+  return '';
+}
+
 export class CommunicationsAgent implements IAgent {
   key = 'communications';
   displayName = 'Communications Agent';
@@ -61,21 +93,32 @@ export class CommunicationsAgent implements IAgent {
         const topTasks = tasks
           .sort((a, b) => b.daysOverdue - a.daysOverdue)
           .slice(0, 5);
-        const topTaskList = topTasks.map(t =>
-          `  - "${t.title}" (${t.daysOverdue} days, priority: ${t.priority})`
-        ).join('\n');
+
+        const brcCount = tasks.filter(t => t.title?.startsWith('BRC Pending')).length;
+        const invoiceCount = tasks.filter(t => t.title?.toLowerCase().includes('invoice') || t.title?.toLowerCase().includes('outstanding')).length;
+
+        const subcategory = brcCount > totalTasks / 2 ? 'BRC' :
+                            invoiceCount > totalTasks / 2 ? 'Invoice' : null;
+
+        const topTaskList = topTasks.map(t => {
+          const shortTitle = t.title?.replace('BRC Pending for ', '').replace('Invoice ', '') || t.title;
+          return `  • ${shortTitle} (${t.daysOverdue} days)`;
+        }).join('\n');
+
+        const businessImpact = getBusinessImpact(category, subcategory, tasks);
 
         const description = [
-          `${assignee} has ${totalTasks} overdue ${category} task${totalTasks > 1 ? 's' : ''}.`,
-          `Most overdue: ${maxDays} days.`,
+          `${assignee} has ${totalTasks} overdue ${subcategory ? subcategory + ' ' : ''}${category} task${totalTasks > 1 ? 's' : ''}.`,
+          `Worst overdue: ${maxDays} days.`,
+          businessImpact ? `\n${businessImpact}` : '',
           `\nTop overdue tasks:\n${topTaskList}`,
           tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
-        ].filter(Boolean).join(' ');
+        ].filter(Boolean).join('\n');
 
         const result = await findingManager.createFinding({
           findingType: 'overdue',
           severity,
-          title: `${assignee}: ${totalTasks} overdue ${category} task${totalTasks > 1 ? 's' : ''} (worst: ${maxDays} days)`,
+          title: `${assignee}: ${totalTasks} overdue ${subcategory ? subcategory + ' ' : ''}${category} task${totalTasks > 1 ? 's' : ''} (worst: ${maxDays} days)`,
           description,
           logicType: 'rule_based',
           dataSnapshot: {
