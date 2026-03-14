@@ -1023,27 +1023,25 @@ export class CommunicationsAgent implements IAgent {
     // ═══════════════════════════════════════════════════════
     let recommendationsCount = 0;
 
-    for (const task of tasksByTier.zombie_review) {
-      const rec = await recommendationManager.createRecommendation({
-        actionCategory: 'task_creation',
-        actionType: 'create_task',
-        title: `Review and close zombie task: "${task.title}"`,
-        description: `Task "${task.title}" has been overdue for ${task.daysOverdue} days. Create a management review task to decide: close, reassign, or extend deadline.`,
-        actionPayload: {
-          title: `[Agent] Review zombie task: "${task.title}"`,
-          description: `This task has been overdue for ${task.daysOverdue} days.\n\nOriginal task: "${task.title}" assigned to ${task.assigneeName}.\n\nPlease review and decide:\n1. Close as "Not Applicable"\n2. Reassign with new due date\n3. Extend deadline with justification`,
-          priority: 'High',
-          assignedTo: task.creatorId,
-          category: 'Agent Action',
-          sourceType: 'llm_insight',
-          sourceId: task.id,
-          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        },
-        logicType: 'rule_based',
-        confidence: 0.9,
-        priority: 'high',
-      });
-      if (rec.id > 0) recommendationsCount++;
+    for (const task of [...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
+      if (task.assigneeId) {
+        const rec = await recommendationManager.createRecommendation({
+          actionCategory: 'notification',
+          actionType: 'send_alert',
+          title: `Remind assignee about overdue task: "${task.title}"`,
+          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days. Send a reminder to the assignee to update or complete the task.`,
+          actionPayload: {
+            subject: `Reminder: Your task "${task.title}" is ${task.daysOverdue} days overdue`,
+            content: `Hi ${task.assigneeName},\n\nYour task "${task.title}" has been overdue for ${task.daysOverdue} days.\n\nPlease take one of the following actions:\n1. Update the task with your progress\n2. Complete and close the task\n3. Request a deadline extension with justification\n\nThis is an automated reminder from the AI Agent System.`,
+            severity: 'high',
+            targets: [{ userId: task.assigneeId, userName: task.assigneeName }],
+          },
+          logicType: 'rule_based',
+          confidence: 0.9,
+          priority: 'high',
+        });
+        if (rec.id > 0) recommendationsCount++;
+      }
     }
 
     for (const commitment of detailedCommitments) {
