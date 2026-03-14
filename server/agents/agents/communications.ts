@@ -3,6 +3,7 @@ import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
 import { notificationService } from '../framework/notification-service';
+import { actionExecutor } from '../framework/action-executor';
 import { agentDataRepo } from '../data-access/agent-data-repo';
 
 const FINANCE_CATEGORIES = ['Finance'];
@@ -1022,6 +1023,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── RECOMMENDATIONS GENERATION ───
     // ═══════════════════════════════════════════════════════
     let recommendationsCount = 0;
+    const autoExecuteQueue: number[] = [];
 
     for (const task of [...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
       if (task.assigneeId) {
@@ -1040,7 +1042,10 @@ export class CommunicationsAgent implements IAgent {
           confidence: 0.9,
           priority: 'high',
         });
-        if (rec.id > 0) recommendationsCount++;
+        if (rec.id > 0) {
+          recommendationsCount++;
+          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+        }
       }
     }
 
@@ -1065,7 +1070,10 @@ export class CommunicationsAgent implements IAgent {
           confidence: 0.85,
           priority: 'normal',
         });
-        if (rec.id > 0) recommendationsCount++;
+        if (rec.id > 0) {
+          recommendationsCount++;
+          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+        }
       }
     }
 
@@ -1089,7 +1097,10 @@ export class CommunicationsAgent implements IAgent {
           confidence: 0.9,
           priority: 'high',
         });
-        if (rec.id > 0) recommendationsCount++;
+        if (rec.id > 0) {
+          recommendationsCount++;
+          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+        }
       }
     }
 
@@ -1111,7 +1122,10 @@ export class CommunicationsAgent implements IAgent {
           confidence: 0.95,
           priority: 'urgent',
         });
-        if (rec.id > 0) recommendationsCount++;
+        if (rec.id > 0) {
+          recommendationsCount++;
+          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+        }
       }
     }
 
@@ -1134,7 +1148,21 @@ export class CommunicationsAgent implements IAgent {
         confidence: 0.95,
         priority: 'high',
       });
-      if (rec.id > 0) recommendationsCount++;
+      if (rec.id > 0) {
+        recommendationsCount++;
+        if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+      }
+    }
+
+    // ─── AUTO-EXECUTE approved recommendations ───
+    let autoExecutedCount = 0;
+    for (const recId of autoExecuteQueue) {
+      try {
+        const result = await actionExecutor.execute(recId);
+        if (result.success) autoExecutedCount++;
+      } catch (err: any) {
+        console.error(`[Communications] Auto-execute failed for rec ${recId}:`, err.message);
+      }
     }
 
     // ═══════════════════════════════════════════════════════
@@ -1367,6 +1395,7 @@ export class CommunicationsAgent implements IAgent {
         llmCalls: 0,
         tokensUsed: 0,
         notificationsSent,
+        autoExecutedActions: autoExecutedCount,
       },
     };
   }
