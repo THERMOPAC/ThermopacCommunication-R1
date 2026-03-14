@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "n5-7Zi9zeFxQeytMnPh9T"
+uri = "file://communications-agent-technical-review.md"
+type = "text"
+title = "Communications Agent — Complete Technical Review"
