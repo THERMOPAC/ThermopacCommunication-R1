@@ -336,6 +336,81 @@ class AgentDataRepository {
     }));
   }
 
+  async getDetailedAttendanceIssues(days: number = 7): Promise<Array<{
+    userId: number; employeeName: string; managerName: string; managerId: number | null;
+    absentCount: number; incompleteCount: number; absentWithoutLeaveCount: number;
+    todayMissing: boolean; todayIncomplete: boolean;
+    absentDates: string[]; incompleteDates: string[];
+  }>> {
+    const rows = await db.execute(sql`
+      WITH user_attendance AS (
+        SELECT ar.user_id,
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+          u.reporting_manager_id,
+          COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
+          COUNT(*) FILTER (WHERE ar.status = 'absent') as absent_count,
+          COUNT(*) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) as incomplete_count,
+          COUNT(*) FILTER (WHERE ar.status = 'absent' AND NOT EXISTS(
+            SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date
+          )) as absent_without_leave_count,
+          BOOL_OR(ar.date = CURRENT_DATE AND ar.user_id IS NULL) as today_missing,
+          BOOL_OR(ar.date = CURRENT_DATE AND ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL) as today_incomplete,
+          ARRAY_AGG(DISTINCT ar.date::text ORDER BY ar.date::text) FILTER (WHERE ar.status = 'absent') as absent_dates,
+          ARRAY_AGG(DISTINCT ar.date::text ORDER BY ar.date::text) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) as incomplete_dates
+        FROM attendance_records ar
+        LEFT JOIN users u ON ar.user_id = u.id
+        LEFT JOIN users m ON u.reporting_manager_id = m.id
+        WHERE ar.date >= CURRENT_DATE - ${days}::int
+          AND u.is_active = true
+        GROUP BY ar.user_id, u.first_name, u.last_name, u.username, u.reporting_manager_id, m.first_name, m.last_name, m.username
+        HAVING COUNT(*) FILTER (WHERE ar.status = 'absent') > 0
+           OR COUNT(*) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) > 0
+      )
+      SELECT * FROM user_attendance ORDER BY absent_without_leave_count DESC, absent_count DESC, incomplete_count DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      userId: Number(r.user_id),
+      employeeName: r.employee_name || 'Unknown',
+      managerName: r.manager_name || '',
+      managerId: r.reporting_manager_id ? Number(r.reporting_manager_id) : null,
+      absentCount: Number(r.absent_count || 0),
+      incompleteCount: Number(r.incomplete_count || 0),
+      absentWithoutLeaveCount: Number(r.absent_without_leave_count || 0),
+      todayMissing: Boolean(r.today_missing),
+      todayIncomplete: Boolean(r.today_incomplete),
+      absentDates: r.absent_dates || [],
+      incompleteDates: r.incomplete_dates || [],
+    }));
+  }
+
+  async getTodayMissingAttendance(): Promise<Array<{
+    userId: number; employeeName: string; managerName: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT u.id as user_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) as employee_name,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name
+      FROM users u
+      LEFT JOIN users m ON u.reporting_manager_id = m.id
+      WHERE u.is_active = true
+        AND u.role NOT IN ('Superuser')
+        AND EXTRACT(DOW FROM CURRENT_DATE) NOT IN (0, 6)
+        AND NOT EXISTS (
+          SELECT 1 FROM attendance_records ar WHERE ar.user_id = u.id AND ar.date = CURRENT_DATE
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM leave_requests lr WHERE lr.employee_id = u.id AND lr.status = 'approved'
+            AND lr.start_date <= CURRENT_DATE AND lr.end_date >= CURRENT_DATE
+        )
+      ORDER BY employee_name
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      userId: Number(r.user_id),
+      employeeName: r.employee_name || 'Unknown',
+      managerName: r.manager_name || '',
+    }));
+  }
+
   async getDWARSubmissionGaps(minMissingDays: number = 2): Promise<Array<{
     userId: number; employeeName: string; missingDays: number;
   }>> {
@@ -371,6 +446,92 @@ class AgentDataRepository {
     }));
   }
 
+  async getDetailedDWARGaps(): Promise<Array<{
+    userId: number; employeeName: string; managerName: string; managerId: number | null;
+    missingDays: number; consecutiveMissing: number; missingDates: string[];
+    incompleteDwarCount: number;
+  }>> {
+    const rows = await db.execute(sql`
+      WITH active_users AS (
+        SELECT u.id, 
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) as employee_name,
+          u.reporting_manager_id,
+          COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name
+        FROM users u
+        LEFT JOIN users m ON u.reporting_manager_id = m.id
+        WHERE u.is_active = true AND u.role NOT IN ('Superuser')
+      ),
+      working_days AS (
+        SELECT generate_series(CURRENT_DATE - 6, CURRENT_DATE, '1 day'::interval)::date as work_date
+      ),
+      expected AS (
+        SELECT u.id as user_id, u.employee_name, u.reporting_manager_id, u.manager_name, wd.work_date
+        FROM active_users u CROSS JOIN working_days wd
+        WHERE EXTRACT(DOW FROM wd.work_date) NOT IN (0, 6)
+      ),
+      submitted AS (
+        SELECT user_id, report_date::date as report_date,
+          LENGTH(COALESCE(challenges,'') || COALESCE(tomorrow_plans,'') || COALESCE(issues_encountered,'') || COALESCE(support_required,'')) as content_len,
+          status
+        FROM daily_work_reports
+        WHERE report_date::date >= CURRENT_DATE - 6
+      ),
+      gaps AS (
+        SELECT e.user_id, e.employee_name, e.reporting_manager_id, e.manager_name, e.work_date,
+          CASE WHEN s.user_id IS NULL THEN 1 ELSE 0 END as is_missing
+        FROM expected e
+        LEFT JOIN submitted s ON e.user_id = s.user_id AND e.work_date = s.report_date
+      ),
+      incomplete_dwars AS (
+        SELECT user_id, COUNT(*) as incomplete_count
+        FROM submitted
+        WHERE content_len < 20 AND status = 'draft'
+        GROUP BY user_id
+      ),
+      consecutive AS (
+        SELECT user_id, employee_name, reporting_manager_id, manager_name,
+          SUM(is_missing) as total_missing,
+          ARRAY_AGG(work_date::text ORDER BY work_date) FILTER (WHERE is_missing = 1) as missing_dates
+        FROM gaps
+        GROUP BY user_id, employee_name, reporting_manager_id, manager_name
+        HAVING SUM(is_missing) > 0
+      )
+      SELECT c.user_id, c.employee_name, c.reporting_manager_id, c.manager_name,
+        c.total_missing as missing_days,
+        c.missing_dates,
+        COALESCE(id.incomplete_count, 0) as incomplete_dwar_count
+      FROM consecutive c
+      LEFT JOIN incomplete_dwars id ON c.user_id = id.user_id
+      ORDER BY c.total_missing DESC
+    `);
+    return (rows.rows || []).map((r: any) => {
+      const dates: string[] = r.missing_dates || [];
+      let consecutive = 0;
+      let maxConsecutive = 0;
+      const sortedDates = dates.sort();
+      for (let i = 0; i < sortedDates.length; i++) {
+        if (i === 0) { consecutive = 1; }
+        else {
+          const prev = new Date(sortedDates[i-1]);
+          const curr = new Date(sortedDates[i]);
+          const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+          consecutive = diffDays <= 3 ? consecutive + 1 : 1;
+        }
+        maxConsecutive = Math.max(maxConsecutive, consecutive);
+      }
+      return {
+        userId: Number(r.user_id),
+        employeeName: r.employee_name || 'Unknown',
+        managerName: r.manager_name || '',
+        managerId: r.reporting_manager_id ? Number(r.reporting_manager_id) : null,
+        missingDays: Number(r.missing_days || 0),
+        consecutiveMissing: maxConsecutive,
+        missingDates: dates,
+        incompleteDwarCount: Number(r.incomplete_dwar_count || 0),
+      };
+    });
+  }
+
   async getPendingLeaveRequests(): Promise<Array<{
     id: number; employeeName: string; leaveType: string; startDate: string; endDate: string; daysPending: number;
   }>> {
@@ -395,6 +556,42 @@ class AgentDataRepository {
     }));
   }
 
+  async getDetailedPendingLeaveRequests(): Promise<Array<{
+    id: number; employeeId: number; employeeName: string; leaveType: string;
+    startDate: string; endDate: string; daysPending: number;
+    managerId: number | null; managerName: string;
+    leaveDatePassed: boolean; totalDays: number;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT lr.id, lr.employee_id, lr.start_date, lr.end_date, lr.total_days,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+        COALESCE(lt.name, 'Leave') as leave_type,
+        EXTRACT(DAY FROM NOW() - lr.created_at)::int as days_pending,
+        lr.manager_id,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
+        CASE WHEN lr.start_date < CURRENT_DATE THEN true ELSE false END as leave_date_passed
+      FROM leave_requests lr
+      LEFT JOIN users u ON lr.employee_id = u.id
+      LEFT JOIN users m ON lr.manager_id = m.id
+      LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+      WHERE lr.status = 'pending'
+      ORDER BY days_pending DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      employeeId: Number(r.employee_id),
+      employeeName: r.employee_name || 'Unknown',
+      leaveType: r.leave_type || 'Leave',
+      startDate: r.start_date ? new Date(r.start_date).toLocaleDateString() : '',
+      endDate: r.end_date ? new Date(r.end_date).toLocaleDateString() : '',
+      daysPending: Number(r.days_pending || 0),
+      managerId: r.manager_id ? Number(r.manager_id) : null,
+      managerName: r.manager_name || '',
+      leaveDatePassed: Boolean(r.leave_date_passed),
+      totalDays: Number(r.total_days || 0),
+    }));
+  }
+
   async getOverdueMeetingCommitments(thresholdDays: number = 7): Promise<Array<{
     id: number; title: string; assigneeName: string; daysOverdue: number; meetingTitle: string;
   }>> {
@@ -416,6 +613,46 @@ class AgentDataRepository {
       assigneeName: r.assignee_name || 'Unassigned',
       daysOverdue: Number(r.days_overdue || 0),
       meetingTitle: r.meeting_title || '',
+    }));
+  }
+
+  async getDetailedMeetingCommitments(): Promise<Array<{
+    id: number; title: string; dueDate: string; daysOverdue: number;
+    assigneeId: number | null; assigneeName: string;
+    managerId: number | null; managerName: string;
+    meetingTitle: string; meetingDate: string;
+    hasLinkedTask: boolean; priority: string; category: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT mc.id, mc.title, mc.due_date, mc.priority, mc.category, mc.meeting_title, mc.meeting_date,
+        EXTRACT(DAY FROM NOW() - mc.due_date::timestamp)::int as days_overdue,
+        mc.assigned_to_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unassigned') as assignee_name,
+        u.reporting_manager_id,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
+        EXISTS(SELECT 1 FROM tasks t WHERE t.source_type = 'meeting_commitment' AND t.source_id = mc.id) as has_linked_task
+      FROM meeting_commitments mc
+      LEFT JOIN users u ON mc.assigned_to_id = u.id
+      LEFT JOIN users m ON u.reporting_manager_id = m.id
+      WHERE mc.status IN ('Pending')
+        AND mc.due_date IS NOT NULL
+        AND mc.due_date::date < CURRENT_DATE
+      ORDER BY days_overdue DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      dueDate: r.due_date ? new Date(r.due_date).toLocaleDateString() : '',
+      daysOverdue: Number(r.days_overdue || 0),
+      assigneeId: r.assigned_to_id ? Number(r.assigned_to_id) : null,
+      assigneeName: r.assignee_name || 'Unassigned',
+      managerId: r.reporting_manager_id ? Number(r.reporting_manager_id) : null,
+      managerName: r.manager_name || '',
+      meetingTitle: r.meeting_title || '',
+      meetingDate: r.meeting_date ? new Date(r.meeting_date).toLocaleDateString() : '',
+      hasLinkedTask: Boolean(r.has_linked_task),
+      priority: r.priority || 'Medium',
+      category: r.category || '',
     }));
   }
 

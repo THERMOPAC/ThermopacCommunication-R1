@@ -408,10 +408,8 @@ export class CommunicationsAgent implements IAgent {
     }
 
     // ═══════════════════════════════════════════════════════
-    // ─── REMAINING MONITORS (unchanged) ───
-    // ═══════════════════════════════════════════════════════
-
     // ─── OVERDUE RECURRING TASKS ───
+    // ═══════════════════════════════════════════════════════
     const overdueRecurring = await agentDataRepo.getOverdueRecurringTasks(7);
     queriesRun++;
 
@@ -425,23 +423,20 @@ export class CommunicationsAgent implements IAgent {
     for (const [assignee, tasks] of Object.entries(recurringByAssignee)) {
       const maxDays = Math.max(...tasks.map(t => t.daysOverdue));
       const severity = maxDays >= 30 ? 'high' as const : maxDays >= 14 ? 'medium' as const : 'low' as const;
-
       const topTasks = tasks.sort((a, b) => b.daysOverdue - a.daysOverdue).slice(0, 5);
       const topList = topTasks.map(t => `  • ${t.title} (${t.daysOverdue} days)`).join('\n');
-
-      const description = [
-        `${assignee} has ${tasks.length} overdue recurring task${tasks.length > 1 ? 's' : ''}.`,
-        `Worst overdue: ${maxDays} days.`,
-        `\nRecurring tasks represent scheduled, repeating responsibilities. Overdue items suggest the assignee may be overburdened or the task schedule needs review.`,
-        `\nTop overdue:\n${topList}`,
-        tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
-      ].filter(Boolean).join('\n');
 
       const result = await findingManager.createFinding({
         findingType: 'overdue',
         severity,
         title: `${assignee}: ${tasks.length} overdue recurring tasks (worst: ${maxDays} days)`,
-        description,
+        description: [
+          `${assignee} has ${tasks.length} overdue recurring task${tasks.length > 1 ? 's' : ''}.`,
+          `Worst overdue: ${maxDays} days.`,
+          `\nRecurring tasks represent scheduled, repeating responsibilities. Overdue items suggest the assignee may be overburdened or the task schedule needs review.`,
+          `\nTop overdue:\n${topList}`,
+          tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
+        ].filter(Boolean).join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { assigneeName: assignee, taskCount: tasks.length, maxDaysOverdue: maxDays },
         relatedEntityType: 'recurring_task_group',
@@ -450,7 +445,9 @@ export class CommunicationsAgent implements IAgent {
       if (!result.isDuplicate) findingsCount++;
     }
 
+    // ═══════════════════════════════════════════════════════
     // ─── UNANSWERED EMAILS ───
+    // ═══════════════════════════════════════════════════════
     const unansweredEmails = await agentDataRepo.getUnansweredEmails(24);
     queriesRun++;
 
@@ -486,123 +483,350 @@ export class CommunicationsAgent implements IAgent {
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ─── ATTENDANCE ANOMALIES ───
-    const attendanceIssues = await agentDataRepo.getAttendanceAnomalies(7);
-    queriesRun++;
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 1: ATTENDANCE MONITORING ───
+    // ═══════════════════════════════════════════════════════
+    const attendanceDetailed = await agentDataRepo.getDetailedAttendanceIssues(7);
+    const todayMissing = await agentDataRepo.getTodayMissingAttendance();
+    queriesRun += 2;
 
-    for (const issue of attendanceIssues) {
-      if (issue.incompleteCount + issue.absentCount < 2) continue;
-      const severity = issue.absentCount >= 3 ? 'high' as const :
-                       issue.incompleteCount >= 3 ? 'medium' as const : 'low' as const;
-      const result = await findingManager.createFinding({
-        findingType: 'anomaly',
-        severity,
-        title: `${issue.employeeName}: attendance issues (${issue.absentCount} absent, ${issue.incompleteCount} incomplete) in last 7 days`,
-        description: [
-          `${issue.employeeName} has ${issue.absentCount} absent day${issue.absentCount !== 1 ? 's' : ''} and ${issue.incompleteCount} incomplete attendance record${issue.incompleteCount !== 1 ? 's' : ''} in the last 7 days.`,
-          `\nFrequent attendance irregularities may indicate personal issues, disengagement, or timesheet management gaps that need supervisor attention.`,
-        ].join('\n'),
-        logicType: 'rule_based',
-        dataSnapshot: issue,
-        relatedEntityType: 'attendance',
-        relatedEntityId: `${issue.userId}:attendance`,
-      });
-      if (!result.isDuplicate) findingsCount++;
+    let attendanceAnomalyCount = 0;
+    let absentWithoutLeaveCount = 0;
+    let incompleteAttendanceCount = 0;
+
+    for (const emp of attendanceDetailed) {
+      const totalIssues = emp.absentCount + emp.incompleteCount;
+      if (totalIssues === 0) continue;
+
+      if (emp.absentWithoutLeaveCount > 0) {
+        absentWithoutLeaveCount += emp.absentWithoutLeaveCount;
+        const severity = emp.absentWithoutLeaveCount >= 3 ? 'high' as const :
+                         emp.absentWithoutLeaveCount >= 2 ? 'medium' as const : 'low' as const;
+        const notifyTarget = severity === 'low' ? emp.employeeName : emp.managerName || emp.employeeName;
+        const result = await findingManager.createFinding({
+          findingType: 'anomaly',
+          severity,
+          title: `${emp.employeeName}: ${emp.absentWithoutLeaveCount} absence${emp.absentWithoutLeaveCount > 1 ? 's' : ''} without approved leave (7 days)`,
+          description: [
+            `${emp.employeeName} was absent on ${emp.absentWithoutLeaveCount} day${emp.absentWithoutLeaveCount > 1 ? 's' : ''} without any approved leave request in the last 7 days.`,
+            `Absent dates: ${emp.absentDates.join(', ')}`,
+            severity === 'low'
+              ? `\n→ Notify: ${emp.employeeName} — please submit a leave request or clarify attendance.`
+              : `\n→ Notify: ${emp.employeeName}\n→ Escalate to: ${emp.managerName || 'Reporting Manager'} — persistent absences without leave require manager attention.`,
+            `\nAbsence without approved leave affects team planning, may violate attendance policies, and creates compliance gaps.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...emp, notifyTargets: [emp.employeeName, notifyTarget] },
+          relatedEntityType: 'attendance',
+          relatedEntityId: `${emp.userId}:absent_no_leave`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
+
+      if (emp.incompleteCount >= 3) {
+        incompleteAttendanceCount += emp.incompleteCount;
+        const result = await findingManager.createFinding({
+          findingType: 'anomaly',
+          severity: 'medium',
+          title: `${emp.employeeName}: ${emp.incompleteCount} incomplete attendance records (7 days)`,
+          description: [
+            `${emp.employeeName} has ${emp.incompleteCount} incomplete attendance records (check-in but no check-out) in the last 7 days.`,
+            `Incomplete dates: ${emp.incompleteDates.join(', ')}`,
+            `\n→ Notify: ${emp.employeeName} — please complete your attendance records.`,
+            emp.incompleteCount >= 3 ? `→ Escalate to: ${emp.managerName || 'Reporting Manager'} — repeated incomplete records indicate a pattern.` : '',
+            `\nIncomplete attendance records affect working-hours calculation, overtime tracking, and payroll accuracy.`,
+          ].filter(Boolean).join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...emp, notifyTargets: [emp.employeeName, emp.managerName] },
+          relatedEntityType: 'attendance',
+          relatedEntityId: `${emp.userId}:incomplete_attendance`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else if (emp.incompleteCount > 0) {
+        incompleteAttendanceCount += emp.incompleteCount;
+        const result = await findingManager.createFinding({
+          findingType: 'anomaly',
+          severity: 'low',
+          title: `${emp.employeeName}: ${emp.incompleteCount} incomplete attendance record${emp.incompleteCount > 1 ? 's' : ''} (7 days)`,
+          description: [
+            `${emp.employeeName} has ${emp.incompleteCount} incomplete attendance record${emp.incompleteCount > 1 ? 's' : ''} (check-in but no check-out) in the last 7 days.`,
+            `\n→ Notify: ${emp.employeeName} — please complete your attendance records.`,
+            `\nIncomplete attendance records affect working-hours calculation and payroll accuracy.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { userId: emp.userId, employeeName: emp.employeeName, incompleteCount: emp.incompleteCount },
+          relatedEntityType: 'attendance',
+          relatedEntityId: `${emp.userId}:incomplete_attendance`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
+
+      if (totalIssues >= 2) attendanceAnomalyCount++;
     }
 
-    // ─── DAILY WORK REPORT (DWAR) GAPS ───
-    const dwarGaps = await agentDataRepo.getDWARSubmissionGaps(3);
-    queriesRun++;
-
-    for (const gap of dwarGaps) {
-      if (gap.missingDays < 2) continue;
-      const severity = gap.missingDays >= 5 ? 'high' as const :
-                       gap.missingDays >= 3 ? 'medium' as const : 'low' as const;
+    if (todayMissing.length > 0) {
+      const nameList = todayMissing.slice(0, 10).map(u => `  • ${u.employeeName}`).join('\n');
       const result = await findingManager.createFinding({
         findingType: 'gap',
-        severity,
-        title: `${gap.employeeName}: ${gap.missingDays} missing daily work reports this week`,
+        severity: todayMissing.length >= 5 ? 'medium' as const : 'low' as const,
+        title: `${todayMissing.length} employee${todayMissing.length > 1 ? 's' : ''} missing attendance today`,
         description: [
-          `${gap.employeeName} has not submitted daily work reports for ${gap.missingDays} working day${gap.missingDays !== 1 ? 's' : ''} in the last week.`,
-          `\nDaily work reports are essential for productivity tracking, workload visibility, and performance assessment. Consistent non-submission hampers management oversight.`,
-        ].join('\n'),
-        logicType: 'rule_based',
-        dataSnapshot: gap,
-        relatedEntityType: 'dwar',
-        relatedEntityId: `${gap.userId}:dwar`,
-      });
-      if (!result.isDuplicate) findingsCount++;
-    }
-
-    // ─── PENDING LEAVE REQUESTS ───
-    const pendingLeaves = await agentDataRepo.getPendingLeaveRequests();
-    queriesRun++;
-
-    if (pendingLeaves.length > 0) {
-      const oldestPending = Math.max(...pendingLeaves.map(l => l.daysPending));
-      const severity = oldestPending >= 7 ? 'high' as const :
-                       oldestPending >= 3 ? 'medium' as const : 'low' as const;
-      const leaveList = pendingLeaves.slice(0, 5).map(l =>
-        `  • ${l.employeeName}: ${l.leaveType} (${l.startDate} to ${l.endDate}, pending ${l.daysPending} days)`
-      ).join('\n');
-
-      const result = await findingManager.createFinding({
-        findingType: 'gap',
-        severity,
-        title: `${pendingLeaves.length} leave requests pending approval (oldest: ${oldestPending} days)`,
-        description: [
-          `${pendingLeaves.length} leave request${pendingLeaves.length > 1 ? 's' : ''} awaiting approval.`,
-          `Oldest pending: ${oldestPending} days.`,
-          `\nDelayed leave approvals can disrupt employee planning, affect morale, and create last-minute scheduling conflicts.`,
-          `\nPending requests:\n${leaveList}`,
-          pendingLeaves.length > 5 ? `\n...and ${pendingLeaves.length - 5} more.` : '',
+          `${todayMissing.length} active employee${todayMissing.length > 1 ? 's have' : ' has'} no attendance record for today and no approved leave.`,
+          `\nEmployees without attendance:\n${nameList}`,
+          todayMissing.length > 10 ? `\n...and ${todayMissing.length - 10} more.` : '',
+          `\n→ Notify: Each employee listed above.`,
+          `\nMissing attendance records should be recorded before end of day. Employees should either check in or submit a leave request.`,
         ].filter(Boolean).join('\n'),
         logicType: 'rule_based',
-        dataSnapshot: { count: pendingLeaves.length, oldestPending },
-        relatedEntityType: 'leave_request',
-        relatedEntityId: 'aggregate',
+        dataSnapshot: { count: todayMissing.length, employees: todayMissing.slice(0, 10) },
+        relatedEntityType: 'attendance',
+        relatedEntityId: `today:missing_attendance`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ─── OVERDUE MEETING COMMITMENTS ───
-    const overdueCommitments = await agentDataRepo.getOverdueMeetingCommitments(7);
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 2: DWAR MONITORING ───
+    // ═══════════════════════════════════════════════════════
+    const dwarDetailed = await agentDataRepo.getDetailedDWARGaps();
     queriesRun++;
 
-    const commitmentsByAssignee: Record<string, typeof overdueCommitments> = {};
-    for (const c of overdueCommitments) {
+    let dwarMissingCount = 0;
+    let dwarIncompleteCount = 0;
+
+    for (const gap of dwarDetailed) {
+      if (gap.missingDays === 0 && gap.incompleteDwarCount === 0) continue;
+
+      if (gap.missingDays >= 3) {
+        dwarMissingCount++;
+        const severity = gap.missingDays >= 5 ? 'high' as const : 'medium' as const;
+        const result = await findingManager.createFinding({
+          findingType: 'escalation',
+          severity,
+          title: `${gap.employeeName}: ${gap.missingDays} missing DWARs this week — Escalated to Manager`,
+          description: [
+            `${gap.employeeName} has not submitted daily work reports for ${gap.missingDays} working day${gap.missingDays > 1 ? 's' : ''} in the last 7 working days.`,
+            gap.consecutiveMissing >= 2 ? `${gap.consecutiveMissing} consecutive missing DWARs detected.` : '',
+            `Missing dates: ${gap.missingDates.join(', ')}`,
+            `\n→ Notify: ${gap.employeeName}`,
+            `→ Escalate to: ${gap.managerName || 'Reporting Manager'} — ≥3 missing DWARs triggers manager escalation.`,
+            `\nDaily work reports are essential for productivity tracking, workload visibility, and performance assessment. Consistent non-submission hampers management oversight.`,
+          ].filter(Boolean).join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...gap, notifyTargets: [gap.employeeName, gap.managerName] },
+          relatedEntityType: 'dwar',
+          relatedEntityId: `${gap.userId}:dwar_escalation`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else if (gap.consecutiveMissing >= 2) {
+        dwarMissingCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'gap',
+          severity: 'medium',
+          title: `${gap.employeeName}: ${gap.consecutiveMissing} consecutive missing DWARs — Warning`,
+          description: [
+            `${gap.employeeName} has missed ${gap.consecutiveMissing} consecutive daily work reports.`,
+            `Missing dates: ${gap.missingDates.join(', ')}`,
+            `\n→ Notify: ${gap.employeeName} — consecutive missing DWARs indicate a pattern.`,
+            `\nTwo consecutive missing DWARs trigger a warning. A third will escalate to your reporting manager.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...gap, notifyTargets: [gap.employeeName] },
+          relatedEntityType: 'dwar',
+          relatedEntityId: `${gap.userId}:dwar_warning`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else if (gap.missingDays >= 1) {
+        dwarMissingCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'gap',
+          severity: 'low',
+          title: `${gap.employeeName}: ${gap.missingDays} missing DWAR${gap.missingDays > 1 ? 's' : ''} this week — Reminder`,
+          description: [
+            `${gap.employeeName} has not submitted daily work report${gap.missingDays > 1 ? 's' : ''} for ${gap.missingDays} working day${gap.missingDays > 1 ? 's' : ''}.`,
+            `Missing dates: ${gap.missingDates.join(', ')}`,
+            `\n→ Notify: ${gap.employeeName} — please submit your daily work report by end of day.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { userId: gap.userId, employeeName: gap.employeeName, missingDays: gap.missingDays },
+          relatedEntityType: 'dwar',
+          relatedEntityId: `${gap.userId}:dwar_reminder`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
+
+      if (gap.incompleteDwarCount > 0) {
+        dwarIncompleteCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'gap',
+          severity: 'low',
+          title: `${gap.employeeName}: ${gap.incompleteDwarCount} incomplete/empty DWAR${gap.incompleteDwarCount > 1 ? 's' : ''} this week`,
+          description: [
+            `${gap.employeeName} submitted ${gap.incompleteDwarCount} daily work report${gap.incompleteDwarCount > 1 ? 's' : ''} with minimal or no content (draft status, very short text).`,
+            `\n→ Notify: ${gap.employeeName} — DWARs should include meaningful details about tasks completed, challenges, and plans.`,
+            `\nEmpty or too-short DWARs provide no visibility into work activities and defeat the purpose of daily reporting.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { userId: gap.userId, employeeName: gap.employeeName, incompleteDwarCount: gap.incompleteDwarCount },
+          relatedEntityType: 'dwar',
+          relatedEntityId: `${gap.userId}:dwar_incomplete`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 3: LEAVE REQUEST MONITORING ───
+    // ═══════════════════════════════════════════════════════
+    const pendingLeaves = await agentDataRepo.getDetailedPendingLeaveRequests();
+    queriesRun++;
+
+    let leavePendingReminderCount = 0;
+    let leaveEscalationCount = 0;
+    let leaveClosureCount = 0;
+
+    for (const leave of pendingLeaves) {
+      if (leave.leaveDatePassed) {
+        leaveClosureCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'escalation',
+          severity: 'high',
+          title: `Leave request expired: ${leave.employeeName} — ${leave.leaveType} (${leave.startDate}–${leave.endDate}) still pending`,
+          description: [
+            `${leave.employeeName}'s ${leave.leaveType} request for ${leave.startDate} to ${leave.endDate} is still in Pending status, but the leave date has already passed.`,
+            `Pending for ${leave.daysPending} days. Total days requested: ${leave.totalDays}`,
+            `\n→ Notify: ${leave.managerName || 'Approving Manager'} — this leave request requires immediate closure.`,
+            `\nRecommendation: Approve retroactively if leave was actually taken, or reject with clarification. Leaving expired requests open distorts leave balance reports.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...leave, notifyTargets: [leave.managerName] },
+          relatedEntityType: 'leave_request',
+          relatedEntityId: `leave:${leave.id}:expired`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else if (leave.daysPending >= 7) {
+        leaveEscalationCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'escalation',
+          severity: 'high',
+          title: `Leave approval overdue: ${leave.employeeName} — ${leave.leaveType} pending ${leave.daysPending} days`,
+          description: [
+            `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate} to ${leave.endDate}) has been pending approval for ${leave.daysPending} days.`,
+            `Leave dates: ${leave.startDate} – ${leave.endDate} (${leave.totalDays} day${leave.totalDays > 1 ? 's' : ''})`,
+            `\n→ Escalation: Pending >7 days — requires immediate manager action.`,
+            `→ Notify: ${leave.managerName || 'Approving Manager'}`,
+            `\nDelayed leave approvals disrupt employee planning and may violate HR policy response time requirements.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...leave, notifyTargets: [leave.managerName] },
+          relatedEntityType: 'leave_request',
+          relatedEntityId: `leave:${leave.id}:escalation`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else if (leave.daysPending >= 3) {
+        leavePendingReminderCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'gap',
+          severity: 'medium',
+          title: `Leave approval pending: ${leave.employeeName} — ${leave.leaveType} waiting ${leave.daysPending} days`,
+          description: [
+            `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate} to ${leave.endDate}) has been pending for ${leave.daysPending} days.`,
+            `\n→ Reminder to: ${leave.managerName || 'Approving Manager'} — please review this leave request.`,
+            `\nLeave requests pending >3 days affect employee planning and morale.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...leave, notifyTargets: [leave.managerName] },
+          relatedEntityType: 'leave_request',
+          relatedEntityId: `leave:${leave.id}:reminder`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else {
+        leavePendingReminderCount++;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 4: MEETINGS & COMMITMENTS MONITORING ───
+    // ═══════════════════════════════════════════════════════
+    const detailedCommitments = await agentDataRepo.getDetailedMeetingCommitments();
+    queriesRun++;
+
+    let commitmentOverdueCount = 0;
+    let commitmentEscalatedCount = 0;
+    let commitmentNoTaskCount = 0;
+
+    const commitmentsByAssignee: Record<string, typeof detailedCommitments> = {};
+    for (const c of detailedCommitments) {
       const assignee = c.assigneeName || 'Unassigned';
       if (!commitmentsByAssignee[assignee]) commitmentsByAssignee[assignee] = [];
       commitmentsByAssignee[assignee].push(c);
     }
 
-    for (const [assignee, commitments] of Object.entries(commitmentsByAssignee)) {
-      const maxDays = Math.max(...commitments.map(c => c.daysOverdue));
-      const severity = maxDays >= 30 ? 'high' as const :
-                       maxDays >= 14 ? 'medium' as const : 'low' as const;
-      const topList = commitments.sort((a, b) => b.daysOverdue - a.daysOverdue).slice(0, 5)
-        .map(c => `  • ${c.title} (${c.daysOverdue} days, from meeting: ${c.meetingTitle || 'N/A'})`).join('\n');
+    for (const commitment of detailedCommitments) {
+      if (commitment.daysOverdue >= 30) {
+        commitmentEscalatedCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'escalation',
+          severity: 'high',
+          title: `Meeting commitment overdue 30+ days: "${commitment.title}" — Escalated to Manager`,
+          description: [
+            `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) is ${commitment.daysOverdue} days overdue.`,
+            `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate} | Priority: ${commitment.priority}`,
+            `\n→ Notify: ${commitment.assigneeName} (assignee)`,
+            `→ Escalate to: ${commitment.managerName || 'Reporting Manager'} — commitment overdue >30 days requires manager intervention.`,
+            `\nOverdue meeting commitments indicate broken promises and may erode team trust. Manager should discuss blockers and next steps.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...commitment, notifyTargets: [commitment.assigneeName, commitment.managerName] },
+          relatedEntityType: 'meeting_commitment',
+          relatedEntityId: `commitment:${commitment.id}:escalation`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      } else if (commitment.daysOverdue >= 1) {
+        commitmentOverdueCount++;
+        const severity = commitment.daysOverdue >= 14 ? 'medium' as const : 'low' as const;
+        const result = await findingManager.createFinding({
+          findingType: 'overdue',
+          severity,
+          title: `Meeting commitment overdue: "${commitment.title}" — ${commitment.daysOverdue} days`,
+          description: [
+            `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) is ${commitment.daysOverdue} days overdue.`,
+            `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate} | Priority: ${commitment.priority}`,
+            `\n→ Notify: ${commitment.assigneeName} — please complete this commitment or update its status.`,
+            `\nMeeting commitments represent agreed-upon action items. Timely completion maintains team accountability.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { commitmentId: commitment.id, title: commitment.title, daysOverdue: commitment.daysOverdue, assigneeName: commitment.assigneeName },
+          relatedEntityType: 'meeting_commitment',
+          relatedEntityId: `commitment:${commitment.id}:overdue`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
 
-      const result = await findingManager.createFinding({
-        findingType: 'overdue',
-        severity,
-        title: `${assignee}: ${commitments.length} overdue meeting commitments (worst: ${maxDays} days)`,
-        description: [
-          `${assignee} has ${commitments.length} overdue meeting commitment${commitments.length > 1 ? 's' : ''}.`,
-          `Worst overdue: ${maxDays} days.`,
-          `\nMeeting commitments represent agreed-upon action items. Overdue items indicate broken commitments that may erode team trust and meeting effectiveness.`,
-          `\nTop overdue:\n${topList}`,
-          commitments.length > 5 ? `\n...and ${commitments.length - 5} more.` : '',
-        ].filter(Boolean).join('\n'),
-        logicType: 'rule_based',
-        dataSnapshot: { assigneeName: assignee, commitmentCount: commitments.length, maxDaysOverdue: maxDays },
-        relatedEntityType: 'meeting_commitment_group',
-        relatedEntityId: `${assignee}:commitments`,
-      });
-      if (!result.isDuplicate) findingsCount++;
+      if (!commitment.hasLinkedTask) {
+        commitmentNoTaskCount++;
+        const result = await findingManager.createFinding({
+          findingType: 'gap',
+          severity: 'low',
+          title: `Meeting commitment not linked to task: "${commitment.title}"`,
+          description: [
+            `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) has not been converted into a task.`,
+            `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate}`,
+            `\n→ Recommendation: Create a task from this commitment to ensure it is tracked in the task management system.`,
+            `\nCommitments without linked tasks risk being forgotten as they are only visible in the meeting notes.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { commitmentId: commitment.id, title: commitment.title, assigneeName: commitment.assigneeName },
+          relatedEntityType: 'meeting_commitment',
+          relatedEntityId: `commitment:${commitment.id}:no_task`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
     }
 
+    // ═══════════════════════════════════════════════════════
     // ─── UNREAD INTERNAL MESSAGES ───
+    // ═══════════════════════════════════════════════════════
     const unreadMessages = await agentDataRepo.getUnreadInternalMessages(48);
     queriesRun++;
 
@@ -626,16 +850,15 @@ export class CommunicationsAgent implements IAgent {
     }
 
     // ═══════════════════════════════════════════════════════
-    // ─── DAILY INSIGHT SUMMARY ───
+    // ─── MODULE 5: DAILY PEOPLE ACTIVITY INSIGHT ───
     // ═══════════════════════════════════════════════════════
-    const taskStats = await agentDataRepo.getTaskStats();
     const emailStats = await agentDataRepo.getEmailStats();
-    queriesRun += 2;
+    queriesRun++;
 
     await insightManager.createInsight({
       findingIds: [],
       insightType: 'summary',
-      title: `Communications & People Activity Summary - ${new Date().toLocaleDateString()}`,
+      title: `People Activity Summary - ${new Date().toLocaleDateString()}`,
       content: [
         `=== PEOPLE ACTIVITY & COMMUNICATION DISCIPLINE ===`,
         `Date: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
@@ -664,16 +887,29 @@ export class CommunicationsAgent implements IAgent {
         `Critical unanswered (24h+): ${criticalEmails.length}, Long unanswered (72h+): ${longUnanswered.length}`,
         ``,
         `--- ATTENDANCE ---`,
-        `People with anomalies: ${attendanceIssues.filter(i => i.incompleteCount + i.absentCount >= 2).length}`,
+        `Missing attendance today: ${todayMissing.length} employees`,
+        `Incomplete records (7d): ${incompleteAttendanceCount} records across ${attendanceDetailed.filter(e => e.incompleteCount > 0).length} employees`,
+        `Absent without leave (7d): ${absentWithoutLeaveCount} instances`,
+        `People with attendance anomalies: ${attendanceAnomalyCount}`,
         ``,
         `--- DAILY WORK REPORTS ---`,
-        `People with missing DWARs: ${dwarGaps.filter(g => g.missingDays >= 2).length}`,
+        `Missing DWARs this week: ${dwarDetailed.filter(g => g.missingDays > 0).length} employees`,
+        `  - Escalated to manager (≥3 missing): ${dwarDetailed.filter(g => g.missingDays >= 3).length}`,
+        `  - Warning (2 consecutive): ${dwarDetailed.filter(g => g.consecutiveMissing >= 2 && g.missingDays < 3).length}`,
+        `  - Reminder (1 missing): ${dwarDetailed.filter(g => g.missingDays === 1).length}`,
+        `Incomplete/empty DWARs: ${dwarIncompleteCount} employees`,
         ``,
         `--- LEAVE REQUESTS ---`,
-        `Pending approval: ${pendingLeaves.length}`,
+        `Total pending: ${pendingLeaves.length}`,
+        `  - Expired (date passed): ${leaveClosureCount}`,
+        `  - Escalation (>7 days): ${leaveEscalationCount}`,
+        `  - Reminder (>3 days): ${leavePendingReminderCount}`,
         ``,
         `--- MEETING COMMITMENTS ---`,
-        `Overdue: ${overdueCommitments.length} across ${Object.keys(commitmentsByAssignee).length} people`,
+        `Total overdue: ${detailedCommitments.length} across ${Object.keys(commitmentsByAssignee).length} people`,
+        `  - Escalated to manager (>30d): ${commitmentEscalatedCount}`,
+        `  - Overdue (notified assignee): ${commitmentOverdueCount}`,
+        `  - Not linked to task: ${commitmentNoTaskCount}`,
         ``,
         `--- INTERNAL MESSAGES ---`,
         `Unread 48h+: ${unreadMessages.length}`,
