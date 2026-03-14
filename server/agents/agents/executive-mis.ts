@@ -96,13 +96,16 @@ export class ExecutiveMISAgent implements IAgent {
     insightsCount++;
 
     if (woStats.overdue > 10) {
+      const overduePct = woStats.total > 0 ? Math.round((woStats.overdue / woStats.total) * 100) : 0;
+      const severity = overduePct >= 30 ? 'critical' as const :
+                       woStats.overdue >= 30 ? 'high' as const : 'medium' as const;
       const result = await findingManager.createFinding({
         findingType: 'threshold_breach',
-        severity: 'high',
-        title: `${woStats.overdue} work orders are overdue across all projects`,
-        description: `There are ${woStats.overdue} overdue work orders out of ${woStats.total} total. This represents a significant backlog that may impact project delivery timelines.`,
+        severity,
+        title: `${woStats.overdue} work orders overdue (${overduePct}% of total)`,
+        description: `There are ${woStats.overdue} overdue work orders out of ${woStats.total} total (${overduePct}%). Completed: ${woStats.completed}, In Progress: ${woStats.inProgress}.`,
         logicType: 'rule_based',
-        dataSnapshot: woStats,
+        dataSnapshot: { ...woStats, overduePct },
         relatedEntityType: 'work_order',
         relatedEntityId: 'aggregate',
       });
@@ -112,9 +115,9 @@ export class ExecutiveMISAgent implements IAgent {
     if (taskStats.overdue > 20) {
       const result = await findingManager.createFinding({
         findingType: 'threshold_breach',
-        severity: 'high',
-        title: `${taskStats.overdue} tasks are overdue across the platform`,
-        description: `There are ${taskStats.overdue} overdue tasks out of ${taskStats.total} total.`,
+        severity: taskStats.overdue >= 50 ? 'high' as const : 'medium' as const,
+        title: `${taskStats.overdue} tasks overdue across the platform`,
+        description: `There are ${taskStats.overdue} overdue tasks out of ${taskStats.total} total. Completed: ${taskStats.completed}, Pending: ${taskStats.pending}.`,
         logicType: 'rule_based',
         dataSnapshot: taskStats,
         relatedEntityType: 'task',
@@ -125,11 +128,13 @@ export class ExecutiveMISAgent implements IAgent {
 
     const totalOverdueInvoices = financeKPIs.reduce((sum, k) => sum + k.overdueInvoices, 0);
     if (totalOverdueInvoices > 5) {
+      const severity = totalOverdueInvoices >= 100 ? 'critical' as const :
+                       totalOverdueInvoices >= 50 ? 'high' as const : 'medium' as const;
       const result = await findingManager.createFinding({
         findingType: 'threshold_breach',
-        severity: 'medium',
-        title: `${totalOverdueInvoices} invoices are overdue across all companies`,
-        description: `There are ${totalOverdueInvoices} overdue invoices that require attention.`,
+        severity,
+        title: `${totalOverdueInvoices} invoices overdue across all companies`,
+        description: `There are ${totalOverdueInvoices} overdue invoices. ${financeKPIs.map(k => `${k.companyName}: ${k.overdueInvoices} overdue`).join('; ')}.`,
         logicType: 'rule_based',
         dataSnapshot: financeKPIs,
         relatedEntityType: 'invoice',

@@ -28,23 +28,70 @@ export class ProjectControlAgent implements IAgent {
     const projectHealth = await agentDataRepo.getProjectHealth(context.companyScope);
     queriesRun++;
 
+    const overdueWOs = await agentDataRepo.getOverdueWorkOrders(context.companyScope, 7);
+    queriesRun++;
+
+    const wosByProject: Record<string, typeof overdueWOs> = {};
+    for (const wo of overdueWOs) {
+      const key = wo.projectName || 'Unknown';
+      if (!wosByProject[key]) wosByProject[key] = [];
+      wosByProject[key].push(wo);
+    }
+
     for (const project of projectHealth) {
-      if (project.overdueWorkOrders > 0) {
-        const severity = project.overdueWorkOrders >= 5 ? 'high' as const :
-                         project.overdueWorkOrders >= 2 ? 'medium' as const : 'low' as const;
-        const result = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity,
-          title: `Project ${project.projectNumber || project.projectName} has ${project.overdueWorkOrders} overdue work orders`,
-          description: `Project "${project.projectName}" has ${project.overdueWorkOrders} overdue work orders out of ${project.totalWorkOrders} total. Work order completion is at ${project.woCompletionPct}%.`,
-          logicType: 'rule_based',
-          dataSnapshot: project,
-          relatedEntityType: 'project',
-          relatedEntityId: String(project.id),
-          companyName: project.companyName,
-        });
-        if (!result.isDuplicate) findingsCount++;
-      }
+      const projectWOs = wosByProject[project.projectName] || [];
+      if (projectWOs.length === 0 && project.overdueWorkOrders === 0) continue;
+
+      const overdueCount = projectWOs.length || project.overdueWorkOrders;
+      const maxDaysOverdue = projectWOs.length > 0
+        ? Math.max(...projectWOs.map(w => w.daysOverdue))
+        : 0;
+
+      const severity = maxDaysOverdue >= 90 ? 'critical' as const :
+                       maxDaysOverdue >= 30 ? 'high' as const :
+                       overdueCount >= 5 ? 'high' as const :
+                       overdueCount >= 2 ? 'medium' as const : 'low' as const;
+
+      const topWOs = projectWOs
+        .sort((a, b) => b.daysOverdue - a.daysOverdue)
+        .slice(0, 5);
+      const topWOsList = topWOs.map(w =>
+        `  - ${w.workOrderNumber}: "${w.title}" (${w.daysOverdue} days overdue)`
+      ).join('\n');
+
+      const description = [
+        `Project "${project.projectName}" has ${overdueCount} overdue work orders out of ${project.totalWorkOrders} total.`,
+        `Work order completion: ${project.woCompletionPct}%.`,
+        `Most overdue: ${maxDaysOverdue} days.`,
+        topWOs.length > 0 ? `\nTop overdue work orders:\n${topWOsList}` : '',
+        projectWOs.length > 5 ? `\n...and ${projectWOs.length - 5} more overdue work orders.` : '',
+      ].filter(Boolean).join(' ');
+
+      const result = await findingManager.createFinding({
+        findingType: 'overdue',
+        severity,
+        title: `Project ${project.projectNumber || project.projectName}: ${overdueCount} overdue work orders (worst: ${maxDaysOverdue} days)`,
+        description,
+        logicType: 'rule_based',
+        dataSnapshot: {
+          projectId: project.id,
+          projectName: project.projectName,
+          projectNumber: project.projectNumber,
+          overdueCount,
+          maxDaysOverdue,
+          totalWorkOrders: project.totalWorkOrders,
+          completionPct: project.woCompletionPct,
+          topOverdueWOs: topWOs.map(w => ({
+            woNumber: w.workOrderNumber,
+            title: w.title,
+            daysOverdue: w.daysOverdue,
+          })),
+        },
+        relatedEntityType: 'project',
+        relatedEntityId: String(project.id),
+        companyName: project.companyName,
+      });
+      if (!result.isDuplicate) findingsCount++;
 
       if (project.targetEndDate) {
         const targetDate = new Date(project.targetEndDate);
@@ -52,9 +99,9 @@ export class ProjectControlAgent implements IAgent {
         if (daysUntil <= 14 && daysUntil > 0 && project.woCompletionPct < 80) {
           const result = await findingManager.createFinding({
             findingType: 'threshold_breach',
-            severity: 'high',
-            title: `Project ${project.projectNumber || project.projectName} at risk - ${daysUntil} days to deadline with ${project.woCompletionPct}% completion`,
-            description: `Project "${project.projectName}" is due in ${daysUntil} days but only ${project.woCompletionPct}% of work orders are completed.`,
+            severity: daysUntil <= 7 ? 'critical' as const : 'high' as const,
+            title: `Project ${project.projectNumber || project.projectName} at risk — ${daysUntil} days to deadline, ${project.woCompletionPct}% complete`,
+            description: `Project "${project.projectName}" is due in ${daysUntil} days but only ${project.woCompletionPct}% of work orders are completed. ${overdueCount} work orders are still overdue.`,
             logicType: 'rule_based',
             dataSnapshot: { ...project, daysUntil },
             relatedEntityType: 'project',
@@ -66,26 +113,7 @@ export class ProjectControlAgent implements IAgent {
       }
     }
 
-    const overdueWOs = await agentDataRepo.getOverdueWorkOrders(context.companyScope, 7);
-    queriesRun++;
-
-    for (const wo of overdueWOs) {
-      if (wo.daysOverdue >= 14) {
-        const result = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: wo.daysOverdue >= 30 ? 'critical' as const : 'high' as const,
-          title: `Work Order ${wo.workOrderNumber} is ${wo.daysOverdue} days overdue`,
-          description: `Work order "${wo.title}" (${wo.workOrderNumber}) for project "${wo.projectName}" has been overdue for ${wo.daysOverdue} days.`,
-          logicType: 'rule_based',
-          dataSnapshot: wo,
-          relatedEntityType: 'work_order',
-          relatedEntityId: String(wo.id),
-        });
-        if (!result.isDuplicate) findingsCount++;
-      }
-    }
-
-    if (findingsCount > 0) {
+    if (findingsCount > 0 || projectHealth.length > 0) {
       const summary = projectHealth.map(p =>
         `${p.projectNumber || p.projectName}: ${p.woCompletionPct}% complete, ${p.overdueWorkOrders} overdue WOs`
       ).join('\n');
