@@ -5,6 +5,7 @@ import { orchestrator } from './framework/orchestrator';
 import { ProjectControlAgent } from './agents/project-control';
 import { CommunicationsAgent } from './agents/communications';
 import { ExecutiveMISAgent } from './agents/executive-mis';
+import { FinanceControlAgent } from './agents/finance-control';
 
 const PHASE_1_AGENTS = [
   {
@@ -22,14 +23,28 @@ const PHASE_1_AGENTS = [
   {
     agentKey: 'communications',
     displayName: 'Communications Agent',
-    description: 'Monitors task overdue status, unanswered emails, follow-up gaps, attendance anomalies, and DWAR submission compliance.',
+    description: 'Monitors human activity and communication discipline: tasks, recurring tasks, emails, attendance, daily work reports, leave requests, meetings & commitments, and internal messages.',
     category: 'operations',
     defaultSchedule: '0 9 * * *',
     config: {
       taskOverdueCriticalDays: 7,
-      taskOverdueWarningDays: 3,
       emailUnansweredThresholdHours: 24,
       emailCriticalPriorities: ['P0', 'P1'],
+      attendanceAnomalyDays: 7,
+      dwarMinMissingDays: 2,
+      commitmentOverdueDays: 7,
+    },
+  },
+  {
+    agentKey: 'finance_control',
+    displayName: 'Finance Control Agent',
+    description: 'Monitors financial operations: BRC submissions, invoice follow-ups, overdue invoices, payment allocations, and remittance compliance.',
+    category: 'finance',
+    defaultSchedule: '0 9 * * *',
+    config: {
+      brcOverdueThresholdDays: 7,
+      invoiceOverdueThreshold: 5,
+      paymentAllocationCheckEnabled: true,
     },
   },
   {
@@ -53,6 +68,9 @@ const DEFAULT_POLICIES = [
   { agentKey: 'communications', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
   { agentKey: 'communications', actionCategory: 'task_creation', actionType: 'create_reminder', approvalMode: 'require_approval' },
   { agentKey: 'communications', actionCategory: 'communication', actionType: 'draft_reply', approvalMode: 'require_approval' },
+  { agentKey: 'finance_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
+  { agentKey: 'finance_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval' },
+  { agentKey: 'finance_control', actionCategory: 'report_generation', actionType: 'generate_aging_report', approvalMode: 'require_approval' },
   { agentKey: 'executive_mis', actionCategory: 'report_generation', actionType: 'generate_briefing', approvalMode: 'require_approval' },
   { agentKey: 'executive_mis', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
 ];
@@ -78,6 +96,15 @@ export async function initializeAgentSystem(): Promise<void> {
         isSuspended: false,
       });
       console.log(`[AgentSystem] Registered agent: ${agentDef.agentKey}`);
+    } else {
+      await db.update(agentRegistry)
+        .set({
+          displayName: agentDef.displayName,
+          description: agentDef.description,
+          category: agentDef.category,
+          config: agentDef.config,
+        })
+        .where(eq(agentRegistry.agentKey, agentDef.agentKey));
     }
   }
 
@@ -108,6 +135,7 @@ export async function initializeAgentSystem(): Promise<void> {
 
   orchestrator.registerAgent(new ProjectControlAgent());
   orchestrator.registerAgent(new CommunicationsAgent());
+  orchestrator.registerAgent(new FinanceControlAgent());
   orchestrator.registerAgent(new ExecutiveMISAgent());
 
   console.log('[AgentSystem] Multi-Agent Intelligence Layer initialized successfully.');

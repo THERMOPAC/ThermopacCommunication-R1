@@ -150,6 +150,182 @@ class AgentDataRepository {
     };
   }
 
+  async getOverdueRecurringTasks(thresholdDays: number = 7): Promise<Array<{
+    id: number; title: string; assigneeName: string; daysOverdue: number; category: string; priority: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT rt.id, rt.title, rt.priority, rt.category,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unassigned') as assignee_name,
+        EXTRACT(DAY FROM NOW() - rt.due_date::timestamp)::int as days_overdue
+      FROM recurring_tasks rt
+      LEFT JOIN users u ON rt.assigned_to = u.id
+      WHERE rt.status = 'pending'
+        AND rt.due_date IS NOT NULL
+        AND rt.due_date::date < CURRENT_DATE
+        AND EXTRACT(DAY FROM NOW() - rt.due_date::timestamp) >= ${thresholdDays}
+      ORDER BY days_overdue DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      assigneeName: r.assignee_name || 'Unassigned',
+      daysOverdue: Number(r.days_overdue || 0),
+      category: r.category || 'General',
+      priority: r.priority || 'medium',
+    }));
+  }
+
+  async getAttendanceAnomalies(days: number = 7): Promise<Array<{
+    userId: number; employeeName: string; absentCount: number; incompleteCount: number;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT ar.user_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+        COUNT(*) FILTER (WHERE ar.status = 'absent') as absent_count,
+        COUNT(*) FILTER (WHERE ar.is_incomplete = true) as incomplete_count
+      FROM attendance_records ar
+      LEFT JOIN users u ON ar.user_id = u.id
+      WHERE ar.date >= CURRENT_DATE - ${days}::int
+      GROUP BY ar.user_id, u.first_name, u.last_name, u.username
+      HAVING COUNT(*) FILTER (WHERE ar.status = 'absent') > 0
+         OR COUNT(*) FILTER (WHERE ar.is_incomplete = true) > 0
+      ORDER BY absent_count DESC, incomplete_count DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      userId: Number(r.user_id),
+      employeeName: r.employee_name || 'Unknown',
+      absentCount: Number(r.absent_count || 0),
+      incompleteCount: Number(r.incomplete_count || 0),
+    }));
+  }
+
+  async getDWARSubmissionGaps(minMissingDays: number = 2): Promise<Array<{
+    userId: number; employeeName: string; missingDays: number;
+  }>> {
+    const rows = await db.execute(sql`
+      WITH active_users AS (
+        SELECT id, COALESCE(first_name || ' ' || COALESCE(last_name, ''), username) as employee_name
+        FROM users WHERE is_active = true
+      ),
+      working_days AS (
+        SELECT generate_series(CURRENT_DATE - 6, CURRENT_DATE, '1 day'::interval)::date as work_date
+      ),
+      expected AS (
+        SELECT u.id as user_id, u.employee_name, wd.work_date
+        FROM active_users u CROSS JOIN working_days wd
+        WHERE EXTRACT(DOW FROM wd.work_date) NOT IN (0, 6)
+      ),
+      submitted AS (
+        SELECT user_id, report_date::date as report_date FROM daily_work_reports
+        WHERE report_date::date >= CURRENT_DATE - 6
+      )
+      SELECT e.user_id, e.employee_name, COUNT(*) as missing_days
+      FROM expected e
+      LEFT JOIN submitted s ON e.user_id = s.user_id AND e.work_date = s.report_date
+      WHERE s.user_id IS NULL
+      GROUP BY e.user_id, e.employee_name
+      HAVING COUNT(*) >= ${minMissingDays}
+      ORDER BY missing_days DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      userId: Number(r.user_id),
+      employeeName: r.employee_name || 'Unknown',
+      missingDays: Number(r.missing_days || 0),
+    }));
+  }
+
+  async getPendingLeaveRequests(): Promise<Array<{
+    id: number; employeeName: string; leaveType: string; startDate: string; endDate: string; daysPending: number;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT lr.id, lr.start_date, lr.end_date,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+        COALESCE(lt.name, 'Leave') as leave_type,
+        EXTRACT(DAY FROM NOW() - lr.created_at)::int as days_pending
+      FROM leave_requests lr
+      LEFT JOIN users u ON lr.employee_id = u.id
+      LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+      WHERE lr.status = 'pending'
+      ORDER BY days_pending DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      employeeName: r.employee_name || 'Unknown',
+      leaveType: r.leave_type || 'Leave',
+      startDate: r.start_date ? new Date(r.start_date).toLocaleDateString() : '',
+      endDate: r.end_date ? new Date(r.end_date).toLocaleDateString() : '',
+      daysPending: Number(r.days_pending || 0),
+    }));
+  }
+
+  async getOverdueMeetingCommitments(thresholdDays: number = 7): Promise<Array<{
+    id: number; title: string; assigneeName: string; daysOverdue: number; meetingTitle: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT mc.id, mc.title, mc.meeting_title,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unassigned') as assignee_name,
+        EXTRACT(DAY FROM NOW() - mc.due_date::timestamp)::int as days_overdue
+      FROM meeting_commitments mc
+      LEFT JOIN users u ON mc.assigned_to_id = u.id
+      WHERE mc.status IN ('Pending')
+        AND mc.due_date IS NOT NULL
+        AND mc.due_date::date < CURRENT_DATE
+        AND EXTRACT(DAY FROM NOW() - mc.due_date::timestamp) >= ${thresholdDays}
+      ORDER BY days_overdue DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      assigneeName: r.assignee_name || 'Unassigned',
+      daysOverdue: Number(r.days_overdue || 0),
+      meetingTitle: r.meeting_title || '',
+    }));
+  }
+
+  async getUnreadInternalMessages(thresholdHours: number = 48): Promise<Array<{
+    id: number; recipientName: string; subject: string; hoursUnread: number;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT m.id, m.subject, m.recipient_name,
+        EXTRACT(EPOCH FROM NOW() - m.created_at)::int / 3600 as hours_unread
+      FROM internal_messages m
+      WHERE m.is_read = false
+        AND EXTRACT(EPOCH FROM NOW() - m.created_at) / 3600 >= ${thresholdHours}
+      ORDER BY hours_unread DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      recipientName: r.recipient_name || 'Unknown',
+      subject: r.subject || '',
+      hoursUnread: Number(r.hours_unread || 0),
+    }));
+  }
+
+  async getUnallocatedPayments(): Promise<Array<{
+    paymentRef: string; currency: string; unallocatedAmount: number; daysSincePayment: number;
+  }>> {
+    try {
+      const rows = await db.execute(sql`
+        SELECT COALESCE(p.irm_no, p.sap_payment_no, 'PMT-' || p.id) as payment_ref,
+          COALESCE(p.currency, 'USD') as currency,
+          COALESCE(p.unallocated_amount, COALESCE(p.amount, 0) - COALESCE(p.allocated_amount, 0)) as unallocated_amount,
+          EXTRACT(DAY FROM NOW() - p.payment_date::timestamp)::int as days_since_payment
+        FROM payments p
+        WHERE COALESCE(p.unallocated_amount, COALESCE(p.amount, 0) - COALESCE(p.allocated_amount, 0)) > 1
+        ORDER BY unallocated_amount DESC
+        LIMIT 20
+      `);
+      return (rows.rows || []).map((r: any) => ({
+        paymentRef: r.payment_ref || '',
+        currency: r.currency || 'USD',
+        unallocatedAmount: Number(r.unallocated_amount || 0),
+        daysSincePayment: Number(r.days_since_payment || 0),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   async getInspectionStats(): Promise<{ total: number; pending: number; completed: number }> {
     const rows = await db.execute(sql`
       SELECT 

@@ -174,6 +174,7 @@ function agentKeyLabel(key: string) {
   switch (key) {
     case "project_control": return "Project Control";
     case "communications": return "Communications";
+    case "finance_control": return "Finance Control";
     case "executive_mis": return "Executive MIS";
     default: return key;
   }
