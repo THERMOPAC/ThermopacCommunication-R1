@@ -27,7 +27,35 @@ router.use(requireSuperuser);
 router.get('/agents', async (_req: Request, res: Response) => {
   try {
     const agents = await db.select().from(agentRegistry).orderBy(agentRegistry.agentKey);
-    res.json(agents);
+
+    const runStats = await db
+      .select({
+        agentKey: agentRuns.agentKey,
+        lastRunAt: sql<string>`MAX(${agentRuns.startedAt})`.as('last_run_at'),
+        runCount: sql<number>`COUNT(*)::int`.as('run_count'),
+        consecutiveFailures: sql<number>`(
+          SELECT COUNT(*)::int FROM (
+            SELECT status FROM ${agentRuns} r2
+            WHERE r2.agent_key = ${agentRuns.agentKey}
+            ORDER BY r2.id DESC
+            LIMIT 10
+          ) sub WHERE sub.status = 'failed'
+        )`.as('consecutive_failures'),
+      })
+      .from(agentRuns)
+      .groupBy(agentRuns.agentKey);
+
+    const statsMap = new Map(runStats.map(s => [s.agentKey, s]));
+
+    const enriched = agents.map(agent => ({
+      ...agent,
+      version: (agent.config as any)?.version || '1.0',
+      lastRunAt: statsMap.get(agent.agentKey)?.lastRunAt || null,
+      runCount: statsMap.get(agent.agentKey)?.runCount || 0,
+      consecutiveFailures: statsMap.get(agent.agentKey)?.consecutiveFailures || 0,
+    }));
+
+    res.json(enriched);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
