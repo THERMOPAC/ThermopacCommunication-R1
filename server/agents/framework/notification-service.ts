@@ -22,7 +22,7 @@ interface NotificationPayload {
   relatedEntityId?: string;
 }
 
-const AGENT_SENDER_ID = 0;
+const AGENT_SENDER_ID = 1;
 const AGENT_SENDER_NAME = 'AI Agent System';
 
 class NotificationService {
@@ -117,7 +117,6 @@ class NotificationService {
       subject: `${severityPrefix}[Agent] ${payload.subject}`,
       content: payload.content,
       isRead: false,
-      createdAt: new Date().toISOString(),
     });
   }
 

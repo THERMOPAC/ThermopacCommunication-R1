@@ -6,7 +6,7 @@ import { auditLogger } from './audit-logger';
 import { overrideChecker } from './override-checker';
 import { createHash } from 'crypto';
 
-const AGENT_USER_ID = 0;
+const AGENT_USER_ID = 1;
 const AGENT_USER_NAME = 'AI Agent System';
 
 export class ActionExecutor {
@@ -163,7 +163,7 @@ export class ActionExecutor {
       dueDate: payload.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       assignedTo: payload.assignedTo || null,
       createdBy: AGENT_USER_ID,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString().split('T')[0],
       category: payload.category || 'Agent Action',
       sourceType: payload.sourceType || 'llm_insight',
       sourceId: payload.sourceId || null,
@@ -188,7 +188,6 @@ export class ActionExecutor {
         subject: `[Agent Alert] ${payload.subject || 'Notification'}`,
         content: payload.content || payload.description || 'Agent notification',
         isRead: false,
-        createdAt: new Date().toISOString(),
       });
       sent++;
     }
@@ -212,7 +211,6 @@ export class ActionExecutor {
         subject: `[ESCALATION] ${payload.subject || 'Escalation Alert'}`,
         content: payload.content || 'This issue has been escalated and requires your attention.',
         isRead: false,
-        createdAt: new Date().toISOString(),
       });
       sent++;
     }
