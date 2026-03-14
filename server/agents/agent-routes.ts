@@ -11,6 +11,8 @@ import { FindingManager } from './framework/finding-manager';
 import { RecommendationManager } from './framework/recommendation-manager';
 import { actionExecutor } from './framework/action-executor';
 import { auditLogger } from './framework/audit-logger';
+import { agentScheduler } from './framework/scheduler';
+import { agentEventBus } from './framework/event-bus';
 
 const router = Router();
 
@@ -367,6 +369,94 @@ router.get('/audit-log', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/recommendations/:id/execute', async (req: Request, res: Response) => {
+  try {
+    const recId = parseInt(req.params.id);
+    const userId = (req as any).user?.id || 0;
+
+    const [rec] = await db.select().from(agentRecommendations).where(eq(agentRecommendations.id, recId));
+    if (!rec) return res.status(404).json({ error: 'Recommendation not found' });
+
+    if (rec.status !== 'approved' && rec.status !== 'auto_approved') {
+      return res.status(400).json({ error: `Cannot execute — status is "${rec.status}"` });
+    }
+
+    const result = await actionExecutor.execute(recId);
+
+    if (result.success) {
+      await db.update(agentRecommendations).set({
+        status: 'executed',
+        updatedAt: new Date(),
+      }).where(eq(agentRecommendations.id, recId));
+    }
+
+    await auditLogger.log({
+      eventType: 'recommendation.executed',
+      actorType: 'user',
+      actorId: String(userId),
+      entityType: 'recommendation',
+      entityId: String(recId),
+      details: result,
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/recommendations/:id/approve-and-execute', async (req: Request, res: Response) => {
+  try {
+    const recId = parseInt(req.params.id);
+    const userId = (req as any).user?.id || 0;
+
+    await RecommendationManager.approveRecommendation(recId, userId);
+    const result = await actionExecutor.execute(recId);
+
+    if (result.success) {
+      await db.update(agentRecommendations).set({
+        status: 'executed',
+        updatedAt: new Date(),
+      }).where(eq(agentRecommendations.id, recId));
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/scheduler/status', async (_req: Request, res: Response) => {
+  try {
+    const schedules = agentScheduler.getSchedules();
+    res.json({ schedules, isRunning: schedules.length > 0 });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/scheduler/update', async (req: Request, res: Response) => {
+  try {
+    const { agentKey, cronExpression } = req.body;
+    if (!agentKey || !cronExpression) {
+      return res.status(400).json({ error: 'agentKey and cronExpression required' });
+    }
+    await agentScheduler.updateSchedule(agentKey, cronExpression);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/events/recent', async (_req: Request, res: Response) => {
+  try {
+    const events = agentEventBus.getRecentEvents(50);
+    res.json(events);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/dashboard/summary', async (req: Request, res: Response) => {
   try {
     const agentsList = await db.select().from(agentRegistry);
@@ -400,6 +490,10 @@ router.get('/dashboard/summary', async (req: Request, res: Response) => {
       .from(agentRecommendations)
       .where(eq(agentRecommendations.status, 'pending_review'));
 
+    const executedActions = await db.select({ count: sql<number>`count(*)` })
+      .from(agentActions)
+      .where(eq(agentActions.executionStatus, 'completed'));
+
     const recentRuns = await db.select()
       .from(agentRuns)
       .orderBy(desc(agentRuns.startedAt))
@@ -415,6 +509,13 @@ router.get('/dashboard/summary', async (req: Request, res: Response) => {
       .orderBy(desc(agentInsights.createdAt))
       .limit(10);
 
+    const recentActions = await db.select()
+      .from(agentActions)
+      .orderBy(desc(agentActions.createdAt))
+      .limit(20);
+
+    const schedules = agentScheduler.getSchedules();
+
     res.json({
       agents: enrichedAgents,
       stats: {
@@ -423,10 +524,13 @@ router.get('/dashboard/summary', async (req: Request, res: Response) => {
         suspendedAgents: agentsList.filter(a => a.isSuspended).length,
         openFindings: Number(openFindings[0]?.count || 0),
         pendingRecommendations: Number(pendingRecommendations[0]?.count || 0),
+        executedActions: Number(executedActions[0]?.count || 0),
       },
       recentRuns,
       recentFindings,
       recentInsights,
+      recentActions,
+      schedules,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

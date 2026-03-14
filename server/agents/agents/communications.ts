@@ -1,6 +1,8 @@
 import type { IAgent, AgentRunContext, AgentRunResult } from '../framework/types';
 import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
+import { RecommendationManager } from '../framework/recommendation-manager';
+import { notificationService } from '../framework/notification-service';
 import { agentDataRepo } from '../data-access/agent-data-repo';
 
 const FINANCE_CATEGORIES = ['Finance'];
@@ -133,6 +135,7 @@ export class CommunicationsAgent implements IAgent {
 
     const findingManager = new FindingManager(context.runId, this.key);
     const insightManager = new InsightManager(context.runId, this.key);
+    const recommendationManager = new RecommendationManager(context.runId, this.key);
 
     // ═══════════════════════════════════════════════════════
     // ─── WORKFLOW 1-4: TASK ESCALATION PIPELINE ───
@@ -850,10 +853,386 @@ export class CommunicationsAgent implements IAgent {
     }
 
     // ═══════════════════════════════════════════════════════
-    // ─── MODULE 5: DAILY PEOPLE ACTIVITY INSIGHT ───
+    // ─── MODULE 5: DWAR QUALITY SCORING ───
+    // ═══════════════════════════════════════════════════════
+    const dwarQuality = await agentDataRepo.getDWARQualityScores();
+    queriesRun++;
+
+    let dwarQualityFindingsCount = 0;
+    for (const dq of dwarQuality) {
+      if (dq.poorCount + dq.emptyCount >= 2 || dq.avgScore < 30) {
+        const severity = dq.avgScore < 20 ? 'high' as const : 'medium' as const;
+        const result = await findingManager.createFinding({
+          findingType: 'gap',
+          severity,
+          title: `${dq.employeeName}: Low DWAR quality score (${dq.avgScore}/100) — ${dq.poorCount + dq.emptyCount} poor/empty reports`,
+          description: [
+            `${dq.employeeName}'s daily work reports quality this week:`,
+            `  Complete: ${dq.completeCount} | Weak: ${dq.weakCount} | Poor: ${dq.poorCount} | Empty: ${dq.emptyCount}`,
+            `  Average quality score: ${dq.avgScore}/100`,
+            `\nScoring: Complete (all 4 fields filled, 80+ chars) = 100, Weak (2-3 fields, 30-79 chars) = 50, Poor (<30 chars or 1 field) = 25, Empty (draft, <10 chars) = 0`,
+            severity === 'high'
+              ? `\n→ Escalate to: ${dq.managerName || 'Reporting Manager'} — consistently poor DWAR quality indicates disengagement or misunderstanding of requirements.`
+              : `\n→ Notify: ${dq.employeeName} — please provide more detailed daily work reports covering challenges, plans, and support needs.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...dq },
+          relatedEntityType: 'dwar_quality',
+          relatedEntityId: `${dq.userId}:quality`,
+        });
+        if (!result.isDuplicate) { findingsCount++; dwarQualityFindingsCount++; }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 6: 30-DAY ATTENDANCE PATTERNS ───
+    // ═══════════════════════════════════════════════════════
+    const attendancePatterns = await agentDataRepo.getAttendancePatterns30Day();
+    queriesRun++;
+
+    let attendancePatternFindingsCount = 0;
+    for (const ap of attendancePatterns) {
+      if (ap.hasWeekendPattern) {
+        const result = await findingManager.createFinding({
+          findingType: 'anomaly',
+          severity: 'medium',
+          title: `${ap.employeeName}: Monday/Friday absence pattern detected (30-day)`,
+          description: [
+            `${ap.employeeName} has a noticeable Monday/Friday absence pattern over the last 30 days.`,
+            `Total absences: ${ap.totalAbsent} | Monday: ${ap.mondayAbsences} | Friday: ${ap.fridayAbsences}`,
+            `Absent without leave: ${ap.absentWithoutLeave}`,
+            `\n→ Escalate to: ${ap.managerName || 'Reporting Manager'} — Mon/Fri patterns may indicate extended weekend taking.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...ap },
+          relatedEntityType: 'attendance_pattern',
+          relatedEntityId: `${ap.userId}:weekend_pattern`,
+        });
+        if (!result.isDuplicate) { findingsCount++; attendancePatternFindingsCount++; }
+      }
+
+      if (ap.absentWithoutLeave >= 3) {
+        const result = await findingManager.createFinding({
+          findingType: 'escalation',
+          severity: 'high',
+          title: `${ap.employeeName}: ${ap.absentWithoutLeave} absences without leave (30-day pattern)`,
+          description: [
+            `${ap.employeeName} has been absent without approved leave ${ap.absentWithoutLeave} times in the last 30 days.`,
+            `Total absences: ${ap.totalAbsent} | Incomplete records: ${ap.totalIncomplete}`,
+            `\n→ Escalate to: ${ap.managerName || 'Reporting Manager'} — repeated unauthorized absence requires disciplinary review.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...ap },
+          relatedEntityType: 'attendance_pattern',
+          relatedEntityId: `${ap.userId}:30d_absent_no_leave`,
+        });
+        if (!result.isDuplicate) { findingsCount++; attendancePatternFindingsCount++; }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 7: LEAVE BALANCE ALERTS ───
+    // ═══════════════════════════════════════════════════════
+    const leaveBalances = await agentDataRepo.getLeaveBalanceAlerts();
+    queriesRun++;
+
+    let leaveBalanceFindingsCount = 0;
+    for (const lb of leaveBalances) {
+      if (lb.remaining <= 0 && lb.pendingRequests > 0) {
+        const result = await findingManager.createFinding({
+          findingType: 'risk',
+          severity: 'medium',
+          title: `${lb.employeeName}: Zero ${lb.leaveType} balance with ${lb.pendingRequests} pending request(s)`,
+          description: [
+            `${lb.employeeName} has exhausted their ${lb.leaveType} balance.`,
+            `Entitled: ${lb.totalEntitled} | Used: ${lb.used} | Remaining: ${lb.remaining}`,
+            `Pending leave requests: ${lb.pendingRequests}`,
+            `\n→ Notify: ${lb.managerName || 'Reporting Manager'} — review pending requests against zero balance.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...lb },
+          relatedEntityType: 'leave_balance',
+          relatedEntityId: `${lb.userId}:${lb.leaveType}:balance`,
+        });
+        if (!result.isDuplicate) { findingsCount++; leaveBalanceFindingsCount++; }
+      } else if (lb.remaining <= 1) {
+        const result = await findingManager.createFinding({
+          findingType: 'risk',
+          severity: 'low',
+          title: `${lb.employeeName}: Low ${lb.leaveType} balance (${lb.remaining} remaining)`,
+          description: [
+            `${lb.employeeName} has only ${lb.remaining} ${lb.leaveType} day(s) remaining.`,
+            `Entitled: ${lb.totalEntitled} | Used: ${lb.used}`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: { ...lb },
+          relatedEntityType: 'leave_balance',
+          relatedEntityId: `${lb.userId}:${lb.leaveType}:low_balance`,
+        });
+        if (!result.isDuplicate) { findingsCount++; leaveBalanceFindingsCount++; }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── MODULE 8: MEETING DISCIPLINE METRICS ───
+    // ═══════════════════════════════════════════════════════
+    const meetingDiscipline = await agentDataRepo.getMeetingDisciplineMetrics();
+    queriesRun++;
+
+    let meetingDisciplineFindingsCount = 0;
+    if (meetingDiscipline.completionRate < 50 && meetingDiscipline.totalCommitments >= 5) {
+      const result = await findingManager.createFinding({
+        findingType: 'risk',
+        severity: 'high',
+        title: `Meeting commitment completion rate critically low: ${meetingDiscipline.completionRate}%`,
+        description: [
+          `Only ${meetingDiscipline.completionRate}% of meeting commitments have been completed.`,
+          `Total: ${meetingDiscipline.totalCommitments} | Completed: ${meetingDiscipline.completedCommitments} | Overdue: ${meetingDiscipline.overdueCommitments}`,
+          `\nThis indicates systemic issues with meeting follow-through and accountability.`,
+        ].join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: meetingDiscipline,
+        relatedEntityType: 'meeting_discipline',
+        relatedEntityId: 'completion_rate',
+      });
+      if (!result.isDuplicate) { findingsCount++; meetingDisciplineFindingsCount++; }
+    }
+
+    for (const offender of meetingDiscipline.repeatOffenders) {
+      if (offender.overdueCount >= 3) {
+        const result = await findingManager.createFinding({
+          findingType: 'escalation',
+          severity: 'medium',
+          title: `${offender.employeeName}: ${offender.overdueCount} overdue meeting commitments — repeat pattern`,
+          description: [
+            `${offender.employeeName} has ${offender.overdueCount} overdue meeting commitments.`,
+            `This indicates a pattern of not following through on meeting action items.`,
+            `\n→ Escalate to reporting manager for discussion on capacity and commitment follow-through.`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: offender,
+          relatedEntityType: 'meeting_discipline',
+          relatedEntityId: `${offender.userId}:repeat_offender`,
+        });
+        if (!result.isDuplicate) { findingsCount++; meetingDisciplineFindingsCount++; }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── RECOMMENDATIONS GENERATION ───
+    // ═══════════════════════════════════════════════════════
+    let recommendationsCount = 0;
+
+    for (const task of tasksByTier.zombie_review) {
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Review and close zombie task: "${task.title}"`,
+        description: `Task "${task.title}" has been overdue for ${task.daysOverdue} days. Create a management review task to decide: close, reassign, or extend deadline.`,
+        actionPayload: {
+          title: `[Agent] Review zombie task: "${task.title}"`,
+          description: `This task has been overdue for ${task.daysOverdue} days.\n\nOriginal task: "${task.title}" assigned to ${task.assigneeName}.\n\nPlease review and decide:\n1. Close as "Not Applicable"\n2. Reassign with new due date\n3. Extend deadline with justification`,
+          priority: 'High',
+          assignedTo: task.creatorId,
+          category: 'Agent Action',
+          sourceType: 'llm_insight',
+          sourceId: task.id,
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) recommendationsCount++;
+    }
+
+    for (const commitment of detailedCommitments) {
+      if (!commitment.hasLinkedTask) {
+        const rec = await recommendationManager.createRecommendation({
+          actionCategory: 'task_creation',
+          actionType: 'create_task',
+          title: `Create task from meeting commitment: "${commitment.title}"`,
+          description: `Commitment "${commitment.title}" from "${commitment.meetingTitle}" has no linked task. Auto-create a follow-up task to ensure tracking.`,
+          actionPayload: {
+            title: `[Meeting] ${commitment.title}`,
+            description: `Auto-created from meeting commitment.\nMeeting: ${commitment.meetingTitle} (${commitment.meetingDate})\nOriginal due date: ${commitment.dueDate}`,
+            priority: commitment.priority || 'Medium',
+            assignedTo: commitment.assigneeId,
+            category: 'Meeting Follow-up',
+            sourceType: 'meeting_commitment',
+            sourceId: commitment.id,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          },
+          logicType: 'rule_based',
+          confidence: 0.85,
+          priority: 'normal',
+        });
+        if (rec.id > 0) recommendationsCount++;
+      }
+    }
+
+    for (const gap of dwarDetailed) {
+      if (gap.missingDays >= 5) {
+        const rec = await recommendationManager.createRecommendation({
+          actionCategory: 'task_creation',
+          actionType: 'create_task',
+          title: `DWAR compliance task for ${gap.employeeName}`,
+          description: `${gap.employeeName} has ${gap.missingDays} missing DWARs this week. Create a task to submit all missing reports.`,
+          actionPayload: {
+            title: `[Agent] Submit missing DWARs (${gap.missingDays} days)`,
+            description: `You have ${gap.missingDays} missing daily work reports this week.\nMissing dates: ${gap.missingDates.join(', ')}\n\nPlease submit all missing DWARs by end of day.`,
+            priority: 'High',
+            assignedTo: gap.userId,
+            category: 'DWAR Compliance',
+            sourceType: 'llm_insight',
+            dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          },
+          logicType: 'rule_based',
+          confidence: 0.9,
+          priority: 'high',
+        });
+        if (rec.id > 0) recommendationsCount++;
+      }
+    }
+
+    for (const leave of pendingLeaves) {
+      if (leave.leaveDatePassed && leave.daysPending >= 14) {
+        const rec = await recommendationManager.createRecommendation({
+          actionCategory: 'escalation',
+          actionType: 'escalate_to_manager',
+          title: `Close expired leave request: ${leave.employeeName}`,
+          description: `Leave request for ${leave.employeeName} (${leave.leaveType}, ${leave.startDate}–${leave.endDate}) has been pending for ${leave.daysPending} days and the leave date has passed. Manager should approve retroactively or reject.`,
+          actionPayload: {
+            subject: `Expired leave request requires closure: ${leave.employeeName}`,
+            content: `Leave request for ${leave.employeeName} (${leave.leaveType}, ${leave.startDate}–${leave.endDate}) has been pending ${leave.daysPending} days. The leave date has already passed. Please approve retroactively or reject with explanation.`,
+            escalationTargets: leave.managerId ? [{ userId: leave.managerId, userName: leave.managerName }] : [],
+            relatedEntityType: 'leave_request',
+            relatedEntityId: String(leave.id),
+          },
+          logicType: 'rule_based',
+          confidence: 0.95,
+          priority: 'urgent',
+        });
+        if (rec.id > 0) recommendationsCount++;
+      }
+    }
+
+    const inactiveTasks = await agentDataRepo.getTasksAssignedToInactiveUsers();
+    queriesRun++;
+    for (const it of inactiveTasks.slice(0, 5)) {
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'escalation',
+        actionType: 'escalate_to_manager',
+        title: `Task assigned to inactive user: "${it.taskTitle}"`,
+        description: `Task "${it.taskTitle}" is assigned to ${it.assigneeName} who is no longer active. The task creator (${it.creatorName}) should reassign or close it.`,
+        actionPayload: {
+          subject: `Task needs reassignment: "${it.taskTitle}" — assigned to inactive user`,
+          content: `Task "${it.taskTitle}" is assigned to ${it.assigneeName} who is no longer active in the system.\n\nPlease reassign this task to an active team member or close it if no longer needed.`,
+          escalationTargets: [{ userId: it.creatorId, userName: it.creatorName }],
+          relatedEntityType: 'task',
+          relatedEntityId: String(it.taskId),
+        },
+        logicType: 'rule_based',
+        confidence: 0.95,
+        priority: 'high',
+      });
+      if (rec.id > 0) recommendationsCount++;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── NOTIFICATIONS DISPATCH ───
+    // ═══════════════════════════════════════════════════════
+    const notificationBatch: Array<{
+      subject: string; content: string; severity: string;
+      targets: Array<{ userId: number; userName: string }>;
+    }> = [];
+
+    for (const task of [...tasksByTier.escalation_30, ...tasksByTier.escalation_60]) {
+      if (task.creatorManagerId) {
+        notificationBatch.push({
+          subject: `Task overdue ${task.daysOverdue} days: "${task.title}"`,
+          content: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days. Created by ${task.creatorName}. This requires your attention.`,
+          severity: 'high',
+          targets: [{ userId: task.creatorManagerId, userName: task.creatorManagerName }],
+        });
+      }
+    }
+
+    for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
+      const targets: Array<{ userId: number; userName: string }> = [];
+      if (task.creatorId) targets.push({ userId: task.creatorId, userName: task.creatorName });
+      if (task.creatorManagerId) targets.push({ userId: task.creatorManagerId, userName: task.creatorManagerName });
+      if (task.assigneeManagerId) targets.push({ userId: task.assigneeManagerId, userName: task.assigneeManagerName });
+      if (targets.length > 0) {
+        notificationBatch.push({
+          subject: `ZOMBIE-RISK: "${task.title}" — ${task.daysOverdue} days overdue`,
+          content: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days. This task requires immediate management review: close, reassign, or extend.`,
+          severity: 'critical',
+          targets,
+        });
+      }
+    }
+
+    for (const email of criticalEmails) {
+      if (email.userId) {
+        notificationBatch.push({
+          subject: `${email.priority} email unanswered ${email.hoursUnanswered}h: "${email.subject}"`,
+          content: `A ${email.priority} email from ${email.fromAddress} with subject "${email.subject}" has been unanswered for ${email.hoursUnanswered} hours. Immediate response required.`,
+          severity: 'critical',
+          targets: [{ userId: email.userId, userName: '' }],
+        });
+      }
+    }
+
+    for (const gap of dwarDetailed) {
+      if (gap.missingDays >= 3 && gap.managerId) {
+        notificationBatch.push({
+          subject: `${gap.employeeName}: ${gap.missingDays} missing DWARs — escalated`,
+          content: `${gap.employeeName} has not submitted daily work reports for ${gap.missingDays} days this week. Missing dates: ${gap.missingDates.join(', ')}`,
+          severity: 'medium',
+          targets: [{ userId: gap.managerId, userName: gap.managerName }],
+        });
+      }
+    }
+
+    for (const leave of pendingLeaves) {
+      if (leave.leaveDatePassed && leave.managerId) {
+        notificationBatch.push({
+          subject: `Expired leave request: ${leave.employeeName} — action needed`,
+          content: `Leave request for ${leave.employeeName} (${leave.leaveType}, ${leave.startDate}–${leave.endDate}) is still pending but the leave date has passed. Please approve retroactively or reject.`,
+          severity: 'high',
+          targets: [{ userId: leave.managerId, userName: leave.managerName }],
+        });
+      }
+    }
+
+    let notificationsSent = 0;
+    for (const n of notificationBatch) {
+      const result = await notificationService.sendNotification({
+        agentKey: this.key,
+        subject: n.subject,
+        content: n.content,
+        severity: n.severity,
+        channel: 'in_app',
+        targets: n.targets,
+      });
+      notificationsSent += result.sent;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // ─── TREND ANALYSIS + DAILY INSIGHT ───
     // ═══════════════════════════════════════════════════════
     const emailStats = await agentDataRepo.getEmailStats();
-    queriesRun++;
+    const trends = await agentDataRepo.getTrendComparison();
+    queriesRun += 2;
+
+    const trendLine = (current: number, previous: number, label: string): string => {
+      if (previous === 0) return `${label}: ${current} (no prior data)`;
+      const change = current - previous;
+      const pct = Math.round((change / previous) * 100);
+      const arrow = change > 0 ? '↑' : change < 0 ? '↓' : '→';
+      return `${label}: ${current} (${arrow} ${Math.abs(pct)}% vs prior week)`;
+    };
 
     await insightManager.createInsight({
       findingIds: [],
@@ -872,12 +1251,13 @@ export class CommunicationsAgent implements IAgent {
         `Zombie-Risk (90-179d):     ${tierCounts.zombie_risk + tierCounts.escalation_90} tasks`,
         `Zombie Review (180+d):     ${tierCounts.zombie_review} tasks`,
         `Total overdue:             ${nonFinanceTasks.length} tasks`,
+        `Tasks assigned to inactive users: ${inactiveTasks.length}`,
         ``,
         `--- COMPLETIONS ---`,
-        `Recently completed (24h): ${recentlyCompleted.length} tasks (creator notified)`,
+        `Recently completed (24h): ${recentlyCompleted.length} tasks`,
         ``,
         `--- WORKLOAD VISIBILITY ---`,
-        `Users with zero active tasks: ${noTaskUsers.filter(u => u.managerName).length} (managers notified)`,
+        `Users with zero active tasks: ${noTaskUsers.filter(u => u.managerName).length}`,
         ``,
         `--- RECURRING TASKS ---`,
         `Overdue: ${overdueRecurring.length} across ${Object.keys(recurringByAssignee).length} people`,
@@ -887,51 +1267,108 @@ export class CommunicationsAgent implements IAgent {
         `Critical unanswered (24h+): ${criticalEmails.length}, Long unanswered (72h+): ${longUnanswered.length}`,
         ``,
         `--- ATTENDANCE ---`,
-        `Missing attendance today: ${todayMissing.length} employees`,
-        `Incomplete records (7d): ${incompleteAttendanceCount} records across ${attendanceDetailed.filter(e => e.incompleteCount > 0).length} employees`,
+        `Missing today: ${todayMissing.length} employees`,
+        `Incomplete records (7d): ${incompleteAttendanceCount} across ${attendanceDetailed.filter(e => e.incompleteCount > 0).length} employees`,
         `Absent without leave (7d): ${absentWithoutLeaveCount} instances`,
-        `People with attendance anomalies: ${attendanceAnomalyCount}`,
+        `30-day patterns flagged: ${attendancePatterns.length} employees`,
+        `Mon/Fri pattern detected: ${attendancePatterns.filter(a => a.hasWeekendPattern).length} employees`,
         ``,
         `--- DAILY WORK REPORTS ---`,
         `Missing DWARs this week: ${dwarDetailed.filter(g => g.missingDays > 0).length} employees`,
-        `  - Escalated to manager (≥3 missing): ${dwarDetailed.filter(g => g.missingDays >= 3).length}`,
-        `  - Warning (2 consecutive): ${dwarDetailed.filter(g => g.consecutiveMissing >= 2 && g.missingDays < 3).length}`,
-        `  - Reminder (1 missing): ${dwarDetailed.filter(g => g.missingDays === 1).length}`,
-        `Incomplete/empty DWARs: ${dwarIncompleteCount} employees`,
+        `  - Escalated to manager: ${dwarDetailed.filter(g => g.missingDays >= 3).length}`,
+        `  - Warning: ${dwarDetailed.filter(g => g.consecutiveMissing >= 2 && g.missingDays < 3).length}`,
+        `  - Reminder: ${dwarDetailed.filter(g => g.missingDays === 1).length}`,
+        `DWAR Quality Issues: ${dwarQuality.length} employees flagged`,
+        `  - Avg score <30: ${dwarQuality.filter(q => q.avgScore < 30).length}`,
+        `  - Poor/empty reports: ${dwarQuality.reduce((s, q) => s + q.poorCount + q.emptyCount, 0)}`,
         ``,
         `--- LEAVE REQUESTS ---`,
         `Total pending: ${pendingLeaves.length}`,
-        `  - Expired (date passed): ${leaveClosureCount}`,
-        `  - Escalation (>7 days): ${leaveEscalationCount}`,
-        `  - Reminder (>3 days): ${leavePendingReminderCount}`,
+        `  - Expired: ${leaveClosureCount}`,
+        `  - Escalation (>7d): ${leaveEscalationCount}`,
+        `  - Reminder (>3d): ${leavePendingReminderCount}`,
+        `Low balance alerts: ${leaveBalances.length} employees`,
         ``,
-        `--- MEETING COMMITMENTS ---`,
-        `Total overdue: ${detailedCommitments.length} across ${Object.keys(commitmentsByAssignee).length} people`,
-        `  - Escalated to manager (>30d): ${commitmentEscalatedCount}`,
-        `  - Overdue (notified assignee): ${commitmentOverdueCount}`,
-        `  - Not linked to task: ${commitmentNoTaskCount}`,
+        `--- MEETING DISCIPLINE ---`,
+        `Completion rate: ${meetingDiscipline.completionRate}% (${meetingDiscipline.completedCommitments}/${meetingDiscipline.totalCommitments})`,
+        `Overdue commitments: ${meetingDiscipline.overdueCommitments}`,
+        `Repeat offenders (3+ overdue): ${meetingDiscipline.repeatOffenders.filter(o => o.overdueCount >= 3).length}`,
+        `Not linked to task: ${commitmentNoTaskCount}`,
         ``,
         `--- INTERNAL MESSAGES ---`,
         `Unread 48h+: ${unreadMessages.length}`,
+        ``,
+        `--- TRENDS (vs prior week) ---`,
+        trendLine(trends.currentOverdueTasks, trends.previousOverdueTasks, 'Overdue tasks'),
+        trendLine(trends.currentDwarMissing, trends.previousDwarMissing, 'DWAR issues'),
+        trendLine(trends.currentAttendanceIssues, trends.previousAttendanceIssues, 'Attendance issues'),
+        trendLine(trends.currentPendingLeaves, trends.previousPendingLeaves, 'Pending leaves'),
+        trendLine(trends.currentOverdueCommitments, trends.previousOverdueCommitments, 'Overdue commitments'),
+        ``,
+        `--- AUTOMATION ---`,
+        `Notifications sent: ${notificationsSent}`,
+        `Recommendations generated: ${recommendationsCount}`,
       ].join('\n'),
       logicType: 'rule_based',
       dataSources: [
         'tasks', 'recurring_tasks', 'gmail_messages', 'attendance_records',
         'daily_work_reports', 'leave_requests', 'meeting_commitments', 'internal_messages',
+        'leave_balances', 'agent_findings',
       ],
       scopePeriod: 'daily',
     });
     insightsCount++;
 
+    if (new Date().getDay() === 1) {
+      await insightManager.createInsight({
+        findingIds: [],
+        insightType: 'kpi_report',
+        title: `Weekly Communication Discipline Report - Week of ${new Date().toLocaleDateString()}`,
+        content: [
+          `=== WEEKLY COMMUNICATION DISCIPLINE REPORT ===`,
+          `Week ending: ${new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+          ``,
+          `--- TASK DISCIPLINE ---`,
+          `Total overdue (non-finance): ${nonFinanceTasks.length}`,
+          `Zombie tasks (90+d): ${tasksByTier.zombie_risk.length + tasksByTier.escalation_90.length + tasksByTier.zombie_review.length}`,
+          trendLine(trends.currentOverdueTasks, trends.previousOverdueTasks, 'Trend'),
+          ``,
+          `--- DWAR COMPLIANCE ---`,
+          `Employees with missing DWARs: ${dwarDetailed.filter(g => g.missingDays > 0).length}`,
+          `Quality issues: ${dwarQuality.length} employees`,
+          trendLine(trends.currentDwarMissing, trends.previousDwarMissing, 'Trend'),
+          ``,
+          `--- LEAVE APPROVAL ---`,
+          `Pending requests: ${pendingLeaves.length}`,
+          `Expired (date passed): ${leaveClosureCount}`,
+          trendLine(trends.currentPendingLeaves, trends.previousPendingLeaves, 'Trend'),
+          ``,
+          `--- MEETING COMMITMENTS ---`,
+          `Completion rate: ${meetingDiscipline.completionRate}%`,
+          `Overdue: ${meetingDiscipline.overdueCommitments}`,
+          trendLine(trends.currentOverdueCommitments, trends.previousOverdueCommitments, 'Trend'),
+          ``,
+          `--- ATTENDANCE ---`,
+          `30-day patterns flagged: ${attendancePatterns.length}`,
+          trendLine(trends.currentAttendanceIssues, trends.previousAttendanceIssues, 'Trend'),
+        ].join('\n'),
+        logicType: 'rule_based',
+        dataSources: ['tasks', 'daily_work_reports', 'leave_requests', 'meeting_commitments', 'attendance_records'],
+        scopePeriod: 'weekly',
+      });
+      insightsCount++;
+    }
+
     return {
       findingsCount,
       insightsCount,
-      recommendationsCount: 0,
+      recommendationsCount,
       executionMetadata: {
         durationMs: Date.now() - startTime,
         queriesRun,
         llmCalls: 0,
         tokensUsed: 0,
+        notificationsSent,
       },
     };
   }

@@ -700,6 +700,283 @@ class AgentDataRepository {
     }
   }
 
+  async getTrendComparison(): Promise<{
+    currentOverdueTasks: number; previousOverdueTasks: number;
+    currentDwarMissing: number; previousDwarMissing: number;
+    currentAttendanceIssues: number; previousAttendanceIssues: number;
+    currentPendingLeaves: number; previousPendingLeaves: number;
+    currentOverdueCommitments: number; previousOverdueCommitments: number;
+  }> {
+    const rows = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*) FROM tasks WHERE status NOT IN ('completed','cancelled') AND due_date IS NOT NULL AND due_date != '' AND due_date::date < CURRENT_DATE) as current_overdue_tasks,
+        (SELECT COUNT(*) FROM agent_findings WHERE agent_key = 'communications' AND finding_type = 'overdue' AND created_at > CURRENT_DATE - 7 AND created_at <= CURRENT_DATE) as current_period_overdue_findings,
+        (SELECT COUNT(*) FROM agent_findings WHERE agent_key = 'communications' AND finding_type = 'overdue' AND created_at > CURRENT_DATE - 14 AND created_at <= CURRENT_DATE - 7) as previous_period_overdue_findings,
+        (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='dwar' AND f.created_at > CURRENT_DATE - 7) as current_dwar_issues,
+        (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='dwar' AND f.created_at > CURRENT_DATE - 14 AND f.created_at <= CURRENT_DATE - 7) as previous_dwar_issues,
+        (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='attendance' AND f.created_at > CURRENT_DATE - 7) as current_attendance_issues,
+        (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='attendance' AND f.created_at > CURRENT_DATE - 14 AND f.created_at <= CURRENT_DATE - 7) as previous_attendance_issues,
+        (SELECT COUNT(*) FROM leave_requests WHERE status='pending') as current_pending_leaves,
+        (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='leave_request' AND f.created_at > CURRENT_DATE - 14 AND f.created_at <= CURRENT_DATE - 7) as previous_pending_leaves,
+        (SELECT COUNT(*) FROM meeting_commitments WHERE status='Pending' AND due_date IS NOT NULL AND due_date::date < CURRENT_DATE) as current_overdue_commitments,
+        (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='meeting_commitment' AND f.created_at > CURRENT_DATE - 14 AND f.created_at <= CURRENT_DATE - 7) as previous_overdue_commitments
+    `);
+    const r = (rows.rows as any[])?.[0] || {};
+    return {
+      currentOverdueTasks: Number(r.current_overdue_tasks || 0),
+      previousOverdueTasks: Number(r.previous_period_overdue_findings || 0),
+      currentDwarMissing: Number(r.current_dwar_issues || 0),
+      previousDwarMissing: Number(r.previous_dwar_issues || 0),
+      currentAttendanceIssues: Number(r.current_attendance_issues || 0),
+      previousAttendanceIssues: Number(r.previous_attendance_issues || 0),
+      currentPendingLeaves: Number(r.current_pending_leaves || 0),
+      previousPendingLeaves: Number(r.previous_pending_leaves || 0),
+      currentOverdueCommitments: Number(r.current_overdue_commitments || 0),
+      previousOverdueCommitments: Number(r.previous_overdue_commitments || 0),
+    };
+  }
+
+  async getDWARQualityScores(): Promise<Array<{
+    userId: number; employeeName: string; managerName: string; managerId: number | null;
+    totalDwars: number; completeCount: number; weakCount: number; poorCount: number; emptyCount: number;
+    avgScore: number;
+  }>> {
+    const rows = await db.execute(sql`
+      WITH active_users AS (
+        SELECT u.id, 
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) as employee_name,
+          u.reporting_manager_id,
+          COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name
+        FROM users u
+        LEFT JOIN users m ON u.reporting_manager_id = m.id
+        WHERE u.is_active = true AND u.role NOT IN ('Superuser')
+      ),
+      scored AS (
+        SELECT d.user_id,
+          LENGTH(COALESCE(d.challenges,'')) + LENGTH(COALESCE(d.tomorrow_plans,'')) + LENGTH(COALESCE(d.issues_encountered,'')) + LENGTH(COALESCE(d.support_required,'')) as total_len,
+          CASE WHEN d.challenges IS NOT NULL AND d.challenges != '' THEN 1 ELSE 0 END +
+          CASE WHEN d.tomorrow_plans IS NOT NULL AND d.tomorrow_plans != '' THEN 1 ELSE 0 END +
+          CASE WHEN d.issues_encountered IS NOT NULL AND d.issues_encountered != '' THEN 1 ELSE 0 END +
+          CASE WHEN d.support_required IS NOT NULL AND d.support_required != '' THEN 1 ELSE 0 END as fields_filled,
+          d.status
+        FROM daily_work_reports d
+        WHERE d.report_date::date >= CURRENT_DATE - 7
+      ),
+      classified AS (
+        SELECT user_id,
+          CASE
+            WHEN status = 'draft' AND total_len < 10 THEN 'empty'
+            WHEN total_len < 30 OR fields_filled <= 1 THEN 'poor'
+            WHEN total_len < 80 OR fields_filled <= 2 THEN 'weak'
+            ELSE 'complete'
+          END as quality,
+          CASE
+            WHEN status = 'draft' AND total_len < 10 THEN 0
+            WHEN total_len < 30 OR fields_filled <= 1 THEN 25
+            WHEN total_len < 80 OR fields_filled <= 2 THEN 50
+            ELSE 100
+          END as score
+        FROM scored
+      )
+      SELECT au.id as user_id, au.employee_name, au.reporting_manager_id, au.manager_name,
+        COUNT(c.*) as total_dwars,
+        COUNT(*) FILTER (WHERE c.quality = 'complete') as complete_count,
+        COUNT(*) FILTER (WHERE c.quality = 'weak') as weak_count,
+        COUNT(*) FILTER (WHERE c.quality = 'poor') as poor_count,
+        COUNT(*) FILTER (WHERE c.quality = 'empty') as empty_count,
+        COALESCE(AVG(c.score), 0) as avg_score
+      FROM active_users au
+      LEFT JOIN classified c ON au.id = c.user_id
+      WHERE c.user_id IS NOT NULL
+      GROUP BY au.id, au.employee_name, au.reporting_manager_id, au.manager_name
+      HAVING COUNT(*) FILTER (WHERE c.quality IN ('poor','empty','weak')) > 0
+      ORDER BY avg_score ASC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      userId: Number(r.user_id),
+      employeeName: r.employee_name || 'Unknown',
+      managerName: r.manager_name || '',
+      managerId: r.reporting_manager_id ? Number(r.reporting_manager_id) : null,
+      totalDwars: Number(r.total_dwars || 0),
+      completeCount: Number(r.complete_count || 0),
+      weakCount: Number(r.weak_count || 0),
+      poorCount: Number(r.poor_count || 0),
+      emptyCount: Number(r.empty_count || 0),
+      avgScore: Math.round(Number(r.avg_score || 0)),
+    }));
+  }
+
+  async getAttendancePatterns30Day(): Promise<Array<{
+    userId: number; employeeName: string; managerName: string; managerId: number | null;
+    totalAbsent: number; totalIncomplete: number; absentWithoutLeave: number;
+    mondayAbsences: number; fridayAbsences: number; hasWeekendPattern: boolean;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT ar.user_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+        u.reporting_manager_id,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
+        COUNT(*) FILTER (WHERE ar.status = 'absent') as total_absent,
+        COUNT(*) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) as total_incomplete,
+        COUNT(*) FILTER (WHERE ar.status = 'absent' AND NOT EXISTS(
+          SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date
+        )) as absent_without_leave,
+        COUNT(*) FILTER (WHERE ar.status = 'absent' AND EXTRACT(DOW FROM ar.date) = 1) as monday_absences,
+        COUNT(*) FILTER (WHERE ar.status = 'absent' AND EXTRACT(DOW FROM ar.date) = 5) as friday_absences
+      FROM attendance_records ar
+      LEFT JOIN users u ON ar.user_id = u.id
+      LEFT JOIN users m ON u.reporting_manager_id = m.id
+      WHERE ar.date >= CURRENT_DATE - 30
+        AND u.is_active = true
+      GROUP BY ar.user_id, u.first_name, u.last_name, u.username, u.reporting_manager_id, m.first_name, m.last_name, m.username
+      HAVING COUNT(*) FILTER (WHERE ar.status = 'absent') >= 3
+         OR COUNT(*) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) >= 5
+      ORDER BY total_absent DESC
+    `);
+    return (rows.rows || []).map((r: any) => {
+      const monAbs = Number(r.monday_absences || 0);
+      const friAbs = Number(r.friday_absences || 0);
+      const totalAbs = Number(r.total_absent || 0);
+      return {
+        userId: Number(r.user_id),
+        employeeName: r.employee_name || 'Unknown',
+        managerName: r.manager_name || '',
+        managerId: r.reporting_manager_id ? Number(r.reporting_manager_id) : null,
+        totalAbsent: totalAbs,
+        totalIncomplete: Number(r.total_incomplete || 0),
+        absentWithoutLeave: Number(r.absent_without_leave || 0),
+        mondayAbsences: monAbs,
+        fridayAbsences: friAbs,
+        hasWeekendPattern: totalAbs >= 3 && (monAbs + friAbs) >= Math.ceil(totalAbs * 0.5),
+      };
+    });
+  }
+
+  async getLeaveBalanceAlerts(): Promise<Array<{
+    userId: number; employeeName: string; managerName: string;
+    leaveType: string; totalEntitled: number; used: number; remaining: number;
+    pendingRequests: number;
+  }>> {
+    try {
+      const rows = await db.execute(sql`
+        SELECT lb.employee_id as user_id,
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+          COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
+          COALESCE(lt.name, 'Leave') as leave_type,
+          COALESCE(lb.total_entitled, 0) as total_entitled,
+          COALESCE(lb.used, 0) as used,
+          COALESCE(lb.remaining, lb.total_entitled - lb.used, 0) as remaining,
+          (SELECT COUNT(*) FROM leave_requests lr WHERE lr.employee_id = lb.employee_id AND lr.status = 'pending') as pending_requests
+        FROM leave_balances lb
+        LEFT JOIN users u ON lb.employee_id = u.id
+        LEFT JOIN users m ON u.reporting_manager_id = m.id
+        LEFT JOIN leave_types lt ON lb.leave_type_id = lt.id
+        WHERE u.is_active = true
+          AND COALESCE(lb.remaining, lb.total_entitled - lb.used, 0) <= 2
+        ORDER BY remaining ASC
+      `);
+      return (rows.rows || []).map((r: any) => ({
+        userId: Number(r.user_id),
+        employeeName: r.employee_name || 'Unknown',
+        managerName: r.manager_name || '',
+        leaveType: r.leave_type || 'Leave',
+        totalEntitled: Number(r.total_entitled || 0),
+        used: Number(r.used || 0),
+        remaining: Number(r.remaining || 0),
+        pendingRequests: Number(r.pending_requests || 0),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async getMeetingDisciplineMetrics(): Promise<{
+    totalCommitments: number; completedCommitments: number; overdueCommitments: number;
+    completionRate: number;
+    repeatOffenders: Array<{ userId: number; employeeName: string; overdueCount: number }>;
+    meetingsWithNoActions: number;
+  }> {
+    const rows = await db.execute(sql`
+      SELECT
+        (SELECT COUNT(*) FROM meeting_commitments) as total_commitments,
+        (SELECT COUNT(*) FROM meeting_commitments WHERE status = 'Completed') as completed_commitments,
+        (SELECT COUNT(*) FROM meeting_commitments WHERE status = 'Pending' AND due_date IS NOT NULL AND due_date::date < CURRENT_DATE) as overdue_commitments,
+        (SELECT COUNT(DISTINCT meeting_title) FROM meeting_commitments mc2 
+         WHERE NOT EXISTS (SELECT 1 FROM meeting_commitments mc3 WHERE mc3.meeting_title = mc2.meeting_title AND mc3.status = 'Completed')
+         AND mc2.meeting_date IS NOT NULL AND mc2.meeting_date::date < CURRENT_DATE - 30
+        ) as meetings_with_no_completed_actions
+    `);
+    const r = (rows.rows as any[])?.[0] || {};
+    const total = Number(r.total_commitments || 0);
+    const completed = Number(r.completed_commitments || 0);
+
+    const offenderRows = await db.execute(sql`
+      SELECT mc.assigned_to_id as user_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as employee_name,
+        COUNT(*) as overdue_count
+      FROM meeting_commitments mc
+      LEFT JOIN users u ON mc.assigned_to_id = u.id
+      WHERE mc.status = 'Pending' AND mc.due_date IS NOT NULL AND mc.due_date::date < CURRENT_DATE
+      GROUP BY mc.assigned_to_id, u.first_name, u.last_name, u.username
+      HAVING COUNT(*) >= 2
+      ORDER BY overdue_count DESC
+      LIMIT 10
+    `);
+
+    return {
+      totalCommitments: total,
+      completedCommitments: completed,
+      overdueCommitments: Number(r.overdue_commitments || 0),
+      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+      repeatOffenders: (offenderRows.rows || []).map((o: any) => ({
+        userId: Number(o.user_id),
+        employeeName: o.employee_name || 'Unknown',
+        overdueCount: Number(o.overdue_count || 0),
+      })),
+      meetingsWithNoActions: Number(r.meetings_with_no_completed_actions || 0),
+    };
+  }
+
+  async getTasksAssignedToInactiveUsers(): Promise<Array<{
+    taskId: number; taskTitle: string; assigneeId: number; assigneeName: string;
+    creatorId: number; creatorName: string; daysOverdue: number;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT t.id as task_id, t.title as task_title, t.assigned_to as assignee_id,
+        COALESCE(ua.first_name || ' ' || COALESCE(ua.last_name, ''), ua.username, 'Unknown') as assignee_name,
+        t.created_by as creator_id,
+        COALESCE(uc.first_name || ' ' || COALESCE(uc.last_name, ''), uc.username, 'Unknown') as creator_name,
+        CASE WHEN t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE
+          THEN EXTRACT(DAY FROM NOW() - t.due_date::timestamp)::int ELSE 0 END as days_overdue
+      FROM tasks t
+      JOIN users ua ON t.assigned_to = ua.id
+      LEFT JOIN users uc ON t.created_by = uc.id
+      WHERE t.status NOT IN ('completed','cancelled')
+        AND ua.is_active = false
+      ORDER BY days_overdue DESC
+      LIMIT 20
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      taskId: Number(r.task_id),
+      taskTitle: r.task_title || '',
+      assigneeId: Number(r.assignee_id),
+      assigneeName: r.assignee_name || 'Unknown',
+      creatorId: Number(r.creator_id),
+      creatorName: r.creator_name || 'Unknown',
+      daysOverdue: Number(r.days_overdue || 0),
+    }));
+  }
+
+  async getUserIdByName(name: string): Promise<number | null> {
+    const rows = await db.execute(sql`
+      SELECT id FROM users 
+      WHERE COALESCE(first_name || ' ' || COALESCE(last_name, ''), username) ILIKE ${name}
+      LIMIT 1
+    `);
+    const r = (rows.rows as any[])?.[0];
+    return r ? Number(r.id) : null;
+  }
+
   async getInspectionStats(): Promise<{ total: number; pending: number; completed: number }> {
     const rows = await db.execute(sql`
       SELECT 

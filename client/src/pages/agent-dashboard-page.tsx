@@ -36,6 +36,9 @@ import {
   Target,
   XCircle,
   Info,
+  Send,
+  Calendar,
+  ListChecks,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 
@@ -98,15 +101,30 @@ type Recommendation = {
   id: number;
   agentKey: string;
   findingId: number | null;
+  actionCategory: string;
   actionType: string;
   title: string;
   description: string;
   status: string;
   priority: string;
-  payload: any;
+  confidence: string;
+  actionPayload: any;
   reviewedBy: number | null;
   reviewedAt: string | null;
   createdAt: string;
+};
+
+type AgentAction = {
+  id: number;
+  agentKey: string;
+  recommendationId: number | null;
+  actionCategory: string;
+  actionType: string;
+  executionStatus: string;
+  resultMessage: string | null;
+  resultData: any;
+  createdAt: string;
+  executedAt: string | null;
 };
 
 type Policy = {
@@ -115,9 +133,14 @@ type Policy = {
   actionCategory: string;
   actionType: string;
   approvalMode: string;
-  maxActionsPerHour: number;
+  maxActionsPerDay: number;
   cooldownMinutes: number;
-  isActive: boolean;
+  isEnabled: boolean;
+};
+
+type ScheduleInfo = {
+  agentKey: string;
+  cronExpression: string;
 };
 
 type DashboardSummary = {
@@ -128,10 +151,13 @@ type DashboardSummary = {
     suspendedAgents: number;
     openFindings: number;
     pendingRecommendations: number;
+    executedActions: number;
   };
   recentRuns: AgentRun[];
   recentFindings: Finding[];
   recentInsights: Insight[];
+  recentActions: AgentAction[];
+  schedules: ScheduleInfo[];
 };
 
 function severityColor(severity: string) {
@@ -164,8 +190,11 @@ function statusBadge(status: string) {
     case "acknowledged": return <Badge variant="secondary">Acknowledged</Badge>;
     case "resolved": return <Badge variant="default" className="bg-green-600">Resolved</Badge>;
     case "pending_review": return <Badge variant="default" className="bg-orange-500">Pending Review</Badge>;
-    case "approved": return <Badge variant="default" className="bg-green-600">Approved</Badge>;
+    case "approved": return <Badge variant="default" className="bg-blue-600">Approved</Badge>;
+    case "auto_approved": return <Badge variant="default" className="bg-teal-600">Auto-Approved</Badge>;
     case "rejected": return <Badge variant="destructive">Rejected</Badge>;
+    case "executed": return <Badge variant="default" className="bg-green-600">Executed</Badge>;
+    case "executing": return <Badge variant="default" className="bg-blue-600">Executing</Badge>;
     default: return <Badge variant="outline">{status}</Badge>;
   }
 }
@@ -203,6 +232,18 @@ function findingTypeBadge(findingType: string) {
   };
   const info = typeMap[findingType] || { label: findingType, className: 'bg-gray-100 text-gray-700' };
   return <Badge variant="outline" className={`${info.className} text-[10px] px-1.5 py-0`}>{info.label}</Badge>;
+}
+
+function cronDescription(cron: string): string {
+  const parts = cron.split(' ');
+  if (parts.length < 5) return cron;
+  const minute = parts[0];
+  const hour = parts[1];
+  const dow = parts[4];
+  const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  if (dow === '1') return `Weekly (Mon ${time})`;
+  if (dow === '*') return `Daily at ${time}`;
+  return `${cron}`;
 }
 
 function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusChange: (id: number, status: string) => void }) {
@@ -257,7 +298,7 @@ function FindingCard({ finding, onStatusChange }: { finding: Finding; onStatusCh
               </Button>
             )}
             <span className="text-xs text-muted-foreground ml-auto">
-              {expanded ? 'Click to collapse' : 'Click to expand'}
+              {finding.createdAt ? formatDistanceToNow(new Date(finding.createdAt), { addSuffix: true }) : ""}
             </span>
           </div>
         </div>
@@ -290,16 +331,20 @@ export default function AgentDashboardPage() {
     queryKey: ["/api/agents/policies"],
   });
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/agents/dashboard/summary"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/agents/findings"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/agents/recommendations"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/agents/policies"] });
+  };
+
   const triggerMutation = useMutation({
     mutationFn: async (agentKey: string) => {
       return apiRequest("POST", `/api/agents/agents/${agentKey}/trigger`, { companyScope: "ALL" });
     },
     onSuccess: (_data, agentKey) => {
       toast({ title: "Agent triggered", description: `${agentKeyLabel(agentKey)} completed successfully.` });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents/dashboard/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents/findings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents/recommendations"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/agents/agents"] });
+      invalidateAll();
     },
     onError: (err: any) => {
       toast({ title: "Trigger failed", description: err.message, variant: "destructive" });
@@ -307,62 +352,60 @@ export default function AgentDashboardPage() {
   });
 
   const suspendMutation = useMutation({
-    mutationFn: async (agentKey: string) => {
-      return apiRequest("POST", `/api/agents/agents/${agentKey}/suspend`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Agent suspended" });
-    },
+    mutationFn: async (agentKey: string) => apiRequest("POST", `/api/agents/agents/${agentKey}/suspend`),
+    onSuccess: () => { invalidateAll(); toast({ title: "Agent suspended" }); },
   });
 
   const resumeMutation = useMutation({
-    mutationFn: async (agentKey: string) => {
-      return apiRequest("POST", `/api/agents/agents/${agentKey}/resume`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Agent resumed" });
-    },
+    mutationFn: async (agentKey: string) => apiRequest("POST", `/api/agents/agents/${agentKey}/resume`),
+    onSuccess: () => { invalidateAll(); toast({ title: "Agent resumed" }); },
   });
 
   const enableMutation = useMutation({
-    mutationFn: async (agentKey: string) => {
-      return apiRequest("POST", `/api/agents/agents/${agentKey}/enable`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Agent enabled" });
-    },
+    mutationFn: async (agentKey: string) => apiRequest("POST", `/api/agents/agents/${agentKey}/enable`),
+    onSuccess: () => { invalidateAll(); toast({ title: "Agent enabled" }); },
   });
 
   const disableMutation = useMutation({
-    mutationFn: async (agentKey: string) => {
-      return apiRequest("POST", `/api/agents/agents/${agentKey}/disable`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Agent disabled" });
-    },
+    mutationFn: async (agentKey: string) => apiRequest("POST", `/api/agents/agents/${agentKey}/disable`),
+    onSuccess: () => { invalidateAll(); toast({ title: "Agent disabled" }); },
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest("POST", `/api/agents/recommendations/${id}/approve`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Recommendation approved" });
-    },
+    mutationFn: async (id: number) => apiRequest("POST", `/api/agents/recommendations/${id}/approve`),
+    onSuccess: () => { invalidateAll(); toast({ title: "Recommendation approved" }); },
   });
 
   const rejectMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest("POST", `/api/agents/recommendations/${id}/reject`),
+    onSuccess: () => { invalidateAll(); toast({ title: "Recommendation rejected" }); },
+  });
+
+  const approveAndExecuteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("POST", `/api/agents/recommendations/${id}/reject`);
+      const res = await apiRequest("POST", `/api/agents/recommendations/${id}/approve-and-execute`);
+      return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Recommendation rejected" });
+    onSuccess: (data: any) => {
+      invalidateAll();
+      toast({ title: "Action executed", description: data?.message || "Recommendation approved and action completed." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Execution failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const executeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/agents/recommendations/${id}/execute`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      invalidateAll();
+      toast({ title: "Action executed", description: data?.message || "Action completed." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Execution failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -370,10 +413,7 @@ export default function AgentDashboardPage() {
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
       return apiRequest("PATCH", `/api/agents/findings/${id}/status`, { status });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-      toast({ title: "Finding status updated" });
-    },
+    onSuccess: () => { invalidateAll(); toast({ title: "Finding status updated" }); },
   });
 
   const stats = summary?.stats;
@@ -384,6 +424,10 @@ export default function AgentDashboardPage() {
     if (findingTypeFilter !== "all" && f.findingType !== findingTypeFilter) return false;
     return true;
   });
+
+  const pendingRecs = (recommendations || []).filter(r => r.status === "pending_review");
+  const approvedRecs = (recommendations || []).filter(r => r.status === "approved" || r.status === "auto_approved");
+  const reviewedRecs = (recommendations || []).filter(r => !["pending_review", "approved", "auto_approved"].includes(r.status));
 
   if (summaryLoading) {
     return (
@@ -403,22 +447,20 @@ export default function AgentDashboardPage() {
             Agent Intelligence Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Multi-agent system monitoring and control center
+            Multi-agent system monitoring, automation, and control center
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/agents"] });
-          }}
+          onClick={invalidateAll}
         >
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
@@ -466,10 +508,21 @@ export default function AgentDashboardPage() {
         <Card>
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <Pause className="h-5 w-5 text-yellow-500" />
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
               <div>
-                <p className="text-2xl font-bold">{stats?.suspendedAgents || 0}</p>
-                <p className="text-xs text-muted-foreground">Suspended</p>
+                <p className="text-2xl font-bold">{stats?.executedActions || 0}</p>
+                <p className="text-xs text-muted-foreground">Actions Executed</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-blue-500" />
+              <div>
+                <p className="text-2xl font-bold">{summary?.schedules?.length || 0}</p>
+                <p className="text-xs text-muted-foreground">Scheduled</p>
               </div>
             </div>
           </CardContent>
@@ -477,101 +530,110 @@ export default function AgentDashboardPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="activity" className="flex items-center gap-1.5">
             <Activity className="h-4 w-4" />
-            <span className="hidden sm:inline">Activity Feed</span>
-            <span className="sm:hidden">Activity</span>
+            <span className="hidden sm:inline">Activity</span>
           </TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-1.5">
             <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Pending Approvals</span>
-            <span className="sm:hidden">Approvals</span>
-            {(stats?.pendingRecommendations || 0) > 0 && (
+            <span className="hidden sm:inline">Approvals</span>
+            {(pendingRecs.length + approvedRecs.length) > 0 && (
               <Badge variant="destructive" className="ml-1 text-xs px-1.5 py-0">
-                {stats?.pendingRecommendations}
+                {pendingRecs.length + approvedRecs.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="findings" className="flex items-center gap-1.5">
             <Eye className="h-4 w-4" />
-            <span className="hidden sm:inline">Findings & Insights</span>
-            <span className="sm:hidden">Findings</span>
+            <span className="hidden sm:inline">Findings</span>
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="flex items-center gap-1.5">
+            <ListChecks className="h-4 w-4" />
+            <span className="hidden sm:inline">Actions</span>
           </TabsTrigger>
           <TabsTrigger value="config" className="flex items-center gap-1.5">
             <Settings className="h-4 w-4" />
-            <span className="hidden sm:inline">Configuration</span>
-            <span className="sm:hidden">Config</span>
+            <span className="hidden sm:inline">Config</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="activity" className="mt-4 space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {(summary?.agents || []).map(agent => (
-              <Card key={agent.agentKey} className="relative overflow-hidden">
-                <div className={`absolute top-0 left-0 w-1 h-full ${agent.isEnabled && !agent.isSuspended ? 'bg-green-500' : agent.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">{agent.displayName}</CardTitle>
-                    <div className="flex items-center gap-1">
-                      {agent.isEnabled && !agent.isSuspended ? (
-                        <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
-                      ) : agent.isSuspended ? (
-                        <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
+            {(summary?.agents || []).map(agent => {
+              const schedule = (summary?.schedules || []).find(s => s.agentKey === agent.agentKey);
+              return (
+                <Card key={agent.agentKey} className="relative overflow-hidden">
+                  <div className={`absolute top-0 left-0 w-1 h-full ${agent.isEnabled && !agent.isSuspended ? 'bg-green-500' : agent.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">{agent.displayName}</CardTitle>
+                      <div className="flex items-center gap-1">
+                        {agent.isEnabled && !agent.isSuspended ? (
+                          <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
+                        ) : agent.isSuspended ? (
+                          <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <CardDescription className="text-xs">{agent.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Timer className="h-3.5 w-3.5" />
+                        <span className="text-xs">
+                          {agent.lastRunAt
+                            ? formatDistanceToNow(new Date(agent.lastRunAt), { addSuffix: true })
+                            : "Never run"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        <span className="text-xs">{agent.runCount} runs</span>
+                      </div>
+                    </div>
+                    {schedule && (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5 text-blue-500" />
+                        <span className="text-xs">{cronDescription(schedule.cronExpression)}</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="flex-1"
+                        onClick={() => triggerMutation.mutate(agent.agentKey)}
+                        disabled={triggerMutation.isPending || !agent.isEnabled || agent.isSuspended}
+                      >
+                        <Play className="h-3.5 w-3.5 mr-1" />
+                        Run Now
+                      </Button>
+                      {agent.isSuspended ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => resumeMutation.mutate(agent.agentKey)}
+                        >
+                          <Play className="h-3.5 w-3.5" />
+                        </Button>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => suspendMutation.mutate(agent.agentKey)}
+                        >
+                          <Pause className="h-3.5 w-3.5" />
+                        </Button>
                       )}
                     </div>
-                  </div>
-                  <CardDescription className="text-xs">{agent.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Timer className="h-3.5 w-3.5" />
-                      <span className="text-xs">
-                        {agent.lastRunAt
-                          ? formatDistanceToNow(new Date(agent.lastRunAt), { addSuffix: true })
-                          : "Never run"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <BarChart3 className="h-3.5 w-3.5" />
-                      <span className="text-xs">{agent.runCount} runs</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      className="flex-1"
-                      onClick={() => triggerMutation.mutate(agent.agentKey)}
-                      disabled={triggerMutation.isPending || !agent.isEnabled || agent.isSuspended}
-                    >
-                      <Play className="h-3.5 w-3.5 mr-1" />
-                      Run Now
-                    </Button>
-                    {agent.isSuspended ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => resumeMutation.mutate(agent.agentKey)}
-                      >
-                        <Play className="h-3.5 w-3.5" />
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => suspendMutation.mutate(agent.agentKey)}
-                      >
-                        <Pause className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           <Card>
@@ -613,6 +675,18 @@ export default function AgentDashboardPage() {
                             <Lightbulb className="h-3 w-3" />
                             {run.insightsCount} insights
                           </div>
+                          {run.recommendationsCount > 0 && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Target className="h-3 w-3" />
+                              {run.recommendationsCount} recs
+                            </div>
+                          )}
+                          {run.executionMetadata?.notificationsSent > 0 && (
+                            <div className="flex items-center gap-1 text-blue-500">
+                              <Send className="h-3 w-3" />
+                              {run.executionMetadata.notificationsSent} notified
+                            </div>
+                          )}
                         </div>
                         {statusBadge(run.status)}
                         {run.executionMetadata?.durationMs && (
@@ -630,40 +704,42 @@ export default function AgentDashboardPage() {
         </TabsContent>
 
         <TabsContent value="approvals" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Pending Recommendations
-              </CardTitle>
-              <CardDescription>
-                Review and approve or reject agent-generated recommendations. All actions require manual approval in Phase 1.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {(recommendations || []).filter(r => r.status === "pending_review").length === 0 ? (
-                <div className="text-center py-12">
-                  <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3 opacity-50" />
-                  <p className="text-muted-foreground">No pending recommendations</p>
-                  <p className="text-xs text-muted-foreground mt-1">All agent recommendations have been reviewed.</p>
-                </div>
-              ) : (
+          {pendingRecs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-orange-500" />
+                  Pending Review ({pendingRecs.length})
+                </CardTitle>
+                <CardDescription>
+                  These recommendations need your approval before execution.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  {(recommendations || []).filter(r => r.status === "pending_review").map(rec => (
+                  {pendingRecs.map(rec => (
                     <div key={rec.id} className="p-4 rounded-lg border space-y-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <Badge className={agentKeyColor(rec.agentKey)} variant="outline">
                               {agentKeyLabel(rec.agentKey)}
                             </Badge>
-                            <Badge variant="outline">{rec.actionType}</Badge>
-                            <Badge variant={rec.priority === "high" ? "destructive" : rec.priority === "medium" ? "default" : "secondary"}>
+                            <Badge variant="outline">{rec.actionCategory}/{rec.actionType}</Badge>
+                            <Badge variant={rec.priority === "urgent" || rec.priority === "high" ? "destructive" : rec.priority === "normal" ? "default" : "secondary"}>
                               {rec.priority}
                             </Badge>
+                            {rec.confidence && (
+                              <span className="text-xs text-muted-foreground">
+                                Confidence: {Math.round(parseFloat(rec.confidence) * 100)}%
+                              </span>
+                            )}
                           </div>
                           <h4 className="font-medium">{rec.title}</h4>
                           <p className="text-sm text-muted-foreground mt-1">{rec.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {rec.createdAt ? formatDistanceToNow(new Date(rec.createdAt), { addSuffix: true }) : ""}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-2 justify-end">
@@ -678,39 +754,106 @@ export default function AgentDashboardPage() {
                         </Button>
                         <Button
                           size="sm"
+                          variant="outline"
                           onClick={() => approveMutation.mutate(rec.id)}
                           disabled={approveMutation.isPending}
                         >
                           <ThumbsUp className="h-3.5 w-3.5 mr-1" />
                           Approve
                         </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => approveAndExecuteMutation.mutate(rec.id)}
+                          disabled={approveAndExecuteMutation.isPending}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1" />
+                          Approve & Execute
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
 
-              {(recommendations || []).filter(r => r.status !== "pending_review").length > 0 && (
-                <>
-                  <Separator className="my-6" />
-                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">Previously Reviewed</h3>
-                  <div className="space-y-2">
-                    {(recommendations || []).filter(r => r.status !== "pending_review").map(rec => (
-                      <div key={rec.id} className="flex items-center justify-between p-3 rounded-lg border opacity-75">
-                        <div>
-                          <p className="text-sm font-medium">{rec.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {agentKeyLabel(rec.agentKey)} · {rec.actionType}
-                          </p>
+          {approvedRecs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-blue-500" />
+                  Approved — Ready to Execute ({approvedRecs.length})
+                </CardTitle>
+                <CardDescription>
+                  These recommendations have been approved and can be executed.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {approvedRecs.map(rec => (
+                    <div key={rec.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <Badge className={agentKeyColor(rec.agentKey)} variant="outline">
+                            {agentKeyLabel(rec.agentKey)}
+                          </Badge>
+                          <Badge variant="outline">{rec.actionType}</Badge>
+                          {statusBadge(rec.status)}
                         </div>
-                        {statusBadge(rec.status)}
+                        <p className="text-sm font-medium">{rec.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{rec.description}</p>
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                      <Button
+                        size="sm"
+                        className="ml-3 shrink-0"
+                        onClick={() => executeMutation.mutate(rec.id)}
+                        disabled={executeMutation.isPending}
+                      >
+                        <Play className="h-3.5 w-3.5 mr-1" />
+                        Execute
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {pendingRecs.length === 0 && approvedRecs.length === 0 && (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3 opacity-50" />
+                  <p className="text-muted-foreground">No pending recommendations</p>
+                  <p className="text-xs text-muted-foreground mt-1">All agent recommendations have been reviewed.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {reviewedRecs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">Previously Reviewed</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {reviewedRecs.slice(0, 20).map(rec => (
+                    <div key={rec.id} className="flex items-center justify-between p-3 rounded-lg border opacity-75">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{rec.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {agentKeyLabel(rec.agentKey)} · {rec.actionType}
+                          {rec.createdAt ? ` · ${formatDistanceToNow(new Date(rec.createdAt), { addSuffix: true })}` : ""}
+                        </p>
+                      </div>
+                      {statusBadge(rec.status)}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="findings" className="mt-4 space-y-4">
@@ -797,37 +940,76 @@ export default function AgentDashboardPage() {
                 {(summary?.recentInsights || []).length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-8">No insights generated yet.</p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
                     {(summary?.recentInsights || []).map(insight => (
-                      <div key={insight.id} className="p-4 rounded-lg border space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Badge className={agentKeyColor(insight.agentKey)} variant="outline">
-                            {agentKeyLabel(insight.agentKey)}
-                          </Badge>
-                          <Badge variant="outline">{insight.insightType}</Badge>
-                        </div>
-                        <h4 className="font-medium text-sm">{insight.title}</h4>
-                        <p className="text-sm text-muted-foreground">{insight.summary}</p>
-                        {insight.details && (
-                          <div className="text-xs bg-muted/50 p-3 rounded-md space-y-1">
-                            {Object.entries(insight.details).map(([key, value]) => (
-                              <div key={key} className="flex justify-between">
-                                <span className="text-muted-foreground capitalize">{key.replace(/_/g, " ")}</span>
-                                <span className="font-medium">{typeof value === "object" ? JSON.stringify(value) : String(value)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          {insight.createdAt ? formatDistanceToNow(new Date(insight.createdAt), { addSuffix: true }) : ""}
-                        </p>
-                      </div>
+                      <InsightCard key={insight.id} insight={insight} />
                     ))}
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="actions" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ListChecks className="h-5 w-5" />
+                Executed Actions
+              </CardTitle>
+              <CardDescription>
+                Actions that have been executed by the agent system — tasks created, notifications sent, escalations triggered.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(summary?.recentActions || []).length === 0 ? (
+                <div className="text-center py-12">
+                  <ListChecks className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                  <p className="text-muted-foreground">No actions executed yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Approve recommendations to trigger automated actions.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(summary?.recentActions || []).map(action => (
+                    <div key={action.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-1.5 rounded-full ${action.executionStatus === 'completed' ? 'bg-green-100 dark:bg-green-900' : action.executionStatus === 'failed' ? 'bg-red-100 dark:bg-red-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
+                          {action.executionStatus === 'completed' ? <CheckCircle2 className="h-4 w-4 text-green-600" /> :
+                           action.executionStatus === 'failed' ? <XCircle className="h-4 w-4 text-red-600" /> :
+                           <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={agentKeyColor(action.agentKey)} variant="outline">
+                              {agentKeyLabel(action.agentKey)}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {action.actionCategory}/{action.actionType}
+                            </Badge>
+                          </div>
+                          <p className="text-sm mt-0.5">{action.resultMessage || 'Executing...'}</p>
+                          {action.resultData && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {action.resultData.taskId ? `Task #${action.resultData.taskId} created` : ''}
+                              {action.resultData.sentCount ? `${action.resultData.sentCount} notification(s) sent` : ''}
+                              {action.resultData.escalatedTo ? `Escalated to ${action.resultData.escalatedTo} manager(s)` : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        {statusBadge(action.executionStatus)}
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {action.executedAt ? formatDistanceToNow(new Date(action.executedAt), { addSuffix: true }) : action.createdAt ? formatDistanceToNow(new Date(action.createdAt), { addSuffix: true }) : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="config" className="mt-4 space-y-4">
@@ -878,7 +1060,7 @@ export default function AgentDashboardPage() {
                 {(policies || []).length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-8">No policies configured.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                     {(policies || []).map(policy => (
                       <div key={policy.id} className="flex items-center justify-between p-3 rounded-lg border text-sm">
                         <div>
@@ -892,11 +1074,11 @@ export default function AgentDashboardPage() {
                           </p>
                         </div>
                         <div className="text-right text-xs">
-                          <Badge variant={policy.approvalMode === "require_approval" ? "default" : "secondary"}>
-                            {policy.approvalMode === "require_approval" ? "Manual Approval" : policy.approvalMode}
+                          <Badge variant={policy.approvalMode === "require_approval" ? "default" : policy.approvalMode === "auto" ? "secondary" : "outline"}>
+                            {policy.approvalMode === "require_approval" ? "Manual" : policy.approvalMode === "auto" ? "Auto" : policy.approvalMode}
                           </Badge>
                           <p className="text-muted-foreground mt-1">
-                            Max {policy.maxActionsPerHour}/hr · {policy.cooldownMinutes}min cooldown
+                            Max {policy.maxActionsPerDay}/day · {policy.cooldownMinutes}min cooldown
                           </p>
                         </div>
                       </div>
@@ -905,10 +1087,67 @@ export default function AgentDashboardPage() {
                 )}
               </CardContent>
             </Card>
+
+            {(summary?.schedules || []).length > 0 && (
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Scheduler
+                  </CardTitle>
+                  <CardDescription>Automated agent run schedules</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {(summary?.schedules || []).map(s => (
+                      <div key={s.agentKey} className="flex items-center gap-3 p-3 rounded-lg border">
+                        <Calendar className="h-5 w-5 text-blue-500 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium">{agentKeyLabel(s.agentKey)}</p>
+                          <p className="text-xs text-muted-foreground">{cronDescription(s.cronExpression)}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{s.cronExpression}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>
     </div>
     </Layout>
+  );
+}
+
+function InsightCard({ insight }: { insight: Insight }) {
+  const [expanded, setExpanded] = useState(false);
+  const content = insight.summary || (insight.details as any)?.content || '';
+  const lines = typeof content === 'string' ? content.split('\n') : [];
+
+  return (
+    <div className="p-4 rounded-lg border space-y-2 cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => setExpanded(!expanded)}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge className={agentKeyColor(insight.agentKey)} variant="outline">
+          {agentKeyLabel(insight.agentKey)}
+        </Badge>
+        <Badge variant="outline">{insight.insightType}</Badge>
+      </div>
+      <h4 className="font-medium text-sm">{insight.title}</h4>
+      {expanded ? (
+        <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans leading-relaxed bg-muted/30 p-3 rounded-md max-h-[500px] overflow-y-auto">
+          {content}
+        </pre>
+      ) : (
+        <p className="text-sm text-muted-foreground line-clamp-3">{lines.slice(0, 3).join(' · ')}</p>
+      )}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {insight.createdAt ? formatDistanceToNow(new Date(insight.createdAt), { addSuffix: true }) : ""}
+        </p>
+        <span className="text-xs text-muted-foreground">{expanded ? 'Click to collapse' : 'Click to expand'}</span>
+      </div>
+    </div>
   );
 }

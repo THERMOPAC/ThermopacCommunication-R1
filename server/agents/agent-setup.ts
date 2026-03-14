@@ -2,6 +2,7 @@ import { db } from '../db';
 import { agentRegistry, agentPolicies } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { orchestrator } from './framework/orchestrator';
+import { agentScheduler } from './framework/scheduler';
 import { ProjectControlAgent } from './agents/project-control';
 import { CommunicationsAgent } from './agents/communications';
 import { ExecutiveMISAgent } from './agents/executive-mis';
@@ -65,8 +66,11 @@ const DEFAULT_POLICIES = [
   { agentKey: 'project_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
   { agentKey: 'project_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'require_approval' },
   { agentKey: 'project_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval' },
-  { agentKey: 'communications', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
+  { agentKey: 'communications', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
+  { agentKey: 'communications', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'require_approval', cooldownMinutes: 5, maxPerDay: 20 },
   { agentKey: 'communications', actionCategory: 'task_creation', actionType: 'create_reminder', approvalMode: 'require_approval' },
+  { agentKey: 'communications', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval', cooldownMinutes: 15, maxPerDay: 30 },
+  { agentKey: 'communications', actionCategory: 'report_generation', actionType: 'generate_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 10 },
   { agentKey: 'communications', actionCategory: 'communication', actionType: 'draft_reply', approvalMode: 'require_approval' },
   { agentKey: 'finance_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
   { agentKey: 'finance_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval' },
@@ -125,8 +129,8 @@ export async function initializeAgentSystem(): Promise<void> {
         actionCategory: policy.actionCategory,
         actionType: policy.actionType,
         approvalMode: policy.approvalMode,
-        maxActionsPerDay: 50,
-        cooldownMinutes: 30,
+        maxActionsPerDay: (policy as any).maxPerDay || 50,
+        cooldownMinutes: (policy as any).cooldownMinutes || 30,
         isEnabled: true,
         companyScope: 'ALL',
       });
@@ -137,6 +141,12 @@ export async function initializeAgentSystem(): Promise<void> {
   orchestrator.registerAgent(new CommunicationsAgent());
   orchestrator.registerAgent(new FinanceControlAgent());
   orchestrator.registerAgent(new ExecutiveMISAgent());
+
+  setTimeout(() => {
+    agentScheduler.start().catch(err => {
+      console.error('[AgentSystem] Scheduler failed to start:', err.message);
+    });
+  }, 10000);
 
   console.log('[AgentSystem] Multi-Agent Intelligence Layer initialized successfully.');
   console.log(`[AgentSystem] ${orchestrator.getRegisteredAgents().length} agents registered.`);
