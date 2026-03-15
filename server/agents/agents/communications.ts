@@ -1144,6 +1144,10 @@ export class CommunicationsAgent implements IAgent {
     // ═══════════════════════════════════════════════════════════════════════
     // ═══════════════════════════════════════════════════════════════════════
 
+    // Query inactive user tasks before the skip guard — needed for insight summary
+    const inactiveUserTasks = await agentDataRepo.getTasksAssignedToInactiveUsers();
+    queriesRun++;
+
     // ─── GROUP A: 28 AUTOMATED TASK-CREATING FINDINGS ───
     // On first run, skip all task creation to avoid flooding with historical backlog
 
@@ -1804,9 +1808,7 @@ export class CommunicationsAgent implements IAgent {
     }
 
     // A25: TASKS ASSIGNED TO INACTIVE USERS — reassignment task for creator
-    const inactiveTasks = await agentDataRepo.getTasksAssignedToInactiveUsers();
-    queriesRun++;
-    for (const it of inactiveTasks.slice(0, 5)) {
+    for (const it of inactiveUserTasks.slice(0, 5)) {
       const fp = makeFingerprint('inactive_user_task', `task:${it.taskId}`);
       if (await hasOpenAgentTask(fp)) continue;
 
@@ -1927,7 +1929,7 @@ export class CommunicationsAgent implements IAgent {
         `Zombie-Risk (90-179d):     ${tierCounts.zombie_risk + tierCounts.escalation_90} tasks`,
         `Zombie Review (180+d):     ${tierCounts.zombie_review} tasks`,
         `Total overdue:             ${nonFinanceTasks.length} tasks`,
-        `Tasks assigned to inactive users: ${inactiveTasks.length}`,
+        `Tasks assigned to inactive users: ${inactiveUserTasks.length}`,
         ``,
         `--- COMPLETIONS ---`,
         `Recently completed (24h): ${recentlyCompleted.length} tasks`,

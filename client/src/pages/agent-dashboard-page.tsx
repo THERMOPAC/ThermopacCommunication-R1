@@ -362,6 +362,12 @@ export default function AgentDashboardPage() {
     onSuccess: () => { invalidateAll(); toast({ title: "Recommendation rejected" }); },
   });
 
+  const updateScheduleMutation = useMutation({
+    mutationFn: async ({ agentKey, cronExpression }: { agentKey: string; cronExpression: string }) =>
+      apiRequest("POST", `/api/agents/scheduler/update`, { agentKey, cronExpression }),
+    onSuccess: () => { invalidateAll(); toast({ title: "Schedule updated" }); },
+  });
+
   const approveAndExecuteMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("POST", `/api/agents/recommendations/${id}/approve-and-execute`);
@@ -1165,31 +1171,66 @@ export default function AgentDashboardPage() {
               </CardContent>
             </Card>
 
-            {(summary?.schedules || []).length > 0 && (
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Scheduler
-                  </CardTitle>
-                  <CardDescription>Automated agent run schedules</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {(summary?.schedules || []).map(s => (
-                      <div key={s.agentKey} className="flex items-center gap-3 p-3 rounded-lg border">
-                        <Calendar className="h-5 w-5 text-blue-500 shrink-0" />
-                        <div>
-                          <p className="text-sm font-medium">{agentKeyLabel(s.agentKey)}</p>
-                          <p className="text-xs text-muted-foreground">{cronDescription(s.cronExpression)}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{s.cronExpression}</p>
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Scheduler
+                </CardTitle>
+                <CardDescription>Set daily run time for each agent (IST)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(summary?.agents || []).map(agent => {
+                    const schedule = (summary?.schedules || []).find(s => s.agentKey === agent.agentKey);
+                    const cronParts = schedule?.cronExpression?.split(' ') || [];
+                    const utcMin = parseInt(cronParts[0]) || 0;
+                    const utcHour = parseInt(cronParts[1]) || 3;
+                    const istHour = (utcHour + 5 + Math.floor((utcMin + 30) / 60)) % 24;
+                    const istMin = (utcMin + 30) % 60;
+                    const currentIstTime = `${String(istHour).padStart(2, '0')}:${String(istMin).padStart(2, '0')}`;
+
+                    return (
+                      <div key={agent.agentKey} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <Calendar className="h-5 w-5 text-blue-500 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium">{agent.displayName}</p>
+                            {schedule ? (
+                              <p className="text-xs text-muted-foreground">{cronDescription(schedule.cronExpression)}</p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Not scheduled</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="time"
+                            defaultValue={currentIstTime}
+                            className="border rounded px-2 py-1 text-sm w-[110px] bg-background"
+                            onBlur={(e) => {
+                              const [h, m] = e.target.value.split(':').map(Number);
+                              const utcM = ((m - 30) + 60) % 60;
+                              const utcH = ((h - 5 - (m < 30 ? 1 : 0)) + 24) % 24;
+                              const newCron = `${utcM} ${utcH} * * *`;
+                              if (schedule?.cronExpression !== newCron) {
+                                updateScheduleMutation.mutate({ agentKey: agent.agentKey, cronExpression: newCron });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                (e.target as HTMLInputElement).blur();
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">IST</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
