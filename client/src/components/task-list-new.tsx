@@ -89,7 +89,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // State for collapsible sections
-  const [openSections, setOpenSections] = useState<Record<number, boolean>>({});
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   // State for task completion confirmation
   const [taskToComplete, setTaskToComplete] = useState<{id: number, completing: boolean} | null>(null);
@@ -132,8 +132,21 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   }, [urlParams, isDataReady]);
   
   // Get creator's name helper function - memoized to prevent recreation
-  const getCreatorName = useCallback((creatorId: number) => {
+  const agentDisplayNames: Record<string, string> = {
+    'communicator': 'Communicator',
+    'communications': 'Communicator',
+    'project_control': 'Project Control Agent',
+    'finance_control': 'Finance Control Agent',
+    'executive_mis': 'Executive MIS Agent',
+  };
+
+  const getCreatorName = useCallback((creatorKey: string) => {
     if (!isDataReady) return 'Loading...';
+    if (creatorKey.startsWith('agent:')) {
+      const agentKey = creatorKey.replace('agent:', '');
+      return agentDisplayNames[agentKey] || agentKey;
+    }
+    const creatorId = Number(creatorKey);
     const creator = allUsers.find(u => u.id === creatorId);
     return creator ? creator.username : 'Unknown';
   }, [allUsers, isDataReady]);
@@ -191,16 +204,15 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
     });
   }, [tasks, showCompletedTasks, filterPriority, filterStatus, filterAssignee, searchQuery, isDataReady, getAssigneeName]);
 
-  // Group tasks by creator for display - memoized to prevent recalculation
   const tasksByCreator = useMemo(() => {
     return filteredTasks.reduce((acc, task) => {
-      const creatorId = task.createdBy || 0; // Use 0 as fallback if creatorId is null
-      if (!acc[creatorId]) {
-        acc[creatorId] = [];
+      const key = task.sourceAgent ? `agent:${task.sourceAgent}` : String(task.createdBy || 0);
+      if (!acc[key]) {
+        acc[key] = [];
       }
-      acc[creatorId].push(task);
+      acc[key].push(task);
       return acc;
-    }, {} as Record<number, Task[]>);
+    }, {} as Record<string, Task[]>);
   }, [filteredTasks]);
 
   // Mutation for completing tasks
@@ -902,7 +914,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
           Object.entries(tasksByCreator).map(([creatorId, creatorTasks]) => (
             <Collapsible
               key={creatorId}
-              open={openSections[Number(creatorId)]}
+              open={openSections[creatorId]}
               onOpenChange={(isOpen) => {
                 setOpenSections(prev => ({
                   ...prev,
@@ -912,13 +924,13 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
             >
               <CollapsibleTrigger className="flex items-center gap-2 w-full p-4 hover:bg-accent">
                 <div className="flex items-center gap-2">
-                  {openSections[Number(creatorId)] ? (
+                  {openSections[creatorId] ? (
                     <ChevronDown className="h-5 w-5" />
                   ) : (
                     <ChevronRight className="h-5 w-5" />
                   )}
                   <span className="font-medium">
-                    Tasks Assigned by: {getCreatorName(Number(creatorId))}
+                    Tasks Assigned by: {getCreatorName(creatorId)}
                   </span>
                   <Badge variant="secondary" className="ml-2">
                     {creatorTasks.length}
