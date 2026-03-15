@@ -349,11 +349,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Contact lead: ${lead.company_name}`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Follow up with lead: ${lead.company_name}`,
               description: `Lead ${lead.company_name} hasn't been contacted in ${lead.days_since_contact} days.\nStatus: ${lead.status_name}\nProbability: ${lead.probability || 'N/A'}%\n\nPlease reach out and update the lead status.\n\nSource: Sales & Marketing Agent — S1`,
@@ -361,9 +361,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -398,11 +402,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `ESCALATION: Lead ${lead.company_name} — ${lead.days_since_contact}d inactive`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] ESCALATION: Lead inactive ${lead.days_since_contact}d — ${lead.company_name}`,
               description: `Lead ${lead.company_name} has had no contact for ${lead.days_since_contact} days.\nStatus: ${lead.status_name}\nProbability: ${lead.probability || 'N/A'}%\nExpected Close: ${lead.expected_close_date || 'Not set'}\n\nThis lead needs immediate attention or should be reassessed.\n\nSource: Sales & Marketing Agent — S2`,
@@ -410,9 +414,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L2,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L2,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -447,11 +455,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 30)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Review stuck lead: ${lead.company_name}`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Pipeline review: ${lead.company_name} — stuck ${lead.days_since_update}d in "${lead.status_name}"`,
               description: `Lead ${lead.company_name} has been in "${lead.status_name}" status for ${lead.days_since_update} days without progress.\n\nPlease review and either advance, update, or mark as Lost.\n\nSource: Sales & Marketing Agent — S3`,
@@ -459,9 +467,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -497,11 +509,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Priority: High-value lead ${lead.company_name} (${lead.probability}%)`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] PRIORITY: Contact high-value lead ${lead.company_name} (${lead.probability}% prob)`,
               description: `High-probability lead ${lead.company_name} hasn't been contacted in ${lead.days_since_contact} days.\nProbability: ${lead.probability}%\nValue: ${lead.currency || ''} ${Number(lead.potential_value || 0).toLocaleString()}\nStatus: ${lead.status_name}\n\nThis is a high-conversion opportunity — prioritize follow-up.\n\nSource: Sales & Marketing Agent — S4`,
@@ -509,9 +521,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L2,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L2,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -546,11 +562,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Update close date: ${lead.company_name}`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Overdue close date: ${lead.company_name} — expected ${lead.expected_close_date}`,
               description: `Lead ${lead.company_name} had expected close date of ${lead.expected_close_date} which has passed.\nCurrent status: ${lead.status_name}\nProbability: ${lead.probability || 'N/A'}%\n\nPlease update the expected close date or reassess the opportunity.\n\nSource: Sales & Marketing Agent — S5`,
@@ -558,9 +574,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -591,11 +611,11 @@ export class SalesMarketingAgent implements IAgent {
       if (!skipTaskCreation) {
         const fp = makeFingerprint('unassigned_leads', `batch:${unassignedLeads.length}`);
         if (!(await hasOpenAgentTask(fp)) && !(await hasRecentAgentTask(fp, 7))) {
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Assign ${unassignedLeads.length} unassigned leads`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Assign ${unassignedLeads.length} unassigned leads`,
               description: `The following leads have no assigned owner:\n\n${unassignedLeads.map(l => `  • ${l.company_name} (${l.status_name})`).join('\n')}\n\nPlease assign appropriate sales owners.\n\nSource: Sales & Marketing Agent — S6`,
@@ -603,9 +623,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -637,11 +661,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Convert won lead: ${lead.company_name}`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Convert won lead to customer: ${lead.company_name}`,
               description: `Lead ${lead.company_name} has been marked Won but hasn't been converted to a customer record.\n\nPlease convert this lead to create the customer record for invoicing and project setup.\n\nSource: Sales & Marketing Agent — S7`,
@@ -649,9 +673,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -687,11 +715,11 @@ export class SalesMarketingAgent implements IAgent {
           const fp = makeFingerprint('offer_expiring', `offer:${offer.id}`);
           if (await hasOpenAgentTask(fp)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Follow up: ${offer.offer_number} expiring in ${offer.days_until_expiry}d`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Offer expiring: ${offer.offer_number} — ${offer.customer_name} — ${offer.days_until_expiry}d left`,
               description: `Offer ${offer.offer_number} to ${offer.customer_name} expires in ${offer.days_until_expiry} days.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\nValid Until: ${offer.valid_until}\n\nPlease follow up with the customer for a decision or extend validity.\n\nSource: Sales & Marketing Agent — S8`,
@@ -699,9 +727,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -737,11 +769,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Resolve expired offer: ${offer.offer_number}`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Expired offer: ${offer.offer_number} — ${offer.customer_name}`,
               description: `Offer ${offer.offer_number} to ${offer.customer_name} expired ${Math.abs(offer.days_until_expiry)} days ago.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\n\nPlease update the status (mark Expired, re-issue, or follow up).\n\nSource: Sales & Marketing Agent — S9`,
@@ -749,9 +781,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -786,11 +822,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Send or discard draft: ${offer.offer_number}`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Draft stuck: ${offer.offer_number} — ${offer.customer_name} — ${offer.days_since_created}d`,
               description: `Offer ${offer.offer_number} for ${offer.customer_name} has been in Draft for ${offer.days_since_created} days.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\n\nPlease finalize and send, or discard if no longer needed.\n\nSource: Sales & Marketing Agent — S10`,
@@ -798,9 +834,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -835,11 +875,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Convert approved offer: ${offer.offer_number}`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Convert approved offer: ${offer.offer_number} — ${offer.customer_name}`,
               description: `Offer ${offer.offer_number} was approved ${offer.days_since_updated} days ago but hasn't been converted.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\n\nPlease proceed with order conversion and project setup.\n\nSource: Sales & Marketing Agent — S11`,
@@ -847,9 +887,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L2,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L2,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -891,11 +935,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 30)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Review rejection pattern: ${cust.name}`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] High rejection rate: ${cust.name} — ${cust.rejected}/${cust.total} offers rejected`,
               description: `Customer ${cust.name} has ${cust.rejected} out of ${cust.total} offers rejected.\n\nPlease review pricing, specifications, and customer requirements to improve conversion.\n\nSource: Sales & Marketing Agent — S12`,
@@ -903,9 +947,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: L2,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L2,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -939,11 +987,11 @@ export class SalesMarketingAgent implements IAgent {
       if (!skipTaskCreation) {
         const fp = makeFingerprint('dormant_customers', `batch:${dormantCustomers.length}`);
         if (!(await hasOpenAgentTask(fp)) && !(await hasRecentAgentTask(fp, 30))) {
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Re-engage ${dormantCustomers.length} dormant customers`,
             priority: 'low',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Re-engage ${dormantCustomers.length} dormant customers`,
               description: `The following customers haven't received offers in ${settings.dormant_customer_days}+ days:\n\n${dormantCustomers.slice(0, 10).map(c => `  • ${c.bp_name}`).join('\n')}\n\nConsider reaching out with new offerings or check-in calls.\n\nSource: Sales & Marketing Agent — C1`,
@@ -951,9 +999,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Low',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -983,11 +1035,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Complete follow-up: ${fu.customer_name} — ${fu.subject}`,
             priority: 'medium',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Overdue follow-up: ${fu.customer_name} — ${fu.subject}`,
               description: `Scheduled follow-up "${fu.subject}" for ${fu.customer_name} is ${fu.days_overdue} days overdue.\nScheduled Date: ${fu.scheduled_date}\n\nPlease complete or reschedule.\n\nSource: Sales & Marketing Agent — C2`,
@@ -995,9 +1047,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Medium',
               category: `Sales ${fp}`,
             },
-            targetUserId: fu.assigned_to || L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: fu.assigned_to || L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -1028,11 +1084,11 @@ export class SalesMarketingAgent implements IAgent {
       if (!skipTaskCreation) {
         const fp = makeFingerprint('missing_contact', `batch:${missingContact.length}`);
         if (!(await hasOpenAgentTask(fp)) && !(await hasRecentAgentTask(fp, 30))) {
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Update contact details for ${missingContact.length} customers`,
             priority: 'low',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Update ${missingContact.length} customer records — missing contact details`,
               description: `The following customers have no email, phone, or contact person:\n\n${missingContact.slice(0, 15).map(c => `  • ${c.bp_name}`).join('\n')}\n\nPlease update their contact information.\n\nSource: Sales & Marketing Agent — C3`,
@@ -1040,9 +1096,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'Low',
               category: `Sales ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -1081,11 +1141,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 30)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Re-engage: ${cust.bp_name}`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Sales] Re-engage high-value customer: ${cust.bp_name}`,
               description: `Customer ${cust.bp_name} has prior business worth ${cust.currency || ''} ${Number(cust.total_business).toLocaleString()} but hasn't received a new offer recently.\n\nPlease reach out to explore new opportunities.\n\nSource: Sales & Marketing Agent — C4`,
@@ -1093,9 +1153,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Sales ${fp}`,
             },
-            targetUserId: L2,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L2,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -1126,11 +1190,11 @@ export class SalesMarketingAgent implements IAgent {
       if (!skipTaskCreation) {
         const fp = makeFingerprint('gads_no_conv', `batch:${highSpendLowConv.length}`);
         if (!(await hasOpenAgentTask(fp)) && !(await hasRecentAgentTask(fp, 7))) {
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Review ${highSpendLowConv.length} non-converting campaigns`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Marketing] Review ${highSpendLowConv.length} Google Ads campaigns — zero conversions`,
               description: `The following campaigns have spend but no conversions:\n\n${highSpendLowConv.map(c => `  • ${c.name} — $${(Number(c.total_cost_micros) / 1000000).toFixed(2)}`).join('\n')}\n\nReview targeting, ad copy, and landing pages.\n\nSource: Sales & Marketing Agent — D1`,
@@ -1138,9 +1202,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Digital Marketing ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -1195,11 +1263,11 @@ export class SalesMarketingAgent implements IAgent {
       if (!skipTaskCreation && wasteSpendTerms.length > 0) {
         const fp = makeFingerprint('gads_waste', `batch:${wasteSpendTerms.length}`);
         if (!(await hasOpenAgentTask(fp)) && !(await hasRecentAgentTask(fp, 7))) {
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Add negative keywords for ${wasteSpendTerms.length} wasted search terms`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Marketing] Add negative keywords — ${wasteSpendTerms.length} wasted search terms`,
               description: `These search terms spent budget with zero conversions:\n\n${wasteSpendTerms.slice(0, 10).map(st => `  • "${st.search_term}" — $${(Number(st.cost_micros) / 1000000).toFixed(2)}`).join('\n')}\n\nAdd as negative keywords to reduce waste.\n\nSource: Sales & Marketing Agent — D3`,
@@ -1207,9 +1275,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Digital Marketing ${fp}`,
             },
-            targetUserId: L1,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L1,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -1243,11 +1315,11 @@ export class SalesMarketingAgent implements IAgent {
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
-          const recId = await recommendationManager.createRecommendation({
+          const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
             title: `Review overbudget campaign: ${mc.name}`,
             priority: 'high',
-            actionType: 'task_creation',
+            actionType: 'create_task',
             actionPayload: {
               title: `[Marketing] Campaign overbudget: ${mc.name}`,
               description: `Campaign "${mc.name}" has spent ${Number(mc.actual_cost).toLocaleString()} against a budget of ${Number(mc.budget).toLocaleString()} (${Math.round(Number(mc.actual_cost) / Number(mc.budget) * 100)}%).\n\nPlease review and adjust spending or budget.\n\nSource: Sales & Marketing Agent — D4`,
@@ -1255,9 +1327,13 @@ export class SalesMarketingAgent implements IAgent {
               priority: 'High',
               category: `Digital Marketing ${fp}`,
             },
-            targetUserId: L2,
+            actionCategory: "task_creation",
+            logicType: "rule_based",
+            confidence: 0.95,
+            description: "Auto-generated task from Sales & Marketing Agent",
+            assignTo: L2,
           });
-          if (recId) { recommendationsCount++; autoExecuteQueue.push(recId); }
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -1414,9 +1490,9 @@ export class SalesMarketingAgent implements IAgent {
 
     if (autoExecuteQueue.length > 0 && !skipTaskCreation) {
       try {
-        for (const recId of autoExecuteQueue) {
+        for (const autoRecId of autoExecuteQueue) {
           const rec = await db.execute(sql`
-            SELECT id, action_type, action_payload FROM agent_recommendations WHERE id = ${recId}
+            SELECT id, action_type, action_payload FROM agent_recommendations WHERE id = ${autoRecId}
           `);
           const recRow = (rec.rows as any[])[0];
           if (!recRow) continue;
@@ -1436,11 +1512,11 @@ export class SalesMarketingAgent implements IAgent {
             const taskId = (taskResult.rows as any[])[0]?.id;
 
             await db.execute(sql`
-              UPDATE agent_recommendations SET status = 'approved', approved_by = 'auto_policy' WHERE id = ${recId}
+              UPDATE agent_recommendations SET status = 'approved', approved_by = 1 WHERE id = ${autoRecId}
             `);
             await db.execute(sql`
-              INSERT INTO agent_actions (recommendation_id, action_type, status, executed_at, result)
-              VALUES (${recId}, 'task_creation', 'completed', NOW(), ${JSON.stringify({ taskId })})
+              INSERT INTO agent_actions (recommendation_id, agent_key, action_category, action_type, action_payload, idempotency_key, execution_status, result_data, executed_at)
+              VALUES (${autoRecId}, ${this.key}, 'task_creation', 'create_task', ${JSON.stringify(payload)}::jsonb, ${'auto_' + autoRecId + '_' + Date.now()}, 'completed', ${JSON.stringify({ taskId })}::jsonb, NOW())
             `);
             autoExecutedCount++;
           }
