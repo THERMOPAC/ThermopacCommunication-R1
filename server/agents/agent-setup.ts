@@ -10,6 +10,7 @@ import { FinanceControlAgent } from './agents/finance-control';
 import { SalesMarketingAgent } from './agents/sales-marketing';
 import { PredictiveProjectControlAgent } from './agents/predictive-project-control';
 import { ProductionManagementAgent } from './agents/production-management';
+import { QualityManagementAgent } from './agents/quality-management';
 
 const PHASE_1_AGENTS = [
   {
@@ -144,6 +145,20 @@ const PHASE_1_AGENTS = [
       campaign_overbudget_pct: 110,
     },
   },
+  {
+    agentKey: 'quality_management',
+    displayName: 'Quality Management Agent',
+    description: 'Monitors quality management across 5 control groups: Q1 Inspection Control, Q2 Calibration Control, Q3 Welding Qualification Control, Q4 Document/Procedure Control, Q5 Material Traceability Control. Classifies findings as compliance_risk, operational_risk, master_data_hygiene, traceability_gap, or document_control_gap. 4-level dynamic escalation: Entity Owner → Production Manager → Project Manager → GM.',
+    category: 'quality',
+    defaultSchedule: '0 2 * * *',
+    config: {
+      stale_inspection_days: 180,
+      calibration_warning_days: 90,
+      welder_cert_warning_days: 90,
+      pma_expiry_warning_days: 90,
+      material_traceability_min_docs: 1,
+    },
+  },
 ];
 
 const DEFAULT_POLICIES = [
@@ -172,6 +187,9 @@ const DEFAULT_POLICIES = [
   { agentKey: 'sales_marketing', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
   { agentKey: 'sales_marketing', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
   { agentKey: 'sales_marketing', actionCategory: 'report_generation', actionType: 'generate_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 10 },
+  { agentKey: 'quality_management', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
+  { agentKey: 'quality_management', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
+  { agentKey: 'quality_management', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
 ];
 
 export async function initializeAgentSystem(): Promise<void> {
@@ -240,6 +258,7 @@ export async function initializeAgentSystem(): Promise<void> {
   orchestrator.registerAgent(new FinanceControlAgent());
   orchestrator.registerAgent(new ExecutiveMISAgent());
   orchestrator.registerAgent(new SalesMarketingAgent());
+  orchestrator.registerAgent(new QualityManagementAgent());
 
   setTimeout(() => {
     agentScheduler.start().catch(err => {

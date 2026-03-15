@@ -54,6 +54,28 @@ export async function resolveAssignment(
   return await resolveGM();
 }
 
+export async function resolveProductionManager(): Promise<number | null> {
+  const result = await db.execute(sql`
+    SELECT id FROM users
+    WHERE department = 'Production' AND is_active = true
+      AND role IN ('Manager', 'Senior Manager', 'Head')
+    ORDER BY CASE role WHEN 'Manager' THEN 1 WHEN 'Senior Manager' THEN 2 WHEN 'Head' THEN 3 ELSE 4 END
+    LIMIT 1
+  `);
+  const row = (result.rows as any[])[0];
+  return row ? Number(row.id) : null;
+}
+
+export async function resolveQCTeamLead(): Promise<number | null> {
+  const result = await db.execute(sql`
+    SELECT DISTINCT reporting_manager_id FROM users
+    WHERE department = 'Quality Control' AND is_active = true AND reporting_manager_id IS NOT NULL
+    LIMIT 1
+  `);
+  const row = (result.rows as any[])[0];
+  return row?.reporting_manager_id ? Number(row.reporting_manager_id) : null;
+}
+
 export function severityFromLevel(level: 'L1' | 'L2' | 'L3'): string {
   if (level === 'L3') return 'critical';
   if (level === 'L2') return 'high';
