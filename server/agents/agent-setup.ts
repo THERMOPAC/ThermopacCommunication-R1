@@ -14,7 +14,7 @@ const PHASE_1_AGENTS = [
     displayName: 'Project Control Agent',
     description: 'Monitors project schedules, work order progress, milestone risks, and resource utilization across all active projects.',
     category: 'operations',
-    defaultSchedule: '0 9 * * *',
+    defaultSchedule: '30 3 * * *',
     config: {
       overdueWoThresholdDays: 7,
       projectRiskDaysBeforeDeadline: 14,
@@ -26,7 +26,7 @@ const PHASE_1_AGENTS = [
     displayName: 'Communications Agent',
     description: 'Monitors human activity and communication discipline: tasks, recurring tasks, emails, attendance, daily work reports, leave requests, meetings & commitments, and internal messages.',
     category: 'operations',
-    defaultSchedule: '0 9 * * *',
+    defaultSchedule: '30 3 * * *',
     config: {
       taskOverdueCriticalDays: 7,
       emailUnansweredThresholdHours: 24,
@@ -41,7 +41,7 @@ const PHASE_1_AGENTS = [
     displayName: 'Finance Control Agent',
     description: 'Monitors financial operations: BRC submissions, invoice follow-ups, overdue invoices, payment allocations, and remittance compliance.',
     category: 'finance',
-    defaultSchedule: '0 9 * * *',
+    defaultSchedule: '30 3 * * *',
     config: {
       brcOverdueThresholdDays: 7,
       invoiceOverdueThreshold: 5,
@@ -53,7 +53,7 @@ const PHASE_1_AGENTS = [
     displayName: 'Executive MIS Agent',
     description: 'Generates cross-module executive briefings, KPI summaries, and threshold-based alerts across the entire platform.',
     category: 'intelligence',
-    defaultSchedule: '0 8 * * *',
+    defaultSchedule: '0 3 * * *',
     config: {
       overdueWoThreshold: 10,
       overdueTaskThreshold: 20,

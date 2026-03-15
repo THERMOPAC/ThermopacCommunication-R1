@@ -237,12 +237,14 @@ function findingTypeBadge(findingType: string) {
 function cronDescription(cron: string): string {
   const parts = cron.split(' ');
   if (parts.length < 5) return cron;
-  const minute = parts[0];
-  const hour = parts[1];
+  const minute = parseInt(parts[0], 10);
+  const hour = parseInt(parts[1], 10);
   const dow = parts[4];
-  const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
-  if (dow === '1') return `Weekly (Mon ${time})`;
-  if (dow === '*') return `Daily at ${time}`;
+  const istHour = (hour + 5 + Math.floor((minute + 30) / 60)) % 24;
+  const istMinute = (minute + 30) % 60;
+  const istTime = `${String(istHour).padStart(2, '0')}:${String(istMinute).padStart(2, '0')} IST`;
+  if (dow === '1') return `Weekly (Mon ${istTime})`;
+  if (dow === '*') return `Daily at ${istTime}`;
   return `${cron}`;
 }
 
