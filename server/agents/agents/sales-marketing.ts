@@ -1499,7 +1499,7 @@ export class SalesMarketingAgent implements IAgent {
 
           const payload = typeof recRow.action_payload === 'string' ? JSON.parse(recRow.action_payload) : recRow.action_payload;
 
-          if (recRow.action_type === 'task_creation' && payload) {
+          if ((recRow.action_type === 'create_task' || recRow.action_type === 'task_creation') && payload) {
             const taskResult = await db.execute(sql`
               INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, category, source_type, source_agent, start_date, created_at)
               VALUES (
