@@ -17,8 +17,10 @@ const THRESHOLDS = {
   p2_milestone_overdue_days: 0,
   p4_phase_overdue_days: 0,
   p6_commitment_warning_days: 3,
-  p10_overload_open_items: 10,
-  p12_health_threshold: 50,
+  p10_weighted_load_threshold: 12,
+  p12_red_threshold: 40,
+  p12_amber_threshold: 60,
+  p12_watch_threshold: 80,
   d2_review_stuck_days: 10,
   d3_comments_pending_days: 7,
   d4_client_approval_days: 14,
@@ -36,7 +38,33 @@ const THRESHOLDS = {
   r11_logistics_delay_days: 30,
 };
 
-function fp(type: string, entity: string, id: string | number): string {
+const AGENT_SEVERITY_MAP: Record<string, string> = {
+  P1: 'warning', P3: 'warning', P5: 'warning', P6: 'warning', P10: 'warning',
+  P4: 'warning',
+  P2: 'risk', P7: 'risk', P8: 'risk', P11: 'risk',
+  P9: 'critical', P12: 'critical',
+  D1: 'warning', D2: 'warning', D3: 'warning', D5: 'warning',
+  D4: 'risk', D8: 'risk', D9: 'risk',
+  D6: 'risk', D7: 'risk', D10: 'critical',
+  R1: 'warning', R2: 'warning', R3: 'warning', R5: 'warning', R8: 'warning',
+  R9: 'warning', R10: 'warning',
+  R6: 'warning', R7: 'risk', R11: 'risk', R4: 'risk',
+  R12: 'critical',
+};
+
+function agentSev(findingCode: string, escalatedLevel?: 'L1' | 'L2' | 'L3'): string {
+  const base = AGENT_SEVERITY_MAP[findingCode] || 'warning';
+  if (escalatedLevel === 'L3') return 'critical';
+  if (escalatedLevel === 'L2' && base === 'warning') return 'risk';
+  return base;
+}
+
+function fpWithProject(type: string, projectId: number | string | null, entity: string, id: string | number): string {
+  const pid = projectId || 'global';
+  return `[fp:pc_${type}:p${pid}:${entity}:${id}]`;
+}
+
+function fpGlobal(type: string, entity: string, id: string | number): string {
   return `[fp:pc_${type}:${entity}:${id}]`;
 }
 
@@ -89,14 +117,6 @@ async function resolveGM(): Promise<number> {
   return row ? Number(row.id) : 2;
 }
 
-async function resolveOwner(): Promise<number> {
-  const result = await db.execute(sql`
-    SELECT id FROM users WHERE role = 'Superuser' AND is_active = true AND reporting_manager_id = id LIMIT 1
-  `);
-  const row = (result.rows as any[])[0];
-  return row ? Number(row.id) : 3;
-}
-
 async function resolveAssignment(
   entityOwnerId: number | null,
   projectId: number | null,
@@ -112,14 +132,6 @@ async function resolveAssignment(
   return await resolveGM();
 }
 
-async function resolveEscalation(assigneeId: number, level: 'L2' | 'L3'): Promise<number> {
-  if (level === 'L2') {
-    const mgr = await resolveReportingManager(assigneeId);
-    return mgr || await resolveGM();
-  }
-  return await resolveGM();
-}
-
 function severityFromLevel(level: 'L1' | 'L2' | 'L3'): string {
   if (level === 'L3') return 'critical';
   if (level === 'L2') return 'high';
@@ -132,18 +144,15 @@ function priorityFromLevel(level: 'L1' | 'L2' | 'L3'): string {
   return 'Medium';
 }
 
-function agentSeverityFromLevel(level: 'L1' | 'L2' | 'L3'): string {
-  if (level === 'L3') return 'critical';
-  if (level === 'L2') return 'risk';
-  return 'warning';
+function healthBand(score: number): string {
+  if (score >= 80) return 'Green';
+  if (score >= 60) return 'Watch';
+  if (score >= 40) return 'Amber';
+  return 'Red';
 }
 
 async function autoCloseResolvedTasks(): Promise<number> {
   let closed = 0;
-
-  const fpPatterns = [
-    { pattern: '%[fp:pc_%', table: null },
-  ];
 
   const openTasks = await db.execute(sql`
     SELECT id, category FROM tasks
@@ -156,28 +165,28 @@ async function autoCloseResolvedTasks(): Promise<number> {
     const cat = row.category || '';
     let shouldClose = false;
 
-    const woMatch = cat.match(/\[fp:pc_(?:p1_overdue_task|p3_stuck|wo_overdue):wo:(\d+)\]/);
+    const woMatch = cat.match(/\[fp:pc_(?:p1_overdue_task|p3_stuck):p\d+:wo:(\d+)\]/);
     if (woMatch) {
       const check = await db.execute(sql`SELECT status FROM work_orders WHERE id = ${parseInt(woMatch[1])}`);
       const s = (check.rows as any[])[0]?.status;
       if (s === 'completed' || s === 'cancelled') shouldClose = true;
     }
 
-    const reviewMatch = cat.match(/\[fp:pc_(?:d2_stuck_review|review_overdue):review:(\d+)\]/);
+    const reviewMatch = cat.match(/\[fp:pc_d2_stuck_review:p\d+:review:(\d+)\]/);
     if (reviewMatch) {
       const check = await db.execute(sql`SELECT status FROM design_reviews WHERE id = ${parseInt(reviewMatch[1])}`);
       const s = (check.rows as any[])[0]?.status;
       if (s === 'Approved' || s === 'Approved with Comments' || s === 'Rejected') shouldClose = true;
     }
 
-    const poMatch = cat.match(/\[fp:pc_(?:r8_delivery_missed|po_overdue|po_vendor_overdue):(?:sap_po|vendor):(\S+)\]/);
-    if (poMatch && /^\d+$/.test(poMatch[1])) {
+    const poMatch = cat.match(/\[fp:pc_(?:r8_delivery_missed|r6_vendor_submit|r7_mfg_delay):p\w+:sap_po:(\d+)\]/);
+    if (poMatch) {
       const check = await db.execute(sql`SELECT doc_status, cancelled FROM sap_purchase_orders WHERE id = ${parseInt(poMatch[1])}`);
       const po = (check.rows as any[])[0];
       if (po && (po.doc_status === 'bost_Close' || po.cancelled === 'tYES')) shouldClose = true;
     }
 
-    const drawingMatch = cat.match(/\[fp:pc_d1_drawing_overdue:drawing:(\d+)\]/);
+    const drawingMatch = cat.match(/\[fp:pc_d1_drawing_overdue:p\d+:drawing:(\d+)\]/);
     if (drawingMatch) {
       const check = await db.execute(sql`SELECT status FROM design_drawings WHERE id = ${parseInt(drawingMatch[1])}`);
       const s = (check.rows as any[])[0]?.status;
@@ -223,7 +232,6 @@ export class ProjectControlAgent implements IAgent {
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
     const gmId = await resolveGM();
-    const ownerId = await resolveOwner();
 
     try {
       autoClosedCount = await autoCloseResolvedTasks();
@@ -234,9 +242,9 @@ export class ProjectControlAgent implements IAgent {
 
     // ════════════════════════════════════════════════════════════════════════
     // MODULE 1: PROJECT MANAGEMENT (P1–P12)
+    // Grouped queries for project data
     // ════════════════════════════════════════════════════════════════════════
     try {
-      // ── Grouped project query ──
       const projectHealthRows = await db.execute(sql`SELECT * FROM vw_agent_project_health`);
       queriesRun++;
       const projects = (projectHealthRows.rows || []) as any[];
@@ -278,6 +286,27 @@ export class ProjectControlAgent implements IAgent {
       queriesRun++;
       const keyStages = (keyStageRows.rows || []) as any[];
 
+      const wosByProject: Record<number, any[]> = {};
+      for (const wo of allWOs) {
+        const pid = Number(wo.project_id);
+        if (!wosByProject[pid]) wosByProject[pid] = [];
+        wosByProject[pid].push(wo);
+      }
+
+      const phasesByProject: Record<number, any[]> = {};
+      for (const p of phases) {
+        const pid = Number(p.project_id);
+        if (!phasesByProject[pid]) phasesByProject[pid] = [];
+        phasesByProject[pid].push(p);
+      }
+
+      const keyStagesByProject: Record<number, any[]> = {};
+      for (const ks of keyStages) {
+        const pid = Number(ks.project_id);
+        if (!keyStagesByProject[pid]) keyStagesByProject[pid] = [];
+        keyStagesByProject[pid].push(ks);
+      }
+
       // ── P1: Overdue Task (WOs past planned_end_date) ──
       for (const wo of allWOs) {
         if (!wo.planned_end_date) continue;
@@ -285,7 +314,8 @@ export class ProjectControlAgent implements IAgent {
         if (daysOverdue < THRESHOLDS.p1_overdue_days) continue;
 
         const level: 'L1' | 'L2' | 'L3' = daysOverdue >= 90 ? 'L3' : daysOverdue >= 30 ? 'L2' : 'L1';
-        const fingerprint = fp('p1_overdue_task', 'wo', wo.id);
+        const fingerprint = fpWithProject('p1_overdue_task', wo.project_id, 'wo', wo.id);
+        const severity = agentSev('P1', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue',
@@ -309,10 +339,10 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `Work order ${wo.work_order_number} is ${daysOverdue} days overdue. Needs review and action.`,
+            rationale: `Work order ${wo.work_order_number} is ${daysOverdue} days overdue.`,
             actionPayload: {
               title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number} — "${wo.title}" (${daysOverdue}d overdue)`,
-              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date.\nPlanned end: ${wo.planned_end_date}\nStatus: ${wo.status}\nAgent severity: ${agentSeverityFromLevel(level)}\n\nPlease review and update status or escalate blockers.`,
+              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date.\nPlanned end: ${wo.planned_end_date}\nStatus: ${wo.status}\nagent_severity: ${severity}\n\nPlease review and update status or escalate blockers.`,
               assignedTo: assignTo,
               priority: priorityFromLevel(level),
               category: `Project ${fingerprint}`,
@@ -331,7 +361,8 @@ export class ProjectControlAgent implements IAgent {
         if (daysSinceUpdate < THRESHOLDS.p3_stuck_days) continue;
 
         const level: 'L1' | 'L2' = daysSinceUpdate >= 30 ? 'L2' : 'L1';
-        const fingerprint = fp('p3_stuck', 'wo', wo.id);
+        const fingerprint = fpWithProject('p3_stuck', wo.project_id, 'wo', wo.id);
+        const severity = agentSev('P3', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'anomaly',
@@ -355,10 +386,10 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `Work order has not been updated for ${daysSinceUpdate} days. May be blocked or forgotten.`,
+            rationale: `Work order has not been updated for ${daysSinceUpdate} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number} — "${wo.title}" (${daysSinceUpdate}d no update)`,
-              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no update for ${daysSinceUpdate} days.\nStatus: ${wo.status}\nLast update: ${wo.updated_at}\nAgent severity: ${agentSeverityFromLevel(level)}\n\nPlease review status, update progress, or report blockers.`,
+              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no update for ${daysSinceUpdate} days.\nStatus: ${wo.status}\nLast update: ${wo.updated_at}\nagent_severity: ${severity}\n\nPlease review status, update progress, or report blockers.`,
               assignedTo: assignTo,
               priority: priorityFromLevel(level),
               category: `Project ${fingerprint}`,
@@ -371,14 +402,7 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── P5: No Recent Project Activity (7d) & P11: Project Inactive (14d) ──
-      const wosByProject: Record<number, any[]> = {};
-      for (const wo of allWOs) {
-        const pid = Number(wo.project_id);
-        if (!wosByProject[pid]) wosByProject[pid] = [];
-        wosByProject[pid].push(wo);
-      }
-
+      // ── P5: No Recent Activity (7d) & P11: Project Inactive (14d) ──
       for (const project of projects) {
         const pid = Number(project.id);
         const projectWOs = wosByProject[pid] || [];
@@ -388,18 +412,18 @@ export class ProjectControlAgent implements IAgent {
           const d = w.updated_at ? new Date(w.updated_at).getTime() : 0;
           return d;
         }));
-        const daysSinceActivity = maxUpdate > 0 
+        const daysSinceActivity = maxUpdate > 0
           ? Math.floor((Date.now() - maxUpdate) / (1000 * 60 * 60 * 24))
           : 999;
 
-        // P11: Project Inactive (14+ days) → L2
         if (daysSinceActivity >= THRESHOLDS.p11_inactive_days) {
-          const fingerprint = fp('p11_inactive', 'project', pid);
+          const fingerprint = fpWithProject('p11_inactive', pid, 'project', pid);
+          const severity = agentSev('P11');
           const finding = await findingManager.createFinding({
             findingType: 'anomaly',
             severity: 'high',
             title: `P11 Project Inactive: ${project.project_name} — ${daysSinceActivity}d no updates`,
-            description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days. May need management attention.`,
+            description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.`,
             logicType: 'rule_based',
             dataSnapshot: { projectId: pid, daysSinceActivity },
             relatedEntityType: 'project',
@@ -414,10 +438,10 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Project Inactive: ${project.project_name}`,
               actionType: 'create_task',
-              rationale: `No work order updates for ${daysSinceActivity} days. Project may be stalled.`,
+              rationale: `No work order updates for ${daysSinceActivity} days.`,
               actionPayload: {
                 title: `[Agent] Project Control – Project Inactive: ${project.project_name} (${daysSinceActivity}d no updates)`,
-                description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.\nAgent severity: risk\n\nPlease review project status and provide an update.`,
+                description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.\nagent_severity: ${severity}\n\nPlease review project status and provide an update.`,
                 assignedTo: assignTo,
                 priority: 'High',
                 category: `Project ${fingerprint}`,
@@ -428,10 +452,9 @@ export class ProjectControlAgent implements IAgent {
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
           }
-        }
-        // P5: No Recent Activity (7-13 days) → L1
-        else if (daysSinceActivity >= THRESHOLDS.p5_inactive_days) {
-          const fingerprint = fp('p5_no_activity', 'project', pid);
+        } else if (daysSinceActivity >= THRESHOLDS.p5_inactive_days) {
+          const fingerprint = fpWithProject('p5_no_activity', pid, 'project', pid);
+          const severity = agentSev('P5');
           const finding = await findingManager.createFinding({
             findingType: 'anomaly',
             severity: 'medium',
@@ -451,10 +474,10 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – No Activity: ${project.project_name}`,
               actionType: 'create_task',
-              rationale: `No updates for ${daysSinceActivity} days. Project manager should review.`,
+              rationale: `No updates for ${daysSinceActivity} days.`,
               actionPayload: {
                 title: `[Agent] Project Control – No Activity: ${project.project_name} (${daysSinceActivity}d silent)`,
-                description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.\nAgent severity: warning\n\nPlease provide a status update.`,
+                description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.\nagent_severity: ${severity}\n\nPlease provide a status update.`,
                 assignedTo: assignTo,
                 priority: 'Medium',
                 category: `Project ${fingerprint}`,
@@ -474,10 +497,12 @@ export class ProjectControlAgent implements IAgent {
         const targetDate = new Date(project.target_end_date);
         const daysUntil = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         const completionPct = Number(project.wo_completion_pct || 0);
+        const pid = Number(project.id);
 
         if (daysUntil <= THRESHOLDS.p8_slippage_warning_days && daysUntil > -365 && completionPct < 90) {
           const level: 'L1' | 'L2' | 'L3' = daysUntil <= -30 ? 'L3' : daysUntil <= 0 ? 'L2' : 'L1';
-          const fingerprint = fp('p8_schedule_slip', 'project', project.id);
+          const fingerprint = fpWithProject('p8_schedule_slip', pid, 'project', pid);
+          const severity = agentSev('P8', level);
 
           const finding = await findingManager.createFinding({
             findingType: 'threshold_breach',
@@ -485,14 +510,14 @@ export class ProjectControlAgent implements IAgent {
             title: `P8 Schedule Slippage: ${project.project_name} — ${daysUntil <= 0 ? Math.abs(daysUntil) + 'd PAST deadline' : daysUntil + 'd to deadline'}, ${completionPct}% complete`,
             description: `Project "${project.project_name}" ${daysUntil <= 0 ? 'is ' + Math.abs(daysUntil) + ' days PAST its deadline' : 'is due in ' + daysUntil + ' days'} but only ${completionPct}% of work orders are completed.\nOverdue WOs: ${project.overdue_work_orders}`,
             logicType: 'rule_based',
-            dataSnapshot: { projectId: project.id, daysUntil, completionPct, overdueWOs: project.overdue_work_orders },
+            dataSnapshot: { projectId: pid, daysUntil, completionPct, overdueWOs: project.overdue_work_orders },
             relatedEntityType: 'project',
-            relatedEntityId: String(project.id),
+            relatedEntityId: String(pid),
           });
           if (!finding.isDuplicate) findingsCount++;
 
           if (!await hasOpenTask(fingerprint)) {
-            const pm = await resolveProjectManager(Number(project.id));
+            const pm = await resolveProjectManager(pid);
             const assignTo = pm || Number(project.manager_id) || gmId;
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
@@ -501,7 +526,7 @@ export class ProjectControlAgent implements IAgent {
               rationale: `Project is ${daysUntil <= 0 ? 'past its deadline' : 'approaching deadline'} with only ${completionPct}% completion.`,
               actionPayload: {
                 title: `[Agent] Project Control – Schedule Slippage: ${project.project_name} — ${daysUntil <= 0 ? Math.abs(daysUntil) + 'd OVERDUE' : daysUntil + 'd remaining'}, ${completionPct}% done`,
-                description: `Project "${project.project_name}"\nTarget end date: ${project.target_end_date}\n${daysUntil <= 0 ? 'OVERDUE by ' + Math.abs(daysUntil) + ' days' : daysUntil + ' days remaining'}\nCompletion: ${completionPct}%\nOverdue WOs: ${project.overdue_work_orders}\nAgent severity: ${agentSeverityFromLevel(level)}\n\nReview resource allocation, reprioritize work orders, and update timeline if needed.`,
+                description: `Project "${project.project_name}"\nTarget end date: ${project.target_end_date}\n${daysUntil <= 0 ? 'OVERDUE by ' + Math.abs(daysUntil) + ' days' : daysUntil + ' days remaining'}\nCompletion: ${completionPct}%\nOverdue WOs: ${project.overdue_work_orders}\nagent_severity: ${severity}\n\nReview resource allocation, reprioritize work orders, and update timeline if needed.`,
                 assignedTo: assignTo,
                 priority: priorityFromLevel(level),
                 category: `Project ${fingerprint}`,
@@ -523,15 +548,16 @@ export class ProjectControlAgent implements IAgent {
         if (daysOverdue < THRESHOLDS.p2_milestone_overdue_days) continue;
 
         const level: 'L2' | 'L3' = daysOverdue >= 60 ? 'L3' : 'L2';
-        const fingerprint = fp('p2_milestone', 'phase', phase.id);
+        const fingerprint = fpWithProject('p2_milestone', phase.project_id, 'phase', phase.id);
+        const severity = agentSev('P2', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue',
           severity: severityFromLevel(level) as any,
           title: `P2 Milestone Delayed: ${phase.phase_name} in ${phase.project_name} (${daysOverdue}d overdue)`,
-          description: `Phase "${phase.phase_name}" in project "${phase.project_name}" is ${daysOverdue} days past its target end date (${phase.target_end_date}).\nProgress: ${phase.progress || 0}%\nStatus: ${phase.status}`,
+          description: `Phase "${phase.phase_name}" (order: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past its target end date (${phase.target_end_date}).\nProgress: ${phase.progress || 0}%\nStatus: ${phase.status}`,
           logicType: 'rule_based',
-          dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysOverdue, progress: phase.progress },
+          dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysOverdue, progress: phase.progress, phaseOrder: phase.order },
           relatedEntityType: 'project_phase',
           relatedEntityId: String(phase.id),
         });
@@ -547,10 +573,10 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name}`,
             actionType: 'create_task',
-            rationale: `Phase "${phase.phase_name}" is ${daysOverdue} days past target. Needs immediate attention.`,
+            rationale: `Phase "${phase.phase_name}" is ${daysOverdue} days past target.`,
             actionPayload: {
               title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name} in ${phase.project_name} (${daysOverdue}d overdue)`,
-              description: `Phase "${phase.phase_name}" in project "${phase.project_name}" is ${daysOverdue} days past target end date.\nTarget: ${phase.target_end_date}\nProgress: ${phase.progress || 0}%\nAgent severity: ${agentSeverityFromLevel(level)}\n\nReview phase status and take corrective action.`,
+              description: `Phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past target end date.\nTarget: ${phase.target_end_date}\nProgress: ${phase.progress || 0}%\nagent_severity: ${severity}\n\nReview phase status and take corrective action.`,
               assignedTo: assignTo,
               priority: priorityFromLevel(level),
               category: `Project ${fingerprint}`,
@@ -563,14 +589,7 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── P4: Dependency Blocking (earlier phase incomplete blocking later phase) ──
-      const phasesByProject: Record<number, any[]> = {};
-      for (const p of phases) {
-        const pid = Number(p.project_id);
-        if (!phasesByProject[pid]) phasesByProject[pid] = [];
-        phasesByProject[pid].push(p);
-      }
-
+      // ── P4: Dependency Blocking (phase sequence order based) ──
       for (const [pidStr, projectPhases] of Object.entries(phasesByProject)) {
         const sorted = projectPhases.sort((a: any, b: any) => Number(a.order) - Number(b.order));
         for (let i = 1; i < sorted.length; i++) {
@@ -580,14 +599,15 @@ export class ProjectControlAgent implements IAgent {
             const prevTarget = new Date(prev.target_end_date);
             const daysOverdue = Math.floor((Date.now() - prevTarget.getTime()) / (1000 * 60 * 60 * 24));
             if (daysOverdue > 0) {
-              const fingerprint = fp('p4_dependency', 'phase', `${prev.id}_${curr.id}`);
+              const fingerprint = fpWithProject('p4_dependency', prev.project_id, 'phase', `${prev.id}_${curr.id}`);
+              const severity = agentSev('P4');
               const finding = await findingManager.createFinding({
                 findingType: 'anomaly',
                 severity: 'medium',
-                title: `P4 Dependency Blocking: ${prev.phase_name} blocking ${curr.phase_name} in ${prev.project_name}`,
-                description: `Phase "${prev.phase_name}" (target: ${prev.target_end_date}) is incomplete and blocking "${curr.phase_name}" in project "${prev.project_name}".`,
+                title: `P4 Dependency Blocking: ${prev.phase_name} (seq ${prev.order}) blocking ${curr.phase_name} (seq ${curr.order}) in ${prev.project_name}`,
+                description: `Phase "${prev.phase_name}" (sequence order: ${prev.order}, target: ${prev.target_end_date}) is incomplete and blocking "${curr.phase_name}" (sequence order: ${curr.order}) in project "${prev.project_name}".`,
                 logicType: 'derived',
-                dataSnapshot: { prevPhaseId: prev.id, currPhaseId: curr.id, projectId: prev.project_id },
+                dataSnapshot: { prevPhaseId: prev.id, currPhaseId: curr.id, projectId: prev.project_id, prevOrder: prev.order, currOrder: curr.order },
                 relatedEntityType: 'project_phase',
                 relatedEntityId: String(prev.id),
               });
@@ -603,10 +623,10 @@ export class ProjectControlAgent implements IAgent {
                   findingId: finding.id || finding.findingId,
                   title: `[Agent] Project Control – Phase Blocking: ${prev.phase_name} → ${curr.phase_name}`,
                   actionType: 'create_task',
-                  rationale: `Phase "${prev.phase_name}" is overdue and blocking "${curr.phase_name}".`,
+                  rationale: `Phase "${prev.phase_name}" (seq ${prev.order}) is overdue and blocking "${curr.phase_name}" (seq ${curr.order}).`,
                   actionPayload: {
                     title: `[Agent] Project Control – Phase Blocking: ${prev.phase_name} blocking ${curr.phase_name} in ${prev.project_name}`,
-                    description: `Phase "${prev.phase_name}" (target: ${prev.target_end_date}) in project "${prev.project_name}" is incomplete and blocking the next phase "${curr.phase_name}".\nAgent severity: warning\n\nComplete or unblock the predecessor phase.`,
+                    description: `Phase "${prev.phase_name}" (sequence: ${prev.order}, target: ${prev.target_end_date}) in project "${prev.project_name}" is incomplete and blocking the next phase "${curr.phase_name}" (sequence: ${curr.order}).\nagent_severity: ${severity}\n\nComplete or unblock the predecessor phase.`,
                     assignedTo: assignTo,
                     priority: 'Medium',
                     category: `Project ${fingerprint}`,
@@ -643,9 +663,9 @@ export class ProjectControlAgent implements IAgent {
         const daysUntil = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
         if (daysUntil < 0) {
-          // P7: Commitment Overdue → L2
           const daysOverdue = Math.abs(daysUntil);
-          const fingerprint = fp('p7_commitment_overdue', 'task', task.id);
+          const fingerprint = fpWithProject('p7_commitment_overdue', task.project_id, 'task', task.id);
+          const severity = agentSev('P7');
           const finding = await findingManager.createFinding({
             findingType: 'overdue',
             severity: 'high',
@@ -668,7 +688,7 @@ export class ProjectControlAgent implements IAgent {
               rationale: `Project commitment is ${daysOverdue} days overdue.`,
               actionPayload: {
                 title: `[Agent] Project Control – Commitment Overdue: ${task.title} (${daysOverdue}d late)`,
-                description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nAgent severity: risk`,
+                description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nagent_severity: ${severity}`,
                 assignedTo: assignTo,
                 priority: 'High',
                 category: `Project ${fingerprint}`,
@@ -680,8 +700,8 @@ export class ProjectControlAgent implements IAgent {
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
           }
         } else if (daysUntil <= THRESHOLDS.p6_commitment_warning_days) {
-          // P6: Commitment Nearing Due → L1
-          const fingerprint = fp('p6_commitment_due', 'task', task.id);
+          const fingerprint = fpWithProject('p6_commitment_due', task.project_id, 'task', task.id);
+          const severity = agentSev('P6');
           const finding = await findingManager.createFinding({
             findingType: 'threshold_breach',
             severity: 'medium',
@@ -703,7 +723,7 @@ export class ProjectControlAgent implements IAgent {
               rationale: `Project commitment due in ${daysUntil} days.`,
               actionPayload: {
                 title: `[Agent] Project Control – Commitment Due Soon: ${task.title} (${daysUntil}d left)`,
-                description: `Task "${task.title}" linked to project "${task.project_name}" is due in ${daysUntil} days.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nAgent severity: warning`,
+                description: `Task "${task.title}" linked to project "${task.project_name}" is due in ${daysUntil} days.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nagent_severity: ${severity}`,
                 assignedTo: assignTo,
                 priority: 'Medium',
                 category: `Project ${fingerprint}`,
@@ -717,26 +737,29 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── P9: Critical Path Delay ──
-      const criticalPhases = ['Manufacturing', 'Quality', 'Shipping & Commissioning'];
+      // ── P9: Critical Path Delay (phase sequence order based) ──
+      const criticalPhaseNames = ['Manufacturing', 'Quality', 'Shipping & Commissioning'];
       for (const [pidStr, projectPhases] of Object.entries(phasesByProject)) {
         const sorted = projectPhases.sort((a: any, b: any) => Number(a.order) - Number(b.order));
         for (const phase of sorted) {
-          if (!criticalPhases.includes(phase.phase_name)) continue;
-          const idx = sorted.indexOf(phase);
-          const predecessorsIncomplete = sorted.slice(0, idx).some((p: any) => p.status !== 'completed');
+          if (!criticalPhaseNames.includes(phase.phase_name)) continue;
+          const phaseOrder = Number(phase.order);
+          const predecessorsIncomplete = sorted
+            .filter((p: any) => Number(p.order) < phaseOrder)
+            .some((p: any) => p.status !== 'completed');
           if (predecessorsIncomplete && phase.target_end_date) {
             const targetDate = new Date(phase.target_end_date);
             const daysUntil = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             if (daysUntil <= 30) {
-              const fingerprint = fp('p9_critical_path', 'phase', phase.id);
+              const fingerprint = fpWithProject('p9_critical_path', phase.project_id, 'phase', phase.id);
+              const severity = agentSev('P9');
               const finding = await findingManager.createFinding({
                 findingType: 'threshold_breach',
                 severity: 'critical',
-                title: `P9 Critical Path Delay: ${phase.phase_name} in ${phase.project_name} — predecessors incomplete`,
-                description: `Critical phase "${phase.phase_name}" in project "${phase.project_name}" has predecessor phases still incomplete. Target: ${phase.target_end_date} (${daysUntil <= 0 ? Math.abs(daysUntil) + 'd PAST' : daysUntil + 'd remaining'}).`,
+                title: `P9 Critical Path Delay: ${phase.phase_name} (seq ${phase.order}) in ${phase.project_name} — predecessors incomplete`,
+                description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete. Target: ${phase.target_end_date} (${daysUntil <= 0 ? Math.abs(daysUntil) + 'd PAST' : daysUntil + 'd remaining'}).`,
                 logicType: 'derived',
-                dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysUntil },
+                dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysUntil, phaseOrder: phase.order },
                 relatedEntityType: 'project_phase',
                 relatedEntityId: String(phase.id),
               });
@@ -749,10 +772,10 @@ export class ProjectControlAgent implements IAgent {
                   findingId: finding.id || finding.findingId,
                   title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name}`,
                   actionType: 'create_task',
-                  rationale: `Critical phase blocked by incomplete predecessors. Requires management intervention.`,
+                  rationale: `Critical phase blocked by incomplete predecessors.`,
                   actionPayload: {
                     title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name} in ${phase.project_name}`,
-                    description: `Critical phase "${phase.phase_name}" in project "${phase.project_name}" has predecessor phases still incomplete.\nTarget: ${phase.target_end_date}\nAgent severity: critical\n\nRequires immediate management review and intervention.`,
+                    description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete.\nTarget: ${phase.target_end_date}\nagent_severity: ${severity}\n\nRequires immediate management review and intervention.`,
                     assignedTo: assignTo,
                     priority: 'Critical',
                     category: `Project ${fingerprint}`,
@@ -768,29 +791,41 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── P10: Resource Overload ──
+      // ── P10: Resource Overload (weighted load score) ──
       const resourceRows = await db.execute(sql`
         SELECT u.id as user_id, u.username, u.reporting_manager_id,
-          (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','cancelled')) as open_wos,
-          (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status NOT IN ('completed','cancelled')) as open_tasks
+          (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','cancelled'))::int as open_wos,
+          (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status NOT IN ('completed','cancelled'))::int as open_tasks,
+          (SELECT COUNT(*) FROM design_drawings dd WHERE dd.assigned_to_id = u.id AND dd.status NOT IN ('Approved','Issued','Superseded'))::int as open_drawings,
+          (SELECT COUNT(*) FROM purchase_orders po WHERE po.created_by = u.id AND po.status NOT IN ('completed','cancelled','delivered'))::int as open_procurement
         FROM users u
         WHERE u.is_active = true
-        HAVING (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','cancelled'))
-             + (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status NOT IN ('completed','cancelled')) > ${THRESHOLDS.p10_overload_open_items}
       `);
       queriesRun++;
 
       for (const user of (resourceRows.rows || []) as any[]) {
-        const totalItems = Number(user.open_wos) + Number(user.open_tasks);
-        const fingerprint = fp('p10_overload', 'user', user.user_id);
+        const openTasks = Number(user.open_tasks || 0);
+        const openWOs = Number(user.open_wos || 0);
+        const openDrawings = Number(user.open_drawings || 0);
+        const openProcurement = Number(user.open_procurement || 0);
+
+        const weightedLoad =
+          ((openTasks + openWOs) * 1.0) +
+          (openDrawings * 1.2) +
+          (openProcurement * 1.0);
+
+        if (weightedLoad < THRESHOLDS.p10_weighted_load_threshold) continue;
+
+        const fingerprint = fpGlobal('p10_overload', 'user', user.user_id);
+        const severity = agentSev('P10');
 
         const finding = await findingManager.createFinding({
           findingType: 'threshold_breach',
           severity: 'medium',
-          title: `P10 Resource Overload: ${user.username} — ${totalItems} open items`,
-          description: `User "${user.username}" has ${user.open_wos} open work orders and ${user.open_tasks} open tasks (total: ${totalItems}). May cause delays.`,
+          title: `P10 Resource Overload: ${user.username} — load score ${weightedLoad.toFixed(1)}`,
+          description: `User "${user.username}" weighted load score is ${weightedLoad.toFixed(1)} (threshold: ${THRESHOLDS.p10_weighted_load_threshold}).\nBreakdown: ${openTasks} tasks (×1.0) + ${openWOs} WOs (×1.0) + ${openDrawings} drawings (×1.2) + ${openProcurement} procurement (×1.0)`,
           logicType: 'proxy',
-          dataSnapshot: { userId: user.user_id, openWOs: user.open_wos, openTasks: user.open_tasks },
+          dataSnapshot: { userId: user.user_id, weightedLoad, openTasks, openWOs, openDrawings, openProcurement },
           relatedEntityType: 'user',
           relatedEntityId: String(user.user_id),
         });
@@ -802,10 +837,10 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Resource Overload: ${user.username}`,
             actionType: 'create_task',
-            rationale: `User has ${totalItems} open items. Review workload distribution.`,
+            rationale: `Weighted load score ${weightedLoad.toFixed(1)} exceeds threshold.`,
             actionPayload: {
-              title: `[Agent] Project Control – Resource Overload: ${user.username} (${totalItems} open items)`,
-              description: `User "${user.username}" has ${user.open_wos} open work orders and ${user.open_tasks} open tasks.\nTotal: ${totalItems} open items\nAgent severity: warning\n\nReview workload and redistribute if necessary.`,
+              title: `[Agent] Project Control – Resource Overload: ${user.username} (load: ${weightedLoad.toFixed(1)})`,
+              description: `User "${user.username}" weighted load score: ${weightedLoad.toFixed(1)}\nTasks: ${openTasks} (×1.0), WOs: ${openWOs} (×1.0), Drawings: ${openDrawings} (×1.2), Procurement: ${openProcurement} (×1.0)\nagent_severity: ${severity}\n\nReview workload and redistribute if necessary.`,
               assignedTo: assignTo,
               priority: 'Medium',
               category: `Project ${fingerprint}`,
@@ -818,37 +853,67 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── P12: Project Health Deterioration ──
+      // ── P12: Project Health Deterioration (weighted formula with bands) ──
       for (const project of projects) {
-        const overdueWOs = Number(project.overdue_work_orders || 0);
+        const pid = Number(project.id);
         const totalWOs = Number(project.total_work_orders || 0);
-        const completionPct = Number(project.wo_completion_pct || 0);
         if (totalWOs === 0) continue;
 
-        const overduePct = totalWOs > 0 ? (overdueWOs / totalWOs) * 100 : 0;
-        const pid = Number(project.id);
+        const overdueWOs = Number(project.overdue_work_orders || 0);
+        const completionPct = Number(project.wo_completion_pct || 0);
         const projectWOsList = wosByProject[pid] || [];
         const maxInactiveDays = projectWOsList.length > 0
           ? Math.max(...projectWOsList.map((w: any) => Number(w.days_since_update || 0)))
           : 0;
 
         const projectPhases = phasesByProject[pid] || [];
+        const totalPhases = projectPhases.length || 1;
         const delayedPhases = projectPhases.filter((p: any) =>
           p.target_end_date && p.status !== 'completed' &&
           new Date(p.target_end_date).getTime() < Date.now()
         ).length;
 
-        const healthScore = Math.max(0, 100 - overduePct - (maxInactiveDays * 2) - (delayedPhases * 10));
+        const projectKS = keyStagesByProject[pid] || [];
+        const totalKS = projectKS.length || 1;
+        const completedKS = projectKS.filter((ks: any) => ks.is_completed).length;
 
-        if (healthScore < THRESHOLDS.p12_health_threshold) {
-          const fingerprint = fp('p12_health', 'project', pid);
+        const overdueTaskScore = Math.max(0, 100 - (overdueWOs / totalWOs) * 100);
+        const designDelayScore = (() => {
+          const designDrawingsResult = projectWOsList.length > 0 ? completionPct : 100;
+          return designDrawingsResult;
+        })();
+        const procurementDelayScore = 100;
+        const inactivityScore = Math.max(0, 100 - (maxInactiveDays * 3));
+        const milestoneScore = Math.max(0, 100 - (delayedPhases / totalPhases) * 100);
+
+        const healthScore =
+          (overdueTaskScore * 0.25) +
+          (designDelayScore * 0.20) +
+          (procurementDelayScore * 0.25) +
+          (inactivityScore * 0.15) +
+          (milestoneScore * 0.15);
+
+        const band = healthBand(healthScore);
+
+        if (band === 'Red' || band === 'Amber') {
+          const findingSeverity = band === 'Red' ? 'critical' : 'high';
+          const fingerprint = fpWithProject('p12_health', pid, 'project', pid);
+          const severity = agentSev('P12');
+
           const finding = await findingManager.createFinding({
             findingType: 'threshold_breach',
-            severity: 'critical',
-            title: `P12 Health Alert: ${project.project_name} (score: ${Math.round(healthScore)})`,
-            description: `Project "${project.project_name}" health score is ${Math.round(healthScore)}/100.\nOverdue WOs: ${overdueWOs}/${totalWOs} (${Math.round(overduePct)}%)\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nCompletion: ${completionPct}%`,
+            severity: findingSeverity as any,
+            title: `P12 Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}, band: ${band})`,
+            description: `Project "${project.project_name}" health score is ${Math.round(healthScore)}/100 (${band}).\nWeighted breakdown:\n  Overdue Tasks (25%): ${Math.round(overdueTaskScore)} — ${overdueWOs}/${totalWOs} overdue\n  Design Delays (20%): ${Math.round(designDelayScore)}\n  Procurement Delays (25%): ${Math.round(procurementDelayScore)}\n  Inactivity (15%): ${Math.round(inactivityScore)} — ${maxInactiveDays}d max\n  Milestone Risk (15%): ${Math.round(milestoneScore)} — ${delayedPhases}/${totalPhases} delayed\nCompletion: ${completionPct}%`,
             logicType: 'derived',
-            dataSnapshot: { projectId: pid, healthScore, overduePct, maxInactiveDays, delayedPhases, completionPct },
+            dataSnapshot: {
+              projectId: pid, healthScore: Math.round(healthScore), band,
+              overdueTaskScore: Math.round(overdueTaskScore),
+              designDelayScore: Math.round(designDelayScore),
+              procurementDelayScore: Math.round(procurementDelayScore),
+              inactivityScore: Math.round(inactivityScore),
+              milestoneScore: Math.round(milestoneScore),
+            },
             relatedEntityType: 'project',
             relatedEntityId: String(pid),
           });
@@ -857,18 +922,18 @@ export class ProjectControlAgent implements IAgent {
           if (!await hasOpenTask(fingerprint)) {
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
-              title: `[Agent] Project Control – Health Alert: ${project.project_name}`,
+              title: `[Agent] Project Control – Health Alert: ${project.project_name} (${band})`,
               actionType: 'create_task',
-              rationale: `Project health score (${Math.round(healthScore)}) is below threshold. Requires management review.`,
+              rationale: `Project health score (${Math.round(healthScore)}, ${band}) requires management review.`,
               actionPayload: {
-                title: `[Agent] Project Control – Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}/100)`,
-                description: `Project "${project.project_name}" health score is critically low.\nScore: ${Math.round(healthScore)}/100\nOverdue WOs: ${overdueWOs}/${totalWOs}\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nAgent severity: critical\n\nRequires immediate management review.`,
+                title: `[Agent] Project Control – Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}/100, ${band})`,
+                description: `Project "${project.project_name}" health score: ${Math.round(healthScore)}/100 (${band})\nOverdue Tasks: ${overdueWOs}/${totalWOs}\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nagent_severity: ${severity}\n\nRequires immediate management review.`,
                 assignedTo: gmId,
-                priority: 'Critical',
+                priority: band === 'Red' ? 'Critical' : 'High',
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
-              priority: 'critical',
+              priority: findingSeverity as any,
               confidence: 0.9,
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
@@ -882,9 +947,9 @@ export class ProjectControlAgent implements IAgent {
 
     // ════════════════════════════════════════════════════════════════════════
     // MODULE 2: DESIGN MANAGEMENT (D1–D10)
+    // Grouped queries for design data
     // ════════════════════════════════════════════════════════════════════════
     try {
-      // ── Grouped design query ──
       const drawingRows = await db.execute(sql`
         SELECT dd.id, dd.drawing_number, dd.drawing_title, dd.status, dd.due_date,
           dd.assigned_to_id, dd.category, dd.current_revision, dd.client_approval_required,
@@ -946,7 +1011,8 @@ export class ProjectControlAgent implements IAgent {
         if (daysOverdue < 1) continue;
 
         const level: 'L1' | 'L2' = daysOverdue >= 30 ? 'L2' : 'L1';
-        const fingerprint = fp('d1_drawing_overdue', 'drawing', d.id);
+        const fingerprint = fpWithProject('d1_drawing_overdue', d.parent_project_id, 'drawing', d.id);
+        const severity = agentSev('D1', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue',
@@ -954,7 +1020,7 @@ export class ProjectControlAgent implements IAgent {
           title: `D1 Drawing Overdue: ${d.drawing_number || d.drawing_title} (${daysOverdue}d)`,
           description: `Drawing "${d.drawing_title}" (${d.drawing_number || ''}) in project "${d.design_project_name || ''}" is ${daysOverdue} days past due date.\nAssigned to: ${d.assignee_name || 'Unassigned'}\nStatus: ${d.status}`,
           logicType: 'rule_based',
-          dataSnapshot: { drawingId: d.id, daysOverdue },
+          dataSnapshot: { drawingId: d.id, daysOverdue, projectId: d.parent_project_id },
           relatedEntityType: 'design_drawing',
           relatedEntityId: String(d.id),
         });
@@ -973,7 +1039,7 @@ export class ProjectControlAgent implements IAgent {
             rationale: `Drawing is ${daysOverdue} days past due date.`,
             actionPayload: {
               title: `[Agent] Project Control – Drawing Overdue: ${d.drawing_number || ''} — "${d.drawing_title}" (${daysOverdue}d)`,
-              description: `Drawing "${d.drawing_title}" (${d.drawing_number || ''}) in project "${d.design_project_name || ''}" is ${daysOverdue} days overdue.\nDue date: ${d.due_date}\nAssigned to: ${d.assignee_name || 'Unassigned'}\nStatus: ${d.status}\nAgent severity: ${agentSeverityFromLevel(level)}`,
+              description: `Drawing "${d.drawing_title}" (${d.drawing_number || ''}) in project "${d.design_project_name || ''}" is ${daysOverdue} days overdue.\nDue date: ${d.due_date}\nAssigned to: ${d.assignee_name || 'Unassigned'}\nStatus: ${d.status}\nagent_severity: ${severity}`,
               assignedTo: assignTo,
               priority: priorityFromLevel(level),
               category: `Design ${fingerprint}`,
@@ -986,19 +1052,18 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── D2: Drawing Stuck in Review (10+ days) ──
+      // ── D2: Drawing Stuck in Review ──
       for (const r of reviews) {
         if (!['Pending', 'In Progress'].includes(r.status)) continue;
-        const createdDate = r.created_at ? new Date(r.created_at) : null;
-        const dueDate = r.due_date ? new Date(r.due_date) : null;
-        const refDate = dueDate || createdDate;
+        const refDate = r.due_date ? new Date(r.due_date) : (r.created_at ? new Date(r.created_at) : null);
         if (!refDate) continue;
 
         const daysInReview = Math.floor((Date.now() - refDate.getTime()) / (1000 * 60 * 60 * 24));
         if (daysInReview < THRESHOLDS.d2_review_stuck_days) continue;
 
         const level: 'L1' | 'L2' = daysInReview >= 21 ? 'L2' : 'L1';
-        const fingerprint = fp('d2_stuck_review', 'review', r.id);
+        const fingerprint = fpWithProject('d2_stuck_review', r.parent_project_id, 'review', r.id);
+        const severity = agentSev('D2', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue',
@@ -1006,7 +1071,7 @@ export class ProjectControlAgent implements IAgent {
           title: `D2 Drawing Stuck in Review: ${r.review_title} (${daysInReview}d)`,
           description: `Review "${r.review_title}" for drawing ${r.drawing_number || ''} ("${r.drawing_title || ''}") has been in "${r.status}" status for ${daysInReview} days.\nReviewer: ${r.reviewer_name || 'Unassigned'}\nProject: ${r.design_project_name || ''}`,
           logicType: 'rule_based',
-          dataSnapshot: { reviewId: r.id, daysInReview, reviewerName: r.reviewer_name },
+          dataSnapshot: { reviewId: r.id, daysInReview, projectId: r.parent_project_id },
           relatedEntityType: 'design_review',
           relatedEntityId: String(r.id),
         });
@@ -1025,7 +1090,7 @@ export class ProjectControlAgent implements IAgent {
             rationale: `Review has been pending for ${daysInReview} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Drawing Stuck in Review: ${r.review_title} (${daysInReview}d)`,
-              description: `Review "${r.review_title}" for drawing ${r.drawing_number || ''} has been pending for ${daysInReview} days.\nReviewer: ${r.reviewer_name || 'Unassigned'}\nProject: ${r.design_project_name || ''}\nAgent severity: ${agentSeverityFromLevel(level)}`,
+              description: `Review "${r.review_title}" for drawing ${r.drawing_number || ''} has been pending for ${daysInReview} days.\nReviewer: ${r.reviewer_name || 'Unassigned'}\nProject: ${r.design_project_name || ''}\nagent_severity: ${severity}`,
               assignedTo: assignTo,
               priority: priorityFromLevel(level),
               category: `Design ${fingerprint}`,
@@ -1038,7 +1103,7 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── D3: Review Comments Not Closed (7+ days) ──
+      // ── D3: Review Comments Not Closed ──
       for (const r of reviews) {
         if (r.status !== 'Approved with Comments') continue;
         const completedDate = r.completed_date ? new Date(r.completed_date) : (r.updated_at ? new Date(r.updated_at) : null);
@@ -1047,25 +1112,22 @@ export class ProjectControlAgent implements IAgent {
         const daysSince = Math.floor((Date.now() - completedDate.getTime()) / (1000 * 60 * 60 * 24));
         if (daysSince < THRESHOLDS.d3_comments_pending_days) continue;
 
-        const fingerprint = fp('d3_comments_open', 'review', r.id);
+        const fingerprint = fpWithProject('d3_comments_open', r.parent_project_id, 'review', r.id);
+        const severity = agentSev('D3');
         const finding = await findingManager.createFinding({
           findingType: 'anomaly',
           severity: 'medium',
           title: `D3 Review Comments Not Closed: ${r.review_title} (${daysSince}d pending)`,
           description: `Review "${r.review_title}" was approved with comments ${daysSince} days ago but comments remain open.\nDrawing: ${r.drawing_number || ''}\nProject: ${r.design_project_name || ''}`,
           logicType: 'rule_based',
-          dataSnapshot: { reviewId: r.id, daysSince },
+          dataSnapshot: { reviewId: r.id, daysSince, projectId: r.parent_project_id },
           relatedEntityType: 'design_review',
           relatedEntityId: String(r.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            r.reviewer_id ? Number(r.reviewer_id) : null,
-            r.parent_project_id ? Number(r.parent_project_id) : null,
-            'Design'
-          );
+          const assignTo = await resolveAssignment(r.reviewer_id ? Number(r.reviewer_id) : null, r.parent_project_id ? Number(r.parent_project_id) : null, 'Design');
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Review Comments Open: ${r.review_title}`,
@@ -1073,36 +1135,30 @@ export class ProjectControlAgent implements IAgent {
             rationale: `Review comments pending for ${daysSince} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Review Comments Open: ${r.review_title} (${daysSince}d pending)`,
-              description: `Review "${r.review_title}" was approved with comments but comments remain open for ${daysSince} days.\nDrawing: ${r.drawing_number || ''}\nProject: ${r.design_project_name || ''}\nAgent severity: warning`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Design ${fingerprint}`,
+              description: `Review "${r.review_title}" was approved with comments but comments remain open for ${daysSince} days.\nDrawing: ${r.drawing_number || ''}\nProject: ${r.design_project_name || ''}\nagent_severity: ${severity}`,
+              assignedTo: assignTo, priority: 'Medium', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── D4: Client Approval Pending (14+ days) ──
+      // ── D4: Client Approval Pending ──
       for (const d of drawings) {
         if (!d.client_approval_required || d.client_approved_date) continue;
-        const createdDate = new Date(d.created_at);
-        const daysPending = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysPending = Math.floor((Date.now() - new Date(d.created_at).getTime()) / (1000 * 60 * 60 * 24));
         if (daysPending < THRESHOLDS.d4_client_approval_days) continue;
 
-        const fingerprint = fp('d4_client_approval', 'drawing', d.id);
+        const fingerprint = fpWithProject('d4_client_approval', d.parent_project_id, 'drawing', d.id);
+        const severity = agentSev('D4');
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: 'high',
+          findingType: 'overdue', severity: 'high',
           title: `D4 Client Approval Pending: ${d.drawing_number || d.drawing_title} (${daysPending}d)`,
           description: `Drawing "${d.drawing_title}" requires client approval pending for ${daysPending} days.\nProject: ${d.design_project_name || ''}`,
           logicType: 'rule_based',
-          dataSnapshot: { drawingId: d.id, daysPending },
-          relatedEntityType: 'design_drawing',
-          relatedEntityId: String(d.id),
+          dataSnapshot: { drawingId: d.id, daysPending, projectId: d.parent_project_id },
+          relatedEntityType: 'design_drawing', relatedEntityId: String(d.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1112,24 +1168,19 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Client Approval Pending: ${d.drawing_number || d.drawing_title}`,
-            actionType: 'create_task',
-            rationale: `Client approval pending for ${daysPending} days.`,
+            actionType: 'create_task', rationale: `Client approval pending for ${daysPending} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Client Approval Pending: ${d.drawing_number || ''} — "${d.drawing_title}" (${daysPending}d)`,
-              description: `Drawing "${d.drawing_title}" requires client approval pending for ${daysPending} days.\nProject: ${d.design_project_name || ''}\nAgent severity: risk\n\nFollow up with client for approval.`,
-              assignedTo: assignTo,
-              priority: 'High',
-              category: `Design ${fingerprint}`,
+              description: `Drawing "${d.drawing_title}" requires client approval pending for ${daysPending} days.\nProject: ${d.design_project_name || ''}\nagent_severity: ${severity}\n\nFollow up with client for approval.`,
+              assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'high',
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: 'high', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── D5: Revision Delay (latest version stale 14+ days, drawing not approved) ──
+      // ── D5: Revision Delay ──
       const latestVersionByDrawing: Record<number, any> = {};
       for (const v of drawingVersions) {
         const did = Number(v.drawing_id);
@@ -1142,49 +1193,41 @@ export class ProjectControlAgent implements IAgent {
         const daysSinceVersion = Math.floor((Date.now() - new Date(latestVer.created_at).getTime()) / (1000 * 60 * 60 * 24));
         if (daysSinceVersion < THRESHOLDS.d5_revision_stale_days) continue;
 
-        const fingerprint = fp('d5_revision_delay', 'drawing', d.id);
+        const fingerprint = fpWithProject('d5_revision_delay', d.parent_project_id, 'drawing', d.id);
+        const severity = agentSev('D5');
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: 'medium',
+          findingType: 'anomaly', severity: 'medium',
           title: `D5 Revision Delayed: ${d.drawing_number || d.drawing_title} Rev ${latestVer.revision} (${daysSinceVersion}d stale)`,
           description: `Drawing "${d.drawing_title}" latest revision (${latestVer.revision}) was created ${daysSinceVersion} days ago and drawing is still not approved.\nProject: ${d.design_project_name || ''}`,
           logicType: 'rule_based',
-          dataSnapshot: { drawingId: d.id, revision: latestVer.revision, daysSinceVersion },
-          relatedEntityType: 'design_drawing',
-          relatedEntityId: String(d.id),
+          dataSnapshot: { drawingId: d.id, revision: latestVer.revision, daysSinceVersion, projectId: d.parent_project_id },
+          relatedEntityType: 'design_drawing', relatedEntityId: String(d.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            d.assigned_to_id ? Number(d.assigned_to_id) : null,
-            d.parent_project_id ? Number(d.parent_project_id) : null,
-            'Design'
-          );
+          const assignTo = await resolveAssignment(d.assigned_to_id ? Number(d.assigned_to_id) : null, d.parent_project_id ? Number(d.parent_project_id) : null, 'Design');
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Revision Delayed: ${d.drawing_number || d.drawing_title}`,
-            actionType: 'create_task',
-            rationale: `Latest revision is ${daysSinceVersion} days old with no new version issued.`,
+            actionType: 'create_task', rationale: `Latest revision is ${daysSinceVersion} days old.`,
             actionPayload: {
               title: `[Agent] Project Control – Revision Delayed: ${d.drawing_number || ''} Rev ${latestVer.revision} (${daysSinceVersion}d stale)`,
-              description: `Drawing "${d.drawing_title}" latest revision (${latestVer.revision}) is ${daysSinceVersion} days old.\nProject: ${d.design_project_name || ''}\nAgent severity: warning\n\nReview and issue updated revision if needed.`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Design ${fingerprint}`,
+              description: `Drawing "${d.drawing_title}" latest revision (${latestVer.revision}) is ${daysSinceVersion} days old.\nProject: ${d.design_project_name || ''}\nagent_severity: ${severity}\n\nReview and issue updated revision if needed.`,
+              assignedTo: assignTo, priority: 'Medium', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.8,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── D6 & D7: IFC/AFC Drawing Delayed (proxy from key stages) ──
+      // ── D6 & D7: IFC/AFC Drawing Delayed (proxy from key stages + phase target) ──
       const ifcAfcStages = (await db.execute(sql`
         SELECT ks.id, ks.project_id, ks.stage_name, ks.phase, ks.is_completed,
-          pp.target_end_date, p.name as project_name, p.manager_id
+          ks.stage_number,
+          pp.target_end_date, pp."order" as phase_order,
+          p.name as project_name, p.manager_id
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
         LEFT JOIN project_phases pp ON pp.project_id = ks.project_id AND pp.name = ks.phase
@@ -1200,19 +1243,18 @@ export class ProjectControlAgent implements IAgent {
         if (daysOverdue <= 0) continue;
 
         const isIFC = stage.stage_name.toUpperCase().includes('IFC');
-        const findingId = isIFC ? 'd6_ifc_delayed' : 'd7_afc_delayed';
-        const findingName = isIFC ? 'D6 IFC Delayed' : 'D7 AFC Delayed';
-        const fingerprint = fp(findingId, 'stage', stage.id);
+        const findingCode = isIFC ? 'D6' : 'D7';
+        const fpType = isIFC ? 'd6_ifc_delayed' : 'd7_afc_delayed';
+        const fingerprint = fpWithProject(fpType, stage.project_id, 'stage', stage.id);
+        const severity = agentSev(findingCode);
 
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: 'high',
-          title: `${findingName}: ${stage.stage_name} in ${stage.project_name} (${daysOverdue}d)`,
-          description: `Key stage "${stage.stage_name}" in project "${stage.project_name}" is ${daysOverdue} days past design phase target.\nPhase target: ${stage.target_end_date}`,
+          findingType: 'overdue', severity: 'high',
+          title: `${findingCode} ${isIFC ? 'IFC' : 'AFC'} Delayed: ${stage.stage_name} in ${stage.project_name} (${daysOverdue}d)`,
+          description: `Key stage "${stage.stage_name}" (stage #${stage.stage_number}) in project "${stage.project_name}" is ${daysOverdue} days past Design phase target (${stage.target_end_date}).`,
           logicType: 'proxy',
-          dataSnapshot: { stageId: stage.id, projectId: stage.project_id, daysOverdue },
-          relatedEntityType: 'project_key_stage',
-          relatedEntityId: String(stage.id),
+          dataSnapshot: { stageId: stage.id, projectId: stage.project_id, daysOverdue, stageNumber: stage.stage_number, phaseOrder: stage.phase_order },
+          relatedEntityType: 'project_key_stage', relatedEntityId: String(stage.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1222,18 +1264,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – ${isIFC ? 'IFC' : 'AFC'} Delayed: ${stage.project_name}`,
-            actionType: 'create_task',
-            rationale: `${isIFC ? 'IFC' : 'AFC'} stage is ${daysOverdue} days past target.`,
+            actionType: 'create_task', rationale: `${isIFC ? 'IFC' : 'AFC'} stage is ${daysOverdue} days past target.`,
             actionPayload: {
               title: `[Agent] Project Control – ${isIFC ? 'IFC Drawing' : 'AFC Drawing'} Delayed: ${stage.stage_name} in ${stage.project_name} (${daysOverdue}d)`,
-              description: `Key stage "${stage.stage_name}" in project "${stage.project_name}" is ${daysOverdue} days overdue.\nPhase target: ${stage.target_end_date}\nAgent severity: risk\n\nExpedite ${isIFC ? 'IFC' : 'AFC'} release.`,
-              assignedTo: assignTo,
-              priority: 'High',
-              category: `Design ${fingerprint}`,
+              description: `Key stage "${stage.stage_name}" in project "${stage.project_name}" is ${daysOverdue} days overdue.\nPhase target: ${stage.target_end_date}\nagent_severity: ${severity}\n\nExpedite ${isIFC ? 'IFC' : 'AFC'} release.`,
+              assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'high',
-            confidence: 0.8,
+            actionCategory: 'task_creation', priority: 'high', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1242,19 +1279,17 @@ export class ProjectControlAgent implements IAgent {
       // ── D9: Design Backlog ──
       for (const dp of designProjects) {
         const openDrawings = Number(dp.open_drawings || 0);
-        const progress = Number(dp.overall_progress || 0);
         if (openDrawings < THRESHOLDS.d9_backlog_threshold) continue;
 
-        const fingerprint = fp('d9_backlog', 'dp', dp.id);
+        const fingerprint = fpWithProject('d9_backlog', dp.project_id, 'dp', dp.id);
+        const severity = agentSev('D9');
         const finding = await findingManager.createFinding({
-          findingType: 'threshold_breach',
-          severity: 'high',
+          findingType: 'threshold_breach', severity: 'high',
           title: `D9 Design Backlog: ${dp.design_project_name} — ${openDrawings} open drawings`,
-          description: `Design project "${dp.design_project_name}" has ${openDrawings} open drawings out of ${dp.total_drawings} total.\nProgress: ${progress}%\nManager: ${dp.manager_name || 'Unassigned'}`,
+          description: `Design project "${dp.design_project_name}" has ${openDrawings} open drawings out of ${dp.total_drawings} total.\nProgress: ${dp.overall_progress || 0}%\nManager: ${dp.manager_name || 'Unassigned'}`,
           logicType: 'rule_based',
-          dataSnapshot: { dpId: dp.id, openDrawings, totalDrawings: dp.total_drawings, progress },
-          relatedEntityType: 'design_project',
-          relatedEntityId: String(dp.id),
+          dataSnapshot: { dpId: dp.id, openDrawings, totalDrawings: dp.total_drawings, projectId: dp.project_id },
+          relatedEntityType: 'design_project', relatedEntityId: String(dp.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1263,54 +1298,48 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Backlog: ${dp.design_project_name}`,
-            actionType: 'create_task',
-            rationale: `${openDrawings} open drawings need attention.`,
+            actionType: 'create_task', rationale: `${openDrawings} open drawings need attention.`,
             actionPayload: {
               title: `[Agent] Project Control – Design Backlog: ${dp.design_project_name} (${openDrawings} open drawings)`,
-              description: `Design project "${dp.design_project_name}" has ${openDrawings} open drawings.\nTotal: ${dp.total_drawings}\nApproved: ${dp.approved_drawings}\nProgress: ${progress}%\nAgent severity: risk\n\nReview workload and prioritize drawings.`,
-              assignedTo: assignTo,
-              priority: 'High',
-              category: `Design ${fingerprint}`,
+              description: `Design project "${dp.design_project_name}" has ${openDrawings} open drawings.\nTotal: ${dp.total_drawings}\nApproved: ${dp.approved_drawings}\nProgress: ${dp.overall_progress || 0}%\nagent_severity: ${severity}\n\nReview workload and prioritize drawings.`,
+              assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'high',
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: 'high', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── D8: Design Blocking Procurement (cross-module) ──
-      const phaseRows2 = await db.execute(sql`
-        SELECT pp.project_id, p.name as project_name, p.manager_id,
-          MAX(CASE WHEN pp.name = 'Design' THEN pp.status END) as design_status,
-          MAX(CASE WHEN pp.name = 'Procurement' THEN pp.target_end_date END) as proc_target,
-          MAX(CASE WHEN pp.name = 'Procurement' THEN pp.status END) as proc_status
-        FROM project_phases pp
-        JOIN projects p ON pp.project_id = p.id
-        WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
-        GROUP BY pp.project_id, p.name, p.manager_id
-        HAVING MAX(CASE WHEN pp.name = 'Design' THEN pp.status END) != 'completed'
-          AND MAX(CASE WHEN pp.name = 'Procurement' THEN pp.target_end_date END) IS NOT NULL
+      // ── D8: Design Blocking Procurement (cross-module, phase sequence order) ──
+      const crossModuleDesignRows = await db.execute(sql`
+        SELECT pd.project_id, p.name as project_name, p.manager_id,
+          pd."order" as design_order, pd.status as design_status,
+          pp."order" as proc_order, pp.target_end_date as proc_target, pp.status as proc_status
+        FROM project_phases pd
+        JOIN project_phases pp ON pd.project_id = pp.project_id AND pp.name = 'Procurement'
+        JOIN projects p ON pd.project_id = p.id
+        WHERE pd.name = 'Design'
+          AND pd.status != 'completed'
+          AND pd."order" < pp."order"
+          AND p.status NOT IN ('cancelled', 'archived', 'completed')
+          AND pp.target_end_date IS NOT NULL
       `);
       queriesRun++;
 
-      for (const row of (phaseRows2.rows || []) as any[]) {
-        if (!row.proc_target) continue;
+      for (const row of (crossModuleDesignRows.rows || []) as any[]) {
         const procTarget = new Date(row.proc_target);
         const daysUntilProc = Math.ceil((procTarget.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         if (daysUntilProc > 14) continue;
 
-        const fingerprint = fp('d8_design_blocks_proc', 'project', row.project_id);
+        const fingerprint = fpWithProject('d8_design_blocks_proc', row.project_id, 'project', row.project_id);
+        const severity = agentSev('D8');
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: 'high',
+          findingType: 'anomaly', severity: 'high',
           title: `D8 Design Blocking Procurement: ${row.project_name}`,
-          description: `Design phase is incomplete but Procurement phase target is ${daysUntilProc <= 0 ? Math.abs(daysUntilProc) + 'd PAST' : daysUntilProc + 'd away'} in project "${row.project_name}".`,
+          description: `Design phase (seq ${row.design_order}) is incomplete but Procurement phase (seq ${row.proc_order}) target is ${daysUntilProc <= 0 ? Math.abs(daysUntilProc) + 'd PAST' : daysUntilProc + 'd away'} in project "${row.project_name}". Phase dependency violated.`,
           logicType: 'derived',
-          dataSnapshot: { projectId: row.project_id, daysUntilProc },
-          relatedEntityType: 'project',
-          relatedEntityId: String(row.project_id),
+          dataSnapshot: { projectId: row.project_id, daysUntilProc, designOrder: row.design_order, procOrder: row.proc_order },
+          relatedEntityType: 'project', relatedEntityId: String(row.project_id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1320,31 +1349,25 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Blocking Procurement: ${row.project_name}`,
-            actionType: 'create_task',
-            rationale: `Design phase incomplete is blocking procurement start.`,
+            actionType: 'create_task', rationale: `Design (seq ${row.design_order}) incomplete, blocking Procurement (seq ${row.proc_order}).`,
             actionPayload: {
               title: `[Agent] Project Control – Design Blocking Procurement: ${row.project_name}`,
-              description: `Design phase is incomplete but Procurement target is ${daysUntilProc <= 0 ? Math.abs(daysUntilProc) + 'd PAST' : 'in ' + daysUntilProc + 'd'}.\nProject: ${row.project_name}\nAgent severity: risk\n\nExpedite design completion to unblock procurement.`,
-              assignedTo: assignTo,
-              priority: 'High',
-              category: `Design ${fingerprint}`,
+              description: `Design phase (sequence: ${row.design_order}) is incomplete but Procurement phase (sequence: ${row.proc_order}) target is ${daysUntilProc <= 0 ? Math.abs(daysUntilProc) + 'd PAST' : 'in ' + daysUntilProc + 'd'}.\nProject: ${row.project_name}\nagent_severity: ${severity}\n\nExpedite design completion to unblock procurement.`,
+              assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'high',
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: 'high', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── D10: Design Impacting Project Milestone (cross-module) ──
+      // ── D10: Design Impacting Project Milestone (cross-module, key stages + phases) ──
       for (const project of (await db.execute(sql`
         SELECT p.id, p.name, p.target_end_date, p.manager_id
         FROM projects p
         WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
           AND p.target_end_date IS NOT NULL
       `)).rows as any[]) {
-        if (!project.target_end_date) continue;
         const daysUntil = Math.ceil((new Date(project.target_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         if (daysUntil > 30) continue;
 
@@ -1355,16 +1378,15 @@ export class ProjectControlAgent implements IAgent {
         const incompleteCount = Number(incompleteDesignStages[0]?.cnt || 0);
         if (incompleteCount === 0) continue;
 
-        const fingerprint = fp('d10_design_milestone', 'project', project.id);
+        const fingerprint = fpWithProject('d10_design_milestone', project.id, 'project', project.id);
+        const severity = agentSev('D10');
         const finding = await findingManager.createFinding({
-          findingType: 'threshold_breach',
-          severity: 'critical',
-          title: `D10 Design Impacting Milestone: ${project.name} — ${incompleteCount} design stages incomplete, ${daysUntil}d to deadline`,
-          description: `Project "${project.name}" has ${incompleteCount} incomplete design stages with only ${daysUntil <= 0 ? '0' : daysUntil} days to deadline.`,
+          findingType: 'threshold_breach', severity: 'critical',
+          title: `D10 Design Impacting Milestone: ${project.name} — ${incompleteCount} design key stages incomplete, ${daysUntil}d to deadline`,
+          description: `Project "${project.name}" has ${incompleteCount} incomplete design key stages with only ${daysUntil <= 0 ? '0' : daysUntil} days to deadline (${project.target_end_date}).`,
           logicType: 'derived',
           dataSnapshot: { projectId: project.id, incompleteCount, daysUntil },
-          relatedEntityType: 'project',
-          relatedEntityId: String(project.id),
+          relatedEntityType: 'project', relatedEntityId: String(project.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1372,18 +1394,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Impacting Milestone: ${project.name}`,
-            actionType: 'create_task',
-            rationale: `${incompleteCount} design stages incomplete with deadline in ${daysUntil}d.`,
+            actionType: 'create_task', rationale: `${incompleteCount} design key stages incomplete with deadline in ${daysUntil}d.`,
             actionPayload: {
               title: `[Agent] Project Control – Design Impacting Milestone: ${project.name} (${incompleteCount} design stages, ${daysUntil}d to deadline)`,
-              description: `Project "${project.name}" has ${incompleteCount} incomplete design stages.\nDeadline: ${project.target_end_date} (${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd remaining'})\nAgent severity: critical\n\nRequires immediate management review.`,
-              assignedTo: gmId,
-              priority: 'Critical',
-              category: `Design ${fingerprint}`,
+              description: `Project "${project.name}" has ${incompleteCount} incomplete design key stages.\nDeadline: ${project.target_end_date} (${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd remaining'})\nagent_severity: ${severity}\n\nRequires immediate management review.`,
+              assignedTo: gmId, priority: 'Critical', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'critical',
-            confidence: 0.9,
+            actionCategory: 'task_creation', priority: 'critical', confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1396,11 +1413,11 @@ export class ProjectControlAgent implements IAgent {
 
     // ════════════════════════════════════════════════════════════════════════
     // MODULE 3: PROCUREMENT MANAGEMENT (R1–R12)
+    // Grouped queries for procurement data
     // ════════════════════════════════════════════════════════════════════════
     try {
       const purchaseDeptHead = await resolveDepartmentHead('Purchase');
 
-      // ── Grouped procurement queries ──
       const sapPORows = await db.execute(sql`
         SELECT spo.id, spo.doc_num, spo.vendor_name, spo.vendor_code, spo.doc_date,
           spo.doc_due_date, spo.doc_total, spo.doc_currency, spo.project_code,
@@ -1428,7 +1445,7 @@ export class ProjectControlAgent implements IAgent {
       const localPORows = await db.execute(sql`
         SELECT po.id, po.purchase_order_number, po.title, po.status, po.vendor_id,
           po.project_id, p.name as project_name, po.required_by_date, po.created_by,
-          po.created_at, po.actual_delivery_date,
+          po.created_at,
           EXTRACT(DAY FROM NOW() - po.created_at)::int as days_since_created
         FROM purchase_orders po
         LEFT JOIN projects p ON po.project_id = p.id
@@ -1440,8 +1457,7 @@ export class ProjectControlAgent implements IAgent {
 
       const inspectionRows = await db.execute(sql`
         SELECT io.id, io.inspection_order_number, io.status, io.planned_date,
-          io.completed_date, io.project_id, io.work_order_id, io.item_code,
-          io.inspection_type, io.created_at,
+          io.project_id, io.inspection_type, io.created_at,
           p.name as project_name, p.manager_id,
           EXTRACT(DAY FROM NOW() - io.created_at)::int as days_since_created
         FROM inspection_orders io
@@ -1453,41 +1469,35 @@ export class ProjectControlAgent implements IAgent {
       const pendingInspections = (inspectionRows.rows || []) as any[];
 
       const goodsReceiptRows = await db.execute(sql`
-        SELECT gr.id, gr.doc_num, gr.vendor_name, gr.base_doc_entry, gr.base_doc_num,
-          gr.doc_date, gr.posting_date
+        SELECT gr.id, gr.doc_num, gr.vendor_name, gr.base_doc_entry, gr.base_doc_num, gr.doc_date
         FROM sap_goods_receipt_po gr
         WHERE gr.cancelled = 'tNO'
         ORDER BY gr.doc_date DESC
       `);
       queriesRun++;
-      const goodsReceipts = (goodsReceiptRows.rows || []) as any[];
       const grByBasePO: Record<string, any[]> = {};
-      for (const gr of goodsReceipts) {
+      for (const gr of (goodsReceiptRows.rows || []) as any[]) {
         const key = String(gr.base_doc_entry || gr.base_doc_num || '');
-        if (key) {
-          if (!grByBasePO[key]) grByBasePO[key] = [];
-          grByBasePO[key].push(gr);
-        }
+        if (key) { if (!grByBasePO[key]) grByBasePO[key] = []; grByBasePO[key].push(gr); }
       }
 
-      // ── R1: PR Pending Conversion (7+ days) ──
+      // ── R1: PR Pending Conversion ──
       for (const pr of sapPRs) {
         if (!pr.due_date) continue;
         const daysOverdue = Number(pr.days_overdue || 0);
         if (daysOverdue < THRESHOLDS.r1_pr_conversion_days) continue;
 
         const level: 'L1' | 'L2' = daysOverdue >= 21 ? 'L2' : 'L1';
-        const fingerprint = fp('r1_pr_pending', 'pr', pr.id);
+        const fingerprint = fpGlobal('r1_pr_pending', 'pr', pr.id);
+        const severity = agentSev('R1', level);
 
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: severityFromLevel(level) as any,
+          findingType: 'overdue', severity: severityFromLevel(level) as any,
           title: `R1 PR Pending Conversion: PR#${pr.doc_num} (${daysOverdue}d)`,
           description: `Purchase requisition #${pr.doc_num} is ${daysOverdue} days past due date without PO conversion.\nRequester: ${pr.requester_name || 'Unknown'}\nDepartment: ${pr.department || 'N/A'}`,
           logicType: 'rule_based',
           dataSnapshot: { prId: pr.id, docNum: pr.doc_num, daysOverdue },
-          relatedEntityType: 'purchase_requisition',
-          relatedEntityId: String(pr.id),
+          relatedEntityType: 'purchase_requisition', relatedEntityId: String(pr.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1496,27 +1506,21 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – PR Pending Conversion: PR#${pr.doc_num}`,
-            actionType: 'create_task',
-            rationale: `PR open for ${daysOverdue} days without PO issuance.`,
+            actionType: 'create_task', rationale: `PR open for ${daysOverdue} days without PO issuance.`,
             actionPayload: {
               title: `[Agent] Project Control – PR Pending Conversion: PR#${pr.doc_num} (${daysOverdue}d overdue)`,
-              description: `Purchase requisition #${pr.doc_num} is ${daysOverdue} days past due without PO conversion.\nRequester: ${pr.requester_name || 'Unknown'}\nDue: ${pr.due_date}\nAgent severity: ${agentSeverityFromLevel(level)}\n\nConvert to PO or update status.`,
-              assignedTo: assignTo,
-              priority: priorityFromLevel(level),
-              category: `Procurement ${fingerprint}`,
+              description: `Purchase requisition #${pr.doc_num} is ${daysOverdue} days past due without PO conversion.\nRequester: ${pr.requester_name || 'Unknown'}\nDue: ${pr.due_date}\nagent_severity: ${severity}\n\nConvert to PO or update status.`,
+              assignedTo: assignTo, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: severityFromLevel(level) as any,
-            confidence: 0.9,
+            actionCategory: 'task_creation', priority: severityFromLevel(level) as any, confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R2: RFQ Pending (proxy: key stage "RFQs Sent" done but "Vendor Quotes Received" not) ──
+      // ── R2: RFQ Pending (proxy from key stages sequence) ──
       const rfqStages = (await db.execute(sql`
-        SELECT ks1.project_id, p.name as project_name, p.manager_id,
-          ks1.completed_date as rfq_sent_date
+        SELECT ks1.project_id, p.name as project_name, ks1.completed_date as rfq_sent_date, ks1.stage_number
         FROM project_key_stages ks1
         JOIN projects p ON ks1.project_id = p.id
         WHERE ks1.stage_name ILIKE '%RFQ%Sent%' AND ks1.is_completed = true
@@ -1525,55 +1529,46 @@ export class ProjectControlAgent implements IAgent {
             WHERE ks2.project_id = ks1.project_id
               AND ks2.stage_name ILIKE '%Vendor%Quotes%Received%'
               AND ks2.is_completed = true
+              AND ks2.stage_number > ks1.stage_number
           )
       `)).rows as any[];
       queriesRun++;
 
       for (const stage of rfqStages) {
-        const daysSince = stage.rfq_sent_date
-          ? Math.floor((Date.now() - new Date(stage.rfq_sent_date).getTime()) / (1000 * 60 * 60 * 24))
-          : 0;
+        const daysSince = stage.rfq_sent_date ? Math.floor((Date.now() - new Date(stage.rfq_sent_date).getTime()) / (1000 * 60 * 60 * 24)) : 0;
         if (daysSince < THRESHOLDS.r2_rfq_pending_days) continue;
 
-        const fingerprint = fp('r2_rfq_pending', 'project', stage.project_id);
+        const fingerprint = fpWithProject('r2_rfq_pending', stage.project_id, 'project', stage.project_id);
+        const severity = agentSev('R2');
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: 'medium',
+          findingType: 'anomaly', severity: 'medium',
           title: `R2 RFQ Pending Response: ${stage.project_name} (${daysSince}d since RFQ sent)`,
-          description: `RFQs were sent for project "${stage.project_name}" ${daysSince} days ago but vendor quotes have not been received.`,
+          description: `RFQs were sent for project "${stage.project_name}" ${daysSince} days ago (stage #${stage.stage_number}) but vendor quotes have not been received.`,
           logicType: 'proxy',
-          dataSnapshot: { projectId: stage.project_id, daysSince },
-          relatedEntityType: 'project',
-          relatedEntityId: String(stage.project_id),
+          dataSnapshot: { projectId: stage.project_id, daysSince, stageNumber: stage.stage_number },
+          relatedEntityType: 'project', relatedEntityId: String(stage.project_id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = purchaseDeptHead || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – RFQ Pending Response: ${stage.project_name}`,
-            actionType: 'create_task',
-            rationale: `No vendor quotes received ${daysSince} days after RFQ.`,
+            actionType: 'create_task', rationale: `No vendor quotes received ${daysSince} days after RFQ.`,
             actionPayload: {
               title: `[Agent] Project Control – RFQ Pending Response: ${stage.project_name} (${daysSince}d)`,
-              description: `RFQs sent for project "${stage.project_name}" ${daysSince} days ago but vendor quotes not received.\nAgent severity: warning\n\nFollow up with vendors.`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Procurement ${fingerprint}`,
+              description: `RFQs sent for project "${stage.project_name}" ${daysSince} days ago but vendor quotes not received.\nagent_severity: ${severity}\n\nFollow up with vendors.`,
+              assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.75,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R3: Offer Evaluation Pending (proxy: "Vendor Quotes Received" done but "Vendors Selected" not) ──
+      // ── R3: Offer Evaluation Pending (proxy from key stages sequence) ──
       const evalStages = (await db.execute(sql`
-        SELECT ks1.project_id, p.name as project_name, p.manager_id,
-          ks1.completed_date as quotes_received_date
+        SELECT ks1.project_id, p.name as project_name, ks1.completed_date as quotes_received_date, ks1.stage_number
         FROM project_key_stages ks1
         JOIN projects p ON ks1.project_id = p.id
         WHERE ks1.stage_name ILIKE '%Vendor%Quotes%Received%' AND ks1.is_completed = true
@@ -1582,227 +1577,184 @@ export class ProjectControlAgent implements IAgent {
             WHERE ks2.project_id = ks1.project_id
               AND ks2.stage_name ILIKE '%Vendors%Selected%'
               AND ks2.is_completed = true
+              AND ks2.stage_number > ks1.stage_number
           )
       `)).rows as any[];
       queriesRun++;
 
       for (const stage of evalStages) {
-        const daysSince = stage.quotes_received_date
-          ? Math.floor((Date.now() - new Date(stage.quotes_received_date).getTime()) / (1000 * 60 * 60 * 24))
-          : 0;
+        const daysSince = stage.quotes_received_date ? Math.floor((Date.now() - new Date(stage.quotes_received_date).getTime()) / (1000 * 60 * 60 * 24)) : 0;
         if (daysSince < THRESHOLDS.r3_eval_pending_days) continue;
 
-        const fingerprint = fp('r3_eval_pending', 'project', stage.project_id);
+        const fingerprint = fpWithProject('r3_eval_pending', stage.project_id, 'project', stage.project_id);
+        const severity = agentSev('R3');
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: 'medium',
+          findingType: 'anomaly', severity: 'medium',
           title: `R3 Offer Evaluation Pending: ${stage.project_name} (${daysSince}d)`,
-          description: `Vendor quotes received for project "${stage.project_name}" ${daysSince} days ago but vendor selection not completed.`,
+          description: `Vendor quotes received for project "${stage.project_name}" ${daysSince} days ago (stage #${stage.stage_number}) but vendor selection not completed.`,
           logicType: 'proxy',
-          dataSnapshot: { projectId: stage.project_id, daysSince },
-          relatedEntityType: 'project',
-          relatedEntityId: String(stage.project_id),
+          dataSnapshot: { projectId: stage.project_id, daysSince, stageNumber: stage.stage_number },
+          relatedEntityType: 'project', relatedEntityId: String(stage.project_id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = purchaseDeptHead || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Offer Evaluation Pending: ${stage.project_name}`,
-            actionType: 'create_task',
-            rationale: `Vendor selection pending for ${daysSince} days after quotes received.`,
+            actionType: 'create_task', rationale: `Vendor selection pending for ${daysSince} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Offer Evaluation Pending: ${stage.project_name} (${daysSince}d)`,
-              description: `Vendor quotes received for "${stage.project_name}" ${daysSince} days ago but evaluation/selection not completed.\nAgent severity: warning\n\nComplete vendor evaluation and selection.`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Procurement ${fingerprint}`,
+              description: `Vendor quotes received for "${stage.project_name}" ${daysSince} days ago but evaluation/selection not completed.\nagent_severity: ${severity}\n\nComplete vendor evaluation and selection.`,
+              assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.75,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R5: PO Release Delay (draft local POs stuck 14+ days) ──
+      // ── R5: PO Release Delay ──
       for (const po of localPOs) {
         if (po.status !== 'draft') continue;
         const daysSince = Number(po.days_since_created || 0);
         if (daysSince < THRESHOLDS.r5_po_draft_stuck_days) continue;
 
         const level: 'L1' | 'L2' = daysSince >= 30 ? 'L2' : 'L1';
-        const fingerprint = fp('r5_po_release', 'local_po', po.id);
+        const fingerprint = fpWithProject('r5_po_release', po.project_id, 'local_po', po.id);
+        const severity = agentSev('R5', level);
 
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: severityFromLevel(level) as any,
+          findingType: 'anomaly', severity: severityFromLevel(level) as any,
           title: `R5 PO Release Delay: ${po.purchase_order_number} — ${po.title} (${daysSince}d in draft)`,
           description: `Purchase order "${po.title}" (${po.purchase_order_number}) for project "${po.project_name || 'N/A'}" has been in draft for ${daysSince} days.${!po.vendor_id ? ' No vendor assigned.' : ''}`,
           logicType: 'rule_based',
-          dataSnapshot: { poId: po.id, daysSince, hasVendor: !!po.vendor_id },
-          relatedEntityType: 'purchase_order',
-          relatedEntityId: String(po.id),
+          dataSnapshot: { poId: po.id, daysSince, hasVendor: !!po.vendor_id, projectId: po.project_id },
+          relatedEntityType: 'purchase_order', relatedEntityId: String(po.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            po.created_by ? Number(po.created_by) : null,
-            po.project_id ? Number(po.project_id) : null,
-            'Purchase'
-          );
+          const assignTo = await resolveAssignment(po.created_by ? Number(po.created_by) : null, po.project_id ? Number(po.project_id) : null, 'Purchase');
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – PO Release Delay: ${po.purchase_order_number}`,
-            actionType: 'create_task',
-            rationale: `PO in draft for ${daysSince} days. Finalize or cancel.`,
+            actionType: 'create_task', rationale: `PO in draft for ${daysSince} days.`,
             actionPayload: {
               title: `[Agent] Project Control – PO Release Delay: ${po.purchase_order_number} — "${po.title}" (${daysSince}d in draft)`,
-              description: `PO "${po.title}" (${po.purchase_order_number}) in draft for ${daysSince} days.\nProject: ${po.project_name || 'N/A'}\nRequired by: ${po.required_by_date || 'Not set'}\nAgent severity: ${agentSeverityFromLevel(level)}\n\nFinalize with vendor or cancel.`,
-              assignedTo: assignTo,
-              priority: priorityFromLevel(level),
-              category: `Procurement ${fingerprint}`,
+              description: `PO "${po.title}" (${po.purchase_order_number}) in draft for ${daysSince} days.\nProject: ${po.project_name || 'N/A'}\nRequired by: ${po.required_by_date || 'Not set'}\nagent_severity: ${severity}\n\nFinalize with vendor or cancel.`,
+              assignedTo: assignTo, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: severityFromLevel(level) as any,
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: severityFromLevel(level) as any, confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R6: Vendor Submission Overdue (SAP PO open, no goods receipt, 30+ days past due) ──
+      // ── R6: Vendor Submission Overdue (30-59d, no GR) ──
       for (const po of sapPOs) {
         if (!po.doc_due_date) continue;
         const daysOverdue = Number(po.days_overdue || 0);
-        if (daysOverdue < THRESHOLDS.r6_vendor_submission_days) continue;
-        if (daysOverdue >= THRESHOLDS.r7_manufacturing_delay_days) continue;
-
+        if (daysOverdue < THRESHOLDS.r6_vendor_submission_days || daysOverdue >= THRESHOLDS.r7_manufacturing_delay_days) continue;
         const hasGR = grByBasePO[String(po.doc_entry)]?.length > 0 || grByBasePO[String(po.doc_num)]?.length > 0;
         if (hasGR) continue;
 
-        const fingerprint = fp('r6_vendor_submit', 'sap_po', po.id);
+        const fingerprint = fpWithProject('r6_vendor_submit', po.project_code, 'sap_po', po.id);
+        const severity = agentSev('R6');
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: 'medium',
+          findingType: 'overdue', severity: 'medium',
           title: `R6 Vendor Submission Overdue: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue} days past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}`,
+          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue} days past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nProject: ${po.project_code || 'N/A'}`,
           logicType: 'proxy',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name },
-          relatedEntityType: 'sap_purchase_order',
-          relatedEntityId: String(po.id),
+          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name, projectCode: po.project_code },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = purchaseDeptHead || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num}`,
-            actionType: 'create_task',
-            rationale: `No vendor submission ${daysOverdue} days past due.`,
+            actionType: 'create_task', rationale: `No vendor submission ${daysOverdue} days past due.`,
             actionPayload: {
               title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nAgent severity: warning\n\nContact vendor for submission status.`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Procurement ${fingerprint}`,
+              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nContact vendor for submission status.`,
+              assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.8,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R7: Manufacturing Delay (SAP PO 60+ days overdue, no GR) ──
+      // ── R7: Manufacturing Delay (60+d, no GR) ──
       for (const po of sapPOs) {
         if (!po.doc_due_date) continue;
         const daysOverdue = Number(po.days_overdue || 0);
         if (daysOverdue < THRESHOLDS.r7_manufacturing_delay_days) continue;
-
         const hasGR = grByBasePO[String(po.doc_entry)]?.length > 0 || grByBasePO[String(po.doc_num)]?.length > 0;
         if (hasGR) continue;
 
-        const fingerprint = fp('r7_mfg_delay', 'sap_po', po.id);
+        const fingerprint = fpWithProject('r7_mfg_delay', po.project_code, 'sap_po', po.id);
+        const severity = agentSev('R7');
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: 'high',
+          findingType: 'overdue', severity: 'high',
           title: `R7 Manufacturing Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue)`,
-          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue} days overdue with no goods receipt — likely vendor manufacturing delay.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}`,
+          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue} days overdue with no goods receipt — likely vendor manufacturing delay.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nProject: ${po.project_code || 'N/A'}`,
           logicType: 'proxy',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name },
-          relatedEntityType: 'sap_purchase_order',
-          relatedEntityId: String(po.id),
+          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name, projectCode: po.project_code },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
           const mgr = purchaseDeptHead ? await resolveReportingManager(purchaseDeptHead) : null;
-          const assignTo = mgr || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num}`,
-            actionType: 'create_task',
-            rationale: `Vendor manufacturing likely delayed — ${daysOverdue}d overdue with no goods receipt.`,
+            actionType: 'create_task', rationale: `Vendor manufacturing likely delayed — ${daysOverdue}d overdue.`,
             actionPayload: {
               title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nAgent severity: risk\n\nEscalate vendor manufacturing status.`,
-              assignedTo: assignTo,
-              priority: 'High',
-              category: `Procurement ${fingerprint}`,
+              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nEscalate vendor manufacturing status.`,
+              assignedTo: mgr || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'high',
-            confidence: 0.8,
+            actionCategory: 'task_creation', priority: 'high', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R8: Delivery Date Missed ──
+      // ── R8: Delivery Date Missed (7-29d overdue) ──
       for (const po of sapPOs) {
         if (!po.doc_due_date) continue;
         const daysOverdue = Number(po.days_overdue || 0);
-        if (daysOverdue < THRESHOLDS.r8_delivery_missed_days) continue;
-        if (daysOverdue >= THRESHOLDS.r6_vendor_submission_days) continue;
+        if (daysOverdue < THRESHOLDS.r8_delivery_missed_days || daysOverdue >= THRESHOLDS.r6_vendor_submission_days) continue;
 
         const level: 'L1' | 'L2' | 'L3' = daysOverdue >= 90 ? 'L3' : daysOverdue >= 30 ? 'L2' : 'L1';
-        const fingerprint = fp('r8_delivery_missed', 'sap_po', po.id);
+        const fingerprint = fpWithProject('r8_delivery_missed', po.project_code, 'sap_po', po.id);
+        const severity = agentSev('R8', level);
 
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: severityFromLevel(level) as any,
+          findingType: 'overdue', severity: severityFromLevel(level) as any,
           title: `R8 Delivery Missed: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" delivery date missed by ${daysOverdue} days.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}`,
+          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" delivery date missed by ${daysOverdue} days.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nProject: ${po.project_code || 'N/A'}`,
           logicType: 'rule_based',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name },
-          relatedEntityType: 'sap_purchase_order',
-          relatedEntityId: String(po.id),
+          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name, projectCode: po.project_code },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = purchaseDeptHead || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num}`,
-            actionType: 'create_task',
-            rationale: `Delivery date missed by ${daysOverdue} days.`,
+            actionType: 'create_task', rationale: `Delivery date missed by ${daysOverdue} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue)`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" delivery missed by ${daysOverdue}d.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nAgent severity: ${agentSeverityFromLevel(level)}\n\nFollow up on delivery status.`,
-              assignedTo: assignTo,
-              priority: priorityFromLevel(level),
-              category: `Procurement ${fingerprint}`,
+              description: `PO #${po.doc_num} from "${po.vendor_name}" delivery missed by ${daysOverdue}d.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nFollow up on delivery status.`,
+              assignedTo: purchaseDeptHead || gmId, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: severityFromLevel(level) as any,
-            confidence: 0.9,
+            actionCategory: 'task_creation', priority: severityFromLevel(level) as any, confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1818,16 +1770,15 @@ export class ProjectControlAgent implements IAgent {
           if (daysPending < THRESHOLDS.r9_inspection_pending_days) continue;
         }
 
-        const fingerprint = fp('r9_inspection', 'io', io.id);
+        const fingerprint = fpWithProject('r9_inspection', io.project_id, 'io', io.id);
+        const severity = agentSev('R9');
         const finding = await findingManager.createFinding({
-          findingType: 'overdue',
-          severity: 'medium',
+          findingType: 'overdue', severity: 'medium',
           title: `R9 Inspection Pending: ${io.inspection_order_number} (${daysPending}d)`,
-          description: `Inspection order ${io.inspection_order_number} is pending for ${daysPending} days.\nType: ${io.inspection_type || 'N/A'}\nProject: ${io.project_name || 'N/A'}\nPlanned date: ${io.planned_date || 'Not scheduled'}`,
+          description: `Inspection order ${io.inspection_order_number} is pending for ${daysPending} days.\nType: ${io.inspection_type || 'N/A'}\nProject: ${io.project_name || 'N/A'}\nPlanned: ${io.planned_date || 'Not scheduled'}`,
           logicType: 'rule_based',
-          dataSnapshot: { ioId: io.id, daysPending, inspectionType: io.inspection_type },
-          relatedEntityType: 'inspection_order',
-          relatedEntityId: String(io.id),
+          dataSnapshot: { ioId: io.id, daysPending, inspectionType: io.inspection_type, projectId: io.project_id },
+          relatedEntityType: 'inspection_order', relatedEntityId: String(io.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1837,116 +1788,97 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Inspection Pending: ${io.inspection_order_number}`,
-            actionType: 'create_task',
-            rationale: `Inspection pending for ${daysPending} days.`,
+            actionType: 'create_task', rationale: `Inspection pending for ${daysPending} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Inspection Pending: ${io.inspection_order_number} (${daysPending}d)`,
-              description: `Inspection order ${io.inspection_order_number} pending for ${daysPending} days.\nType: ${io.inspection_type || 'N/A'}\nProject: ${io.project_name || 'N/A'}\nPlanned: ${io.planned_date || 'Not scheduled'}\nAgent severity: warning\n\nSchedule and complete inspection.`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Procurement ${fingerprint}`,
+              description: `Inspection order ${io.inspection_order_number} pending for ${daysPending} days.\nType: ${io.inspection_type || 'N/A'}\nProject: ${io.project_name || 'N/A'}\nagent_severity: ${severity}\n\nSchedule and complete inspection.`,
+              assignedTo: assignTo, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R10: Dispatch Delay (goods receipt exists but PO still open) ──
+      // ── R10: Dispatch Delay (GR exists but PO still open) ──
       for (const po of sapPOs) {
         const hasGR = grByBasePO[String(po.doc_entry)]?.length > 0 || grByBasePO[String(po.doc_num)]?.length > 0;
-        if (!hasGR) continue;
-        if (!po.doc_due_date) continue;
+        if (!hasGR || !po.doc_due_date) continue;
         const daysOverdue = Number(po.days_overdue || 0);
         if (daysOverdue < THRESHOLDS.r10_dispatch_delay_days) continue;
 
-        const fingerprint = fp('r10_dispatch', 'sap_po', po.id);
+        const fingerprint = fpWithProject('r10_dispatch', po.project_code, 'sap_po', po.id);
+        const severity = agentSev('R10');
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: 'medium',
+          findingType: 'anomaly', severity: 'medium',
           title: `R10 Dispatch Delay: PO#${po.doc_num} — ${po.vendor_name} (GR received, PO still open)`,
-          description: `PO #${po.doc_num} has goods receipt but remains open ${daysOverdue}d past due. Material may not have been dispatched/received fully.`,
+          description: `PO #${po.doc_num} has goods receipt but remains open ${daysOverdue}d past due.`,
           logicType: 'proxy',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name },
-          relatedEntityType: 'sap_purchase_order',
-          relatedEntityId: String(po.id),
+          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, projectCode: po.project_code },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
           const storesHead = await resolveDepartmentHead('Stores');
-          const assignTo = storesHead || purchaseDeptHead || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Dispatch Delay: PO#${po.doc_num}`,
-            actionType: 'create_task',
-            rationale: `Goods receipt exists but PO still open — possible dispatch/receipt issue.`,
+            actionType: 'create_task', rationale: `GR exists but PO still open.`,
             actionPayload: {
               title: `[Agent] Project Control – Dispatch Delay: PO#${po.doc_num} — ${po.vendor_name}`,
-              description: `PO #${po.doc_num} has partial goods receipt but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nAgent severity: warning\n\nVerify dispatch status and close PO if fully received.`,
-              assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Procurement ${fingerprint}`,
+              description: `PO #${po.doc_num} has partial goods receipt but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nagent_severity: ${severity}\n\nVerify dispatch status and close PO if fully received.`,
+              assignedTo: storesHead || purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'medium',
-            confidence: 0.75,
+            actionCategory: 'task_creation', priority: 'medium', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R11: Logistics Delay (open PO 30+ days overdue with partial GR) ──
+      // ── R11: Logistics Delay (30+d overdue, partial GR) ──
       for (const po of sapPOs) {
         if (!po.doc_due_date) continue;
         const daysOverdue = Number(po.days_overdue || 0);
         if (daysOverdue < THRESHOLDS.r11_logistics_delay_days) continue;
-
         const grList = grByBasePO[String(po.doc_entry)] || grByBasePO[String(po.doc_num)] || [];
         if (grList.length === 0) continue;
 
-        const fingerprint = fp('r11_logistics', 'sap_po', po.id);
+        const fingerprint = fpWithProject('r11_logistics', po.project_code, 'sap_po', po.id);
+        const severity = agentSev('R11');
         const finding = await findingManager.createFinding({
-          findingType: 'anomaly',
-          severity: 'high',
+          findingType: 'anomaly', severity: 'high',
           title: `R11 Logistics Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d, partial receipt)`,
-          description: `PO #${po.doc_num} has ${grList.length} goods receipts but remains open ${daysOverdue}d past due. Possible logistics/transit delay.`,
+          description: `PO #${po.doc_num} has ${grList.length} goods receipts but remains open ${daysOverdue}d past due.`,
           logicType: 'proxy',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, grCount: grList.length },
-          relatedEntityType: 'sap_purchase_order',
-          relatedEntityId: String(po.id),
+          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, grCount: grList.length, projectCode: po.project_code },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
           const mgr = purchaseDeptHead ? await resolveReportingManager(purchaseDeptHead) : null;
-          const assignTo = mgr || gmId;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Logistics Delay: PO#${po.doc_num}`,
-            actionType: 'create_task',
-            rationale: `Partial receipt with PO still open ${daysOverdue}d — logistics issue.`,
+            actionType: 'create_task', rationale: `Partial receipt with PO still open ${daysOverdue}d.`,
             actionPayload: {
               title: `[Agent] Project Control – Logistics Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-              description: `PO #${po.doc_num} has ${grList.length} goods receipts but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nAgent severity: risk\n\nInvestigate transit/logistics status.`,
-              assignedTo: assignTo,
-              priority: 'High',
-              category: `Procurement ${fingerprint}`,
+              description: `PO #${po.doc_num} has ${grList.length} goods receipts but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nagent_severity: ${severity}\n\nInvestigate transit/logistics status.`,
+              assignedTo: mgr || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'high',
-            confidence: 0.75,
+            actionCategory: 'task_creation', priority: 'high', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
 
-      // ── R4: Critical PR Not Raised (cross-module) ──
+      // ── R4: Critical PR Not Raised (cross-module, phase sequence + key stages) ──
       const procPhaseProjects = (await db.execute(sql`
         SELECT pp.project_id, p.name as project_name, p.manager_id,
-          pp.target_end_date as proc_target, pp.status as proc_status
+          pp.target_end_date as proc_target, pp.status as proc_status, pp."order" as proc_order,
+          (SELECT pd."order" FROM project_phases pd WHERE pd.project_id = pp.project_id AND pd.name = 'Design' LIMIT 1) as design_order,
+          (SELECT pd.status FROM project_phases pd WHERE pd.project_id = pp.project_id AND pd.name = 'Design' LIMIT 1) as design_status
         FROM project_phases pp
         JOIN projects p ON pp.project_id = p.id
         WHERE pp.name = 'Procurement' AND pp.status != 'completed'
@@ -1960,58 +1892,43 @@ export class ProjectControlAgent implements IAgent {
         const daysUntil = Math.ceil((procTarget.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         if (daysUntil > 14) continue;
 
-        const prCount = (await db.execute(sql`
-          SELECT COUNT(*) as cnt FROM sap_purchase_requisitions spr
-          WHERE spr.doc_status = 'bost_Open'
+        const procKS = (await db.execute(sql`
+          SELECT COUNT(*) as cnt FROM project_key_stages WHERE project_id = ${proj.project_id} AND phase = 'Procurement' AND is_completed = true
         `)).rows as any[];
+        const completedProcStages = Number(procKS[0]?.cnt || 0);
 
-        const poCount = (await db.execute(sql`
-          SELECT COUNT(*) as cnt FROM sap_purchase_orders spo
-          WHERE spo.project_code = ${proj.project_name?.substring(0, 8) || 'NONE'}
-            AND spo.doc_status = 'bost_Open' AND spo.cancelled = 'tNO'
-        `)).rows as any[];
-
-        const totalProcItems = Number(prCount[0]?.cnt || 0) + Number(poCount[0]?.cnt || 0);
-
-        const fingerprint = fp('r4_critical_pr', 'project', proj.project_id);
-        if (totalProcItems === 0 || daysUntil <= 0) {
+        const fingerprint = fpWithProject('r4_critical_pr', proj.project_id, 'project', proj.project_id);
+        if (completedProcStages === 0 || daysUntil <= 0) {
+          const severity = agentSev('R4');
           const finding = await findingManager.createFinding({
-            findingType: 'anomaly',
-            severity: 'high',
-            title: `R4 Critical PR Not Raised: ${proj.project_name} — procurement phase ${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd away'}`,
-            description: `Project "${proj.project_name}" procurement phase target is ${daysUntil <= 0 ? 'overdue' : daysUntil + 'd away'} but procurement activity is insufficient.`,
+            findingType: 'anomaly', severity: 'high',
+            title: `R4 Critical PR Not Raised: ${proj.project_name} — procurement phase (seq ${proj.proc_order}) ${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd away'}`,
+            description: `Project "${proj.project_name}" procurement phase (sequence: ${proj.proc_order}) target is ${daysUntil <= 0 ? 'overdue' : daysUntil + 'd away'} but procurement activity is insufficient (${completedProcStages} key stages completed).`,
             logicType: 'derived',
-            dataSnapshot: { projectId: proj.project_id, daysUntil, totalProcItems },
-            relatedEntityType: 'project',
-            relatedEntityId: String(proj.project_id),
+            dataSnapshot: { projectId: proj.project_id, daysUntil, completedProcStages, procOrder: proj.proc_order, designStatus: proj.design_status },
+            relatedEntityType: 'project', relatedEntityId: String(proj.project_id),
           });
           if (!finding.isDuplicate) findingsCount++;
 
           if (!await hasOpenTask(fingerprint)) {
             const pm = await resolveProjectManager(Number(proj.project_id));
-            const assignTo = pm || gmId;
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Critical PR Not Raised: ${proj.project_name}`,
-              actionType: 'create_task',
-              rationale: `Procurement phase approaching but insufficient procurement activity.`,
+              actionType: 'create_task', rationale: `Procurement phase approaching but insufficient activity.`,
               actionPayload: {
                 title: `[Agent] Project Control – Critical PR Not Raised: ${proj.project_name}`,
-                description: `Project "${proj.project_name}" procurement phase is ${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd away'} but procurement activity is insufficient.\nAgent severity: risk\n\nRaise required purchase requisitions immediately.`,
-                assignedTo: assignTo,
-                priority: 'High',
-                category: `Procurement ${fingerprint}`,
+                description: `Project "${proj.project_name}" procurement phase (sequence: ${proj.proc_order}) is ${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd away'} but procurement activity is insufficient.\nCompleted procurement stages: ${completedProcStages}\nagent_severity: ${severity}\n\nRaise required purchase requisitions immediately.`,
+                assignedTo: pm || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
               },
-              actionCategory: 'task_creation',
-              priority: 'high',
-              confidence: 0.8,
+              actionCategory: 'task_creation', priority: 'high', confidence: 0.8,
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
           }
         }
       }
 
-      // ── R12: Material Delay Affecting Project (cross-module) ──
+      // ── R12: Material Delay Affecting Project (cross-module, phase targets) ──
       for (const po of sapPOs) {
         if (!po.doc_due_date || !po.project_code) continue;
         const daysOverdue = Number(po.days_overdue || 0);
@@ -2023,32 +1940,29 @@ export class ProjectControlAgent implements IAgent {
           WHERE p.code = ${po.project_code} OR p.name ILIKE ${'%' + po.project_code + '%'}
           LIMIT 1
         `)).rows as any[];
-
         if (projMatch.length === 0) continue;
         const proj = projMatch[0];
 
         const mfgPhase = (await db.execute(sql`
-          SELECT pp.target_end_date FROM project_phases pp
+          SELECT pp.target_end_date, pp."order" as mfg_order FROM project_phases pp
           WHERE pp.project_id = ${proj.id} AND pp.name = 'Manufacturing'
           LIMIT 1
         `)).rows as any[];
-
         if (mfgPhase.length === 0) continue;
         const mfgTarget = mfgPhase[0].target_end_date;
         if (!mfgTarget) continue;
         const daysToMfg = Math.ceil((new Date(mfgTarget).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         if (daysToMfg > 30) continue;
 
-        const fingerprint = fp('r12_material_impact', 'sap_po', po.id);
+        const fingerprint = fpWithProject('r12_material_impact', proj.id, 'sap_po', po.id);
+        const severity = agentSev('R12');
         const finding = await findingManager.createFinding({
-          findingType: 'threshold_breach',
-          severity: 'critical',
+          findingType: 'threshold_breach', severity: 'critical',
           title: `R12 Material Delay Affecting Project: PO#${po.doc_num} impacting ${proj.name}`,
-          description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue and linked to project "${proj.name}" with Manufacturing phase ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}.`,
+          description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue and linked to project "${proj.name}" with Manufacturing phase (seq ${mfgPhase[0].mfg_order || 'N/A'}) ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}.`,
           logicType: 'derived',
-          dataSnapshot: { poId: po.id, projectId: proj.id, daysOverdue, daysToMfg },
-          relatedEntityType: 'project',
-          relatedEntityId: String(proj.id),
+          dataSnapshot: { poId: po.id, projectId: proj.id, daysOverdue, daysToMfg, mfgOrder: mfgPhase[0].mfg_order },
+          relatedEntityType: 'project', relatedEntityId: String(proj.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -2056,18 +1970,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Material Delay Affecting Project: ${proj.name}`,
-            actionType: 'create_task',
-            rationale: `Overdue PO impacting project manufacturing timeline.`,
+            actionType: 'create_task', rationale: `Overdue PO impacting project manufacturing timeline.`,
             actionPayload: {
               title: `[Agent] Project Control – Material Delay Affecting Project: PO#${po.doc_num} → ${proj.name}`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue.\nProject: ${proj.name}\nManufacturing phase: ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}\nAgent severity: critical\n\nRequires immediate management intervention.`,
-              assignedTo: gmId,
-              priority: 'Critical',
-              category: `Procurement ${fingerprint}`,
+              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue.\nProject: ${proj.name}\nManufacturing phase: ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}\nagent_severity: ${severity}\n\nRequires immediate management intervention.`,
+              assignedTo: gmId, priority: 'Critical', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation',
-            priority: 'critical',
-            confidence: 0.85,
+            actionCategory: 'task_creation', priority: 'critical', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -2122,7 +2031,30 @@ export class ProjectControlAgent implements IAgent {
       }
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // AGENT RUN LOGGING (execution_metadata)
+    // ════════════════════════════════════════════════════════════════════════
     const elapsed = Date.now() - startTime;
+    const executionMetadata = {
+      findings_detected: findingsCount,
+      tasks_created: autoExecutedCount,
+      tasks_closed: autoClosedCount,
+      recommendations_generated: recommendationsCount,
+      execution_time_ms: elapsed,
+      queries_run: queriesRun,
+      modules: ['P1-P12', 'D1-D10', 'R1-R12'],
+    };
+
+    try {
+      await db.execute(sql`
+        UPDATE agent_runs
+        SET execution_metadata = ${JSON.stringify(executionMetadata)}::jsonb
+        WHERE id = ${context.runId}
+      `);
+    } catch (err: any) {
+      console.error(`[ProjectControl] Failed to update execution_metadata:`, err.message);
+    }
+
     console.log(`[ProjectControl] Complete: ${findingsCount} findings, ${recommendationsCount} recommendations, ${autoExecutedCount} auto-executed, ${autoClosedCount} auto-closed, ${queriesRun} queries in ${elapsed}ms`);
 
     return {
@@ -2132,7 +2064,7 @@ export class ProjectControlAgent implements IAgent {
       autoExecutedActions: autoExecutedCount,
       queriesRun,
       executionTimeMs: elapsed,
-      summary: `Project Control Agent (34-finding model): ${findingsCount} findings, ${recommendationsCount} recommendations, ${autoExecutedCount} tasks created, ${autoClosedCount} resolved tasks auto-closed. Modules: Project (P1-P12), Design (D1-D10), Procurement (R1-R12).`,
+      summary: `Project Control Agent (34-finding model): ${findingsCount} findings, ${recommendationsCount} recommendations, ${autoExecutedCount} tasks created, ${autoClosedCount} resolved tasks auto-closed. Modules: Project (P1-P12), Design (D1-D10), Procurement (R1-R12). Health bands: Green(80+), Watch(60-79), Amber(40-59), Red(0-39). Execution: ${elapsed}ms.`,
     };
   }
 }
