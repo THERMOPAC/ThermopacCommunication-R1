@@ -171,6 +171,7 @@ export class ActionExecutor {
       category: payload.category || 'Agent Action',
       sourceType: payload.sourceType || 'llm_insight',
       sourceId: payload.sourceId || null,
+      sourceAgent: payload.sourceAgent || null,
     }).returning();
 
     return {

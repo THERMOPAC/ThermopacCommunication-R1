@@ -8,6 +8,8 @@ import { agentDataRepo } from '../data-access/agent-data-repo';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 
+const SOURCE_AGENT = 'communicator';
+
 const FINANCE_CATEGORIES = ['Finance'];
 const FINANCE_KEYWORDS = ['BRC', 'invoice', 'payment', 'remittance', 'outstanding'];
 
@@ -151,14 +153,121 @@ function tierToAssigneeRule(tier: EscalationTier, task: any): { assignedTo: numb
     case 'creator_notify':
       return { assignedTo: task.creatorId, stage: 'Stage 2: Creator', priority: 'High' };
     case 'escalation_30':
-      return { assignedTo: task.creatorManagerId || task.creatorId, stage: 'Stage 3: Manager', priority: 'High' };
+      return { assignedTo: task.creatorId, stage: 'Stage 2: Creator Review', priority: 'High' };
     case 'escalation_60':
-      return { assignedTo: task.assigneeManagerId || task.creatorManagerId || task.creatorId, stage: 'Stage 3: Manager', priority: 'Urgent' };
+      return { assignedTo: task.creatorManagerId || task.creatorId, stage: 'Stage 3: Creator Manager', priority: 'Urgent' };
     case 'escalation_90':
     case 'zombie_risk':
+      return { assignedTo: task.assigneeManagerId || task.creatorManagerId || 1, stage: 'Stage 4: Management Review', priority: 'Urgent' };
     case 'zombie_review':
-      return { assignedTo: task.assigneeManagerId || task.creatorManagerId || task.creatorId, stage: 'Stage 4: Management Review', priority: 'Urgent' };
+      return { assignedTo: 1, stage: 'Stage 5: Superuser Closure', priority: 'Urgent' };
   }
+}
+
+async function isFirstRun(): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT COUNT(*) as cnt FROM agent_runs 
+    WHERE agent_key = 'communications' AND status = 'completed'
+  `);
+  return Number((result.rows as any[])[0]?.cnt || 0) === 0;
+}
+
+async function autoCloseResolvedTasks(): Promise<number> {
+  let closedCount = 0;
+
+  const openAgentTasks = await db.execute(sql`
+    SELECT id, category, title FROM tasks
+    WHERE source_type = 'agent_task'
+      AND source_agent = 'communicator'
+      AND status NOT IN ('completed', 'cancelled')
+      AND category IS NOT NULL
+  `);
+
+  for (const task of (openAgentTasks.rows || []) as any[]) {
+    const cat = task.category || '';
+    let shouldClose = false;
+    let closeReason = '';
+
+    const fpMatch = cat.match(/\[fp:(\w+):(.+?)\]/);
+    if (!fpMatch) continue;
+    const [, fpType, fpEntity] = fpMatch;
+
+    try {
+      if (fpType === 'leave_expired' || fpType === 'leave_escalation' || fpType === 'leave_reminder') {
+        const leaveId = fpEntity.replace('leave:', '');
+        const check = await db.execute(sql`
+          SELECT status FROM leave_requests WHERE id = ${Number(leaveId)}
+        `);
+        if ((check.rows as any[])[0]?.status !== 'Pending') {
+          shouldClose = true;
+          closeReason = 'Leave request is no longer pending';
+        }
+      }
+
+      if (fpType === 'dwar_missing' || fpType === 'dwar_warning') {
+        const userId = Number(fpEntity);
+        const check = await db.execute(sql`
+          SELECT COUNT(*) as cnt FROM (
+            SELECT d::date AS work_date
+            FROM generate_series(
+              date_trunc('week', CURRENT_DATE),
+              CURRENT_DATE - INTERVAL '1 day',
+              '1 day'
+            ) d
+            WHERE EXTRACT(DOW FROM d::date) NOT IN (0, 6)
+            EXCEPT
+            SELECT date::date FROM daily_work_reports WHERE user_id = ${userId}
+          ) missing
+        `);
+        if (Number((check.rows as any[])[0]?.cnt || 0) === 0) {
+          shouldClose = true;
+          closeReason = 'All DWARs have been submitted';
+        }
+      }
+
+      if (fpType === 'attendance_incomplete') {
+        const userId = Number(fpEntity);
+        const check = await db.execute(sql`
+          SELECT COUNT(*) as cnt FROM attendance_records
+          WHERE user_id = ${userId}
+            AND date::date > CURRENT_DATE - INTERVAL '7 days'
+            AND check_in IS NOT NULL AND check_out IS NULL
+        `);
+        if (Number((check.rows as any[])[0]?.cnt || 0) === 0) {
+          shouldClose = true;
+          closeReason = 'Attendance records have been completed';
+        }
+      }
+
+      if (fpType.startsWith('overdue_tier') || fpType.startsWith('overdue_escalation') || fpType === 'zombie_risk' || fpType === 'zombie_review') {
+        const taskIdMatch = fpEntity.match(/task:(\d+)/);
+        if (taskIdMatch) {
+          const origTaskId = Number(taskIdMatch[1]);
+          const check = await db.execute(sql`
+            SELECT status FROM tasks WHERE id = ${origTaskId}
+          `);
+          if (['completed', 'cancelled'].includes((check.rows as any[])[0]?.status)) {
+            shouldClose = true;
+            closeReason = 'Original task has been completed/cancelled';
+          }
+        }
+      }
+
+      if (shouldClose) {
+        await db.execute(sql`
+          UPDATE tasks SET status = 'completed',
+            completed_at = ${new Date().toISOString().split('T')[0]},
+            description = description || ${'\n\n[Auto-closed by Communications Agent: ' + closeReason + ']'}
+          WHERE id = ${task.id}
+        `);
+        closedCount++;
+      }
+    } catch (err: any) {
+      // Silently skip — table may not exist for some fingerprint types
+    }
+  }
+
+  return closedCount;
 }
 
 export class CommunicationsAgent implements IAgent {
@@ -181,7 +290,24 @@ export class CommunicationsAgent implements IAgent {
     let recommendationsCount = 0;
     let queriesRun = 0;
     let autoExecutedCount = 0;
+    let autoClosedCount = 0;
     const autoExecuteQueue: number[] = [];
+
+    const firstRun = await isFirstRun();
+
+    try {
+      autoClosedCount = await autoCloseResolvedTasks();
+      if (autoClosedCount > 0) {
+        console.log(`[Communications] Auto-closed ${autoClosedCount} resolved agent tasks`);
+      }
+    } catch (err: any) {
+      console.error(`[Communications] Auto-close sweep error:`, err.message);
+    }
+
+    const skipTaskCreation = firstRun;
+    if (firstRun) {
+      console.log(`[Communications] FIRST RUN detected — findings/insights only, no tasks created (historical backlog suppressed)`);
+    }
 
     const allOverdueTasks = await agentDataRepo.getOverdueTasksWithEscalation();
     queriesRun++;
@@ -1019,6 +1145,9 @@ export class CommunicationsAgent implements IAgent {
     // ═══════════════════════════════════════════════════════════════════════
 
     // ─── GROUP A: 28 AUTOMATED TASK-CREATING FINDINGS ───
+    // On first run, skip all task creation to avoid flooding with historical backlog
+
+    if (!skipTaskCreation) {
 
     // A1-A7: OVERDUE TASK ESCALATION — create review task per tier with escalation ladder
     // Tier 1-2: Grouped per assignee → one task listing all overdue items
@@ -1041,6 +1170,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: firstTask.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1069,6 +1199,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: firstTask.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1095,6 +1226,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: task.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1123,6 +1255,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1132,26 +1265,54 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // Tier 6-7: Zombie → management review task
-    for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
-      const tier = getEscalationTier(task.daysOverdue);
-      const { assignedTo, stage, priority } = tierToAssigneeRule(tier, task);
+    // A6: ZOMBIE-RISK (90-179d) → management review task
+    for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk]) {
+      const { assignedTo, stage, priority } = tierToAssigneeRule('zombie_risk', task);
+      const fp = makeFingerprint('zombie_risk', `task:${task.id}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Zombie-risk review: "${task.title}" (${task.daysOverdue}d overdue)`,
+        description: `Task "${task.title}" is ${task.daysOverdue} days overdue. Management review required.`,
+        actionPayload: {
+          title: `[Agent] ZOMBIE-RISK: Review "${task.title}" (${task.daysOverdue}d overdue)`,
+          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.\nCreated by: ${task.creatorName}\n\nThis task is at zombie-risk — it has been overdue for 90+ days through all reminders.\n\nRequired action: Review with assignee, reassign, or close with justification.\n\nSource: Communications Agent — ${stage}`,
+          priority,
+          assignedTo,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.95,
+        priority: 'urgent',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A7: ZOMBIE REVIEW (180+d) → superuser closure task
+    for (const task of tasksByTier.zombie_review) {
+      const { assignedTo, stage, priority } = tierToAssigneeRule('zombie_review', task);
       const fp = makeFingerprint('zombie_review', `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 14)) continue;
 
       const rec = await recommendationManager.createRecommendation({
         actionCategory: 'task_creation',
         actionType: 'create_task',
-        title: `Zombie task review: "${task.title}" (${task.daysOverdue}d overdue)`,
-        description: `Task "${task.title}" is ${task.daysOverdue} days overdue. Management review required.`,
+        title: `Zombie closure required: "${task.title}" (${task.daysOverdue}d overdue)`,
+        description: `Task "${task.title}" is ${task.daysOverdue} days overdue. Superuser closure required.`,
         actionPayload: {
-          title: `[Agent] ZOMBIE TASK: Review "${task.title}" (${task.daysOverdue}d overdue)`,
-          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.\nCreated by: ${task.creatorName}\n\nThis task is classified as a zombie — it has been ignored through all escalation stages.\n\nRequired action: Close as not applicable, reassign, or escalate as process failure.\n\nSource: Communications Agent — ${stage}`,
+          title: `[Agent] ZOMBIE TASK: Close or reassign "${task.title}" (${task.daysOverdue}d overdue)`,
+          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.\nCreated by: ${task.creatorName}\n\nThis task is classified as a ZOMBIE — overdue 180+ days, ignored through all escalation stages.\n\nImmediate action required: Close as not applicable, formally reassign, or escalate as process failure.\n\nSource: Communications Agent — ${stage}`,
           priority,
           assignedTo,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
-          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          sourceAgent: SOURCE_AGENT,
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
         confidence: 0.95,
@@ -1181,6 +1342,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: firstTask.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1208,6 +1370,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: email.userId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1217,9 +1380,10 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A10: 72h+ UNANSWERED EMAILS — review task
+    // A10: 72h+ UNANSWERED P2+ PRIORITY EMAILS — review task (P3/low excluded)
     for (const email of longUnanswered) {
       if (!email.userId) continue;
+      if (email.priority === 'P3') continue;
       const fp = makeFingerprint('email_review', `email:${email.id}`);
       if (await hasRecentAgentTask(fp, 7)) continue;
 
@@ -1235,6 +1399,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: email.userId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1263,6 +1428,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: managerId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1290,6 +1456,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: emp.userId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1317,6 +1484,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: gap.userId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1344,6 +1512,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: gap.userId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1371,6 +1540,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: dq.userId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1398,6 +1568,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: leave.managerId || null,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1425,6 +1596,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: leave.managerId || null,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1452,6 +1624,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: leave.managerId || null,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1479,6 +1652,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: commitment.managerId || commitment.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1506,6 +1680,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: commitment.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1533,6 +1708,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: commitment.assigneeId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           sourceId: commitment.id,
           dueDate: commitment.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
@@ -1561,6 +1737,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: offender.managerId || null,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1588,6 +1765,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: ap.managerId || null,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1615,6 +1793,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: ap.managerId || null,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1643,6 +1822,7 @@ export class CommunicationsAgent implements IAgent {
           assignedTo: it.creatorId,
           category: `Agent Task ${fp}`,
           sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
@@ -1652,11 +1832,13 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
+    } // end skipTaskCreation guard for Group A
+
     // ─── GROUP B: WEEKLY CONSOLIDATED "COMMUNICATIONS HEALTH REVIEW" TASK ───
     // Findings that contribute: unread messages (27), meeting completion rate (33),
     // leave balance zero+pending (31), repeat offenders already covered individually
     // This task is created once per week on Monday
-    if (new Date().getDay() === 1) {
+    if (!skipTaskCreation && new Date().getDay() === 1) {
       const fpWeekly = makeFingerprint('weekly_health_review', `week:${new Date().toISOString().split('T')[0]}`);
       if (!(await hasRecentAgentTask(fpWeekly, 7))) {
         const weeklyItems: string[] = [];
@@ -1691,6 +1873,7 @@ export class CommunicationsAgent implements IAgent {
               assignedTo: 1,
               category: `Agent Task ${fpWeekly}`,
               sourceType: 'agent_task',
+              sourceAgent: SOURCE_AGENT,
               dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             },
             logicType: 'rule_based',
@@ -1801,6 +1984,8 @@ export class CommunicationsAgent implements IAgent {
         `--- AUTOMATION ---`,
         `Recommendations generated: ${recommendationsCount}`,
         `Auto-executed actions: ${autoExecutedCount}`,
+        `Auto-closed resolved tasks: ${autoClosedCount}`,
+        `First run (backlog suppressed): ${firstRun}`,
       ].join('\n'),
       logicType: 'rule_based',
       dataSources: [
@@ -1863,6 +2048,8 @@ export class CommunicationsAgent implements IAgent {
         tokensUsed: 0,
         notificationsSent: 0,
         autoExecutedActions: autoExecutedCount,
+        autoClosedTasks: autoClosedCount,
+        firstRun: firstRun,
       },
     };
   }

@@ -874,6 +874,7 @@ export const tasks = pgTable('tasks', {
   // Meeting integration fields
   sourceType: text('source_type'), // 'manual', 'meeting_commitment', 'recurring'
   sourceId: integer('source_id'), // ID of the source record (meeting commitment ID if sourceType is 'meeting_commitment')
+  sourceAgent: text('source_agent'), // Which agent created this task (e.g. 'communicator', 'finance_control')
 });
 
 // Separate table for instances of recurring tasks
