@@ -864,17 +864,39 @@ export const tasks = pgTable('tasks', {
   priority: text('priority').notNull().default('Medium'),
   startDate: text('start_date').notNull(),
   finishDate: text('finish_date').notNull(),
-  dueDate: text('due_date'), // Due date for the task (optional to avoid data loss with existing records)
+  dueDate: text('due_date'),
   assignedTo: integer('assigned_to').references(() => users.id),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: text('created_at').notNull(),
   completedAt: text('completed_at'),
-  category: text('category'), // Optional category for task classification
+  category: text('category'),
   
-  // Meeting integration fields
-  sourceType: text('source_type'), // 'manual', 'meeting_commitment', 'recurring'
-  sourceId: integer('source_id'), // ID of the source record (meeting commitment ID if sourceType is 'meeting_commitment')
-  sourceAgent: text('source_agent'), // Which agent created this task (e.g. 'communicator', 'finance_control')
+  sourceType: text('source_type'),
+  sourceId: integer('source_id'),
+  sourceAgent: text('source_agent'),
+
+  verifiedBy: integer('verified_by').references(() => users.id),
+  verifiedAt: text('verified_at'),
+  verificationStatus: text('verification_status'),
+  verificationNotes: text('verification_notes'),
+  closureAttempts: integer('closure_attempts').default(0),
+  lastSubmittedBy: integer('last_submitted_by').references(() => users.id),
+  lastSubmittedAt: text('last_submitted_at'),
+  reopenCount: integer('reopen_count').default(0),
+  reopenReason: text('reopen_reason'),
+});
+
+export const taskVerificationEvidence = pgTable('task_verification_evidence', {
+  id: serial('id').primaryKey(),
+  taskId: integer('task_id').notNull().references(() => tasks.id),
+  submittedBy: integer('submitted_by').notNull().references(() => users.id),
+  evidenceType: text('evidence_type').notNull(),
+  evidenceDescription: text('evidence_description').notNull(),
+  fileUrl: text('file_url'),
+  fileName: text('file_name'),
+  linkedEntityType: text('linked_entity_type'),
+  linkedEntityId: text('linked_entity_id'),
+  createdAt: text('created_at').notNull(),
 });
 
 // Separate table for instances of recurring tasks
@@ -1274,6 +1296,7 @@ export type RoleModulePermission = typeof roleModulePermissions.$inferSelect;
 export type InsertRoleModulePermission = z.infer<typeof insertRoleModulePermissionSchema>;
 export type TaskHistory = typeof taskHistory.$inferSelect;
 export type InsertTaskHistory = z.infer<typeof insertTaskHistorySchema>;
+export type TaskVerificationEvidence = typeof taskVerificationEvidence.$inferSelect;
 export type WorkflowRecommendation = typeof workflowRecommendations.$inferSelect;
 export type InsertWorkflowRecommendation = z.infer<typeof insertWorkflowRecommendationSchema>;
 export type Achievement = typeof achievements.$inferSelect;
