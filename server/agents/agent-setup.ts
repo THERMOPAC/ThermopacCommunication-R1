@@ -7,6 +7,7 @@ import { ProjectControlAgent } from './agents/project-control';
 import { CommunicationsAgent } from './agents/communications';
 import { ExecutiveMISAgent } from './agents/executive-mis';
 import { FinanceControlAgent } from './agents/finance-control';
+import { SalesMarketingAgent } from './agents/sales-marketing';
 
 const PHASE_1_AGENTS = [
   {
@@ -77,6 +78,31 @@ const PHASE_1_AGENTS = [
       overdueInvoiceThreshold: 5,
     },
   },
+  {
+    agentKey: 'sales_marketing',
+    displayName: 'Sales & Marketing Agent',
+    description: 'Monitors sales pipeline health, lead follow-ups, offer lifecycle, customer engagement, and digital marketing campaigns (Google Ads). 20 automated findings + 4 observations + 2 intelligence reports.',
+    category: 'sales',
+    defaultSchedule: '0 1 * * *',
+    config: {
+      sales_l1_user_id: 2,
+      sales_l2_user_id: 3,
+      stale_lead_days: 7,
+      stale_lead_escalation_days: 15,
+      lead_stuck_days: 30,
+      high_value_lead_min_probability: 50,
+      offer_expiry_warning_days: 7,
+      offer_draft_stuck_days: 7,
+      offer_sent_no_response_days: 10,
+      offer_high_rejection_threshold: 3,
+      dormant_customer_days: 90,
+      followup_overdue_days: 3,
+      high_value_neglect_days: 60,
+      gads_low_quality_score: 5,
+      gads_waste_spend_threshold: 100,
+      campaign_overbudget_pct: 110,
+    },
+  },
 ];
 
 const DEFAULT_POLICIES = [
@@ -95,6 +121,10 @@ const DEFAULT_POLICIES = [
   { agentKey: 'finance', actionCategory: 'report_generation', actionType: 'generate_aging_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 10 },
   { agentKey: 'executive_mis', actionCategory: 'report_generation', actionType: 'generate_briefing', approvalMode: 'require_approval' },
   { agentKey: 'executive_mis', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
+  { agentKey: 'sales_marketing', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
+  { agentKey: 'sales_marketing', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
+  { agentKey: 'sales_marketing', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
+  { agentKey: 'sales_marketing', actionCategory: 'report_generation', actionType: 'generate_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 10 },
 ];
 
 export async function initializeAgentSystem(): Promise<void> {
@@ -160,6 +190,7 @@ export async function initializeAgentSystem(): Promise<void> {
   orchestrator.registerAgent(new CommunicationsAgent());
   orchestrator.registerAgent(new FinanceControlAgent());
   orchestrator.registerAgent(new ExecutiveMISAgent());
+  orchestrator.registerAgent(new SalesMarketingAgent());
 
   setTimeout(() => {
     agentScheduler.start().catch(err => {
