@@ -8,6 +8,7 @@ import { CommunicationsAgent } from './agents/communications';
 import { ExecutiveMISAgent } from './agents/executive-mis';
 import { FinanceControlAgent } from './agents/finance-control';
 import { SalesMarketingAgent } from './agents/sales-marketing';
+import { PredictiveProjectControlAgent } from './agents/predictive-project-control';
 
 const PHASE_1_AGENTS = [
   {
@@ -79,6 +80,26 @@ const PHASE_1_AGENTS = [
     },
   },
   {
+    agentKey: 'predictive_project_control',
+    displayName: 'Predictive Project Control Agent',
+    description: 'Predictive intelligence layer for project control. Uses trend analysis, velocity calculations, and cross-module signals to forecast project delays, design bottlenecks, procurement risks, and cascading cross-module failures. 12 prediction types: PP1-PP3 (project), PD1-PD3 (design), PR1-PR3 (procurement), PX1-PX3 (cross-module).',
+    category: 'intelligence',
+    defaultSchedule: '0 4 * * *',
+    config: {
+      closureDeclineThresholdPct: 30,
+      velocityGapThresholdPct: 50,
+      phaseStallProgressGap: 20,
+      reviewTurnaroundIncreasePct: 30,
+      revisionSpikeThresholdPct: 50,
+      procCycleLagIncreasePct: 30,
+      vendorOverduePOThreshold: 3,
+      grDeclineThresholdPct: 30,
+      compositeRiskThreshold: 60,
+      crossModuleLoadThreshold: 8,
+      findingsIncreasePct: 30,
+    },
+  },
+  {
     agentKey: 'sales_marketing',
     displayName: 'Sales & Marketing Agent',
     description: 'Monitors sales pipeline health, lead follow-ups, offer lifecycle, customer engagement, and digital marketing campaigns (Google Ads). 20 automated findings + 4 observations + 2 intelligence reports.',
@@ -121,6 +142,9 @@ const DEFAULT_POLICIES = [
   { agentKey: 'finance', actionCategory: 'report_generation', actionType: 'generate_aging_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 10 },
   { agentKey: 'executive_mis', actionCategory: 'report_generation', actionType: 'generate_briefing', approvalMode: 'require_approval' },
   { agentKey: 'executive_mis', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
+  { agentKey: 'predictive_project_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 10, maxPerDay: 30 },
+  { agentKey: 'predictive_project_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 50 },
+  { agentKey: 'predictive_project_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval', cooldownMinutes: 30, maxPerDay: 10 },
   { agentKey: 'sales_marketing', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
   { agentKey: 'sales_marketing', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
   { agentKey: 'sales_marketing', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
@@ -187,6 +211,7 @@ export async function initializeAgentSystem(): Promise<void> {
   }
 
   orchestrator.registerAgent(new ProjectControlAgent());
+  orchestrator.registerAgent(new PredictiveProjectControlAgent());
   orchestrator.registerAgent(new CommunicationsAgent());
   orchestrator.registerAgent(new FinanceControlAgent());
   orchestrator.registerAgent(new ExecutiveMISAgent());
