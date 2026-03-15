@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Task, User } from "@shared/schema";
@@ -54,8 +54,9 @@ export default function TaskDashboard() {
     // Force a fresh fetch of tasks when component mounts
     handleRefreshTasks();
   }, []);
-  // Removed due date filter as per requirement
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [assignedByFilter, setAssignedByFilter] = useState<string | null>(null);
+  const [assignedToFilter, setAssignedToFilter] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [sortBy, setSortBy] = useState<"dueDate" | "priority" | "title">("dueDate");
 
@@ -66,6 +67,49 @@ export default function TaskDashboard() {
   const { data: subordinates = [] } = useQuery<User[]>({
     queryKey: ["/api/subordinates"],
   });
+
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+  });
+
+  const agentDisplayNames: Record<string, string> = {
+    'communicator': 'Communicator',
+    'communications': 'Communicator',
+    'project_control': 'Project Control Agent',
+    'finance_control': 'Finance Control Agent',
+    'executive_mis': 'Executive MIS Agent',
+  };
+
+  const getCreatorDisplayName = useCallback((task: Task) => {
+    if (task.sourceAgent) {
+      return agentDisplayNames[task.sourceAgent] || task.sourceAgent;
+    }
+    const u = allUsers.find(usr => usr.id === task.createdBy);
+    return u ? u.username : 'Unknown';
+  }, [allUsers]);
+
+  const getCreatorKey = useCallback((task: Task) => {
+    return task.sourceAgent ? `agent:${task.sourceAgent}` : `user:${task.createdBy || 0}`;
+  }, []);
+
+  const uniqueAssigners = useMemo(() => {
+    const map = new Map<string, string>();
+    tasks.forEach(task => {
+      const key = getCreatorKey(task);
+      if (!map.has(key)) {
+        map.set(key, getCreatorDisplayName(task));
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [tasks, getCreatorKey, getCreatorDisplayName]);
+
+  const uniqueAssignees = useMemo(() => {
+    const ids = new Set<number>();
+    tasks.forEach(task => { if (task.assignedTo) ids.add(task.assignedTo); });
+    return Array.from(ids)
+      .map(id => { const u = allUsers.find(usr => usr.id === id); return u ? { id, name: u.username } : { id, name: `User ${id}` }; })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [tasks, allUsers]);
 
   // Fetch commitment tasks for the current user
   const { data: commitmentTasksData, refetch: refetchCommitmentTasks, isLoading: isLoadingCommitmentTasks } = useQuery({
@@ -121,9 +165,16 @@ export default function TaskDashboard() {
     
     // Due date filter has been removed as per requirement
     
-    // Filter by priority
     if (priorityFilter) {
       filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
+    }
+
+    if (assignedByFilter) {
+      filteredTasks = filteredTasks.filter(task => getCreatorKey(task) === assignedByFilter);
+    }
+
+    if (assignedToFilter) {
+      filteredTasks = filteredTasks.filter(task => String(task.assignedTo) === assignedToFilter);
     }
     
     // Sort tasks
@@ -296,6 +347,36 @@ export default function TaskDashboard() {
                   Low
                 </div>
               </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={assignedByFilter || "all"}
+            onValueChange={(value) => setAssignedByFilter(value === "all" ? null : value)}
+          >
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="Assigned By" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assigned By</SelectItem>
+              {uniqueAssigners.map(([key, name]) => (
+                <SelectItem key={key} value={key}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={assignedToFilter || "all"}
+            onValueChange={(value) => setAssignedToFilter(value === "all" ? null : value)}
+          >
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="Assigned To" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Assigned To</SelectItem>
+              {uniqueAssignees.map(item => (
+                <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
