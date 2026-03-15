@@ -106,9 +106,9 @@ const PHASE_1_AGENTS = [
 ];
 
 const DEFAULT_POLICIES = [
-  { agentKey: 'project_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'require_approval' },
-  { agentKey: 'project_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'require_approval' },
-  { agentKey: 'project_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval' },
+  { agentKey: 'project_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
+  { agentKey: 'project_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
+  { agentKey: 'project_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
   { agentKey: 'communications', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
   { agentKey: 'communications', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 20 },
   { agentKey: 'communications', actionCategory: 'task_creation', actionType: 'create_reminder', approvalMode: 'auto' },
