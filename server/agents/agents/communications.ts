@@ -1104,6 +1104,30 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
+    for (const dq of dwarQuality) {
+      if (dq.avgScore <= 30) {
+        const rec = await recommendationManager.createRecommendation({
+          actionCategory: 'notification',
+          actionType: 'send_alert',
+          title: `DWAR quality reminder for ${dq.employeeName}`,
+          description: `${dq.employeeName} has a low DWAR quality score (${dq.avgScore}/100) with ${dq.poorCount + dq.emptyCount} poor/empty reports. Send a reminder to improve report quality.`,
+          actionPayload: {
+            subject: `Reminder: Please improve your Daily Work Report quality`,
+            content: `Hi ${dq.employeeName},\n\nYour daily work reports this week have a quality score of ${dq.avgScore}/100.\n\n- Complete reports: ${dq.completeCount}\n- Weak reports: ${dq.weakCount}\n- Poor/empty reports: ${dq.poorCount + dq.emptyCount}\n\nPlease ensure your DWARs include:\n1. Detailed description of work done\n2. All relevant fields filled in\n3. Meaningful content (not just a few words)\n\nThis is an automated reminder from the AI Agent System.`,
+            severity: 'medium',
+            targets: [{ userId: dq.userId, userName: dq.employeeName }],
+          },
+          logicType: 'rule_based',
+          confidence: 0.85,
+          priority: 'normal',
+        });
+        if (rec.id > 0) {
+          recommendationsCount++;
+          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+        }
+      }
+    }
+
     for (const leave of pendingLeaves) {
       if (leave.leaveDatePassed && leave.daysPending >= 14) {
         const rec = await recommendationManager.createRecommendation({
