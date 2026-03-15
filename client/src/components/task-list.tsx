@@ -166,13 +166,10 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         const status = completed ? "completed" : "pending";
         return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
       } catch (error: any) {
-        if (error?.message?.includes('requiresVerification') || error?.message?.includes('require verification')) {
-          const taskObj = tasks.find(t => t.id === taskId);
-          if (taskObj) {
-            setTaskToComplete(null);
-            setVerificationDialog({ taskId, mode: 'submit' });
-            throw new Error('REDIRECT_TO_VERIFICATION');
-          }
+        if (error?.message?.includes('requiresVerification') || error?.message?.includes('require verification') || error?.message?.includes('submit for verification') || error?.message?.includes('Self-created')) {
+          setTaskToComplete(null);
+          setVerificationDialog({ taskId, mode: 'submit' });
+          throw new Error('REDIRECT_TO_VERIFICATION');
         }
         throw error;
       }
@@ -740,6 +737,11 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                         >
                           {task.status === 'pending_verification' ? 'Pending Verification' : task.status}
                         </Badge>
+                        {task.createdBy === task.assignedTo && task.createdBy !== null && task.status !== 'completed' && (
+                          <Badge variant="outline" className="ml-1 text-xs bg-purple-50 text-purple-700 border-purple-300">
+                            Self-assigned
+                          </Badge>
+                        )}
                         {(task as any).closureAttempts > 1 && task.status !== 'completed' && (
                           <Badge variant="outline" className="ml-1 text-xs bg-orange-50 text-orange-700 border-orange-300">
                             Attempt {(task as any).closureAttempts}
@@ -755,37 +757,58 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                         {(() => {
                           const isHighOrCritical = task.priority === 'High' || task.priority === 'Critical';
                           const isAgentTask = task.sourceType === 'agent_task';
-                          const requiresVerification = isHighOrCritical || isAgentTask;
+                          const isSelfCreatedSelfAssigned = task.createdBy === task.assignedTo && task.createdBy !== null;
+                          const requiresVerification = isHighOrCritical || isAgentTask || isSelfCreatedSelfAssigned;
                           const isAssignee = task.assignedTo === user?.id;
                           const isManager = user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Manager';
                           const isCreator = task.createdBy === user?.id;
+
+                          const assigneeUser = allUsers.find(u => u.id === task.assignedTo);
+                          const isReportingManager = assigneeUser?.reportingManagerId === user?.id;
 
                           if (task.status === 'completed') {
                             return <CheckCircle className="h-5 w-5 text-green-500" />;
                           }
 
-                          if (task.status === 'pending_verification' && (isManager || isCreator) && !(requiresVerification && isAssignee && user?.role !== 'Superuser')) {
-                            return (
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" title="Verify & Complete"
-                                  onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'verify' }); setVerificationNotes(''); }}>
-                                  <ShieldCheck className="h-5 w-5 text-green-600" />
-                                </Button>
-                                <Button variant="ghost" size="icon" title="Reject & Send Back"
-                                  onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'reject' }); setVerificationNotes(''); }}>
-                                  <ShieldAlert className="h-5 w-5 text-red-500" />
-                                </Button>
-                              </div>
-                            );
-                          }
-
                           if (task.status === 'pending_verification') {
+                            if (isSelfCreatedSelfAssigned) {
+                              if (isReportingManager || user?.role === 'Superuser') {
+                                return (
+                                  <div className="flex gap-1">
+                                    <Button variant="ghost" size="icon" title="Verify & Close (Reporting Manager)"
+                                      onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'verify' }); setVerificationNotes(''); }}>
+                                      <ShieldCheck className="h-5 w-5 text-green-600" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" title="Reject & Send Back"
+                                      onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'reject' }); setVerificationNotes(''); }}>
+                                      <ShieldAlert className="h-5 w-5 text-red-500" />
+                                    </Button>
+                                  </div>
+                                );
+                              }
+                              return <ClipboardCheck className="h-5 w-5 text-amber-500" title="Awaiting Reporting Manager verification" />;
+                            }
+
+                            if ((isManager || isCreator) && !(requiresVerification && isAssignee && user?.role !== 'Superuser')) {
+                              return (
+                                <div className="flex gap-1">
+                                  <Button variant="ghost" size="icon" title="Verify & Complete"
+                                    onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'verify' }); setVerificationNotes(''); }}>
+                                    <ShieldCheck className="h-5 w-5 text-green-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" title="Reject & Send Back"
+                                    onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'reject' }); setVerificationNotes(''); }}>
+                                    <ShieldAlert className="h-5 w-5 text-red-500" />
+                                  </Button>
+                                </div>
+                              );
+                            }
                             return <ClipboardCheck className="h-5 w-5 text-amber-500" title="Awaiting verification" />;
                           }
 
                           if (requiresVerification && isAssignee) {
                             return (
-                              <Button variant="ghost" size="icon" title="Submit for Verification"
+                              <Button variant="ghost" size="icon" title={isSelfCreatedSelfAssigned ? "Submit for Reporting Manager Verification" : "Submit for Verification"}
                                 onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'submit' }); setEvidenceDescription(''); }}
                                 disabled={submitForVerificationMutation.isPending}>
                                 <Send className="h-5 w-5 text-blue-600" />
@@ -858,8 +881,13 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <div>
-                  This task requires independent verification before it can be marked as completed.
-                  A manager or the task creator will review your work.
+                  {(() => {
+                    const vTask = tasks.find(t => t.id === verificationDialog?.taskId);
+                    if (vTask && vTask.createdBy === vTask.assignedTo && vTask.createdBy !== null) {
+                      return "This is a self-created, self-assigned task. Your Reporting Manager must perform final verification and closure.";
+                    }
+                    return "This task requires independent verification before it can be marked as completed. A manager or the task creator will review your work.";
+                  })()}
                 </div>
               </div>
             </div>

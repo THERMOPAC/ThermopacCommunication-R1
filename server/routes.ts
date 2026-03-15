@@ -1978,7 +1978,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userRole = req.user!.role;
       const isHighOrCritical = task.priority === 'High' || task.priority === 'Critical';
       const isAgentTask = task.sourceType === 'agent_task';
-      const requiresVerification = isHighOrCritical || isAgentTask;
+      const isSelfCreatedSelfAssigned = task.createdBy === task.assignedTo && task.createdBy !== null;
+      const requiresVerification = isHighOrCritical || isAgentTask || isSelfCreatedSelfAssigned;
 
       const isTaskCompletion = req.body.status === 'completed';
       const isWorkSubmission = req.body.status === 'pending_verification';
@@ -2020,13 +2021,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (task.status !== 'pending_verification') {
           return res.status(400).json({ message: "Task must be in 'pending_verification' status to verify" });
         }
-        if (requiresVerification && task.assignedTo === userId && userRole !== "Superuser") {
-          return res.status(403).json({ message: "High/Critical and agent tasks require independent verification — verifier cannot be the assignee" });
-        }
-        const isManager = userRole === 'Superuser' || userRole === 'General Manager' || userRole === 'Senior Manager' || userRole === 'Manager';
-        const isCreator = task.createdBy === userId;
-        if (!isManager && !isCreator && userRole !== "Superuser") {
-          return res.status(403).json({ message: "Only managers, task creator, or superusers can verify task completion" });
+
+        if (isSelfCreatedSelfAssigned) {
+          const assigneeUser = await storage.getUser(task.assignedTo!);
+          const reportingManagerId = assigneeUser?.reportingManagerId;
+          if (!reportingManagerId) {
+            return res.status(400).json({ message: "No reporting manager configured for this user. Cannot verify self-created task." });
+          }
+          if (userId !== reportingManagerId && userRole !== "Superuser") {
+            return res.status(403).json({ 
+              message: "Self-created, self-assigned tasks can only be verified/closed by the assignee's Reporting Manager." 
+            });
+          }
+        } else {
+          if (requiresVerification && task.assignedTo === userId && userRole !== "Superuser") {
+            return res.status(403).json({ message: "High/Critical and agent tasks require independent verification — verifier cannot be the assignee" });
+          }
+          const isManager = userRole === 'Superuser' || userRole === 'General Manager' || userRole === 'Senior Manager' || userRole === 'Manager';
+          const isCreator = task.createdBy === userId;
+          if (!isManager && !isCreator && userRole !== "Superuser") {
+            return res.status(403).json({ message: "Only managers, task creator, or superusers can verify task completion" });
+          }
         }
 
         if (req.body.status === 'verified') {
@@ -2156,9 +2171,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this task" });
         }
 
+        if (isSelfCreatedSelfAssigned) {
+          return res.status(400).json({ 
+            message: "Self-created, self-assigned tasks cannot be directly closed. Please submit for verification — your Reporting Manager will perform final closure.",
+            requiresVerification: true
+          });
+        }
+
         if (requiresVerification) {
           return res.status(400).json({ 
-            message: "High/Critical priority tasks and agent-generated tasks require verification. Please submit for verification instead.",
+            message: "This task requires verification before closure. Please submit for verification instead.",
             requiresVerification: true
           });
         }
