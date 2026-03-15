@@ -279,7 +279,7 @@ export class CommunicationsAgent implements IAgent {
     return ['task.overdue', 'dwar.missing', 'attendance.anomaly', 'leave.pending', 'meeting.overdue'];
   }
 
-  async run(context: AgentRunContext): Promise<AgentRunResult> {
+  async execute(context: AgentRunContext): Promise<AgentRunResult> {
     const startTime = Date.now();
     const findingManager = new FindingManager(context.runId, this.key);
     const insightManager = new InsightManager(context.runId, this.key);
