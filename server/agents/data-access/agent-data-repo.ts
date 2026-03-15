@@ -1004,7 +1004,7 @@ class AgentDataRepository {
     const rows = await db.execute(sql`
       SELECT rt.assigned_to as assignee_id,
         COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as assignee_name,
-        u.reports_to as manager_id,
+        u.reporting_manager_id as manager_id,
         COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username) as manager_name,
         COUNT(*) as late_count,
         ROUND(AVG(EXTRACT(DAY FROM rt.completed_at::timestamp - rt.due_date::timestamp)))::int as avg_days_late,
@@ -1014,13 +1014,13 @@ class AgentDataRepository {
         ) ORDER BY EXTRACT(DAY FROM rt.completed_at::timestamp - rt.due_date::timestamp) DESC) as tasks
       FROM recurring_tasks rt
       LEFT JOIN users u ON rt.assigned_to = u.id
-      LEFT JOIN users m ON u.reports_to = m.id
+      LEFT JOIN users m ON u.reporting_manager_id = m.id
       WHERE rt.status = 'completed'
         AND rt.completed_at IS NOT NULL
         AND rt.due_date IS NOT NULL
         AND rt.completed_at::date > rt.due_date::date
         AND rt.completed_at::date >= CURRENT_DATE - ${days}::int
-      GROUP BY rt.assigned_to, u.first_name, u.last_name, u.username, u.reports_to, m.first_name, m.last_name, m.username
+      GROUP BY rt.assigned_to, u.first_name, u.last_name, u.username, u.reporting_manager_id, m.first_name, m.last_name, m.username
       HAVING COUNT(*) >= 3
       ORDER BY late_count DESC
     `);
@@ -1044,7 +1044,7 @@ class AgentDataRepository {
     const rows = await db.execute(sql`
       SELECT rt.assigned_to as assignee_id,
         COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as assignee_name,
-        u.reports_to as manager_id,
+        u.reporting_manager_id as manager_id,
         COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username) as manager_name,
         COUNT(*) as pending_count,
         MAX(EXTRACT(DAY FROM NOW() - rt.due_date::timestamp))::int as oldest_days,
@@ -1053,11 +1053,11 @@ class AgentDataRepository {
         ) ORDER BY rt.due_date ASC) as tasks
       FROM recurring_tasks rt
       LEFT JOIN users u ON rt.assigned_to = u.id
-      LEFT JOIN users m ON u.reports_to = m.id
+      LEFT JOIN users m ON u.reporting_manager_id = m.id
       WHERE rt.status = 'pending'
         AND rt.due_date IS NOT NULL
         AND rt.due_date::date < CURRENT_DATE
-      GROUP BY rt.assigned_to, u.first_name, u.last_name, u.username, u.reports_to, m.first_name, m.last_name, m.username
+      GROUP BY rt.assigned_to, u.first_name, u.last_name, u.username, u.reporting_manager_id, m.first_name, m.last_name, m.username
       HAVING COUNT(*) >= ${threshold}
       ORDER BY pending_count DESC
     `);
@@ -1080,12 +1080,12 @@ class AgentDataRepository {
     const rows = await db.execute(sql`
       SELECT rt.id, rt.title, rt.assigned_to as assignee_id, rt.due_date, rt.category,
         COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as assignee_name,
-        u.reports_to as manager_id,
+        u.reporting_manager_id as manager_id,
         COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username) as manager_name,
         EXTRACT(DAY FROM NOW() - rt.due_date::timestamp)::int as days_pending
       FROM recurring_tasks rt
       LEFT JOIN users u ON rt.assigned_to = u.id
-      LEFT JOIN users m ON u.reports_to = m.id
+      LEFT JOIN users m ON u.reporting_manager_id = m.id
       WHERE rt.status = 'pending'
         AND rt.due_date IS NOT NULL
         AND EXTRACT(DAY FROM NOW() - rt.due_date::timestamp) >= ${days}
