@@ -1500,12 +1500,13 @@ export class SalesMarketingAgent implements IAgent {
           const payload = typeof recRow.action_payload === 'string' ? JSON.parse(recRow.action_payload) : recRow.action_payload;
 
           if ((recRow.action_type === 'create_task' || recRow.action_type === 'task_creation') && payload) {
+            const todayStr = today.toISOString().split('T')[0];
             const taskResult = await db.execute(sql`
-              INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, category, source_type, source_agent, start_date, created_at)
+              INSERT INTO tasks (title, description, assigned_to, created_by, priority, status, category, source_type, source_agent, start_date, finish_date, created_at)
               VALUES (
                 ${payload.title}, ${payload.description}, ${payload.assignedTo}, 1,
                 ${payload.priority || 'Medium'}, 'pending', ${payload.category || 'Sales'},
-                'agent_task', ${SOURCE_AGENT}, ${today.toISOString().split('T')[0]}, NOW()
+                'agent_task', ${SOURCE_AGENT}, ${todayStr}, ${todayStr}, NOW()
               )
               RETURNING id
             `);
