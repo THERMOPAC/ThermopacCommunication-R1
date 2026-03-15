@@ -1114,6 +1114,7 @@ export default function AgentDashboardPage() {
                             if (checked) enableMutation.mutate(agent.agentKey);
                             else disableMutation.mutate(agent.agentKey);
                           }}
+                          className={agent.isEnabled ? 'data-[state=checked]:bg-green-600' : 'data-[state=unchecked]:bg-red-500'}
                         />
                       </div>
                     </div>
