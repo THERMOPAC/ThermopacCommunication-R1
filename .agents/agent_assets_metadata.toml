@@ -6,3 +6,9 @@ id = "n5-7Zi9zeFxQeytMnPh9T"
 uri = "file://communications-agent-technical-review.md"
 type = "text"
 title = "Communications Agent — Complete Technical Review"
+
+[[outputs]]
+id = "JNxPY_brMRrXnfPDbpCQT"
+uri = "file://Production_Management_Agent_Implementation.md"
+type = "text"
+title = "Production Management Agent — Implementation Document"
