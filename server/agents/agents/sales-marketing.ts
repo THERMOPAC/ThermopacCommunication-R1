@@ -189,7 +189,7 @@ export class SalesMarketingAgent implements IAgent {
       console.error(`[SalesMarketing] Auto-close error:`, err.message);
     }
 
-    const skipTaskCreation = firstRun;
+    const skipTaskCreation = false;
     if (firstRun) {
       console.log(`[SalesMarketing] FIRST RUN — baseline only, no tasks created`);
     }
