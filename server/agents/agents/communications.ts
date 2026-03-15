@@ -522,21 +522,26 @@ export class CommunicationsAgent implements IAgent {
 
     // ═══════════════════════════════════════════════════════════════
     // ─── FINDING TYPE 9: NO WORKLOAD VISIBILITY ───
-    // ─── [SUPPRESSED: Unreliable for field/production staff] ───
+    // ─── [AUTOMATED: Zero-task employees → manager review task] ───
     // ═══════════════════════════════════════════════════════════════
     const noTaskUsers = await agentDataRepo.getUsersWithNoActiveTasks(2);
     queriesRun++;
 
+    const noTaskByManager: Record<string, typeof noTaskUsers> = {};
     for (const user of noTaskUsers) {
-      if (!user.managerName) continue;
+      if (!user.managerName || !user.managerId) continue;
+      const mgrKey = String(user.managerId);
+      if (!noTaskByManager[mgrKey]) noTaskByManager[mgrKey] = [];
+      noTaskByManager[mgrKey].push(user);
+
       const result = await findingManager.createFinding({
         findingType: 'visibility',
-        severity: 'low',
+        severity: 'medium',
         title: `${user.employeeName}: No active tasks visible in the system`,
         description: [
           `${user.employeeName} has zero active tasks in the task management system.`,
-          `\nThis is a workload visibility finding, not a disciplinary issue.`,
-          `The employee may be actively working but tasks are not being captured in the system.`,
+          `\nThis indicates a workload accountability gap — either the employee has no assigned work, or tasks are not being captured in the system.`,
+          `Manager ${user.managerName} needs to review and ensure tasks are properly assigned.`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { userId: user.userId, employeeName: user.employeeName,
@@ -1830,6 +1835,48 @@ export class CommunicationsAgent implements IAgent {
         logicType: 'rule_based',
         confidence: 0.95,
         priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A26: NO WORKLOAD VISIBILITY — grouped manager review task per manager
+    for (const [mgrId, employees] of Object.entries(noTaskByManager)) {
+      if (employees.length === 0) continue;
+      const mgrName = employees[0].managerName;
+      const managerId = employees[0].managerId;
+      const nameList = employees.map(e => `  • ${e.employeeName}`).join('\n');
+      const fp = makeFingerprint('no_workload_visibility', `manager:${mgrId}`);
+      if (await hasOpenAgentTask(fp)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Workload review: ${employees.length} team member(s) under ${mgrName} with no active tasks`,
+        description: `${employees.length} employee(s) under ${mgrName} have zero active tasks in the system.`,
+        actionPayload: {
+          title: `[Agent] Workload Review: ${employees.length} team member${employees.length > 1 ? 's' : ''} with no active tasks`,
+          description: [
+            `The following team member${employees.length > 1 ? 's have' : ' has'} no active tasks in the system:`,
+            ``,
+            nameList,
+            ``,
+            `Please review and ensure:`,
+            `1. All current work is captured as tasks in the system`,
+            `2. Workload is properly distributed and assigned`,
+            `3. If the employee is on leave or special assignment, note it accordingly`,
+            ``,
+            `Source: Communications Agent`,
+          ].join('\n'),
+          priority: employees.length >= 3 ? 'High' : 'Medium',
+          assignedTo: managerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.90,
+        priority: employees.length >= 3 ? 'high' : 'medium',
       });
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
