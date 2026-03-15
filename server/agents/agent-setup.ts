@@ -9,6 +9,7 @@ import { ExecutiveMISAgent } from './agents/executive-mis';
 import { FinanceControlAgent } from './agents/finance-control';
 import { SalesMarketingAgent } from './agents/sales-marketing';
 import { PredictiveProjectControlAgent } from './agents/predictive-project-control';
+import { ProductionManagementAgent } from './agents/production-management';
 
 const PHASE_1_AGENTS = [
   {
@@ -100,6 +101,25 @@ const PHASE_1_AGENTS = [
     },
   },
   {
+    agentKey: 'production_management',
+    displayName: 'Production Management Agent',
+    description: 'Monitors production operations, shop floor execution, workforce compliance, and DPR submissions. 45 core findings (P1-P45) across planning, material, shop floor, efficiency, workforce, and compliance. 10 risk intelligence findings (R1-R10) for predictive production risk detection.',
+    category: 'operations',
+    defaultSchedule: '0 1 * * *',
+    config: {
+      production_manager_id: 8,
+      overdue_wo_threshold_days: 1,
+      not_started_threshold_days: 3,
+      backlog_wo_threshold: 10,
+      variance_threshold_pct: 30,
+      yield_threshold_pct: 85,
+      rejection_threshold_pct: 15,
+      downtime_threshold_minutes: 120,
+      staffing_shortage_threshold_pct: 30,
+      cycle_deviation_threshold: 1.5,
+    },
+  },
+  {
     agentKey: 'sales_marketing',
     displayName: 'Sales & Marketing Agent',
     description: 'Monitors sales pipeline health, lead follow-ups, offer lifecycle, customer engagement, and digital marketing campaigns (Google Ads). 20 automated findings + 4 observations + 2 intelligence reports.',
@@ -145,6 +165,9 @@ const DEFAULT_POLICIES = [
   { agentKey: 'predictive_project_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 10, maxPerDay: 30 },
   { agentKey: 'predictive_project_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 50 },
   { agentKey: 'predictive_project_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'require_approval', cooldownMinutes: 30, maxPerDay: 10 },
+  { agentKey: 'production_management', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 60 },
+  { agentKey: 'production_management', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
+  { agentKey: 'production_management', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
   { agentKey: 'sales_marketing', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
   { agentKey: 'sales_marketing', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
   { agentKey: 'sales_marketing', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
@@ -212,6 +235,7 @@ export async function initializeAgentSystem(): Promise<void> {
 
   orchestrator.registerAgent(new ProjectControlAgent());
   orchestrator.registerAgent(new PredictiveProjectControlAgent());
+  orchestrator.registerAgent(new ProductionManagementAgent());
   orchestrator.registerAgent(new CommunicationsAgent());
   orchestrator.registerAgent(new FinanceControlAgent());
   orchestrator.registerAgent(new ExecutiveMISAgent());
