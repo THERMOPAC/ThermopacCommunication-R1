@@ -532,144 +532,208 @@ export default function AgentDashboardPage() {
         </TabsList>
 
         <TabsContent value="activity" className="mt-4 space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {(summary?.agents || []).map(agent => {
-              const schedule = (summary?.schedules || []).find(s => s.agentKey === agent.agentKey);
-              return (
-                <Card key={agent.agentKey} className="relative overflow-hidden">
-                  <div className={`absolute top-0 left-0 w-1 h-full ${agent.isEnabled && !agent.isSuspended ? 'bg-green-500' : agent.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{agent.displayName}</CardTitle>
-                      <div className="flex items-center gap-1">
-                        {agent.isEnabled && !agent.isSuspended ? (
-                          <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
-                        ) : agent.isSuspended ? (
-                          <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">Disabled</Badge>
-                        )}
-                      </div>
-                    </div>
-                    <CardDescription className="text-xs">{agent.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Timer className="h-3.5 w-3.5" />
-                        <span className="text-xs">
-                          {agent.lastRunAt
-                            ? formatDistanceToNow(new Date(agent.lastRunAt), { addSuffix: true })
-                            : "Never run"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        <span className="text-xs">{agent.runCount} runs</span>
-                      </div>
-                    </div>
-                    {schedule && (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5 text-blue-500" />
-                        <span className="text-xs">{cronDescription(schedule.cronExpression)}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="flex-1"
-                        onClick={() => triggerMutation.mutate(agent.agentKey)}
-                        disabled={triggerMutation.isPending || !agent.isEnabled || agent.isSuspended}
-                      >
-                        <Play className="h-3.5 w-3.5 mr-1" />
-                        Run Now
-                      </Button>
-                      {agent.isSuspended ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => resumeMutation.mutate(agent.agentKey)}
-                        >
-                          <Play className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => suspendMutation.mutate(agent.agentKey)}
-                        >
-                          <Pause className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bot className="h-5 w-5" />
+                Agent Status
+              </CardTitle>
+              <CardDescription>Operational overview of all registered agents</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">Agent</th>
+                      <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Schedule</th>
+                      <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Last Run</th>
+                      <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Runs</th>
+                      <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Mode</th>
+                      <th className="text-right py-2.5 px-4 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(summary?.agents || []).map(agent => {
+                      const schedule = (summary?.schedules || []).find(s => s.agentKey === agent.agentKey);
+                      const isAutoEnabled = agent.isEnabled && !agent.isSuspended && !!schedule;
+                      return (
+                        <tr key={agent.agentKey} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-2 h-2 rounded-full shrink-0 ${agent.isEnabled && !agent.isSuspended ? 'bg-green-500' : agent.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+                              <div>
+                                <p className="font-medium text-sm">{agent.displayName}</p>
+                                <p className="text-xs text-muted-foreground line-clamp-1">{agent.description}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            {agent.isEnabled && !agent.isSuspended ? (
+                              <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
+                            ) : agent.isSuspended ? (
+                              <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            {schedule ? (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                {cronDescription(schedule.cronExpression)}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Manual only</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="text-xs text-muted-foreground">
+                              {agent.lastRunAt
+                                ? formatDistanceToNow(new Date(agent.lastRunAt), { addSuffix: true })
+                                : "Never"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span className="text-xs font-medium">{agent.runCount}</span>
+                          </td>
+                          <td className="py-3 px-3">
+                            {isAutoEnabled ? (
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 text-xs gap-1">
+                                <Zap className="h-3 w-3" />
+                                Auto Enabled
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-muted-foreground gap-1">
+                                <Play className="h-3 w-3" />
+                                Manual
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1.5 justify-end">
+                              {!isAutoEnabled && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-7 text-xs px-2.5"
+                                  onClick={() => triggerMutation.mutate(agent.agentKey)}
+                                  disabled={triggerMutation.isPending || !agent.isEnabled || agent.isSuspended}
+                                >
+                                  <Play className="h-3 w-3 mr-1" />
+                                  Run Now
+                                </Button>
+                              )}
+                              {isAutoEnabled && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs px-2"
+                                  onClick={() => triggerMutation.mutate(agent.agentKey)}
+                                  disabled={triggerMutation.isPending}
+                                  title="Manual trigger (agent is auto-scheduled)"
+                                >
+                                  <Play className="h-3 w-3" />
+                                </Button>
+                              )}
+                              {agent.isSuspended ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs px-2"
+                                  onClick={() => resumeMutation.mutate(agent.agentKey)}
+                                  title="Resume agent"
+                                >
+                                  <Power className="h-3 w-3" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs px-2"
+                                  onClick={() => suspendMutation.mutate(agent.agentKey)}
+                                  title="Suspend agent"
+                                >
+                                  <Pause className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Activity className="h-5 w-5" />
                 Recent Runs
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {(summary?.recentRuns || []).length === 0 ? (
                 <p className="text-muted-foreground text-sm text-center py-8">No agent runs yet. Trigger an agent above to get started.</p>
               ) : (
-                <div className="space-y-3">
-                  {(summary?.recentRuns || []).map(run => (
-                    <div key={run.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-1.5 rounded-full ${run.status === 'completed' ? 'bg-green-100 dark:bg-green-900' : run.status === 'failed' ? 'bg-red-100 dark:bg-red-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
-                          {run.status === 'completed' ? <CheckCircle2 className="h-4 w-4 text-green-600" /> :
-                           run.status === 'failed' ? <XCircle className="h-4 w-4 text-red-600" /> :
-                           <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />}
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{agentKeyLabel(run.agentKey)}</p>
-                          <p className="text-xs text-muted-foreground">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">Agent</th>
+                        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Trigger</th>
+                        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Started</th>
+                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Findings</th>
+                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Insights</th>
+                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Recs</th>
+                        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
+                        <th className="text-right py-2.5 px-4 font-medium text-muted-foreground">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(summary?.recentRuns || []).map(run => (
+                        <tr key={run.id} className="border-b last:border-b-0 hover:bg-accent/50 transition-colors">
+                          <td className="py-2.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`p-1 rounded-full ${run.status === 'completed' ? 'bg-green-100 dark:bg-green-900' : run.status === 'failed' ? 'bg-red-100 dark:bg-red-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
+                                {run.status === 'completed' ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> :
+                                 run.status === 'failed' ? <XCircle className="h-3.5 w-3.5 text-red-600" /> :
+                                 <RefreshCw className="h-3.5 w-3.5 text-blue-600 animate-spin" />}
+                              </div>
+                              <span className="font-medium text-sm">{agentKeyLabel(run.agentKey)}</span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <Badge variant="outline" className="text-xs">{run.triggerType}</Badge>
+                          </td>
+                          <td className="py-2.5 px-3 text-xs text-muted-foreground">
                             {run.startedAt ? formatDistanceToNow(new Date(run.startedAt), { addSuffix: true }) : ""}
-                            {" · "}
-                            {run.triggerType}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right text-xs space-y-0.5">
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <AlertTriangle className="h-3 w-3" />
-                            {run.findingsCount} findings
-                          </div>
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Lightbulb className="h-3 w-3" />
-                            {run.insightsCount} insights
-                          </div>
-                          {run.recommendationsCount > 0 && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Target className="h-3 w-3" />
-                              {run.recommendationsCount} recs
-                            </div>
-                          )}
-                          {run.executionMetadata?.notificationsSent > 0 && (
-                            <div className="flex items-center gap-1 text-blue-500">
-                              <Send className="h-3 w-3" />
-                              {run.executionMetadata.notificationsSent} notified
-                            </div>
-                          )}
-                        </div>
-                        {statusBadge(run.status)}
-                        {run.executionMetadata?.durationMs && (
-                          <span className="text-xs text-muted-foreground">
-                            {(run.executionMetadata.durationMs / 1000).toFixed(1)}s
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="text-xs font-medium">{run.findingsCount}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="text-xs font-medium">{run.insightsCount}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="text-xs font-medium">{run.recommendationsCount}</span>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {statusBadge(run.status)}
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-xs text-muted-foreground">
+                            {run.executionMetadata?.durationMs
+                              ? `${(run.executionMetadata.durationMs / 1000).toFixed(1)}s`
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
