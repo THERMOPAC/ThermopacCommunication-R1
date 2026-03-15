@@ -31,7 +31,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { roles } from '../../../shared/roles';
+import { SelectGroup, SelectLabel } from '@/components/ui/select';
+import { roles, roleHierarchy, canManage } from '../../../shared/roles';
 
 // Simplified form schema with proper types
 const editUserSchema = z.object({
@@ -113,8 +114,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get all users for reporting manager dropdown
-  const { data: allUsers = [] } = useQuery({
+  const { data: allUsers = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/users'],
     enabled: open,
   });
@@ -159,6 +159,26 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       halfDayMinimumHours: 4,
     },
   });
+
+  const selectedRole = form.watch('role');
+
+  const getEligibleManagers = (role: string | undefined) => {
+    if (!role || !allUsers.length) return [];
+    const managersByRole = allUsers.reduce((acc: Record<string, any[]>, manager: any) => {
+      if (manager.id !== user?.id && canManage(manager.role, role)) {
+        if (!acc[manager.role]) acc[manager.role] = [];
+        acc[manager.role].push(manager);
+      }
+      return acc;
+    }, {});
+    return Object.entries(managersByRole).sort(
+      ([roleA], [roleB]) => {
+        const hierarchyA = (roleHierarchy as any)[roleA] !== undefined ? (roleHierarchy as any)[roleA] : 999;
+        const hierarchyB = (roleHierarchy as any)[roleB] !== undefined ? (roleHierarchy as any)[roleB] : 999;
+        return hierarchyA - hierarchyB;
+      }
+    );
+  };
 
   // Reset form when user changes
   useEffect(() => {
@@ -441,16 +461,21 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">No Manager</SelectItem>
-                        {allUsers
-                          ?.filter(u => u.id !== user.id)
-                          .map((u) => (
-                            <SelectItem key={u.id} value={u.id.toString()}>
-                              {u.firstName && u.lastName 
-                                ? `${u.firstName} ${u.lastName} (${u.username})`
-                                : u.username
-                              }
-                            </SelectItem>
-                          ))}
+                        {getEligibleManagers(selectedRole).map(([role, managers]: [string, any[]]) => (
+                          <SelectGroup key={role}>
+                            <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                              {role}s
+                            </SelectLabel>
+                            {managers.map((manager: any) => (
+                              <SelectItem key={manager.id} value={manager.id.toString()}>
+                                {manager.firstName && manager.lastName
+                                  ? `${manager.firstName} ${manager.lastName} (${manager.username})`
+                                  : manager.username
+                                }
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
