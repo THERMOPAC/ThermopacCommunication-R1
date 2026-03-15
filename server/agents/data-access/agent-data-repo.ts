@@ -996,6 +996,113 @@ class AgentDataRepository {
       completed: Number(r.completed || 0),
     };
   }
+  async getRecurringTaskLateCompletions(days: number = 30): Promise<Array<{
+    assigneeId: number; assigneeName: string; managerId: number | null; managerName: string | null;
+    lateCount: number; avgDaysLate: number; worstDaysLate: number;
+    tasks: Array<{ id: number; title: string; daysLate: number }>;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT rt.assigned_to as assignee_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as assignee_name,
+        u.reports_to as manager_id,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username) as manager_name,
+        COUNT(*) as late_count,
+        ROUND(AVG(EXTRACT(DAY FROM rt.completed_at::timestamp - rt.due_date::timestamp)))::int as avg_days_late,
+        MAX(EXTRACT(DAY FROM rt.completed_at::timestamp - rt.due_date::timestamp))::int as worst_days_late,
+        json_agg(json_build_object('id', rt.id, 'title', rt.title,
+          'daysLate', EXTRACT(DAY FROM rt.completed_at::timestamp - rt.due_date::timestamp)::int
+        ) ORDER BY EXTRACT(DAY FROM rt.completed_at::timestamp - rt.due_date::timestamp) DESC) as tasks
+      FROM recurring_tasks rt
+      LEFT JOIN users u ON rt.assigned_to = u.id
+      LEFT JOIN users m ON u.reports_to = m.id
+      WHERE rt.status = 'completed'
+        AND rt.completed_at IS NOT NULL
+        AND rt.due_date IS NOT NULL
+        AND rt.completed_at::date > rt.due_date::date
+        AND rt.completed_at::date >= CURRENT_DATE - ${days}::int
+      GROUP BY rt.assigned_to, u.first_name, u.last_name, u.username, u.reports_to, m.first_name, m.last_name, m.username
+      HAVING COUNT(*) >= 3
+      ORDER BY late_count DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      assigneeId: Number(r.assignee_id),
+      assigneeName: r.assignee_name || 'Unknown',
+      managerId: r.manager_id ? Number(r.manager_id) : null,
+      managerName: r.manager_name || null,
+      lateCount: Number(r.late_count || 0),
+      avgDaysLate: Number(r.avg_days_late || 0),
+      worstDaysLate: Number(r.worst_days_late || 0),
+      tasks: Array.isArray(r.tasks) ? r.tasks.slice(0, 5) : [],
+    }));
+  }
+
+  async getRecurringTaskBacklog(threshold: number = 5): Promise<Array<{
+    assigneeId: number; assigneeName: string; managerId: number | null; managerName: string | null;
+    pendingCount: number; oldestDays: number;
+    tasks: Array<{ id: number; title: string; daysOverdue: number }>;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT rt.assigned_to as assignee_id,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as assignee_name,
+        u.reports_to as manager_id,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username) as manager_name,
+        COUNT(*) as pending_count,
+        MAX(EXTRACT(DAY FROM NOW() - rt.due_date::timestamp))::int as oldest_days,
+        json_agg(json_build_object('id', rt.id, 'title', rt.title,
+          'daysOverdue', GREATEST(EXTRACT(DAY FROM NOW() - rt.due_date::timestamp)::int, 0)
+        ) ORDER BY rt.due_date ASC) as tasks
+      FROM recurring_tasks rt
+      LEFT JOIN users u ON rt.assigned_to = u.id
+      LEFT JOIN users m ON u.reports_to = m.id
+      WHERE rt.status = 'pending'
+        AND rt.due_date IS NOT NULL
+        AND rt.due_date::date < CURRENT_DATE
+      GROUP BY rt.assigned_to, u.first_name, u.last_name, u.username, u.reports_to, m.first_name, m.last_name, m.username
+      HAVING COUNT(*) >= ${threshold}
+      ORDER BY pending_count DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      assigneeId: Number(r.assignee_id),
+      assigneeName: r.assignee_name || 'Unknown',
+      managerId: r.manager_id ? Number(r.manager_id) : null,
+      managerName: r.manager_name || null,
+      pendingCount: Number(r.pending_count || 0),
+      oldestDays: Number(r.oldest_days || 0),
+      tasks: Array.isArray(r.tasks) ? r.tasks.slice(0, 10) : [],
+    }));
+  }
+
+  async getZombieRecurringTasks(days: number = 30): Promise<Array<{
+    id: number; title: string; assigneeId: number | null; assigneeName: string;
+    managerId: number | null; managerName: string | null;
+    daysPending: number; dueDate: string; category: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT rt.id, rt.title, rt.assigned_to as assignee_id, rt.due_date, rt.category,
+        COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username, 'Unknown') as assignee_name,
+        u.reports_to as manager_id,
+        COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username) as manager_name,
+        EXTRACT(DAY FROM NOW() - rt.due_date::timestamp)::int as days_pending
+      FROM recurring_tasks rt
+      LEFT JOIN users u ON rt.assigned_to = u.id
+      LEFT JOIN users m ON u.reports_to = m.id
+      WHERE rt.status = 'pending'
+        AND rt.due_date IS NOT NULL
+        AND EXTRACT(DAY FROM NOW() - rt.due_date::timestamp) >= ${days}
+      ORDER BY days_pending DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      assigneeId: r.assignee_id ? Number(r.assignee_id) : null,
+      assigneeName: r.assignee_name || 'Unknown',
+      managerId: r.manager_id ? Number(r.manager_id) : null,
+      managerName: r.manager_name || null,
+      daysPending: Number(r.days_pending || 0),
+      dueDate: r.due_date || '',
+      category: r.category || 'General',
+    }));
+  }
 }
 
 export const agentDataRepo = new AgentDataRepository();

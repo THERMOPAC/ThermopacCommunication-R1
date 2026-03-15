@@ -3352,16 +3352,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Setup automatic processing of recurring patterns (every day at midnight)
-  setInterval(async () => {
-    try {
-      console.log('Automatic processing of recurring patterns (daily check)');
-      const tasksGenerated = await storage.processRecurringPatterns();
-      console.log(`Automatic processing complete. Generated ${tasksGenerated} new tasks.`);
-    } catch (error) {
-      console.error('Error in automatic processing of recurring patterns:', error);
-    }
-  }, 24 * 60 * 60 * 1000); // Run once per day
+  // Recurring pattern processing is now handled by the Communications Agent
+  // The manual endpoint at /api/process-recurring-patterns remains available for emergency use
 
   // Use finance write-offs router (fixed)
   // Register simple payment allocation API

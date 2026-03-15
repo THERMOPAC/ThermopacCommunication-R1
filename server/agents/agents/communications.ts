@@ -7,6 +7,7 @@ import { actionExecutor } from '../framework/action-executor';
 import { agentDataRepo } from '../data-access/agent-data-repo';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
+import { storage } from '../../storage';
 
 const SOURCE_AGENT = 'communicator';
 
@@ -304,6 +305,16 @@ export class CommunicationsAgent implements IAgent {
       console.error(`[Communications] Auto-close sweep error:`, err.message);
     }
 
+    let recurringTasksGenerated = 0;
+    try {
+      recurringTasksGenerated = await storage.processRecurringPatterns();
+      if (recurringTasksGenerated > 0) {
+        console.log(`[Communications] Processed recurring patterns — generated ${recurringTasksGenerated} new task instance(s)`);
+      }
+    } catch (err: any) {
+      console.error(`[Communications] Recurring pattern processing error:`, err.message);
+    }
+
     const skipTaskCreation = firstRun;
     if (firstRun) {
       console.log(`[Communications] FIRST RUN detected — findings/insights only, no tasks created (historical backlog suppressed)`);
@@ -586,6 +597,99 @@ export class CommunicationsAgent implements IAgent {
         dataSnapshot: { assigneeName: assignee, taskCount: tasks.length, maxDaysOverdue: maxDays },
         relatedEntityType: 'recurring_task_group',
         relatedEntityId: `${assignee}:recurring`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 35: REPEATED LATE COMPLETION OF RECURRING TASKS ───
+    // ─── [AUTOMATED: 3+ late completions in 30 days → manager review task] ───
+    // ═══════════════════════════════════════════════════════════════
+    const recurringLateCompletions = await agentDataRepo.getRecurringTaskLateCompletions(30);
+    queriesRun++;
+
+    for (const lc of recurringLateCompletions) {
+      const severity = lc.lateCount >= 5 ? 'high' as const : 'medium' as const;
+      const topList = lc.tasks.slice(0, 5).map((t: any) => `  • ${t.title} (${t.daysLate}d late)`).join('\n');
+      const result = await findingManager.createFinding({
+        findingType: 'pattern',
+        severity,
+        title: `${lc.assigneeName}: ${lc.lateCount} recurring tasks completed late in last 30 days (avg ${lc.avgDaysLate}d late)`,
+        description: [
+          `${lc.assigneeName} completed ${lc.lateCount} recurring tasks after their due date in the last 30 days.`,
+          `Average days late: ${lc.avgDaysLate} | Worst: ${lc.worstDaysLate} days late.`,
+          `\nRecent late completions:\n${topList}`,
+        ].join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { ...lc },
+        relatedEntityType: 'recurring_late_pattern',
+        relatedEntityId: `user:${lc.assigneeId}:late_completions`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 36: RECURRING TASK BACKLOG BY ASSIGNEE ───
+    // ─── [AUTOMATED: 5+ pending → task for assignee; 10+ → manager escalation] ───
+    // ═══════════════════════════════════════════════════════════════
+    const recurringBacklog = await agentDataRepo.getRecurringTaskBacklog(5);
+    queriesRun++;
+
+    for (const bl of recurringBacklog) {
+      const severity = bl.pendingCount >= 10 ? 'high' as const : 'medium' as const;
+      const topList = bl.tasks.slice(0, 5).map((t: any) => `  • ${t.title} (${t.daysOverdue}d overdue)`).join('\n');
+      const result = await findingManager.createFinding({
+        findingType: 'backlog',
+        severity,
+        title: `${bl.assigneeName}: ${bl.pendingCount} recurring tasks piling up (oldest: ${bl.oldestDays}d)`,
+        description: [
+          `${bl.assigneeName} has ${bl.pendingCount} pending recurring tasks that are overdue.`,
+          `Oldest pending: ${bl.oldestDays} days.`,
+          `\nTop backlog items:\n${topList}`,
+          bl.tasks.length > 5 ? `\n...and ${bl.pendingCount - 5} more.` : '',
+        ].filter(Boolean).join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { assigneeId: bl.assigneeId, assigneeName: bl.assigneeName, pendingCount: bl.pendingCount, oldestDays: bl.oldestDays },
+        relatedEntityType: 'recurring_backlog',
+        relatedEntityId: `user:${bl.assigneeId}:backlog`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 37: ZOMBIE RECURRING TASKS (30+ DAYS UNTOUCHED) ───
+    // ─── [AUTOMATED: 30+ days → assignee task; 60+ days → manager escalation] ───
+    // ═══════════════════════════════════════════════════════════════
+    const zombieRecurringTasks = await agentDataRepo.getZombieRecurringTasks(30);
+    queriesRun++;
+
+    const zombieByAssignee: Record<string, typeof zombieRecurringTasks> = {};
+    for (const zt of zombieRecurringTasks) {
+      const key = zt.assigneeName || 'Unassigned';
+      if (!zombieByAssignee[key]) zombieByAssignee[key] = [];
+      zombieByAssignee[key].push(zt);
+    }
+
+    for (const [assignee, tasks] of Object.entries(zombieByAssignee)) {
+      const maxDays = Math.max(...tasks.map(t => t.daysPending));
+      const severity = maxDays >= 60 ? 'high' as const : 'medium' as const;
+      const topList = tasks.sort((a, b) => b.daysPending - a.daysPending).slice(0, 5)
+        .map(t => `  • ${t.title} (${t.daysPending}d pending)`).join('\n');
+
+      const result = await findingManager.createFinding({
+        findingType: 'zombie',
+        severity,
+        title: `${assignee}: ${tasks.length} zombie recurring task${tasks.length > 1 ? 's' : ''} (oldest: ${maxDays}d)`,
+        description: [
+          `${assignee} has ${tasks.length} recurring task${tasks.length > 1 ? 's' : ''} pending for 30+ days with no activity.`,
+          `These tasks appear abandoned and should be completed or closed.`,
+          `\nZombie tasks:\n${topList}`,
+          tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
+        ].filter(Boolean).join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { assigneeName: assignee, taskCount: tasks.length, maxDaysPending: maxDays },
+        relatedEntityType: 'recurring_zombie',
+        relatedEntityId: `${assignee}:zombie_recurring`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
@@ -1881,6 +1985,140 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
+    // A27: REPEATED LATE COMPLETION — review task for manager
+    for (const lc of recurringLateCompletions) {
+      if (!lc.managerId) continue;
+      const fp = makeFingerprint('recurring_late_pattern', `user:${lc.assigneeId}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const topList = lc.tasks.slice(0, 5).map((t: any) => `• ${t.title} (${t.daysLate}d late)`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Late completion pattern: ${lc.assigneeName} (${lc.lateCount} late in 30 days)`,
+        description: `${lc.assigneeName} consistently completes recurring tasks late. Manager review needed.`,
+        actionPayload: {
+          title: `[Agent] Review late completion pattern: ${lc.assigneeName} — ${lc.lateCount} recurring tasks completed late`,
+          description: [
+            `${lc.assigneeName} completed ${lc.lateCount} recurring tasks after their due date in the last 30 days.`,
+            ``,
+            `Average days late: ${lc.avgDaysLate} | Worst: ${lc.worstDaysLate} days late`,
+            ``,
+            `Recent late completions:`,
+            topList,
+            ``,
+            `Please review workload and ensure recurring responsibilities can be met on time.`,
+            ``,
+            `Source: Communications Agent`,
+          ].join('\n'),
+          priority: lc.lateCount >= 5 ? 'High' : 'Medium',
+          assignedTo: lc.managerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: lc.lateCount >= 5 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A28: RECURRING TASK BACKLOG — task for assignee (5-9) or manager escalation (10+)
+    for (const bl of recurringBacklog) {
+      const fp = makeFingerprint('recurring_backlog', `user:${bl.assigneeId}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const escalateToManager = bl.pendingCount >= 10 && bl.managerId;
+      const topList = bl.tasks.slice(0, 5).map((t: any) => `• ${t.title} (${t.daysOverdue}d overdue)`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Recurring task backlog: ${bl.assigneeName} (${bl.pendingCount} pending)`,
+        description: `${bl.assigneeName} has ${bl.pendingCount} overdue recurring tasks piling up.`,
+        actionPayload: {
+          title: escalateToManager
+            ? `[Agent] Escalation: ${bl.assigneeName} has ${bl.pendingCount} pending recurring tasks`
+            : `[Agent] Clear recurring task backlog: ${bl.pendingCount} tasks overdue`,
+          description: [
+            escalateToManager
+              ? `${bl.assigneeName} has ${bl.pendingCount} overdue recurring tasks — this requires manager intervention.`
+              : `You have ${bl.pendingCount} overdue recurring tasks that need attention.`,
+            ``,
+            `Oldest pending: ${bl.oldestDays} days`,
+            ``,
+            `Top backlog items:`,
+            topList,
+            bl.tasks.length > 5 ? `\n...and ${bl.pendingCount - 5} more` : '',
+            ``,
+            `Please complete, reschedule, or close tasks that are no longer relevant.`,
+            ``,
+            `Source: Communications Agent`,
+          ].filter(Boolean).join('\n'),
+          priority: bl.pendingCount >= 10 ? 'High' : 'Medium',
+          assignedTo: escalateToManager ? bl.managerId : bl.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: bl.pendingCount >= 10 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A29: ZOMBIE RECURRING TASKS — grouped per assignee, manager escalation at 60+ days
+    for (const [assignee, tasks] of Object.entries(zombieByAssignee)) {
+      if (tasks.length === 0) continue;
+      const firstTask = tasks[0];
+      const maxDays = Math.max(...tasks.map(t => t.daysPending));
+      const escalateToManager = maxDays >= 60 && firstTask.managerId;
+      const fp = makeFingerprint('zombie_recurring', `user:${firstTask.assigneeId || assignee}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const topList = tasks.sort((a, b) => b.daysPending - a.daysPending).slice(0, 5)
+        .map(t => `• ${t.title} (${t.daysPending}d pending)`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Zombie recurring tasks: ${assignee} (${tasks.length} tasks, oldest ${maxDays}d)`,
+        description: `${assignee} has ${tasks.length} recurring tasks pending 30+ days — likely abandoned.`,
+        actionPayload: {
+          title: escalateToManager
+            ? `[Agent] Escalation: ${assignee} has ${tasks.length} abandoned recurring task${tasks.length > 1 ? 's' : ''} (oldest: ${maxDays}d)`
+            : `[Agent] Review ${tasks.length} stale recurring task${tasks.length > 1 ? 's' : ''} — pending 30+ days`,
+          description: [
+            escalateToManager
+              ? `${assignee} has ${tasks.length} recurring task${tasks.length > 1 ? 's' : ''} pending for 30+ days — manager review required.`
+              : `You have ${tasks.length} recurring task${tasks.length > 1 ? 's' : ''} pending for 30+ days.`,
+            ``,
+            `Oldest: ${maxDays} days pending`,
+            ``,
+            `Zombie tasks:`,
+            topList,
+            tasks.length > 5 ? `\n...and ${tasks.length - 5} more` : '',
+            ``,
+            `These tasks appear abandoned. Please complete or close them.`,
+            ``,
+            `Source: Communications Agent`,
+          ].filter(Boolean).join('\n'),
+          priority: maxDays >= 60 ? 'High' : 'Medium',
+          assignedTo: escalateToManager ? firstTask.managerId : firstTask.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: maxDays >= 60 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
     } // end skipTaskCreation guard for Group A
 
     // ─── GROUP B: WEEKLY CONSOLIDATED "COMMUNICATIONS HEALTH REVIEW" TASK ───
@@ -1985,7 +2223,11 @@ export class CommunicationsAgent implements IAgent {
         `Users with zero active tasks: ${noTaskUsers.filter(u => u.managerName).length}`,
         ``,
         `--- RECURRING TASKS ---`,
+        `Patterns processed: ${recurringTasksGenerated} new instance(s) generated`,
         `Overdue: ${overdueRecurring.length} across ${Object.keys(recurringByAssignee).length} people`,
+        `Late completions (30d): ${recurringLateCompletions.reduce((s, lc) => s + lc.lateCount, 0)} across ${recurringLateCompletions.length} people`,
+        `Backlog (5+ pending): ${recurringBacklog.length} people`,
+        `Zombie (30+ days): ${zombieRecurringTasks.length} tasks across ${Object.keys(zombieByAssignee).length} people`,
         ``,
         `--- EMAILS ---`,
         `Unread (7 days): ${emailStats.totalUnread}, High Priority: ${emailStats.highPriority}`,
