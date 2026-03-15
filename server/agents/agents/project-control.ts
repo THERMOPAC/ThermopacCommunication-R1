@@ -18,6 +18,12 @@ const DEFAULT_SETTINGS = {
   design_assignment_overdue_days: 7,
   drawing_no_assignee_alert: true,
   transmittal_no_response_days: 7,
+  po_overdue_threshold_days: 7,
+  po_critical_overdue_days: 90,
+  po_high_overdue_days: 30,
+  po_draft_stuck_days: 14,
+  po_partial_delivery_alert: true,
+  procurement_team_lead_id: 4,
 };
 
 type ProjectSettings = typeof DEFAULT_SETTINGS;
@@ -92,6 +98,29 @@ async function autoCloseResolvedTasks(): Promise<number> {
     `);
     const revStatus = (revCheck.rows as any[])[0]?.status;
     if (revStatus === 'Approved' || revStatus === 'Approved with Comments' || revStatus === 'Rejected') {
+      await db.execute(sql`
+        UPDATE tasks SET status = 'completed', completed_at = NOW()::text WHERE id = ${row.id}
+      `);
+      closedCount++;
+    }
+  }
+
+  const openPOTasks = await db.execute(sql`
+    SELECT id, category FROM tasks
+    WHERE source_type = 'agent_task'
+      AND source_agent = ${SOURCE_AGENT}
+      AND status NOT IN ('completed', 'cancelled')
+      AND category LIKE '%[fp:pc_po_overdue:%'
+  `);
+  for (const row of (openPOTasks.rows as any[])) {
+    const match = row.category?.match(/\[fp:pc_po_overdue:sap_po:(\d+)\]/);
+    if (!match) continue;
+    const poId = parseInt(match[1]);
+    const poCheck = await db.execute(sql`
+      SELECT doc_status, cancelled FROM sap_purchase_orders WHERE id = ${poId}
+    `);
+    const po = (poCheck.rows as any[])[0];
+    if (po && (po.doc_status === 'bost_Close' || po.cancelled === 'tYES')) {
       await db.execute(sql`
         UPDATE tasks SET status = 'completed', completed_at = NOW()::text WHERE id = ${row.id}
       `);
@@ -662,6 +691,292 @@ export class ProjectControlAgent implements IAgent {
     }
 
     // ══════════════════════════════════════════════════════════════════
+    // PR1: PROCUREMENT — Overdue SAP Purchase Orders
+    // ══════════════════════════════════════════════════════════════════
+    try {
+      const overduePORows = await db.execute(sql`
+        SELECT spo.id, spo.doc_num, spo.vendor_name, spo.vendor_code, spo.doc_date, spo.doc_due_date,
+          spo.doc_total, spo.doc_currency, spo.project_code, spo.comments,
+          (CURRENT_DATE - spo.doc_due_date) as days_overdue
+        FROM sap_purchase_orders spo
+        WHERE spo.doc_status = 'bost_Open' AND spo.cancelled = 'tNO'
+          AND spo.doc_due_date IS NOT NULL AND spo.doc_due_date < CURRENT_DATE
+          AND (CURRENT_DATE - spo.doc_due_date) >= ${settings.po_overdue_threshold_days}
+        ORDER BY days_overdue DESC
+      `);
+      queriesRun++;
+
+      const overduePOs = (overduePORows.rows || []) as any[];
+      if (overduePOs.length > 0) {
+        const byVendor: Record<string, any[]> = {};
+        for (const po of overduePOs) {
+          const key = po.vendor_name || 'Unknown Vendor';
+          if (!byVendor[key]) byVendor[key] = [];
+          byVendor[key].push(po);
+        }
+
+        for (const [vendorName, vendorPOs] of Object.entries(byVendor)) {
+          const maxOverdue = Math.max(...vendorPOs.map((p: any) => Number(p.days_overdue)));
+          const totalValue = vendorPOs.reduce((sum: number, p: any) => sum + Number(p.doc_total || 0), 0);
+          const severity = maxOverdue >= settings.po_critical_overdue_days ? 'critical' as const :
+                           maxOverdue >= settings.po_high_overdue_days ? 'high' as const :
+                           vendorPOs.length >= 5 ? 'high' as const : 'medium' as const;
+
+          const topPOs = vendorPOs.slice(0, 5);
+          const poList = topPOs.map((p: any) =>
+            `  • PO#${p.doc_num}: ${p.doc_currency} ${Number(p.doc_total).toLocaleString()} — ${p.days_overdue}d overdue (due: ${p.doc_due_date})`
+          ).join('\n');
+
+          const fp = makeFingerprint('po_vendor_overdue', `vendor:${vendorPOs[0].vendor_code || vendorName}`);
+          const findingResult = await findingManager.createFinding({
+            findingType: 'overdue',
+            severity,
+            title: `${vendorPOs.length} overdue POs from ${vendorName} (worst: ${maxOverdue}d, total: ${vendorPOs[0].doc_currency} ${totalValue.toLocaleString()})`,
+            description: `Vendor "${vendorName}" has ${vendorPOs.length} open purchase orders past their due date.\nTotal outstanding value: ${vendorPOs[0].doc_currency} ${totalValue.toLocaleString()}\nWorst overdue: ${maxOverdue} days\n\nTop overdue POs:\n${poList}${vendorPOs.length > 5 ? `\n  ...and ${vendorPOs.length - 5} more` : ''}`,
+            logicType: 'rule_based',
+            dataSnapshot: { vendorName, vendorCode: vendorPOs[0].vendor_code, poCount: vendorPOs.length, maxOverdue, totalValue },
+            relatedEntityType: 'vendor',
+            relatedEntityId: vendorPOs[0].vendor_code || vendorName,
+          });
+          if (!findingResult.isDuplicate) findingsCount++;
+
+          if (!await hasOpenAgentTask(fp)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: findingResult.findingId,
+              title: `[Procurement] Follow up ${vendorPOs.length} overdue POs: ${vendorName}`,
+              actionType: 'create_task',
+              rationale: `Vendor ${vendorName} has ${vendorPOs.length} purchase orders overdue (worst: ${maxOverdue} days). The procurement team needs to follow up on delivery status.`,
+              actionPayload: {
+                title: `[Procurement] Follow up ${vendorPOs.length} overdue POs from ${vendorName} (${maxOverdue}d overdue)`,
+                description: `Vendor "${vendorName}" has ${vendorPOs.length} open purchase orders past their due date.\nTotal value: ${vendorPOs[0].doc_currency} ${totalValue.toLocaleString()}\nWorst overdue: ${maxOverdue} days\n\nOverdue POs:\n${poList}\n\nPlease contact the vendor and update delivery status.`,
+                assignedTo: settings.procurement_team_lead_id,
+                priority: maxOverdue >= settings.po_high_overdue_days ? 'High' : 'Medium',
+                category: `Procurement ${fp}`,
+              },
+              actionCategory: 'task_creation',
+              priority: severity,
+              confidence: 0.9,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
+        }
+
+        for (const po of overduePOs) {
+          const daysOverdue = Number(po.days_overdue);
+          if (daysOverdue < settings.po_high_overdue_days) continue;
+
+          const fp = makeFingerprint('po_overdue', `sap_po:${po.id}`);
+          if (await hasOpenAgentTask(fp)) continue;
+
+          const severity = daysOverdue >= settings.po_critical_overdue_days ? 'critical' as const : 'high' as const;
+          const rec = await recommendationManager.createRecommendation({
+            findingId: 0,
+            title: `[Procurement] PO#${po.doc_num} overdue ${daysOverdue}d: ${po.vendor_name}`,
+            actionType: 'create_task',
+            rationale: `Purchase order #${po.doc_num} from ${po.vendor_name} is ${daysOverdue} days overdue. Requires escalation.`,
+            actionPayload: {
+              title: `[Procurement] ESCALATION: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue, ${po.doc_currency} ${Number(po.doc_total).toLocaleString()})`,
+              description: `Purchase order #${po.doc_num} from vendor "${po.vendor_name}" is severely overdue.\nDays overdue: ${daysOverdue}\nDue date: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total).toLocaleString()}\nProject: ${po.project_code || 'N/A'}\n\nEscalate with vendor management or consider alternative sourcing.`,
+              assignedTo: settings.procurement_team_lead_id,
+              priority: 'High',
+              category: `Procurement ${fp}`,
+            },
+            actionCategory: 'task_creation',
+            priority: severity,
+            confidence: 0.85,
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        }
+      }
+    } catch (err: any) {
+      console.error(`[ProjectControl] Procurement SAP POs error:`, err.message);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PR2: PROCUREMENT — Local Draft POs stuck without vendor
+    // ══════════════════════════════════════════════════════════════════
+    try {
+      const draftPORows = await db.execute(sql`
+        SELECT po.id, po.purchase_order_number, po.title, po.status, po.vendor_id,
+          po.project_id, p.name as project_name, po.required_by_date, po.created_by, po.created_at,
+          EXTRACT(DAY FROM NOW() - po.created_at)::int as days_since_created
+        FROM purchase_orders po
+        LEFT JOIN projects p ON po.project_id = p.id
+        WHERE po.status = 'draft'
+          AND EXTRACT(DAY FROM NOW() - po.created_at)::int >= ${settings.po_draft_stuck_days}
+        ORDER BY days_since_created DESC
+      `);
+      queriesRun++;
+
+      for (const po of (draftPORows.rows || []) as any[]) {
+        const daysSince = Number(po.days_since_created);
+        const fp = makeFingerprint('po_draft_stuck', `local_po:${po.id}`);
+        const severity = daysSince >= 60 ? 'high' as const : 'medium' as const;
+
+        const findingResult = await findingManager.createFinding({
+          findingType: 'anomaly',
+          severity,
+          title: `Draft PO stuck ${daysSince}d: ${po.purchase_order_number} — ${po.title}`,
+          description: `Purchase order "${po.title}" (${po.purchase_order_number}) for project "${po.project_name || 'N/A'}" has been in draft status for ${daysSince} days.${!po.vendor_id ? '\nNo vendor assigned yet.' : ''}`,
+          logicType: 'rule_based',
+          dataSnapshot: { poId: po.id, poNumber: po.purchase_order_number, daysSince, hasVendor: !!po.vendor_id },
+          relatedEntityType: 'purchase_order',
+          relatedEntityId: String(po.id),
+        });
+        if (!findingResult.isDuplicate) findingsCount++;
+
+        if (!await hasOpenAgentTask(fp)) {
+          const assignTo = po.created_by || settings.procurement_team_lead_id;
+          const rec = await recommendationManager.createRecommendation({
+            findingId: findingResult.findingId,
+            title: `[Procurement] Draft PO stuck: ${po.purchase_order_number}`,
+            actionType: 'create_task',
+            rationale: `PO has been in draft for ${daysSince} days. Either finalize with a vendor and submit, or cancel if no longer needed.`,
+            actionPayload: {
+              title: `[Procurement] Finalize draft PO: ${po.purchase_order_number} — "${po.title}" (${daysSince}d in draft)`,
+              description: `Purchase order "${po.title}" (${po.purchase_order_number}) has been in draft status for ${daysSince} days.\nProject: ${po.project_name || 'N/A'}\nRequired by: ${po.required_by_date || 'Not set'}\n${!po.vendor_id ? 'No vendor assigned.\n' : ''}\nPlease assign a vendor and submit, or cancel if no longer required.`,
+              assignedTo: assignTo,
+              priority: daysSince >= 60 ? 'High' : 'Medium',
+              category: `Procurement ${fp}`,
+            },
+            actionCategory: 'task_creation',
+            priority: severity,
+            confidence: 0.85,
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        }
+      }
+    } catch (err: any) {
+      console.error(`[ProjectControl] Procurement Draft POs error:`, err.message);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PR3: PROCUREMENT — PO Items with partial/no delivery
+    // ══════════════════════════════════════════════════════════════════
+    try {
+      const partialDeliveryRows = await db.execute(sql`
+        SELECT poi.id, poi.item_code, poi.description as item_description, poi.quantity, poi.received_quantity,
+          poi.delivery_status, po.purchase_order_number, po.title as po_title,
+          po.required_by_date, po.project_id, p.name as project_name, po.vendor_id, v.name as vendor_name
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON poi.purchase_order_id = po.id
+        LEFT JOIN projects p ON po.project_id = p.id
+        LEFT JOIN vendors v ON po.vendor_id = v.id
+        WHERE poi.delivery_status IN ('pending', 'partial')
+          AND po.required_by_date IS NOT NULL
+          AND po.required_by_date < NOW()
+        ORDER BY po.required_by_date ASC
+      `);
+      queriesRun++;
+
+      const pendingItems = (partialDeliveryRows.rows || []) as any[];
+      if (pendingItems.length > 0) {
+        const byProject: Record<string, any[]> = {};
+        for (const item of pendingItems) {
+          const key = item.project_name || 'Unlinked';
+          if (!byProject[key]) byProject[key] = [];
+          byProject[key].push(item);
+        }
+
+        for (const [projectName, items] of Object.entries(byProject)) {
+          const fp = makeFingerprint('po_pending_delivery', `project:${items[0].project_id || projectName}`);
+
+          const findingResult = await findingManager.createFinding({
+            findingType: 'overdue',
+            severity: 'medium',
+            title: `${items.length} PO items pending delivery for ${projectName}`,
+            description: `Project "${projectName}" has ${items.length} purchase order line items with pending/partial delivery past the required date.\n${items.slice(0, 5).map((i: any) => `  • ${i.item_code}: ${i.item_description} — ordered: ${i.quantity}, received: ${i.received_quantity || 0}`).join('\n')}`,
+            logicType: 'rule_based',
+            dataSnapshot: { projectName, itemCount: items.length },
+            relatedEntityType: 'project',
+            relatedEntityId: String(items[0].project_id || 0),
+          });
+          if (!findingResult.isDuplicate) findingsCount++;
+
+          if (!await hasOpenAgentTask(fp)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: findingResult.findingId,
+              title: `[Procurement] ${items.length} items pending delivery: ${projectName}`,
+              actionType: 'create_task',
+              rationale: `${items.length} items for project "${projectName}" are overdue for delivery. Follow up to avoid project delays.`,
+              actionPayload: {
+                title: `[Procurement] Follow up ${items.length} pending deliveries for ${projectName}`,
+                description: `Project "${projectName}" has ${items.length} purchase order items with pending/partial delivery past the required date.\n\nPending items:\n${items.slice(0, 10).map((i: any) => `  • ${i.item_code}: ${i.item_description} (PO: ${i.purchase_order_number}) — ordered: ${i.quantity}, received: ${i.received_quantity || 0}`).join('\n')}\n\nPlease follow up with vendors on delivery status.`,
+                assignedTo: settings.procurement_team_lead_id,
+                priority: 'Medium',
+                category: `Procurement ${fp}`,
+              },
+              actionCategory: 'task_creation',
+              priority: 'medium',
+              confidence: 0.85,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error(`[ProjectControl] Procurement Deliveries error:`, err.message);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // PR4: PROCUREMENT — SAP Purchase Requisitions pending action
+    // ══════════════════════════════════════════════════════════════════
+    try {
+      const prRows = await db.execute(sql`
+        SELECT spr.id, spr.doc_num, spr.requester_name, spr.doc_status, spr.priority,
+          spr.due_date, spr.department, spr.comments,
+          CASE WHEN spr.due_date IS NOT NULL THEN (CURRENT_DATE - spr.due_date) ELSE 0 END as days_overdue
+        FROM sap_purchase_requisitions spr
+        WHERE spr.doc_status = 'O'
+          AND spr.due_date IS NOT NULL AND spr.due_date < CURRENT_DATE
+        ORDER BY days_overdue DESC
+      `);
+      queriesRun++;
+
+      for (const pr of (prRows.rows || []) as any[]) {
+        const daysOverdue = Number(pr.days_overdue);
+        if (daysOverdue < settings.po_overdue_threshold_days) continue;
+
+        const fp = makeFingerprint('pr_overdue', `pr:${pr.id}`);
+        const severity = daysOverdue >= 30 ? 'high' as const : 'medium' as const;
+
+        const findingResult = await findingManager.createFinding({
+          findingType: 'overdue',
+          severity,
+          title: `Purchase requisition PR#${pr.doc_num} overdue ${daysOverdue}d — ${pr.requester_name || 'Unknown'}`,
+          description: `Purchase requisition #${pr.doc_num} from ${pr.requester_name || 'Unknown'} (${pr.department || 'N/A'}) is ${daysOverdue} days past its due date.\nPriority: ${pr.priority || 'Normal'}`,
+          logicType: 'rule_based',
+          dataSnapshot: { prId: pr.id, docNum: pr.doc_num, daysOverdue, requester: pr.requester_name },
+          relatedEntityType: 'purchase_requisition',
+          relatedEntityId: String(pr.id),
+        });
+        if (!findingResult.isDuplicate) findingsCount++;
+
+        if (!await hasOpenAgentTask(fp)) {
+          const rec = await recommendationManager.createRecommendation({
+            findingId: findingResult.findingId,
+            title: `[Procurement] PR#${pr.doc_num} overdue: ${pr.requester_name || 'Unknown'}`,
+            actionType: 'create_task',
+            rationale: `Purchase requisition is ${daysOverdue} days past due. Convert to PO or close if no longer needed.`,
+            actionPayload: {
+              title: `[Procurement] Process overdue PR#${pr.doc_num} — ${pr.requester_name || 'Unknown'} (${daysOverdue}d overdue)`,
+              description: `Purchase requisition #${pr.doc_num} is ${daysOverdue} days overdue.\nRequester: ${pr.requester_name || 'Unknown'}\nDepartment: ${pr.department || 'N/A'}\nPriority: ${pr.priority || 'Normal'}\n\nPlease convert to a purchase order or close if no longer required.`,
+              assignedTo: settings.procurement_team_lead_id,
+              priority: daysOverdue >= 30 ? 'High' : 'Medium',
+              category: `Procurement ${fp}`,
+            },
+            actionCategory: 'task_creation',
+            priority: severity,
+            confidence: 0.85,
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        }
+      }
+    } catch (err: any) {
+      console.error(`[ProjectControl] Procurement Requisitions error:`, err.message);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // INSIGHTS — Summary reports
     // ══════════════════════════════════════════════════════════════════
     try {
@@ -679,6 +994,17 @@ export class ProjectControlAgent implements IAgent {
       `);
       const ds = (designSummaryRows.rows as any[])[0] || {};
 
+      const procSummaryRows = await db.execute(sql`
+        SELECT 
+          (SELECT COUNT(*) FROM sap_purchase_orders WHERE doc_status = 'bost_Open' AND cancelled = 'tNO') as open_sap_pos,
+          (SELECT COUNT(*) FROM sap_purchase_orders WHERE doc_status = 'bost_Open' AND cancelled = 'tNO' AND doc_due_date < CURRENT_DATE) as overdue_sap_pos,
+          (SELECT COALESCE(SUM(doc_total), 0) FROM sap_purchase_orders WHERE doc_status = 'bost_Open' AND cancelled = 'tNO' AND doc_due_date < CURRENT_DATE) as overdue_po_value,
+          (SELECT COUNT(*) FROM purchase_orders WHERE status = 'draft') as draft_local_pos,
+          (SELECT COUNT(*) FROM sap_purchase_requisitions WHERE doc_status = 'O') as open_requisitions,
+          (SELECT COUNT(*) FROM purchase_order_items WHERE delivery_status IN ('pending', 'partial')) as pending_deliveries
+      `);
+      const ps = (procSummaryRows.rows as any[])[0] || {};
+
       const projectDetails = projects.map((p: any) =>
         `  ${p.project_number || p.project_name}: ${p.wo_completion_pct}% complete, ${p.overdue_work_orders} overdue WOs`
       ).join('\n');
@@ -694,15 +1020,22 @@ export class ProjectControlAgent implements IAgent {
         `  Open drawings: ${ds.open_drawings || 0}`,
         `  Pending reviews: ${ds.pending_reviews || 0}`,
         `  Overdue reviews: ${ds.overdue_reviews || 0}`,
+        ``,
+        `PROCUREMENT MANAGEMENT:`,
+        `  Open SAP POs: ${ps.open_sap_pos || 0}`,
+        `  Overdue SAP POs: ${ps.overdue_sap_pos || 0} (value: INR ${Number(ps.overdue_po_value || 0).toLocaleString()})`,
+        `  Draft local POs: ${ps.draft_local_pos || 0}`,
+        `  Open requisitions: ${ps.open_requisitions || 0}`,
+        `  Pending deliveries: ${ps.pending_deliveries || 0}`,
       ].filter(Boolean).join('\n');
 
       await insightManager.createInsight({
         findingIds: [],
         insightType: 'summary',
-        title: `Project & Design Health Summary — ${new Date().toLocaleDateString()}`,
+        title: `Project, Design & Procurement Health Summary — ${new Date().toLocaleDateString()}`,
         content: summaryContent,
         logicType: 'rule_based',
-        dataSources: ['vw_agent_project_health', 'vw_agent_overdue_work_orders', 'design_projects', 'design_drawings', 'design_reviews'],
+        dataSources: ['vw_agent_project_health', 'vw_agent_overdue_work_orders', 'design_projects', 'design_drawings', 'design_reviews', 'sap_purchase_orders', 'purchase_orders', 'sap_purchase_requisitions'],
         scopePeriod: 'daily',
       });
       insightsCount++;
