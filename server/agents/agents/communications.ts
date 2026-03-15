@@ -5,6 +5,8 @@ import { RecommendationManager } from '../framework/recommendation-manager';
 import { notificationService } from '../framework/notification-service';
 import { actionExecutor } from '../framework/action-executor';
 import { agentDataRepo } from '../data-access/agent-data-repo';
+import { db } from '../../db';
+import { sql } from 'drizzle-orm';
 
 const FINANCE_CATEGORIES = ['Finance'];
 const FINANCE_KEYWORDS = ['BRC', 'invoice', 'payment', 'remittance', 'outstanding'];
@@ -55,6 +57,28 @@ function getTierLabel(tier: EscalationTier): string {
   }
 }
 
+function getBusinessImpactForTier(tier: EscalationTier): string {
+  switch (tier) {
+    case 'reminder_1':
+      return 'This task has just crossed its due date. Early attention prevents escalation.';
+    case 'reminder_2':
+      return 'This task has been overdue for a week. The assignee should prioritize this or communicate blockers.';
+    case 'reminder_3':
+      return 'This task is significantly overdue. The task creator has been notified to review and follow up directly with the assignee.';
+    case 'creator_notify':
+      return 'The task creator should review whether this task is still relevant, reassign if needed, or close if completed outside the system.';
+    case 'escalation_30':
+      return 'Task overdue for 30+ days indicates a systemic follow-up failure. Both the assignee and creator\'s manager have been notified.';
+    case 'escalation_60':
+      return 'Task overdue for 60+ days is a serious concern. All stakeholders including both managers have been notified.';
+    case 'escalation_90':
+    case 'zombie_risk':
+      return 'ZOMBIE-RISK: Task overdue for 90+ days. Management review required to decide: reassign, close, or escalate.';
+    case 'zombie_review':
+      return 'ZOMBIE TASK: Overdue for 180+ days. Immediate closure or formal reassignment required.';
+  }
+}
+
 function getNotifyTargets(tier: EscalationTier, task: any): string[] {
   const targets: string[] = [];
   switch (tier) {
@@ -90,25 +114,50 @@ function getNotifyTargets(tier: EscalationTier, task: any): string[] {
   return targets;
 }
 
-function getBusinessImpactForTier(tier: EscalationTier): string {
+const COOLDOWN_DAYS = 7;
+
+async function hasOpenAgentTask(fingerprint: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task'
+      AND category LIKE ${'%' + fingerprint + '%'}
+      AND status NOT IN ('completed', 'cancelled')
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
+async function hasRecentAgentTask(fingerprint: string, cooldownDays: number = COOLDOWN_DAYS): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task'
+      AND category LIKE ${'%' + fingerprint + '%'}
+      AND created_at::timestamp > NOW() - INTERVAL '1 day' * ${cooldownDays}
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
+function makeFingerprint(findingType: string, entityKey: string): string {
+  return `[fp:${findingType}:${entityKey}]`;
+}
+
+function tierToAssigneeRule(tier: EscalationTier, task: any): { assignedTo: number | null; stage: string; priority: string } {
   switch (tier) {
     case 'reminder_1':
-      return 'This task has just crossed its due date. Early attention prevents escalation.';
     case 'reminder_2':
-      return 'This task has been overdue for a week. The assignee should prioritize this or communicate blockers.';
     case 'reminder_3':
-      return 'This task is significantly overdue. The task creator has been notified to review and follow up directly with the assignee.';
+      return { assignedTo: task.assigneeId, stage: 'Stage 1: Assignee', priority: tier === 'reminder_1' ? 'Medium' : 'High' };
     case 'creator_notify':
-      return 'The task creator should review whether this task is still relevant, reassign if needed, or close if completed outside the system.';
+      return { assignedTo: task.creatorId, stage: 'Stage 2: Creator', priority: 'High' };
     case 'escalation_30':
-      return 'Task overdue for 30+ days indicates a systemic follow-up failure. Both the assignee and creator\'s manager have been notified. This may indicate resource constraints, unclear requirements, or deprioritization without formal closure.';
+      return { assignedTo: task.creatorManagerId || task.creatorId, stage: 'Stage 3: Manager', priority: 'High' };
     case 'escalation_60':
-      return 'Task overdue for 60+ days is a serious concern. All stakeholders including both managers have been notified. Consider whether this task needs reassignment, scope change, or formal cancellation.';
+      return { assignedTo: task.assigneeManagerId || task.creatorManagerId || task.creatorId, stage: 'Stage 3: Manager', priority: 'Urgent' };
     case 'escalation_90':
     case 'zombie_risk':
-      return 'ZOMBIE-RISK: Task overdue for 90+ days. This task has likely been abandoned without formal closure. Management review required to decide: reassign, close as not applicable, or escalate as a process failure.';
     case 'zombie_review':
-      return 'ZOMBIE TASK: Overdue for 180+ days. This task should be reviewed for immediate closure or formal reassignment. Its continued open status distorts workload metrics and overdue reporting.';
+      return { assignedTo: task.assigneeManagerId || task.creatorManagerId || task.creatorId, stage: 'Stage 4: Management Review', priority: 'Urgent' };
   }
 }
 
@@ -118,245 +167,211 @@ export class CommunicationsAgent implements IAgent {
   category = 'operations';
 
   getSubscribedEvents(): string[] {
-    return [
-      'communication.task.overdue',
-      'communication.task.completed',
-      'communication.email.received',
-      'communication.attendance.anomaly',
-      'communication.dwar.missing',
-      'communication.commitment.overdue',
-    ];
+    return ['task.overdue', 'dwar.missing', 'attendance.anomaly', 'leave.pending', 'meeting.overdue'];
   }
 
-  async execute(context: AgentRunContext): Promise<AgentRunResult> {
+  async run(context: AgentRunContext): Promise<AgentRunResult> {
     const startTime = Date.now();
-    let findingsCount = 0;
-    let insightsCount = 0;
-    let queriesRun = 0;
-
     const findingManager = new FindingManager(context.runId, this.key);
     const insightManager = new InsightManager(context.runId, this.key);
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
-    // ═══════════════════════════════════════════════════════
-    // ─── WORKFLOW 1-4: TASK ESCALATION PIPELINE ───
-    // ═══════════════════════════════════════════════════════
+    let findingsCount = 0;
+    let insightsCount = 0;
+    let recommendationsCount = 0;
+    let queriesRun = 0;
+    let autoExecutedCount = 0;
+    const autoExecuteQueue: number[] = [];
+
     const allOverdueTasks = await agentDataRepo.getOverdueTasksWithEscalation();
     queriesRun++;
-
     const nonFinanceTasks = allOverdueTasks.filter(t => !isFinanceTask(t));
 
-    const tierCounts = { reminder_1: 0, reminder_2: 0, reminder_3: 0, creator_notify: 0,
-      escalation_30: 0, escalation_60: 0, escalation_90: 0, zombie_risk: 0, zombie_review: 0 };
-
-    const tasksByTier: Record<EscalationTier, typeof nonFinanceTasks> = {
+    const tasksByTier: Record<string, typeof nonFinanceTasks> = {
       reminder_1: [], reminder_2: [], reminder_3: [], creator_notify: [],
       escalation_30: [], escalation_60: [], escalation_90: [],
       zombie_risk: [], zombie_review: [],
     };
 
+    const tierCounts = { reminder_1: 0, reminder_2: 0, reminder_3: 0, creator_notify: 0,
+      escalation_30: 0, escalation_60: 0, escalation_90: 0, zombie_risk: 0, zombie_review: 0 };
+
     for (const task of nonFinanceTasks) {
       const tier = getEscalationTier(task.daysOverdue);
       tasksByTier[tier].push(task);
-      tierCounts[tier]++;
+      tierCounts[tier as keyof typeof tierCounts]++;
     }
 
-    // --- Tier 1: 1-day reminder (grouped by assignee) ---
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 1-7: OVERDUE TASK ESCALATION TIERS ───
+    // ─── [AUTOMATED: Task creation per tier with escalation ladder] ───
+    // ═══════════════════════════════════════════════════════════════
+
     const tier1ByAssignee: Record<string, typeof nonFinanceTasks> = {};
     for (const t of tasksByTier.reminder_1) {
-      const key = t.assigneeName;
+      const key = t.assigneeName || 'Unassigned';
       if (!tier1ByAssignee[key]) tier1ByAssignee[key] = [];
       tier1ByAssignee[key].push(t);
     }
     for (const [assignee, tasks] of Object.entries(tier1ByAssignee)) {
-      const topList = tasks.slice(0, 5).map(t => `  • ${t.title} (${t.daysOverdue} day${t.daysOverdue > 1 ? 's' : ''})`).join('\n');
+      const topTasks = tasks.sort((a, b) => b.daysOverdue - a.daysOverdue).slice(0, 5);
+      const topList = topTasks.map(t => `  • "${t.title}" (${t.daysOverdue}d overdue)`).join('\n');
       const result = await findingManager.createFinding({
         findingType: 'overdue',
         severity: 'low',
-        title: `${assignee}: ${tasks.length} newly overdue task${tasks.length > 1 ? 's' : ''} — 1st Reminder`,
+        title: `${assignee}: ${tasks.length} task${tasks.length > 1 ? 's' : ''} overdue 1-6 days — 1st Reminder`,
         description: [
-          `${assignee} has ${tasks.length} task${tasks.length > 1 ? 's' : ''} that just crossed the due date.`,
-          `\nEscalation: ${getTierLabel('reminder_1')}`,
-          `→ Notify: ${assignee}`,
-          `\n${getBusinessImpactForTier('reminder_1')}`,
-          `\nTasks:\n${topList}`,
+          `${assignee} has ${tasks.length} overdue task${tasks.length > 1 ? 's' : ''} in the 1-6 day range.`,
+          `\n${getTierLabel('reminder_1')}`,
+          `\nTop overdue:\n${topList}`,
           tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
+          `\n${getBusinessImpactForTier('reminder_1')}`,
         ].filter(Boolean).join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'reminder_1', assigneeName: assignee, taskCount: tasks.length,
-          notifyTargets: [assignee], tasks: tasks.map(t => ({ id: t.id, title: t.title, daysOverdue: t.daysOverdue })) },
+          topTasks: topTasks.map(t => ({ id: t.id, title: t.title, daysOverdue: t.daysOverdue })) },
         relatedEntityType: 'task_escalation',
-        relatedEntityId: `${assignee}:reminder_1`,
+        relatedEntityId: `${assignee}:tier1`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // --- Tier 2: 7-day reminder (grouped by assignee) ---
     const tier2ByAssignee: Record<string, typeof nonFinanceTasks> = {};
     for (const t of tasksByTier.reminder_2) {
-      const key = t.assigneeName;
+      const key = t.assigneeName || 'Unassigned';
       if (!tier2ByAssignee[key]) tier2ByAssignee[key] = [];
       tier2ByAssignee[key].push(t);
     }
     for (const [assignee, tasks] of Object.entries(tier2ByAssignee)) {
-      const topList = tasks.slice(0, 5).map(t => `  • ${t.title} (${t.daysOverdue} days)`).join('\n');
+      const topTasks = tasks.sort((a, b) => b.daysOverdue - a.daysOverdue).slice(0, 5);
+      const topList = topTasks.map(t => `  • "${t.title}" (${t.daysOverdue}d overdue)`).join('\n');
       const result = await findingManager.createFinding({
         findingType: 'overdue',
         severity: 'medium',
-        title: `${assignee}: ${tasks.length} task${tasks.length > 1 ? 's' : ''} overdue 7+ days — 2nd Reminder`,
+        title: `${assignee}: ${tasks.length} task${tasks.length > 1 ? 's' : ''} overdue 7-14 days — 2nd Reminder`,
         description: [
-          `${assignee} has ${tasks.length} task${tasks.length > 1 ? 's' : ''} overdue for 7+ days.`,
-          `\nEscalation: ${getTierLabel('reminder_2')}`,
-          `→ Notify: ${assignee}`,
-          `\n${getBusinessImpactForTier('reminder_2')}`,
-          `\nTasks:\n${topList}`,
+          `${assignee} has ${tasks.length} overdue task${tasks.length > 1 ? 's' : ''} in the 7-14 day range.`,
+          `\n${getTierLabel('reminder_2')}`,
+          `\nTop overdue:\n${topList}`,
           tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
+          `\n${getBusinessImpactForTier('reminder_2')}`,
         ].filter(Boolean).join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'reminder_2', assigneeName: assignee, taskCount: tasks.length,
-          notifyTargets: [assignee], tasks: tasks.map(t => ({ id: t.id, title: t.title, daysOverdue: t.daysOverdue })) },
+          topTasks: topTasks.map(t => ({ id: t.id, title: t.title, daysOverdue: t.daysOverdue })) },
         relatedEntityType: 'task_escalation',
-        relatedEntityId: `${assignee}:reminder_2`,
+        relatedEntityId: `${assignee}:tier2`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // --- Tier 3: 15-day strong reminder + creator notification (per task) ---
     for (const task of tasksByTier.reminder_3) {
-      const notifyTargets = getNotifyTargets('reminder_3', task);
-      const creatorNotify = getNotifyTargets('creator_notify', task);
-      const allNotify = [...notifyTargets, ...creatorNotify];
-
       const result = await findingManager.createFinding({
         findingType: 'overdue',
         severity: 'medium',
-        title: `"${task.title}" — ${task.daysOverdue} days overdue — Strong Reminder + Creator Notified`,
+        title: `"${task.title}" — ${task.daysOverdue} days overdue — Strong Reminder`,
         description: [
           `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.`,
-          `Created by: ${task.creatorName}`,
-          `Category: ${task.category || 'General'} | Priority: ${task.priority}`,
-          `\nEscalation: ${getTierLabel('reminder_3')}`,
-          ...allNotify,
+          `Created by: ${task.creatorName} | Priority: ${task.priority}`,
+          `\n${getTierLabel('reminder_3')}`,
+          `\n${getNotifyTargets('reminder_3', task).join('\n')}`,
           `\n${getBusinessImpactForTier('reminder_3')}`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'reminder_3', taskId: task.id, title: task.title, daysOverdue: task.daysOverdue,
-          assigneeName: task.assigneeName, creatorName: task.creatorName,
-          notifyTargets: [task.assigneeName, task.creatorName] },
+          assigneeName: task.assigneeName, creatorName: task.creatorName },
         relatedEntityType: 'task_escalation',
-        relatedEntityId: `task:${task.id}:reminder_3`,
+        relatedEntityId: `task:${task.id}:tier3`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // --- Tier 4: 30-day escalation (per task — includes creator's manager) ---
     for (const task of tasksByTier.escalation_30) {
       const notifyTargets = getNotifyTargets('escalation_30', task);
       const result = await findingManager.createFinding({
         findingType: 'escalation',
         severity: 'high',
-        title: `ESCALATION: "${task.title}" — ${task.daysOverdue} days overdue`,
+        title: `"${task.title}" — ${task.daysOverdue} days overdue — Escalation L1`,
         description: [
           `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.`,
-          `Created by: ${task.creatorName}`,
-          `Category: ${task.category || 'General'} | Priority: ${task.priority}`,
           `\nEscalation: ${getTierLabel('escalation_30')}`,
-          ...notifyTargets,
+          `\n${notifyTargets.join('\n')}`,
           `\n${getBusinessImpactForTier('escalation_30')}`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'escalation_30', taskId: task.id, title: task.title, daysOverdue: task.daysOverdue,
-          assigneeName: task.assigneeName, creatorName: task.creatorName,
-          assigneeManagerName: task.assigneeManagerName, creatorManagerName: task.creatorManagerName,
-          notifyTargets: notifyTargets },
+          assigneeName: task.assigneeName, notifyTargets },
         relatedEntityType: 'task_escalation',
         relatedEntityId: `task:${task.id}:escalation_30`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // --- Tier 5: 60-day escalation (per task — includes assignee's manager) ---
     for (const task of tasksByTier.escalation_60) {
       const notifyTargets = getNotifyTargets('escalation_60', task);
       const result = await findingManager.createFinding({
         findingType: 'escalation',
         severity: 'high',
-        title: `ESCALATION L2: "${task.title}" — ${task.daysOverdue} days overdue`,
+        title: `"${task.title}" — ${task.daysOverdue} days overdue — Escalation L2`,
         description: [
           `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.`,
-          `Created by: ${task.creatorName}`,
-          `Category: ${task.category || 'General'} | Priority: ${task.priority}`,
           `\nEscalation: ${getTierLabel('escalation_60')}`,
-          ...notifyTargets,
+          `\n${notifyTargets.join('\n')}`,
           `\n${getBusinessImpactForTier('escalation_60')}`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'escalation_60', taskId: task.id, title: task.title, daysOverdue: task.daysOverdue,
-          assigneeName: task.assigneeName, creatorName: task.creatorName,
-          assigneeManagerName: task.assigneeManagerName, creatorManagerName: task.creatorManagerName,
-          notifyTargets: notifyTargets },
+          assigneeName: task.assigneeName, notifyTargets },
         relatedEntityType: 'task_escalation',
         relatedEntityId: `task:${task.id}:escalation_60`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // --- Tier 6: 90-day zombie-risk + management review ---
     for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk]) {
       const notifyTargets = getNotifyTargets('zombie_risk', task);
       const result = await findingManager.createFinding({
         findingType: 'escalation',
         severity: 'critical',
-        title: `🔴 ZOMBIE-RISK: "${task.title}" — ${task.daysOverdue} days overdue — Management Review`,
+        title: `ZOMBIE-RISK: "${task.title}" — ${task.daysOverdue} days overdue`,
         description: [
           `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.`,
-          `Created by: ${task.creatorName}`,
-          `Category: ${task.category || 'General'} | Priority: ${task.priority}`,
-          `\nEscalation: ${getTierLabel('zombie_risk')}`,
-          ...notifyTargets,
+          `\n${notifyTargets.join('\n')}`,
           `\n${getBusinessImpactForTier('zombie_risk')}`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'zombie_risk', taskId: task.id, title: task.title, daysOverdue: task.daysOverdue,
-          assigneeName: task.assigneeName, creatorName: task.creatorName,
-          assigneeManagerName: task.assigneeManagerName, creatorManagerName: task.creatorManagerName,
-          notifyTargets: notifyTargets },
+          assigneeName: task.assigneeName, notifyTargets },
         relatedEntityType: 'task_escalation',
-        relatedEntityId: `task:${task.id}:zombie_risk`,
+        relatedEntityId: `task:${task.id}:zombie`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // --- Tier 7: 180-day zombie task review ---
     for (const task of tasksByTier.zombie_review) {
       const notifyTargets = getNotifyTargets('zombie_review', task);
       const result = await findingManager.createFinding({
         findingType: 'escalation',
         severity: 'critical',
-        title: `⚫ ZOMBIE TASK: "${task.title}" — ${task.daysOverdue} days overdue — Immediate Review Required`,
+        title: `ZOMBIE TASK: "${task.title}" — ${task.daysOverdue} days overdue — Immediate Closure Required`,
         description: [
           `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.`,
-          `Created by: ${task.creatorName}`,
-          `Category: ${task.category || 'General'} | Priority: ${task.priority}`,
-          `\nEscalation: ${getTierLabel('zombie_review')}`,
-          ...notifyTargets,
+          `\n${notifyTargets.join('\n')}`,
           `\n${getBusinessImpactForTier('zombie_review')}`,
-          `\nRecommended action: Close this task as "Not Applicable" or reassign with a new due date. Its continued open status distorts all overdue reporting.`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { tier: 'zombie_review', taskId: task.id, title: task.title, daysOverdue: task.daysOverdue,
-          assigneeName: task.assigneeName, creatorName: task.creatorName,
-          assigneeManagerName: task.assigneeManagerName, creatorManagerName: task.creatorManagerName,
-          notifyTargets: notifyTargets },
+          assigneeName: task.assigneeName, notifyTargets },
         relatedEntityType: 'task_escalation',
         relatedEntityId: `task:${task.id}:zombie_review`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── WORKFLOW 5: COMPLETION VERIFICATION ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 8: TASK COMPLETED ───
+    // ─── [SUPPRESSED: Positive event, no action needed] ───
+    // ═══════════════════════════════════════════════════════════════
     const recentlyCompleted = await agentDataRepo.getRecentlyCompletedTasks(1);
     queriesRun++;
 
@@ -364,26 +379,25 @@ export class CommunicationsAgent implements IAgent {
       const result = await findingManager.createFinding({
         findingType: 'completion',
         severity: 'low',
-        title: `✅ Task completed: "${task.title}" — Creator notified`,
+        title: `✅ Task completed: "${task.title}"`,
         description: [
           `Task "${task.title}" has been marked as completed by ${task.assigneeName}.`,
           `Completed at: ${task.completedAt}`,
-          `\n→ Notify: ${task.creatorName} (task creator) — please verify completion`,
-          `\nTask creators should verify that the completed work meets the original requirements. If not satisfactory, the task can be reopened.`,
+          `Creator: ${task.creatorName}`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { taskId: task.id, title: task.title, assigneeName: task.assigneeName,
-          creatorName: task.creatorName, completedAt: task.completedAt,
-          notifyTargets: [task.creatorName] },
+          creatorName: task.creatorName, completedAt: task.completedAt },
         relatedEntityType: 'task_completion',
         relatedEntityId: `task:${task.id}:completed`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── WORKFLOW 6: NO WORKLOAD VISIBILITY ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 9: NO WORKLOAD VISIBILITY ───
+    // ─── [SUPPRESSED: Unreliable for field/production staff] ───
+    // ═══════════════════════════════════════════════════════════════
     const noTaskUsers = await agentDataRepo.getUsersWithNoActiveTasks(2);
     queriesRun++;
 
@@ -395,25 +409,22 @@ export class CommunicationsAgent implements IAgent {
         title: `${user.employeeName}: No active tasks visible in the system`,
         description: [
           `${user.employeeName} has zero active tasks in the task management system.`,
-          `\n→ Notify: ${user.managerName} (reporting manager)`,
           `\nThis is a workload visibility finding, not a disciplinary issue.`,
           `The employee may be actively working but tasks are not being captured in the system.`,
-          `This reduces management's ability to track workload, set priorities, and plan resources.`,
-          `\nSuggested action: Manager to check with ${user.employeeName} and ensure current work is reflected in the task system.`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { userId: user.userId, employeeName: user.employeeName,
-          managerId: user.managerId, managerName: user.managerName,
-          notifyTargets: [user.managerName] },
+          managerId: user.managerId, managerName: user.managerName },
         relatedEntityType: 'workload_visibility',
         relatedEntityId: `user:${user.userId}:no_tasks`,
       });
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── OVERDUE RECURRING TASKS ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 10: OVERDUE RECURRING TASKS ───
+    // ─── [AUTOMATED: Create grouped review task per assignee] ───
+    // ═══════════════════════════════════════════════════════════════
     const overdueRecurring = await agentDataRepo.getOverdueRecurringTasks(7);
     queriesRun++;
 
@@ -437,7 +448,6 @@ export class CommunicationsAgent implements IAgent {
         description: [
           `${assignee} has ${tasks.length} overdue recurring task${tasks.length > 1 ? 's' : ''}.`,
           `Worst overdue: ${maxDays} days.`,
-          `\nRecurring tasks represent scheduled, repeating responsibilities. Overdue items suggest the assignee may be overburdened or the task schedule needs review.`,
           `\nTop overdue:\n${topList}`,
           tasks.length > 5 ? `\n...and ${tasks.length - 5} more.` : '',
         ].filter(Boolean).join('\n'),
@@ -449,9 +459,10 @@ export class CommunicationsAgent implements IAgent {
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── UNANSWERED EMAILS ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 11-12: UNANSWERED EMAILS ───
+    // ─── [AUTOMATED: P0/P1 creates response task; 72h+ creates review task] ───
+    // ═══════════════════════════════════════════════════════════════
     const unansweredEmails = await agentDataRepo.getUnansweredEmails(24);
     queriesRun++;
 
@@ -461,7 +472,7 @@ export class CommunicationsAgent implements IAgent {
         findingType: 'gap',
         severity: email.priority === 'P0' ? 'critical' as const : 'high' as const,
         title: `${email.priority} email unanswered for ${email.hoursUnanswered}h: "${email.subject}"`,
-        description: `A ${email.priority} priority email from ${email.fromAddress} with subject "${email.subject}" has been unanswered for ${email.hoursUnanswered} hours.\n\nHigh-priority emails require timely response to maintain professional communication standards and prevent escalation.`,
+        description: `A ${email.priority} priority email from ${email.fromAddress} with subject "${email.subject}" has been unanswered for ${email.hoursUnanswered} hours.\n\nHigh-priority emails require timely response.`,
         logicType: 'rule_based',
         dataSnapshot: email,
         relatedEntityType: 'email',
@@ -478,7 +489,7 @@ export class CommunicationsAgent implements IAgent {
         findingType: 'gap',
         severity: 'medium',
         title: `Email unanswered for ${email.hoursUnanswered}h: "${email.subject}"`,
-        description: `Email from ${email.fromAddress} has been unanswered for ${email.hoursUnanswered} hours.\n\nProlonged silence on emails — even lower-priority ones — can affect professional relationships and operational follow-through.`,
+        description: `Email from ${email.fromAddress} has been unanswered for ${email.hoursUnanswered} hours.`,
         logicType: 'rule_based',
         dataSnapshot: email,
         relatedEntityType: 'email',
@@ -487,9 +498,12 @@ export class CommunicationsAgent implements IAgent {
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 1: ATTENDANCE MONITORING ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 13-15: ATTENDANCE MONITORING (7-DAY) ───
+    // ─── [AUTOMATED: 2+ absent without leave → task for manager] ───
+    // ─── [AUTOMATED: 3+ incomplete → task for employee] ───
+    // ─── [SUPPRESSED: 1 absent / 1-2 incomplete → too minor] ───
+    // ═══════════════════════════════════════════════════════════════
     const attendanceDetailed = await agentDataRepo.getDetailedAttendanceIssues(7);
     const todayMissing = await agentDataRepo.getTodayMissingAttendance();
     queriesRun += 2;
@@ -506,7 +520,6 @@ export class CommunicationsAgent implements IAgent {
         absentWithoutLeaveCount += emp.absentWithoutLeaveCount;
         const severity = emp.absentWithoutLeaveCount >= 3 ? 'high' as const :
                          emp.absentWithoutLeaveCount >= 2 ? 'medium' as const : 'low' as const;
-        const notifyTarget = severity === 'low' ? emp.employeeName : emp.managerName || emp.employeeName;
         const result = await findingManager.createFinding({
           findingType: 'anomaly',
           severity,
@@ -514,13 +527,12 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `${emp.employeeName} was absent on ${emp.absentWithoutLeaveCount} day${emp.absentWithoutLeaveCount > 1 ? 's' : ''} without any approved leave request in the last 7 days.`,
             `Absent dates: ${emp.absentDates.join(', ')}`,
-            severity === 'low'
-              ? `\n→ Notify: ${emp.employeeName} — please submit a leave request or clarify attendance.`
-              : `\n→ Notify: ${emp.employeeName}\n→ Escalate to: ${emp.managerName || 'Reporting Manager'} — persistent absences without leave require manager attention.`,
-            `\nAbsence without approved leave affects team planning, may violate attendance policies, and creates compliance gaps.`,
+            severity !== 'low'
+              ? `\n→ Escalate to: ${emp.managerName || 'Reporting Manager'}`
+              : `\n→ Notify: ${emp.employeeName}`,
           ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...emp, notifyTargets: [emp.employeeName, notifyTarget] },
+          dataSnapshot: { ...emp },
           relatedEntityType: 'attendance',
           relatedEntityId: `${emp.userId}:absent_no_leave`,
         });
@@ -537,11 +549,9 @@ export class CommunicationsAgent implements IAgent {
             `${emp.employeeName} has ${emp.incompleteCount} incomplete attendance records (check-in but no check-out) in the last 7 days.`,
             `Incomplete dates: ${emp.incompleteDates.join(', ')}`,
             `\n→ Notify: ${emp.employeeName} — please complete your attendance records.`,
-            emp.incompleteCount >= 3 ? `→ Escalate to: ${emp.managerName || 'Reporting Manager'} — repeated incomplete records indicate a pattern.` : '',
-            `\nIncomplete attendance records affect working-hours calculation, overtime tracking, and payroll accuracy.`,
-          ].filter(Boolean).join('\n'),
+          ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...emp, notifyTargets: [emp.employeeName, emp.managerName] },
+          dataSnapshot: { ...emp },
           relatedEntityType: 'attendance',
           relatedEntityId: `${emp.userId}:incomplete_attendance`,
         });
@@ -553,9 +563,7 @@ export class CommunicationsAgent implements IAgent {
           severity: 'low',
           title: `${emp.employeeName}: ${emp.incompleteCount} incomplete attendance record${emp.incompleteCount > 1 ? 's' : ''} (7 days)`,
           description: [
-            `${emp.employeeName} has ${emp.incompleteCount} incomplete attendance record${emp.incompleteCount > 1 ? 's' : ''} (check-in but no check-out) in the last 7 days.`,
-            `\n→ Notify: ${emp.employeeName} — please complete your attendance records.`,
-            `\nIncomplete attendance records affect working-hours calculation and payroll accuracy.`,
+            `${emp.employeeName} has ${emp.incompleteCount} incomplete attendance record${emp.incompleteCount > 1 ? 's' : ''} in the last 7 days.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { userId: emp.userId, employeeName: emp.employeeName, incompleteCount: emp.incompleteCount },
@@ -578,8 +586,6 @@ export class CommunicationsAgent implements IAgent {
           `${todayMissing.length} active employee${todayMissing.length > 1 ? 's have' : ' has'} no attendance record for today and no approved leave.`,
           `\nEmployees without attendance:\n${nameList}`,
           todayMissing.length > 10 ? `\n...and ${todayMissing.length - 10} more.` : '',
-          `\n→ Notify: Each employee listed above.`,
-          `\nMissing attendance records should be recorded before end of day. Employees should either check in or submit a leave request.`,
         ].filter(Boolean).join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { count: todayMissing.length, employees: todayMissing.slice(0, 10) },
@@ -589,14 +595,17 @@ export class CommunicationsAgent implements IAgent {
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 2: DWAR MONITORING ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 16-19: DWAR MONITORING ───
+    // ─── [AUTOMATED: 3+ missing → task for employee + mgr escalation] ───
+    // ─── [AUTOMATED: 2 consecutive → warning task for employee] ───
+    // ─── [SUPPRESSED: 1 missing → too minor for task] ───
+    // ─── [AUTOMATED: incomplete/empty → task for employee] ───
+    // ═══════════════════════════════════════════════════════════════
     const dwarDetailed = await agentDataRepo.getDetailedDWARGaps();
     queriesRun++;
 
     let dwarMissingCount = 0;
-    let dwarIncompleteCount = 0;
 
     for (const gap of dwarDetailed) {
       if (gap.missingDays === 0 && gap.incompleteDwarCount === 0) continue;
@@ -609,15 +618,13 @@ export class CommunicationsAgent implements IAgent {
           severity,
           title: `${gap.employeeName}: ${gap.missingDays} missing DWARs this week — Escalated to Manager`,
           description: [
-            `${gap.employeeName} has not submitted daily work reports for ${gap.missingDays} working day${gap.missingDays > 1 ? 's' : ''} in the last 7 working days.`,
+            `${gap.employeeName} has not submitted daily work reports for ${gap.missingDays} working day${gap.missingDays > 1 ? 's' : ''}.`,
             gap.consecutiveMissing >= 2 ? `${gap.consecutiveMissing} consecutive missing DWARs detected.` : '',
             `Missing dates: ${gap.missingDates.join(', ')}`,
-            `\n→ Notify: ${gap.employeeName}`,
-            `→ Escalate to: ${gap.managerName || 'Reporting Manager'} — ≥3 missing DWARs triggers manager escalation.`,
-            `\nDaily work reports are essential for productivity tracking, workload visibility, and performance assessment. Consistent non-submission hampers management oversight.`,
+            `\n→ Escalate to: ${gap.managerName || 'Reporting Manager'}`,
           ].filter(Boolean).join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...gap, notifyTargets: [gap.employeeName, gap.managerName] },
+          dataSnapshot: { ...gap },
           relatedEntityType: 'dwar',
           relatedEntityId: `${gap.userId}:dwar_escalation`,
         });
@@ -631,11 +638,10 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `${gap.employeeName} has missed ${gap.consecutiveMissing} consecutive daily work reports.`,
             `Missing dates: ${gap.missingDates.join(', ')}`,
-            `\n→ Notify: ${gap.employeeName} — consecutive missing DWARs indicate a pattern.`,
             `\nTwo consecutive missing DWARs trigger a warning. A third will escalate to your reporting manager.`,
           ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...gap, notifyTargets: [gap.employeeName] },
+          dataSnapshot: { ...gap },
           relatedEntityType: 'dwar',
           relatedEntityId: `${gap.userId}:dwar_warning`,
         });
@@ -645,11 +651,10 @@ export class CommunicationsAgent implements IAgent {
         const result = await findingManager.createFinding({
           findingType: 'gap',
           severity: 'low',
-          title: `${gap.employeeName}: ${gap.missingDays} missing DWAR${gap.missingDays > 1 ? 's' : ''} this week — Reminder`,
+          title: `${gap.employeeName}: ${gap.missingDays} missing DWAR${gap.missingDays > 1 ? 's' : ''} this week`,
           description: [
             `${gap.employeeName} has not submitted daily work report${gap.missingDays > 1 ? 's' : ''} for ${gap.missingDays} working day${gap.missingDays > 1 ? 's' : ''}.`,
             `Missing dates: ${gap.missingDates.join(', ')}`,
-            `\n→ Notify: ${gap.employeeName} — please submit your daily work report by end of day.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { userId: gap.userId, employeeName: gap.employeeName, missingDays: gap.missingDays },
@@ -660,15 +665,12 @@ export class CommunicationsAgent implements IAgent {
       }
 
       if (gap.incompleteDwarCount > 0) {
-        dwarIncompleteCount++;
         const result = await findingManager.createFinding({
           findingType: 'gap',
           severity: 'low',
           title: `${gap.employeeName}: ${gap.incompleteDwarCount} incomplete/empty DWAR${gap.incompleteDwarCount > 1 ? 's' : ''} this week`,
           description: [
-            `${gap.employeeName} submitted ${gap.incompleteDwarCount} daily work report${gap.incompleteDwarCount > 1 ? 's' : ''} with minimal or no content (draft status, very short text).`,
-            `\n→ Notify: ${gap.employeeName} — DWARs should include meaningful details about tasks completed, challenges, and plans.`,
-            `\nEmpty or too-short DWARs provide no visibility into work activities and defeat the purpose of daily reporting.`,
+            `${gap.employeeName} submitted ${gap.incompleteDwarCount} daily work report${gap.incompleteDwarCount > 1 ? 's' : ''} with minimal or no content.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { userId: gap.userId, employeeName: gap.employeeName, incompleteDwarCount: gap.incompleteDwarCount },
@@ -679,9 +681,10 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 3: LEAVE REQUEST MONITORING ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 20-23: LEAVE REQUEST MONITORING ───
+    // ─── [AUTOMATED: All leave findings → task for manager] ───
+    // ═══════════════════════════════════════════════════════════════
     const pendingLeaves = await agentDataRepo.getDetailedPendingLeaveRequests();
     queriesRun++;
 
@@ -699,11 +702,10 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `${leave.employeeName}'s ${leave.leaveType} request for ${leave.startDate} to ${leave.endDate} is still in Pending status, but the leave date has already passed.`,
             `Pending for ${leave.daysPending} days. Total days requested: ${leave.totalDays}`,
-            `\n→ Notify: ${leave.managerName || 'Approving Manager'} — this leave request requires immediate closure.`,
-            `\nRecommendation: Approve retroactively if leave was actually taken, or reject with clarification. Leaving expired requests open distorts leave balance reports.`,
+            `\n→ Manager: ${leave.managerName || 'Approving Manager'} — approve retroactively or reject.`,
           ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...leave, notifyTargets: [leave.managerName] },
+          dataSnapshot: { ...leave },
           relatedEntityType: 'leave_request',
           relatedEntityId: `leave:${leave.id}:expired`,
         });
@@ -716,13 +718,10 @@ export class CommunicationsAgent implements IAgent {
           title: `Leave approval overdue: ${leave.employeeName} — ${leave.leaveType} pending ${leave.daysPending} days`,
           description: [
             `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate} to ${leave.endDate}) has been pending approval for ${leave.daysPending} days.`,
-            `Leave dates: ${leave.startDate} – ${leave.endDate} (${leave.totalDays} day${leave.totalDays > 1 ? 's' : ''})`,
             `\n→ Escalation: Pending >7 days — requires immediate manager action.`,
-            `→ Notify: ${leave.managerName || 'Approving Manager'}`,
-            `\nDelayed leave approvals disrupt employee planning and may violate HR policy response time requirements.`,
           ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...leave, notifyTargets: [leave.managerName] },
+          dataSnapshot: { ...leave },
           relatedEntityType: 'leave_request',
           relatedEntityId: `leave:${leave.id}:escalation`,
         });
@@ -735,11 +734,10 @@ export class CommunicationsAgent implements IAgent {
           title: `Leave approval pending: ${leave.employeeName} — ${leave.leaveType} waiting ${leave.daysPending} days`,
           description: [
             `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate} to ${leave.endDate}) has been pending for ${leave.daysPending} days.`,
-            `\n→ Reminder to: ${leave.managerName || 'Approving Manager'} — please review this leave request.`,
-            `\nLeave requests pending >3 days affect employee planning and morale.`,
+            `\n→ Reminder to: ${leave.managerName || 'Approving Manager'}`,
           ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...leave, notifyTargets: [leave.managerName] },
+          dataSnapshot: { ...leave },
           relatedEntityType: 'leave_request',
           relatedEntityId: `leave:${leave.id}:reminder`,
         });
@@ -749,9 +747,11 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 4: MEETINGS & COMMITMENTS MONITORING ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 24-26: MEETINGS & COMMITMENTS ───
+    // ─── [AUTOMATED: All overdue → task for assignee / manager] ───
+    // ─── [AUTOMATED: No linked task → create task from commitment] ───
+    // ═══════════════════════════════════════════════════════════════
     const detailedCommitments = await agentDataRepo.getDetailedMeetingCommitments();
     queriesRun++;
 
@@ -776,12 +776,10 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) is ${commitment.daysOverdue} days overdue.`,
             `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate} | Priority: ${commitment.priority}`,
-            `\n→ Notify: ${commitment.assigneeName} (assignee)`,
-            `→ Escalate to: ${commitment.managerName || 'Reporting Manager'} — commitment overdue >30 days requires manager intervention.`,
-            `\nOverdue meeting commitments indicate broken promises and may erode team trust. Manager should discuss blockers and next steps.`,
+            `\n→ Escalate to: ${commitment.managerName || 'Reporting Manager'}`,
           ].join('\n'),
           logicType: 'rule_based',
-          dataSnapshot: { ...commitment, notifyTargets: [commitment.assigneeName, commitment.managerName] },
+          dataSnapshot: { ...commitment },
           relatedEntityType: 'meeting_commitment',
           relatedEntityId: `commitment:${commitment.id}:escalation`,
         });
@@ -795,9 +793,7 @@ export class CommunicationsAgent implements IAgent {
           title: `Meeting commitment overdue: "${commitment.title}" — ${commitment.daysOverdue} days`,
           description: [
             `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) is ${commitment.daysOverdue} days overdue.`,
-            `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate} | Priority: ${commitment.priority}`,
-            `\n→ Notify: ${commitment.assigneeName} — please complete this commitment or update its status.`,
-            `\nMeeting commitments represent agreed-upon action items. Timely completion maintains team accountability.`,
+            `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate}`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { commitmentId: commitment.id, title: commitment.title, daysOverdue: commitment.daysOverdue, assigneeName: commitment.assigneeName },
@@ -816,8 +812,6 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) has not been converted into a task.`,
             `Assigned to: ${commitment.assigneeName} | Due: ${commitment.dueDate}`,
-            `\n→ Recommendation: Create a task from this commitment to ensure it is tracked in the task management system.`,
-            `\nCommitments without linked tasks risk being forgotten as they are only visible in the meeting notes.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { commitmentId: commitment.id, title: commitment.title, assigneeName: commitment.assigneeName },
@@ -828,9 +822,10 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── UNREAD INTERNAL MESSAGES ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 27: UNREAD INTERNAL MESSAGES ───
+    // ─── [WEEKLY SUMMARY: Contributes to consolidated review task] ───
+    // ═══════════════════════════════════════════════════════════════
     const unreadMessages = await agentDataRepo.getUnreadInternalMessages(48);
     queriesRun++;
 
@@ -843,7 +838,7 @@ export class CommunicationsAgent implements IAgent {
         title: `${unreadMessages.length} internal messages unread for 48+ hours`,
         description: [
           `${unreadMessages.length} internal messages have been unread for more than 48 hours.`,
-          `\nUnread internal messages may indicate communication breakdowns within the team. Important updates, requests, or decisions could be missed.`,
+          `\nUnread messages may indicate communication breakdowns within the team.`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: { count: unreadMessages.length },
@@ -853,9 +848,10 @@ export class CommunicationsAgent implements IAgent {
       if (!result.isDuplicate) findingsCount++;
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 5: DWAR QUALITY SCORING ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 28: DWAR QUALITY SCORING ───
+    // ─── [AUTOMATED: Score ≤30 → task for employee] ───
+    // ═══════════════════════════════════════════════════════════════
     const dwarQuality = await agentDataRepo.getDWARQualityScores();
     queriesRun++;
 
@@ -872,9 +868,6 @@ export class CommunicationsAgent implements IAgent {
             `  Complete: ${dq.completeCount} | Weak: ${dq.weakCount} | Poor: ${dq.poorCount} | Empty: ${dq.emptyCount}`,
             `  Average quality score: ${dq.avgScore}/100`,
             `\nScoring: Complete (all 4 fields filled, 80+ chars) = 100, Weak (2-3 fields, 30-79 chars) = 50, Poor (<30 chars or 1 field) = 25, Empty (draft, <10 chars) = 0`,
-            severity === 'high'
-              ? `\n→ Escalate to: ${dq.managerName || 'Reporting Manager'} — consistently poor DWAR quality indicates disengagement or misunderstanding of requirements.`
-              : `\n→ Notify: ${dq.employeeName} — please provide more detailed daily work reports covering challenges, plans, and support needs.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { ...dq },
@@ -885,9 +878,10 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 6: 30-DAY ATTENDANCE PATTERNS ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 29-30: 30-DAY ATTENDANCE PATTERNS ───
+    // ─── [AUTOMATED: Pattern → task for manager] ───
+    // ═══════════════════════════════════════════════════════════════
     const attendancePatterns = await agentDataRepo.getAttendancePatterns30Day();
     queriesRun++;
 
@@ -902,7 +896,7 @@ export class CommunicationsAgent implements IAgent {
             `${ap.employeeName} has a noticeable Monday/Friday absence pattern over the last 30 days.`,
             `Total absences: ${ap.totalAbsent} | Monday: ${ap.mondayAbsences} | Friday: ${ap.fridayAbsences}`,
             `Absent without leave: ${ap.absentWithoutLeave}`,
-            `\n→ Escalate to: ${ap.managerName || 'Reporting Manager'} — Mon/Fri patterns may indicate extended weekend taking.`,
+            `\n→ Escalate to: ${ap.managerName || 'Reporting Manager'}`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { ...ap },
@@ -920,7 +914,7 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `${ap.employeeName} has been absent without approved leave ${ap.absentWithoutLeave} times in the last 30 days.`,
             `Total absences: ${ap.totalAbsent} | Incomplete records: ${ap.totalIncomplete}`,
-            `\n→ Escalate to: ${ap.managerName || 'Reporting Manager'} — repeated unauthorized absence requires disciplinary review.`,
+            `\n→ Escalate to: ${ap.managerName || 'Reporting Manager'}`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { ...ap },
@@ -931,9 +925,10 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 7: LEAVE BALANCE ALERTS ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 31-32: LEAVE BALANCE ALERTS ───
+    // ─── [SUPPRESSED: Informational — no actionable task] ───
+    // ═══════════════════════════════════════════════════════════════
     const leaveBalances = await agentDataRepo.getLeaveBalanceAlerts();
     queriesRun++;
 
@@ -948,7 +943,6 @@ export class CommunicationsAgent implements IAgent {
             `${lb.employeeName} has exhausted their ${lb.leaveType} balance.`,
             `Entitled: ${lb.totalEntitled} | Used: ${lb.used} | Remaining: ${lb.remaining}`,
             `Pending leave requests: ${lb.pendingRequests}`,
-            `\n→ Notify: ${lb.managerName || 'Reporting Manager'} — review pending requests against zero balance.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: { ...lb },
@@ -974,9 +968,10 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── MODULE 8: MEETING DISCIPLINE METRICS ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 33-34: MEETING DISCIPLINE METRICS ───
+    // ─── [WEEKLY SUMMARY: Contributes to consolidated review task] ───
+    // ═══════════════════════════════════════════════════════════════
     const meetingDiscipline = await agentDataRepo.getMeetingDisciplineMetrics();
     queriesRun++;
 
@@ -989,7 +984,6 @@ export class CommunicationsAgent implements IAgent {
         description: [
           `Only ${meetingDiscipline.completionRate}% of meeting commitments have been completed.`,
           `Total: ${meetingDiscipline.totalCommitments} | Completed: ${meetingDiscipline.completedCommitments} | Overdue: ${meetingDiscipline.overdueCommitments}`,
-          `\nThis indicates systemic issues with meeting follow-through and accountability.`,
         ].join('\n'),
         logicType: 'rule_based',
         dataSnapshot: meetingDiscipline,
@@ -1008,7 +1002,6 @@ export class CommunicationsAgent implements IAgent {
           description: [
             `${offender.employeeName} has ${offender.overdueCount} overdue meeting commitments.`,
             `This indicates a pattern of not following through on meeting action items.`,
-            `\n→ Escalate to reporting manager for discussion on capacity and commitment follow-through.`,
           ].join('\n'),
           logicType: 'rule_based',
           dataSnapshot: offender,
@@ -1019,167 +1012,697 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── RECOMMENDATIONS GENERATION ───
-    // ═══════════════════════════════════════════════════════
-    let recommendationsCount = 0;
-    const autoExecuteQueue: number[] = [];
+    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════  TASK CREATION ENGINE (28 + 5 + 5 MODEL)  ═══════════════════
+    // ═══════════════════════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════════
 
-    for (const task of [...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
-      if (task.assigneeId) {
-        const rec = await recommendationManager.createRecommendation({
-          actionCategory: 'notification',
-          actionType: 'send_alert',
-          title: `Remind assignee about overdue task: "${task.title}"`,
-          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days. Send a reminder to the assignee to update or complete the task.`,
-          actionPayload: {
-            subject: `Reminder: Your task "${task.title}" is ${task.daysOverdue} days overdue`,
-            content: `Hi ${task.assigneeName},\n\nYour task "${task.title}" has been overdue for ${task.daysOverdue} days.\n\nPlease take one of the following actions:\n1. Update the task with your progress\n2. Complete and close the task\n3. Request a deadline extension with justification\n\nThis is an automated reminder from the AI Agent System.`,
-            severity: 'high',
-            targets: [{ userId: task.assigneeId, userName: task.assigneeName }],
-          },
-          logicType: 'rule_based',
-          confidence: 0.9,
-          priority: 'high',
-        });
-        if (rec.id > 0) {
-          recommendationsCount++;
-          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
-        }
-      }
-    }
+    // ─── GROUP A: 28 AUTOMATED TASK-CREATING FINDINGS ───
 
-    for (const commitment of detailedCommitments) {
-      if (!commitment.hasLinkedTask) {
-        const rec = await recommendationManager.createRecommendation({
-          actionCategory: 'task_creation',
-          actionType: 'create_task',
-          title: `Create task from meeting commitment: "${commitment.title}"`,
-          description: `Commitment "${commitment.title}" from "${commitment.meetingTitle}" has no linked task. Auto-create a follow-up task to ensure tracking.`,
-          actionPayload: {
-            title: `[Meeting] ${commitment.title}`,
-            description: `Auto-created from meeting commitment.\nMeeting: ${commitment.meetingTitle} (${commitment.meetingDate})\nOriginal due date: ${commitment.dueDate}`,
-            priority: commitment.priority || 'Medium',
-            assignedTo: commitment.assigneeId,
-            category: 'Meeting Follow-up',
-            sourceType: 'meeting_commitment',
-            sourceId: commitment.id,
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          },
-          logicType: 'rule_based',
-          confidence: 0.85,
-          priority: 'normal',
-        });
-        if (rec.id > 0) {
-          recommendationsCount++;
-          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
-        }
-      }
-    }
+    // A1-A7: OVERDUE TASK ESCALATION — create review task per tier with escalation ladder
+    // Tier 1-2: Grouped per assignee → one task listing all overdue items
+    for (const [assignee, tasks] of Object.entries(tier1ByAssignee)) {
+      if (tasks.length === 0) continue;
+      const firstTask = tasks[0];
+      const fp = makeFingerprint('overdue_tier1', `${firstTask.assigneeId || assignee}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
 
-    for (const gap of dwarDetailed) {
-      if (gap.missingDays >= 5) {
-        const rec = await recommendationManager.createRecommendation({
-          actionCategory: 'task_creation',
-          actionType: 'create_task',
-          title: `DWAR compliance task for ${gap.employeeName}`,
-          description: `${gap.employeeName} has ${gap.missingDays} missing DWARs this week. Create a task to submit all missing reports.`,
-          actionPayload: {
-            title: `[Agent] Submit missing DWARs (${gap.missingDays} days)`,
-            description: `You have ${gap.missingDays} missing daily work reports this week.\nMissing dates: ${gap.missingDates.join(', ')}\n\nPlease submit all missing DWARs by end of day.`,
-            priority: 'High',
-            assignedTo: gap.userId,
-            category: 'DWAR Compliance',
-            sourceType: 'llm_insight',
-            dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          },
-          logicType: 'rule_based',
-          confidence: 0.9,
-          priority: 'high',
-        });
-        if (rec.id > 0) {
-          recommendationsCount++;
-          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
-        }
-      }
-    }
-
-    for (const dq of dwarQuality) {
-      if (dq.avgScore <= 30) {
-        const rec = await recommendationManager.createRecommendation({
-          actionCategory: 'notification',
-          actionType: 'send_alert',
-          title: `DWAR quality reminder for ${dq.employeeName}`,
-          description: `${dq.employeeName} has a low DWAR quality score (${dq.avgScore}/100) with ${dq.poorCount + dq.emptyCount} poor/empty reports. Send a reminder to improve report quality.`,
-          actionPayload: {
-            subject: `Reminder: Please improve your Daily Work Report quality`,
-            content: `Hi ${dq.employeeName},\n\nYour daily work reports this week have a quality score of ${dq.avgScore}/100.\n\n- Complete reports: ${dq.completeCount}\n- Weak reports: ${dq.weakCount}\n- Poor/empty reports: ${dq.poorCount + dq.emptyCount}\n\nPlease ensure your DWARs include:\n1. Detailed description of work done\n2. All relevant fields filled in\n3. Meaningful content (not just a few words)\n\nThis is an automated reminder from the AI Agent System.`,
-            severity: 'medium',
-            targets: [{ userId: dq.userId, userName: dq.employeeName }],
-          },
-          logicType: 'rule_based',
-          confidence: 0.85,
-          priority: 'normal',
-        });
-        if (rec.id > 0) {
-          recommendationsCount++;
-          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
-        }
-      }
-    }
-
-    for (const leave of pendingLeaves) {
-      if (leave.leaveDatePassed && leave.daysPending >= 14) {
-        const rec = await recommendationManager.createRecommendation({
-          actionCategory: 'escalation',
-          actionType: 'escalate_to_manager',
-          title: `Close expired leave request: ${leave.employeeName}`,
-          description: `Leave request for ${leave.employeeName} (${leave.leaveType}, ${leave.startDate}–${leave.endDate}) has been pending for ${leave.daysPending} days and the leave date has passed. Manager should approve retroactively or reject.`,
-          actionPayload: {
-            subject: `Expired leave request requires closure: ${leave.employeeName}`,
-            content: `Leave request for ${leave.employeeName} (${leave.leaveType}, ${leave.startDate}–${leave.endDate}) has been pending ${leave.daysPending} days. The leave date has already passed. Please approve retroactively or reject with explanation.`,
-            escalationTargets: leave.managerId ? [{ userId: leave.managerId, userName: leave.managerName }] : [],
-            relatedEntityType: 'leave_request',
-            relatedEntityId: String(leave.id),
-          },
-          logicType: 'rule_based',
-          confidence: 0.95,
-          priority: 'urgent',
-        });
-        if (rec.id > 0) {
-          recommendationsCount++;
-          if (rec.autoApproved) autoExecuteQueue.push(rec.id);
-        }
-      }
-    }
-
-    const inactiveTasks = await agentDataRepo.getTasksAssignedToInactiveUsers();
-    queriesRun++;
-    for (const it of inactiveTasks.slice(0, 5)) {
+      const topList = tasks.slice(0, 5).map(t => `• "${t.title}" (${t.daysOverdue}d overdue)`).join('\n');
       const rec = await recommendationManager.createRecommendation({
-        actionCategory: 'escalation',
-        actionType: 'escalate_to_manager',
-        title: `Task assigned to inactive user: "${it.taskTitle}"`,
-        description: `Task "${it.taskTitle}" is assigned to ${it.assigneeName} who is no longer active. The task creator (${it.creatorName}) should reassign or close it.`,
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Overdue task review for ${assignee} (${tasks.length} tasks, 1-6 days)`,
+        description: `${assignee} has ${tasks.length} tasks overdue 1-6 days. Create a review task.`,
         actionPayload: {
-          subject: `Task needs reassignment: "${it.taskTitle}" — assigned to inactive user`,
-          content: `Task "${it.taskTitle}" is assigned to ${it.assigneeName} who is no longer active in the system.\n\nPlease reassign this task to an active team member or close it if no longer needed.`,
-          escalationTargets: [{ userId: it.creatorId, userName: it.creatorName }],
-          relatedEntityType: 'task',
-          relatedEntityId: String(it.taskId),
+          title: `[Agent] Review ${tasks.length} overdue task${tasks.length > 1 ? 's' : ''} (1-6 days)`,
+          description: `You have ${tasks.length} overdue task${tasks.length > 1 ? 's' : ''} in the 1-6 day range.\n\n${topList}${tasks.length > 5 ? `\n...and ${tasks.length - 5} more` : ''}\n\nPlease update progress, complete, or request deadline extensions.\n\nSource: Communications Agent — Stage 1: Assignee Review`,
+          priority: 'Medium',
+          assignedTo: firstTask.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    for (const [assignee, tasks] of Object.entries(tier2ByAssignee)) {
+      if (tasks.length === 0) continue;
+      const firstTask = tasks[0];
+      const fp = makeFingerprint('overdue_tier2', `${firstTask.assigneeId || assignee}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const topList = tasks.slice(0, 5).map(t => `• "${t.title}" (${t.daysOverdue}d overdue)`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Overdue task review for ${assignee} (${tasks.length} tasks, 7-14 days)`,
+        description: `${assignee} has ${tasks.length} tasks overdue 7-14 days. Second reminder.`,
+        actionPayload: {
+          title: `[Agent] Review ${tasks.length} overdue task${tasks.length > 1 ? 's' : ''} (7-14 days) — 2nd Reminder`,
+          description: `You have ${tasks.length} overdue task${tasks.length > 1 ? 's' : ''} in the 7-14 day range.\n\n${topList}${tasks.length > 5 ? `\n...and ${tasks.length - 5} more` : ''}\n\nThis is your second reminder. Please prioritize these or communicate blockers.\n\nSource: Communications Agent — Stage 1: Assignee Review`,
+          priority: 'High',
+          assignedTo: firstTask.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // Tier 3: Per-task → assignee review + creator notification
+    for (const task of tasksByTier.reminder_3) {
+      const fp = makeFingerprint('overdue_tier3', `task:${task.id}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Strong reminder: "${task.title}" (${task.daysOverdue}d overdue)`,
+        description: `Task "${task.title}" is ${task.daysOverdue} days overdue. Strong reminder to assignee, notifying creator.`,
+        actionPayload: {
+          title: `[Agent] Complete overdue task: "${task.title}" (${task.daysOverdue}d) — Strong Reminder`,
+          description: `Your task "${task.title}" has been overdue for ${task.daysOverdue} days.\nCreated by: ${task.creatorName}\n\nThis is a strong reminder. If not acted on, this will be escalated to management.\n\nSource: Communications Agent — Stage 1: Assignee Review + Creator Notified`,
+          priority: 'High',
+          assignedTo: task.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // Tier 4-5: Escalation → task for manager
+    for (const task of [...tasksByTier.escalation_30, ...tasksByTier.escalation_60]) {
+      const tier = getEscalationTier(task.daysOverdue);
+      const { assignedTo, stage, priority } = tierToAssigneeRule(tier, task);
+      const fp = makeFingerprint(`overdue_${tier}`, `task:${task.id}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Escalation: "${task.title}" (${task.daysOverdue}d overdue) → Manager`,
+        description: `Task "${task.title}" is ${task.daysOverdue} days overdue. Escalated to manager.`,
+        actionPayload: {
+          title: `[Agent] ESCALATION: Review overdue task "${task.title}" (${task.daysOverdue}d)`,
+          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.\nCreated by: ${task.creatorName}\n\nThis task has been escalated because previous reminders to the assignee were not acted on.\n\nRequired action: Review with assignee, reassign if needed, or close with justification.\n\nSource: Communications Agent — ${stage}`,
+          priority,
+          assignedTo,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         },
         logicType: 'rule_based',
         confidence: 0.95,
         priority: 'high',
       });
-      if (rec.id > 0) {
-        recommendationsCount++;
-        if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // Tier 6-7: Zombie → management review task
+    for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
+      const tier = getEscalationTier(task.daysOverdue);
+      const { assignedTo, stage, priority } = tierToAssigneeRule(tier, task);
+      const fp = makeFingerprint('zombie_review', `task:${task.id}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Zombie task review: "${task.title}" (${task.daysOverdue}d overdue)`,
+        description: `Task "${task.title}" is ${task.daysOverdue} days overdue. Management review required.`,
+        actionPayload: {
+          title: `[Agent] ZOMBIE TASK: Review "${task.title}" (${task.daysOverdue}d overdue)`,
+          description: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days.\nCreated by: ${task.creatorName}\n\nThis task is classified as a zombie — it has been ignored through all escalation stages.\n\nRequired action: Close as not applicable, reassign, or escalate as process failure.\n\nSource: Communications Agent — ${stage}`,
+          priority,
+          assignedTo,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.95,
+        priority: 'urgent',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A8: OVERDUE RECURRING TASKS — grouped per assignee
+    for (const [assignee, tasks] of Object.entries(recurringByAssignee)) {
+      if (tasks.length === 0) continue;
+      const firstTask = tasks[0];
+      const fp = makeFingerprint('recurring_overdue', `${firstTask.assigneeId || assignee}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const maxDays = Math.max(...tasks.map(t => t.daysOverdue));
+      const topList = tasks.slice(0, 5).map(t => `• ${t.title} (${t.daysOverdue}d overdue)`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Recurring task backlog for ${assignee} (${tasks.length} tasks)`,
+        description: `${assignee} has ${tasks.length} overdue recurring tasks. Worst: ${maxDays} days.`,
+        actionPayload: {
+          title: `[Agent] Review ${tasks.length} overdue recurring task${tasks.length > 1 ? 's' : ''} (worst: ${maxDays}d)`,
+          description: `You have ${tasks.length} overdue recurring task${tasks.length > 1 ? 's' : ''}.\n\n${topList}${tasks.length > 5 ? `\n...and ${tasks.length - 5} more` : ''}\n\nRecurring tasks represent scheduled responsibilities. Please complete or reschedule.\n\nSource: Communications Agent`,
+          priority: maxDays >= 30 ? 'High' : 'Medium',
+          assignedTo: firstTask.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A9: P0/P1 UNANSWERED EMAILS — response task per email
+    for (const email of criticalEmails) {
+      if (!email.userId) continue;
+      const fp = makeFingerprint('email_response', `email:${email.id}`);
+      if (await hasRecentAgentTask(fp, 3)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Respond to ${email.priority} email: "${email.subject}"`,
+        description: `${email.priority} email from ${email.fromAddress} unanswered for ${email.hoursUnanswered}h.`,
+        actionPayload: {
+          title: `[Agent] Respond to ${email.priority} email: "${email.subject}" (${email.hoursUnanswered}h unanswered)`,
+          description: `A ${email.priority} priority email from ${email.fromAddress} requires your response.\nSubject: "${email.subject}"\nUnanswered for: ${email.hoursUnanswered} hours\n\nPlease respond or delegate.\n\nSource: Communications Agent`,
+          priority: email.priority === 'P0' ? 'Urgent' : 'High',
+          assignedTo: email.userId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A10: 72h+ UNANSWERED EMAILS — review task
+    for (const email of longUnanswered) {
+      if (!email.userId) continue;
+      const fp = makeFingerprint('email_review', `email:${email.id}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Review unanswered email: "${email.subject}" (${email.hoursUnanswered}h)`,
+        description: `Email from ${email.fromAddress} unanswered for ${email.hoursUnanswered}h.`,
+        actionPayload: {
+          title: `[Agent] Review unanswered email: "${email.subject}" (${email.hoursUnanswered}h)`,
+          description: `An email from ${email.fromAddress} has been unanswered for ${email.hoursUnanswered} hours.\nSubject: "${email.subject}"\n\nPlease respond, delegate, or archive if no response needed.\n\nSource: Communications Agent`,
+          priority: 'Medium',
+          assignedTo: email.userId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.8,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A11: ABSENT WITHOUT LEAVE (2+) — attendance review task for manager
+    for (const emp of attendanceDetailed) {
+      if (emp.absentWithoutLeaveCount < 2) continue;
+      const fp = makeFingerprint('attendance_absent', `${emp.userId}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const managerId = emp.managerId || null;
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Attendance review: ${emp.employeeName} (${emp.absentWithoutLeaveCount} absences w/o leave)`,
+        description: `${emp.employeeName} has ${emp.absentWithoutLeaveCount} absences without approved leave in 7 days.`,
+        actionPayload: {
+          title: `[Agent] Review attendance: ${emp.employeeName} — ${emp.absentWithoutLeaveCount} absences without leave`,
+          description: `${emp.employeeName} was absent on ${emp.absentWithoutLeaveCount} day(s) without any approved leave request in the last 7 days.\nAbsent dates: ${emp.absentDates.join(', ')}\n\nPlease check with ${emp.employeeName} about these absences and ensure leave requests are submitted.\n\nSource: Communications Agent — ${managerId ? 'Manager Review' : 'HR Review'}`,
+          priority: emp.absentWithoutLeaveCount >= 3 ? 'High' : 'Medium',
+          assignedTo: managerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: emp.absentWithoutLeaveCount >= 3 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A12: INCOMPLETE ATTENDANCE (3+) — task for employee
+    for (const emp of attendanceDetailed) {
+      if (emp.incompleteCount < 3) continue;
+      const fp = makeFingerprint('attendance_incomplete', `${emp.userId}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Complete attendance records: ${emp.employeeName} (${emp.incompleteCount} incomplete)`,
+        description: `${emp.employeeName} has ${emp.incompleteCount} incomplete attendance records in 7 days.`,
+        actionPayload: {
+          title: `[Agent] Complete ${emp.incompleteCount} incomplete attendance records`,
+          description: `You have ${emp.incompleteCount} incomplete attendance records (check-in but no check-out) in the last 7 days.\nIncomplete dates: ${emp.incompleteDates.join(', ')}\n\nPlease update your attendance records.\n\nSource: Communications Agent`,
+          priority: 'Medium',
+          assignedTo: emp.userId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A13: DWAR MISSING (3+) — task for employee
+    for (const gap of dwarDetailed) {
+      if (gap.missingDays < 3) continue;
+      const fp = makeFingerprint('dwar_missing', `${gap.userId}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `DWAR compliance task for ${gap.employeeName} (${gap.missingDays} missing)`,
+        description: `${gap.employeeName} has ${gap.missingDays} missing DWARs this week.`,
+        actionPayload: {
+          title: `[Agent] Submit missing DWARs (${gap.missingDays} days)`,
+          description: `You have ${gap.missingDays} missing daily work reports this week.\nMissing dates: ${gap.missingDates.join(', ')}\n\nPlease submit all missing DWARs.\n\nSource: Communications Agent`,
+          priority: gap.missingDays >= 5 ? 'High' : 'Medium',
+          assignedTo: gap.userId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A14: 2 CONSECUTIVE MISSING DWARs — warning task for employee
+    for (const gap of dwarDetailed) {
+      if (gap.missingDays >= 3 || gap.consecutiveMissing < 2) continue;
+      const fp = makeFingerprint('dwar_warning', `${gap.userId}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `DWAR warning for ${gap.employeeName} (${gap.consecutiveMissing} consecutive)`,
+        description: `${gap.employeeName} has ${gap.consecutiveMissing} consecutive missing DWARs.`,
+        actionPayload: {
+          title: `[Agent] Submit missing DWARs — ${gap.consecutiveMissing} consecutive days missing`,
+          description: `You have missed ${gap.consecutiveMissing} consecutive daily work reports.\nMissing dates: ${gap.missingDates.join(', ')}\n\nWarning: A third consecutive missing DWAR will trigger escalation to your manager.\n\nSource: Communications Agent`,
+          priority: 'Medium',
+          assignedTo: gap.userId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A15: DWAR QUALITY ≤30 — improvement task for employee
+    for (const dq of dwarQuality) {
+      if (dq.avgScore > 30) continue;
+      const fp = makeFingerprint('dwar_quality', `${dq.userId}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `DWAR quality improvement for ${dq.employeeName} (score: ${dq.avgScore}/100)`,
+        description: `${dq.employeeName} has a low DWAR quality score (${dq.avgScore}/100).`,
+        actionPayload: {
+          title: `[Agent] Improve daily work report quality (score: ${dq.avgScore}/100)`,
+          description: `Your daily work reports this week have a quality score of ${dq.avgScore}/100.\n\nComplete: ${dq.completeCount} | Weak: ${dq.weakCount} | Poor: ${dq.poorCount} | Empty: ${dq.emptyCount}\n\nPlease ensure your DWARs include:\n1. Detailed description of work done\n2. All relevant fields filled in\n3. Meaningful content (not just a few words)\n\nSource: Communications Agent`,
+          priority: dq.avgScore < 20 ? 'High' : 'Medium',
+          assignedTo: dq.userId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A16: LEAVE REQUEST EXPIRED — closure task for manager
+    for (const leave of pendingLeaves) {
+      if (!leave.leaveDatePassed) continue;
+      const fp = makeFingerprint('leave_expired', `leave:${leave.id}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Close expired leave: ${leave.employeeName} (${leave.leaveType})`,
+        description: `Leave request for ${leave.employeeName} has expired and needs closure.`,
+        actionPayload: {
+          title: `[Agent] Close expired leave request: ${leave.employeeName} — ${leave.leaveType}`,
+          description: `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate}–${leave.endDate}) is still pending but the leave date has passed (${leave.daysPending} days pending).\n\nPlease approve retroactively if leave was taken, or reject.\n\nSource: Communications Agent`,
+          priority: 'High',
+          assignedTo: leave.managerId || null,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.95,
+        priority: 'urgent',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A17: LEAVE PENDING 7+ DAYS — approval follow-up task for manager
+    for (const leave of pendingLeaves) {
+      if (leave.leaveDatePassed || leave.daysPending < 7) continue;
+      const fp = makeFingerprint('leave_escalation', `leave:${leave.id}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Leave approval overdue: ${leave.employeeName} (${leave.daysPending}d pending)`,
+        description: `${leave.employeeName}'s leave request has been pending ${leave.daysPending} days.`,
+        actionPayload: {
+          title: `[Agent] Approve/reject leave: ${leave.employeeName} — ${leave.leaveType} (${leave.daysPending}d pending)`,
+          description: `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate}–${leave.endDate}) has been pending for ${leave.daysPending} days.\n\nLeave requests pending >7 days require immediate action.\n\nSource: Communications Agent`,
+          priority: 'High',
+          assignedTo: leave.managerId || null,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A18: LEAVE PENDING 3-6 DAYS — reminder task for manager
+    for (const leave of pendingLeaves) {
+      if (leave.leaveDatePassed || leave.daysPending < 3 || leave.daysPending >= 7) continue;
+      const fp = makeFingerprint('leave_reminder', `leave:${leave.id}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Leave approval reminder: ${leave.employeeName} (${leave.daysPending}d pending)`,
+        description: `${leave.employeeName}'s leave request has been pending ${leave.daysPending} days.`,
+        actionPayload: {
+          title: `[Agent] Review leave request: ${leave.employeeName} — ${leave.leaveType} (${leave.daysPending}d pending)`,
+          description: `${leave.employeeName}'s ${leave.leaveType} request (${leave.startDate}–${leave.endDate}) has been pending for ${leave.daysPending} days.\n\nPlease review and approve or reject.\n\nSource: Communications Agent`,
+          priority: 'Medium',
+          assignedTo: leave.managerId || null,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A19: MEETING COMMITMENT OVERDUE 30+ DAYS — escalation task for manager
+    for (const commitment of detailedCommitments) {
+      if (commitment.daysOverdue < 30) continue;
+      const fp = makeFingerprint('commitment_escalation', `commitment:${commitment.id}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Escalate commitment: "${commitment.title}" (${commitment.daysOverdue}d overdue)`,
+        description: `Meeting commitment "${commitment.title}" is ${commitment.daysOverdue} days overdue. Manager review.`,
+        actionPayload: {
+          title: `[Agent] ESCALATION: Overdue commitment "${commitment.title}" (${commitment.daysOverdue}d)`,
+          description: `Commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) is ${commitment.daysOverdue} days overdue.\nAssigned to: ${commitment.assigneeName}\n\nPlease review with ${commitment.assigneeName} and close or reassign.\n\nSource: Communications Agent — Manager Escalation`,
+          priority: 'High',
+          assignedTo: commitment.managerId || commitment.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A20: MEETING COMMITMENT OVERDUE 1-29 DAYS — task for assignee
+    for (const commitment of detailedCommitments) {
+      if (commitment.daysOverdue < 1 || commitment.daysOverdue >= 30) continue;
+      const fp = makeFingerprint('commitment_overdue', `commitment:${commitment.id}`);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Complete commitment: "${commitment.title}" (${commitment.daysOverdue}d overdue)`,
+        description: `Meeting commitment "${commitment.title}" is ${commitment.daysOverdue} days overdue.`,
+        actionPayload: {
+          title: `[Agent] Complete meeting commitment: "${commitment.title}" (${commitment.daysOverdue}d overdue)`,
+          description: `Your commitment "${commitment.title}" from meeting "${commitment.meetingTitle}" (${commitment.meetingDate}) is ${commitment.daysOverdue} days overdue.\nDue: ${commitment.dueDate}\n\nPlease complete or update status.\n\nSource: Communications Agent`,
+          priority: commitment.daysOverdue >= 14 ? 'High' : 'Medium',
+          assignedTo: commitment.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A21: MEETING COMMITMENT NOT LINKED TO TASK — create task from commitment
+    for (const commitment of detailedCommitments) {
+      if (commitment.hasLinkedTask) continue;
+      const fp = makeFingerprint('commitment_task', `commitment:${commitment.id}`);
+      if (await hasOpenAgentTask(fp)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Create task from commitment: "${commitment.title}"`,
+        description: `Commitment "${commitment.title}" from "${commitment.meetingTitle}" has no linked task.`,
+        actionPayload: {
+          title: `[Meeting] ${commitment.title}`,
+          description: `Auto-created from meeting commitment.\nMeeting: ${commitment.meetingTitle} (${commitment.meetingDate})\nOriginal due date: ${commitment.dueDate}\n\nSource: Communications Agent`,
+          priority: commitment.priority || 'Medium',
+          assignedTo: commitment.assigneeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceId: commitment.id,
+          dueDate: commitment.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A22: REPEAT OFFENDER MEETING COMMITMENTS (3+) — manager notification task
+    for (const offender of meetingDiscipline.repeatOffenders) {
+      if (offender.overdueCount < 3) continue;
+      const fp = makeFingerprint('commitment_repeat', `${offender.userId}`);
+      if (await hasRecentAgentTask(fp, 14)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Review commitment discipline: ${offender.employeeName} (${offender.overdueCount} overdue)`,
+        description: `${offender.employeeName} has ${offender.overdueCount} overdue meeting commitments — repeat pattern.`,
+        actionPayload: {
+          title: `[Agent] Review commitment discipline: ${offender.employeeName} (${offender.overdueCount} overdue commitments)`,
+          description: `${offender.employeeName} has ${offender.overdueCount} overdue meeting commitments, indicating a pattern of not following through.\n\nPlease discuss with ${offender.employeeName} about capacity and commitment follow-through.\n\nSource: Communications Agent — Manager Review`,
+          priority: 'High',
+          assignedTo: offender.managerId || null,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.85,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A23: MON/FRI ABSENCE PATTERN — review task for manager
+    for (const ap of attendancePatterns) {
+      if (!ap.hasWeekendPattern) continue;
+      const fp = makeFingerprint('attendance_pattern', `${ap.userId}`);
+      if (await hasRecentAgentTask(fp, 30)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Review Mon/Fri absence pattern: ${ap.employeeName}`,
+        description: `${ap.employeeName} has a Monday/Friday absence pattern over 30 days.`,
+        actionPayload: {
+          title: `[Agent] Review attendance pattern: ${ap.employeeName} — Mon/Fri absences`,
+          description: `${ap.employeeName} has a noticeable Monday/Friday absence pattern over the last 30 days.\nTotal absences: ${ap.totalAbsent} | Monday: ${ap.mondayAbsences} | Friday: ${ap.fridayAbsences}\nAbsent without leave: ${ap.absentWithoutLeave}\n\nPlease discuss with ${ap.employeeName}.\n\nSource: Communications Agent — Manager Review`,
+          priority: 'Medium',
+          assignedTo: ap.managerId || null,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.8,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A24: 3+ ABSENCES WITHOUT LEAVE (30-DAY) — disciplinary review task for manager
+    for (const ap of attendancePatterns) {
+      if (ap.absentWithoutLeave < 3) continue;
+      const fp = makeFingerprint('attendance_30d_absent', `${ap.userId}`);
+      if (await hasRecentAgentTask(fp, 30)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Attendance review: ${ap.employeeName} (${ap.absentWithoutLeave} absences, 30-day)`,
+        description: `${ap.employeeName} has ${ap.absentWithoutLeave} absences without leave in 30 days.`,
+        actionPayload: {
+          title: `[Agent] Attendance disciplinary review: ${ap.employeeName} — ${ap.absentWithoutLeave} absences without leave`,
+          description: `${ap.employeeName} has been absent without approved leave ${ap.absentWithoutLeave} times in the last 30 days.\nTotal absences: ${ap.totalAbsent} | Incomplete: ${ap.totalIncomplete}\n\nThis requires disciplinary review.\n\nSource: Communications Agent — Manager Escalation`,
+          priority: 'High',
+          assignedTo: ap.managerId || null,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A25: TASKS ASSIGNED TO INACTIVE USERS — reassignment task for creator
+    const inactiveTasks = await agentDataRepo.getTasksAssignedToInactiveUsers();
+    queriesRun++;
+    for (const it of inactiveTasks.slice(0, 5)) {
+      const fp = makeFingerprint('inactive_user_task', `task:${it.taskId}`);
+      if (await hasOpenAgentTask(fp)) continue;
+
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Reassign task from inactive user: "${it.taskTitle}"`,
+        description: `Task "${it.taskTitle}" is assigned to ${it.assigneeName} who is no longer active.`,
+        actionPayload: {
+          title: `[Agent] Reassign task: "${it.taskTitle}" — assigned to inactive user ${it.assigneeName}`,
+          description: `Task "${it.taskTitle}" is assigned to ${it.assigneeName} who is no longer active in the system.\n\nPlease reassign to an active team member or close if no longer needed.\n\nSource: Communications Agent`,
+          priority: 'High',
+          assignedTo: it.creatorId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        },
+        logicType: 'rule_based',
+        confidence: 0.95,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // ─── GROUP B: WEEKLY CONSOLIDATED "COMMUNICATIONS HEALTH REVIEW" TASK ───
+    // Findings that contribute: unread messages (27), meeting completion rate (33),
+    // leave balance zero+pending (31), repeat offenders already covered individually
+    // This task is created once per week on Monday
+    if (new Date().getDay() === 1) {
+      const fpWeekly = makeFingerprint('weekly_health_review', `week:${new Date().toISOString().split('T')[0]}`);
+      if (!(await hasRecentAgentTask(fpWeekly, 7))) {
+        const weeklyItems: string[] = [];
+        if (unreadMessages.length >= 5) {
+          weeklyItems.push(`• ${unreadMessages.length} internal messages unread for 48+ hours`);
+        }
+        if (meetingDiscipline.completionRate < 50 && meetingDiscipline.totalCommitments >= 5) {
+          weeklyItems.push(`• Meeting commitment completion rate: ${meetingDiscipline.completionRate}% (critically low)`);
+        }
+        const zeroBalanceWithPending = leaveBalances.filter(lb => lb.remaining <= 0 && lb.pendingRequests > 0);
+        if (zeroBalanceWithPending.length > 0) {
+          weeklyItems.push(`• ${zeroBalanceWithPending.length} employee(s) with zero leave balance and pending requests`);
+        }
+        const lowBalance = leaveBalances.filter(lb => lb.remaining <= 1 && !(lb.remaining <= 0 && lb.pendingRequests > 0));
+        if (lowBalance.length > 0) {
+          weeklyItems.push(`• ${lowBalance.length} employee(s) with low leave balance (≤1 day remaining)`);
+        }
+        if (todayMissing.length > 0) {
+          weeklyItems.push(`• ${todayMissing.length} employee(s) missing attendance today`);
+        }
+
+        if (weeklyItems.length > 0) {
+          const rec = await recommendationManager.createRecommendation({
+            actionCategory: 'task_creation',
+            actionType: 'create_task',
+            title: `Weekly Communications Health Review`,
+            description: `Consolidated weekly review of aggregate findings.`,
+            actionPayload: {
+              title: `[Agent] Weekly Communications Health Review — ${new Date().toLocaleDateString('en-IN')}`,
+              description: `This is your weekly consolidated review of organizational health metrics that require attention but don't have individual task assignments.\n\n${weeklyItems.join('\n')}\n\nPlease review these items and take action where needed.\n\nSource: Communications Agent — Weekly Consolidated Review`,
+              priority: 'Medium',
+              assignedTo: 1,
+              category: `Agent Task ${fpWeekly}`,
+              sourceType: 'agent_task',
+              dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            },
+            logicType: 'rule_based',
+            confidence: 0.9,
+            priority: 'normal',
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        }
       }
     }
 
-    // ─── AUTO-EXECUTE approved recommendations ───
-    let autoExecutedCount = 0;
+    // ─── AUTO-EXECUTE all approved recommendations ───
     for (const recId of autoExecuteQueue) {
       try {
         const result = await actionExecutor.execute(recId);
@@ -1189,89 +1712,9 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ─── NOTIFICATIONS DISPATCH ───
-    // ═══════════════════════════════════════════════════════
-    const notificationBatch: Array<{
-      subject: string; content: string; severity: string;
-      targets: Array<{ userId: number; userName: string }>;
-    }> = [];
-
-    for (const task of [...tasksByTier.escalation_30, ...tasksByTier.escalation_60]) {
-      if (task.creatorManagerId) {
-        notificationBatch.push({
-          subject: `Task overdue ${task.daysOverdue} days: "${task.title}"`,
-          content: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days. Created by ${task.creatorName}. This requires your attention.`,
-          severity: 'high',
-          targets: [{ userId: task.creatorManagerId, userName: task.creatorManagerName }],
-        });
-      }
-    }
-
-    for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk, ...tasksByTier.zombie_review]) {
-      const targets: Array<{ userId: number; userName: string }> = [];
-      if (task.creatorId) targets.push({ userId: task.creatorId, userName: task.creatorName });
-      if (task.creatorManagerId) targets.push({ userId: task.creatorManagerId, userName: task.creatorManagerName });
-      if (task.assigneeManagerId) targets.push({ userId: task.assigneeManagerId, userName: task.assigneeManagerName });
-      if (targets.length > 0) {
-        notificationBatch.push({
-          subject: `ZOMBIE-RISK: "${task.title}" — ${task.daysOverdue} days overdue`,
-          content: `Task "${task.title}" assigned to ${task.assigneeName} has been overdue for ${task.daysOverdue} days. This task requires immediate management review: close, reassign, or extend.`,
-          severity: 'critical',
-          targets,
-        });
-      }
-    }
-
-    for (const email of criticalEmails) {
-      if (email.userId) {
-        notificationBatch.push({
-          subject: `${email.priority} email unanswered ${email.hoursUnanswered}h: "${email.subject}"`,
-          content: `A ${email.priority} email from ${email.fromAddress} with subject "${email.subject}" has been unanswered for ${email.hoursUnanswered} hours. Immediate response required.`,
-          severity: 'critical',
-          targets: [{ userId: email.userId, userName: '' }],
-        });
-      }
-    }
-
-    for (const gap of dwarDetailed) {
-      if (gap.missingDays >= 3 && gap.managerId) {
-        notificationBatch.push({
-          subject: `${gap.employeeName}: ${gap.missingDays} missing DWARs — escalated`,
-          content: `${gap.employeeName} has not submitted daily work reports for ${gap.missingDays} days this week. Missing dates: ${gap.missingDates.join(', ')}`,
-          severity: 'medium',
-          targets: [{ userId: gap.managerId, userName: gap.managerName }],
-        });
-      }
-    }
-
-    for (const leave of pendingLeaves) {
-      if (leave.leaveDatePassed && leave.managerId) {
-        notificationBatch.push({
-          subject: `Expired leave request: ${leave.employeeName} — action needed`,
-          content: `Leave request for ${leave.employeeName} (${leave.leaveType}, ${leave.startDate}–${leave.endDate}) is still pending but the leave date has passed. Please approve retroactively or reject.`,
-          severity: 'high',
-          targets: [{ userId: leave.managerId, userName: leave.managerName }],
-        });
-      }
-    }
-
-    let notificationsSent = 0;
-    for (const n of notificationBatch) {
-      const result = await notificationService.sendNotification({
-        agentKey: this.key,
-        subject: n.subject,
-        content: n.content,
-        severity: n.severity,
-        channel: 'in_app',
-        targets: n.targets,
-      });
-      notificationsSent += result.sent;
-    }
-
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
     // ─── TREND ANALYSIS + DAILY INSIGHT ───
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════
     const emailStats = await agentDataRepo.getEmailStats();
     const trends = await agentDataRepo.getTrendComparison();
     queriesRun += 2;
@@ -1356,8 +1799,8 @@ export class CommunicationsAgent implements IAgent {
         trendLine(trends.currentOverdueCommitments, trends.previousOverdueCommitments, 'Overdue commitments'),
         ``,
         `--- AUTOMATION ---`,
-        `Notifications sent: ${notificationsSent}`,
         `Recommendations generated: ${recommendationsCount}`,
+        `Auto-executed actions: ${autoExecutedCount}`,
       ].join('\n'),
       logicType: 'rule_based',
       dataSources: [
@@ -1380,7 +1823,7 @@ export class CommunicationsAgent implements IAgent {
           ``,
           `--- TASK DISCIPLINE ---`,
           `Total overdue (non-finance): ${nonFinanceTasks.length}`,
-          `Zombie tasks (90+d): ${tasksByTier.zombie_risk.length + tasksByTier.escalation_90.length + tasksByTier.zombie_review.length}`,
+          `Zombie tasks (90+d): ${(tasksByTier.zombie_risk?.length || 0) + (tasksByTier.escalation_90?.length || 0) + (tasksByTier.zombie_review?.length || 0)}`,
           trendLine(trends.currentOverdueTasks, trends.previousOverdueTasks, 'Trend'),
           ``,
           `--- DWAR COMPLIANCE ---`,
@@ -1418,7 +1861,7 @@ export class CommunicationsAgent implements IAgent {
         queriesRun,
         llmCalls: 0,
         tokensUsed: 0,
-        notificationsSent,
+        notificationsSent: 0,
         autoExecutedActions: autoExecutedCount,
       },
     };
