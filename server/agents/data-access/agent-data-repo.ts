@@ -74,8 +74,10 @@ class AgentDataRepository {
     creatorManagerId: number | null; creatorManagerName: string;
   }>> {
     const rows = await db.execute(sql`
-      SELECT t.id, t.title, t.due_date, t.status, t.priority, t.category,
-        EXTRACT(DAY FROM NOW() - t.due_date::timestamp)::int as days_overdue,
+      SELECT t.id, t.title,
+        COALESCE(NULLIF(t.due_date,''), t.finish_date) as due_date,
+        t.status, t.priority, t.category,
+        EXTRACT(DAY FROM NOW() - COALESCE(NULLIF(t.due_date,''), t.finish_date)::timestamp)::int as days_overdue,
         t.assigned_to as assignee_id,
         COALESCE(ua.first_name || ' ' || COALESCE(ua.last_name, ''), ua.username, 'Unassigned') as assignee_name,
         COALESCE(ua.email, '') as assignee_email,
@@ -92,8 +94,10 @@ class AgentDataRepository {
       LEFT JOIN users uma ON ua.reporting_manager_id = uma.id
       LEFT JOIN users umc ON uc.reporting_manager_id = umc.id
       WHERE t.status NOT IN ('completed', 'cancelled')
-        AND t.due_date IS NOT NULL AND t.due_date != ''
-        AND t.due_date::date < CURRENT_DATE
+        AND COALESCE(NULLIF(t.due_date,''), t.finish_date) IS NOT NULL
+        AND COALESCE(NULLIF(t.due_date,''), t.finish_date) != ''
+        AND COALESCE(NULLIF(t.due_date,''), t.finish_date)::date < CURRENT_DATE
+        AND t.source_agent IS NULL
       ORDER BY days_overdue DESC
     `);
     return (rows.rows || []).map((r: any) => ({
