@@ -242,12 +242,12 @@ export class FinanceControlAgent implements IAgent {
     queriesRun++;
 
     const paymentAllocations = await db.execute(sql`
-      SELECT pil.id, pil.payment_id, pil.invoice_id, pil.amount_applied,
+      SELECT pa.id, pa.payment_id, pa.invoice_id, pa.amount_applied,
         p.amount as payment_amount, p.currency, p.irm_no,
         i.invoice_number, i.total_amount as invoice_amount, i.status as invoice_status
-      FROM payment_invoice_links pil
-      JOIN payments p ON pil.payment_id = p.id
-      JOIN invoices i ON pil.invoice_id = i.id
+      FROM payment_allocations pa
+      JOIN payments p ON pa.payment_id = p.id
+      JOIN invoices i ON pa.invoice_id = i.id
     `);
     queriesRun++;
     const allocRows = (paymentAllocations.rows || []) as any[];
@@ -640,13 +640,13 @@ export class FinanceControlAgent implements IAgent {
     const fullyPaidOpen = await db.execute(sql`
       SELECT i.id, i.invoice_number, i.total_amount, i.currency, i.status,
         c.company as customer_name,
-        COALESCE(SUM(pil.amount_applied), 0) as total_allocated
+        COALESCE(SUM(pa.amount_applied), 0) as total_allocated
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
-      LEFT JOIN payment_invoice_links pil ON i.id = pil.invoice_id
+      LEFT JOIN payment_allocations pa ON i.id = pa.invoice_id
       WHERE i.status NOT IN ('Paid', 'Cancelled', 'Credit Note')
       GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.status, c.company
-      HAVING COALESCE(SUM(pil.amount_applied), 0) >= i.total_amount
+      HAVING COALESCE(SUM(pa.amount_applied), 0) >= i.total_amount
     `);
     queriesRun++;
     const fullyPaidRows = (fullyPaidOpen.rows || []) as any[];
@@ -705,17 +705,17 @@ export class FinanceControlAgent implements IAgent {
     const partiallyPaidStale = await db.execute(sql`
       SELECT i.id, i.invoice_number, i.total_amount, i.currency, i.status,
         c.company as customer_name,
-        COALESCE(SUM(pil.amount_applied), 0) as allocated,
-        MAX(pil.allocated_at) as last_allocation_date,
-        EXTRACT(DAY FROM NOW() - MAX(pil.allocated_at))::int as days_since_last
+        COALESCE(SUM(pa.amount_applied), 0) as allocated,
+        MAX(pa.created_at) as last_allocation_date,
+        EXTRACT(DAY FROM NOW() - MAX(pa.created_at))::int as days_since_last
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
-      JOIN payment_invoice_links pil ON i.id = pil.invoice_id
+      JOIN payment_allocations pa ON i.id = pa.invoice_id
       WHERE i.status NOT IN ('Paid', 'Cancelled', 'Credit Note')
       GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.status, c.company
-      HAVING COALESCE(SUM(pil.amount_applied), 0) > 0
-        AND COALESCE(SUM(pil.amount_applied), 0) < i.total_amount
-        AND EXTRACT(DAY FROM NOW() - MAX(pil.allocated_at)) >= ${settings.partial_paid_stale_days}
+      HAVING COALESCE(SUM(pa.amount_applied), 0) > 0
+        AND COALESCE(SUM(pa.amount_applied), 0) < i.total_amount
+        AND EXTRACT(DAY FROM NOW() - MAX(pa.created_at)) >= ${settings.partial_paid_stale_days}
     `);
     queriesRun++;
     const partialRows = (partiallyPaidStale.rows || []) as any[];
@@ -1244,9 +1244,9 @@ export class FinanceControlAgent implements IAgent {
       SELECT p.id, p.irm_no, p.amount, p.currency, p.customer_id,
         c.company as customer_name,
         i.id as invoice_id, i.invoice_number, i.is_export, i.brc_received
-      FROM payment_invoice_links pil
-      JOIN payments p ON pil.payment_id = p.id
-      JOIN invoices i ON pil.invoice_id = i.id
+      FROM payment_allocations pa
+      JOIN payments p ON pa.payment_id = p.id
+      JOIN invoices i ON pa.invoice_id = i.id
       LEFT JOIN customers c ON p.customer_id = c.id
       WHERE i.is_export = true
         AND (i.brc_received IS NULL OR i.brc_received = false)
@@ -1726,7 +1726,7 @@ export class FinanceControlAgent implements IAgent {
         `Findings: ${findingsCount}`,
       ].join('\n'),
       logicType: 'rule_based',
-      dataSources: ['invoices', 'payments', 'payment_invoice_links', 'bank_realization_certificates', 'write_offs'],
+      dataSources: ['invoices', 'payments', 'payment_allocations', 'bank_realization_certificates', 'write_offs'],
       scopePeriod: 'daily',
     });
     insightsCount++;
