@@ -85,6 +85,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   const [filterPriority, setFilterPriority] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<number | null>(null);
+  const [filterAssignedBy, setFilterAssignedBy] = useState<string | null>(null);
   const [showCompletedTasks, setShowCompletedTasks] = useState(initialShowCompleted);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -159,28 +160,38 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
     return assignee ? assignee.username : 'Unknown';
   }, [allUsers, isDataReady]);
   
-  // Filter and search tasks - memoized to avoid unnecessary recalculations
+  const uniqueAssigners = useMemo(() => {
+    const map = new Map<string, string>();
+    tasks.forEach(task => {
+      const key = task.sourceAgent ? `agent:${task.sourceAgent}` : String(task.createdBy || 0);
+      if (!map.has(key)) {
+        map.set(key, getCreatorName(key));
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [tasks, getCreatorName]);
+
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
-      // Handle completed tasks filter - show completed tasks if checkbox is checked
-      // This line was causing the issue with completed tasks not showing
       if (!showCompletedTasks && task.status === 'completed') {
         return false;
       }
       
-      // Apply priority filter if selected
       if (filterPriority && task.priority !== filterPriority) {
         return false;
       }
       
-      // Apply status filter if selected
       if (filterStatus && task.status !== filterStatus) {
         return false;
       }
       
-      // Apply assignee filter if selected
       if (filterAssignee !== null && task.assignedTo !== filterAssignee) {
         return false;
+      }
+
+      if (filterAssignedBy !== null) {
+        const taskKey = task.sourceAgent ? `agent:${task.sourceAgent}` : String(task.createdBy || 0);
+        if (taskKey !== filterAssignedBy) return false;
       }
       
       // Apply search query - only when allUsers is loaded
@@ -202,7 +213,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
       
       return true;
     });
-  }, [tasks, showCompletedTasks, filterPriority, filterStatus, filterAssignee, searchQuery, isDataReady, getAssigneeName]);
+  }, [tasks, showCompletedTasks, filterPriority, filterStatus, filterAssignee, filterAssignedBy, searchQuery, isDataReady, getAssigneeName]);
 
   const tasksByCreator = useMemo(() => {
     return filteredTasks.reduce((acc, task) => {
@@ -711,6 +722,26 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                 </div>
                 
                 <div className="space-y-2">
+                  <p className="text-sm font-medium">Assigned By</p>
+                  <Select
+                    value={filterAssignedBy !== null ? filterAssignedBy : "all"}
+                    onValueChange={(value) => setFilterAssignedBy(value === "all" ? null : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by assigner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {uniqueAssigners.map(([key, name]) => (
+                        <SelectItem key={key} value={key}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <p className="text-sm font-medium">Assigned To</p>
                   <Select
                     value={filterAssignee !== null ? filterAssignee.toString() : "all"}
@@ -720,7 +751,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                       <SelectValue placeholder="Filter by assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Assignees</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
                       {isDataReady ? (
                         allUsers.map((userItem) => (
                           <SelectItem key={userItem.id} value={userItem.id.toString()}>
@@ -755,6 +786,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                       setFilterPriority(null);
                       setFilterStatus(null);
                       setFilterAssignee(null);
+                      setFilterAssignedBy(null);
                       setShowCompletedTasks(false);
                       setSearchQuery('');
                     }}
