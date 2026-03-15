@@ -191,7 +191,7 @@ export class FinanceControlAgent implements IAgent {
       SELECT i.id, i.invoice_number, i.customer_id, i.total_amount, i.currency, i.status,
         i.due_date, i.issue_date, i.is_export, i.brc_required, i.brc_received,
         i.credit_note_amount,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         EXTRACT(DAY FROM NOW() - i.due_date::date)::int as days_overdue
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
@@ -207,7 +207,7 @@ export class FinanceControlAgent implements IAgent {
       SELECT i.id, i.invoice_number, i.customer_id, i.total_amount, i.currency, i.status,
         i.due_date, i.issue_date, i.is_export, i.brc_required, i.brc_received,
         i.credit_note_amount,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         CASE WHEN i.due_date IS NOT NULL AND i.due_date::date < CURRENT_DATE
           THEN EXTRACT(DAY FROM NOW() - i.due_date::date)::int ELSE 0 END as days_overdue
       FROM invoices i
@@ -221,7 +221,7 @@ export class FinanceControlAgent implements IAgent {
     const payments = await db.execute(sql`
       SELECT p.id, p.irm_no, p.payment_date, p.amount, p.currency, p.unallocated_amount,
         p.allocated_amount, p.is_advance_payment, p.customer_id,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         EXTRACT(DAY FROM NOW() - p.payment_date::date)::int as days_since_payment
       FROM payments p
       LEFT JOIN customers c ON p.customer_id = c.id
@@ -234,7 +234,7 @@ export class FinanceControlAgent implements IAgent {
     const allPayments = await db.execute(sql`
       SELECT p.id, p.irm_no, p.payment_date, p.amount, p.currency,
         p.unallocated_amount, p.allocated_amount, p.is_advance_payment, p.customer_id,
-        c.company as customer_name
+        c.bp_name as customer_name
       FROM payments p
       LEFT JOIN customers c ON p.customer_id = c.id
       ORDER BY p.payment_date DESC
@@ -275,7 +275,7 @@ export class FinanceControlAgent implements IAgent {
     const exportInvoicesNeedingBRC = await db.execute(sql`
       SELECT i.id, i.invoice_number, i.issue_date, i.total_amount, i.currency,
         i.brc_required, i.brc_received, i.customer_id,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         EXTRACT(MONTH FROM AGE(NOW(), i.issue_date::date))::int +
         EXTRACT(YEAR FROM AGE(NOW(), i.issue_date::date))::int * 12 as months_since_issue
       FROM invoices i
@@ -380,14 +380,14 @@ export class FinanceControlAgent implements IAgent {
 
     const duplicateCandidates = await db.execute(sql`
       SELECT i1.id as id1, i1.invoice_number as inv1, i2.id as id2, i2.invoice_number as inv2,
-        i1.customer_id, c.company as customer_name, i1.total_amount, i1.currency,
+        i1.customer_id, c.bp_name as customer_name, i1.total_amount, i1.currency,
         i1.issue_date as date1, i2.issue_date as date2
       FROM invoices i1
       JOIN invoices i2 ON i1.customer_id = i2.customer_id
         AND i1.total_amount = i2.total_amount
         AND i1.currency = i2.currency
         AND i1.id < i2.id
-        AND ABS(EXTRACT(DAY FROM i1.issue_date::date - i2.issue_date::date)) <= ${settings.duplicate_invoice_window_days}
+        AND ABS(i1.issue_date::date - i2.issue_date::date) <= ${settings.duplicate_invoice_window_days}
       LEFT JOIN customers c ON i1.customer_id = c.id
       WHERE i1.status NOT IN ('Cancelled') AND i2.status NOT IN ('Cancelled')
     `);
@@ -506,7 +506,7 @@ export class FinanceControlAgent implements IAgent {
 
     const advancePayments = await db.execute(sql`
       SELECT p.id, p.irm_no, p.payment_date, p.amount, p.currency, p.unallocated_amount,
-        p.customer_id, c.company as customer_name,
+        p.customer_id, c.bp_name as customer_name,
         EXTRACT(DAY FROM NOW() - p.payment_date::date)::int as days_since
       FROM payments p
       LEFT JOIN customers c ON p.customer_id = c.id
@@ -639,13 +639,13 @@ export class FinanceControlAgent implements IAgent {
 
     const fullyPaidOpen = await db.execute(sql`
       SELECT i.id, i.invoice_number, i.total_amount, i.currency, i.status,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         COALESCE(SUM(pa.amount_applied), 0) as total_allocated
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
       LEFT JOIN payment_allocations pa ON i.id = pa.invoice_id
       WHERE i.status NOT IN ('Paid', 'Cancelled', 'Credit Note')
-      GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.status, c.company
+      GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.status, c.bp_name
       HAVING COALESCE(SUM(pa.amount_applied), 0) >= i.total_amount
     `);
     queriesRun++;
@@ -704,7 +704,7 @@ export class FinanceControlAgent implements IAgent {
 
     const partiallyPaidStale = await db.execute(sql`
       SELECT i.id, i.invoice_number, i.total_amount, i.currency, i.status,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         COALESCE(SUM(pa.amount_applied), 0) as allocated,
         MAX(pa.created_at) as last_allocation_date,
         EXTRACT(DAY FROM NOW() - MAX(pa.created_at))::int as days_since_last
@@ -712,7 +712,7 @@ export class FinanceControlAgent implements IAgent {
       LEFT JOIN customers c ON i.customer_id = c.id
       JOIN payment_allocations pa ON i.id = pa.invoice_id
       WHERE i.status NOT IN ('Paid', 'Cancelled', 'Credit Note')
-      GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.status, c.company
+      GROUP BY i.id, i.invoice_number, i.total_amount, i.currency, i.status, c.bp_name
       HAVING COALESCE(SUM(pa.amount_applied), 0) > 0
         AND COALESCE(SUM(pa.amount_applied), 0) < i.total_amount
         AND EXTRACT(DAY FROM NOW() - MAX(pa.created_at)) >= ${settings.partial_paid_stale_days}
@@ -772,14 +772,14 @@ export class FinanceControlAgent implements IAgent {
     // ══════════════════════════════════════════════════════════════════
 
     const customerOutstanding = await db.execute(sql`
-      SELECT i.customer_id, c.company as customer_name,
+      SELECT i.customer_id, c.bp_name as customer_name,
         SUM(CASE WHEN i.status NOT IN ('Paid','Cancelled','Credit Note') THEN i.total_amount ELSE 0 END) as outstanding,
         SUM(i.total_amount) as yearly_total,
         i.currency
       FROM invoices i
       LEFT JOIN customers c ON i.customer_id = c.id
       WHERE i.issue_date::date >= CURRENT_DATE - INTERVAL '1 year'
-      GROUP BY i.customer_id, c.company, i.currency
+      GROUP BY i.customer_id, c.bp_name, i.currency
       HAVING SUM(CASE WHEN i.status NOT IN ('Paid','Cancelled','Credit Note') THEN i.total_amount ELSE 0 END) > 0
       ORDER BY outstanding DESC
     `);
@@ -1242,7 +1242,7 @@ export class FinanceControlAgent implements IAgent {
     // F23: Remittance without BRC — export payments without BRC filed
     const exportPaymentsNoBRC = await db.execute(sql`
       SELECT p.id, p.irm_no, p.amount, p.currency, p.customer_id,
-        c.company as customer_name,
+        c.bp_name as customer_name,
         i.id as invoice_id, i.invoice_number, i.is_export, i.brc_received
       FROM payment_allocations pa
       JOIN payments p ON pa.payment_id = p.id
