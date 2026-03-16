@@ -236,30 +236,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         
         console.log("⭐ Submitting data to API:", JSON.stringify(data, null, 2));
         
-        const res = await apiRequest("POST", "/api/recurring-patterns", data);
-        console.log("⭐ API Response status:", res.status, res.statusText);
-        
-        if (!res.ok) {
-          let errorMessage = `Request failed with status ${res.status}`;
-          try {
-            const errorData = await res.json();
-            console.error("⚠️ API error response:", errorData);
-            errorMessage = errorData?.message || errorMessage;
-            
-            // Add more details if available
-            if (errorData?.details) {
-              console.error("⚠️ API error details:", errorData.details);
-              if (typeof errorData.details === 'object') {
-                errorMessage += ` (${JSON.stringify(errorData.details)})`;
-              }
-            }
-          } catch (parseError) {
-            console.error("⚠️ Could not parse error response:", parseError);
-          }
-          throw new Error(errorMessage);
-        }
-        
-        const responseData = await res.json();
+        const responseData = await apiRequest("POST", "/api/recurring-patterns", data);
         console.log("⭐ Pattern created successfully:", responseData);
         return responseData;
       } catch (err) {
@@ -290,8 +267,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   // Update a recurring pattern
   const updatePatternMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: RecurringPatternSubmitData }) => {
-      const res = await apiRequest("PATCH", `/api/recurring-patterns/${id}`, data);
-      return await res.json();
+      return await apiRequest("PATCH", `/api/recurring-patterns/${id}`, data);
     },
     onSuccess: () => {
       toast({
