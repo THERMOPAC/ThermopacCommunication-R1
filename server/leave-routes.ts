@@ -5,6 +5,7 @@ import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users } from
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
 import { checkPayrollLock } from './payroll-lock-service';
+import { createNotification } from './notification-routes';
 
 const router = Router();
 
@@ -218,6 +219,22 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
         eq(leaveBalances.year, currentYear)
       ));
 
+    if (managerId) {
+      const user = req.user as any;
+      const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, leaveTypeId));
+      const leaveTypeName = leaveType?.name || 'Leave';
+      await createNotification({
+        userId: managerId,
+        type: 'approval_request',
+        title: `Leave Request: ${user.fullName || user.username}`,
+        message: `${user.fullName || user.username} has applied for ${leaveTypeName} from ${startDate} to ${endDate || startDate} (${totalDays} day${totalDays > 1 ? 's' : ''}). Reason: ${reason}`,
+        link: '/leave-request',
+        sourceType: 'leave_request',
+        sourceId: newRequest.id,
+        createdBy: userId,
+      });
+    }
+
     res.status(201).json(newRequest);
   } catch (error) {
     console.error('Error creating leave request:', error);
@@ -385,6 +402,20 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
         eq(leaveBalances.year, currentYear)
       ));
 
+    const manager = req.user as any;
+    const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, existingRequest.leaveTypeId));
+    const leaveTypeName = leaveType?.name || 'Leave';
+    await createNotification({
+      userId: existingRequest.employeeId,
+      type: 'approval_decision',
+      title: `Leave Approved: ${leaveTypeName}`,
+      message: `Your ${leaveTypeName} request from ${existingRequest.startDate} to ${existingRequest.endDate} has been approved by ${manager.fullName || manager.username}.${comments ? ` Comments: ${comments}` : ''}`,
+      link: '/leave-request',
+      sourceType: 'leave_request',
+      sourceId: requestId,
+      createdBy: managerId,
+    });
+
     res.json({ success: true, message: 'Leave request approved successfully' });
   } catch (error) {
     console.error('Error approving leave request:', error);
@@ -441,6 +472,20 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
         eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
         eq(leaveBalances.year, currentYear)
       ));
+
+    const manager = req.user as any;
+    const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, existingRequest.leaveTypeId));
+    const leaveTypeName = leaveType?.name || 'Leave';
+    await createNotification({
+      userId: existingRequest.employeeId,
+      type: 'approval_decision',
+      title: `Leave Rejected: ${leaveTypeName}`,
+      message: `Your ${leaveTypeName} request from ${existingRequest.startDate} to ${existingRequest.endDate} has been rejected by ${manager.fullName || manager.username}. Reason: ${comments}`,
+      link: '/leave-request',
+      sourceType: 'leave_request',
+      sourceId: requestId,
+      createdBy: managerId,
+    });
 
     res.json({ success: true, message: 'Leave request rejected' });
   } catch (error) {
