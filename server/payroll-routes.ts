@@ -11,6 +11,8 @@ import {
   attendanceRecords,
   users,
   tasks,
+  payrollLocks,
+  payrollLockExceptions,
   insertEmployeeSalarySchema,
   insertPayrollPeriodSchema,
   insertPayrollRecordSchema,
@@ -20,6 +22,29 @@ import {
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sum, avg, count } from 'drizzle-orm';
 import { z } from 'zod';
+import {
+  startPayrollRun,
+  executeStep,
+  transitionPeriodStatus,
+  resetPayrollRun,
+  getRunLog,
+  getExceptions,
+  resolveException,
+  getAttendanceSnapshots,
+  getSalarySnapshots,
+  PIPELINE_STEPS,
+} from './payroll-run-engine';
+import {
+  checkPayrollLock,
+  createPayrollLock,
+  unlockPayrollLock,
+  getLocksForPeriod,
+  createLockException,
+  approveLockException,
+  rejectLockException,
+  closeLockException,
+  getLockExceptions,
+} from './payroll-lock-service';
 
 const router = Router();
 
@@ -449,5 +474,216 @@ function calculateDeductions(baseSalary: number, settings: Record<string, string
     total: incomeTax + professionalTax + providentFund + esi,
   };
 }
+
+// ============================================================================
+// PAYROLL RUN ENGINE ENDPOINTS
+// ============================================================================
+
+router.get('/pipeline-steps', (_req, res) => {
+  res.json(PIPELINE_STEPS);
+});
+
+router.post('/run/start', async (req, res) => {
+  try {
+    const { periodId } = req.body;
+    const executedBy = req.user?.id || 1;
+    const result = await startPayrollRun(periodId, executedBy);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/run/step', async (req, res) => {
+  try {
+    const { periodId, runNumber, step } = req.body;
+    const executedBy = req.user?.id || 1;
+    const result = await executeStep(periodId, runNumber, step, executedBy);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/run/transition', async (req, res) => {
+  try {
+    const { periodId, newStatus } = req.body;
+    const userId = req.user?.id || 1;
+    const result = await transitionPeriodStatus(periodId, newStatus, userId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/run/reset', async (req, res) => {
+  try {
+    const { periodId, reason } = req.body;
+    const userId = req.user?.id || 1;
+    const result = await resetPayrollRun(periodId, userId, reason);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/run/log/:periodId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const runNumber = req.query.runNumber ? parseInt(req.query.runNumber as string) : undefined;
+    const logs = await getRunLog(periodId, runNumber);
+    res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/run/exceptions/:periodId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const runNumber = req.query.runNumber ? parseInt(req.query.runNumber as string) : undefined;
+    const exceptions = await getExceptions(periodId, runNumber);
+    res.json(exceptions);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/run/exceptions/:id/resolve', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { resolution, notes } = req.body;
+    const userId = req.user?.id || 1;
+    const result = await resolveException(id, userId, resolution, notes);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/run/snapshots/attendance/:periodId/:runNumber', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const runNumber = parseInt(req.params.runNumber);
+    const snapshots = await getAttendanceSnapshots(periodId, runNumber);
+    res.json(snapshots);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/run/snapshots/salary/:periodId/:runNumber', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const runNumber = parseInt(req.params.runNumber);
+    const snapshots = await getSalarySnapshots(periodId, runNumber);
+    res.json(snapshots);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// PAYROLL LOCK ENDPOINTS
+// ============================================================================
+
+router.get('/locks/:periodId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const locks = await getLocksForPeriod(periodId);
+    res.json(locks);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/locks', async (req, res) => {
+  try {
+    const { periodId, lockType, lockReason } = req.body;
+    const userId = req.user?.id || 1;
+    const lock = await createPayrollLock(periodId, lockType, userId, lockReason);
+    res.json(lock);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/locks/:id/unlock', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { reason } = req.body;
+    const userId = req.user?.id || 1;
+    const result = await unlockPayrollLock(id, userId, reason);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/locks/check', async (req, res) => {
+  try {
+    const { module, effectiveDate, userId } = req.body;
+    const result = await checkPayrollLock(module, effectiveDate, userId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/locks/:lockId/exceptions', async (req, res) => {
+  try {
+    const lockId = parseInt(req.params.lockId);
+    const exceptions = await getLockExceptions(lockId);
+    res.json(exceptions);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/locks/exceptions', async (req, res) => {
+  try {
+    const { lockId, userId, reason } = req.body;
+    const requestedBy = req.user?.id || 1;
+    const result = await createLockException({ lockId, userId, reason, requestedBy });
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/locks/exceptions/:id/approve', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { expiresAt } = req.body;
+    const userId = req.user?.id || 1;
+    const result = await approveLockException(id, userId, expiresAt ? new Date(expiresAt) : undefined);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/locks/exceptions/:id/reject', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const userId = req.user?.id || 1;
+    const result = await rejectLockException(id, userId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/locks/exceptions/:id/close', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { changesDescription } = req.body;
+    const userId = req.user?.id || 1;
+    const result = await closeLockException(id, userId, changesDescription);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
 export default router;

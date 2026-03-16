@@ -4,6 +4,7 @@ import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations,
 import { eq, and, gte, lte, desc, sql, isNull } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
+import { checkPayrollLock } from './payroll-lock-service';
 
 const router = Router();
 
@@ -84,6 +85,11 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
     const today = new Date().toISOString().split('T')[0];
     const now = new Date();
     const ipAddress = req.ip || req.connection.remoteAddress;
+
+    const lockCheck = await checkPayrollLock('attendance', today, userId);
+    if (lockCheck.isLocked) {
+      return res.status(403).json({ error: `Attendance is locked for this period: ${lockCheck.message}` });
+    }
 
     // Check if already checked in today
     const [existingRecord] = await db

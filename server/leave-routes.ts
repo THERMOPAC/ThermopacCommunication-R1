@@ -4,6 +4,7 @@ import { db } from "./db";
 import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
+import { checkPayrollLock } from './payroll-lock-service';
 
 const router = Router();
 
@@ -171,6 +172,11 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
 
     if (!leaveTypeId || !startDate || !reason) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const lockCheck = await checkPayrollLock('leave', startDate, userId);
+    if (lockCheck.isLocked) {
+      return res.status(403).json({ error: `Leave modifications are locked for this period: ${lockCheck.message}` });
     }
 
     const [currentUser] = await db

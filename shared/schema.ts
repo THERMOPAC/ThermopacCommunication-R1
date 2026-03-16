@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -4626,6 +4626,9 @@ export const payrollPeriods = pgTable('payroll_periods', {
   endDate: date('end_date').notNull(),
   payDate: date('pay_date').notNull(),
   status: varchar('status', { length: 20 }).default('draft'),
+  currentRunNumber: integer('current_run_number').default(0),
+  finalizedRunNumber: integer('finalized_run_number'),
+  isLocked: boolean('is_locked').default(false),
   totalEmployees: integer('total_employees').default(0),
   totalGrossPay: decimal('total_gross_pay', { precision: 15, scale: 2 }).default('0'),
   totalDeductions: decimal('total_deductions', { precision: 15, scale: 2 }).default('0'),
@@ -4633,6 +4636,13 @@ export const payrollPeriods = pgTable('payroll_periods', {
   createdAt: timestamp('created_at').defaultNow(),
   processedAt: timestamp('processed_at'),
   processedBy: integer('processed_by').references(() => users.id),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  approvedAt: timestamp('approved_at'),
+  paidAt: timestamp('paid_at'),
+  paidBy: integer('paid_by').references(() => users.id),
+  lockedAt: timestamp('locked_at'),
+  lockedBy: integer('locked_by').references(() => users.id),
 });
 
 // Individual payroll records
@@ -4640,7 +4650,16 @@ export const payrollRecords = pgTable('payroll_records', {
   id: serial('id').primaryKey(),
   periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  runNumber: integer('run_number'),
   baseSalary: decimal('base_salary', { precision: 12, scale: 2 }).notNull(),
+  
+  // Attendance snapshot fields
+  workingDays: integer('working_days'),
+  paidDays: decimal('paid_days', { precision: 5, scale: 2 }),
+  lopDays: decimal('lop_days', { precision: 5, scale: 2 }),
+  presentDays: decimal('present_days', { precision: 5, scale: 2 }),
+  paidLeaveDays: decimal('paid_leave_days', { precision: 5, scale: 2 }),
+  unpaidLeaveDays: decimal('unpaid_leave_days', { precision: 5, scale: 2 }),
   
   // KPI-based bonuses from DWAR
   productivityBonus: decimal('productivity_bonus', { precision: 10, scale: 2 }).default('0'),
@@ -4677,6 +4696,9 @@ export const payrollRecords = pgTable('payroll_records', {
   
   // Net pay
   netPay: decimal('net_pay', { precision: 12, scale: 2 }).notNull(),
+  
+  // Calculation audit snapshot
+  calculationSnapshot: jsonb('calculation_snapshot'),
   
   // KPI metrics for reference
   dwarProductivityScore: decimal('dwar_productivity_score', { precision: 5, scale: 2 }),
@@ -4732,6 +4754,135 @@ export const payrollApprovals = pgTable('payroll_approvals', {
   approvedAt: timestamp('approved_at'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// Payroll Run Log - step-by-step execution audit trail
+export const payrollRunLog = pgTable('payroll_run_log', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  runNumber: integer('run_number').notNull(),
+  step: varchar('step', { length: 30 }).notNull(),
+  attemptNumber: integer('attempt_number').notNull().default(1),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  executedBy: integer('executed_by').references(() => users.id),
+  employeesProcessed: integer('employees_processed').default(0),
+  employeesSkipped: integer('employees_skipped').default(0),
+  errorCount: integer('error_count').default(0),
+  summary: jsonb('summary').default({}),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Payroll Exceptions - structured exception records from pipeline steps
+export const payrollExceptions = pgTable('payroll_exceptions', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  runNumber: integer('run_number').notNull(),
+  step: varchar('step', { length: 30 }).notNull(),
+  userId: integer('user_id').references(() => users.id),
+  exceptionType: varchar('exception_type', { length: 30 }).notNull(),
+  severity: varchar('severity', { length: 10 }).notNull().default('warning'),
+  title: varchar('title', { length: 200 }).notNull(),
+  details: text('details'),
+  dataSnapshot: jsonb('data_snapshot'),
+  resolution: varchar('resolution', { length: 20 }).default('unresolved'),
+  resolvedBy: integer('resolved_by').references(() => users.id),
+  resolvedAt: timestamp('resolved_at'),
+  resolutionNotes: text('resolution_notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Payroll Locks - period + module-level locking with audit trail
+export const payrollLocks = pgTable('payroll_locks', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  lockType: varchar('lock_type', { length: 20 }).notNull(),
+  isLocked: boolean('is_locked').notNull().default(true),
+  lockedAt: timestamp('locked_at').defaultNow().notNull(),
+  lockedBy: integer('locked_by').notNull().references(() => users.id),
+  lockReason: text('lock_reason'),
+  unlockedAt: timestamp('unlocked_at'),
+  unlockedBy: integer('unlocked_by').references(() => users.id),
+  unlockReason: text('unlock_reason'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Payroll Lock Exceptions - employee-specific unlock with audit
+export const payrollLockExceptions = pgTable('payroll_lock_exceptions', {
+  id: serial('id').primaryKey(),
+  lockId: integer('lock_id').notNull().references(() => payrollLocks.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  reason: text('reason').notNull(),
+  requestedBy: integer('requested_by').notNull().references(() => users.id),
+  requestedAt: timestamp('requested_at').defaultNow(),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  expiresAt: timestamp('expires_at'),
+  changesDescription: text('changes_description'),
+  closedAt: timestamp('closed_at'),
+  closedBy: integer('closed_by').references(() => users.id),
+});
+
+// Payroll Attendance Snapshot - frozen attendance data for audit
+export const payrollAttendanceSnapshot = pgTable('payroll_attendance_snapshot', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  runNumber: integer('run_number').notNull(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  totalWorkingDays: integer('total_working_days').notNull(),
+  presentDays: decimal('present_days', { precision: 5, scale: 2 }).notNull(),
+  absentDays: decimal('absent_days', { precision: 5, scale: 2 }).notNull(),
+  halfDays: decimal('half_days', { precision: 5, scale: 2 }).default('0'),
+  lateDays: integer('late_days').default(0),
+  paidLeaveDays: decimal('paid_leave_days', { precision: 5, scale: 2 }).default('0'),
+  unpaidLeaveDays: decimal('unpaid_leave_days', { precision: 5, scale: 2 }).default('0'),
+  lopDays: decimal('lop_days', { precision: 5, scale: 2 }).default('0'),
+  overtimeHours: decimal('overtime_hours', { precision: 6, scale: 2 }).default('0'),
+  companyHolidays: integer('company_holidays').default(0),
+  weeklyOffs: integer('weekly_offs').default(0),
+  paidDays: decimal('paid_days', { precision: 5, scale: 2 }).notNull(),
+  autoLeaveApplied: jsonb('auto_leave_applied').default([]),
+  dailyBreakdown: jsonb('daily_breakdown'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uniquePerRunUser: uniqueIndex('payroll_att_snap_period_run_user').on(table.periodId, table.runNumber, table.userId),
+}));
+
+// Payroll Salary Snapshot - frozen salary master for audit
+export const payrollSalarySnapshot = pgTable('payroll_salary_snapshot', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  runNumber: integer('run_number').notNull(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  salaryRecordId: integer('salary_record_id').notNull().references(() => employeeSalaries.id),
+  baseSalary: decimal('base_salary', { precision: 12, scale: 2 }).notNull(),
+  basicSalary: decimal('basic_salary', { precision: 12, scale: 2 }),
+  houseRentAllowance: decimal('house_rent_allowance', { precision: 10, scale: 2 }),
+  conveyance: decimal('conveyance', { precision: 10, scale: 2 }),
+  lta: decimal('lta', { precision: 10, scale: 2 }),
+  specialAllowance: decimal('special_allowance', { precision: 10, scale: 2 }),
+  supplementaryAllowance: decimal('supplementary_allowance', { precision: 10, scale: 2 }),
+  kgpAllowance: decimal('kgp_allowance', { precision: 10, scale: 2 }),
+  bonus: decimal('bonus', { precision: 10, scale: 2 }),
+  salaryType: varchar('salary_type', { length: 20 }),
+  workingHoursPerDay: integer('working_hours_per_day'),
+  otRate: decimal('ot_rate', { precision: 10, scale: 2 }),
+  otMultiplier: decimal('ot_multiplier', { precision: 5, scale: 2 }),
+  employeePfContribution: decimal('employee_pf_contribution', { precision: 10, scale: 2 }),
+  employerPfContribution: decimal('employer_pf_contribution', { precision: 10, scale: 2 }),
+  employeeEsicContribution: decimal('employee_esic_contribution', { precision: 10, scale: 2 }),
+  employerEsicContribution: decimal('employer_esic_contribution', { precision: 10, scale: 2 }),
+  groupInsurance: decimal('group_insurance', { precision: 10, scale: 2 }),
+  professionalTax: decimal('professional_tax', { precision: 10, scale: 2 }),
+  takeHomeSalary: decimal('take_home_salary', { precision: 12, scale: 2 }),
+  ctcMonthly: decimal('ctc_monthly', { precision: 12, scale: 2 }),
+  ctcYearly: decimal('ctc_yearly', { precision: 12, scale: 2 }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uniquePerRunUser: uniqueIndex('payroll_sal_snap_period_run_user').on(table.periodId, table.runNumber, table.userId),
+}));
 
 // Material Inspection Links - for traceability
 export const materialInspectionLinks = pgTable('material_inspection_links', {
@@ -5848,6 +5999,57 @@ export type InsertBonusRule = z.infer<typeof insertBonusRuleSchema>;
 
 export type PayrollApproval = typeof payrollApprovals.$inferSelect;
 export type InsertPayrollApproval = z.infer<typeof insertPayrollApprovalSchema>;
+
+// Payroll Run Log schemas and types
+export const insertPayrollRunLogSchema = createInsertSchema(payrollRunLog)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    step: z.enum(['attendance_snapshot', 'leave_consolidation', 'salary_calculation', 'bonus_calculation', 'deduction_calculation', 'review', 'approval', 'payment_marked', 'lock', 'reset']),
+    status: z.enum(['pending', 'running', 'completed', 'failed', 'skipped']).default('pending'),
+  });
+export type PayrollRunLog = typeof payrollRunLog.$inferSelect;
+export type InsertPayrollRunLog = z.infer<typeof insertPayrollRunLogSchema>;
+
+// Payroll Exceptions schemas and types
+export const insertPayrollExceptionSchema = createInsertSchema(payrollExceptions)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    exceptionType: z.enum(['calculation_error', 'data_missing', 'validation_failure', 'attendance_gap', 'leave_conflict', 'salary_missing', 'lock_violation', 'manual_override']),
+    severity: z.enum(['info', 'warning', 'error', 'critical']).default('warning'),
+    resolution: z.enum(['unresolved', 'resolved', 'ignored', 'deferred']).default('unresolved'),
+  });
+export type PayrollException = typeof payrollExceptions.$inferSelect;
+export type InsertPayrollException = z.infer<typeof insertPayrollExceptionSchema>;
+
+// Payroll Locks schemas and types
+export const insertPayrollLockSchema = createInsertSchema(payrollLocks)
+  .omit({ id: true, createdAt: true, unlockedAt: true, unlockedBy: true, unlockReason: true })
+  .extend({
+    lockType: z.enum(['attendance', 'leave', 'salary', 'payroll', 'full']),
+  });
+export type PayrollLock = typeof payrollLocks.$inferSelect;
+export type InsertPayrollLock = z.infer<typeof insertPayrollLockSchema>;
+
+// Payroll Lock Exceptions schemas and types
+export const insertPayrollLockExceptionSchema = createInsertSchema(payrollLockExceptions)
+  .omit({ id: true, requestedAt: true, approvedBy: true, approvedAt: true, closedAt: true, closedBy: true, expiresAt: true, changesDescription: true })
+  .extend({
+    status: z.enum(['pending', 'approved', 'rejected', 'expired']).default('pending'),
+  });
+export type PayrollLockException = typeof payrollLockExceptions.$inferSelect;
+export type InsertPayrollLockException = z.infer<typeof insertPayrollLockExceptionSchema>;
+
+// Payroll Attendance Snapshot schemas and types
+export const insertPayrollAttendanceSnapshotSchema = createInsertSchema(payrollAttendanceSnapshot)
+  .omit({ id: true, createdAt: true });
+export type PayrollAttendanceSnapshot = typeof payrollAttendanceSnapshot.$inferSelect;
+export type InsertPayrollAttendanceSnapshot = z.infer<typeof insertPayrollAttendanceSnapshotSchema>;
+
+// Payroll Salary Snapshot schemas and types
+export const insertPayrollSalarySnapshotSchema = createInsertSchema(payrollSalarySnapshot)
+  .omit({ id: true, createdAt: true });
+export type PayrollSalarySnapshot = typeof payrollSalarySnapshot.$inferSelect;
+export type InsertPayrollSalarySnapshot = z.infer<typeof insertPayrollSalarySnapshotSchema>;
 
 //==============================================================================
 // LEAVE MANAGEMENT MODULE RELATIONS

@@ -19,6 +19,7 @@ import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download } from
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
+import { PayrollRunWizard } from '@/components/payroll-run-wizard';
 
 // Schema for salary form
 const salaryFormSchema = z.object({
@@ -484,6 +485,73 @@ function GeneratedSalariesView() {
   );
 }
 
+function PayrollRunTab() {
+  const { data: periods = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/payroll/periods'],
+  });
+
+  const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+
+  const selectedPeriod = periods.find((p: any) => p.id === selectedPeriodId);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="text-center">Loading payroll periods...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (periods.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="text-center text-gray-500">
+            No payroll periods found. Create a period in the Generated Salaries tab first.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Select Payroll Period</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={selectedPeriodId?.toString() || ''}
+            onValueChange={(val) => setSelectedPeriodId(parseInt(val))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Choose a payroll period..." />
+            </SelectTrigger>
+            <SelectContent>
+              {periods.map((p: any) => (
+                <SelectItem key={p.id} value={p.id.toString()}>
+                  {p.periodName} ({p.startDate} - {p.endDate}) — {(p.status || 'draft').toUpperCase()}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {selectedPeriod && (
+        <Card>
+          <CardContent className="pt-6">
+            <PayrollRunWizard period={selectedPeriod} />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function PayrollManagementNew() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
@@ -892,11 +960,12 @@ export default function PayrollManagementNew() {
           </Card>
         </div>
 
-        {/* Tabs for Salary Configurations and Generated Salaries */}
+        {/* Tabs for Salary Configurations, Generated Salaries, and Payroll Run */}
         <Tabs defaultValue="configurations" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="configurations">Salary Configurations</TabsTrigger>
             <TabsTrigger value="generated">Generated Salaries</TabsTrigger>
+            <TabsTrigger value="payroll-run">Payroll Run Engine</TabsTrigger>
           </TabsList>
 
           <TabsContent value="configurations">
@@ -996,6 +1065,10 @@ export default function PayrollManagementNew() {
 
           <TabsContent value="generated">
             <GeneratedSalariesView />
+          </TabsContent>
+
+          <TabsContent value="payroll-run">
+            <PayrollRunTab />
           </TabsContent>
         </Tabs>
 

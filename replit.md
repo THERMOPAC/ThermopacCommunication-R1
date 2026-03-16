@@ -19,7 +19,7 @@ The system is a full-stack web application built on organized, hierarchical data
 - **Quality Management**: Inspection orders (Visual, NDT, Weld, Hydrotest, NCR, Shop), material identification, welder management, and welding procedure documents.
 - **Production Management**: Work order generation and resource assignment.
 - **Finance Management**: Invoicing, payments, allocations, and BRC tracking.
-- **HR Management**: User management, attendance, daily work activity reports, and payroll.
+- **HR Management**: User management, attendance, daily work activity reports, and payroll (Enhanced Payroll Run Engine with 5-step pipeline, Payroll Lock/Audit Control, attendance/salary snapshots, exception management).
 - **Document Management**: GCS integration, hierarchical structure, metadata tracking, template system, and access control.
 - **Sales & Marketing**:
     - **Lead Generation**: AI-powered system (GPT-4o, website crawling) for company classification, 5-factor scoring, duplicate detection, and CSV export.
