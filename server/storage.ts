@@ -417,18 +417,7 @@ export class DatabaseStorage implements IStorage {
     console.log(`Getting tasks for ${user.username} where userId=${userId} is either assignee or creator`);
 
     const tasks = await db
-      .select({
-        id: tasksTable.id,
-        title: tasksTable.title,
-        description: tasksTable.description,
-        status: tasksTable.status,
-        priority: tasksTable.priority,
-        startDate: tasksTable.startDate,
-        finishDate: tasksTable.finishDate,
-        assignedTo: tasksTable.assignedTo,
-        createdBy: tasksTable.createdBy,
-        createdAt: tasksTable.createdAt
-      })
+      .select()
       .from(tasksTable)
       .where(
         and(
