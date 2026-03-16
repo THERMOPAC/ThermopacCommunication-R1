@@ -73,11 +73,20 @@ export default function TaskDashboard() {
   });
 
   const agentDisplayNames: Record<string, string> = {
-    'communicator': 'Communicator',
-    'communications': 'Communicator',
+    'communicator': 'Communications Agent',
+    'communications': 'Communications Agent',
+    'project_controller': 'Project Control Agent',
     'project_control': 'Project Control Agent',
+    'predictive_project_controller': 'Predictive Project Control Agent',
+    'finance_controller': 'Finance Control Agent',
     'finance_control': 'Finance Control Agent',
     'executive_mis': 'Executive MIS Agent',
+    'production_manager': 'Production Management Agent',
+    'production_management': 'Production Management Agent',
+    'quality_controller': 'Quality Management Agent',
+    'quality_management': 'Quality Management Agent',
+    'sales_marketer': 'Sales & Marketing Agent',
+    'sales_marketing': 'Sales & Marketing Agent',
   };
 
   const getCreatorDisplayName = useCallback((task: Task) => {
