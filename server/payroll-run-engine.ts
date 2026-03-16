@@ -482,34 +482,79 @@ async function stepSalaryCalculation(
       const totalWorkingDays = attSnap.length > 0 ? attSnap[0].totalWorkingDays : 26;
       const overtimeHours = attSnap.length > 0 ? parseFloat(attSnap[0].overtimeHours || '0') : 0;
 
-      const baseSalary = parseFloat(sal.baseSalary);
-      const dailyRate = baseSalary / totalWorkingDays;
-      const proratedBase = dailyRate * paidDays;
+      const basicSalary = parseFloat(sal.basicSalary || sal.baseSalary);
+      const salaryType = sal.salaryType || 'monthly';
+      const actualDays = sal.actualDays || 30;
+      const workingHoursPerDay = sal.workingHoursPerDay || 8;
+      const groupInsuranceAmount = parseFloat(sal.groupInsurance || '1500');
 
-      const hra = parseFloat(sal.houseRentAllowance || '0') * (paidDays / totalWorkingDays);
-      const conv = parseFloat(sal.conveyance || '0') * (paidDays / totalWorkingDays);
-      const ltaVal = parseFloat(sal.lta || '0') * (paidDays / totalWorkingDays);
-      const specAllow = parseFloat(sal.specialAllowance || '0') * (paidDays / totalWorkingDays);
-      const suppAllow = parseFloat(sal.supplementaryAllowance || '0') * (paidDays / totalWorkingDays);
-      const kgpAllow = parseFloat(sal.kgpAllowance || '0') * (paidDays / totalWorkingDays);
-      const bonusAllow = parseFloat(sal.bonus || '0') * (paidDays / totalWorkingDays);
+      let proratedBase: number, overtimePay: number, grossPay: number;
+      let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0, bonusAllow = 0;
 
-      const otMultiplier = parseFloat(sal.otMultiplier || '1.5');
-      const hourlyRate = dailyRate / (sal.workingHoursPerDay || 8);
-      const otPay = overtimeHours * hourlyRate * otMultiplier;
+      if (salaryType === 'daily') {
+        proratedBase = basicSalary * paidDays;
+        const hourlyRate = basicSalary / workingHoursPerDay;
+        const otRate = parseFloat(sal.otRate || '1.0');
+        overtimePay = hourlyRate * overtimeHours * otRate;
+        kgpAllow = parseFloat(sal.kgpAllowance || '0') * (paidDays / totalWorkingDays);
+        bonusAllow = basicSalary * 0.0833;
+        grossPay = proratedBase + overtimePay + kgpAllow;
+      } else {
+        proratedBase = (basicSalary / actualDays) * paidDays;
+        overtimePay = 0;
+        hra = proratedBase * 0.4;
+        conv = proratedBase * 0.3;
+        ltaVal = proratedBase * 0.2;
+        specAllow = proratedBase * 0.3;
+        suppAllow = proratedBase * 0.3;
+        bonusAllow = basicSalary * 0.0833;
 
-      const grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow + bonusAllow + otPay;
+        if (['Manager', 'Employee'].includes(emp.role || '')) {
+          kgpAllow = basicSalary * 0.15 * (paidDays / (actualDays || 30));
+        } else {
+          kgpAllow = parseFloat(sal.kgpAllowance || '0') * (paidDays / totalWorkingDays);
+        }
+
+        grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
+      }
+
+      const pfBase = Math.min(proratedBase, 15000);
+      const employeePF = pfBase * 0.12;
+      const employerPF = pfBase * 0.12;
+
+      const employeeESIC = grossPay <= 21000 ? grossPay * 0.0075 : 0;
+      const employerESIC = grossPay <= 21000 ? grossPay * 0.0325 : 0;
+
+      const gratuityAmount = (basicSalary * 15 / 26) / 12;
+
+      let professionalTax = 0;
+      if (emp.role !== 'Superuser') {
+        const periodMonth = new Date(period.startDate).getMonth() + 1;
+        professionalTax = periodMonth === 2 ? 300 : 200;
+      }
+
+      const totalDeductions = employeePF + employeeESIC + professionalTax;
+      const netPay = grossPay - totalDeductions;
+
+      const ctcMonthly = grossPay + employerPF + employerESIC + gratuityAmount + groupInsuranceAmount;
+      const ctcYearly = (ctcMonthly * 12) + (bonusAllow * 12);
 
       const calculationSnapshot = {
-        baseSalary,
+        basicSalary,
+        salaryType,
+        actualDays,
         totalWorkingDays,
         paidDays,
         lopDays,
-        dailyRate,
         proratedBase,
         allowances: { hra, conveyance: conv, lta: ltaVal, specialAllowance: specAllow, supplementaryAllowance: suppAllow, kgpAllowance: kgpAllow, bonus: bonusAllow },
-        overtime: { hours: overtimeHours, multiplier: otMultiplier, hourlyRate, otPay },
+        overtime: { hours: overtimeHours, pay: overtimePay },
+        deductions: { employeePF, employerPF, employeeESIC, employerESIC, professionalTax, gratuity: gratuityAmount, groupInsurance: groupInsuranceAmount },
         grossPay,
+        totalDeductions,
+        netPay,
+        ctcMonthly,
+        ctcYearly,
         salaryRecordId: sal.id,
         snapshotDate: new Date().toISOString(),
       };
@@ -524,59 +569,50 @@ async function stepSalaryCalculation(
           )
         );
 
+      const payrollData = {
+        runNumber,
+        baseSalary: proratedBase.toFixed(2),
+        workingDays: totalWorkingDays,
+        paidDays: paidDays.toFixed(2),
+        lopDays: lopDays.toFixed(2),
+        presentDays: (attSnap[0]?.presentDays || '0'),
+        paidLeaveDays: (attSnap[0]?.paidLeaveDays || '0'),
+        unpaidLeaveDays: (attSnap[0]?.unpaidLeaveDays || '0'),
+        hra: hra.toFixed(2),
+        conveyanceAllowance: conv.toFixed(2),
+        ltaAllowance: ltaVal.toFixed(2),
+        specialAllowance: specAllow.toFixed(2),
+        supplementaryAllowance: suppAllow.toFixed(2),
+        kgpAllowance: kgpAllow.toFixed(2),
+        bonus: bonusAllow.toFixed(2),
+        overtimeHours: overtimeHours.toFixed(2),
+        overtimePay: overtimePay.toFixed(2),
+        grossPay: grossPay.toFixed(2),
+        employeePf: employeePF.toFixed(2),
+        employeeEsic: employeeESIC.toFixed(2),
+        employerPf: employerPF.toFixed(2),
+        employerEsic: employerESIC.toFixed(2),
+        providentFund: employeePF.toFixed(2),
+        esiDeduction: employeeESIC.toFixed(2),
+        professionalTax: professionalTax.toFixed(2),
+        gratuity: gratuityAmount.toFixed(2),
+        groupInsurance: groupInsuranceAmount.toFixed(2),
+        totalDeductions: totalDeductions.toFixed(2),
+        netPay: netPay.toFixed(2),
+        calculationSnapshot,
+        status: 'draft',
+      };
+
       if (existingRecord.length > 0) {
         await db
           .update(payrollRecords)
-          .set({
-            runNumber,
-            baseSalary: proratedBase.toFixed(2),
-            workingDays: totalWorkingDays,
-            paidDays: paidDays.toFixed(2),
-            lopDays: lopDays.toFixed(2),
-            presentDays: (attSnap[0]?.presentDays || '0'),
-            paidLeaveDays: (attSnap[0]?.paidLeaveDays || '0'),
-            unpaidLeaveDays: (attSnap[0]?.unpaidLeaveDays || '0'),
-            hra: hra.toFixed(2),
-            conveyanceAllowance: conv.toFixed(2),
-            ltaAllowance: ltaVal.toFixed(2),
-            specialAllowance: specAllow.toFixed(2),
-            supplementaryAllowance: suppAllow.toFixed(2),
-            kgpAllowance: kgpAllow.toFixed(2),
-            bonus: bonusAllow.toFixed(2),
-            overtimeHours: overtimeHours.toFixed(2),
-            overtimePay: otPay.toFixed(2),
-            grossPay: grossPay.toFixed(2),
-            netPay: grossPay.toFixed(2),
-            calculationSnapshot,
-            status: 'draft',
-            updatedAt: new Date(),
-          })
+          .set({ ...payrollData, updatedAt: new Date() })
           .where(eq(payrollRecords.id, existingRecord[0].id));
       } else {
         await db.insert(payrollRecords).values({
           periodId,
           userId: emp.id,
-          runNumber,
-          baseSalary: proratedBase.toFixed(2),
-          workingDays: totalWorkingDays,
-          paidDays: paidDays.toFixed(2),
-          lopDays: lopDays.toFixed(2),
-          presentDays: (attSnap[0]?.presentDays || '0'),
-          paidLeaveDays: (attSnap[0]?.paidLeaveDays || '0'),
-          unpaidLeaveDays: (attSnap[0]?.unpaidLeaveDays || '0'),
-          hra: hra.toFixed(2),
-          conveyanceAllowance: conv.toFixed(2),
-          ltaAllowance: ltaVal.toFixed(2),
-          specialAllowance: specAllow.toFixed(2),
-          supplementaryAllowance: suppAllow.toFixed(2),
-          kgpAllowance: kgpAllow.toFixed(2),
-          bonus: bonusAllow.toFixed(2),
-          overtimeHours: overtimeHours.toFixed(2),
-          overtimePay: otPay.toFixed(2),
-          grossPay: grossPay.toFixed(2),
-          netPay: grossPay.toFixed(2),
-          calculationSnapshot,
-          status: 'draft',
+          ...payrollData,
         });
       }
 

@@ -4694,6 +4694,12 @@ export const payrollRecords = pgTable('payroll_records', {
   otherDeductions: decimal('other_deductions', { precision: 10, scale: 2 }).default('0'),
   totalDeductions: decimal('total_deductions', { precision: 10, scale: 2 }).default('0'),
   
+  employeePf: decimal('employee_pf', { precision: 10, scale: 2 }).default('0'),
+  employeeEsic: decimal('employee_esic', { precision: 10, scale: 2 }).default('0'),
+  employerPf: decimal('employer_pf', { precision: 10, scale: 2 }).default('0'),
+  employerEsic: decimal('employer_esic', { precision: 10, scale: 2 }).default('0'),
+  gratuity: decimal('gratuity', { precision: 10, scale: 2 }).default('0'),
+
   // Net pay
   netPay: decimal('net_pay', { precision: 12, scale: 2 }).notNull(),
   
