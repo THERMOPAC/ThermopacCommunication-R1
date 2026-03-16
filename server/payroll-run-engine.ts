@@ -700,21 +700,23 @@ async function stepKpiAdjustment(
         ? satisfactionRatings.reduce((s, v) => s + v, 0) / satisfactionRatings.length
         : 0;
 
-      const kpiScore = productivityScore / 100;
+      const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
+      const empRole = empUser?.role || '';
+      const kpiEligibleRoles = ['Manager', 'Employee'];
+      const isKpiEligible = kpiEligibleRoles.includes(empRole);
+
+      const kpiScore = isKpiEligible ? (productivityScore / 100) : 1;
 
       const originalPaidDays = parseFloat(record.paidDays || '0');
       const kpiAdjustedPaidDays = originalPaidDays * kpiScore;
       const kpiDaysDeducted = originalPaidDays - kpiAdjustedPaidDays;
 
-      if (kpiDaysDeducted > 0.01) {
+      if (kpiDaysDeducted > 0.01 && isKpiEligible) {
         const snap = record.calculationSnapshot as any || {};
         const totalWorkDays = record.workingDays || 26;
         const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
         const salaryType = snap.salaryType || 'monthly';
         const actualDays = snap.actualDays || 30;
-
-        const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
-        const empRole = empUser?.role || '';
 
         let proratedBase: number, grossPay: number;
         let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0;
