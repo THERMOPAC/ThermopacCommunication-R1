@@ -165,12 +165,21 @@ export default function AttendancePage() {
     }
   });
 
-  // Calculate stats from attendance records
+  const getEffectiveStatus = (r: any) => {
+    const status = r.status?.toLowerCase() || '';
+    if (status === 'present' && r.checkInTime && !r.checkOutTime) {
+      const today = new Date().toISOString().split('T')[0];
+      const recordDate = r.date ? new Date(r.date).toISOString().split('T')[0] : '';
+      if (recordDate !== today) return 'absent';
+    }
+    return status;
+  };
+
   const attendanceStats = useMemo(() => {
-    const presentCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'present').length;
-    const absentCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'absent').length;
-    const lateCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'late').length;
-    const halfDayCount = attendanceRecords.filter(r => r.status?.toLowerCase() === 'half day').length;
+    const presentCount = attendanceRecords.filter(r => getEffectiveStatus(r) === 'present').length;
+    const absentCount = attendanceRecords.filter(r => getEffectiveStatus(r) === 'absent').length;
+    const lateCount = attendanceRecords.filter(r => getEffectiveStatus(r) === 'late').length;
+    const halfDayCount = attendanceRecords.filter(r => getEffectiveStatus(r) === 'half day').length;
     const totalHours = attendanceRecords.reduce((sum, r) => sum + (Number(r.workingHours) || 0), 0);
     
     return {
