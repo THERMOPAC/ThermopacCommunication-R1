@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import UserProfile from "@/components/user-profile";
 import NotificationBell from "@/components/notification-bell";
+import AlertPopup from "@/components/alert-popup";
 import AttendanceGatekeeper from "@/components/attendance-gatekeeper";
 import { Separator } from "@/components/ui/separator";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
@@ -664,6 +665,8 @@ function Layout({ children }: LayoutProps) {
           </AttendanceGatekeeper>
         </div>
       </main>
+
+      <AlertPopup />
     </div>
   );
 }
