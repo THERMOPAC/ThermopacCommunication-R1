@@ -1655,16 +1655,27 @@ export class DatabaseStorage implements IStorage {
           }
         }
         
-        // Calculate task due date based on recurrence pattern and settings
         const today = new Date();
-        let taskDueDate = this.calculateNextOccurrence(pattern, today);
+        const todayStr = today.toISOString().split('T')[0];
+
+        if (pattern.nextGenerationDate && todayStr < pattern.nextGenerationDate) {
+          console.log(`Pattern ${pattern.id} next generation date is ${pattern.nextGenerationDate} — skipping until then`);
+          continue;
+        }
+
+        let taskDueDate: Date | null;
+        if (pattern.nextGenerationDate) {
+          taskDueDate = new Date(pattern.nextGenerationDate + 'T00:00:00');
+        } else {
+          taskDueDate = this.calculateNextOccurrence(pattern, today);
+        }
         
         if (!taskDueDate) {
           console.log(`No valid next occurrence found for pattern ${pattern.id}`);
           continue;
         }
         
-        const startDate = new Date().toISOString().split('T')[0]; // Today
+        const startDate = todayStr;
         const dueDate = taskDueDate.toISOString().split('T')[0];
         
         // Calculate finish date based on template duration
