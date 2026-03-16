@@ -22,6 +22,13 @@ interface SalarySlipData {
     year: number;
     workingDays: number;
     paidDays: number;
+    daysInMonth: number;
+    holidays: number;
+    weeklyOffs: number;
+    absentDays: number;
+    presentDays: number;
+    clBalance: number;
+    lopDays: number;
   };
   earnings: {
     basicSalary: number;
@@ -42,20 +49,33 @@ interface SalarySlipData {
     esic: number;
     groupInsurance: number;
     otherDeductions: number;
+    loanDeduction: number;
+    advanceDeduction: number;
+  };
+  employerCosts: {
+    esicEmployer: number;
+    groupInsurance: number;
+    pfEmployer: number;
+    gratuity: number;
   };
   totals: {
     grossEarnings: number;
     totalDeductions: number;
     netPay: number;
+    ctcMonthly: number;
+    ctcYearly: number;
   };
+  kgpPercent: number;
   netPayInWords: string;
 }
 
+export { SalarySlipData };
+
 export class SalarySlipGenerator {
-  private doc: PDFDocument;
-  private pageWidth: number = 595.28; // A4 width
-  private pageHeight: number = 841.89; // A4 height
-  private margin: number = 50;
+  private doc: typeof PDFDocument.prototype;
+  private pageWidth: number = 595.28;
+  private pageHeight: number = 841.89;
+  private margin: number = 40;
   private contentWidth: number;
 
   constructor() {
@@ -63,245 +83,213 @@ export class SalarySlipGenerator {
     this.contentWidth = this.pageWidth - (this.margin * 2);
   }
 
+  private fmt(num: number): string {
+    return Math.round(num).toLocaleString('en-IN');
+  }
+
+  private fmtDec(num: number): string {
+    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   async generateSalarySlip(data: SalarySlipData, res: Response): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // Set response headers
+        const fileName = `Salary_Slip_${data.employee.name.replace(/\s+/g, '_')}_${data.period.month}_${data.period.year}.pdf`;
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 
-          `attachment; filename="Salary_Slip_${data.employee.name.replace(/\s+/g, '_')}_${data.period.month}_${data.period.year}.pdf"`
-        );
-
-        // Pipe the PDF to response
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         this.doc.pipe(res);
 
-        // Generate PDF content
-        this.addHeader(data);
-        this.addEmployeeDetails(data);
-        this.addSalaryDetails(data);
-        this.addFooter(data);
+        this.drawSlip(data);
 
-        // Finalize the PDF
         this.doc.end();
-        
-        this.doc.on('end', () => {
-          resolve();
-        });
-
-        this.doc.on('error', (error) => {
-          reject(error);
-        });
-
+        this.doc.on('end', () => resolve());
+        this.doc.on('error', (error: any) => reject(error));
       } catch (error) {
         reject(error);
       }
     });
   }
 
-  private addHeader(data: SalarySlipData): void {
-    // Company logo and name
-    this.doc.fontSize(20)
-           .font('Helvetica-Bold')
-           .text(data.company.name, this.margin, this.margin, { align: 'center' });
+  private drawSlip(data: SalarySlipData): void {
+    const d = this.doc;
+    const m = this.margin;
+    const w = this.contentWidth;
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
 
-    this.doc.fontSize(10)
-           .font('Helvetica')
-           .text(data.company.address, this.margin, this.margin + 30, { align: 'center' });
+    let y = m;
 
-    // Title
-    this.doc.fontSize(16)
-           .font('Helvetica-Bold')
-           .text('SALARY SLIP', this.margin, this.margin + 60, { align: 'center' });
+    d.fontSize(10).font('Helvetica');
+    d.text(`To ${data.employee.name}`, m, y);
+    d.text(`Date: ${dateStr}`, m, y, { align: 'right', width: w });
+    y += 25;
 
-    // Period
-    this.doc.fontSize(12)
-           .text(`For the month of ${data.period.month} ${data.period.year}`, 
-                  this.margin, this.margin + 85, { align: 'center' });
+    d.moveTo(m, y).lineTo(m + w, y).lineWidth(0.5).stroke();
+    y += 8;
 
-    // Horizontal line
-    this.doc.moveTo(this.margin, this.margin + 110)
-           .lineTo(this.pageWidth - this.margin, this.margin + 110)
-           .stroke();
-  }
+    const col1X = m;
+    const col2X = m + 200;
+    const col3X = m + 310;
+    const col4X = m + 370;
 
-  private addEmployeeDetails(data: SalarySlipData): void {
-    const startY = this.margin + 130;
-    const leftColumn = this.margin;
-    const rightColumn = this.margin + (this.contentWidth / 2);
+    d.fontSize(8).font('Helvetica-Bold');
+    d.text('SL.', col1X, y, { width: 25 });
+    d.text('Description', col1X + 25, y, { width: 160 });
+    d.text('Basic', col2X, y, { width: 100, align: 'right' });
+    d.text('Earned Salary', col3X, y, { width: 100, align: 'right' });
+    d.text('Salary Deduction', col4X + 30, y, { width: 120, align: 'right' });
+    y += 15;
 
-    this.doc.fontSize(10).font('Helvetica-Bold');
+    d.moveTo(m, y).lineTo(m + w, y).lineWidth(0.3).stroke();
+    y += 8;
 
-    // Left column
-    this.doc.text('Employee Name:', leftColumn, startY);
-    this.doc.font('Helvetica').text(data.employee.name, leftColumn + 80, startY);
+    d.font('Helvetica').fontSize(8);
 
-    this.doc.font('Helvetica-Bold').text('Employee Code:', leftColumn, startY + 20);
-    this.doc.font('Helvetica').text(data.employee.employeeCode, leftColumn + 80, startY + 20);
-
-    this.doc.font('Helvetica-Bold').text('Designation:', leftColumn, startY + 40);
-    this.doc.font('Helvetica').text(data.employee.designation, leftColumn + 80, startY + 40);
-
-    this.doc.font('Helvetica-Bold').text('Department:', leftColumn, startY + 60);
-    this.doc.font('Helvetica').text(data.employee.department, leftColumn + 80, startY + 60);
-
-    // Right column
-    this.doc.font('Helvetica-Bold').text('Date of Joining:', rightColumn, startY);
-    this.doc.font('Helvetica').text(data.employee.joiningDate, rightColumn + 80, startY);
-
-    this.doc.font('Helvetica-Bold').text('Working Days:', rightColumn, startY + 20);
-    this.doc.font('Helvetica').text(data.period.workingDays.toString(), rightColumn + 80, startY + 20);
-
-    this.doc.font('Helvetica-Bold').text('Paid Days:', rightColumn, startY + 40);
-    this.doc.font('Helvetica').text(data.period.paidDays.toString(), rightColumn + 80, startY + 40);
-
-    if (data.employee.panNumber) {
-      this.doc.font('Helvetica-Bold').text('PAN:', rightColumn, startY + 60);
-      this.doc.font('Helvetica').text(data.employee.panNumber, rightColumn + 80, startY + 60);
-    }
-
-    // Horizontal line
-    this.doc.moveTo(this.margin, startY + 90)
-           .lineTo(this.pageWidth - this.margin, startY + 90)
-           .stroke();
-  }
-
-  private addSalaryDetails(data: SalarySlipData): void {
-    const startY = this.margin + 250;
-    const columnWidth = this.contentWidth / 4;
-
-    // Table headers
-    this.doc.fontSize(11).font('Helvetica-Bold');
-    this.doc.text('EARNINGS', this.margin, startY);
-    this.doc.text('AMOUNT (₹)', this.margin + columnWidth * 1.5, startY, { align: 'right', width: columnWidth });
-    this.doc.text('DEDUCTIONS', this.margin + columnWidth * 2.5, startY);
-    this.doc.text('AMOUNT (₹)', this.margin + columnWidth * 3.5, startY, { align: 'right', width: columnWidth });
-
-    // Table lines
-    this.doc.moveTo(this.margin, startY + 15)
-           .lineTo(this.pageWidth - this.margin, startY + 15)
-           .stroke();
-
-    this.doc.moveTo(this.margin + columnWidth * 2, startY - 5)
-           .lineTo(this.margin + columnWidth * 2, startY + 400)
-           .stroke();
-
-    let currentY = startY + 25;
-    this.doc.fontSize(10).font('Helvetica');
-
-    // Earnings
-    const earnings = [
-      ['Basic Salary', data.earnings.basicSalary],
-      ['House Rent Allowance', data.earnings.hra],
-      ['Conveyance Allowance', data.earnings.conveyanceAllowance],
-      ['LTA Allowance', data.earnings.ltaAllowance],
-      ['Special Allowance', data.earnings.specialAllowance],
-      ['Supplementary Allowance', data.earnings.supplementaryAllowance],
-      ['KGP Allowance', data.earnings.kgpAllowance],
-      ['Overtime Pay', data.earnings.overtimePay],
-      ['Bonus (Not Paid Monthly)', 0], // Bonus calculated but not paid monthly
-      ['Other Allowances', data.earnings.otherAllowances]
+    const basicFull = data.earnings.basicSalary;
+    const earnedItems = [
+      { label: 'Basic', basic: this.fmt(basicFull), earned: this.fmtDec(basicFull) },
+      { label: 'HRA', basic: this.fmt(data.earnings.hra), earned: this.fmtDec(data.earnings.hra) },
+      { label: 'Conveyance', basic: this.fmt(data.earnings.conveyanceAllowance), earned: this.fmtDec(data.earnings.conveyanceAllowance) },
+      { label: 'LTA', basic: this.fmt(data.earnings.ltaAllowance), earned: this.fmtDec(data.earnings.ltaAllowance) },
+      { label: 'Special Allowance', basic: this.fmt(data.earnings.specialAllowance), earned: this.fmtDec(data.earnings.specialAllowance) },
+      { label: 'Supplementary Allowance', basic: this.fmt(data.earnings.supplementaryAllowance), earned: this.fmtDec(data.earnings.supplementaryAllowance) },
     ];
 
-    // Deductions
-    const deductions = [
-      ['Provident Fund', data.deductions.providentFund],
-      ['Professional Tax', data.deductions.professionalTax],
-      ['Income Tax (TDS)', data.deductions.incomeTax],
-      ['ESIC', data.deductions.esic],
-      ['Group Insurance', data.deductions.groupInsurance],
-      ['Other Deductions', data.deductions.otherDeductions]
+    const deductionItems = [
+      { label: 'PT', amount: data.deductions.professionalTax },
+      { label: 'PF Employee', amount: data.deductions.providentFund },
+      { label: 'ESIC Employee', amount: data.deductions.esic },
+      { label: 'T.D.S.', amount: data.deductions.incomeTax },
+      { label: 'Loan Deduction', amount: data.deductions.loanDeduction },
+      { label: 'Advance', amount: data.deductions.advanceDeduction },
     ];
 
-    // Add earnings
-    earnings.forEach(([label, amount], index) => {
-      if (amount > 0) {
-        this.doc.text(label, this.margin, currentY);
-        this.doc.text(Math.round(amount).toLocaleString('en-IN'), 
-                     this.margin + columnWidth * 1.5, currentY, { align: 'right', width: columnWidth });
-        currentY += 18;
+    const employerItems = [
+      { label: `KGP Allowance        ${data.kgpPercent}%`, basic: this.fmt(data.earnings.kgpAllowance), earned: this.fmtDec(data.earnings.kgpAllowance > 0 ? data.earnings.kgpAllowance : 0) },
+      { label: 'ESIC Employer Contribution', basic: this.fmt(data.employerCosts.esicEmployer), earned: '' },
+      { label: 'Group Insurance Cost', basic: this.fmt(data.employerCosts.groupInsurance), earned: '' },
+      { label: 'PF_Employer Contribution', basic: this.fmt(data.employerCosts.pfEmployer), earned: '' },
+      { label: 'Bonus', basic: this.fmt(data.earnings.bonus), earned: '' },
+      { label: 'Gratuity', basic: this.fmt(data.employerCosts.gratuity), earned: '' },
+    ];
+
+    const attendanceItems = [
+      { label: 'DayInMonth:', value: data.period.daysInMonth.toString() },
+      { label: 'Holidays :', value: data.period.holidays.toString() },
+      { label: 'Weekly Off:', value: data.period.weeklyOffs.toString() },
+      { label: 'Absent Day:', value: data.period.absentDays.toFixed(2) },
+      { label: 'Present Days:', value: data.period.presentDays.toFixed(2) },
+      { label: 'Paid Days:', value: data.period.paidDays.toFixed(2) },
+      { label: 'CL Balance:', value: data.period.clBalance.toFixed(2) },
+    ];
+
+    let leftY = y;
+    let rightY = y;
+    let slNo = 1;
+
+    for (let i = 0; i < earnedItems.length; i++) {
+      const item = earnedItems[i];
+      d.font('Helvetica').fontSize(8);
+      d.text(`${slNo}`, col1X, leftY, { width: 20 });
+      d.text(`${i + 1}. ${item.label}`, col1X + 20, leftY, { width: 170 });
+      d.text(item.basic, col2X, leftY, { width: 100, align: 'right' });
+      d.text(item.earned, col3X, leftY, { width: 100, align: 'right' });
+
+      if (i === 0) {
+        d.font('Helvetica-Bold').fontSize(8);
+        d.text(`Earned Salary`, col4X + 30, rightY, { width: 75 });
+        d.text(`₹${this.fmtDec(data.totals.grossEarnings)}`, col4X + 105, rightY, { width: 60, align: 'right' });
+        rightY += 14;
       }
-    });
 
-    // Add deductions
-    let deductionY = startY + 25;
-    deductions.forEach(([label, amount], index) => {
-      if (amount > 0) {
-        this.doc.text(label, this.margin + columnWidth * 2.5, deductionY);
-        this.doc.text(Math.round(amount).toLocaleString('en-IN'), 
-                     this.margin + columnWidth * 3.5, deductionY, { align: 'right', width: columnWidth });
-        deductionY += 18;
+      if (i < deductionItems.length) {
+        const ded = deductionItems[i];
+        d.font('Helvetica').fontSize(8);
+        d.text(`${i + 1}.`, col4X + 30, rightY, { width: 15 });
+        d.text(ded.label, col4X + 45, rightY, { width: 75 });
+        d.text(`-`, col4X + 110, rightY, { width: 15, align: 'right' });
+        d.text(`₹${this.fmtDec(ded.amount)}`, col4X + 115, rightY, { width: 50, align: 'right' });
+        rightY += 14;
       }
-    });
 
-    // Totals section
-    const totalsY = Math.max(currentY, deductionY) + 20;
-    
-    this.doc.moveTo(this.margin, totalsY)
-           .lineTo(this.pageWidth - this.margin, totalsY)
-           .stroke();
-
-    this.doc.fontSize(11).font('Helvetica-Bold');
-    this.doc.text('GROSS EARNINGS', this.margin, totalsY + 10);
-    this.doc.text(Math.round(data.totals.grossEarnings).toLocaleString('en-IN'), 
-                 this.margin + columnWidth * 1.5, totalsY + 10, { align: 'right', width: columnWidth });
-
-    this.doc.text('TOTAL DEDUCTIONS', this.margin + columnWidth * 2.5, totalsY + 10);
-    this.doc.text(Math.round(data.totals.totalDeductions).toLocaleString('en-IN'), 
-                 this.margin + columnWidth * 3.5, totalsY + 10, { align: 'right', width: columnWidth });
-
-    // Net Pay
-    this.doc.moveTo(this.margin, totalsY + 35)
-           .lineTo(this.pageWidth - this.margin, totalsY + 35)
-           .stroke();
-
-    this.doc.fontSize(12).font('Helvetica-Bold');
-    this.doc.text('NET PAY', this.margin, totalsY + 45);
-    this.doc.text(Math.round(data.totals.netPay).toLocaleString('en-IN'), 
-                 this.margin + columnWidth * 3.5, totalsY + 45, { align: 'right', width: columnWidth });
-
-    // Net pay in words
-    this.doc.fontSize(10).font('Helvetica');
-    this.doc.text(`Net Pay in Words: ${data.netPayInWords}`, this.margin, totalsY + 70, 
-                 { width: this.contentWidth });
-
-    // Bonus Information Section
-    this.doc.moveTo(this.margin, totalsY + 100)
-           .lineTo(this.pageWidth - this.margin, totalsY + 100)
-           .stroke();
-    
-    this.doc.fontSize(11).font('Helvetica-Bold');
-    this.doc.text('BONUS INFORMATION', this.margin, totalsY + 110);
-    
-    this.doc.fontSize(10).font('Helvetica');
-    this.doc.text(`Calculated Bonus (8.33% of Basic): ₹${Math.round(data.earnings.bonus).toLocaleString('en-IN')}`, 
-                 this.margin, totalsY + 130);
-    this.doc.text('Note: Bonus amount is calculated and recorded but not included in monthly salary payments.', 
-                 this.margin, totalsY + 150, { width: this.contentWidth });
-  }
-
-  private addFooter(data: SalarySlipData): void {
-    const footerY = this.pageHeight - 100;
-
-    this.doc.moveTo(this.margin, footerY)
-           .lineTo(this.pageWidth - this.margin, footerY)
-           .stroke();
-
-    this.doc.fontSize(10).font('Helvetica');
-    this.doc.text('This is a computer-generated salary slip and does not require a signature.', 
-                 this.margin, footerY + 20, { align: 'center' });
-
-    // Bank details if available
-    if (data.employee.bankAccount) {
-      this.doc.text(`Bank Account: ${data.employee.bankAccount}`, 
-                   this.margin, footerY + 40, { align: 'center' });
+      if (i === 0) slNo = 1;
+      leftY += 14;
     }
 
-    this.doc.text(`Generated on: ${new Date().toLocaleDateString('en-IN')}`, 
-                 this.margin, footerY + 60, { align: 'center' });
+    leftY += 4;
+    d.font('Helvetica').fontSize(8);
+    for (let i = 0; i < employerItems.length; i++) {
+      const item = employerItems[i];
+      d.text(`${earnedItems.length + i + 1}. ${item.label}`, col1X + 20, leftY, { width: 170 });
+      d.text(item.basic, col2X, leftY, { width: 100, align: 'right' });
+      if (item.earned) {
+        d.text(item.earned, col3X, leftY, { width: 100, align: 'right' });
+      }
+
+      if (i === 0) {
+        rightY += 10;
+        d.font('Helvetica-Bold').fontSize(9);
+        d.text(`Take Home Salary: ₹ ${this.fmtDec(data.totals.netPay)}`, col4X + 30, rightY, { width: 135, align: 'right' });
+        rightY += 18;
+      }
+
+      if (i >= 1 && (i - 1) < attendanceItems.length) {
+        const att = attendanceItems[i - 1];
+        d.font('Helvetica').fontSize(8);
+        d.text(`${i}.`, col4X + 30, rightY, { width: 15 });
+        d.text(att.label, col4X + 45, rightY, { width: 75 });
+        d.text(att.value, col4X + 120, rightY, { width: 30, align: 'right' });
+        d.text('--E', col4X + 150, rightY, { width: 20, align: 'right' });
+        rightY += 14;
+      }
+      leftY += 14;
+    }
+
+    for (let i = employerItems.length - 1; i < attendanceItems.length; i++) {
+      const att = attendanceItems[i];
+      d.font('Helvetica').fontSize(8);
+      d.text(`${i + 1}.`, col4X + 30, rightY, { width: 15 });
+      d.text(att.label, col4X + 45, rightY, { width: 75 });
+      d.text(att.value, col4X + 120, rightY, { width: 30, align: 'right' });
+      d.text('--E', col4X + 150, rightY, { width: 20, align: 'right' });
+      rightY += 14;
+    }
+
+    leftY += 4;
+    d.font('Helvetica-Bold').fontSize(8);
+    d.text(`${earnedItems.length + employerItems.length + 1}. CTC Monthly`, col1X + 20, leftY, { width: 170 });
+    d.text(this.fmt(data.totals.ctcMonthly), col2X, leftY, { width: 100, align: 'right' });
+    leftY += 14;
+
+    d.text(`${earnedItems.length + employerItems.length + 2}. CTC`, col1X + 20, leftY, { width: 170 });
+    d.text(this.fmt(data.totals.ctcYearly), col2X, leftY, { width: 100, align: 'right' });
+    leftY += 20;
+
+    const bottomY = Math.max(leftY, rightY) + 20;
+
+    d.font('Helvetica').fontSize(9);
+    d.text('For Thermopac', m + w - 120, bottomY, { width: 120, align: 'right' });
+    d.text('', m + w - 120, bottomY + 30, { width: 120, align: 'right' });
+    d.text('', m + w - 120, bottomY + 40, { width: 120, align: 'right' });
+    d.font('Helvetica-Bold').fontSize(9);
+    d.text('General Manager', m + w - 120, bottomY + 50, { width: 120, align: 'right' });
+
+    const footerY = this.pageHeight - 60;
+    d.moveTo(m, footerY - 10).lineTo(m + w, footerY - 10).lineWidth(0.3).stroke();
+    d.font('Helvetica').fontSize(7);
+    d.text(
+      'THERMOPAC Office: L 4, 405 The Summit Business Bay, Vile Parle Western Express Highway Vile Parle Mumbai India 400 057',
+      m, footerY, { align: 'center', width: w }
+    );
+    d.text(
+      'Tel: + 91 22 2617 8080 to 84  Fax: + 91 22 2617 8084  E-Mail - sales@thermopac.in',
+      m, footerY + 12, { align: 'center', width: w }
+    );
+
+    d.fontSize(7).text(`Page #1`, m + w - 40, footerY + 12, { width: 40, align: 'right' });
   }
 }
 
-// Helper function to convert number to words
 export function numberToWords(amount: number): string {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
   const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
@@ -309,12 +297,10 @@ export function numberToWords(amount: number): string {
 
   function convertHundreds(num: number): string {
     let result = '';
-    
     if (num >= 100) {
       result += ones[Math.floor(num / 100)] + ' Hundred ';
       num %= 100;
     }
-    
     if (num >= 20) {
       result += tens[Math.floor(num / 10)] + ' ';
       num %= 10;
@@ -322,11 +308,9 @@ export function numberToWords(amount: number): string {
       result += teens[num - 10] + ' ';
       return result;
     }
-    
     if (num > 0) {
       result += ones[num] + ' ';
     }
-    
     return result;
   }
 
@@ -339,27 +323,12 @@ export function numberToWords(amount: number): string {
   const paise = Math.round((amount % 1) * 100);
 
   let result = '';
-
-  if (crores > 0) {
-    result += convertHundreds(crores) + 'Crore ';
-  }
-  if (lakhs > 0) {
-    result += convertHundreds(lakhs) + 'Lakh ';
-  }
-  if (thousands > 0) {
-    result += convertHundreds(thousands) + 'Thousand ';
-  }
-  if (hundreds > 0) {
-    result += convertHundreds(hundreds);
-  }
-
-  if (result.trim()) {
-    result += 'Rupees ';
-  }
-
-  if (paise > 0) {
-    result += convertHundreds(paise) + 'Paise ';
-  }
+  if (crores > 0) result += convertHundreds(crores) + 'Crore ';
+  if (lakhs > 0) result += convertHundreds(lakhs) + 'Lakh ';
+  if (thousands > 0) result += convertHundreds(thousands) + 'Thousand ';
+  if (hundreds > 0) result += convertHundreds(hundreds);
+  if (result.trim()) result += 'Rupees ';
+  if (paise > 0) result += convertHundreds(paise) + 'Paise ';
 
   return result.trim() + ' Only';
 }

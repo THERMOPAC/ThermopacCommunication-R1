@@ -2331,6 +2331,17 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         esic: payrollRecords.esic,
         groupInsurance: payrollRecords.groupInsurance,
         otherDeductions: payrollRecords.otherDeductions,
+        employeePf: payrollRecords.employeePf,
+        employeeEsic: payrollRecords.employeeEsic,
+        employerPf: payrollRecords.employerPf,
+        employerEsic: payrollRecords.employerEsic,
+        gratuity: payrollRecords.gratuity,
+        calculationSnapshot: payrollRecords.calculationSnapshot,
+        presentDays: payrollRecords.presentDays,
+        paidDays: payrollRecords.paidDays,
+        lopDays: payrollRecords.lopDays,
+        workingDays: payrollRecords.workingDays,
+        totalDeductions: payrollRecords.totalDeductions,
         createdAt: payrollRecords.createdAt,
         
         // Employee details
@@ -2358,93 +2369,36 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
     const record = payrollRecord[0];
 
-    // Calculate actual working days based on workweek policy and month
-    let workingDays = 30; // Default fallback
-    let paidDays = 30; // Default fallback
-    
-    try {
-      // Import SalaryCalculationEngine for working days calculation
-      const { SalaryCalculationEngine } = await import('./salary-calculation-engine');
-      const salaryEngine = new SalaryCalculationEngine();
-      
-      // Extract month and year from period start date
-      const periodStartDate = new Date(record.startDate);
-      const month = periodStartDate.getMonth() + 1; // getMonth() returns 0-11
-      const year = periodStartDate.getFullYear();
-      
-      // Get employee details for workweek policy
-      const [employee] = await db
-        .select({
-          id: users.id,
-          workLocationId: users.workLocationId,
-          department: users.department
-        })
-        .from(users)
-        .where(eq(users.id, record.userId))
-        .limit(1);
-      
-      if (employee) {
-        // Get workweek policy
-        const workweekPolicy = await salaryEngine.getWorkweekPolicy(employee.workLocationId, employee.department);
-        
-        // Calculate actual working days for the month
-        const workingDaysData = await salaryEngine.calculateWorkingDays(month, year, workweekPolicy);
-        workingDays = workingDaysData.workingDays;
-        
-        // 🔥 CRITICAL FIX: Use actual attendance-based calculation instead of assuming all working days are paid
-        const attendanceData = await salaryEngine.calculateAttendanceData(record.userId, month, year);
-        paidDays = attendanceData.presentDays + attendanceData.paidLeaveDays;
-        
-        console.log(`📅 Calculated working days for ${month}/${year}: ${workingDays} days`);
-        console.log(`👤 Attendance data for user ${record.userId}: Present: ${attendanceData.presentDays}, Paid Leave: ${attendanceData.paidLeaveDays}, Total Paid Days: ${paidDays}`);
-        
-        // 🔥 CRITICAL FIX: Recalculate salary with attendance-based pro-rating
-        const attendanceBasedSalary = await salaryEngine.calculateSalary({
-          userId: record.userId,
-          month: month,
-          year: year
-        });
-        
-        console.log(`💰 Attendance-based salary calculation completed:`);
-        console.log(`   - Original Basic Salary: ₹${record.baseSalary}`);
-        console.log(`   - Attendance-adjusted Basic: ₹${attendanceBasedSalary.grossBasic}`);
-        console.log(`   - Net Pay: ₹${attendanceBasedSalary.netPay}`);
-        
-        // Update the payroll record with attendance-based values
-        record.baseSalary = attendanceBasedSalary.grossBasic;
-        record.grossPay = attendanceBasedSalary.grossEarnings;
-        record.netPay = attendanceBasedSalary.netPay;
-        record.hra = attendanceBasedSalary.hra || 0;
-        record.conveyanceAllowance = attendanceBasedSalary.conveyanceAllowance || 0;
-        record.ltaAllowance = attendanceBasedSalary.ltaAllowance || 0;
-        record.specialAllowance = attendanceBasedSalary.specialAllowance || 0;
-        record.supplementaryAllowance = attendanceBasedSalary.supplementaryAllowance || 0;
-        record.kgpAllowance = attendanceBasedSalary.kgpAllowance || 0;
-        record.overtimePay = attendanceBasedSalary.overtimePay || 0;
-        record.bonus = attendanceBasedSalary.bonus || 0;
-        record.providentFund = attendanceBasedSalary.providentFund || 0;
-        record.professionalTax = attendanceBasedSalary.professionalTax || 0;
-        record.incomeTax = attendanceBasedSalary.incomeTax || 0;
-        record.esic = attendanceBasedSalary.esic || 0;
-        record.groupInsurance = attendanceBasedSalary.groupInsurance || 0;
-      }
-    } catch (error) {
-      console.error('Error calculating working days, using fallback:', error);
-      // Fall back to salary configuration values
-      const salaryConfig = await db
-        .select()
-        .from(employeeSalaries)
-        .where(eq(employeeSalaries.userId, record.userId))
-        .limit(1);
+    const workingDays = parseInt((record as any).workingDays?.toString() || '26');
+    const paidDays = parseFloat((record as any).paidDays?.toString() || workingDays.toString());
 
-      workingDays = salaryConfig.length > 0 ? (parseInt(salaryConfig[0].actualDays) || 30) : 30;
-      paidDays = salaryConfig.length > 0 ? (parseInt(salaryConfig[0].paidDays) || workingDays) : workingDays;
-    }
-
-    // Prepare salary slip data
     const employeeFullName = record.firstName && record.lastName 
       ? `${record.firstName} ${record.lastName}` 
       : record.employeeName;
+
+    const calcSnap = (record as any).calculationSnapshot || {};
+    const deductions = calcSnap.deductions || {};
+    const periodStart = new Date(record.startDate);
+    const daysInMonth = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0).getDate();
+
+    const employerPf = parseFloat((record as any).employerPf?.toString() || deductions.employerPF?.toString() || '0');
+    const employerEsic = parseFloat((record as any).employerEsic?.toString() || deductions.employerESIC?.toString() || '0');
+    const gratuity = parseFloat((record as any).gratuity?.toString() || deductions.gratuity?.toString() || '0');
+    const groupInsuranceVal = parseFloat(record.groupInsurance?.toString() || deductions.groupInsurance?.toString() || '0');
+    const bonus = parseFloat(record.bonus?.toString() || '0');
+    const kgpAllowance = parseFloat(record.kgpAllowance?.toString() || '0');
+
+    const grossPay = parseFloat(record.grossPay?.toString() || '0');
+    const netPay = parseFloat(record.netPay?.toString() || '0');
+    const ctcMonthly = grossPay + employerPf + employerEsic + gratuity + groupInsuranceVal;
+    const ctcYearly = (ctcMonthly * 12) + (bonus * 12);
+
+    const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
+    const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;
+
+    const presentDays = parseFloat((record as any).presentDays?.toString() || paidDays.toString());
+    const lopDays = parseFloat((record as any).lopDays?.toString() || '0');
+    const absentDays = lopDays;
 
     const salarySlipData = {
       employee: {
@@ -2452,20 +2406,27 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         employeeCode: record.employeeCode || 'N/A',
         designation: record.jobTitle || 'N/A',
         department: record.department || 'N/A',
-        joiningDate: 'N/A', // Would need to be added to users table
-        bankAccount: 'N/A', // Would need to be added to users table
+        joiningDate: 'N/A',
+        bankAccount: 'N/A',
         panNumber: undefined,
         uan: undefined
       },
       company: {
         name: 'THERMOPAC',
-        address: 'B-20 TPEL Factory Area, Industrial Area, Phase II, Chandigarh - 160002'
+        address: 'L 4, 405 The Summit Business Bay, Vile Parle Western Express Highway Vile Parle Mumbai India 400 057'
       },
       period: {
         month: record.periodName || new Date(record.startDate).toLocaleDateString('en-US', { month: 'long' }),
         year: new Date(record.startDate).getFullYear(),
-        workingDays: workingDays,
-        paidDays: paidDays
+        workingDays,
+        paidDays,
+        daysInMonth,
+        holidays: 0,
+        weeklyOffs: daysInMonth - workingDays,
+        absentDays,
+        presentDays,
+        clBalance: 0,
+        lopDays,
       },
       earnings: {
         basicSalary: Math.round(parseFloat(record.baseSalary?.toString() || '0')),
@@ -2474,9 +2435,9 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         ltaAllowance: Math.round(parseFloat(record.ltaAllowance?.toString() || '0')),
         specialAllowance: Math.round(parseFloat(record.specialAllowance?.toString() || '0')),
         supplementaryAllowance: Math.round(parseFloat(record.supplementaryAllowance?.toString() || '0')),
-        kgpAllowance: Math.round(parseFloat(record.kgpAllowance?.toString() || '0')),
+        kgpAllowance: Math.round(kgpAllowance),
         overtimePay: Math.round(parseFloat(record.overtimePay?.toString() || '0')),
-        bonus: Math.round(parseFloat(record.bonus?.toString() || '0')),
+        bonus: Math.round(bonus),
         otherAllowances: Math.round(parseFloat(record.otherAllowances?.toString() || '0'))
       },
       deductions: {
@@ -2484,15 +2445,26 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         professionalTax: Math.round(parseFloat(record.professionalTax?.toString() || '0')),
         incomeTax: Math.round(parseFloat(record.incomeTax?.toString() || '0')),
         esic: Math.round(parseFloat(record.esic?.toString() || '0')),
-        groupInsurance: Math.round(parseFloat(record.groupInsurance?.toString() || '0')),
-        otherDeductions: Math.round(parseFloat(record.otherDeductions?.toString() || '0'))
+        groupInsurance: 0,
+        otherDeductions: Math.round(parseFloat(record.otherDeductions?.toString() || '0')),
+        loanDeduction: 0,
+        advanceDeduction: 0,
+      },
+      employerCosts: {
+        esicEmployer: Math.round(employerEsic),
+        groupInsurance: Math.round(groupInsuranceVal),
+        pfEmployer: Math.round(employerPf),
+        gratuity: Math.round(gratuity),
       },
       totals: {
-        grossEarnings: Math.round(parseFloat(record.grossPay?.toString() || '0')),
-        totalDeductions: Math.round(parseFloat(record.grossPay?.toString() || '0') - parseFloat(record.netPay?.toString() || '0')),
-        netPay: Math.round(parseFloat(record.netPay?.toString() || '0'))
+        grossEarnings: Math.round(grossPay),
+        totalDeductions: Math.round(grossPay - netPay),
+        netPay: Math.round(netPay),
+        ctcMonthly: Math.round(ctcMonthly),
+        ctcYearly: Math.round(ctcYearly),
       },
-      netPayInWords: numberToWords(Math.round(parseFloat(record.netPay?.toString() || '0')))
+      kgpPercent,
+      netPayInWords: numberToWords(Math.round(netPay))
     };
 
     // Generate and send PDF
