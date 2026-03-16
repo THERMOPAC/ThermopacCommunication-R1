@@ -181,7 +181,11 @@ function TaxDeclarationsPanel() {
 
   const { data: declarations = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/payroll/tax-declarations', selectedFy],
-    queryFn: () => fetch(`/api/payroll/tax-declarations?fy=${selectedFy}`).then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/payroll/tax-declarations?fy=${selectedFy}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: allUsers = [] } = useQuery<any[]>({
@@ -547,7 +551,12 @@ function TdsDashboardPanel() {
 
   const { data: tdsRecords = [], isLoading: tdsLoading } = useQuery<any[]>({
     queryKey: ['/api/payroll/tds/period', selectedPeriodId],
-    queryFn: () => selectedPeriodId ? fetch(`/api/payroll/tds/period/${selectedPeriodId}`).then(r => r.json()) : Promise.resolve([]),
+    queryFn: async () => {
+      if (!selectedPeriodId) return [];
+      const res = await fetch(`/api/payroll/tds/period/${selectedPeriodId}`);
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
     enabled: !!selectedPeriodId,
   });
 
