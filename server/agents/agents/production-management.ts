@@ -2,6 +2,7 @@ import type { IAgent, AgentRunContext, AgentRunResult } from '../framework/types
 import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
+import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
@@ -45,10 +46,8 @@ async function hasOpenTask(fingerprint: string): Promise<boolean> {
   return hasOpenTaskShared(fingerprint, SOURCE_AGENT);
 }
 
-function escalationAssign(level: 'L1' | 'L2' | 'L3', projectManagerId: number | null, gmId: number): number {
-  if (level === 'L1') return PROD_MANAGER_ID;
-  if (level === 'L2') return projectManagerId || DESIGN_SENIOR_MGR_ID;
-  return gmId;
+async function escalationAssign(level: 'L1' | 'L2' | 'L3', entityOwnerId: number | null): Promise<number> {
+  return resolveEscalation(level, entityOwnerId || PROD_MANAGER_ID);
 }
 
 function priorityFromSeverity(sev: string): string {
@@ -165,7 +164,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Plan Missing: ${proj.name} (${proj.code})`,
               description: `Active project "${proj.name}" has no work orders.\nProject Code: ${proj.code}\nImpact: No production activity can be tracked\nagent_severity: ${severity}\n\nAction Required: Create production plan and generate work orders for this project.`,
-              assignedTo: escalationAssign(level, pm, gmId),
+              assignedTo: await escalationAssign(level, pm),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -216,7 +215,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Order Not Released: ${wo.work_order_number} (${wo.days_past_start}d overdue)`,
               description: `Work order "${wo.work_order_number}" has not been released.\nTitle: ${wo.title}\nProject: ${wo.project_name} (${wo.project_code})\nPlanned Start: ${new Date(wo.planned_start_date).toISOString().split('T')[0]}\nDays Past Start: ${wo.days_past_start}\nProduction Line: ${wo.production_line || 'Not assigned'}\nagent_severity: ${severity}\n\nAction Required: Release the production order or update the production schedule with a reason for delay.`,
-              assignedTo: escalationAssign(level, pm, gmId),
+              assignedTo: await escalationAssign(level, pm),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -270,7 +269,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Order Overdue: ${wo.work_order_number} (${daysOverdue}d overdue)`,
               description: `Work order "${wo.work_order_number}" is overdue.\nTitle: ${wo.title}\nProject: ${wo.project_name} (${wo.project_code})\nStatus: ${wo.status} | Qty: ${wo.quantity}\nPlanned End: ${new Date(wo.planned_end_date).toISOString().split('T')[0]}\nDays Overdue: ${daysOverdue}\nSupervisor: ${wo.supervisor_name || 'Not assigned'}\nProduction Line: ${wo.production_line || 'Not assigned'}\nagent_severity: ${severity}\n\nAction Required: Complete the work order or update schedule with justification.`,
-              assignedTo: escalationAssign(level, pm, gmId),
+              assignedTo: await escalationAssign(level, pm),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -372,7 +371,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Backlog Building: ${proj.name} (${proj.open_wo_count} open WOs)`,
               description: `Project "${proj.name}" (${proj.code}) has a production backlog of ${proj.open_wo_count} open work orders.\nEarliest deadline: ${proj.earliest_deadline}\nMax overdue: ${proj.max_overdue_days}d\nagent_severity: ${severity}\n\nAction Required: Review and prioritize production schedule, allocate additional resources if needed.`,
-              assignedTo: escalationAssign(level, pm, gmId),
+              assignedTo: await escalationAssign(level, pm),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -744,7 +743,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Not Started: ${wo.work_order_number} (${daysPast}d past start)`,
               description: `WO "${wo.work_order_number}" has passed its planned start date but has not been started.\nTitle: ${wo.title}\nProject: ${wo.project_name}\nPlanned Start: ${new Date(wo.planned_start_date).toISOString().split('T')[0]}\nSupervisor: ${wo.supervisor_name || 'N/A'}\nProduction Line: ${wo.production_line || 'Not assigned'}\nDays Past Start: ${daysPast}\nagent_severity: ${severity}\n\nAction Required: Investigate delay and start production or update schedule with reason.`,
-              assignedTo: escalationAssign(level, pm, gmId),
+              assignedTo: await escalationAssign(level, pm),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -1249,7 +1248,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Supervisor Missing: Jawahar Not Checked In (${today})`,
               description: `Production Manager Jawahar has not checked in today.\nDate: ${today}\nImpact: Production floor without direct supervision\nagent_severity: ${severity}\n\nAction Required: Assign acting production supervisor immediately.`,
-              assignedTo: gmId,
+              assignedTo: await resolveEscalation('L3', null),
               priority: 'Critical',
               category: `Production ${fingerprint}`,
             },

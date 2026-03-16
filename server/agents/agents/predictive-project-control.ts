@@ -2,6 +2,7 @@ import type { IAgent, AgentRunContext, AgentRunResult } from '../framework/types
 import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
+import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
@@ -142,7 +143,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               actionPayload: {
                 title: `[Agent] Predictive Control – Task Closure Rate Declining: ${project.name} (${declinePct}% drop)`,
                 description: `Project "${project.name}" task closure rate is declining.\nCurrent week: ${currClosed} closed | Previous week: ${prevClosed} closed\nOpen WOs: ${openCount}/${totalCount}\nPrediction: Potential project delay if trend continues\nagent_severity: ${severity}\n\nReview team capacity and identify blockers.`,
-                assignedTo: pm || gmId,
+                assignedTo: await resolveEscalation('L2', pm),
                 priority: declinePct >= 50 ? 'High' : 'Medium',
                 category: `Prediction ${fingerprint}`,
               },
@@ -190,7 +191,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 actionPayload: {
                   title: `[Agent] Predictive Control – Completion Velocity Gap: ${project.name} (${gapPct}% below target)`,
                   description: `Project "${project.name}" completion velocity is insufficient.\nActual rate: ${actualRate} WOs/week\nRequired rate: ${requiredRate.toFixed(1)} WOs/week\nDays remaining: ${daysRemaining}\nOpen WOs: ${openCount}\nPrediction: Project will miss ${project.target_end_date} deadline at current pace\nagent_severity: ${severity}\n\nRequires resource reallocation or timeline revision.`,
-                  assignedTo: pm || gmId,
+                  assignedTo: await resolveEscalation('L2', pm),
                   priority: gapPct >= 70 ? 'Critical' : 'High',
                   category: `Prediction ${fingerprint}`,
                 },
@@ -475,7 +476,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Predictive Control – Revision Frequency Spike: ${row.design_project_name} (${increasePct}% increase)`,
               description: `Design project "${row.design_project_name}" revision frequency is spiking.\nCurrent week: ${currRevisions} | Previous: ${prevRevisions}\nPrediction: Design quality or scope stability issue\nagent_severity: ${severity}\n\nReview design quality process and scope changes.`,
-              assignedTo: row.design_manager_id ? Number(row.design_manager_id) : (deptHead || gmId),
+              assignedTo: row.design_manager_id ? Number(row.design_manager_id) : await resolveEscalation('L1', deptHead),
               priority: 'Medium',
               category: `Prediction ${fingerprint}`,
             },
@@ -546,7 +547,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Predictive Control – Procurement Cycle Lag Increasing (${increasePct}% slower)`,
               description: `Procurement cycle time (PR to PO conversion) has increased.\nCurrent: ${currCycle.toFixed(1)}d avg | Previous: ${prevCycle.toFixed(1)}d avg\nOpen PRs: ${openPRs}\nagent_severity: ${severity}\n\nReview procurement process bottlenecks.`,
-              assignedTo: purchaseHead || gmId,
+              assignedTo: await resolveEscalation('L2', purchaseHead),
               priority: 'High',
               category: `Prediction ${fingerprint}`,
             },
@@ -605,7 +606,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Predictive Control – Vendor Delivery Pattern Deteriorating: ${vendor.vendor_name}`,
               description: `Vendor "${vendor.vendor_name}" delivery pattern is deteriorating.\nOverdue POs: ${overdueCount} | Avg late: ${avgDaysLate}d\nTotal open: ${vendor.total_open}\nagent_severity: ${severity}\n\nReview vendor performance and consider alternate sourcing.`,
-              assignedTo: purchaseHead || gmId,
+              assignedTo: await resolveEscalation('L2', purchaseHead),
               priority: avgDaysLate >= 30 ? 'High' : 'Medium',
               category: `Prediction ${fingerprint}`,
             },
@@ -669,7 +670,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               actionPayload: {
                 title: `[Agent] Predictive Control – GR Receipt Rate Declining (${declinePct}% drop)`,
                 description: `Goods receipt rate is declining significantly.\nCurrent: ${currGR}/week | Previous: ${prevGR}/week\nOverdue POs: ${overduePOCount}\nagent_severity: ${severity}\n\nReview vendor expediting and logistics.`,
-                assignedTo: mgr || purchaseHead || gmId,
+                assignedTo: await resolveEscalation('L2', mgr || purchaseHead),
                 priority: 'High',
                 category: `Prediction ${fingerprint}`,
               },
@@ -779,7 +780,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Predictive Control – Cascading Delay Risk: ${proj.name} (score: ${compositeRisk}/100, ${riskLevel})`,
               description: `Project "${proj.name}" shows cross-module cascading delay signals.\nComposite score: ${compositeRisk}/100 (${riskLevel})\nWO velocity: ${Math.round(woVelocityScore)} | Design: ${Math.round(designVelocityScore)} | Procurement: ${Math.round(procRiskScore)} | Phase: ${Math.round(phaseRiskScore)}\nDeadline: ${proj.target_end_date} (${daysRemaining}d)\nagent_severity: ${severity}\n\nRequires immediate cross-functional management review.`,
-              assignedTo: gmId,
+              assignedTo: await resolveEscalation('L3', pm),
               priority: compositeRisk < 30 ? 'Critical' : 'High',
               category: `Prediction ${fingerprint}`,
             },
@@ -847,7 +848,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               actionPayload: {
                 title: `[Agent] Predictive Control – Resource Contention: ${user.username} in ${proj.name} (${crossModuleLoad} items, ${modulesCovered} modules)`,
                 description: `User "${user.username}" is overloaded across modules in project "${proj.name}".\nWOs: ${woCount} | Drawings: ${drawingCount} | Tasks: ${taskCount}\nagent_severity: ${severity}\n\nConsider redistributing workload to prevent bottleneck.`,
-                assignedTo: pm || gmId,
+                assignedTo: await resolveEscalation('L2', pm),
                 priority: 'High',
                 category: `Prediction ${fingerprint}`,
               },
@@ -923,7 +924,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 actionPayload: {
                   title: `[Agent] Predictive Control – System-Wide Risk Trending Up (${increasePct}% more findings)`,
                   description: `Project Control Agent findings increased from ${prevFindings} to ${latestFindings} (${increasePct}% increase).\nThis indicates systemic project control issues are building.\nagent_severity: ${severity}\n\nRequires executive review of project portfolio health.`,
-                  assignedTo: gmId,
+                  assignedTo: await resolveEscalation('L3', null),
                   priority: 'Critical',
                   category: `Prediction ${fingerprint}`,
                 },

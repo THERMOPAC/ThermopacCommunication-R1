@@ -2,6 +2,7 @@ import type { IAgent, AgentRunContext, AgentRunResult } from '../framework/types
 import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
+import { resolveEscalation, severityToLevel } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
@@ -611,7 +612,7 @@ export class ProjectControlAgent implements IAgent {
 
           if (!await hasOpenTask(fingerprint)) {
             const pm = await resolveProjectManager(Number(task.project_id));
-            const assignTo = pm || gmId;
+            const assignTo = await resolveEscalation('L2', pm);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Commitment Overdue: ${task.title}`,
@@ -700,7 +701,7 @@ export class ProjectControlAgent implements IAgent {
 
               if (!await hasOpenTask(fingerprint)) {
                 const pm = await resolveProjectManager(Number(phase.project_id));
-                const assignTo = pm || gmId;
+                const assignTo = await resolveEscalation('L2', pm);
                 const rec = await recommendationManager.createRecommendation({
                   findingId: finding.id || finding.findingId,
                   title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name}`,
@@ -863,7 +864,7 @@ export class ProjectControlAgent implements IAgent {
               actionPayload: {
                 title: `[Agent] Project Control – Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}/100, ${band})`,
                 description: `Project "${project.project_name}" health score: ${Math.round(healthScore)}/100 (${band})\nOverdue Tasks: ${overdueWOs}/${totalWOs}\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nagent_severity: ${severity}\n\nRequires immediate management review.`,
-                assignedTo: gmId,
+                assignedTo: await resolveEscalation('L3', pm),
                 priority: band === 'Red' ? 'Critical' : 'High',
                 category: `Project ${fingerprint}`,
               },
@@ -1336,7 +1337,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Design Impacting Milestone: ${project.name} (${incompleteCount} design stages, ${daysUntil}d to deadline)`,
               description: `Project "${project.name}" has ${incompleteCount} incomplete design key stages.\nDeadline: ${project.target_end_date} (${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd remaining'})\nagent_severity: ${severity}\n\nRequires immediate management review.`,
-              assignedTo: gmId, priority: 'Critical', category: `Design ${fingerprint}`,
+              assignedTo: await resolveEscalation('L3', null), priority: 'Critical', category: `Design ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.9,
           });
@@ -1496,7 +1497,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – RFQ Pending Response: ${stage.project_name} (${daysSince}d)`,
               description: `RFQs sent for project "${stage.project_name}" ${daysSince} days ago but vendor quotes not received.\nagent_severity: ${severity}\n\nFollow up with vendors.`,
-              assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L1', purchaseDeptHead), priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.75,
           });
@@ -1544,7 +1545,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Offer Evaluation Pending: ${stage.project_name} (${daysSince}d)`,
               description: `Vendor quotes received for "${stage.project_name}" ${daysSince} days ago but evaluation/selection not completed.\nagent_severity: ${severity}\n\nComplete vendor evaluation and selection.`,
-              assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L1', purchaseDeptHead), priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.75,
           });
@@ -1617,7 +1618,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nContact vendor for submission status.`,
-              assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L1', purchaseDeptHead), priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.8,
           });
@@ -1654,7 +1655,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nEscalate vendor manufacturing status.`,
-              assignedTo: mgr || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L2', mgr), priority: 'High', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.8,
           });
@@ -1690,7 +1691,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue)`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" delivery missed by ${daysOverdue}d.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nFollow up on delivery status.`,
-              assignedTo: purchaseDeptHead || gmId, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L1', purchaseDeptHead), priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: severityFromLevel(level) as any, confidence: 0.9,
           });
@@ -1766,7 +1767,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Dispatch Delay: PO#${po.doc_num} — ${po.vendor_name}`,
               description: `PO #${po.doc_num} has partial goods receipt but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nagent_severity: ${severity}\n\nVerify dispatch status and close PO if fully received.`,
-              assignedTo: storesHead || purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L1', storesHead || purchaseDeptHead), priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.75,
           });
@@ -1803,7 +1804,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Logistics Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
               description: `PO #${po.doc_num} has ${grList.length} goods receipts but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nagent_severity: ${severity}\n\nInvestigate transit/logistics status.`,
-              assignedTo: mgr || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L2', mgr), priority: 'High', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.75,
           });
@@ -1857,7 +1858,7 @@ export class ProjectControlAgent implements IAgent {
               actionPayload: {
                 title: `[Agent] Project Control – Critical PR Not Raised: ${proj.project_name}`,
                 description: `Project "${proj.project_name}" procurement phase (sequence: ${proj.proc_order}) is ${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd away'} but procurement activity is insufficient.\nCompleted procurement stages: ${completedProcStages}\nagent_severity: ${severity}\n\nRaise required purchase requisitions immediately.`,
-                assignedTo: pm || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
+                assignedTo: await resolveEscalation('L2', pm), priority: 'High', category: `Procurement ${fingerprint}`,
               },
               actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.8,
             });
@@ -1912,7 +1913,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Material Delay Affecting Project: PO#${po.doc_num} → ${proj.name}`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue.\nProject: ${proj.name}\nManufacturing phase: ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}\nagent_severity: ${severity}\n\nRequires immediate management intervention.`,
-              assignedTo: gmId, priority: 'Critical', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L3', null), priority: 'Critical', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.85,
           });

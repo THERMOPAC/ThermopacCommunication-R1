@@ -4,6 +4,7 @@ import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
 import { actionExecutor } from '../framework/action-executor';
 import { agentDataRepo } from '../data-access/agent-data-repo';
+import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 
@@ -177,8 +178,9 @@ export class SalesMarketingAgent implements IAgent {
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
     const settings = await getSettings();
-    const L1 = settings.sales_l1_user_id;
-    const L2 = settings.sales_l2_user_id;
+    const salesL1userId = settings.sales_l1_user_id;
+    const L1 = salesL1userId;
+    const L2 = await resolveEscalation('L2', salesL1userId);
 
     const firstRun = await isFirstRun();
 

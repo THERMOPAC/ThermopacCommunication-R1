@@ -2,6 +2,7 @@ import type { IAgent, AgentRunContext, AgentRunResult } from '../framework/types
 import { FindingManager } from '../framework/finding-manager';
 import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
+import { resolveEscalation, severityToLevel } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
@@ -33,28 +34,11 @@ function priorityFromSeverity(sev: string): string {
   return 'Low';
 }
 
-async function resolveEscalation(
+async function resolveQMEscalation(
   level: 'L1' | 'L2' | 'L3' | 'L4',
   entityOwnerId: number | null,
-  projectId: number | null,
 ): Promise<number> {
-  if (level === 'L1' && entityOwnerId) return entityOwnerId;
-
-  if (level === 'L2' || (level === 'L1' && !entityOwnerId)) {
-    const prodMgr = await resolveProductionManager();
-    if (prodMgr) return prodMgr;
-  }
-
-  if (level === 'L3') {
-    if (projectId) {
-      const pm = await resolveProjectManager(projectId);
-      if (pm) return pm;
-    }
-    const prodMgr = await resolveProductionManager();
-    if (prodMgr) return prodMgr;
-  }
-
-  return await resolveGM();
+  return resolveEscalation(level === 'L4' ? 'L3' : level as any, entityOwnerId);
 }
 
 function escalationLevelFromSeverity(sev: string): 'L1' | 'L2' | 'L3' | 'L4' {
@@ -177,7 +161,7 @@ export class QualityManagementAgent implements IAgent {
         if (!await hasOpenTask(fingerprint)) {
           const level = escalationLevelFromSeverity(sev);
           const pm = await resolveProjectManager(row.project_id);
-          const assignee = await resolveEscalation(level, null, row.project_id);
+          const assignee = await resolveQMEscalation(level, null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Inspection Backlog: ${row.project_name} (${pendingCount} pending)`,
@@ -257,7 +241,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
           const entityOwner = row.created_by ? Number(row.created_by) : null;
-          const assignee = await resolveEscalation('L1', entityOwner, row.project_id);
+          const assignee = await resolveQMEscalation('L1', entityOwner);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Final Inspection Pending: ${row.inspection_order_number}`,
@@ -395,7 +379,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveEscalation('L2', null, row.project_id);
+          const assignee = await resolveQMEscalation('L2', null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Stale Inspections: ${row.project_name}`,
@@ -442,7 +426,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
           const pm = await resolveProjectManager(proj.id);
-          const assignee = await resolveEscalation('L2', null, proj.id);
+          const assignee = await resolveQMEscalation('L2', null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] No Inspection Orders: ${proj.name}`,
@@ -500,7 +484,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveEscalation('L2', null, null);
+          const assignee = await resolveQMEscalation('L2', null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] CRITICAL: Instrument In Use With Expired Calibration: ${inst.instrument_id}`,
@@ -539,7 +523,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveEscalation('L3', null, null);
+          const assignee = await resolveQMEscalation('L3', null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] SYSTEMIC: ${inUseOverdue.length} Instruments In Use With Expired Calibration`,
@@ -682,7 +666,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
           const level = escalationLevelFromSeverity(sev);
-          const assignee = await resolveEscalation(level, null, null);
+          const assignee = await resolveQMEscalation(level, null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Active Welder Expired Certificate: ${welder.name} (${welder.welderId})`,
@@ -893,7 +877,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveEscalation('L2', null, null);
+          const assignee = await resolveQMEscalation('L2', null);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Expired PMA Still Active: ${pma.pma_number}`,
@@ -1027,7 +1011,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
           const pm = await resolveProjectManager(proj.id);
-          const assignee = await resolveEscalation('L2', pm, proj.id);
+          const assignee = await resolveQMEscalation('L2', pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Active Project Without QAP: ${proj.name}`,
@@ -1125,7 +1109,7 @@ export class QualityManagementAgent implements IAgent {
           if (!finding.isDuplicate) findingsCount++;
           if (!await hasOpenTask(fingerprint)) {
             const entityOwner = first.created_by ? Number(first.created_by) : null;
-            const assignee = await resolveEscalation(escalationLevelFromSeverity(sev), entityOwner, Number(projectId));
+            const assignee = await resolveQMEscalation(escalationLevelFromSeverity(sev), entityOwner);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Materials Without Documents: ${first.project_name}`,

@@ -5,6 +5,7 @@ import { RecommendationManager } from '../framework/recommendation-manager';
 import { notificationService } from '../framework/notification-service';
 import { actionExecutor } from '../framework/action-executor';
 import { agentDataRepo } from '../data-access/agent-data-repo';
+import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { storage } from '../../storage';
@@ -145,23 +146,23 @@ function makeFingerprint(findingType: string, entityKey: string): string {
   return `[fp:${findingType}:${entityKey}]`;
 }
 
-function tierToAssigneeRule(tier: EscalationTier, task: any): { assignedTo: number | null; stage: string; priority: string } {
+async function tierToAssigneeRule(tier: EscalationTier, task: any): Promise<{ assignedTo: number | null; stage: string; priority: string }> {
   switch (tier) {
     case 'reminder_1':
     case 'reminder_2':
     case 'reminder_3':
-      return { assignedTo: task.assigneeId, stage: 'Stage 1: Assignee', priority: tier === 'reminder_1' ? 'Medium' : 'High' };
+      return { assignedTo: task.assigneeId, stage: 'Stage 1: Assignee (L1)', priority: tier === 'reminder_1' ? 'Medium' : 'High' };
     case 'creator_notify':
-      return { assignedTo: task.creatorId, stage: 'Stage 2: Creator', priority: 'High' };
+      return { assignedTo: task.creatorId, stage: 'Stage 2: Creator (L1)', priority: 'High' };
     case 'escalation_30':
-      return { assignedTo: task.creatorId, stage: 'Stage 2: Creator Review', priority: 'High' };
+      return { assignedTo: await resolveEscalation('L2', task.assigneeId), stage: 'Stage 2: Reporting Manager (L2)', priority: 'High' };
     case 'escalation_60':
-      return { assignedTo: task.creatorManagerId || task.creatorId, stage: 'Stage 3: Creator Manager', priority: 'Urgent' };
+      return { assignedTo: await resolveEscalation('L2', task.assigneeId), stage: 'Stage 3: Reporting Manager (L2)', priority: 'Urgent' };
     case 'escalation_90':
     case 'zombie_risk':
-      return { assignedTo: task.assigneeManagerId || task.creatorManagerId || 1, stage: 'Stage 4: Management Review', priority: 'Urgent' };
+      return { assignedTo: await resolveEscalation('L3', task.assigneeId), stage: 'Stage 4: Senior Management (L3)', priority: 'Urgent' };
     case 'zombie_review':
-      return { assignedTo: 1, stage: 'Stage 5: Superuser Closure', priority: 'Urgent' };
+      return { assignedTo: await resolveEscalation('L3', task.assigneeId), stage: 'Stage 5: Senior Management Review (L3)', priority: 'Urgent' };
   }
 }
 
@@ -1352,7 +1353,7 @@ export class CommunicationsAgent implements IAgent {
     // Tier 4-5: Escalation → task for manager
     for (const task of [...tasksByTier.escalation_30, ...tasksByTier.escalation_60]) {
       const tier = getEscalationTier(task.daysOverdue);
-      const { assignedTo, stage, priority } = tierToAssigneeRule(tier, task);
+      const { assignedTo, stage, priority } = await tierToAssigneeRule(tier, task);
       const fp = makeFingerprint(`overdue_${tier}`, `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 7)) continue;
 
@@ -1380,7 +1381,7 @@ export class CommunicationsAgent implements IAgent {
 
     // A6: ZOMBIE-RISK (90-179d) → management review task
     for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk]) {
-      const { assignedTo, stage, priority } = tierToAssigneeRule('zombie_risk', task);
+      const { assignedTo, stage, priority } = await tierToAssigneeRule('zombie_risk', task);
       const fp = makeFingerprint('zombie_risk', `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 14)) continue;
 
@@ -1408,7 +1409,7 @@ export class CommunicationsAgent implements IAgent {
 
     // A7: ZOMBIE REVIEW (180+d) → superuser closure task
     for (const task of tasksByTier.zombie_review) {
-      const { assignedTo, stage, priority } = tierToAssigneeRule('zombie_review', task);
+      const { assignedTo, stage, priority } = await tierToAssigneeRule('zombie_review', task);
       const fp = makeFingerprint('zombie_review', `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 14)) continue;
 

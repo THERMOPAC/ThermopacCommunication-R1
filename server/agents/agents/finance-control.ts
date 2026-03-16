@@ -4,6 +4,7 @@ import { InsightManager } from '../framework/insight-manager';
 import { RecommendationManager } from '../framework/recommendation-manager';
 import { actionExecutor } from '../framework/action-executor';
 import { agentDataRepo } from '../data-access/agent-data-repo';
+import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 
@@ -165,9 +166,10 @@ export class FinanceControlAgent implements IAgent {
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
     const settings = await getFinanceSettings();
-    const L1 = settings.finance_account_manager_user_id;
-    const L2 = settings.finance_general_manager_user_id;
-    const L3 = settings.finance_super_user_id;
+    const financeL1userId = settings.finance_account_manager_user_id;
+    const L1 = financeL1userId;
+    const L2 = await resolveEscalation('L2', financeL1userId);
+    const L3 = await resolveEscalation('L3', financeL1userId);
 
     const firstRun = await isFirstRun();
 
