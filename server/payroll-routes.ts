@@ -13,12 +13,19 @@ import {
   tasks,
   payrollLocks,
   payrollLockExceptions,
+  taxSlabs,
+  employeeTaxDeclarations,
+  employeeInvestmentProofs,
+  tdsMonthlyRecords,
   insertEmployeeSalarySchema,
   insertPayrollPeriodSchema,
   insertPayrollRecordSchema,
   insertPayrollSettingSchema,
   insertBonusRuleSchema,
-  insertPayrollApprovalSchema
+  insertPayrollApprovalSchema,
+  insertTaxSlabSchema,
+  insertEmployeeTaxDeclarationSchema,
+  insertEmployeeInvestmentProofSchema,
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sum, avg, count } from 'drizzle-orm';
 import { z } from 'zod';
@@ -45,6 +52,12 @@ import {
   closeLockException,
   getLockExceptions,
 } from './payroll-lock-service';
+import {
+  computeAndSaveTdsForPeriod,
+  getTdsRecordsForPeriod,
+  getTdsRecordsForEmployee,
+  getDefaultSlabs,
+} from './tds-calculation-service';
 
 const router = Router();
 
@@ -683,6 +696,265 @@ router.post('/locks/exceptions/:id/close', async (req, res) => {
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// ============================================================================
+// INCOME TAX / TDS ENGINE ENDPOINTS
+// ============================================================================
+
+router.get('/tax-slabs', async (req, res) => {
+  try {
+    const financialYear = req.query.fy as string;
+    const conditions = [eq(taxSlabs.isActive, true)];
+    if (financialYear) conditions.push(eq(taxSlabs.financialYear, financialYear));
+
+    const slabs = await db.select().from(taxSlabs)
+      .where(and(...conditions))
+      .orderBy(asc(taxSlabs.regime), asc(taxSlabs.slabOrder));
+
+    res.json(slabs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/tax-slabs', async (req, res) => {
+  try {
+    const data = insertTaxSlabSchema.parse(req.body);
+    const [slab] = await db.insert(taxSlabs).values(data).returning();
+    res.status(201).json(slab);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/tax-slabs/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { rate, cessRate, surchargeRate, standardDeduction, section87aRebateLimit, isActive } = req.body;
+    const [updated] = await db.update(taxSlabs).set({
+      rate, cessRate, surchargeRate, standardDeduction, section87aRebateLimit, isActive,
+      updatedAt: new Date(),
+    }).where(eq(taxSlabs.id, id)).returning();
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/tax-slabs/seed-defaults', async (req, res) => {
+  try {
+    const { financialYear } = req.body;
+    await getDefaultSlabs(financialYear || '2025-26');
+    const slabs = await db.select().from(taxSlabs)
+      .where(and(eq(taxSlabs.financialYear, financialYear || '2025-26'), eq(taxSlabs.isActive, true)))
+      .orderBy(asc(taxSlabs.regime), asc(taxSlabs.slabOrder));
+    res.json({ message: 'Default slabs seeded', slabs });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/tax-slabs/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await db.update(taxSlabs).set({ isActive: false }).where(eq(taxSlabs.id, id));
+    res.json({ message: 'Slab deactivated' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/tax-declarations', async (req, res) => {
+  try {
+    const financialYear = req.query.fy as string;
+    const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+
+    const conditions: any[] = [];
+    if (financialYear) conditions.push(eq(employeeTaxDeclarations.financialYear, financialYear));
+    if (userId) conditions.push(eq(employeeTaxDeclarations.userId, userId));
+
+    const declarations = await db.select({
+      id: employeeTaxDeclarations.id,
+      userId: employeeTaxDeclarations.userId,
+      userName: users.username,
+      financialYear: employeeTaxDeclarations.financialYear,
+      regime: employeeTaxDeclarations.regime,
+      regimeLocked: employeeTaxDeclarations.regimeLocked,
+      monthlyRentPaid: employeeTaxDeclarations.monthlyRentPaid,
+      isMetroCity: employeeTaxDeclarations.isMetroCity,
+      section80c: employeeTaxDeclarations.section80c,
+      section80ccd1b: employeeTaxDeclarations.section80ccd1b,
+      section80d: employeeTaxDeclarations.section80d,
+      section80dParents: employeeTaxDeclarations.section80dParents,
+      section80e: employeeTaxDeclarations.section80e,
+      section80g: employeeTaxDeclarations.section80g,
+      section80tta: employeeTaxDeclarations.section80tta,
+      section24b: employeeTaxDeclarations.section24b,
+      otherDeductions: employeeTaxDeclarations.otherDeductions,
+      otherDeductionsDescription: employeeTaxDeclarations.otherDeductionsDescription,
+      previousEmployerIncome: employeeTaxDeclarations.previousEmployerIncome,
+      previousEmployerTds: employeeTaxDeclarations.previousEmployerTds,
+      otherIncome: employeeTaxDeclarations.otherIncome,
+      status: employeeTaxDeclarations.status,
+      submittedAt: employeeTaxDeclarations.submittedAt,
+      approvedAt: employeeTaxDeclarations.approvedAt,
+      remarks: employeeTaxDeclarations.remarks,
+      createdAt: employeeTaxDeclarations.createdAt,
+    })
+    .from(employeeTaxDeclarations)
+    .leftJoin(users, eq(employeeTaxDeclarations.userId, users.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(employeeTaxDeclarations.createdAt));
+
+    res.json(declarations);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/tax-declarations', async (req, res) => {
+  try {
+    const data = insertEmployeeTaxDeclarationSchema.parse(req.body);
+    const [decl] = await db.insert(employeeTaxDeclarations).values(data).returning();
+    res.status(201).json(decl);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.put('/tax-declarations/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const updateData = { ...req.body, updatedAt: new Date() };
+    delete updateData.id;
+    delete updateData.createdAt;
+
+    if (updateData.status === 'submitted') {
+      updateData.submittedAt = new Date();
+    }
+
+    const [updated] = await db.update(employeeTaxDeclarations)
+      .set(updateData)
+      .where(eq(employeeTaxDeclarations.id, id))
+      .returning();
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/tax-declarations/:id/approve', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const userId = req.user?.id || 1;
+    const { remarks } = req.body;
+
+    const [updated] = await db.update(employeeTaxDeclarations).set({
+      status: 'approved',
+      approvedBy: userId,
+      approvedAt: new Date(),
+      remarks,
+      updatedAt: new Date(),
+    }).where(eq(employeeTaxDeclarations.id, id)).returning();
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/tax-declarations/:id/reject', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const userId = req.user?.id || 1;
+    const { remarks } = req.body;
+
+    const [updated] = await db.update(employeeTaxDeclarations).set({
+      status: 'rejected',
+      approvedBy: userId,
+      approvedAt: new Date(),
+      remarks,
+      updatedAt: new Date(),
+    }).where(eq(employeeTaxDeclarations.id, id)).returning();
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/investment-proofs/:declarationId', async (req, res) => {
+  try {
+    const declarationId = parseInt(req.params.declarationId);
+    const proofs = await db.select().from(employeeInvestmentProofs)
+      .where(eq(employeeInvestmentProofs.declarationId, declarationId));
+    res.json(proofs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/investment-proofs', async (req, res) => {
+  try {
+    const data = insertEmployeeInvestmentProofSchema.parse(req.body);
+    const [proof] = await db.insert(employeeInvestmentProofs).values(data).returning();
+    res.status(201).json(proof);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/investment-proofs/:id/verify', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const userId = req.user?.id || 1;
+    const { proofStatus, proofAmount, verificationNotes } = req.body;
+
+    const [updated] = await db.update(employeeInvestmentProofs).set({
+      proofStatus,
+      proofAmount,
+      verifiedBy: userId,
+      verifiedAt: new Date(),
+      verificationNotes,
+    }).where(eq(employeeInvestmentProofs.id, id)).returning();
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/tds/compute/:periodId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const userId = req.user?.id || 1;
+    const result = await computeAndSaveTdsForPeriod(periodId, userId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.get('/tds/period/:periodId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const records = await getTdsRecordsForPeriod(periodId);
+    res.json(records);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/tds/employee/:userId', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const fy = req.query.fy as string || '2025-26';
+    const records = await getTdsRecordsForEmployee(userId, fy);
+    res.json(records);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 

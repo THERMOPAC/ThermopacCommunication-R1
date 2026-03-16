@@ -17,13 +17,15 @@ import {
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sql, ne, isNull } from 'drizzle-orm';
 import { createPayrollLock } from './payroll-lock-service';
+import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
 
 export type PipelineStep =
   | 'attendance_snapshot'
   | 'leave_consolidation'
   | 'salary_calculation'
   | 'bonus_calculation'
-  | 'deduction_calculation';
+  | 'deduction_calculation'
+  | 'tds_calculation';
 
 const PIPELINE_ORDER: PipelineStep[] = [
   'attendance_snapshot',
@@ -31,6 +33,7 @@ const PIPELINE_ORDER: PipelineStep[] = [
   'salary_calculation',
   'bonus_calculation',
   'deduction_calculation',
+  'tds_calculation',
 ];
 
 interface StepResult {
@@ -118,6 +121,9 @@ export async function executeStep(
         break;
       case 'deduction_calculation':
         result = await stepDeductionCalculation(periodId, runNumber, period, executedBy);
+        break;
+      case 'tds_calculation':
+        result = await stepTdsCalculation(periodId, runNumber, period, executedBy);
         break;
       default:
         throw new Error(`Unknown step: ${step}`);
@@ -825,8 +831,6 @@ async function stepDeductionCalculation(
     status: 'processed',
   }).where(eq(payrollPeriods.id, periodId));
 
-  await createPayrollLock(periodId, 'salary', executedBy, 'Auto-locked after deduction calculation');
-
   return {
     success: skipped === 0,
     employeesProcessed: processed,
@@ -835,6 +839,69 @@ async function stepDeductionCalculation(
     summary: { totalGross, totalNet, totalDeductions: totalDed },
     exceptions,
   };
+}
+
+async function stepTdsCalculation(
+  periodId: number,
+  runNumber: number,
+  period: any,
+  executedBy: number
+): Promise<StepResult> {
+  const exceptions: StepResult['exceptions'] = [];
+
+  try {
+    const result = await computeAndSaveTdsForPeriod(periodId, executedBy);
+
+    for (const detail of result.details) {
+      if (detail.error) {
+        exceptions.push({
+          userId: detail.userId,
+          type: 'calculation_error',
+          severity: 'warning',
+          title: `TDS calculation warning for user ${detail.userId}`,
+          details: detail.error,
+        });
+      }
+    }
+
+    const updatedRecords = await db.select().from(payrollRecords).where(eq(payrollRecords.periodId, periodId));
+    const totalGross = updatedRecords.reduce((s, r) => s + parseFloat(r.grossPay), 0);
+    const totalNet = updatedRecords.reduce((s, r) => s + parseFloat(r.netPay), 0);
+    const totalDed = updatedRecords.reduce((s, r) => s + parseFloat(r.totalDeductions || '0'), 0);
+
+    await db.update(payrollPeriods).set({
+      totalGrossPay: totalGross.toFixed(2),
+      totalDeductions: totalDed.toFixed(2),
+      totalNetPay: totalNet.toFixed(2),
+      status: 'processed',
+    }).where(eq(payrollPeriods.id, periodId));
+
+    await createPayrollLock(periodId, 'salary', executedBy, 'Auto-locked after TDS calculation');
+
+    return {
+      success: result.errors === 0,
+      employeesProcessed: result.processed,
+      employeesSkipped: result.errors,
+      errorCount: result.errors,
+      summary: { tdsProcessed: result.processed, tdsErrors: result.errors, totalGross, totalNet, totalDeductions: totalDed },
+      exceptions,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      employeesProcessed: 0,
+      employeesSkipped: 0,
+      errorCount: 1,
+      summary: { error: error.message },
+      exceptions: [{
+        userId: 0,
+        type: 'system_error',
+        severity: 'error',
+        title: 'TDS calculation step failed',
+        details: error.message,
+      }],
+    };
+  }
 }
 
 export async function transitionPeriodStatus(

@@ -40,6 +40,7 @@ const STEP_CONFIG = [
   { key: 'salary_calculation', label: 'Salary Calculation', icon: Calculator, description: 'Calculate prorated salaries and allowances' },
   { key: 'bonus_calculation', label: 'Bonus Calculation', icon: Award, description: 'Apply KPI-based bonuses from DWAR' },
   { key: 'deduction_calculation', label: 'Deduction Calculation', icon: Receipt, description: 'Apply statutory and other deductions' },
+  { key: 'tds_calculation', label: 'TDS / Income Tax', icon: Receipt, description: 'Compute monthly TDS based on projected annual tax' },
 ] as const;
 
 const STATUS_COLORS: Record<string, string> = {

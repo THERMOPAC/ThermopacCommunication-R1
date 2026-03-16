@@ -4884,6 +4884,121 @@ export const payrollSalarySnapshot = pgTable('payroll_salary_snapshot', {
   uniquePerRunUser: uniqueIndex('payroll_sal_snap_period_run_user').on(table.periodId, table.runNumber, table.userId),
 }));
 
+// ============================================================================
+// INCOME TAX / TDS ENGINE (Phase 2)
+// ============================================================================
+
+export const taxSlabs = pgTable('tax_slabs', {
+  id: serial('id').primaryKey(),
+  regime: varchar('regime', { length: 10 }).notNull(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  slabOrder: integer('slab_order').notNull(),
+  minIncome: decimal('min_income', { precision: 15, scale: 2 }).notNull(),
+  maxIncome: decimal('max_income', { precision: 15, scale: 2 }),
+  rate: decimal('rate', { precision: 5, scale: 2 }).notNull(),
+  cessRate: decimal('cess_rate', { precision: 5, scale: 2 }).default('4.00'),
+  surchargeRate: decimal('surcharge_rate', { precision: 5, scale: 2 }).default('0'),
+  surchargeThreshold: decimal('surcharge_threshold', { precision: 15, scale: 2 }),
+  standardDeduction: decimal('standard_deduction', { precision: 10, scale: 2 }).default('50000'),
+  section87aRebateLimit: decimal('section_87a_rebate_limit', { precision: 10, scale: 2 }),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const employeeTaxDeclarations = pgTable('employee_tax_declarations', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  regime: varchar('regime', { length: 10 }).notNull().default('new'),
+  regimeLocked: boolean('regime_locked').default(false),
+
+  monthlyRentPaid: decimal('monthly_rent_paid', { precision: 10, scale: 2 }).default('0'),
+  isMetroCity: boolean('is_metro_city').default(false),
+
+  section80c: decimal('section_80c', { precision: 10, scale: 2 }).default('0'),
+  section80ccd1b: decimal('section_80ccd_1b', { precision: 10, scale: 2 }).default('0'),
+  section80d: decimal('section_80d', { precision: 10, scale: 2 }).default('0'),
+  section80dParents: decimal('section_80d_parents', { precision: 10, scale: 2 }).default('0'),
+  section80e: decimal('section_80e', { precision: 10, scale: 2 }).default('0'),
+  section80g: decimal('section_80g', { precision: 10, scale: 2 }).default('0'),
+  section80tta: decimal('section_80tta', { precision: 10, scale: 2 }).default('0'),
+  section24b: decimal('section_24b', { precision: 10, scale: 2 }).default('0'),
+  otherDeductions: decimal('other_deductions', { precision: 10, scale: 2 }).default('0'),
+  otherDeductionsDescription: text('other_deductions_description'),
+
+  previousEmployerIncome: decimal('previous_employer_income', { precision: 12, scale: 2 }).default('0'),
+  previousEmployerTds: decimal('previous_employer_tds', { precision: 10, scale: 2 }).default('0'),
+  otherIncome: decimal('other_income', { precision: 12, scale: 2 }).default('0'),
+
+  status: varchar('status', { length: 20 }).default('draft'),
+  submittedAt: timestamp('submitted_at'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  remarks: text('remarks'),
+
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  uniqueUserYear: uniqueIndex('emp_tax_decl_user_fy').on(table.userId, table.financialYear),
+}));
+
+export const employeeInvestmentProofs = pgTable('employee_investment_proofs', {
+  id: serial('id').primaryKey(),
+  declarationId: integer('declaration_id').notNull().references(() => employeeTaxDeclarations.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  section: varchar('section', { length: 20 }).notNull(),
+  description: text('description').notNull(),
+  declaredAmount: decimal('declared_amount', { precision: 10, scale: 2 }).notNull(),
+  proofAmount: decimal('proof_amount', { precision: 10, scale: 2 }),
+  proofStatus: varchar('proof_status', { length: 20 }).default('pending'),
+  proofDocumentKey: text('proof_document_key'),
+  verifiedBy: integer('verified_by').references(() => users.id),
+  verifiedAt: timestamp('verified_at'),
+  verificationNotes: text('verification_notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const tdsMonthlyRecords = pgTable('tds_monthly_records', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  periodId: integer('period_id').references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+
+  grossSalaryMonthly: decimal('gross_salary_monthly', { precision: 12, scale: 2 }).notNull(),
+  grossSalaryYtd: decimal('gross_salary_ytd', { precision: 12, scale: 2 }).notNull(),
+  grossSalaryProjected: decimal('gross_salary_projected', { precision: 15, scale: 2 }).notNull(),
+
+  standardDeduction: decimal('standard_deduction', { precision: 10, scale: 2 }).default('50000'),
+  hraExemption: decimal('hra_exemption', { precision: 10, scale: 2 }).default('0'),
+  section80cDeduction: decimal('section_80c_deduction', { precision: 10, scale: 2 }).default('0'),
+  section80dDeduction: decimal('section_80d_deduction', { precision: 10, scale: 2 }).default('0'),
+  otherChapter6aDeductions: decimal('other_chapter_6a_deductions', { precision: 10, scale: 2 }).default('0'),
+  section24bDeduction: decimal('section_24b_deduction', { precision: 10, scale: 2 }).default('0'),
+  totalDeductions: decimal('total_deductions', { precision: 12, scale: 2 }).default('0'),
+
+  taxableIncomeProjected: decimal('taxable_income_projected', { precision: 15, scale: 2 }).notNull(),
+  taxOnProjectedIncome: decimal('tax_on_projected_income', { precision: 12, scale: 2 }).notNull(),
+  cessAmount: decimal('cess_amount', { precision: 10, scale: 2 }).default('0'),
+  surchargeAmount: decimal('surcharge_amount', { precision: 10, scale: 2 }).default('0'),
+  section87aRebate: decimal('section_87a_rebate', { precision: 10, scale: 2 }).default('0'),
+  totalTaxLiabilityAnnual: decimal('total_tax_liability_annual', { precision: 12, scale: 2 }).notNull(),
+
+  tdsDeductedYtd: decimal('tds_deducted_ytd', { precision: 12, scale: 2 }).default('0'),
+  previousEmployerTds: decimal('previous_employer_tds', { precision: 10, scale: 2 }).default('0'),
+  tdsRequiredMonthly: decimal('tds_required_monthly', { precision: 10, scale: 2 }).notNull(),
+  catchUpAdjustment: decimal('catch_up_adjustment', { precision: 10, scale: 2 }).default('0'),
+  tdsActualMonthly: decimal('tds_actual_monthly', { precision: 10, scale: 2 }).notNull(),
+
+  regime: varchar('regime', { length: 10 }).notNull(),
+  calculationSnapshot: jsonb('calculation_snapshot'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  uniqueUserPeriod: uniqueIndex('tds_monthly_user_period').on(table.userId, table.periodId),
+}));
+
 // Material Inspection Links - for traceability
 export const materialInspectionLinks = pgTable('material_inspection_links', {
   id: serial('id').primaryKey(),
@@ -6050,6 +6165,43 @@ export const insertPayrollSalarySnapshotSchema = createInsertSchema(payrollSalar
   .omit({ id: true, createdAt: true });
 export type PayrollSalarySnapshot = typeof payrollSalarySnapshot.$inferSelect;
 export type InsertPayrollSalarySnapshot = z.infer<typeof insertPayrollSalarySnapshotSchema>;
+
+// Tax Slabs schemas and types
+export const insertTaxSlabSchema = createInsertSchema(taxSlabs)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    regime: z.enum(['old', 'new']),
+  });
+export type TaxSlab = typeof taxSlabs.$inferSelect;
+export type InsertTaxSlab = z.infer<typeof insertTaxSlabSchema>;
+
+// Employee Tax Declarations schemas and types
+export const insertEmployeeTaxDeclarationSchema = createInsertSchema(employeeTaxDeclarations)
+  .omit({ id: true, createdAt: true, updatedAt: true, submittedAt: true, approvedBy: true, approvedAt: true })
+  .extend({
+    regime: z.enum(['old', 'new']).default('new'),
+    status: z.enum(['draft', 'submitted', 'approved', 'rejected']).default('draft'),
+  });
+export type EmployeeTaxDeclaration = typeof employeeTaxDeclarations.$inferSelect;
+export type InsertEmployeeTaxDeclaration = z.infer<typeof insertEmployeeTaxDeclarationSchema>;
+
+// Employee Investment Proofs schemas and types
+export const insertEmployeeInvestmentProofSchema = createInsertSchema(employeeInvestmentProofs)
+  .omit({ id: true, createdAt: true, verifiedBy: true, verifiedAt: true, verificationNotes: true })
+  .extend({
+    proofStatus: z.enum(['pending', 'submitted', 'verified', 'rejected']).default('pending'),
+  });
+export type EmployeeInvestmentProof = typeof employeeInvestmentProofs.$inferSelect;
+export type InsertEmployeeInvestmentProof = z.infer<typeof insertEmployeeInvestmentProofSchema>;
+
+// TDS Monthly Records schemas and types
+export const insertTdsMonthlyRecordSchema = createInsertSchema(tdsMonthlyRecords)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    regime: z.enum(['old', 'new']),
+  });
+export type TdsMonthlyRecord = typeof tdsMonthlyRecords.$inferSelect;
+export type InsertTdsMonthlyRecord = z.infer<typeof insertTdsMonthlyRecordSchema>;
 
 //==============================================================================
 // LEAVE MANAGEMENT MODULE RELATIONS
