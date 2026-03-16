@@ -148,6 +148,56 @@ router.post('/payroll-periods', async (req, res) => {
   }
 });
 
+router.post('/payroll-periods/generate-year', async (req, res) => {
+  try {
+    const { year } = req.body;
+    const targetYear = parseInt(year);
+    if (!targetYear || targetYear < 2020 || targetYear > 2100) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    const existing = await db.select().from(payrollPeriods)
+      .where(and(
+        gte(payrollPeriods.startDate, `${targetYear}-01-01`),
+        lte(payrollPeriods.startDate, `${targetYear}-12-31`)
+      ));
+
+    const existingMonths = new Set(existing.map(p => new Date(p.startDate).getMonth() + 1));
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    let created = 0;
+    const periods: any[] = [];
+
+    for (let month = 1; month <= 12; month++) {
+      if (existingMonths.has(month)) continue;
+
+      const lastDay = new Date(targetYear, month, 0).getDate();
+      const startDate = `${targetYear}-${String(month).padStart(2, '0')}-01`;
+      const endDate = `${targetYear}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const payDate = month === 12
+        ? `${targetYear + 1}-01-01`
+        : `${targetYear}-${String(month + 1).padStart(2, '0')}-01`;
+
+      const [p] = await db.insert(payrollPeriods).values({
+        periodName: `${monthNames[month - 1]} ${targetYear}`,
+        startDate,
+        endDate,
+        payDate,
+        status: 'draft',
+      }).returning();
+
+      periods.push(p);
+      created++;
+    }
+
+    res.json({ message: `Created ${created} periods for ${targetYear}`, created, skipped: 12 - created, periods });
+  } catch (error: any) {
+    console.error('Error generating year periods:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Generate Payroll Records for a Period
 router.post('/generate-payroll/:periodId', async (req, res) => {
   try {

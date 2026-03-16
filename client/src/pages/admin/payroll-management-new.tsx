@@ -518,6 +518,19 @@ function PayrollRunTab() {
     },
   });
 
+  const generateYearMutation = useMutation({
+    mutationFn: async (year: number) => {
+      return await apiRequest('POST', '/api/payroll/payroll-periods/generate-year', { year });
+    },
+    onSuccess: (data: any) => {
+      toast({ title: 'Year Generated', description: data.message });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const selectedPeriod = periods.find((p: any) => p.id === selectedPeriodId);
 
   if (isLoading) {
@@ -536,9 +549,17 @@ function PayrollRunTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Select Payroll Period</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowCreatePeriod(true)}>
-              <Plus className="h-4 w-4 mr-1" /> New Period
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => {
+                const nextYear = new Date().getFullYear() + 1;
+                generateYearMutation.mutate(nextYear);
+              }} disabled={generateYearMutation.isPending}>
+                <Calculator className="h-4 w-4 mr-1" /> Generate {new Date().getFullYear() + 1}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowCreatePeriod(true)}>
+                <Plus className="h-4 w-4 mr-1" /> New Period
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

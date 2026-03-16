@@ -12,6 +12,7 @@ import { PredictiveProjectControlAgent } from './agents/predictive-project-contr
 import { ProductionManagementAgent } from './agents/production-management';
 import { QualityManagementAgent } from './agents/quality-management';
 import { scheduleTaskAutoArchive } from './maintenance/task-auto-archive';
+import { schedulePayrollPeriodAutoCreate } from './maintenance/payroll-period-auto-create';
 
 const PHASE_1_AGENTS = [
   {
@@ -268,6 +269,7 @@ export async function initializeAgentSystem(): Promise<void> {
   }, 10000);
 
   scheduleTaskAutoArchive();
+  schedulePayrollPeriodAutoCreate();
 
   console.log('[AgentSystem] Multi-Agent Intelligence Layer initialized successfully.');
   console.log(`[AgentSystem] ${orchestrator.getRegisteredAgents().length} agents registered.`);
