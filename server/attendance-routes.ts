@@ -1,12 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, tasks } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 import { checkPayrollLock } from './payroll-lock-service';
 
 const router = Router();
+
+const REQUEST_TYPE_LABELS: Record<string, string> = {
+  outdoor_duty: 'Outdoor Duty',
+  missed_checkin: 'Missed Check-In',
+  missed_checkout: 'Missed Check-Out',
+  full_day_regularization: 'Full Day Regularization',
+};
 
 // Helper function to check if user has submitted DWAR for a given date
 export async function checkDwarCompletionStatus(userId: number, date: string): Promise<{
@@ -822,6 +829,27 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       auditTrail: auditEntry,
     }).returning();
 
+    const typeLabel = REQUEST_TYPE_LABELS[requestType] || requestType;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (approverId) {
+      await db.insert(tasks).values({
+        title: `Attendance Regularization: ${user.fullName || user.username} - ${typeLabel}`,
+        description: `${user.fullName || user.username} has submitted an attendance regularization request for ${requestDate}.\n\nType: ${typeLabel}\nReason: ${reason}\n\nPlease review and approve/reject at: /attendance/regularization`,
+        status: 'pending',
+        priority: 'High',
+        startDate: todayStr,
+        finishDate: todayStr,
+        dueDate: todayStr,
+        assignedTo: approverId,
+        createdBy: user.id,
+        createdAt: new Date().toISOString(),
+        category: 'Attendance Regularization',
+        sourceType: 'attendance_regularization',
+        sourceId: reg.id,
+      });
+    }
+
     res.status(201).json(reg);
   } catch (error: any) {
     console.error('Error creating regularization:', error);
@@ -1049,6 +1077,31 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       updatedAt: new Date(),
     }).where(eq(attendanceRegularizations.id, regId));
 
+    const typeLabel = REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType;
+    const today = new Date().toISOString().split('T')[0];
+    await db.insert(tasks).values({
+      title: `Regularization Approved: ${typeLabel} on ${reg.requestDate}`,
+      description: `Your attendance regularization request for ${reg.requestDate} (${typeLabel}) has been approved by ${user.fullName || user.username}.${remarks ? `\n\nRemarks: ${remarks}` : ''}\n\nYour attendance record has been updated.`,
+      status: 'completed',
+      priority: 'Medium',
+      startDate: today,
+      finishDate: today,
+      assignedTo: reg.employeeId,
+      createdBy: user.id,
+      createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      category: 'Attendance Regularization',
+      sourceType: 'attendance_regularization',
+      sourceId: reg.id,
+    });
+
+    await db.update(tasks).set({ status: 'completed', completedAt: new Date().toISOString() })
+      .where(and(
+        eq(tasks.sourceType, 'attendance_regularization'),
+        eq(tasks.sourceId, reg.id),
+        eq(tasks.status, 'pending')
+      ));
+
     const [updated] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
     res.json(updated);
   } catch (error) {
@@ -1094,6 +1147,31 @@ router.post('/regularization/:id/reject', ensureAuthenticated, async (req: Reque
       auditTrail: existingTrail,
       updatedAt: new Date(),
     }).where(eq(attendanceRegularizations.id, regId));
+
+    const typeLabel = REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType;
+    const today = new Date().toISOString().split('T')[0];
+    await db.insert(tasks).values({
+      title: `Regularization Rejected: ${typeLabel} on ${reg.requestDate}`,
+      description: `Your attendance regularization request for ${reg.requestDate} (${typeLabel}) has been rejected by ${user.fullName || user.username}.\n\nReason: ${rejectionReason}`,
+      status: 'completed',
+      priority: 'Medium',
+      startDate: today,
+      finishDate: today,
+      assignedTo: reg.employeeId,
+      createdBy: user.id,
+      createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      category: 'Attendance Regularization',
+      sourceType: 'attendance_regularization',
+      sourceId: reg.id,
+    });
+
+    await db.update(tasks).set({ status: 'completed', completedAt: new Date().toISOString() })
+      .where(and(
+        eq(tasks.sourceType, 'attendance_regularization'),
+        eq(tasks.sourceId, reg.id),
+        eq(tasks.status, 'pending')
+      ));
 
     const [updated] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
     res.json(updated);
