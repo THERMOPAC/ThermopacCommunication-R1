@@ -11,6 +11,7 @@ import { SalesMarketingAgent } from './agents/sales-marketing';
 import { PredictiveProjectControlAgent } from './agents/predictive-project-control';
 import { ProductionManagementAgent } from './agents/production-management';
 import { QualityManagementAgent } from './agents/quality-management';
+import { scheduleTaskAutoArchive } from './maintenance/task-auto-archive';
 
 const PHASE_1_AGENTS = [
   {
@@ -265,6 +266,8 @@ export async function initializeAgentSystem(): Promise<void> {
       console.error('[AgentSystem] Scheduler failed to start:', err.message);
     });
   }, 10000);
+
+  scheduleTaskAutoArchive();
 
   console.log('[AgentSystem] Multi-Agent Intelligence Layer initialized successfully.');
   console.log(`[AgentSystem] ${orchestrator.getRegisteredAgents().length} agents registered.`);

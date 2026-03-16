@@ -405,9 +405,9 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`Getting tasks for user: ${user.username} (${user.role}, ID: ${userId})`);
 
-    // Rule 1: Superuser sees all tasks
+    // Rule 1: Superuser sees all tasks (excluding archived)
     if (user.role === 'Superuser') {
-      const tasks = await db.select().from(tasksTable);
+      const tasks = await db.select().from(tasksTable).where(eq(tasksTable.isArchived, false));
       console.log(`Found ${tasks.length} tasks total for Superuser ${user.username}`);
       return tasks as Task[];
     }
@@ -431,9 +431,12 @@ export class DatabaseStorage implements IStorage {
       })
       .from(tasksTable)
       .where(
-        or(
-          eq(tasksTable.assignedTo, userId),
-          eq(tasksTable.createdBy, userId)
+        and(
+          eq(tasksTable.isArchived, false),
+          or(
+            eq(tasksTable.assignedTo, userId),
+            eq(tasksTable.createdBy, userId)
+          )
         )
       )
       .orderBy(tasksTable.finishDate);
