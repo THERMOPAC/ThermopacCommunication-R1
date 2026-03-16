@@ -614,6 +614,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
 
       <Card>
         {Object.entries(tasksByCreator).map(([creatorId, creatorTasks]) => (
