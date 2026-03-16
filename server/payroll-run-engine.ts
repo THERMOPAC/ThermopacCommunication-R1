@@ -117,7 +117,7 @@ export async function executeStep(
         result = await stepSalaryCalculation(periodId, runNumber, period, executedBy);
         break;
       case 'bonus_calculation':
-        result = await stepBonusCalculation(periodId, runNumber, period);
+        result = await stepKpiAdjustment(periodId, runNumber, period);
         break;
       case 'deduction_calculation':
         result = await stepDeductionCalculation(periodId, runNumber, period, executedBy);
@@ -643,7 +643,7 @@ async function stepSalaryCalculation(
   };
 }
 
-async function stepBonusCalculation(
+async function stepKpiAdjustment(
   periodId: number,
   runNumber: number,
   period: any
@@ -651,8 +651,6 @@ async function stepBonusCalculation(
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
-
-  const rules = await db.select().from(bonusRules).where(eq(bonusRules.isActive, true));
 
   const records = await db
     .select()
@@ -688,14 +686,13 @@ async function stepBonusCalculation(
 
       const totalPlannedHours = dwarReports.reduce((sum, r) => sum + (parseFloat(r.plannedHours as string) || 0), 0);
       const totalActualHours = dwarReports.reduce((sum, r) => sum + (parseFloat(r.actualHours as string) || 0), 0);
-      const productivityScore = totalPlannedHours > 0 ? Math.min((totalActualHours / totalPlannedHours) * 100, 100) : 0;
+      const productivityScore = totalPlannedHours > 0 ? Math.min((totalActualHours / totalPlannedHours) * 100, 100) : 100;
 
       const totalWorkingDays = attendanceData.length || 1;
-      const presentDays = attendanceData.filter(r => r.status === 'present' || r.status === 'half-day' || r.status === 'late').length;
-      const attendancePercentage = Math.min((presentDays / totalWorkingDays) * 100, 100);
+      const presentCount = attendanceData.filter(r => r.status === 'present' || r.status === 'half-day' || r.status === 'late').length;
+      const attendancePercentage = Math.min((presentCount / totalWorkingDays) * 100, 100);
 
       const totalTasksCompleted = dwarReports.reduce((sum, r) => sum + (r.tasksCompleted || 0), 0);
-
       const satisfactionRatings = dwarReports
         .filter(r => r.satisfactionLevel)
         .map(r => parseFloat(r.satisfactionLevel!));
@@ -703,57 +700,123 @@ async function stepBonusCalculation(
         ? satisfactionRatings.reduce((s, v) => s + v, 0) / satisfactionRatings.length
         : 0;
 
-      const kpiMetrics = { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction };
-      const baseSalary = parseFloat(record.baseSalary);
-      const bonuses = { productivity: 0, attendance: 0, taskCompletion: 0, satisfaction: 0, total: 0 };
+      const kpiScore = productivityScore / 100;
 
-      for (const rule of rules) {
-        let value = 0;
-        switch (rule.ruleType) {
-          case 'productivity': value = kpiMetrics.productivityScore; break;
-          case 'attendance': value = kpiMetrics.attendancePercentage; break;
-          case 'task_completion': value = kpiMetrics.tasksCompleted; break;
-          case 'satisfaction': value = kpiMetrics.avgSatisfaction; break;
+      const originalPaidDays = parseFloat(record.paidDays || '0');
+      const kpiAdjustedPaidDays = originalPaidDays * kpiScore;
+      const kpiDaysDeducted = originalPaidDays - kpiAdjustedPaidDays;
+
+      if (kpiDaysDeducted > 0.01) {
+        const snap = record.calculationSnapshot as any || {};
+        const totalWorkDays = record.workingDays || 26;
+        const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
+        const salaryType = snap.salaryType || 'monthly';
+        const actualDays = snap.actualDays || 30;
+
+        const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
+        const empRole = empUser?.role || '';
+
+        let proratedBase: number, grossPay: number;
+        let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0;
+
+        if (salaryType === 'daily') {
+          proratedBase = basicSalary * kpiAdjustedPaidDays;
+          const salRec = await db.select().from(employeeSalaries)
+            .where(and(eq(employeeSalaries.userId, record.userId), eq(employeeSalaries.isActive, true)))
+            .orderBy(desc(employeeSalaries.effectiveDate)).limit(1);
+          kgpAllow = parseFloat(salRec[0]?.kgpAllowance || '0') * (kpiAdjustedPaidDays / totalWorkDays);
+          grossPay = proratedBase + kgpAllow;
+        } else {
+          proratedBase = (basicSalary / actualDays) * kpiAdjustedPaidDays;
+          hra = proratedBase * 0.4;
+          conv = proratedBase * 0.3;
+          ltaVal = proratedBase * 0.2;
+          specAllow = proratedBase * 0.3;
+          suppAllow = proratedBase * 0.3;
+          if (['Manager', 'Employee'].includes(empRole)) {
+            kgpAllow = basicSalary * 0.15 * (kpiAdjustedPaidDays / actualDays);
+          }
+          grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
         }
-        const qualifies = value >= parseFloat(rule.minThreshold) &&
-          (!rule.maxThreshold || value <= parseFloat(rule.maxThreshold));
 
-        if (qualifies) {
-          const bonusAmount = rule.isPercentage
-            ? (baseSalary * parseFloat(rule.bonusPercentage || '0')) / 100
-            : parseFloat(rule.fixedAmount || '0');
-          const key = rule.ruleType as keyof typeof bonuses;
-          if (key in bonuses) bonuses[key] += bonusAmount;
+        const pfBase = Math.min(proratedBase, 15000);
+        const employeePF = pfBase * 0.12;
+        const employerPF = pfBase * 0.12;
+        const employeeESIC = grossPay <= 21000 ? grossPay * 0.0075 : 0;
+        const employerESIC = grossPay <= 21000 ? grossPay * 0.0325 : 0;
+        const gratuityAmount = (basicSalary * 15 / 26) / 12;
+        const groupInsuranceAmount = parseFloat(snap.deductions?.groupInsurance?.toString() || '1500');
+
+        let professionalTax = 0;
+        if (empRole !== 'Superuser') {
+          const periodMonth = new Date(period.startDate).getMonth() + 1;
+          professionalTax = periodMonth === 2 ? 300 : 200;
         }
-      }
-      bonuses.total = bonuses.productivity + bonuses.attendance + bonuses.taskCompletion + bonuses.satisfaction;
 
-      const grossPay = parseFloat(record.grossPay) + bonuses.total;
+        const totalDeductions = employeePF + employeeESIC + professionalTax;
+        const netPay = grossPay - totalDeductions;
+        const bonusAllow = basicSalary * 0.0833;
 
-      const existingSnapshot = record.calculationSnapshot as any || {};
-
-      await db
-        .update(payrollRecords)
-        .set({
-          productivityBonus: bonuses.productivity.toFixed(2),
-          attendanceBonus: bonuses.attendance.toFixed(2),
-          taskCompletionBonus: bonuses.taskCompletion.toFixed(2),
-          satisfactionBonus: bonuses.satisfaction.toFixed(2),
+        await db.update(payrollRecords).set({
+          paidDays: kpiAdjustedPaidDays.toFixed(2),
+          baseSalary: proratedBase.toFixed(2),
+          hra: hra.toFixed(2),
+          conveyanceAllowance: conv.toFixed(2),
+          ltaAllowance: ltaVal.toFixed(2),
+          specialAllowance: specAllow.toFixed(2),
+          supplementaryAllowance: suppAllow.toFixed(2),
+          kgpAllowance: kgpAllow.toFixed(2),
+          bonus: bonusAllow.toFixed(2),
           grossPay: grossPay.toFixed(2),
-          netPay: grossPay.toFixed(2),
+          employeePf: employeePF.toFixed(2),
+          employeeEsic: employeeESIC.toFixed(2),
+          employerPf: employerPF.toFixed(2),
+          employerEsic: employerESIC.toFixed(2),
+          providentFund: employeePF.toFixed(2),
+          esiDeduction: employeeESIC.toFixed(2),
+          professionalTax: professionalTax.toFixed(2),
+          gratuity: gratuityAmount.toFixed(2),
+          groupInsurance: groupInsuranceAmount.toFixed(2),
+          totalDeductions: totalDeductions.toFixed(2),
+          netPay: netPay.toFixed(2),
           dwarProductivityScore: productivityScore.toFixed(2),
           attendancePercentage: attendancePercentage.toFixed(2),
           tasksCompleted: totalTasksCompleted,
           averageSatisfactionRating: avgSatisfaction.toFixed(2),
           calculationSnapshot: {
-            ...existingSnapshot,
-            bonuses,
-            kpiMetrics,
-            grossPayAfterBonuses: grossPay,
+            ...snap,
+            kpiAdjustment: {
+              originalPaidDays,
+              kpiScore: productivityScore,
+              kpiAdjustedPaidDays,
+              kpiDaysDeducted,
+            },
+            kpiMetrics: { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction },
           },
           updatedAt: new Date(),
-        })
-        .where(eq(payrollRecords.id, record.id));
+        }).where(eq(payrollRecords.id, record.id));
+
+        exceptions.push({
+          userId: record.userId,
+          type: 'kpi_adjustment',
+          severity: 'info',
+          title: `KPI adjusted paid days for user ${record.userId}`,
+          details: `KPI score ${productivityScore.toFixed(1)}% reduced paid days from ${originalPaidDays.toFixed(2)} to ${kpiAdjustedPaidDays.toFixed(2)} (${kpiDaysDeducted.toFixed(2)} days deducted)`,
+        });
+      } else {
+        await db.update(payrollRecords).set({
+          dwarProductivityScore: productivityScore.toFixed(2),
+          attendancePercentage: attendancePercentage.toFixed(2),
+          tasksCompleted: totalTasksCompleted,
+          averageSatisfactionRating: avgSatisfaction.toFixed(2),
+          calculationSnapshot: {
+            ...(record.calculationSnapshot as any || {}),
+            kpiAdjustment: { originalPaidDays, kpiScore: productivityScore, kpiAdjustedPaidDays: originalPaidDays, kpiDaysDeducted: 0 },
+            kpiMetrics: { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction },
+          },
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, record.id));
+      }
 
       processed++;
     } catch (error: any) {
@@ -762,7 +825,7 @@ async function stepBonusCalculation(
         userId: record.userId,
         type: 'calculation_error',
         severity: 'error',
-        title: `Bonus calculation failed for user ${record.userId}`,
+        title: `KPI adjustment failed for user ${record.userId}`,
         details: error.message,
       });
     }
