@@ -138,7 +138,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Predictive Control – Task Closure Declining: ${project.name}`,
               actionType: 'create_task',
-              rationale: `Task closure rate declined ${declinePct}% — potential project delay.`,
+              description: `Task closure rate declined ${declinePct}% — potential project delay.`,
               actionPayload: {
                 title: `[Agent] Predictive Control – Task Closure Rate Declining: ${project.name} (${declinePct}% drop)`,
                 description: `Project "${project.name}" task closure rate is declining.\nCurrent week: ${currClosed} closed | Previous week: ${prevClosed} closed\nOpen WOs: ${openCount}/${totalCount}\nPrediction: Potential project delay if trend continues\nagent_severity: ${severity}\n\nReview team capacity and identify blockers.`,
@@ -147,6 +147,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 category: `Prediction ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: declinePct >= 50 ? 'high' : 'medium',
               confidence: confidence / 100,
             });
@@ -185,7 +186,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 findingId: finding.id || finding.findingId,
                 title: `[Agent] Predictive Control – Velocity Gap: ${project.name}`,
                 actionType: 'create_task',
-                rationale: `WO completion rate ${actualRate}/wk vs ${requiredRate.toFixed(1)}/wk required.`,
+                description: `WO completion rate ${actualRate}/wk vs ${requiredRate.toFixed(1)}/wk required.`,
                 actionPayload: {
                   title: `[Agent] Predictive Control – Completion Velocity Gap: ${project.name} (${gapPct}% below target)`,
                   description: `Project "${project.name}" completion velocity is insufficient.\nActual rate: ${actualRate} WOs/week\nRequired rate: ${requiredRate.toFixed(1)} WOs/week\nDays remaining: ${daysRemaining}\nOpen WOs: ${openCount}\nPrediction: Project will miss ${project.target_end_date} deadline at current pace\nagent_severity: ${severity}\n\nRequires resource reallocation or timeline revision.`,
@@ -194,6 +195,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                   category: `Prediction ${fingerprint}`,
                 },
                 actionCategory: 'task_creation',
+                logicType: 'rule_based',
                 priority: gapPct >= 70 ? 'critical' : 'high',
                 confidence: confidence / 100,
               });
@@ -249,7 +251,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 findingId: finding.id || finding.findingId,
                 title: `[Agent] Predictive Control – Phase Stalling: ${phase.name} in ${project.name}`,
                 actionType: 'create_task',
-                rationale: `Phase progress ${progress}% vs ${expectedProgress}% expected, ${daysRemaining}d to deadline.`,
+                description: `Phase progress ${progress}% vs ${expectedProgress}% expected, ${daysRemaining}d to deadline.`,
                 actionPayload: {
                   title: `[Agent] Predictive Control – Phase Stalling: ${phase.name} in ${project.name} (${progressGap}pp behind)`,
                   description: `Phase "${phase.name}" (seq: ${phase.order}) in project "${project.name}" is falling behind.\nProgress: ${progress}% vs ${expectedProgress}% expected\nTarget: ${phase.target_end_date} (${daysRemaining}d remaining)\nLast update: ${daysSinceUpdate}d ago\nPrediction: Milestone will be missed\nagent_severity: ${severity}\n\nReview and accelerate phase completion.`,
@@ -258,6 +260,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                   category: `Prediction ${fingerprint}`,
                 },
                 actionCategory: 'task_creation',
+                logicType: 'rule_based',
                 priority: progressGap >= 40 ? 'critical' : 'high',
                 confidence: confidence / 100,
               });
@@ -328,7 +331,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Predictive Control – Drawing Release Declining: ${dp.design_project_name}`,
               actionType: 'create_task',
-              rationale: `Drawing release pace declined ${declinePct}%.`,
+              description: `Drawing release pace declined ${declinePct}%.`,
               actionPayload: {
                 title: `[Agent] Predictive Control – Drawing Release Pace Declining: ${dp.design_project_name} (${declinePct}% drop)`,
                 description: `Design project "${dp.design_project_name}" drawing release pace is declining.\nCurrent week: ${currReleased} | Previous week: ${prevReleased}\nOpen: ${openDrawings}/${totalDrawings}\nPrediction: Design bottleneck forming\nagent_severity: ${severity}\n\nReview design team capacity and priorities.`,
@@ -337,6 +340,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 category: `Prediction ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: declinePct >= 50 ? 'high' : 'medium',
               confidence: confidence / 100,
             });
@@ -404,7 +408,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Review Turnaround Increasing: ${row.design_project_name}`,
             actionType: 'create_task',
-            rationale: `Review turnaround increased ${increasePct}% — backlog building.`,
+            description: `Review turnaround increased ${increasePct}% — backlog building.`,
             actionPayload: {
               title: `[Agent] Predictive Control – Review Turnaround Increasing: ${row.design_project_name} (${increasePct}% slower)`,
               description: `Design project "${row.design_project_name}" review turnaround is increasing.\nCurrent: ${currAvg.toFixed(1)}d avg | Previous: ${prevAvg.toFixed(1)}d avg\nPending reviews: ${pendingReviews}\nagent_severity: ${severity}\n\nAssign additional reviewers or prioritize review queue.`,
@@ -413,6 +417,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               category: `Prediction ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: 'high',
             confidence: confidence / 100,
           });
@@ -466,7 +471,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Revision Spike: ${row.design_project_name}`,
             actionType: 'create_task',
-            rationale: `Revision frequency increased ${increasePct}% — quality concern.`,
+            description: `Revision frequency increased ${increasePct}% — quality concern.`,
             actionPayload: {
               title: `[Agent] Predictive Control – Revision Frequency Spike: ${row.design_project_name} (${increasePct}% increase)`,
               description: `Design project "${row.design_project_name}" revision frequency is spiking.\nCurrent week: ${currRevisions} | Previous: ${prevRevisions}\nPrediction: Design quality or scope stability issue\nagent_severity: ${severity}\n\nReview design quality process and scope changes.`,
@@ -475,6 +480,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               category: `Prediction ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: 'medium',
             confidence: confidence / 100,
           });
@@ -536,7 +542,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Procurement Cycle Lag Increasing`,
             actionType: 'create_task',
-            rationale: `PR-to-PO cycle increased ${increasePct}%.`,
+            description: `PR-to-PO cycle increased ${increasePct}%.`,
             actionPayload: {
               title: `[Agent] Predictive Control – Procurement Cycle Lag Increasing (${increasePct}% slower)`,
               description: `Procurement cycle time (PR to PO conversion) has increased.\nCurrent: ${currCycle.toFixed(1)}d avg | Previous: ${prevCycle.toFixed(1)}d avg\nOpen PRs: ${openPRs}\nagent_severity: ${severity}\n\nReview procurement process bottlenecks.`,
@@ -545,6 +551,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               category: `Prediction ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: 'high',
             confidence: confidence / 100,
           });
@@ -594,7 +601,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Vendor Delivery Risk: ${vendor.vendor_name}`,
             actionType: 'create_task',
-            rationale: `${overdueCount} POs avg ${avgDaysLate}d late from this vendor.`,
+            description: `${overdueCount} POs avg ${avgDaysLate}d late from this vendor.`,
             actionPayload: {
               title: `[Agent] Predictive Control – Vendor Delivery Pattern Deteriorating: ${vendor.vendor_name}`,
               description: `Vendor "${vendor.vendor_name}" delivery pattern is deteriorating.\nOverdue POs: ${overdueCount} | Avg late: ${avgDaysLate}d\nTotal open: ${vendor.total_open}\nagent_severity: ${severity}\n\nReview vendor performance and consider alternate sourcing.`,
@@ -603,6 +610,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               category: `Prediction ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: avgDaysLate >= 30 ? 'high' : 'medium',
             confidence: confidence / 100,
           });
@@ -657,7 +665,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Predictive Control – GR Receipt Rate Declining`,
               actionType: 'create_task',
-              rationale: `GR rate declined ${declinePct}% with ${overduePOCount} POs overdue.`,
+              description: `GR rate declined ${declinePct}% with ${overduePOCount} POs overdue.`,
               actionPayload: {
                 title: `[Agent] Predictive Control – GR Receipt Rate Declining (${declinePct}% drop)`,
                 description: `Goods receipt rate is declining significantly.\nCurrent: ${currGR}/week | Previous: ${prevGR}/week\nOverdue POs: ${overduePOCount}\nagent_severity: ${severity}\n\nReview vendor expediting and logistics.`,
@@ -666,6 +674,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 category: `Prediction ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: 'high',
               confidence: confidence / 100,
             });
@@ -766,7 +775,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Cascading Delay Risk: ${proj.name}`,
             actionType: 'create_task',
-            rationale: `Multi-module risk score ${compositeRisk}/100 — cascading delay likely.`,
+            description: `Multi-module risk score ${compositeRisk}/100 — cascading delay likely.`,
             actionPayload: {
               title: `[Agent] Predictive Control – Cascading Delay Risk: ${proj.name} (score: ${compositeRisk}/100, ${riskLevel})`,
               description: `Project "${proj.name}" shows cross-module cascading delay signals.\nComposite score: ${compositeRisk}/100 (${riskLevel})\nWO velocity: ${Math.round(woVelocityScore)} | Design: ${Math.round(designVelocityScore)} | Procurement: ${Math.round(procRiskScore)} | Phase: ${Math.round(phaseRiskScore)}\nDeadline: ${proj.target_end_date} (${daysRemaining}d)\nagent_severity: ${severity}\n\nRequires immediate cross-functional management review.`,
@@ -775,6 +784,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               category: `Prediction ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: compositeRisk < 30 ? 'critical' : 'high',
             confidence: confidence / 100,
           });
@@ -833,7 +843,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Predictive Control – Resource Contention: ${user.username} in ${proj.name}`,
               actionType: 'create_task',
-              rationale: `User spread across ${modulesCovered} modules with ${crossModuleLoad} items.`,
+              description: `User spread across ${modulesCovered} modules with ${crossModuleLoad} items.`,
               actionPayload: {
                 title: `[Agent] Predictive Control – Resource Contention: ${user.username} in ${proj.name} (${crossModuleLoad} items, ${modulesCovered} modules)`,
                 description: `User "${user.username}" is overloaded across modules in project "${proj.name}".\nWOs: ${woCount} | Drawings: ${drawingCount} | Tasks: ${taskCount}\nagent_severity: ${severity}\n\nConsider redistributing workload to prevent bottleneck.`,
@@ -842,6 +852,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 category: `Prediction ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: 'high',
               confidence: confidence / 100,
             });
@@ -908,7 +919,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 findingId: finding.id || finding.findingId,
                 title: `[Agent] Predictive Control – System-Wide Risk Trending Up`,
                 actionType: 'create_task',
-                rationale: `Reactive findings increased ${increasePct}% — systemic risk.`,
+                description: `Reactive findings increased ${increasePct}% — systemic risk.`,
                 actionPayload: {
                   title: `[Agent] Predictive Control – System-Wide Risk Trending Up (${increasePct}% more findings)`,
                   description: `Project Control Agent findings increased from ${prevFindings} to ${latestFindings} (${increasePct}% increase).\nThis indicates systemic project control issues are building.\nagent_severity: ${severity}\n\nRequires executive review of project portfolio health.`,
@@ -917,6 +928,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                   category: `Prediction ${fingerprint}`,
                 },
                 actionCategory: 'task_creation',
+                logicType: 'rule_based',
                 priority: 'critical',
                 confidence: confidence / 100,
               });
@@ -939,7 +951,7 @@ export class PredictiveProjectControlAgent implements IAgent {
           SELECT id, action_type, action_payload, status FROM agent_recommendations WHERE id = ${recId}
         `);
         const rec = (rows.rows as any[])[0];
-        if (!rec || rec.status !== 'approved') continue;
+        if (!rec || (rec.status !== 'approved' && rec.status !== 'auto_approved')) continue;
 
         const payload = typeof rec.action_payload === 'string' ? JSON.parse(rec.action_payload) : rec.action_payload;
         if (!payload?.title) continue;
@@ -967,7 +979,7 @@ export class PredictiveProjectControlAgent implements IAgent {
         `);
 
         await db.execute(sql`
-          UPDATE agent_recommendations SET status = 'executed', executed_at = NOW() WHERE id = ${recId}
+          UPDATE agent_recommendations SET status = 'executed', updated_at = NOW() WHERE id = ${recId}
         `);
         autoExecutedCount++;
       } catch (err: any) {

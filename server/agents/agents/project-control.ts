@@ -263,7 +263,7 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `Work order ${wo.work_order_number} is ${daysOverdue} days overdue.`,
+            description: `Work order ${wo.work_order_number} is ${daysOverdue} days overdue.`,
             actionPayload: {
               title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number} — "${wo.title}" (${daysOverdue}d overdue)`,
               description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date.\nPlanned end: ${wo.planned_end_date}\nStatus: ${wo.status}\nagent_severity: ${severity}\n\nPlease review and update status or escalate blockers.`,
@@ -272,6 +272,7 @@ export class ProjectControlAgent implements IAgent {
               category: `Project ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: severityFromLevel(level) as any,
             confidence: 0.9,
           });
@@ -310,7 +311,7 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `Work order has not been updated for ${daysSinceUpdate} days.`,
+            description: `Work order has not been updated for ${daysSinceUpdate} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number} — "${wo.title}" (${daysSinceUpdate}d no update)`,
               description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no update for ${daysSinceUpdate} days.\nStatus: ${wo.status}\nLast update: ${wo.updated_at}\nagent_severity: ${severity}\n\nPlease review status, update progress, or report blockers.`,
@@ -319,6 +320,7 @@ export class ProjectControlAgent implements IAgent {
               category: `Project ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: severityFromLevel(level) as any,
             confidence: 0.85,
           });
@@ -362,7 +364,7 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Project Inactive: ${project.project_name}`,
               actionType: 'create_task',
-              rationale: `No work order updates for ${daysSinceActivity} days.`,
+              description: `No work order updates for ${daysSinceActivity} days.`,
               actionPayload: {
                 title: `[Agent] Project Control – Project Inactive: ${project.project_name} (${daysSinceActivity}d no updates)`,
                 description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.\nagent_severity: ${severity}\n\nPlease review project status and provide an update.`,
@@ -371,6 +373,7 @@ export class ProjectControlAgent implements IAgent {
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: 'high',
               confidence: 0.9,
             });
@@ -398,7 +401,7 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – No Activity: ${project.project_name}`,
               actionType: 'create_task',
-              rationale: `No updates for ${daysSinceActivity} days.`,
+              description: `No updates for ${daysSinceActivity} days.`,
               actionPayload: {
                 title: `[Agent] Project Control – No Activity: ${project.project_name} (${daysSinceActivity}d silent)`,
                 description: `Project "${project.project_name}" has had no work order updates for ${daysSinceActivity} days.\nagent_severity: ${severity}\n\nPlease provide a status update.`,
@@ -407,6 +410,7 @@ export class ProjectControlAgent implements IAgent {
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: 'medium',
               confidence: 0.8,
             });
@@ -447,7 +451,7 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Schedule Slippage: ${project.project_name}`,
               actionType: 'create_task',
-              rationale: `Project is ${daysUntil <= 0 ? 'past its deadline' : 'approaching deadline'} with only ${completionPct}% completion.`,
+              description: `Project is ${daysUntil <= 0 ? 'past its deadline' : 'approaching deadline'} with only ${completionPct}% completion.`,
               actionPayload: {
                 title: `[Agent] Project Control – Schedule Slippage: ${project.project_name} — ${daysUntil <= 0 ? Math.abs(daysUntil) + 'd OVERDUE' : daysUntil + 'd remaining'}, ${completionPct}% done`,
                 description: `Project "${project.project_name}"\nTarget end date: ${project.target_end_date}\n${daysUntil <= 0 ? 'OVERDUE by ' + Math.abs(daysUntil) + ' days' : daysUntil + ' days remaining'}\nCompletion: ${completionPct}%\nOverdue WOs: ${project.overdue_work_orders}\nagent_severity: ${severity}\n\nReview resource allocation, reprioritize work orders, and update timeline if needed.`,
@@ -456,6 +460,7 @@ export class ProjectControlAgent implements IAgent {
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: severityFromLevel(level) as any,
               confidence: 0.95,
             });
@@ -497,7 +502,7 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name}`,
             actionType: 'create_task',
-            rationale: `Phase "${phase.phase_name}" is ${daysOverdue} days past target.`,
+            description: `Phase "${phase.phase_name}" is ${daysOverdue} days past target.`,
             actionPayload: {
               title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name} in ${phase.project_name} (${daysOverdue}d overdue)`,
               description: `Phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past target end date.\nTarget: ${phase.target_end_date}\nProgress: ${phase.progress || 0}%\nagent_severity: ${severity}\n\nReview phase status and take corrective action.`,
@@ -506,6 +511,7 @@ export class ProjectControlAgent implements IAgent {
               category: `Project ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: severityFromLevel(level) as any,
             confidence: 0.9,
           });
@@ -547,7 +553,7 @@ export class ProjectControlAgent implements IAgent {
                   findingId: finding.id || finding.findingId,
                   title: `[Agent] Project Control – Phase Blocking: ${prev.phase_name} → ${curr.phase_name}`,
                   actionType: 'create_task',
-                  rationale: `Phase "${prev.phase_name}" (seq ${prev.order}) is overdue and blocking "${curr.phase_name}" (seq ${curr.order}).`,
+                  description: `Phase "${prev.phase_name}" (seq ${prev.order}) is overdue and blocking "${curr.phase_name}" (seq ${curr.order}).`,
                   actionPayload: {
                     title: `[Agent] Project Control – Phase Blocking: ${prev.phase_name} blocking ${curr.phase_name} in ${prev.project_name}`,
                     description: `Phase "${prev.phase_name}" (sequence: ${prev.order}, target: ${prev.target_end_date}) in project "${prev.project_name}" is incomplete and blocking the next phase "${curr.phase_name}" (sequence: ${curr.order}).\nagent_severity: ${severity}\n\nComplete or unblock the predecessor phase.`,
@@ -556,6 +562,7 @@ export class ProjectControlAgent implements IAgent {
                     category: `Project ${fingerprint}`,
                   },
                   actionCategory: 'task_creation',
+                  logicType: 'rule_based',
                   priority: 'medium',
                   confidence: 0.85,
                 });
@@ -609,7 +616,7 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Commitment Overdue: ${task.title}`,
               actionType: 'create_task',
-              rationale: `Project commitment is ${daysOverdue} days overdue.`,
+              description: `Project commitment is ${daysOverdue} days overdue.`,
               actionPayload: {
                 title: `[Agent] Project Control – Commitment Overdue: ${task.title} (${daysOverdue}d late)`,
                 description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nagent_severity: ${severity}`,
@@ -618,6 +625,7 @@ export class ProjectControlAgent implements IAgent {
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: 'high',
               confidence: 0.85,
             });
@@ -644,7 +652,7 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Commitment Due Soon: ${task.title}`,
               actionType: 'create_task',
-              rationale: `Project commitment due in ${daysUntil} days.`,
+              description: `Project commitment due in ${daysUntil} days.`,
               actionPayload: {
                 title: `[Agent] Project Control – Commitment Due Soon: ${task.title} (${daysUntil}d left)`,
                 description: `Task "${task.title}" linked to project "${task.project_name}" is due in ${daysUntil} days.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nagent_severity: ${severity}`,
@@ -653,6 +661,7 @@ export class ProjectControlAgent implements IAgent {
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: 'medium',
               confidence: 0.8,
             });
@@ -696,7 +705,7 @@ export class ProjectControlAgent implements IAgent {
                   findingId: finding.id || finding.findingId,
                   title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name}`,
                   actionType: 'create_task',
-                  rationale: `Critical phase blocked by incomplete predecessors.`,
+                  description: `Critical phase blocked by incomplete predecessors.`,
                   actionPayload: {
                     title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name} in ${phase.project_name}`,
                     description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete.\nTarget: ${phase.target_end_date}\nagent_severity: ${severity}\n\nRequires immediate management review and intervention.`,
@@ -705,6 +714,7 @@ export class ProjectControlAgent implements IAgent {
                     category: `Project ${fingerprint}`,
                   },
                   actionCategory: 'task_creation',
+                  logicType: 'rule_based',
                   priority: 'critical',
                   confidence: 0.9,
                 });
@@ -761,7 +771,7 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Resource Overload: ${user.username}`,
             actionType: 'create_task',
-            rationale: `Weighted load score ${weightedLoad.toFixed(1)} exceeds threshold.`,
+            description: `Weighted load score ${weightedLoad.toFixed(1)} exceeds threshold.`,
             actionPayload: {
               title: `[Agent] Project Control – Resource Overload: ${user.username} (load: ${weightedLoad.toFixed(1)})`,
               description: `User "${user.username}" weighted load score: ${weightedLoad.toFixed(1)}\nTasks: ${openTasks} (×1.0), WOs: ${openWOs} (×1.0), Drawings: ${openDrawings} (×1.2), Procurement: ${openProcurement} (×1.0)\nagent_severity: ${severity}\n\nReview workload and redistribute if necessary.`,
@@ -770,6 +780,7 @@ export class ProjectControlAgent implements IAgent {
               category: `Project ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: 'medium',
             confidence: 0.75,
           });
@@ -848,7 +859,7 @@ export class ProjectControlAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Health Alert: ${project.project_name} (${band})`,
               actionType: 'create_task',
-              rationale: `Project health score (${Math.round(healthScore)}, ${band}) requires management review.`,
+              description: `Project health score (${Math.round(healthScore)}, ${band}) requires management review.`,
               actionPayload: {
                 title: `[Agent] Project Control – Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}/100, ${band})`,
                 description: `Project "${project.project_name}" health score: ${Math.round(healthScore)}/100 (${band})\nOverdue Tasks: ${overdueWOs}/${totalWOs}\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nagent_severity: ${severity}\n\nRequires immediate management review.`,
@@ -857,6 +868,7 @@ export class ProjectControlAgent implements IAgent {
                 category: `Project ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: findingSeverity as any,
               confidence: 0.9,
             });
@@ -960,7 +972,7 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Drawing Overdue: ${d.drawing_number || d.drawing_title}`,
             actionType: 'create_task',
-            rationale: `Drawing is ${daysOverdue} days past due date.`,
+            description: `Drawing is ${daysOverdue} days past due date.`,
             actionPayload: {
               title: `[Agent] Project Control – Drawing Overdue: ${d.drawing_number || ''} — "${d.drawing_title}" (${daysOverdue}d)`,
               description: `Drawing "${d.drawing_title}" (${d.drawing_number || ''}) in project "${d.design_project_name || ''}" is ${daysOverdue} days overdue.\nDue date: ${d.due_date}\nAssigned to: ${d.assignee_name || 'Unassigned'}\nStatus: ${d.status}\nagent_severity: ${severity}`,
@@ -969,6 +981,7 @@ export class ProjectControlAgent implements IAgent {
               category: `Design ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: severityFromLevel(level) as any,
             confidence: 0.9,
           });
@@ -1011,7 +1024,7 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Drawing Stuck in Review: ${r.review_title}`,
             actionType: 'create_task',
-            rationale: `Review has been pending for ${daysInReview} days.`,
+            description: `Review has been pending for ${daysInReview} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Drawing Stuck in Review: ${r.review_title} (${daysInReview}d)`,
               description: `Review "${r.review_title}" for drawing ${r.drawing_number || ''} has been pending for ${daysInReview} days.\nReviewer: ${r.reviewer_name || 'Unassigned'}\nProject: ${r.design_project_name || ''}\nagent_severity: ${severity}`,
@@ -1020,6 +1033,7 @@ export class ProjectControlAgent implements IAgent {
               category: `Design ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: severityFromLevel(level) as any,
             confidence: 0.9,
           });
@@ -1056,13 +1070,13 @@ export class ProjectControlAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Review Comments Open: ${r.review_title}`,
             actionType: 'create_task',
-            rationale: `Review comments pending for ${daysSince} days.`,
+            description: `Review comments pending for ${daysSince} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Review Comments Open: ${r.review_title} (${daysSince}d pending)`,
               description: `Review "${r.review_title}" was approved with comments but comments remain open for ${daysSince} days.\nDrawing: ${r.drawing_number || ''}\nProject: ${r.design_project_name || ''}\nagent_severity: ${severity}`,
               assignedTo: assignTo, priority: 'Medium', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1092,13 +1106,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Client Approval Pending: ${d.drawing_number || d.drawing_title}`,
-            actionType: 'create_task', rationale: `Client approval pending for ${daysPending} days.`,
+            actionType: 'create_task', description: `Client approval pending for ${daysPending} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Client Approval Pending: ${d.drawing_number || ''} — "${d.drawing_title}" (${daysPending}d)`,
               description: `Drawing "${d.drawing_title}" requires client approval pending for ${daysPending} days.\nProject: ${d.design_project_name || ''}\nagent_severity: ${severity}\n\nFollow up with client for approval.`,
               assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'high', confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1134,13 +1148,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Revision Delayed: ${d.drawing_number || d.drawing_title}`,
-            actionType: 'create_task', rationale: `Latest revision is ${daysSinceVersion} days old.`,
+            actionType: 'create_task', description: `Latest revision is ${daysSinceVersion} days old.`,
             actionPayload: {
               title: `[Agent] Project Control – Revision Delayed: ${d.drawing_number || ''} Rev ${latestVer.revision} (${daysSinceVersion}d stale)`,
               description: `Drawing "${d.drawing_title}" latest revision (${latestVer.revision}) is ${daysSinceVersion} days old.\nProject: ${d.design_project_name || ''}\nagent_severity: ${severity}\n\nReview and issue updated revision if needed.`,
               assignedTo: assignTo, priority: 'Medium', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.8,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1188,13 +1202,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – ${isIFC ? 'IFC' : 'AFC'} Delayed: ${stage.project_name}`,
-            actionType: 'create_task', rationale: `${isIFC ? 'IFC' : 'AFC'} stage is ${daysOverdue} days past target.`,
+            actionType: 'create_task', description: `${isIFC ? 'IFC' : 'AFC'} stage is ${daysOverdue} days past target.`,
             actionPayload: {
               title: `[Agent] Project Control – ${isIFC ? 'IFC Drawing' : 'AFC Drawing'} Delayed: ${stage.stage_name} in ${stage.project_name} (${daysOverdue}d)`,
               description: `Key stage "${stage.stage_name}" in project "${stage.project_name}" is ${daysOverdue} days overdue.\nPhase target: ${stage.target_end_date}\nagent_severity: ${severity}\n\nExpedite ${isIFC ? 'IFC' : 'AFC'} release.`,
               assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'high', confidence: 0.8,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1222,13 +1236,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Backlog: ${dp.design_project_name}`,
-            actionType: 'create_task', rationale: `${openDrawings} open drawings need attention.`,
+            actionType: 'create_task', description: `${openDrawings} open drawings need attention.`,
             actionPayload: {
               title: `[Agent] Project Control – Design Backlog: ${dp.design_project_name} (${openDrawings} open drawings)`,
               description: `Design project "${dp.design_project_name}" has ${openDrawings} open drawings.\nTotal: ${dp.total_drawings}\nApproved: ${dp.approved_drawings}\nProgress: ${dp.overall_progress || 0}%\nagent_severity: ${severity}\n\nReview workload and prioritize drawings.`,
               assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'high', confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1273,13 +1287,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Blocking Procurement: ${row.project_name}`,
-            actionType: 'create_task', rationale: `Design (seq ${row.design_order}) incomplete, blocking Procurement (seq ${row.proc_order}).`,
+            actionType: 'create_task', description: `Design (seq ${row.design_order}) incomplete, blocking Procurement (seq ${row.proc_order}).`,
             actionPayload: {
               title: `[Agent] Project Control – Design Blocking Procurement: ${row.project_name}`,
               description: `Design phase (sequence: ${row.design_order}) is incomplete but Procurement phase (sequence: ${row.proc_order}) target is ${daysUntilProc <= 0 ? Math.abs(daysUntilProc) + 'd PAST' : 'in ' + daysUntilProc + 'd'}.\nProject: ${row.project_name}\nagent_severity: ${severity}\n\nExpedite design completion to unblock procurement.`,
               assignedTo: assignTo, priority: 'High', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'high', confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1318,13 +1332,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Impacting Milestone: ${project.name}`,
-            actionType: 'create_task', rationale: `${incompleteCount} design key stages incomplete with deadline in ${daysUntil}d.`,
+            actionType: 'create_task', description: `${incompleteCount} design key stages incomplete with deadline in ${daysUntil}d.`,
             actionPayload: {
               title: `[Agent] Project Control – Design Impacting Milestone: ${project.name} (${incompleteCount} design stages, ${daysUntil}d to deadline)`,
               description: `Project "${project.name}" has ${incompleteCount} incomplete design key stages.\nDeadline: ${project.target_end_date} (${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd remaining'})\nagent_severity: ${severity}\n\nRequires immediate management review.`,
               assignedTo: gmId, priority: 'Critical', category: `Design ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'critical', confidence: 0.9,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1430,13 +1444,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – PR Pending Conversion: PR#${pr.doc_num}`,
-            actionType: 'create_task', rationale: `PR open for ${daysOverdue} days without PO issuance.`,
+            actionType: 'create_task', description: `PR open for ${daysOverdue} days without PO issuance.`,
             actionPayload: {
               title: `[Agent] Project Control – PR Pending Conversion: PR#${pr.doc_num} (${daysOverdue}d overdue)`,
               description: `Purchase requisition #${pr.doc_num} is ${daysOverdue} days past due without PO conversion.\nRequester: ${pr.requester_name || 'Unknown'}\nDue: ${pr.due_date}\nagent_severity: ${severity}\n\nConvert to PO or update status.`,
               assignedTo: assignTo, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: severityFromLevel(level) as any, confidence: 0.9,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: severityFromLevel(level) as any, confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1478,13 +1492,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – RFQ Pending Response: ${stage.project_name}`,
-            actionType: 'create_task', rationale: `No vendor quotes received ${daysSince} days after RFQ.`,
+            actionType: 'create_task', description: `No vendor quotes received ${daysSince} days after RFQ.`,
             actionPayload: {
               title: `[Agent] Project Control – RFQ Pending Response: ${stage.project_name} (${daysSince}d)`,
               description: `RFQs sent for project "${stage.project_name}" ${daysSince} days ago but vendor quotes not received.\nagent_severity: ${severity}\n\nFollow up with vendors.`,
               assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.75,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1526,13 +1540,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Offer Evaluation Pending: ${stage.project_name}`,
-            actionType: 'create_task', rationale: `Vendor selection pending for ${daysSince} days.`,
+            actionType: 'create_task', description: `Vendor selection pending for ${daysSince} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Offer Evaluation Pending: ${stage.project_name} (${daysSince}d)`,
               description: `Vendor quotes received for "${stage.project_name}" ${daysSince} days ago but evaluation/selection not completed.\nagent_severity: ${severity}\n\nComplete vendor evaluation and selection.`,
               assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.75,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1563,13 +1577,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – PO Release Delay: ${po.purchase_order_number}`,
-            actionType: 'create_task', rationale: `PO in draft for ${daysSince} days.`,
+            actionType: 'create_task', description: `PO in draft for ${daysSince} days.`,
             actionPayload: {
               title: `[Agent] Project Control – PO Release Delay: ${po.purchase_order_number} — "${po.title}" (${daysSince}d in draft)`,
               description: `PO "${po.title}" (${po.purchase_order_number}) in draft for ${daysSince} days.\nProject: ${po.project_name || 'N/A'}\nRequired by: ${po.required_by_date || 'Not set'}\nagent_severity: ${severity}\n\nFinalize with vendor or cancel.`,
               assignedTo: assignTo, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: severityFromLevel(level) as any, confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: severityFromLevel(level) as any, confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1599,13 +1613,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num}`,
-            actionType: 'create_task', rationale: `No vendor submission ${daysOverdue} days past due.`,
+            actionType: 'create_task', description: `No vendor submission ${daysOverdue} days past due.`,
             actionPayload: {
               title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nContact vendor for submission status.`,
               assignedTo: purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.8,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1636,13 +1650,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num}`,
-            actionType: 'create_task', rationale: `Vendor manufacturing likely delayed — ${daysOverdue}d overdue.`,
+            actionType: 'create_task', description: `Vendor manufacturing likely delayed — ${daysOverdue}d overdue.`,
             actionPayload: {
               title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nEscalate vendor manufacturing status.`,
               assignedTo: mgr || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'high', confidence: 0.8,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.8,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1672,13 +1686,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num}`,
-            actionType: 'create_task', rationale: `Delivery date missed by ${daysOverdue} days.`,
+            actionType: 'create_task', description: `Delivery date missed by ${daysOverdue} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue)`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" delivery missed by ${daysOverdue}d.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nFollow up on delivery status.`,
               assignedTo: purchaseDeptHead || gmId, priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: severityFromLevel(level) as any, confidence: 0.9,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: severityFromLevel(level) as any, confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1712,13 +1726,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Inspection Pending: ${io.inspection_order_number}`,
-            actionType: 'create_task', rationale: `Inspection pending for ${daysPending} days.`,
+            actionType: 'create_task', description: `Inspection pending for ${daysPending} days.`,
             actionPayload: {
               title: `[Agent] Project Control – Inspection Pending: ${io.inspection_order_number} (${daysPending}d)`,
               description: `Inspection order ${io.inspection_order_number} pending for ${daysPending} days.\nType: ${io.inspection_type || 'N/A'}\nProject: ${io.project_name || 'N/A'}\nagent_severity: ${severity}\n\nSchedule and complete inspection.`,
               assignedTo: assignTo, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1748,13 +1762,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Dispatch Delay: PO#${po.doc_num}`,
-            actionType: 'create_task', rationale: `GR exists but PO still open.`,
+            actionType: 'create_task', description: `GR exists but PO still open.`,
             actionPayload: {
               title: `[Agent] Project Control – Dispatch Delay: PO#${po.doc_num} — ${po.vendor_name}`,
               description: `PO #${po.doc_num} has partial goods receipt but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nagent_severity: ${severity}\n\nVerify dispatch status and close PO if fully received.`,
               assignedTo: storesHead || purchaseDeptHead || gmId, priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'medium', confidence: 0.75,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1785,13 +1799,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Logistics Delay: PO#${po.doc_num}`,
-            actionType: 'create_task', rationale: `Partial receipt with PO still open ${daysOverdue}d.`,
+            actionType: 'create_task', description: `Partial receipt with PO still open ${daysOverdue}d.`,
             actionPayload: {
               title: `[Agent] Project Control – Logistics Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
               description: `PO #${po.doc_num} has ${grList.length} goods receipts but remains open ${daysOverdue}d past due.\nVendor: ${po.vendor_name}\nagent_severity: ${severity}\n\nInvestigate transit/logistics status.`,
               assignedTo: mgr || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'high', confidence: 0.75,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1839,13 +1853,13 @@ export class ProjectControlAgent implements IAgent {
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Critical PR Not Raised: ${proj.project_name}`,
-              actionType: 'create_task', rationale: `Procurement phase approaching but insufficient activity.`,
+              actionType: 'create_task', description: `Procurement phase approaching but insufficient activity.`,
               actionPayload: {
                 title: `[Agent] Project Control – Critical PR Not Raised: ${proj.project_name}`,
                 description: `Project "${proj.project_name}" procurement phase (sequence: ${proj.proc_order}) is ${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd away'} but procurement activity is insufficient.\nCompleted procurement stages: ${completedProcStages}\nagent_severity: ${severity}\n\nRaise required purchase requisitions immediately.`,
                 assignedTo: pm || gmId, priority: 'High', category: `Procurement ${fingerprint}`,
               },
-              actionCategory: 'task_creation', priority: 'high', confidence: 0.8,
+              actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.8,
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
           }
@@ -1894,13 +1908,13 @@ export class ProjectControlAgent implements IAgent {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Material Delay Affecting Project: ${proj.name}`,
-            actionType: 'create_task', rationale: `Overdue PO impacting project manufacturing timeline.`,
+            actionType: 'create_task', description: `Overdue PO impacting project manufacturing timeline.`,
             actionPayload: {
               title: `[Agent] Project Control – Material Delay Affecting Project: PO#${po.doc_num} → ${proj.name}`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue.\nProject: ${proj.name}\nManufacturing phase: ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}\nagent_severity: ${severity}\n\nRequires immediate management intervention.`,
               assignedTo: gmId, priority: 'Critical', category: `Procurement ${fingerprint}`,
             },
-            actionCategory: 'task_creation', priority: 'critical', confidence: 0.85,
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
@@ -1919,7 +1933,7 @@ export class ProjectControlAgent implements IAgent {
           SELECT id, action_type, action_payload, status FROM agent_recommendations WHERE id = ${recId}
         `);
         const rec = (rows.rows as any[])[0];
-        if (!rec || rec.status !== 'approved') continue;
+        if (!rec || (rec.status !== 'approved' && rec.status !== 'auto_approved')) continue;
 
         const payload = typeof rec.action_payload === 'string' ? JSON.parse(rec.action_payload) : rec.action_payload;
         if (!payload?.title) continue;
@@ -1947,7 +1961,7 @@ export class ProjectControlAgent implements IAgent {
         `);
 
         await db.execute(sql`
-          UPDATE agent_recommendations SET status = 'executed', executed_at = NOW() WHERE id = ${recId}
+          UPDATE agent_recommendations SET status = 'executed', updated_at = NOW() WHERE id = ${recId}
         `);
         autoExecutedCount++;
       } catch (err: any) {

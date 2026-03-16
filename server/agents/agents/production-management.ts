@@ -161,7 +161,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Plan Missing: ${proj.name}`,
             actionType: 'create_task',
-            rationale: `Active project has no production plan or work orders.`,
+            description: `Active project has no production plan or work orders.`,
             actionPayload: {
               title: `[Agent] Production Plan Missing: ${proj.name} (${proj.code})`,
               description: `Active project "${proj.name}" has no work orders.\nProject Code: ${proj.code}\nImpact: No production activity can be tracked\nagent_severity: ${severity}\n\nAction Required: Create production plan and generate work orders for this project.`,
@@ -170,6 +170,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.95,
           });
@@ -211,7 +212,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Order Not Released: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `WO still in planned status ${wo.days_past_start}d past planned start.`,
+            description: `WO still in planned status ${wo.days_past_start}d past planned start.`,
             actionPayload: {
               title: `[Agent] Production Order Not Released: ${wo.work_order_number} (${wo.days_past_start}d overdue)`,
               description: `Work order "${wo.work_order_number}" has not been released.\nTitle: ${wo.title}\nProject: ${wo.project_name} (${wo.project_code})\nPlanned Start: ${new Date(wo.planned_start_date).toISOString().split('T')[0]}\nDays Past Start: ${wo.days_past_start}\nProduction Line: ${wo.production_line || 'Not assigned'}\nagent_severity: ${severity}\n\nAction Required: Release the production order or update the production schedule with a reason for delay.`,
@@ -220,6 +221,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.95,
           });
@@ -264,7 +266,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Order Overdue: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `WO ${daysOverdue}d overdue — production schedule at risk.`,
+            description: `WO ${daysOverdue}d overdue — production schedule at risk.`,
             actionPayload: {
               title: `[Agent] Production Order Overdue: ${wo.work_order_number} (${daysOverdue}d overdue)`,
               description: `Work order "${wo.work_order_number}" is overdue.\nTitle: ${wo.title}\nProject: ${wo.project_name} (${wo.project_code})\nStatus: ${wo.status} | Qty: ${wo.quantity}\nPlanned End: ${new Date(wo.planned_end_date).toISOString().split('T')[0]}\nDays Overdue: ${daysOverdue}\nSupervisor: ${wo.supervisor_name || 'Not assigned'}\nProduction Line: ${wo.production_line || 'Not assigned'}\nagent_severity: ${severity}\n\nAction Required: Complete the work order or update schedule with justification.`,
@@ -273,6 +275,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.95,
           });
@@ -313,7 +316,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Scheduling Conflict: ${conflict.production_line}`,
             actionType: 'create_task',
-            rationale: `Overlapping WOs on ${conflict.production_line}.`,
+            description: `Overlapping WOs on ${conflict.production_line}.`,
             actionPayload: {
               title: `[Agent] Production Scheduling Conflict: ${conflict.wo_a} & ${conflict.wo_b} on ${conflict.production_line}`,
               description: `Scheduling conflict detected on production line "${conflict.production_line}".\nWO-A: ${conflict.wo_a} (${conflict.a_start} → ${conflict.a_end})\nWO-B: ${conflict.wo_b} (${conflict.b_start} → ${conflict.b_end})\nagent_severity: ${severity}\n\nAction Required: Reschedule one of the work orders to resolve overlap.`,
@@ -322,6 +325,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.90,
           });
@@ -364,7 +368,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Backlog Building: ${proj.name}`,
             actionType: 'create_task',
-            rationale: `${proj.open_wo_count} open WOs building up.`,
+            description: `${proj.open_wo_count} open WOs building up.`,
             actionPayload: {
               title: `[Agent] Production Backlog Building: ${proj.name} (${proj.open_wo_count} open WOs)`,
               description: `Project "${proj.name}" (${proj.code}) has a production backlog of ${proj.open_wo_count} open work orders.\nEarliest deadline: ${proj.earliest_deadline}\nMax overdue: ${proj.max_overdue_days}d\nagent_severity: ${severity}\n\nAction Required: Review and prioritize production schedule, allocate additional resources if needed.`,
@@ -373,6 +377,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.90,
           });
@@ -473,7 +478,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Supervisor Capacity Exceeded: ${row.username}`,
             actionType: 'create_task',
-            rationale: `${row.open_count} open WOs exceed threshold of 15.`,
+            description: `${row.open_count} open WOs exceed threshold of 15.`,
             actionPayload: {
               title: `[Agent] Supervisor Capacity Exceeded: ${row.username} (${row.open_count} open WOs)`,
               description: `Supervisor "${row.username}" is overloaded with ${row.open_count} open work orders.\nLines: ${row.lines || 'N/A'}\nagent_severity: ${severity}\n\nAction Required: Review workload distribution and reassign WOs to other supervisors.`,
@@ -482,6 +487,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.90,
           });
@@ -589,7 +595,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Material Shortage Risk: WO ${row.work_order_number}`,
             actionType: 'create_task',
-            rationale: `Material consumption at ${row.consumption_pct}% — shortage imminent.`,
+            description: `Material consumption at ${row.consumption_pct}% — shortage imminent.`,
             actionPayload: {
               title: `[Agent] Material Shortage Risk: WO ${row.work_order_number} (${row.consumption_pct}% consumed)`,
               description: `Material for WO "${row.work_order_number}" is nearly depleted.\nRequired: ${row.quantity_required} | Consumed: ${row.quantity_consumed}\nProject: ${row.project_name}\nagent_severity: ${severity}\n\nAction Required: Arrange additional material procurement immediately.`,
@@ -598,6 +604,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: 'critical',
             confidence: 0.95,
           });
@@ -733,7 +740,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Not Started: ${wo.work_order_number}`,
             actionType: 'create_task',
-            rationale: `WO not started ${daysPast}d past planned start date.`,
+            description: `WO not started ${daysPast}d past planned start date.`,
             actionPayload: {
               title: `[Agent] Production Not Started: ${wo.work_order_number} (${daysPast}d past start)`,
               description: `WO "${wo.work_order_number}" has passed its planned start date but has not been started.\nTitle: ${wo.title}\nProject: ${wo.project_name}\nPlanned Start: ${new Date(wo.planned_start_date).toISOString().split('T')[0]}\nSupervisor: ${wo.supervisor_name || 'N/A'}\nProduction Line: ${wo.production_line || 'Not assigned'}\nDays Past Start: ${daysPast}\nagent_severity: ${severity}\n\nAction Required: Investigate delay and start production or update schedule with reason.`,
@@ -742,6 +749,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.95,
           });
@@ -782,7 +790,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Machine Idle With Pending Orders: ${row.machine_name}`,
             actionType: 'create_task',
-            rationale: `Machine idle ${row.downtime_minutes}min with pending WO.`,
+            description: `Machine idle ${row.downtime_minutes}min with pending WO.`,
             actionPayload: {
               title: `[Agent] Machine Idle With Pending Orders: ${row.machine_name} (${row.downtime_minutes}min)`,
               description: `Machine "${row.machine_name}" is idle with pending work order ${row.work_order_number}.\nDowntime: ${row.downtime_minutes} minutes\nagent_severity: ${severity}\n\nAction Required: Investigate idle reason and resume production.`,
@@ -791,6 +799,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.85,
           });
@@ -858,7 +867,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Frequent Machine Stoppage: ${row.machine_name}`,
             actionType: 'create_task',
-            rationale: `${row.stoppage_count} stoppages in 7 days — maintenance review needed.`,
+            description: `${row.stoppage_count} stoppages in 7 days — maintenance review needed.`,
             actionPayload: {
               title: `[Agent] Frequent Machine Stoppage: ${row.machine_name} (${row.stoppage_count} stops)`,
               description: `Machine "${row.machine_name}" is experiencing frequent stoppages.\nStoppages: ${row.stoppage_count} in 7 days\nTotal downtime: ${row.total_downtime} minutes\nagent_severity: ${severity}\n\nAction Required: Schedule preventive maintenance and investigate root cause.`,
@@ -867,6 +876,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.90,
           });
@@ -987,7 +997,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Low Production Yield: WO ${row.work_order_number}`,
             actionType: 'create_task',
-            rationale: `Yield at ${row.yield_pct}% — below 85% threshold.`,
+            description: `Yield at ${row.yield_pct}% — below 85% threshold.`,
             actionPayload: {
               title: `[Agent] Low Production Yield: WO ${row.work_order_number} (${row.yield_pct}%)`,
               description: `WO "${row.work_order_number}" has a yield below threshold.\nYield: ${row.yield_pct}%\nProduced: ${row.total_produced} | Rejected: ${row.total_rejected}\nProject: ${row.project_name}\nagent_severity: ${severity}\n\nAction Required: Investigate root cause of rejections and implement corrective measures.`,
@@ -996,6 +1006,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.90,
           });
@@ -1128,7 +1139,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Bottleneck Machine Detected: ${row.machine_name}`,
             actionType: 'create_task',
-            rationale: `${row.total_idle}min idle time — production bottleneck.`,
+            description: `${row.total_idle}min idle time — production bottleneck.`,
             actionPayload: {
               title: `[Agent] Bottleneck Machine Detected: ${row.machine_name} (${row.total_idle}min idle)`,
               description: `Machine "${row.machine_name}" is causing a production bottleneck.\nSetup time: ${row.total_setup}min | Downtime: ${row.total_downtime}min\nTotal idle: ${row.total_idle}min in 30 days\nagent_severity: ${severity}\n\nAction Required: Optimize setup, schedule preventive maintenance, or add parallel capacity.`,
@@ -1137,6 +1148,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.85,
           });
@@ -1186,7 +1198,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Shift Staffing Shortage: ${absentToday.length} absent`,
             actionType: 'create_task',
-            rationale: `${absentToday.length}/${totalProdStaff} production staff absent today.`,
+            description: `${absentToday.length}/${totalProdStaff} production staff absent today.`,
             actionPayload: {
               title: `[Agent] Shift Staffing Shortage: ${absentToday.length}/${totalProdStaff} Production Staff Absent`,
               description: `Production team staffing shortage detected.\nAbsent: ${absentNames}\nTotal production staff: ${totalProdStaff}\nDate: ${today}\nagent_severity: ${severity}\n\nAction Required: Arrange backup staffing or adjust production schedule.`,
@@ -1195,6 +1207,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.90,
           });
@@ -1232,7 +1245,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Supervisor Missing`,
             actionType: 'create_task',
-            rationale: `Production Manager absent — floor unsupervised.`,
+            description: `Production Manager absent — floor unsupervised.`,
             actionPayload: {
               title: `[Agent] Production Supervisor Missing: Jawahar Not Checked In (${today})`,
               description: `Production Manager Jawahar has not checked in today.\nDate: ${today}\nImpact: Production floor without direct supervision\nagent_severity: ${severity}\n\nAction Required: Assign acting production supervisor immediately.`,
@@ -1241,6 +1254,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: 'critical',
             confidence: 0.95,
           });
@@ -1358,7 +1372,7 @@ export class ProductionManagementAgent implements IAgent {
               findingId: finding.id || finding.findingId,
               title: `[Agent] DPR Missing: ${user.username}`,
               actionType: 'create_task',
-              rationale: `No DPR submitted by ${user.username} for ${yesterday}.`,
+              description: `No DPR submitted by ${user.username} for ${yesterday}.`,
               actionPayload: {
                 title: `[Agent] DPR Missing: ${user.username} (${yesterday})`,
                 description: `Production team member "${user.username}" has not submitted a Daily Production Report for ${yesterday}.\nUser was marked as present in attendance.\nagent_severity: ${severity}\n\nAction Required: Follow up with ${user.username} and ensure DPR is submitted.`,
@@ -1367,6 +1381,7 @@ export class ProductionManagementAgent implements IAgent {
                 category: `Production ${fingerprint}`,
               },
               actionCategory: 'task_creation',
+              logicType: 'rule_based',
               priority: priorityFromSeverity(severity).toLowerCase(),
               confidence: 0.95,
             });
@@ -1563,7 +1578,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Slippage Trend: ${proj.name}`,
             actionType: 'create_task',
-            rationale: `${slippagePct}% of open WOs overdue — systematic slippage.`,
+            description: `${slippagePct}% of open WOs overdue — systematic slippage.`,
             actionPayload: {
               title: `[Agent] Production Slippage Trend: ${proj.name} (${slippagePct}% overdue)`,
               description: `Project "${proj.name}" (${proj.code}) has systematic production slippage.\nOverdue: ${overdueCount}/${openCount} open WOs (${slippagePct}%)\nLate completed: ${lateCompleted}\nagent_severity: ${severity}\n\nAction Required: Conduct production schedule review meeting and reallocate resources.`,
@@ -1572,6 +1587,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.85,
           });
@@ -1673,7 +1689,7 @@ export class ProductionManagementAgent implements IAgent {
             findingId: finding.id || finding.findingId,
             title: `[Agent] Production Throughput Drop: ${dropPct}%`,
             actionType: 'create_task',
-            rationale: `Throughput declined ${dropPct}% with ${backlog} WOs in backlog.`,
+            description: `Throughput declined ${dropPct}% with ${backlog} WOs in backlog.`,
             actionPayload: {
               title: `[Agent] Production Throughput Drop (${dropPct}% decline, ${backlog} WOs backlog)`,
               description: `Production throughput has declined significantly.\nCurrent: ${currCompleted}/week | Previous: ${prevCompleted}/week\nBacklog: ${backlog} open WOs\nagent_severity: ${severity}\n\nAction Required: Investigate root cause and optimize production workflow.`,
@@ -1682,6 +1698,7 @@ export class ProductionManagementAgent implements IAgent {
               category: `Production ${fingerprint}`,
             },
             actionCategory: 'task_creation',
+            logicType: 'rule_based',
             priority: priorityFromSeverity(severity).toLowerCase(),
             confidence: 0.80,
           });
@@ -1764,7 +1781,7 @@ export class ProductionManagementAgent implements IAgent {
           SELECT id, action_type, action_payload, status FROM agent_recommendations WHERE id = ${recId}
         `);
         const rec = (rows.rows as any[])[0];
-        if (!rec || rec.status !== 'approved') continue;
+        if (!rec || (rec.status !== 'approved' && rec.status !== 'auto_approved')) continue;
 
         const payload = typeof rec.action_payload === 'string' ? JSON.parse(rec.action_payload) : rec.action_payload;
         if (!payload?.title) continue;
@@ -1792,7 +1809,7 @@ export class ProductionManagementAgent implements IAgent {
         `);
 
         await db.execute(sql`
-          UPDATE agent_recommendations SET status = 'executed', executed_at = NOW() WHERE id = ${recId}
+          UPDATE agent_recommendations SET status = 'executed', updated_at = NOW() WHERE id = ${recId}
         `);
         autoExecutedCount++;
       } catch (err: any) {
