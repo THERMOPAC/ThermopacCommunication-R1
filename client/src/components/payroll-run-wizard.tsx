@@ -94,7 +94,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
       setRunNumber(data.runNumber);
       setCurrentStep(0);
       toast({ title: 'Payroll run started', description: `Run #${data.runNumber} initiated` });
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/periods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
       refetchLog();
     },
     onError: (err: any) => {
@@ -120,8 +120,8 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
       refetchLog();
       refetchExceptions();
       refetchLocks();
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/periods'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records', period.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
     },
     onError: (err: any) => {
       toast({ title: 'Step failed', description: err.message, variant: 'destructive' });
@@ -139,7 +139,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
     },
     onSuccess: () => {
       toast({ title: 'Status updated' });
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/periods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
       refetchLocks();
     },
     onError: (err: any) => {
@@ -160,7 +160,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
       setShowResetDialog(false);
       setResetReason('');
       toast({ title: 'Run reset', description: `New run #${data.newRunNumber} ready` });
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/periods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
       refetchLog();
       refetchLocks();
     },

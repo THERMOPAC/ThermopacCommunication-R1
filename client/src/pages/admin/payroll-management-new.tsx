@@ -486,11 +486,36 @@ function GeneratedSalariesView() {
 }
 
 function PayrollRunTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: periods = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/payroll/periods'],
+    queryKey: ['/api/payroll/payroll-periods'],
   });
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+  const [showCreatePeriod, setShowCreatePeriod] = useState(false);
+  const [newPeriod, setNewPeriod] = useState({
+    periodName: '',
+    startDate: '',
+    endDate: '',
+    payDate: '',
+  });
+
+  const createPeriodMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/payroll/payroll-periods', newPeriod);
+    },
+    onSuccess: (data: any) => {
+      toast({ title: 'Period created', description: `${newPeriod.periodName} is ready` });
+      setShowCreatePeriod(false);
+      setNewPeriod({ periodName: '', startDate: '', endDate: '', payDate: '' });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+      setSelectedPeriodId(data.id);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
+  });
 
   const selectedPeriod = periods.find((p: any) => p.id === selectedPeriodId);
 
@@ -504,40 +529,39 @@ function PayrollRunTab() {
     );
   }
 
-  if (periods.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-8">
-          <div className="text-center text-gray-500">
-            No payroll periods found. Create a period in the Generated Salaries tab first.
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Select Payroll Period</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Select Payroll Period</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setShowCreatePeriod(true)}>
+              <Plus className="h-4 w-4 mr-1" /> New Period
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <Select
-            value={selectedPeriodId?.toString() || ''}
-            onValueChange={(val) => setSelectedPeriodId(parseInt(val))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a payroll period..." />
-            </SelectTrigger>
-            <SelectContent>
-              {periods.map((p: any) => (
-                <SelectItem key={p.id} value={p.id.toString()}>
-                  {p.periodName} ({p.startDate} - {p.endDate}) — {(p.status || 'draft').toUpperCase()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {periods.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">
+              No payroll periods yet. Click "New Period" to create one.
+            </div>
+          ) : (
+            <Select
+              value={selectedPeriodId?.toString() || ''}
+              onValueChange={(val) => setSelectedPeriodId(parseInt(val))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a payroll period..." />
+              </SelectTrigger>
+              <SelectContent>
+                {periods.map((p: any) => (
+                  <SelectItem key={p.id} value={p.id.toString()}>
+                    {p.periodName} ({p.startDate} - {p.endDate}) — {(p.status || 'draft').toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </CardContent>
       </Card>
 
@@ -548,6 +572,59 @@ function PayrollRunTab() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={showCreatePeriod} onOpenChange={setShowCreatePeriod}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Payroll Period</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Period Name</Label>
+              <Input
+                value={newPeriod.periodName}
+                onChange={(e) => setNewPeriod({ ...newPeriod, periodName: e.target.value })}
+                placeholder="e.g. March 2026"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={newPeriod.startDate}
+                  onChange={(e) => setNewPeriod({ ...newPeriod, startDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>End Date</Label>
+                <Input
+                  type="date"
+                  value={newPeriod.endDate}
+                  onChange={(e) => setNewPeriod({ ...newPeriod, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Pay Date</Label>
+              <Input
+                type="date"
+                value={newPeriod.payDate}
+                onChange={(e) => setNewPeriod({ ...newPeriod, payDate: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowCreatePeriod(false)}>Cancel</Button>
+            <Button
+              onClick={() => createPeriodMutation.mutate()}
+              disabled={!newPeriod.periodName || !newPeriod.startDate || !newPeriod.endDate || !newPeriod.payDate || createPeriodMutation.isPending}
+            >
+              {createPeriodMutation.isPending ? 'Creating...' : 'Create Period'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
