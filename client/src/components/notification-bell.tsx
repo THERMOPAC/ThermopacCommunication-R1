@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Bell, Check, CheckCheck, ExternalLink, Clock, CheckCircle, XCircle, ListChecks } from "lucide-react";
+import { BellRing, Check, CheckCheck, ExternalLink, Clock, CheckCircle, XCircle, ListChecks, UserPlus, Bot, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -11,12 +11,14 @@ const TYPE_ICONS: Record<string, any> = {
   approval_request: Clock,
   approval_decision: CheckCircle,
   task_completed: ListChecks,
+  task_assigned: UserPlus,
 };
 
 const TYPE_COLORS: Record<string, string> = {
   approval_request: 'text-yellow-600 bg-yellow-50',
   approval_decision: 'text-green-600 bg-green-50',
   task_completed: 'text-blue-600 bg-blue-50',
+  task_assigned: 'text-purple-600 bg-purple-50',
 };
 
 export default function NotificationBell() {
@@ -85,15 +87,32 @@ export default function NotificationBell() {
     }
   };
 
+  const getNotificationIcon = (notif: any) => {
+    if (notif.title?.toLowerCase().includes('rejected')) return XCircle;
+    if (notif.title?.toLowerCase().includes('agent')) return Bot;
+    return TYPE_ICONS[notif.type] || BellRing;
+  };
+
+  const getNotificationColor = (notif: any) => {
+    if (notif.title?.toLowerCase().includes('rejected')) return 'text-red-600 bg-red-50';
+    if (notif.title?.toLowerCase().includes('agent')) return 'text-indigo-600 bg-indigo-50';
+    return TYPE_COLORS[notif.type] || 'text-gray-600 bg-gray-50';
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(!open);
+        }}
         className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
+        title="Alerts & Notifications"
       >
-        <Bell className="h-5 w-5 text-gray-600" />
+        <BellRing className={`h-5 w-5 ${unreadCount > 0 ? 'text-orange-500' : 'text-gray-600'}`} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium animate-pulse">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -101,8 +120,14 @@ export default function NotificationBell() {
 
       {open && (
         <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-lg shadow-xl border z-50 max-h-[500px] flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-            <h3 className="font-semibold text-sm">Notifications</h3>
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-orange-50 to-white">
+            <div className="flex items-center gap-2">
+              <BellRing className="h-4 w-4 text-orange-500" />
+              <h3 className="font-semibold text-sm">Alerts</h3>
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="text-xs h-5 px-1.5">{unreadCount} new</Badge>
+              )}
+            </div>
             {unreadCount > 0 && (
               <Button
                 variant="ghost"
@@ -120,14 +145,13 @@ export default function NotificationBell() {
               <div className="p-6 text-center text-muted-foreground text-sm">Loading...</div>
             ) : notifications.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground text-sm">
-                <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                No notifications
+                <BellRing className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                No alerts yet
               </div>
             ) : (
               notifications.map((notif: any) => {
-                const Icon = TYPE_ICONS[notif.type] || Bell;
-                const colorClass = TYPE_COLORS[notif.type] || 'text-gray-600 bg-gray-50';
-                const isRejection = notif.title?.toLowerCase().includes('rejected');
+                const Icon = getNotificationIcon(notif);
+                const colorClass = getNotificationColor(notif);
 
                 return (
                   <div
@@ -136,8 +160,8 @@ export default function NotificationBell() {
                     className={`px-4 py-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 transition-colors ${!notif.isRead ? 'bg-blue-50/40' : ''}`}
                   >
                     <div className="flex gap-3">
-                      <div className={`p-1.5 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 mt-0.5 ${isRejection ? 'text-red-600 bg-red-50' : colorClass}`}>
-                        {isRejection ? <XCircle className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                      <div className={`p-1.5 rounded-full h-8 w-8 flex items-center justify-center flex-shrink-0 mt-0.5 ${colorClass}`}>
+                        <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
