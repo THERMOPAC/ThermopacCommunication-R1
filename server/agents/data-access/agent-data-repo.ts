@@ -353,14 +353,18 @@ class AgentDataRepository {
           u.reporting_manager_id,
           COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
           COUNT(*) FILTER (WHERE ar.status = 'absent') as absent_count,
-          COUNT(*) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) as incomplete_count,
+          COUNT(*) FILTER (WHERE (ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE))
+            AND NOT EXISTS(SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date)
+          ) as incomplete_count,
           COUNT(*) FILTER (WHERE ar.status = 'absent' AND NOT EXISTS(
             SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date
           )) as absent_without_leave_count,
           BOOL_OR(ar.date = CURRENT_DATE AND ar.user_id IS NULL) as today_missing,
           BOOL_OR(ar.date = CURRENT_DATE AND ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL) as today_incomplete,
           ARRAY_AGG(DISTINCT ar.date::text ORDER BY ar.date::text) FILTER (WHERE ar.status = 'absent') as absent_dates,
-          ARRAY_AGG(DISTINCT ar.date::text ORDER BY ar.date::text) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) as incomplete_dates
+          ARRAY_AGG(DISTINCT ar.date::text ORDER BY ar.date::text) FILTER (WHERE (ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE))
+            AND NOT EXISTS(SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date)
+          ) as incomplete_dates
         FROM attendance_records ar
         LEFT JOIN users u ON ar.user_id = u.id
         LEFT JOIN users m ON u.reporting_manager_id = m.id
@@ -830,7 +834,9 @@ class AgentDataRepository {
         u.reporting_manager_id,
         COALESCE(m.first_name || ' ' || COALESCE(m.last_name, ''), m.username, '') as manager_name,
         COUNT(*) FILTER (WHERE ar.status = 'absent') as total_absent,
-        COUNT(*) FILTER (WHERE ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE)) as total_incomplete,
+        COUNT(*) FILTER (WHERE (ar.is_incomplete = true OR (ar.check_in_time IS NOT NULL AND ar.check_out_time IS NULL AND ar.date < CURRENT_DATE))
+          AND NOT EXISTS(SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date)
+        ) as total_incomplete,
         COUNT(*) FILTER (WHERE ar.status = 'absent' AND NOT EXISTS(
           SELECT 1 FROM leave_requests lr WHERE lr.employee_id = ar.user_id AND lr.status = 'approved' AND lr.start_date <= ar.date AND lr.end_date >= ar.date
         )) as absent_without_leave,
