@@ -7,7 +7,7 @@ import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, inser
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getUserModulePermissions } from "./utils/permission-utils";
 import { setupGmailRoutes } from "./gmail-routes";
 import { setupGoogleAuth } from "./google-auth";
@@ -71,7 +71,7 @@ import { registerCalibrationTestRoutes } from "./calibration-test-routes";
 import agentRoutes from "./agents/agent-routes";
 import { initializeAgentSystem } from "./agents/agent-setup";
 import { db } from "./db";
-import { masterItems as masterItemsTable, projectItems as projectItemsTable, taskVerificationEvidence, taskHistory, tasks, dailyWorkReports } from "@shared/schema";
+import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
 import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
@@ -1974,237 +1974,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Task not found" });
       }
 
-      const userId = req.user!.id;
-      const userRole = req.user!.role;
-      const isHighOrCritical = task.priority === 'High' || task.priority === 'Critical';
-      const isAgentTask = task.sourceType === 'agent_task';
-      const isSelfCreatedSelfAssigned = task.createdBy === task.assignedTo && task.createdBy !== null;
-      const requiresVerification = isHighOrCritical || isAgentTask || isSelfCreatedSelfAssigned;
-
+      // Task completion and task editing are separate operations with different permissions
       const isTaskCompletion = req.body.status === 'completed';
-      const isWorkSubmission = req.body.status === 'pending_verification';
-      const isVerification = req.body.status === 'verified' || req.body.status === 'verification_rejected';
-      const isTaskEditing = !isTaskCompletion && !isWorkSubmission && !isVerification;
+      const isTaskEditing = !isTaskCompletion;
 
-      if (isWorkSubmission) {
-        if (task.assignedTo !== userId && userRole !== "Superuser") {
-          return res.status(403).json({ message: "Only the assigned user can submit work for verification" });
-        }
-        if (task.status === 'completed' || task.status === 'verified') {
-          return res.status(400).json({ message: "Task is already completed/verified" });
+      if (isTaskCompletion) {
+        // Only allow completing a task if user is the assignee or a superuser
+        if (task.assignedTo !== req.user!.id && req.user!.role !== "Superuser") {
+          return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this task" });
         }
 
-        const closureAttempts = ((task as any).closureAttempts || 0) + 1;
-        const updateData: Record<string, any> = {
-          status: 'pending_verification',
-          lastSubmittedBy: userId,
-          lastSubmittedAt: new Date().toISOString(),
-          closureAttempts: closureAttempts,
+        const updateData = {
+          status: 'completed',
+          completedAt: new Date().toISOString()
         };
 
         const updatedTask = await storage.updateTask(taskId, updateData);
         
-        await storage.createTaskHistory({
-          taskId, userId,
-          action: 'work_submitted',
-          timestamp: new Date().toISOString(),
-          oldValue: task.status,
-          newValue: 'pending_verification'
-        });
-
-        console.log(`Task ${taskId} submitted for verification by user ${userId} (attempt ${closureAttempts})`);
-        res.json(updatedTask);
-        return;
-      }
-
-      if (isVerification) {
-        if (task.status !== 'pending_verification') {
-          return res.status(400).json({ message: "Task must be in 'pending_verification' status to verify" });
-        }
-
-        if (isSelfCreatedSelfAssigned) {
-          const assigneeUser = await storage.getUser(task.assignedTo!);
-          const reportingManagerId = assigneeUser?.reportingManagerId;
-          if (!reportingManagerId) {
-            return res.status(400).json({ message: "No reporting manager configured for this user. Cannot verify self-created task." });
-          }
-          if (userId !== reportingManagerId && userRole !== "Superuser") {
-            return res.status(403).json({ 
-              message: "Self-created, self-assigned tasks can only be verified/closed by the assignee's Reporting Manager." 
-            });
-          }
-        } else {
-          if (requiresVerification && task.assignedTo === userId && userRole !== "Superuser") {
-            return res.status(403).json({ message: "High/Critical and agent tasks require independent verification — verifier cannot be the assignee" });
-          }
-          const isManager = userRole === 'Superuser' || userRole === 'General Manager' || userRole === 'Senior Manager' || userRole === 'Manager';
-          const isCreator = task.createdBy === userId;
-          if (!isManager && !isCreator && userRole !== "Superuser") {
-            return res.status(403).json({ message: "Only managers, task creator, or superusers can verify task completion" });
-          }
-        }
-
-        if (req.body.status === 'verified') {
-          const updateData: Record<string, any> = {
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-            verifiedBy: userId,
-            verifiedAt: new Date().toISOString(),
-            verificationStatus: 'verified',
-            verificationNotes: req.body.verificationNotes || '',
-          };
-
-          const updatedTask = await storage.updateTask(taskId, updateData);
-
-          await storage.createTaskHistory({
-            taskId, userId,
-            action: 'verified',
-            timestamp: new Date().toISOString(),
-            oldValue: 'pending_verification',
-            newValue: JSON.stringify({ status: 'completed', verifiedBy: userId, notes: req.body.verificationNotes || '' })
-          });
-
-          try {
-            const assigneeId = task.assignedTo || userId;
-            let productivityMetric = await storage.getProductivityMetric(assigneeId);
-            if (!productivityMetric) {
-              productivityMetric = await storage.createProductivityMetric({
-                userId: assigneeId, tasksCompleted: 1, tasksCreated: 0,
-                recommendationsAccepted: 0, averageCompletionTime: 0, onTimeCompletion: 0,
-                weeklyScore: 10, monthlyScore: 10, totalPoints: 10, lastUpdated: new Date().toISOString()
-              });
-            } else {
-              await storage.updateProductivityMetric(assigneeId, {
-                tasksCompleted: productivityMetric.tasksCompleted + 1,
-                weeklyScore: productivityMetric.weeklyScore + 10,
-                monthlyScore: productivityMetric.monthlyScore + 10,
-                totalPoints: productivityMetric.totalPoints + 10,
-                lastUpdated: new Date().toISOString()
-              });
-            }
-            await storage.checkAndAwardAchievements(assigneeId);
-          } catch (metricsErr) {
-            console.error('Error updating productivity metrics:', metricsErr);
-          }
-
-          try {
-            const today = new Date().toISOString().split('T')[0];
-            const assigneeId = task.assignedTo || userId;
-            let [todayReport] = await db.select().from(dailyWorkReports).where(and(
-              eq(dailyWorkReports.userId, assigneeId), eq(dailyWorkReports.reportDate, today)
-            ));
-            if (!todayReport) {
-              [todayReport] = await db.insert(dailyWorkReports).values({
-                userId: assigneeId, reportDate: today, activities: [], priorityTasks: [], status: 'draft'
-              }).returning();
-            }
-            const newActivity = {
-              type: 'Task Work', description: task.title, timeSpent: 1, plannedHours: 1,
-              priority: task.priority?.toLowerCase() || 'medium', status: 'completed', taskId: task.id, blockedReason: ''
-            };
-            const updatedActivities = [...(todayReport.activities || []), newActivity];
-            const totalHours = updatedActivities.reduce((sum: number, a: any) => sum + (a.timeSpent || 0), 0);
-            const completedTasks = updatedActivities.filter((a: any) => a.status === 'completed').length;
-            const inProgressTasks = updatedActivities.filter((a: any) => a.status === 'in_progress').length;
-            let productivityScore = 0;
-            if (updatedActivities.length > 0) {
-              const completedActs = updatedActivities.filter((a: any) => a.status === 'completed');
-              const avgTime = updatedActivities.reduce((sum: number, a: any) => sum + (a.timeSpent || 0), 0) / updatedActivities.length;
-              productivityScore = Math.min(100, (completedActs.length / updatedActivities.length) * 50 + Math.min(avgTime / 8, 1) * 30 + completedTasks * 5);
-            }
-            await db.update(dailyWorkReports).set({
-              activities: updatedActivities, hoursWorked: totalHours,
-              tasksCompleted: completedTasks, tasksInProgress: inProgressTasks,
-              productivityScore: Number(productivityScore.toFixed(2)), updatedAt: new Date()
-            }).where(eq(dailyWorkReports.id, todayReport.id));
-          } catch (dwarError) {
-            console.error('Error auto-creating DWAR activity:', dwarError);
-          }
-
-          console.log(`Task ${taskId} verified and completed by user ${userId}`);
-          res.json(updatedTask);
-          return;
-        }
-
-        if (req.body.status === 'verification_rejected') {
-          const closureAttempts = (task as any).closureAttempts || 0;
-          const escalateThreshold = 3;
-          const shouldEscalate = closureAttempts >= escalateThreshold;
-
-          const updateData: Record<string, any> = {
-            status: 'in_progress',
-            verificationStatus: 'rejected',
-            verificationNotes: req.body.verificationNotes || 'Verification rejected — work not satisfactory',
-            verifiedBy: userId,
-            verifiedAt: new Date().toISOString(),
-          };
-
-          const updatedTask = await storage.updateTask(taskId, updateData);
-
-          await storage.createTaskHistory({
-            taskId, userId,
-            action: 'verification_rejected',
-            timestamp: new Date().toISOString(),
-            oldValue: 'pending_verification',
-            newValue: JSON.stringify({ status: 'in_progress', rejectedBy: userId, reason: req.body.verificationNotes || '', closureAttempts, shouldEscalate })
-          });
-
-          if (shouldEscalate && isAgentTask) {
-            await storage.createTaskHistory({
-              taskId, userId: 1,
-              action: 'escalation_triggered',
-              timestamp: new Date().toISOString(),
-              oldValue: JSON.stringify({ closureAttempts }),
-              newValue: JSON.stringify({ reason: `Task submitted ${closureAttempts} times without passing verification. Escalating to management.` })
-            });
-            console.log(`Task ${taskId} ESCALATION: ${closureAttempts} failed closure attempts`);
-          }
-
-          console.log(`Task ${taskId} verification rejected by user ${userId} (attempt ${closureAttempts})`);
-          res.json(updatedTask);
-          return;
-        }
-      }
-
-      if (isTaskCompletion) {
-        if (task.assignedTo !== userId && userRole !== "Superuser") {
-          return res.status(403).json({ message: "Only the assigned user or a Superuser can complete this task" });
-        }
-
-        if (isSelfCreatedSelfAssigned) {
-          return res.status(400).json({ 
-            message: "Self-created, self-assigned tasks cannot be directly closed. Please submit for verification — your Reporting Manager will perform final closure.",
-            requiresVerification: true
-          });
-        }
-
-        if (requiresVerification) {
-          return res.status(400).json({ 
-            message: "This task requires verification before closure. Please submit for verification instead.",
-            requiresVerification: true
-          });
-        }
-
-        const updateData: Record<string, any> = {
-          status: 'completed',
-          completedAt: new Date().toISOString(),
-          verificationStatus: 'auto_verified',
-          verifiedBy: userId,
-          verifiedAt: new Date().toISOString(),
-        };
-
-        const updatedTask = await storage.updateTask(taskId, updateData);
-        console.log(`Task ${taskId} completed (auto-verified, Low/Medium priority) by user ${userId}`);
-
-        let productivityMetric = await storage.getProductivityMetric(userId);
+        console.log(`Task ${taskId} completed by user ${req.user!.id}`);
+        
+        // Update productivity metrics
+        let productivityMetric = await storage.getProductivityMetric(req.user!.id);
+        
         if (!productivityMetric) {
+          // Create new metric if it doesn't exist
           productivityMetric = await storage.createProductivityMetric({
-            userId, tasksCompleted: 1, tasksCreated: 0, recommendationsAccepted: 0,
-            averageCompletionTime: 0, onTimeCompletion: 0,
-            weeklyScore: 10, monthlyScore: 10, totalPoints: 10, lastUpdated: new Date().toISOString()
+            userId: req.user!.id,
+            tasksCompleted: 1,
+            tasksCreated: 0,
+            recommendationsAccepted: 0,
+            averageCompletionTime: 0,
+            onTimeCompletion: 0,
+            weeklyScore: 10, // Initial score for completing a task
+            monthlyScore: 10, // Initial score for completing a task
+            totalPoints: 10, // Initial points for completing a task
+            lastUpdated: new Date().toISOString()
           });
         } else {
-          await storage.updateProductivityMetric(userId, {
+          // Update existing metric
+          productivityMetric = await storage.updateProductivityMetric(req.user!.id, {
             tasksCompleted: productivityMetric.tasksCompleted + 1,
             weeklyScore: productivityMetric.weeklyScore + 10,
             monthlyScore: productivityMetric.monthlyScore + 10,
@@ -2212,60 +2020,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastUpdated: new Date().toISOString()
           });
         }
-        await storage.checkAndAwardAchievements(userId);
-
+        
+        // Check and award achievements
+        await storage.checkAndAwardAchievements(req.user!.id);
+        
+        // Add task history entry
         await storage.createTaskHistory({
-          taskId, userId,
+          taskId: taskId,
+          userId: req.user!.id,
           action: 'status_changed',
           timestamp: new Date().toISOString(),
           oldValue: task.status || 'pending',
           newValue: 'completed'
         });
 
+        // Auto-create DWAR activity for completed task
         try {
           const today = new Date().toISOString().split('T')[0];
-          let [todayReport] = await db.select().from(dailyWorkReports).where(and(
-            eq(dailyWorkReports.userId, userId), eq(dailyWorkReports.reportDate, today)
-          ));
+          
+          // Get or create today's DWAR
+          let [todayReport] = await db
+            .select()
+            .from(dailyWorkReports)
+            .where(and(
+              eq(dailyWorkReports.userId, req.user!.id),
+              eq(dailyWorkReports.reportDate, today)
+            ));
+
           if (!todayReport) {
-            [todayReport] = await db.insert(dailyWorkReports).values({
-              userId, reportDate: today, activities: [], priorityTasks: [], status: 'draft'
-            }).returning();
+            [todayReport] = await db
+              .insert(dailyWorkReports)
+              .values({
+                userId: req.user!.id,
+                reportDate: today,
+                activities: [],
+                priorityTasks: [],
+                status: 'draft'
+              })
+              .returning();
           }
+
+          // Create activity from completed task
           const newActivity = {
-            type: 'Task Work', description: task.title, timeSpent: 1, plannedHours: 1,
-            priority: task.priority?.toLowerCase() || 'medium', status: 'completed', taskId: task.id, blockedReason: ''
+            type: 'Task Work',
+            description: task.title,
+            timeSpent: 1, // Default 1 hour
+            plannedHours: 1,
+            priority: task.priority?.toLowerCase() || 'medium',
+            status: 'completed',
+            taskId: task.id,
+            blockedReason: ''
           };
+
           const updatedActivities = [...(todayReport.activities || []), newActivity];
-          const totalHours = updatedActivities.reduce((sum: number, a: any) => sum + (a.timeSpent || 0), 0);
-          const completedTasks = updatedActivities.filter((a: any) => a.status === 'completed').length;
-          const inProgressTasks = updatedActivities.filter((a: any) => a.status === 'in_progress').length;
+          const totalHours = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
+          const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
+          const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
+
+          // Calculate productivity score
           let productivityScore = 0;
           if (updatedActivities.length > 0) {
-            const completedActs = updatedActivities.filter((a: any) => a.status === 'completed');
-            const avgTime = updatedActivities.reduce((sum: number, a: any) => sum + (a.timeSpent || 0), 0) / updatedActivities.length;
-            productivityScore = Math.min(100, (completedActs.length / updatedActivities.length) * 50 + Math.min(avgTime / 8, 1) * 30 + completedTasks * 5);
+            const completedActivities = updatedActivities.filter(a => a.status === 'completed');
+            const totalActivities = updatedActivities.length;
+            const avgTimeSpent = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / totalActivities;
+            
+            productivityScore = (completedActivities.length / totalActivities) * 50 + 
+                               Math.min(avgTimeSpent / 8, 1) * 30 + 
+                               completedTasks * 5;
+            productivityScore = Math.min(productivityScore, 100);
           }
-          await db.update(dailyWorkReports).set({
-            activities: updatedActivities, hoursWorked: totalHours,
-            tasksCompleted: completedTasks, tasksInProgress: inProgressTasks,
-            productivityScore: Number(productivityScore.toFixed(2)), updatedAt: new Date()
-          }).where(eq(dailyWorkReports.id, todayReport.id));
+
+          // Update DWAR with new activity
+          await db
+            .update(dailyWorkReports)
+            .set({
+              activities: updatedActivities,
+              hoursWorked: totalHours,
+              tasksCompleted: completedTasks,
+              tasksInProgress: inProgressTasks,
+              productivityScore: Number(productivityScore.toFixed(2)),
+              updatedAt: new Date()
+            })
+            .where(eq(dailyWorkReports.id, todayReport.id));
+
+          console.log(`Auto-created DWAR activity for completed task ${taskId}`);
         } catch (dwarError) {
           console.error('Error auto-creating DWAR activity:', dwarError);
+          // Don't fail the task completion if DWAR update fails
         }
-
+        
         res.json(updatedTask);
         return;
       }
       
       if (isTaskEditing) {
-        if (task.createdBy !== userId && userRole !== "Superuser") {
+        // Only allow editing a task if user is the creator or a superuser
+        if (task.createdBy !== req.user!.id && req.user!.role !== "Superuser") {
           return res.status(403).json({ 
             message: "Only the task creator or a Superuser can edit this task"
           });
         }
-
+        
+        // Prepare task update data (only allowed fields)
         const allowedFields = ['title', 'description', 'priority', 'finishDate', 'assignedTo'];
         const updateData: Record<string, any> = {};
         
@@ -2274,10 +2130,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             updateData[field] = req.body[field];
           }
         }
-
+        
+        // If assignee is being changed, log it in task history
         if ('assignedTo' in updateData && updateData.assignedTo !== task.assignedTo) {
           await storage.createTaskHistory({
-            taskId, userId,
+            taskId: taskId,
+            userId: req.user!.id,
             action: 'assignee_changed',
             timestamp: new Date().toISOString(),
             oldValue: JSON.stringify({ assignedTo: task.assignedTo }),
@@ -2286,7 +2144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const updatedTask = await storage.updateTask(taskId, updateData);
-        console.log(`Task ${taskId} edited by user ${userId}`);
+        console.log(`Task ${taskId} edited by user ${req.user!.id}`);
         
         res.json(updatedTask);
         return;
@@ -2298,80 +2156,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: error instanceof Error ? error.message : "Failed to update task" 
       });
-    }
-  });
-
-  app.post("/api/tasks/:id/evidence", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) return res.sendStatus(401);
-      const taskId = parseInt(req.params.id);
-      const task = await storage.getTask(taskId);
-      if (!task) return res.status(404).json({ message: "Task not found" });
-
-      const { evidenceType, evidenceDescription, fileUrl, fileName, linkedEntityType, linkedEntityId } = req.body;
-      if (!evidenceType || !evidenceDescription) {
-        return res.status(400).json({ message: "evidenceType and evidenceDescription are required" });
-      }
-
-      const [evidence] = await db.insert(taskVerificationEvidence).values({
-        taskId, submittedBy: req.user!.id, evidenceType, evidenceDescription,
-        fileUrl: fileUrl || null, fileName: fileName || null,
-        linkedEntityType: linkedEntityType || null, linkedEntityId: linkedEntityId || null,
-        createdAt: new Date().toISOString(),
-      }).returning();
-
-      await storage.createTaskHistory({
-        taskId, userId: req.user!.id,
-        action: 'evidence_submitted',
-        timestamp: new Date().toISOString(),
-        oldValue: null,
-        newValue: JSON.stringify({ evidenceId: evidence.id, evidenceType, evidenceDescription })
-      });
-
-      res.json(evidence);
-    } catch (error) {
-      console.error('Error adding evidence:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to add evidence" });
-    }
-  });
-
-  app.get("/api/tasks/:id/evidence", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) return res.sendStatus(401);
-      const taskId = parseInt(req.params.id);
-      const evidence = await db.select().from(taskVerificationEvidence)
-        .where(eq(taskVerificationEvidence.taskId, taskId))
-        .orderBy(taskVerificationEvidence.createdAt);
-      res.json(evidence);
-    } catch (error) {
-      console.error('Error fetching evidence:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch evidence" });
-    }
-  });
-
-  app.get("/api/tasks/:id/verification-history", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) return res.sendStatus(401);
-      const taskId = parseInt(req.params.id);
-      const history = await db.select().from(taskHistory)
-        .where(eq(taskHistory.taskId, taskId))
-        .orderBy(taskHistory.timestamp);
-      res.json(history);
-    } catch (error) {
-      console.error('Error fetching verification history:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch verification history" });
-    }
-  });
-
-  app.get("/api/tasks/pending-verification", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) return res.sendStatus(401);
-      const pendingTasks = await db.select().from(tasks)
-        .where(eq(tasks.status, 'pending_verification'));
-      res.json(pendingTasks);
-    } catch (error) {
-      console.error('Error fetching pending verification tasks:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch tasks" });
     }
   });
 

@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward, Search, Filter, X, ShieldCheck, ShieldAlert, ClipboardCheck, AlertTriangle, FileText, Send } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward, Search, Filter, X } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -155,74 +155,33 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     return assignee ? assignee.username : 'Unknown';
   };
 
-  const [verificationDialog, setVerificationDialog] = useState<{taskId: number, mode: 'submit' | 'verify' | 'reject'} | null>(null);
-  const [verificationNotes, setVerificationNotes] = useState('');
-  const [evidenceDescription, setEvidenceDescription] = useState('');
-  const [evidenceType, setEvidenceType] = useState('completion_note');
-
+  // Mutation for completing tasks
   const completeTaskMutation = useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
       try {
         const status = completed ? "completed" : "pending";
+        // Use our enhanced apiRequest that handles empty responses better
         return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
-      } catch (error: any) {
-        if (error?.message?.includes('requiresVerification') || error?.message?.includes('require verification') || error?.message?.includes('submit for verification') || error?.message?.includes('Self-created')) {
-          setTaskToComplete(null);
-          setVerificationDialog({ taskId, mode: 'submit' });
-          throw new Error('REDIRECT_TO_VERIFICATION');
-        }
+      } catch (error) {
+        console.error("Task completion error:", error);
         throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Success", description: "Task status updated" });
-      setTaskToComplete(null);
-    },
-    onError: (error: Error) => {
-      if (error.message === 'REDIRECT_TO_VERIFICATION') return;
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      setTaskToComplete(null);
-    },
-  });
-
-  const submitForVerificationMutation = useMutation({
-    mutationFn: async ({ taskId, evidenceDesc, evidType }: { taskId: number; evidenceDesc: string; evidType: string }) => {
-      if (evidenceDesc.trim()) {
-        await apiRequest("POST", `/api/tasks/${taskId}/evidence`, {
-          evidenceType: evidType,
-          evidenceDescription: evidenceDesc,
-        });
-      }
-      return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status: 'pending_verification' });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      toast({ title: "Submitted", description: "Task submitted for verification" });
-      setVerificationDialog(null);
-      setVerificationNotes('');
-      setEvidenceDescription('');
-    },
-    onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const verifyTaskMutation = useMutation({
-    mutationFn: async ({ taskId, status, notes }: { taskId: number; status: 'verified' | 'verification_rejected'; notes: string }) => {
-      return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status, verificationNotes: notes });
-    },
-    onSuccess: (_, variables) => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
-        title: variables.status === 'verified' ? "Verified" : "Rejected",
-        description: variables.status === 'verified' ? "Task verified and completed" : "Task sent back for rework",
+        title: "Success",
+        description: "Task status updated",
       });
-      setVerificationDialog(null);
-      setVerificationNotes('');
+      setTaskToComplete(null);  // Reset the task completion state
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setTaskToComplete(null);  // Reset on error too
     },
   });
 
@@ -462,14 +421,6 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                       onClick={() => setFilterStatus(prev => prev === 'in_progress' ? null : 'in_progress')}
                     >
                       In Progress
-                    </Button>
-                    <Button 
-                      variant={filterStatus === 'pending_verification' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setFilterStatus(prev => prev === 'pending_verification' ? null : 'pending_verification')}
-                      className={filterStatus === 'pending_verification' ? 'bg-amber-600' : ''}
-                    >
-                      Pending Verification
                     </Button>
                   </div>
                 </div>
@@ -732,98 +683,28 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                       <TableCell>{getAssigneeName(task.assignedTo)}</TableCell>
                       <TableCell>
                         <Badge 
-                          variant={task.status === 'completed' ? 'default' : task.status === 'pending_verification' ? 'secondary' : 'outline'} 
-                          className={`capitalize ${task.status === 'pending_verification' ? 'bg-amber-100 text-amber-800 border-amber-300' : ''} ${(task as any).verificationStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-300' : ''}`}
+                          variant={task.status === 'completed' ? 'default' : 'outline'} 
+                          className="capitalize"
                         >
-                          {task.status === 'pending_verification' ? 'Pending Verification' : task.status}
+                          {task.status}
                         </Badge>
-                        {task.createdBy === task.assignedTo && task.createdBy !== null && task.status !== 'completed' && (
-                          <Badge variant="outline" className="ml-1 text-xs bg-purple-50 text-purple-700 border-purple-300">
-                            Self-assigned
-                          </Badge>
-                        )}
-                        {(task as any).closureAttempts > 1 && task.status !== 'completed' && (
-                          <Badge variant="outline" className="ml-1 text-xs bg-orange-50 text-orange-700 border-orange-300">
-                            Attempt {(task as any).closureAttempts}
-                          </Badge>
-                        )}
-                        {(task as any).verificationStatus === 'verified' && (
-                          <Badge variant="outline" className="ml-1 text-xs bg-green-50 text-green-700 border-green-300">
-                            <ShieldCheck className="h-3 w-3 mr-1" />Verified
-                          </Badge>
-                        )}
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                          const isHighOrCritical = task.priority === 'High' || task.priority === 'Critical';
-                          const isAgentTask = task.sourceType === 'agent_task';
-                          const isSelfCreatedSelfAssigned = task.createdBy === task.assignedTo && task.createdBy !== null;
-                          const requiresVerification = isHighOrCritical || isAgentTask || isSelfCreatedSelfAssigned;
-                          const isAssignee = task.assignedTo === user?.id;
-                          const isManager = user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Manager';
-                          const isCreator = task.createdBy === user?.id;
-
-                          const assigneeUser = allUsers.find(u => u.id === task.assignedTo);
-                          const isReportingManager = assigneeUser?.reportingManagerId === user?.id;
-
-                          if (task.status === 'completed') {
-                            return <CheckCircle className="h-5 w-5 text-green-500" />;
-                          }
-
-                          if (task.status === 'pending_verification') {
-                            if (isSelfCreatedSelfAssigned) {
-                              if (isReportingManager || user?.role === 'Superuser') {
-                                return (
-                                  <div className="flex gap-1">
-                                    <Button variant="ghost" size="icon" title="Verify & Close (Reporting Manager)"
-                                      onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'verify' }); setVerificationNotes(''); }}>
-                                      <ShieldCheck className="h-5 w-5 text-green-600" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" title="Reject & Send Back"
-                                      onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'reject' }); setVerificationNotes(''); }}>
-                                      <ShieldAlert className="h-5 w-5 text-red-500" />
-                                    </Button>
-                                  </div>
-                                );
-                              }
-                              return <ClipboardCheck className="h-5 w-5 text-amber-500" title="Awaiting Reporting Manager verification" />;
-                            }
-
-                            if ((isManager || isCreator) && !(requiresVerification && isAssignee && user?.role !== 'Superuser')) {
-                              return (
-                                <div className="flex gap-1">
-                                  <Button variant="ghost" size="icon" title="Verify & Complete"
-                                    onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'verify' }); setVerificationNotes(''); }}>
-                                    <ShieldCheck className="h-5 w-5 text-green-600" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" title="Reject & Send Back"
-                                    onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'reject' }); setVerificationNotes(''); }}>
-                                    <ShieldAlert className="h-5 w-5 text-red-500" />
-                                  </Button>
-                                </div>
-                              );
-                            }
-                            return <ClipboardCheck className="h-5 w-5 text-amber-500" title="Awaiting verification" />;
-                          }
-
-                          if (requiresVerification && isAssignee) {
-                            return (
-                              <Button variant="ghost" size="icon" title={isSelfCreatedSelfAssigned ? "Submit for Reporting Manager Verification" : "Submit for Verification"}
-                                onClick={() => { setVerificationDialog({ taskId: task.id, mode: 'submit' }); setEvidenceDescription(''); }}
-                                disabled={submitForVerificationMutation.isPending}>
-                                <Send className="h-5 w-5 text-blue-600" />
-                              </Button>
-                            );
-                          }
-
-                          return (
-                            <Button variant="ghost" size="icon"
-                              onClick={() => setTaskToComplete({ id: task.id, completing: true })}
-                              disabled={completeTaskMutation.isPending}>
-                              <Circle className="h-5 w-5" />
-                            </Button>
-                          );
-                        })()}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setTaskToComplete({
+                            id: task.id,
+                            completing: task.status !== 'completed'
+                          })}
+                          disabled={completeTaskMutation.isPending}
+                        >
+                          {task.status === 'completed' ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <Circle className="h-5 w-5" />
+                          )}
+                        </Button>
                       </TableCell>
                       <TableCell>
                         <ForwardTaskDialog task={task} />
@@ -837,6 +718,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
         ))}
       </Card>
 
+      {/* Confirmation Dialog */}
       <AlertDialog 
         open={taskToComplete !== null}
         onOpenChange={(open) => !open && setTaskToComplete(null)}
@@ -867,168 +749,6 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={verificationDialog?.mode === 'submit'} onOpenChange={(open) => !open && setVerificationDialog(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-600" />
-              Submit Work for Verification
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>
-                  {(() => {
-                    const vTask = tasks.find(t => t.id === verificationDialog?.taskId);
-                    if (vTask && vTask.createdBy === vTask.assignedTo && vTask.createdBy !== null) {
-                      return "This is a self-created, self-assigned task. Your Reporting Manager must perform final verification and closure.";
-                    }
-                    return "This task requires independent verification before it can be marked as completed. A manager or the task creator will review your work.";
-                  })()}
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Evidence Type</label>
-              <Select value={evidenceType} onValueChange={setEvidenceType}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="completion_note">Completion Note</SelectItem>
-                  <SelectItem value="inspection_record">Inspection Record</SelectItem>
-                  <SelectItem value="test_result">Test Result</SelectItem>
-                  <SelectItem value="photo_evidence">Photo Evidence</SelectItem>
-                  <SelectItem value="document_reference">Document Reference</SelectItem>
-                  <SelectItem value="system_check">System Check</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Evidence / Completion Notes</label>
-              <Textarea
-                className="mt-1"
-                placeholder="Describe the work completed, attach references, or provide evidence..."
-                value={evidenceDescription}
-                onChange={(e) => setEvidenceDescription(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setVerificationDialog(null)}>Cancel</Button>
-              <Button 
-                onClick={() => {
-                  if (verificationDialog) {
-                    submitForVerificationMutation.mutate({
-                      taskId: verificationDialog.taskId,
-                      evidenceDesc: evidenceDescription,
-                      evidType: evidenceType,
-                    });
-                  }
-                }}
-                disabled={submitForVerificationMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                Submit for Verification
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={verificationDialog?.mode === 'verify'} onOpenChange={(open) => !open && setVerificationDialog(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-green-600" />
-              Verify Task Completion
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
-              Confirm that the work has been satisfactorily completed. This will mark the task as verified and completed.
-            </div>
-            <div>
-              <label className="text-sm font-medium">Verification Notes (optional)</label>
-              <Textarea
-                className="mt-1"
-                placeholder="Add any notes about the verification..."
-                value={verificationNotes}
-                onChange={(e) => setVerificationNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setVerificationDialog(null)}>Cancel</Button>
-              <Button 
-                onClick={() => {
-                  if (verificationDialog) {
-                    verifyTaskMutation.mutate({
-                      taskId: verificationDialog.taskId,
-                      status: 'verified',
-                      notes: verificationNotes,
-                    });
-                  }
-                }}
-                disabled={verifyTaskMutation.isPending}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <ShieldCheck className="h-4 w-4 mr-2" />
-                Verify & Complete
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={verificationDialog?.mode === 'reject'} onOpenChange={(open) => !open && setVerificationDialog(null)}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="h-5 w-5 text-red-500" />
-              Reject Verification
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
-              The task will be sent back to the assignee for rework. Please explain what needs to be corrected.
-            </div>
-            <div>
-              <label className="text-sm font-medium">Rejection Reason *</label>
-              <Textarea
-                className="mt-1"
-                placeholder="Explain what needs to be corrected or why the work is not satisfactory..."
-                value={verificationNotes}
-                onChange={(e) => setVerificationNotes(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setVerificationDialog(null)}>Cancel</Button>
-              <Button 
-                onClick={() => {
-                  if (verificationDialog && verificationNotes.trim()) {
-                    verifyTaskMutation.mutate({
-                      taskId: verificationDialog.taskId,
-                      status: 'verification_rejected',
-                      notes: verificationNotes,
-                    });
-                  }
-                }}
-                disabled={verifyTaskMutation.isPending || !verificationNotes.trim()}
-                variant="destructive"
-              >
-                <ShieldAlert className="h-4 w-4 mr-2" />
-                Reject & Send Back
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
