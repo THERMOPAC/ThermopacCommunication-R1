@@ -16,9 +16,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Plus, Clock, CheckCircle, XCircle, AlertCircle, MapPin,
   Calendar, FileText, Eye, Trash2, ClipboardCheck, History,
-  ExternalLink, User, ArrowLeft
+  ExternalLink, User, ArrowLeft, CalendarX, AlertTriangle
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, getMonth, getYear } from "date-fns";
 import { useLocation } from "wouter";
 
 const REQUEST_TYPE_LABELS: Record<string, string> = {
@@ -81,6 +81,17 @@ export default function AttendanceRegularizationPage() {
   });
   const [approveRemarks, setApproveRemarks] = useState('');
   const [rejectReason, setRejectReason] = useState('');
+
+  const now = new Date();
+  const { data: absentDays = [], isLoading: loadingAbsent } = useQuery<any[]>({
+    queryKey: ['/api/attendance/regularization/absent-days', now.getMonth() + 1, now.getFullYear()],
+    queryFn: async () => {
+      const res = await fetch(`/api/attendance/regularization/absent-days?month=${now.getMonth() + 1}&year=${now.getFullYear()}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json();
+    },
+    enabled: showNewDialog,
+  });
 
   const { data: myRequests = [], isLoading: loadingMy } = useQuery<any[]>({
     queryKey: ['/api/attendance/regularization/my-requests', filterStatus],
@@ -502,19 +513,78 @@ export default function AttendanceRegularizationPage() {
       </Tabs>
 
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New Regularization Request</DialogTitle>
-            <DialogDescription>Submit a request to correct your attendance record</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-blue-600" />
+              New Regularization Request
+            </DialogTitle>
+            <DialogDescription>Select an absent day to submit a correction request</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Affected Date *</Label>
+            {absentDays.length > 0 && (
+              <div>
+                <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                  <CalendarX className="h-4 w-4 text-red-500" />
+                  Absent Days This Month ({absentDays.length})
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                  {absentDays.map((day: any) => {
+                    const isSelected = newRequest.requestDate === day.date;
+                    const reasonIcon = day.reason.includes('Missing check-in') ? 'missed_checkin'
+                      : day.reason.includes('Missing check-out') ? 'missed_checkout'
+                      : 'full_day_regularization';
+                    return (
+                      <div
+                        key={day.date}
+                        onClick={() => {
+                          const suggestedType = day.reason.includes('Missing check-in') ? 'missed_checkin'
+                            : day.reason.includes('Missing check-out') ? 'missed_checkout'
+                            : 'full_day_regularization';
+                          setNewRequest({ ...newRequest, requestDate: day.date, requestType: suggestedType });
+                        }}
+                        className={`cursor-pointer border rounded-lg p-3 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-sm">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</p>
+                            <p className="text-xs text-muted-foreground">{day.dayName}</p>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {day.reason}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {loadingAbsent && (
+              <div className="text-center py-4 text-muted-foreground text-sm">Loading absent days...</div>
+            )}
+            {!loadingAbsent && absentDays.length === 0 && (
+              <div className="text-center py-4 bg-green-50 rounded-lg">
+                <CheckCircle className="h-8 w-8 mx-auto text-green-500 mb-1" />
+                <p className="text-sm text-green-700 font-medium">No absent days this month!</p>
+                <p className="text-xs text-green-600">You can still submit a request for outdoor duty using the date picker below.</p>
+              </div>
+            )}
+            <div className="border-t pt-3">
+              <Label className="text-sm text-muted-foreground">Or enter a date manually</Label>
               <Input
                 type="date"
                 value={newRequest.requestDate}
                 onChange={(e) => setNewRequest({ ...newRequest, requestDate: e.target.value })}
                 max={format(new Date(), 'yyyy-MM-dd')}
+                className="mt-1"
               />
             </div>
             <div>

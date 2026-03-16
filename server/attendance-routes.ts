@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays } from '@shared/schema';
 import { createNotification } from './notification-routes';
 import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
@@ -849,6 +849,112 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
   } catch (error: any) {
     console.error('Error creating regularization:', error);
     res.status(500).json({ error: 'Failed to create regularization request' });
+  }
+});
+
+router.get('/regularization/absent-days', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { month, year } = req.query;
+    const now = new Date();
+    const targetMonth = month ? parseInt(month as string) - 1 : now.getMonth();
+    const targetYear = year ? parseInt(year as string) : now.getFullYear();
+
+    const firstDay = new Date(targetYear, targetMonth, 1);
+    const lastDay = new Date(targetYear, targetMonth + 1, 0);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const endDate = lastDay < today ? lastDay : today;
+    const startStr = firstDay.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+
+    const existingRecords = await db
+      .select({ date: attendanceRecords.date, status: attendanceRecords.status, checkInTime: attendanceRecords.checkInTime, checkOutTime: attendanceRecords.checkOutTime })
+      .from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, user.id),
+        gte(attendanceRecords.date, startStr),
+        lte(attendanceRecords.date, endStr)
+      ));
+
+    const attendanceMap = new Map<string, any>();
+    for (const rec of existingRecords) {
+      attendanceMap.set(rec.date, rec);
+    }
+
+    const approvedLeaves = await db
+      .select({ startDate: leaveRequests.startDate, endDate: leaveRequests.endDate })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, user.id),
+        eq(leaveRequests.status, 'approved'),
+        lte(leaveRequests.startDate, endStr),
+        gte(leaveRequests.endDate, startStr)
+      ));
+
+    const leaveDates = new Set<string>();
+    for (const leave of approvedLeaves) {
+      const ls = new Date(leave.startDate);
+      const le = new Date(leave.endDate);
+      for (let d = new Date(ls); d <= le; d.setDate(d.getDate() + 1)) {
+        leaveDates.add(d.toISOString().split('T')[0]);
+      }
+    }
+
+    const holidays = await db
+      .select({ date: companyHolidays.date })
+      .from(companyHolidays)
+      .where(and(
+        gte(companyHolidays.date, startStr),
+        lte(companyHolidays.date, endStr)
+      ));
+    const holidayDates = new Set(holidays.map(h => h.date));
+
+    const pendingRegs = await db
+      .select({ requestDate: attendanceRegularizations.requestDate })
+      .from(attendanceRegularizations)
+      .where(and(
+        eq(attendanceRegularizations.userId, user.id),
+        eq(attendanceRegularizations.status, 'pending'),
+        gte(attendanceRegularizations.requestDate, startStr),
+        lte(attendanceRegularizations.requestDate, endStr)
+      ));
+    const pendingRegDates = new Set(pendingRegs.map(r => r.requestDate));
+
+    const [userRecord] = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, user.id));
+    const weeklyOff = new Set<number>(userRecord?.weeklyOffDays || [0]);
+
+    const absentDays: Array<{ date: string; dayName: string; reason: string }> = [];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    for (let d = new Date(firstDay); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfWeek = d.getDay();
+
+      if (weeklyOff.has(dayOfWeek)) continue;
+      if (holidayDates.has(dateStr)) continue;
+      if (leaveDates.has(dateStr)) continue;
+      if (pendingRegDates.has(dateStr)) continue;
+
+      const record = attendanceMap.get(dateStr);
+      if (!record) {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No attendance record' });
+      } else if (record.status === 'absent') {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Marked absent' });
+      } else if (!record.checkInTime && !record.checkOutTime) {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No check-in or check-out' });
+      } else if (!record.checkInTime) {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Missing check-in' });
+      } else if (!record.checkOutTime) {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Missing check-out' });
+      }
+    }
+
+    res.json(absentDays);
+  } catch (error) {
+    console.error('Error fetching absent days:', error);
+    res.status(500).json({ error: 'Failed to fetch absent days' });
   }
 });
 
