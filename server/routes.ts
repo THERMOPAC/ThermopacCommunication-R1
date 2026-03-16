@@ -57,7 +57,7 @@ import { default as llmRoutes } from "./llm-routes";
 import { default as attendanceRoutes } from "./attendance-routes";
 import { default as dwarRoutes } from "./dwar-routes";
 import { default as leaveRoutes } from "./leave-routes";
-import { default as payrollRoutes } from "./payroll-routes-simple";
+import { default as payrollRoutes } from "./payroll-routes";
 import { default as salaryCalculationRoutes } from "./salary-calculation-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
 import { setupCleanPaymentCreation } from "./clean-payment-creation";
