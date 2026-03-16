@@ -743,7 +743,7 @@ class AgentDataRepository {
   async getDWARQualityScores(): Promise<Array<{
     userId: number; employeeName: string; managerName: string; managerId: number | null;
     totalDwars: number; completeCount: number; weakCount: number; poorCount: number; emptyCount: number;
-    avgScore: number;
+    noActivitiesCount: number; noTomorrowPlansCount: number; avgScore: number;
   }>> {
     const rows = await db.execute(sql`
       WITH active_users AS (
@@ -757,27 +757,32 @@ class AgentDataRepository {
       ),
       scored AS (
         SELECT d.user_id,
-          LENGTH(COALESCE(d.challenges,'')) + LENGTH(COALESCE(d.tomorrow_plans,'')) + LENGTH(COALESCE(d.issues_encountered,'')) + LENGTH(COALESCE(d.support_required,'')) as total_len,
-          CASE WHEN d.challenges IS NOT NULL AND d.challenges != '' THEN 1 ELSE 0 END +
-          CASE WHEN d.tomorrow_plans IS NOT NULL AND d.tomorrow_plans != '' THEN 1 ELSE 0 END +
-          CASE WHEN d.issues_encountered IS NOT NULL AND d.issues_encountered != '' THEN 1 ELSE 0 END +
-          CASE WHEN d.support_required IS NOT NULL AND d.support_required != '' THEN 1 ELSE 0 END as fields_filled,
+          COALESCE(jsonb_array_length(d.activities), 0) as activity_count,
+          LENGTH(COALESCE(d.challenges,'')) + LENGTH(COALESCE(d.tomorrow_plans,'')) + LENGTH(COALESCE(d.issues_encountered,'')) + LENGTH(COALESCE(d.support_required,'')) as reflection_len,
+          CASE WHEN COALESCE(jsonb_array_length(d.activities), 0) > 0 THEN 1 ELSE 0 END as has_activities,
+          CASE WHEN d.tomorrow_plans IS NOT NULL AND d.tomorrow_plans != '' THEN 1 ELSE 0 END as has_tomorrow_plans,
+          CASE WHEN d.challenges IS NOT NULL AND d.challenges != '' THEN 1 ELSE 0 END as has_challenges,
+          CASE WHEN d.issues_encountered IS NOT NULL AND d.issues_encountered != '' THEN 1 ELSE 0 END as has_issues,
+          CASE WHEN d.support_required IS NOT NULL AND d.support_required != '' THEN 1 ELSE 0 END as has_support,
+          CASE WHEN COALESCE(jsonb_array_length(d.priority_tasks), 0) > 0 THEN 1 ELSE 0 END as has_priority_tasks,
           d.status
         FROM daily_work_reports d
         WHERE d.report_date::date >= CURRENT_DATE - 7
       ),
       classified AS (
         SELECT user_id,
+          has_activities, has_tomorrow_plans,
+          has_activities + has_tomorrow_plans + has_challenges + has_issues + has_support + has_priority_tasks as fields_filled,
           CASE
-            WHEN status = 'draft' AND total_len < 10 THEN 'empty'
-            WHEN total_len < 30 OR fields_filled <= 1 THEN 'poor'
-            WHEN total_len < 80 OR fields_filled <= 2 THEN 'weak'
+            WHEN status = 'draft' AND activity_count = 0 AND reflection_len < 10 THEN 'empty'
+            WHEN activity_count = 0 THEN 'poor'
+            WHEN has_tomorrow_plans = 0 OR (activity_count <= 1 AND reflection_len < 30) THEN 'weak'
             ELSE 'complete'
           END as quality,
           CASE
-            WHEN status = 'draft' AND total_len < 10 THEN 0
-            WHEN total_len < 30 OR fields_filled <= 1 THEN 25
-            WHEN total_len < 80 OR fields_filled <= 2 THEN 50
+            WHEN status = 'draft' AND activity_count = 0 AND reflection_len < 10 THEN 0
+            WHEN activity_count = 0 THEN 20
+            WHEN has_tomorrow_plans = 0 OR (activity_count <= 1 AND reflection_len < 30) THEN 50
             ELSE 100
           END as score
         FROM scored
@@ -788,6 +793,8 @@ class AgentDataRepository {
         COUNT(*) FILTER (WHERE c.quality = 'weak') as weak_count,
         COUNT(*) FILTER (WHERE c.quality = 'poor') as poor_count,
         COUNT(*) FILTER (WHERE c.quality = 'empty') as empty_count,
+        COUNT(*) FILTER (WHERE c.has_activities = 0) as no_activities_count,
+        COUNT(*) FILTER (WHERE c.has_tomorrow_plans = 0) as no_tomorrow_plans_count,
         COALESCE(AVG(c.score), 0) as avg_score
       FROM active_users au
       LEFT JOIN classified c ON au.id = c.user_id
@@ -806,6 +813,8 @@ class AgentDataRepository {
       weakCount: Number(r.weak_count || 0),
       poorCount: Number(r.poor_count || 0),
       emptyCount: Number(r.empty_count || 0),
+      noActivitiesCount: Number(r.no_activities_count || 0),
+      noTomorrowPlansCount: Number(r.no_tomorrow_plans_count || 0),
       avgScore: Math.round(Number(r.avg_score || 0)),
     }));
   }
