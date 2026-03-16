@@ -1956,6 +1956,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Creating new task:', taskData);
       const task = await storage.createTask(taskData);
       console.log('Created task:', task);
+
+      if (task.assignedTo && task.assignedTo !== req.user!.id) {
+        const { createNotification } = await import('./notification-routes');
+        await createNotification({
+          userId: task.assignedTo,
+          type: 'task_assigned',
+          title: `New Task Assigned: ${task.title}`,
+          message: `A new task has been assigned to you by ${req.user!.fullName || req.user!.username}: "${task.title}"`,
+          link: '/tasks',
+          sourceType: 'task',
+          sourceId: task.id,
+          createdBy: req.user!.id,
+        });
+      }
+
       res.status(201).json(task);
     } catch (error) {
       console.error('Error creating task:', error);
@@ -2333,6 +2348,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const task = await storage.createTask(taskData);
           createdTasks.push(task);
+
+          if (task.assignedTo && task.assignedTo !== req.user!.id) {
+            const { createNotification } = await import('./notification-routes');
+            await createNotification({
+              userId: task.assignedTo,
+              type: 'task_assigned',
+              title: `New Task Assigned: ${task.title}`,
+              message: `A new task has been assigned to you by ${req.user!.fullName || req.user!.username}: "${task.title}"`,
+              link: '/tasks',
+              sourceType: 'task',
+              sourceId: task.id,
+              createdBy: req.user!.id,
+            });
+          }
           
           console.log(`Created task ${i + 1}/${tasks.length}: ${task.title}`);
         } catch (error) {

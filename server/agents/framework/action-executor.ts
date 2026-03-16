@@ -174,6 +174,21 @@ export class ActionExecutor {
       sourceAgent: payload.sourceAgent || null,
     }).returning();
 
+    if (newTask.assignedTo) {
+      const { createNotification } = await import('../../../server/notification-routes');
+      const agentName = payload.sourceAgent || 'AI Agent';
+      await createNotification({
+        userId: newTask.assignedTo,
+        type: 'task_assigned',
+        title: `Agent Task: ${newTask.title}`,
+        message: `The ${agentName} agent has created and assigned a new task to you: "${newTask.title}"`,
+        link: '/tasks',
+        sourceType: 'task',
+        sourceId: newTask.id,
+        createdBy: AGENT_USER_ID,
+      });
+    }
+
     return {
       message: `Task created: "${payload.title}" (ID: ${newTask.id})`,
       data: { taskId: newTask.id, title: payload.title },
