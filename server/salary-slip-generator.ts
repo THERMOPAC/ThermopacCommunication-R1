@@ -71,222 +71,226 @@ interface SalarySlipData {
 
 export { SalarySlipData };
 
+function fmtINR(num: number): string {
+  return Math.round(num).toLocaleString('en-IN');
+}
+
+function fmtDec(num: number): string {
+  return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export class SalarySlipGenerator {
   private doc: typeof PDFDocument.prototype;
-  private pageWidth: number = 595.28;
-  private pageHeight: number = 841.89;
-  private margin: number = 40;
-  private contentWidth: number;
+  private pw: number = 595.28;
+  private ph: number = 841.89;
+  private m: number = 40;
+  private w: number;
 
   constructor() {
-    this.doc = new PDFDocument({ size: 'A4', margin: this.margin });
-    this.contentWidth = this.pageWidth - (this.margin * 2);
-  }
-
-  private fmt(num: number): string {
-    return Math.round(num).toLocaleString('en-IN');
-  }
-
-  private fmtDec(num: number): string {
-    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    this.doc = new PDFDocument({ size: 'A4', margin: this.m });
+    this.w = this.pw - this.m * 2;
   }
 
   async generateSalarySlip(data: SalarySlipData, res: Response): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        const fileName = `Salary_Slip_${data.employee.name.replace(/\s+/g, '_')}_${data.period.month}_${data.period.year}.pdf`;
+        const fn = `Salary_Slip_${data.employee.name.replace(/\s+/g, '_')}_${data.period.month}_${data.period.year}.pdf`;
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${fn}"`);
         this.doc.pipe(res);
-
-        this.drawSlip(data);
-
+        this.render(data);
         this.doc.end();
         this.doc.on('end', () => resolve());
-        this.doc.on('error', (error: any) => reject(error));
-      } catch (error) {
-        reject(error);
-      }
+        this.doc.on('error', (e: any) => reject(e));
+      } catch (e) { reject(e); }
     });
   }
 
-  private drawSlip(data: SalarySlipData): void {
-    const d = this.doc;
-    const m = this.margin;
-    const w = this.contentWidth;
+  private textR(text: string, x: number, y: number, width: number) {
+    this.doc.text(text, x, y, { width, align: 'right' });
+  }
+
+  private render(d: SalarySlipData): void {
+    const doc = this.doc;
+    const m = this.m;
+    const w = this.w;
+    const rightHalf = m + 310;
+
     const today = new Date();
-    const dateStr = today.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+    const dateStr = `${today.getDate()}-${today.toLocaleString('en-IN', { month: 'long' })}-${today.getFullYear()}`;
 
     let y = m;
 
-    d.fontSize(10).font('Helvetica');
-    d.text(`To ${data.employee.name}`, m, y);
-    d.text(`Date: ${dateStr}`, m, y, { align: 'right', width: w });
-    y += 25;
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`To ${d.employee.name}`, m, y);
+    this.textR(`Date: ${dateStr}`, m, y, w);
+    y += 30;
 
-    d.moveTo(m, y).lineTo(m + w, y).lineWidth(0.5).stroke();
-    y += 8;
+    doc.moveTo(m, y).lineTo(m + w, y).lineWidth(0.5).stroke();
+    y += 10;
 
-    const col1X = m;
-    const col2X = m + 200;
-    const col3X = m + 310;
-    const col4X = m + 370;
+    doc.fontSize(8).font('Helvetica-Bold');
+    doc.text('SL.', m, y, { width: 25 });
+    doc.text('Description', m + 25, y, { width: 165 });
+    this.textR('Basic', m + 190, y, 80);
+    this.textR('Earned Salary', m + 270, y, 80);
+    this.textR('Salary Deduction', rightHalf, y, w - 310);
+    y += 14;
+    doc.moveTo(m, y).lineTo(m + w, y).lineWidth(0.3).stroke();
+    y += 10;
 
-    d.fontSize(8).font('Helvetica-Bold');
-    d.text('SL.', col1X, y, { width: 25 });
-    d.text('Description', col1X + 25, y, { width: 160 });
-    d.text('Basic', col2X, y, { width: 100, align: 'right' });
-    d.text('Earned Salary', col3X, y, { width: 100, align: 'right' });
-    d.text('Salary Deduction', col4X + 30, y, { width: 120, align: 'right' });
-    y += 15;
-
-    d.moveTo(m, y).lineTo(m + w, y).lineWidth(0.3).stroke();
-    y += 8;
-
-    d.font('Helvetica').fontSize(8);
-
-    const basicFull = data.earnings.basicSalary;
-    const earnedItems = [
-      { label: 'Basic', basic: this.fmt(basicFull), earned: this.fmtDec(basicFull) },
-      { label: 'HRA', basic: this.fmt(data.earnings.hra), earned: this.fmtDec(data.earnings.hra) },
-      { label: 'Conveyance', basic: this.fmt(data.earnings.conveyanceAllowance), earned: this.fmtDec(data.earnings.conveyanceAllowance) },
-      { label: 'LTA', basic: this.fmt(data.earnings.ltaAllowance), earned: this.fmtDec(data.earnings.ltaAllowance) },
-      { label: 'Special Allowance', basic: this.fmt(data.earnings.specialAllowance), earned: this.fmtDec(data.earnings.specialAllowance) },
-      { label: 'Supplementary Allowance', basic: this.fmt(data.earnings.supplementaryAllowance), earned: this.fmtDec(data.earnings.supplementaryAllowance) },
-    ];
-
-    const deductionItems = [
-      { label: 'PT', amount: data.deductions.professionalTax },
-      { label: 'PF Employee', amount: data.deductions.providentFund },
-      { label: 'ESIC Employee', amount: data.deductions.esic },
-      { label: 'T.D.S.', amount: data.deductions.incomeTax },
-      { label: 'Loan Deduction', amount: data.deductions.loanDeduction },
-      { label: 'Advance', amount: data.deductions.advanceDeduction },
-    ];
-
-    const employerItems = [
-      { label: `KGP Allowance        ${data.kgpPercent}%`, basic: this.fmt(data.earnings.kgpAllowance), earned: this.fmtDec(data.earnings.kgpAllowance > 0 ? data.earnings.kgpAllowance : 0) },
-      { label: 'ESIC Employer Contribution', basic: this.fmt(data.employerCosts.esicEmployer), earned: '' },
-      { label: 'Group Insurance Cost', basic: this.fmt(data.employerCosts.groupInsurance), earned: '' },
-      { label: 'PF_Employer Contribution', basic: this.fmt(data.employerCosts.pfEmployer), earned: '' },
-      { label: 'Bonus', basic: this.fmt(data.earnings.bonus), earned: '' },
-      { label: 'Gratuity', basic: this.fmt(data.employerCosts.gratuity), earned: '' },
-    ];
-
-    const attendanceItems = [
-      { label: 'DayInMonth:', value: data.period.daysInMonth.toString() },
-      { label: 'Holidays :', value: data.period.holidays.toString() },
-      { label: 'Weekly Off:', value: data.period.weeklyOffs.toString() },
-      { label: 'Absent Day:', value: data.period.absentDays.toFixed(2) },
-      { label: 'Present Days:', value: data.period.presentDays.toFixed(2) },
-      { label: 'Paid Days:', value: data.period.paidDays.toFixed(2) },
-      { label: 'CL Balance:', value: data.period.clBalance.toFixed(2) },
-    ];
-
+    const lineH = 16;
     let leftY = y;
     let rightY = y;
-    let slNo = 1;
 
-    for (let i = 0; i < earnedItems.length; i++) {
-      const item = earnedItems[i];
-      d.font('Helvetica').fontSize(8);
-      d.text(`${slNo}`, col1X, leftY, { width: 20 });
-      d.text(`${i + 1}. ${item.label}`, col1X + 20, leftY, { width: 170 });
-      d.text(item.basic, col2X, leftY, { width: 100, align: 'right' });
-      d.text(item.earned, col3X, leftY, { width: 100, align: 'right' });
+    const earnedRows = [
+      { n: 1, label: 'Basic', basic: d.earnings.basicSalary, earned: d.earnings.basicSalary },
+      { n: 2, label: 'HRA', basic: d.earnings.hra, earned: d.earnings.hra },
+      { n: 3, label: 'Conveyance', basic: d.earnings.conveyanceAllowance, earned: d.earnings.conveyanceAllowance },
+      { n: 4, label: 'LTA', basic: d.earnings.ltaAllowance, earned: d.earnings.ltaAllowance },
+      { n: 5, label: 'Special Allowance', basic: d.earnings.specialAllowance, earned: d.earnings.specialAllowance },
+      { n: 6, label: 'Supplementary Allowance', basic: d.earnings.supplementaryAllowance, earned: d.earnings.supplementaryAllowance },
+    ];
 
-      if (i === 0) {
-        d.font('Helvetica-Bold').fontSize(8);
-        d.text(`Earned Salary`, col4X + 30, rightY, { width: 75 });
-        d.text(`₹${this.fmtDec(data.totals.grossEarnings)}`, col4X + 105, rightY, { width: 60, align: 'right' });
-        rightY += 14;
+    const dedRows = [
+      { n: 1, label: 'PT', amount: d.deductions.professionalTax },
+      { n: 2, label: 'PF Employee', amount: d.deductions.providentFund },
+      { n: 3, label: 'ESIC Employee', amount: d.deductions.esic },
+      { n: 3, label: 'T.D.S.', amount: d.deductions.incomeTax },
+      { n: 4, label: 'Loan Deduction', amount: d.deductions.loanDeduction },
+      { n: 5, label: 'Advance', amount: d.deductions.advanceDeduction },
+    ];
+
+    doc.font('Helvetica').fontSize(8);
+
+    doc.font('Helvetica-Bold').fontSize(8);
+    this.textR('Earned Salary', rightHalf, rightY, 120);
+    doc.font('Helvetica').fontSize(8);
+    this.textR(String.fromCharCode(8377) + fmtDec(d.totals.grossEarnings), rightHalf + 120, rightY, w - 430);
+    rightY += lineH;
+
+    for (let i = 0; i < earnedRows.length; i++) {
+      const row = earnedRows[i];
+      doc.font('Helvetica').fontSize(8);
+
+      doc.text(`${row.n}.`, m + 25, leftY, { width: 15 });
+      doc.text(row.label, m + 40, leftY, { width: 150 });
+      this.textR(fmtINR(row.basic), m + 190, leftY, 80);
+      this.textR(fmtDec(row.earned), m + 270, leftY, 80);
+
+      if (i < dedRows.length) {
+        const ded = dedRows[i];
+        doc.text(`${ded.n}.`, rightHalf, rightY, { width: 18 });
+        doc.text(ded.label, rightHalf + 18, rightY, { width: 90 });
+        doc.text('-', rightHalf + 108, rightY, { width: 15 });
+        this.textR(String.fromCharCode(8377) + fmtDec(ded.amount), rightHalf + 120, rightY, w - 430);
+        rightY += lineH;
       }
 
-      if (i < deductionItems.length) {
-        const ded = deductionItems[i];
-        d.font('Helvetica').fontSize(8);
-        d.text(`${i + 1}.`, col4X + 30, rightY, { width: 15 });
-        d.text(ded.label, col4X + 45, rightY, { width: 75 });
-        d.text(`-`, col4X + 110, rightY, { width: 15, align: 'right' });
-        d.text(`₹${this.fmtDec(ded.amount)}`, col4X + 115, rightY, { width: 50, align: 'right' });
-        rightY += 14;
-      }
+      leftY += lineH;
+    }
 
-      if (i === 0) slNo = 1;
-      leftY += 14;
+    for (let i = earnedRows.length; i < dedRows.length; i++) {
+      const ded = dedRows[i];
+      doc.text(`${ded.n}.`, rightHalf, rightY, { width: 18 });
+      doc.text(ded.label, rightHalf + 18, rightY, { width: 90 });
+      doc.text('-', rightHalf + 108, rightY, { width: 15 });
+      this.textR(String.fromCharCode(8377) + fmtDec(ded.amount), rightHalf + 120, rightY, w - 430);
+      rightY += lineH;
     }
 
     leftY += 4;
-    d.font('Helvetica').fontSize(8);
-    for (let i = 0; i < employerItems.length; i++) {
-      const item = employerItems[i];
-      d.text(`${earnedItems.length + i + 1}. ${item.label}`, col1X + 20, leftY, { width: 170 });
-      d.text(item.basic, col2X, leftY, { width: 100, align: 'right' });
-      if (item.earned) {
-        d.text(item.earned, col3X, leftY, { width: 100, align: 'right' });
+
+    const kgpEarned = d.kgpPercent > 0 ? d.earnings.kgpAllowance : 0;
+    const costRows = [
+      { n: 7, label: `KGP Allowance        ${d.kgpPercent}%`, basic: fmtINR(d.earnings.kgpAllowance), earned: fmtDec(kgpEarned), showEarned: true },
+      { n: 8, label: 'ESIC Employer Contribution', basic: fmtINR(d.employerCosts.esicEmployer), earned: '', showEarned: false },
+      { n: 9, label: 'Group Insurance Cost', basic: fmtINR(d.employerCosts.groupInsurance), earned: '', showEarned: false },
+      { n: 10, label: 'PF_Employer Contribution', basic: fmtINR(d.employerCosts.pfEmployer), earned: '', showEarned: false },
+      { n: 11, label: 'Bonus', basic: fmtINR(d.earnings.bonus), earned: '', showEarned: false },
+      { n: 12, label: 'Gratuity', basic: fmtINR(d.employerCosts.gratuity), earned: '', showEarned: false },
+    ];
+
+    rightY += 8;
+    doc.font('Helvetica-Bold').fontSize(9);
+    this.textR(`Take Home Salary: ${String.fromCharCode(8377)} ${fmtDec(d.totals.netPay)}`, rightHalf, rightY, w - 310);
+    rightY += lineH + 6;
+    doc.font('Helvetica').fontSize(8);
+
+    const attendanceRows = [
+      { n: 1, label: 'DayInMonth:', value: d.period.daysInMonth.toString() },
+      { n: 2, label: 'Holidays :', value: d.period.holidays.toString() },
+      { n: 3, label: 'Weekly Off:', value: d.period.weeklyOffs.toString() },
+      { n: 4, label: 'Absent Day:', value: d.period.absentDays.toFixed(2) },
+      { n: 5, label: 'Present Days:', value: d.period.presentDays.toFixed(2) },
+      { n: 6, label: 'Paid Days:', value: d.period.paidDays.toFixed(2) },
+      { n: 7, label: 'CL Balance:', value: d.period.clBalance.toFixed(2) },
+    ];
+
+    let attIdx = 0;
+
+    for (let i = 0; i < costRows.length; i++) {
+      const row = costRows[i];
+      doc.font('Helvetica').fontSize(8);
+      doc.text(`${row.n}.`, m + 25, leftY, { width: 15 });
+      doc.text(row.label, m + 40, leftY, { width: 150 });
+      this.textR(row.basic, m + 190, leftY, 80);
+      if (row.showEarned) {
+        this.textR(row.earned, m + 270, leftY, 80);
       }
 
-      if (i === 0) {
-        rightY += 10;
-        d.font('Helvetica-Bold').fontSize(9);
-        d.text(`Take Home Salary: ₹ ${this.fmtDec(data.totals.netPay)}`, col4X + 30, rightY, { width: 135, align: 'right' });
-        rightY += 18;
+      if (attIdx < attendanceRows.length) {
+        const att = attendanceRows[attIdx];
+        doc.text(`${att.n}.`, rightHalf, rightY, { width: 18 });
+        doc.text(att.label, rightHalf + 22, rightY, { width: 80 });
+        this.textR(att.value, rightHalf + 100, rightY, 40);
+        doc.text('--E', rightHalf + 150, rightY, { width: 25 });
+        rightY += lineH;
+        attIdx++;
       }
 
-      if (i >= 1 && (i - 1) < attendanceItems.length) {
-        const att = attendanceItems[i - 1];
-        d.font('Helvetica').fontSize(8);
-        d.text(`${i}.`, col4X + 30, rightY, { width: 15 });
-        d.text(att.label, col4X + 45, rightY, { width: 75 });
-        d.text(att.value, col4X + 120, rightY, { width: 30, align: 'right' });
-        d.text('--E', col4X + 150, rightY, { width: 20, align: 'right' });
-        rightY += 14;
-      }
-      leftY += 14;
+      leftY += lineH;
     }
 
-    for (let i = employerItems.length - 1; i < attendanceItems.length; i++) {
-      const att = attendanceItems[i];
-      d.font('Helvetica').fontSize(8);
-      d.text(`${i + 1}.`, col4X + 30, rightY, { width: 15 });
-      d.text(att.label, col4X + 45, rightY, { width: 75 });
-      d.text(att.value, col4X + 120, rightY, { width: 30, align: 'right' });
-      d.text('--E', col4X + 150, rightY, { width: 20, align: 'right' });
-      rightY += 14;
+    for (; attIdx < attendanceRows.length; attIdx++) {
+      const att = attendanceRows[attIdx];
+      doc.text(`${att.n}.`, rightHalf, rightY, { width: 18 });
+      doc.text(att.label, rightHalf + 22, rightY, { width: 80 });
+      this.textR(att.value, rightHalf + 100, rightY, 40);
+      doc.text('--E', rightHalf + 150, rightY, { width: 25 });
+      rightY += lineH;
     }
 
-    leftY += 4;
-    d.font('Helvetica-Bold').fontSize(8);
-    d.text(`${earnedItems.length + employerItems.length + 1}. CTC Monthly`, col1X + 20, leftY, { width: 170 });
-    d.text(this.fmt(data.totals.ctcMonthly), col2X, leftY, { width: 100, align: 'right' });
-    leftY += 14;
+    leftY += 6;
+    doc.font('Helvetica-Bold').fontSize(8);
+    doc.text('13.', m + 25, leftY, { width: 15 });
+    doc.text('CTC Monthly', m + 40, leftY, { width: 150 });
+    this.textR(fmtINR(d.totals.ctcMonthly), m + 190, leftY, 80);
+    leftY += lineH;
 
-    d.text(`${earnedItems.length + employerItems.length + 2}. CTC`, col1X + 20, leftY, { width: 170 });
-    d.text(this.fmt(data.totals.ctcYearly), col2X, leftY, { width: 100, align: 'right' });
-    leftY += 20;
+    doc.text('14.', m + 25, leftY, { width: 15 });
+    doc.text('CTC', m + 40, leftY, { width: 150 });
+    this.textR(fmtINR(d.totals.ctcYearly), m + 190, leftY, 80);
+    leftY += lineH;
 
-    const bottomY = Math.max(leftY, rightY) + 20;
+    const signY = Math.max(leftY, rightY) + 40;
+    doc.font('Helvetica').fontSize(9);
+    this.textR('For Thermopac', m, signY, w);
+    doc.font('Helvetica-Bold').fontSize(9);
+    this.textR('General Manager', m, signY + 50, w);
 
-    d.font('Helvetica').fontSize(9);
-    d.text('For Thermopac', m + w - 120, bottomY, { width: 120, align: 'right' });
-    d.text('', m + w - 120, bottomY + 30, { width: 120, align: 'right' });
-    d.text('', m + w - 120, bottomY + 40, { width: 120, align: 'right' });
-    d.font('Helvetica-Bold').fontSize(9);
-    d.text('General Manager', m + w - 120, bottomY + 50, { width: 120, align: 'right' });
-
-    const footerY = this.pageHeight - 60;
-    d.moveTo(m, footerY - 10).lineTo(m + w, footerY - 10).lineWidth(0.3).stroke();
-    d.font('Helvetica').fontSize(7);
-    d.text(
+    const footerY = this.ph - 55;
+    doc.moveTo(m, footerY - 5).lineTo(m + w, footerY - 5).lineWidth(0.3).stroke();
+    doc.font('Helvetica').fontSize(7);
+    doc.text(
       'THERMOPAC Office: L 4, 405 The Summit Business Bay, Vile Parle Western Express Highway Vile Parle Mumbai India 400 057',
       m, footerY, { align: 'center', width: w }
     );
-    d.text(
+    doc.text(
       'Tel: + 91 22 2617 8080 to 84  Fax: + 91 22 2617 8084  E-Mail - sales@thermopac.in',
-      m, footerY + 12, { align: 'center', width: w }
+      m, footerY + 10, { align: 'center', width: w }
     );
-
-    d.fontSize(7).text(`Page #1`, m + w - 40, footerY + 12, { width: 40, align: 'right' });
+    this.textR('Page #1', m, footerY + 10, w);
   }
 }
 
@@ -308,19 +312,15 @@ export function numberToWords(amount: number): string {
       result += teens[num - 10] + ' ';
       return result;
     }
-    if (num > 0) {
-      result += ones[num] + ' ';
-    }
+    if (num > 0) result += ones[num] + ' ';
     return result;
   }
 
   if (amount === 0) return 'Zero Rupees Only';
-
   const crores = Math.floor(amount / 10000000);
   const lakhs = Math.floor((amount % 10000000) / 100000);
   const thousands = Math.floor((amount % 100000) / 1000);
   const hundreds = amount % 1000;
-  const paise = Math.round((amount % 1) * 100);
 
   let result = '';
   if (crores > 0) result += convertHundreds(crores) + 'Crore ';
@@ -328,7 +328,5 @@ export function numberToWords(amount: number): string {
   if (thousands > 0) result += convertHundreds(thousands) + 'Thousand ';
   if (hundreds > 0) result += convertHundreds(hundreds);
   if (result.trim()) result += 'Rupees ';
-  if (paise > 0) result += convertHundreds(paise) + 'Paise ';
-
   return result.trim() + ' Only';
 }
