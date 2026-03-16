@@ -983,8 +983,9 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[300px]">Title</TableHead>
-                      <TableHead className="w-[300px]">Description</TableHead>
+                      <TableHead className="w-[60px]">ID</TableHead>
+                      <TableHead className="w-[250px]">Title</TableHead>
+                      <TableHead className="w-[400px]">Description</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Start Date</TableHead>
                       <TableHead>Due Date</TableHead>
@@ -998,8 +999,9 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                   <TableBody>
                     {creatorTasks.map((task) => (
                       <TableRow key={task.id}>
+                        <TableCell className="text-muted-foreground text-xs font-mono">{task.id}</TableCell>
                         <TableCell className="font-medium">{task.title}</TableCell>
-                        <TableCell className="max-w-[300px] whitespace-pre-wrap break-words">
+                        <TableCell className="max-w-[400px] whitespace-pre-wrap break-words">
                           {task.description}
                         </TableCell>
                         <TableCell>
