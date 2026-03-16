@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks } from '@shared/schema';
+import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
@@ -44,8 +44,7 @@ router.get('/todays-completed-tasks', ensureAuthenticated, async (req: Request, 
     const userId = req.user!.id;
     const today = new Date().toISOString().split('T')[0];
     
-    // Get tasks completed today
-    const completedTasks = await db
+    const completedRegular = await db
       .select({
         id: tasks.id,
         title: tasks.title,
@@ -63,10 +62,33 @@ router.get('/todays-completed-tasks', ensureAuthenticated, async (req: Request, 
       ))
       .orderBy(desc(tasks.completedAt));
 
-    res.json(completedTasks);
+    const completedRecurring = await db
+      .select({
+        id: recurringTasks.id,
+        title: recurringTasks.title,
+        description: recurringTasks.description,
+        priority: recurringTasks.priority,
+        status: recurringTasks.status,
+        completedAt: recurringTasks.completedAt
+      })
+      .from(recurringTasks)
+      .where(and(
+        eq(recurringTasks.assignedTo, userId),
+        eq(recurringTasks.status, 'completed'),
+        gte(recurringTasks.completedAt, today + 'T00:00:00.000Z'),
+        lte(recurringTasks.completedAt, today + 'T23:59:59.999Z')
+      ))
+      .orderBy(desc(recurringTasks.completedAt));
+
+    const allCompleted = [
+      ...completedRegular,
+      ...completedRecurring.map(rt => ({ ...rt, id: rt.id + 1000000 })),
+    ].sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
+
+    res.json(allCompleted);
   } catch (error) {
     console.error('Error fetching today\'s completed tasks:', error);
-    res.json([]); // Return empty array if tasks table doesn't exist yet
+    res.json([]);
   }
 });
 
