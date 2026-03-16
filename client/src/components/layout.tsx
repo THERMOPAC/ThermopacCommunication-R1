@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 import UserProfile from "@/components/user-profile";
+import NotificationBell from "@/components/notification-bell";
 import AttendanceGatekeeper from "@/components/attendance-gatekeeper";
 import { Separator } from "@/components/ui/separator";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
@@ -450,7 +451,10 @@ function Layout({ children }: LayoutProps) {
               }}
             />
           </div>
-          <UserProfile user={user!} />
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <UserProfile user={user!} />
+          </div>
         </div>
         
         <nav className="flex-1 p-4 overflow-y-auto">

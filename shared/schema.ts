@@ -9458,6 +9458,24 @@ export type AgentSubscription = typeof agentSubscriptions.$inferSelect;
 export type AgentEntityOverride = typeof agentEntityOverrides.$inferSelect;
 export type AgentAuditLogEntry = typeof agentAuditLog.$inferSelect;
 
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 50 }).notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  link: text('link'),
+  isRead: boolean('is_read').notNull().default(false),
+  sourceType: varchar('source_type', { length: 50 }),
+  sourceId: integer('source_id'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
 export const attendanceRegularizations = pgTable('attendance_regularizations', {
   id: serial('id').primaryKey(),
   employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

@@ -55,6 +55,7 @@ import { default as workLocationRoutes } from "./work-location-routes";
 import { default as testCaspianEndpoint } from "./test-caspian-endpoint";
 import { default as llmRoutes } from "./llm-routes";
 import { default as attendanceRoutes } from "./attendance-routes";
+import { default as notificationRoutes } from "./notification-routes";
 import { default as dwarRoutes } from "./dwar-routes";
 import { default as leaveRoutes } from "./leave-routes";
 import { default as payrollRoutes } from "./payroll-routes";
@@ -755,6 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up attendance management routes
   app.use('/api/attendance', attendanceRoutes);
+  app.use('/api/notifications', notificationRoutes);
   console.log('Attendance routes registered at /api/attendance');
   
   // Set up DWAR (Daily Work Activity Report) routes
@@ -1992,6 +1994,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updatedTask = await storage.updateTask(taskId, updateData);
         
         console.log(`Task ${taskId} completed by user ${req.user!.id}`);
+
+        if (task.createdBy && task.createdBy !== req.user!.id) {
+          const { createNotification } = await import('./notification-routes');
+          await createNotification({
+            userId: task.createdBy,
+            type: 'task_completed',
+            title: `Task Completed: ${task.title}`,
+            message: `${req.user!.fullName || req.user!.username} has completed the task "${task.title}".`,
+            link: '/tasks',
+            sourceType: 'task',
+            sourceId: task.id,
+            createdBy: req.user!.id,
+          });
+        }
         
         // Update productivity metrics
         let productivityMetric = await storage.getProductivityMetric(req.user!.id);
