@@ -55,6 +55,7 @@ import {
   Brain,
   ShoppingCart,
   Package,
+  Zap,
   Search,
   Radar,
   Target,
@@ -414,6 +415,7 @@ function Layout({ children }: LayoutProps) {
     ...(hasViewPermission("Project Commissioning") ? [{ icon: Briefcase, label: "Project Commissioning", href: "/project-commissioning" }] : []),
     ...(hasViewPermission("Dispatch & Shipping") ? [{ icon: Truck, label: "Dispatch & Shipping", href: "/dispatch-shipping" }] : []),
     ...(hasViewPermission("After-Sales") ? [{ icon: HeartPulse, label: "After-Sales", href: "/after-sales" }] : []),
+    { icon: Zap, label: "Alerts", href: "/alerts" },
     { icon: MessageSquare, label: "Messages", href: "/messages" },
     { icon: Users, label: "Team", href: "/team" },
     ...(user?.role === "Superuser" ? [{ icon: Factory, label: "Work Locations", href: "/work-locations" }] : []),
@@ -463,7 +465,7 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/alerts' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   

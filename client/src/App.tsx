@@ -84,6 +84,7 @@ import PasswordCompliancePage from "@/pages/password-compliance-page";
 import BusinessIntelligencePage from "@/pages/business-intelligence-page";
 import LLMPromptEnginePage from "@/pages/llm-prompt-engine";
 import ActiveAlertsPage from "@/pages/active-alerts-page";
+import AlertsPage from "@/pages/alerts-page";
 import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
 import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
 import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
@@ -194,6 +195,7 @@ function Router() {
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
       <ProtectedRoute path="/messages" component={MessagesPage} />
+      <ProtectedRoute path="/alerts" component={AlertsPage} />
       <ProtectedRoute path="/emails" component={EmailsPage} />
       <SuperuserRoute path="/tools" component={DiagnosticsPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
