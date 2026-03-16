@@ -126,6 +126,7 @@ import DesignToolsPage from "@/pages/design-tools-page";
 import DesignManagementPage from "@/pages/design-management-page";
 import WorkLocationsPage from "@/pages/work-locations-page";
 import AttendancePage from "@/pages/attendance-page";
+import AttendanceRegularizationPage from "@/pages/attendance-regularization-page";
 import DwarPage from "@/pages/dwar-page";
 import LeaveRequestPage from "@/pages/leave-request-page";
 
@@ -353,6 +354,7 @@ function Router() {
       <SuperuserRoute path="/users" component={Dashboard} />
       <SuperuserRoute path="/work-locations" component={() => <Layout><WorkLocationsPage /></Layout>} />
       <ProtectedRoute path="/attendance" component={() => <Layout><AttendancePage /></Layout>} />
+      <ProtectedRoute path="/attendance/regularization" component={() => <Layout><AttendanceRegularizationPage /></Layout>} />
       <ProtectedRoute path="/dwar" component={() => <Layout><DwarPage /></Layout>} />
       <ProtectedRoute path="/leave-request" component={() => <Layout><LeaveRequestPage /></Layout>} />
 

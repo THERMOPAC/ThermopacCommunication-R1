@@ -9457,3 +9457,33 @@ export type AgentPolicy = typeof agentPolicies.$inferSelect;
 export type AgentSubscription = typeof agentSubscriptions.$inferSelect;
 export type AgentEntityOverride = typeof agentEntityOverrides.$inferSelect;
 export type AgentAuditLogEntry = typeof agentAuditLog.$inferSelect;
+
+export const attendanceRegularizations = pgTable('attendance_regularizations', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  attendanceRecordId: integer('attendance_record_id').references(() => attendanceRecords.id, { onDelete: 'set null' }),
+  requestDate: date('request_date').notNull(),
+  requestType: varchar('request_type', { length: 30 }).notNull(),
+  correctedCheckIn: timestamp('corrected_check_in'),
+  correctedCheckOut: timestamp('corrected_check_out'),
+  reason: text('reason').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  approverId: integer('approver_id').references(() => users.id),
+  approvedAt: timestamp('approved_at'),
+  approverRemarks: text('approver_remarks'),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectedAt: timestamp('rejected_at'),
+  rejectionReason: text('rejection_reason'),
+  appliedToAttendance: boolean('applied_to_attendance').default(false),
+  originalData: jsonb('original_data'),
+  auditTrail: jsonb('audit_trail'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueEmployeeDate: uniqueIndex('reg_employee_date_type').on(table.employeeId, table.requestDate, table.requestType),
+}));
+
+export const insertAttendanceRegularizationSchema = createInsertSchema(attendanceRegularizations)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAttendanceRegularization = z.infer<typeof insertAttendanceRegularizationSchema>;
+export type AttendanceRegularization = typeof attendanceRegularizations.$inferSelect;

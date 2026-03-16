@@ -540,6 +540,19 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
+      {/* Quick Actions */}
+      <Card className="border-blue-200 bg-blue-50/50">
+        <CardContent className="py-3 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-blue-700">
+            <AlertCircle className="h-4 w-4" />
+            <span>Missed a punch or worked outdoors? Submit a regularization request for corrections.</span>
+          </div>
+          <Button variant="outline" size="sm" className="whitespace-nowrap border-blue-300 text-blue-700 hover:bg-blue-100" onClick={() => setLocation('/attendance/regularization')}>
+            <ClipboardList className="h-4 w-4 mr-1" /> Regularization
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Summary Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-blue-50 border-blue-200">

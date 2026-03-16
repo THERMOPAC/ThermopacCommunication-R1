@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports } from '@shared/schema';
-import { eq, and, gte, lte, desc, sql, isNull } from 'drizzle-orm';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks } from '@shared/schema';
+import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 import { checkPayrollLock } from './payroll-lock-service';
@@ -748,5 +748,434 @@ router.get('/daily-quote', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to get daily quote' });
   }
 });
+
+router.post('/regularization', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { requestDate, requestType, correctedCheckIn, correctedCheckOut, reason } = req.body;
+
+    if (!requestDate || !requestType || !reason) {
+      return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
+    }
+
+    const validTypes = ['outdoor_duty', 'missed_checkin', 'missed_checkout', 'full_day_regularization'];
+    if (!validTypes.includes(requestType)) {
+      return res.status(400).json({ error: 'Invalid request type' });
+    }
+
+    const lockCheck = await checkPayrollLock('attendance', requestDate, user.id);
+    if (lockCheck.isLocked) {
+      return res.status(403).json({ error: 'Payroll is locked for this period. Regularization cannot be submitted.' });
+    }
+
+    const today = new Date();
+    const reqDate = new Date(requestDate);
+    if (reqDate > today) {
+      return res.status(400).json({ error: 'Cannot submit regularization for a future date' });
+    }
+
+    const existing = await db.select().from(attendanceRegularizations)
+      .where(and(
+        eq(attendanceRegularizations.employeeId, user.id),
+        eq(attendanceRegularizations.requestDate, requestDate),
+        eq(attendanceRegularizations.requestType, requestType)
+      ));
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'A regularization request already exists for this date and type' });
+    }
+
+    const [attendanceRec] = await db.select().from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, user.id),
+        eq(attendanceRecords.date, requestDate)
+      ));
+
+    const [empUser] = await db.select({ reportingManagerId: users.reportingManagerId }).from(users).where(eq(users.id, user.id));
+    const approverId = empUser?.reportingManagerId || null;
+
+    const originalData = attendanceRec ? {
+      checkInTime: attendanceRec.checkInTime,
+      checkOutTime: attendanceRec.checkOutTime,
+      status: attendanceRec.status,
+      workingHours: attendanceRec.workingHours,
+    } : { status: 'no_record' };
+
+    const auditEntry = [{
+      action: 'submitted',
+      by: user.id,
+      byName: user.fullName || user.username,
+      at: new Date().toISOString(),
+      details: `Regularization request submitted: ${requestType}`,
+    }];
+
+    const [reg] = await db.insert(attendanceRegularizations).values({
+      employeeId: user.id,
+      attendanceRecordId: attendanceRec?.id || null,
+      requestDate,
+      requestType,
+      correctedCheckIn: correctedCheckIn ? new Date(correctedCheckIn) : null,
+      correctedCheckOut: correctedCheckOut ? new Date(correctedCheckOut) : null,
+      reason,
+      status: 'pending',
+      approverId,
+      originalData,
+      auditTrail: auditEntry,
+    }).returning();
+
+    res.status(201).json(reg);
+  } catch (error: any) {
+    console.error('Error creating regularization:', error);
+    res.status(500).json({ error: 'Failed to create regularization request' });
+  }
+});
+
+router.get('/regularization/my-requests', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const { status } = req.query;
+
+    let conditions: any[] = [eq(attendanceRegularizations.employeeId, user.id)];
+    if (status && status !== 'all') {
+      conditions.push(eq(attendanceRegularizations.status, status as string));
+    }
+
+    const requests = await db.select({
+      id: attendanceRegularizations.id,
+      employeeId: attendanceRegularizations.employeeId,
+      requestDate: attendanceRegularizations.requestDate,
+      requestType: attendanceRegularizations.requestType,
+      correctedCheckIn: attendanceRegularizations.correctedCheckIn,
+      correctedCheckOut: attendanceRegularizations.correctedCheckOut,
+      reason: attendanceRegularizations.reason,
+      status: attendanceRegularizations.status,
+      approverId: attendanceRegularizations.approverId,
+      approvedAt: attendanceRegularizations.approvedAt,
+      approverRemarks: attendanceRegularizations.approverRemarks,
+      rejectedAt: attendanceRegularizations.rejectedAt,
+      rejectionReason: attendanceRegularizations.rejectionReason,
+      appliedToAttendance: attendanceRegularizations.appliedToAttendance,
+      createdAt: attendanceRegularizations.createdAt,
+      approverName: users.fullName,
+    })
+    .from(attendanceRegularizations)
+    .leftJoin(users, eq(attendanceRegularizations.approverId, users.id))
+    .where(and(...conditions))
+    .orderBy(desc(attendanceRegularizations.createdAt));
+
+    res.json(requests);
+  } catch (error) {
+    console.error('Error fetching regularization requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+router.get('/regularization/pending-approvals', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const userRole = user.role || '';
+    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
+
+    let conditions: any[] = [eq(attendanceRegularizations.status, 'pending')];
+    if (!isAdmin) {
+      conditions.push(eq(attendanceRegularizations.approverId, user.id));
+    }
+
+    const pending = await db.select({
+      id: attendanceRegularizations.id,
+      employeeId: attendanceRegularizations.employeeId,
+      requestDate: attendanceRegularizations.requestDate,
+      requestType: attendanceRegularizations.requestType,
+      correctedCheckIn: attendanceRegularizations.correctedCheckIn,
+      correctedCheckOut: attendanceRegularizations.correctedCheckOut,
+      reason: attendanceRegularizations.reason,
+      status: attendanceRegularizations.status,
+      originalData: attendanceRegularizations.originalData,
+      createdAt: attendanceRegularizations.createdAt,
+      employeeName: users.fullName,
+      employeeCode: users.employeeId,
+    })
+    .from(attendanceRegularizations)
+    .innerJoin(users, eq(attendanceRegularizations.employeeId, users.id))
+    .where(and(...conditions))
+    .orderBy(asc(attendanceRegularizations.createdAt));
+
+    res.json(pending);
+  } catch (error) {
+    console.error('Error fetching pending approvals:', error);
+    res.status(500).json({ error: 'Failed to fetch pending approvals' });
+  }
+});
+
+router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const regId = parseInt(req.params.id);
+    const { remarks } = req.body;
+
+    const [reg] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    if (!reg) return res.status(404).json({ error: 'Request not found' });
+    if (reg.status !== 'pending') return res.status(400).json({ error: 'Request is not pending' });
+
+    const userRole = user.role || '';
+    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
+    if (!isAdmin && reg.approverId !== user.id) {
+      return res.status(403).json({ error: 'You are not authorized to approve this request' });
+    }
+
+    const lockCheck = await checkPayrollLock('attendance', reg.requestDate, reg.employeeId);
+    if (lockCheck.isLocked) {
+      return res.status(403).json({ error: 'Payroll is locked for this period. Cannot approve regularization.' });
+    }
+
+    const existingTrail = (reg.auditTrail as any[]) || [];
+    existingTrail.push({
+      action: 'approved',
+      by: user.id,
+      byName: user.fullName || user.username,
+      at: new Date().toISOString(),
+      remarks,
+    });
+
+    let appliedToAttendance = false;
+
+    const [existingAttendance] = await db.select().from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, reg.employeeId),
+        eq(attendanceRecords.date, reg.requestDate)
+      ));
+
+    if (reg.requestType === 'outdoor_duty') {
+      if (existingAttendance) {
+        await db.update(attendanceRecords).set({
+          status: 'present',
+          checkInTime: reg.correctedCheckIn || existingAttendance.checkInTime,
+          checkOutTime: reg.correctedCheckOut || existingAttendance.checkOutTime,
+          workingHours: calculateWorkingHours(reg.correctedCheckIn || existingAttendance.checkInTime, reg.correctedCheckOut || existingAttendance.checkOutTime),
+          adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Outdoor duty regularization approved`,
+          adjustmentDate: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(attendanceRecords.id, existingAttendance.id));
+      } else {
+        await db.insert(attendanceRecords).values({
+          userId: reg.employeeId,
+          date: reg.requestDate,
+          checkInTime: reg.correctedCheckIn,
+          checkOutTime: reg.correctedCheckOut,
+          workingHours: calculateWorkingHours(reg.correctedCheckIn, reg.correctedCheckOut),
+          status: 'present',
+          adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Outdoor duty regularization approved`,
+          adjustmentDate: new Date(),
+        });
+      }
+      appliedToAttendance = true;
+    } else if (reg.requestType === 'missed_checkin') {
+      if (existingAttendance) {
+        await db.update(attendanceRecords).set({
+          checkInTime: reg.correctedCheckIn,
+          status: existingAttendance.checkOutTime ? 'present' : existingAttendance.status,
+          workingHours: calculateWorkingHours(reg.correctedCheckIn, existingAttendance.checkOutTime),
+          isIncomplete: false,
+          adminNotes: `Regularized: Missed check-in - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Missed check-in regularization approved`,
+          adjustmentDate: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(attendanceRecords.id, existingAttendance.id));
+        appliedToAttendance = true;
+      }
+    } else if (reg.requestType === 'missed_checkout') {
+      if (existingAttendance) {
+        await db.update(attendanceRecords).set({
+          checkOutTime: reg.correctedCheckOut,
+          status: 'present',
+          workingHours: calculateWorkingHours(existingAttendance.checkInTime, reg.correctedCheckOut),
+          isIncomplete: false,
+          adminNotes: `Regularized: Missed check-out - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Missed check-out regularization approved`,
+          adjustmentDate: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(attendanceRecords.id, existingAttendance.id));
+        appliedToAttendance = true;
+      }
+    } else if (reg.requestType === 'full_day_regularization') {
+      if (existingAttendance) {
+        await db.update(attendanceRecords).set({
+          checkInTime: reg.correctedCheckIn,
+          checkOutTime: reg.correctedCheckOut,
+          status: 'present',
+          workingHours: calculateWorkingHours(reg.correctedCheckIn, reg.correctedCheckOut),
+          isIncomplete: false,
+          adminNotes: `Regularized: Full day - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Full day regularization approved`,
+          adjustmentDate: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(attendanceRecords.id, existingAttendance.id));
+      } else {
+        await db.insert(attendanceRecords).values({
+          userId: reg.employeeId,
+          date: reg.requestDate,
+          checkInTime: reg.correctedCheckIn,
+          checkOutTime: reg.correctedCheckOut,
+          workingHours: calculateWorkingHours(reg.correctedCheckIn, reg.correctedCheckOut),
+          status: 'present',
+          adminNotes: `Regularized: Full day - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Full day regularization approved`,
+          adjustmentDate: new Date(),
+        });
+      }
+      appliedToAttendance = true;
+    }
+
+    await db.update(attendanceRegularizations).set({
+      status: 'approved',
+      approverId: user.id,
+      approvedAt: new Date(),
+      approverRemarks: remarks || null,
+      appliedToAttendance,
+      auditTrail: existingTrail,
+      updatedAt: new Date(),
+    }).where(eq(attendanceRegularizations.id, regId));
+
+    const [updated] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    res.json(updated);
+  } catch (error) {
+    console.error('Error approving regularization:', error);
+    res.status(500).json({ error: 'Failed to approve request' });
+  }
+});
+
+router.post('/regularization/:id/reject', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const regId = parseInt(req.params.id);
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason) {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    const [reg] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    if (!reg) return res.status(404).json({ error: 'Request not found' });
+    if (reg.status !== 'pending') return res.status(400).json({ error: 'Request is not pending' });
+
+    const userRole = user.role || '';
+    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
+    if (!isAdmin && reg.approverId !== user.id) {
+      return res.status(403).json({ error: 'You are not authorized to reject this request' });
+    }
+
+    const existingTrail = (reg.auditTrail as any[]) || [];
+    existingTrail.push({
+      action: 'rejected',
+      by: user.id,
+      byName: user.fullName || user.username,
+      at: new Date().toISOString(),
+      rejectionReason,
+    });
+
+    await db.update(attendanceRegularizations).set({
+      status: 'rejected',
+      rejectedBy: user.id,
+      rejectedAt: new Date(),
+      rejectionReason,
+      auditTrail: existingTrail,
+      updatedAt: new Date(),
+    }).where(eq(attendanceRegularizations.id, regId));
+
+    const [updated] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    res.json(updated);
+  } catch (error) {
+    console.error('Error rejecting regularization:', error);
+    res.status(500).json({ error: 'Failed to reject request' });
+  }
+});
+
+router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const regId = parseInt(req.params.id);
+
+    const [reg] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    if (!reg) return res.status(404).json({ error: 'Request not found' });
+    if (reg.employeeId !== user.id) return res.status(403).json({ error: 'You can only cancel your own requests' });
+    if (reg.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be cancelled' });
+
+    await db.delete(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    res.json({ message: 'Request cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling regularization:', error);
+    res.status(500).json({ error: 'Failed to cancel request' });
+  }
+});
+
+router.get('/regularization/all', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const userRole = user.role || '';
+    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
+    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+
+    const { status, employeeId } = req.query;
+    let conditions: any[] = [];
+    if (status && status !== 'all') {
+      conditions.push(eq(attendanceRegularizations.status, status as string));
+    }
+    if (employeeId) {
+      conditions.push(eq(attendanceRegularizations.employeeId, parseInt(employeeId as string)));
+    }
+
+    const allRequests = await db.select({
+      id: attendanceRegularizations.id,
+      employeeId: attendanceRegularizations.employeeId,
+      requestDate: attendanceRegularizations.requestDate,
+      requestType: attendanceRegularizations.requestType,
+      correctedCheckIn: attendanceRegularizations.correctedCheckIn,
+      correctedCheckOut: attendanceRegularizations.correctedCheckOut,
+      reason: attendanceRegularizations.reason,
+      status: attendanceRegularizations.status,
+      approverId: attendanceRegularizations.approverId,
+      approvedAt: attendanceRegularizations.approvedAt,
+      approverRemarks: attendanceRegularizations.approverRemarks,
+      rejectedAt: attendanceRegularizations.rejectedAt,
+      rejectionReason: attendanceRegularizations.rejectionReason,
+      appliedToAttendance: attendanceRegularizations.appliedToAttendance,
+      originalData: attendanceRegularizations.originalData,
+      auditTrail: attendanceRegularizations.auditTrail,
+      createdAt: attendanceRegularizations.createdAt,
+      employeeName: users.fullName,
+      employeeCode: users.employeeId,
+    })
+    .from(attendanceRegularizations)
+    .innerJoin(users, eq(attendanceRegularizations.employeeId, users.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(attendanceRegularizations.createdAt));
+
+    res.json(allRequests);
+  } catch (error) {
+    console.error('Error fetching all regularizations:', error);
+    res.status(500).json({ error: 'Failed to fetch regularizations' });
+  }
+});
+
+function calculateWorkingHours(checkIn: Date | null | undefined, checkOut: Date | null | undefined): string | null {
+  if (!checkIn || !checkOut) return null;
+  const inTime = new Date(checkIn);
+  const outTime = new Date(checkOut);
+  const diff = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+  return Math.max(0, diff).toFixed(2);
+}
 
 export default router;
