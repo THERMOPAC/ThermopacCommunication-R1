@@ -999,7 +999,7 @@ export const passwordValidationSchema = z.string()
 
 export const insertUserSchema = createInsertSchema(users).extend({
   role: z.enum(roles),
-  reportingManagerId: z.number().optional(),
+  reportingManagerId: z.number({ required_error: "Reporting Manager is required" }),
   password: passwordValidationSchema,
   email: z.string().email(),
   mobileNumber: z.string().min(10),

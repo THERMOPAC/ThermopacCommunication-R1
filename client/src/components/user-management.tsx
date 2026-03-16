@@ -505,9 +505,10 @@ export default function UserManagement() {
                   <FormField
                     control={editForm.control}
                     name="reportingManagerId"
+                    rules={{ required: "Reporting Manager is required" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Reporting Manager</FormLabel>
+                        <FormLabel>Reporting Manager <span className="text-red-500">*</span></FormLabel>
                         <Select
                           onValueChange={(value) => field.onChange(Number(value))}
                           defaultValue={field.value ? field.value.toString() : undefined}
@@ -650,9 +651,10 @@ export default function UserManagement() {
                   <FormField
                     control={addForm.control}
                     name="reportingManagerId"
+                    rules={{ required: "Reporting Manager is required" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Reporting Manager</FormLabel>
+                        <FormLabel>Reporting Manager <span className="text-red-500">*</span></FormLabel>
                         <Select 
                           onValueChange={(value) => field.onChange(Number(value))}
                           defaultValue={field.value ? field.value.toString() : undefined}

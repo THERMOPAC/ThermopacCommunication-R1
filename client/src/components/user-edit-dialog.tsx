@@ -53,7 +53,7 @@ const editUserSchema = z.object({
   epfNo: z.string().optional(),
   esicNo: z.string().optional(),
   stdCode: z.string().optional(),
-  reportingManagerId: z.string().optional(), // Keep as string to avoid conversion issues
+  reportingManagerId: z.string().min(1, "Reporting Manager is required"),
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
   password: z.string().optional(), // Optional for updates
   // Duty Schedule fields
@@ -145,7 +145,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       epfNo: '',
       esicNo: '',
       stdCode: '',
-      reportingManagerId: 'none',
+      reportingManagerId: '',
       workLocationId: 'none',
       password: '',
       // Duty Schedule defaults
@@ -201,7 +201,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         epfNo: user.epfNo || '',
         esicNo: user.esicNo || '',
         stdCode: user.stdCode || '',
-        reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : 'none',
+        reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
         password: '',
         // Duty Schedule fields
@@ -241,9 +241,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         esicNo: data.esicNo?.trim() || null,
         stdCode: data.stdCode?.trim() || null,
         // Convert string IDs to numbers, handle empty strings and "none" values properly
-        reportingManagerId: data.reportingManagerId && data.reportingManagerId !== '' && data.reportingManagerId !== 'none'
-          ? parseInt(data.reportingManagerId) 
-          : null,
+        reportingManagerId: parseInt(data.reportingManagerId),
         workLocationId: data.workLocationId && data.workLocationId !== '' && data.workLocationId !== 'none'
           ? parseInt(data.workLocationId) 
           : null,
@@ -452,7 +450,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                 name="reportingManagerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reporting Manager</FormLabel>
+                    <FormLabel>Reporting Manager <span className="text-red-500">*</span></FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -460,7 +458,6 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">No Manager</SelectItem>
                         {getEligibleManagers(selectedRole).map(([role, managers]: [string, any[]]) => (
                           <SelectGroup key={role}>
                             <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
