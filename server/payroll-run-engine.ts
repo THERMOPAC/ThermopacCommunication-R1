@@ -272,7 +272,7 @@ async function stepAttendanceSnapshot(
   }
 
   return {
-    success: skipped === 0,
+    success: exceptions.filter(e => e.type === 'calculation_error').length === 0,
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
@@ -371,7 +371,7 @@ async function stepLeaveConsolidation(
   }
 
   return {
-    success: skipped === 0,
+    success: exceptions.filter(e => e.type === 'calculation_error').length === 0,
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
@@ -596,8 +596,9 @@ async function stepSalaryCalculation(
   await createPayrollLock(periodId, 'attendance', executedBy, 'Auto-locked after salary calculation');
   await createPayrollLock(periodId, 'leave', executedBy, 'Auto-locked after salary calculation');
 
+  const hardErrors = exceptions.filter(e => e.type === 'calculation_error').length;
   return {
-    success: skipped === 0,
+    success: hardErrors === 0,
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
@@ -732,7 +733,7 @@ async function stepBonusCalculation(
   }
 
   return {
-    success: skipped === 0,
+    success: exceptions.filter(e => e.type === 'calculation_error').length === 0,
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
@@ -832,7 +833,7 @@ async function stepDeductionCalculation(
   }).where(eq(payrollPeriods.id, periodId));
 
   return {
-    success: skipped === 0,
+    success: exceptions.filter(e => e.type === 'calculation_error').length === 0,
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
