@@ -161,7 +161,12 @@ export default function AttendanceManagementPage() {
 
   const getStatusBadge = (status: string, record?: any) => {
     if (status === 'Present' && record && record.checkInTime && !record.checkOutTime) {
-      return <Badge className="bg-blue-100 text-blue-800">Checked In</Badge>;
+      const today = new Date().toISOString().split('T')[0];
+      const recordDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
+      if (recordDate === today) {
+        return <Badge className="bg-blue-100 text-blue-800">Checked In</Badge>;
+      }
+      return <Badge className="bg-red-100 text-red-800">Absent</Badge>;
     }
     const statusConfig = {
       'Present': { variant: 'default', color: 'bg-green-100 text-green-800' },

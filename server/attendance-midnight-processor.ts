@@ -192,17 +192,12 @@ export class AttendanceMidnightProcessor {
         ));
 
       const hasValidDwar = dwarRecord && dwarRecord.status === 'submitted';
-      const description = `Employee ${user?.username || 'Unknown'} checked in at ${record.checkInTime} but did not check out on ${record.date}${hasValidDwar ? ' (DWAR submitted)' : ' (No DWAR submitted)'}`;
+      const description = `Employee ${user?.username || 'Unknown'} checked in at ${record.checkInTime} but did not check out on ${record.date}. Marked as Absent.`;
 
-      // Determine status based on DWAR completion
-      // If DWAR not submitted, mark as ABSENT
-      const attendanceStatus = hasValidDwar ? 'incomplete' : 'absent';
-      
-      // Update attendance record
       await db
         .update(attendanceRecords)
         .set({
-          status: attendanceStatus,
+          status: 'absent',
           isIncomplete: true,
           incompleteReason: description,
           flaggedAt: new Date(),
@@ -211,22 +206,21 @@ export class AttendanceMidnightProcessor {
         })
         .where(eq(attendanceRecords.id, record.id));
 
-      // Create attendance issue
       await db
         .insert(attendanceIssues)
         .values({
           attendanceRecordId: record.id,
           userId: record.userId,
-          issueType: hasValidDwar ? 'incomplete_checkout' : 'no_dwar',
+          issueType: 'no_checkout',
           description,
-          severity: hasValidDwar ? 'medium' : 'high',
+          severity: 'high',
           status: 'pending',
           detectedAt: new Date(),
           managerNotified: false,
           hrNotified: false
         });
 
-      console.log(`Flagged ${attendanceStatus} for user ${user?.username || record.userId} on ${record.date} (DWAR: ${hasValidDwar ? 'submitted' : 'not submitted'})`);
+      console.log(`Marked ABSENT for user ${user?.username || record.userId} on ${record.date} — no check-out recorded`);
     } catch (error) {
       console.error(`Error processing incomplete checkout for user ${record.userId}:`, error);
     }
