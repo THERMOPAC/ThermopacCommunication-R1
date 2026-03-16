@@ -6,7 +6,7 @@ import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
-  resolveProjectManager, resolveGM, resolveAssignment,
+  resolveProjectManager,
   resolveDepartmentHead, resolveReportingManager,
   fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared,
   trendDirection, velocityScore,
@@ -69,8 +69,6 @@ export class PredictiveProjectControlAgent implements IAgent {
     const findingManager = new FindingManager(context.runId, this.key);
     const insightManager = new InsightManager(context.runId, this.key);
     const recommendationManager = new RecommendationManager(context.runId, this.key);
-
-    const gmId = await resolveGM();
 
     // ════════════════════════════════════════════════════════════════════════
     // PP SERIES: PROJECT DELAY PREDICTIONS
@@ -245,9 +243,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             if (!finding.isDuplicate) findingsCount++;
 
             if (!await hasOpenTask(fingerprint)) {
-              const assignTo = await resolveAssignment(
-                phase.phase_lead_id ? Number(phase.phase_lead_id) : null, pid, 'Administration'
-              );
+              const assignTo = await resolveEscalation('L1', phase.phase_lead_id ? Number(phase.phase_lead_id) : pm);
               const rec = await recommendationManager.createRecommendation({
                 findingId: finding.id || finding.findingId,
                 title: `[Agent] Predictive Control – Phase Stalling: ${phase.name} in ${project.name}`,
@@ -327,7 +323,7 @@ export class PredictiveProjectControlAgent implements IAgent {
 
           if (!await hasOpenTask(fingerprint)) {
             const deptHead = await resolveDepartmentHead('Design');
-            const assignTo = dp.design_manager_id ? Number(dp.design_manager_id) : (deptHead || gmId);
+            const assignTo = await resolveEscalation('L1', dp.design_manager_id ? Number(dp.design_manager_id) : deptHead);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Predictive Control – Drawing Release Declining: ${dp.design_project_name}`,
@@ -404,7 +400,7 @@ export class PredictiveProjectControlAgent implements IAgent {
 
         if (!await hasOpenTask(fingerprint)) {
           const deptHead = await resolveDepartmentHead('Design');
-          const assignTo = row.design_manager_id ? Number(row.design_manager_id) : (deptHead || gmId);
+          const assignTo = await resolveEscalation('L1', row.design_manager_id ? Number(row.design_manager_id) : deptHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Review Turnaround Increasing: ${row.design_project_name}`,
@@ -476,7 +472,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Predictive Control – Revision Frequency Spike: ${row.design_project_name} (${increasePct}% increase)`,
               description: `Design project "${row.design_project_name}" revision frequency is spiking.\nCurrent week: ${currRevisions} | Previous: ${prevRevisions}\nPrediction: Design quality or scope stability issue\nagent_severity: ${severity}\n\nReview design quality process and scope changes.`,
-              assignedTo: row.design_manager_id ? Number(row.design_manager_id) : await resolveEscalation('L1', deptHead),
+              assignedTo: await resolveEscalation('L1', row.design_manager_id ? Number(row.design_manager_id) : deptHead),
               priority: 'Medium',
               category: `Prediction ${fingerprint}`,
             },
@@ -924,7 +920,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 actionPayload: {
                   title: `[Agent] Predictive Control – System-Wide Risk Trending Up (${increasePct}% more findings)`,
                   description: `Project Control Agent findings increased from ${prevFindings} to ${latestFindings} (${increasePct}% increase).\nThis indicates systemic project control issues are building.\nagent_severity: ${severity}\n\nRequires executive review of project portfolio health.`,
-                  assignedTo: await resolveEscalation('L3', await resolveGM()),
+                  assignedTo: await resolveEscalation('L3', pm),
                   priority: 'Critical',
                   category: `Prediction ${fingerprint}`,
                 },

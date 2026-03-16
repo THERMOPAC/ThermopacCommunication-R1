@@ -7,7 +7,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
   resolveProjectManager, resolveReportingManager, resolveDepartmentHead,
-  resolveGM, resolveAssignment, severityFromLevel, priorityFromLevel,
+  severityFromLevel, priorityFromLevel,
   fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared,
 } from './project-control-shared';
 
@@ -156,8 +156,6 @@ export class ProjectControlAgent implements IAgent {
     const insightManager = new InsightManager(context.runId, this.key);
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
-    const gmId = await resolveGM();
-
     try {
       autoClosedCount = await autoCloseResolvedTasks();
       if (autoClosedCount > 0) console.log(`[ProjectControl] Auto-closed ${autoClosedCount} resolved tasks`);
@@ -255,11 +253,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            wo.supervisor_id ? Number(wo.supervisor_id) : null,
-            Number(wo.project_id),
-            'Production'
-          );
+          const assignTo = await resolveEscalation(level, wo.supervisor_id ? Number(wo.supervisor_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number}`,
@@ -303,11 +297,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            wo.supervisor_id ? Number(wo.supervisor_id) : null,
-            Number(wo.project_id),
-            'Production'
-          );
+          const assignTo = await resolveEscalation(level, wo.supervisor_id ? Number(wo.supervisor_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number}`,
@@ -360,7 +350,7 @@ export class ProjectControlAgent implements IAgent {
 
           if (!await hasOpenTask(fingerprint)) {
             const pm = await resolveProjectManager(pid);
-            const assignTo = pm || await resolveAssignment(null, pid, 'Administration');
+            const assignTo = await resolveEscalation('L1', pm);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Project Inactive: ${project.project_name}`,
@@ -397,7 +387,7 @@ export class ProjectControlAgent implements IAgent {
 
           if (!await hasOpenTask(fingerprint)) {
             const pm = await resolveProjectManager(pid);
-            const assignTo = pm || await resolveAssignment(null, pid, 'Administration');
+            const assignTo = await resolveEscalation('L1', pm);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – No Activity: ${project.project_name}`,
@@ -447,7 +437,7 @@ export class ProjectControlAgent implements IAgent {
 
           if (!await hasOpenTask(fingerprint)) {
             const pm = await resolveProjectManager(pid);
-            const assignTo = pm || Number(project.manager_id) || gmId;
+            const assignTo = await resolveEscalation('L1', pm || Number(project.manager_id));
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Schedule Slippage: ${project.project_name}`,
@@ -494,11 +484,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            phase.phase_lead_id ? Number(phase.phase_lead_id) : null,
-            Number(phase.project_id),
-            'Administration'
-          );
+          const assignTo = await resolveEscalation('L1', phase.phase_lead_id ? Number(phase.phase_lead_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name}`,
@@ -545,11 +531,7 @@ export class ProjectControlAgent implements IAgent {
               if (!finding.isDuplicate) findingsCount++;
 
               if (!await hasOpenTask(fingerprint)) {
-                const assignTo = await resolveAssignment(
-                  prev.phase_lead_id ? Number(prev.phase_lead_id) : null,
-                  Number(prev.project_id),
-                  'Administration'
-                );
+                const assignTo = await resolveEscalation('L1', prev.phase_lead_id ? Number(prev.phase_lead_id) : pm);
                 const rec = await recommendationManager.createRecommendation({
                   findingId: finding.id || finding.findingId,
                   title: `[Agent] Project Control – Phase Blocking: ${prev.phase_name} → ${curr.phase_name}`,
@@ -648,7 +630,7 @@ export class ProjectControlAgent implements IAgent {
           if (!finding.isDuplicate) findingsCount++;
 
           if (!await hasOpenTask(fingerprint)) {
-            const assignTo = task.assigned_to ? Number(task.assigned_to) : await resolveAssignment(null, Number(task.project_id), 'Administration');
+            const assignTo = await resolveEscalation('L1', task.assigned_to ? Number(task.assigned_to) : pm);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
               title: `[Agent] Project Control – Commitment Due Soon: ${task.title}`,
@@ -767,7 +749,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = user.reporting_manager_id ? Number(user.reporting_manager_id) : gmId;
+          const assignTo = await resolveEscalation('L2', Number(user.user_id));
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Resource Overload: ${user.username}`,
@@ -964,11 +946,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            d.assigned_to_id ? Number(d.assigned_to_id) : null,
-            d.parent_project_id ? Number(d.parent_project_id) : null,
-            'Design'
-          );
+          const assignTo = await resolveEscalation('L1', d.assigned_to_id ? Number(d.assigned_to_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Drawing Overdue: ${d.drawing_number || d.drawing_title}`,
@@ -1016,11 +994,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(
-            r.reviewer_id ? Number(r.reviewer_id) : null,
-            r.parent_project_id ? Number(r.parent_project_id) : null,
-            'Design'
-          );
+          const assignTo = await resolveEscalation('L1', r.reviewer_id ? Number(r.reviewer_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Drawing Stuck in Review: ${r.review_title}`,
@@ -1066,7 +1040,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(r.reviewer_id ? Number(r.reviewer_id) : null, r.parent_project_id ? Number(r.parent_project_id) : null, 'Design');
+          const assignTo = await resolveEscalation('L1', r.reviewer_id ? Number(r.reviewer_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Review Comments Open: ${r.review_title}`,
@@ -1103,7 +1077,7 @@ export class ProjectControlAgent implements IAgent {
 
         if (!await hasOpenTask(fingerprint)) {
           const deptHead = await resolveDepartmentHead('Design');
-          const assignTo = d.design_manager_id ? Number(d.design_manager_id) : (deptHead || gmId);
+          const assignTo = await resolveEscalation('L1', d.design_manager_id ? Number(d.design_manager_id) : deptHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Client Approval Pending: ${d.drawing_number || d.drawing_title}`,
@@ -1145,7 +1119,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(d.assigned_to_id ? Number(d.assigned_to_id) : null, d.parent_project_id ? Number(d.parent_project_id) : null, 'Design');
+          const assignTo = await resolveEscalation('L1', d.assigned_to_id ? Number(d.assigned_to_id) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Revision Delayed: ${d.drawing_number || d.drawing_title}`,
@@ -1199,7 +1173,7 @@ export class ProjectControlAgent implements IAgent {
 
         if (!await hasOpenTask(fingerprint)) {
           const deptHead = await resolveDepartmentHead('Design');
-          const assignTo = deptHead || gmId;
+          const assignTo = await resolveEscalation('L1', deptHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – ${isIFC ? 'IFC' : 'AFC'} Delayed: ${stage.project_name}`,
@@ -1233,7 +1207,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = dp.design_manager_id ? Number(dp.design_manager_id) : (await resolveDepartmentHead('Design') || gmId);
+          const assignTo = await resolveEscalation('L1', dp.design_manager_id ? Number(dp.design_manager_id) : deptHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Backlog: ${dp.design_project_name}`,
@@ -1284,7 +1258,7 @@ export class ProjectControlAgent implements IAgent {
 
         if (!await hasOpenTask(fingerprint)) {
           const deptHead = await resolveDepartmentHead('Design');
-          const assignTo = deptHead || gmId;
+          const assignTo = await resolveEscalation('L1', deptHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Design Blocking Procurement: ${row.project_name}`,
@@ -1441,7 +1415,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = purchaseDeptHead || gmId;
+          const assignTo = await resolveEscalation('L1', purchaseDeptHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – PR Pending Conversion: PR#${pr.doc_num}`,
@@ -1574,7 +1548,7 @@ export class ProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveAssignment(po.created_by ? Number(po.created_by) : null, po.project_id ? Number(po.project_id) : null, 'Purchase');
+          const assignTo = await resolveEscalation('L1', po.created_by ? Number(po.created_by) : pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – PO Release Delay: ${po.purchase_order_number}`,
@@ -1723,7 +1697,7 @@ export class ProjectControlAgent implements IAgent {
 
         if (!await hasOpenTask(fingerprint)) {
           const qcHead = await resolveDepartmentHead('Quality Control');
-          const assignTo = qcHead || (io.manager_id ? Number(io.manager_id) : gmId);
+          const assignTo = await resolveEscalation('L1', qcHead || (io.manager_id ? Number(io.manager_id) : pm));
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Project Control – Inspection Pending: ${io.inspection_order_number}`,

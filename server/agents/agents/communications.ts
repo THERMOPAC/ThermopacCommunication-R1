@@ -9,6 +9,7 @@ import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { storage } from '../../storage';
+import { resolveGM } from './project-control-shared';
 
 const SOURCE_AGENT = 'communicator';
 
@@ -2158,7 +2159,7 @@ export class CommunicationsAgent implements IAgent {
               title: `[Agent] Weekly Communications Health Review — ${new Date().toLocaleDateString('en-IN')}`,
               description: `This is your weekly consolidated review of organizational health metrics that require attention but don't have individual task assignments.\n\n${weeklyItems.join('\n')}\n\nPlease review these items and take action where needed.\n\nSource: Communications Agent — Weekly Consolidated Review`,
               priority: 'Medium',
-              assignedTo: 1,
+              assignedTo: await resolveGM(),
               category: `Agent Task ${fpWeekly}`,
               sourceType: 'agent_task',
               sourceAgent: SOURCE_AGENT,

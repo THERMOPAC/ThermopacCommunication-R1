@@ -6,9 +6,22 @@ import { resolveEscalation, severityToLevel } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
-  resolveProjectManager, resolveGM, resolveProductionManager,
-  resolveReportingManager, hasOpenTask as hasOpenTaskShared,
+  resolveProjectManager, resolveProductionManager, resolveGM,
+  resolveReportingManager, resolveDepartmentHead, hasOpenTask as hasOpenTaskShared,
 } from './project-control-shared';
+
+let cachedQCHeadId: number | null = null;
+async function resolveQCHead(): Promise<number> {
+  if (cachedQCHeadId) return cachedQCHeadId;
+  const head = await resolveDepartmentHead('Quality Control');
+  if (head) { cachedQCHeadId = head; return head; }
+  const rows = await db.execute(sql`
+    SELECT id FROM users WHERE department = 'Quality Control' AND is_active = true ORDER BY id LIMIT 1
+  `);
+  const row = (rows.rows as any[])[0];
+  cachedQCHeadId = row ? Number(row.id) : await resolveGM();
+  return cachedQCHeadId;
+}
 
 const SOURCE_AGENT = 'quality_controller';
 const AGENT_KEY = 'quality_management';
@@ -118,7 +131,6 @@ export class QualityManagementAgent implements IAgent {
     const insightManager = new InsightManager(context.runId, this.key);
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
-    const gmId = await resolveGM();
     const tasksClosed = await autoCloseResolvedTasks();
 
     // ════════════════════════════════════════════════════════════════════════════════
@@ -161,7 +173,7 @@ export class QualityManagementAgent implements IAgent {
         if (!await hasOpenTask(fingerprint)) {
           const level = escalationLevelFromSeverity(sev);
           const pm = await resolveProjectManager(row.project_id);
-          const assignee = await resolveQMEscalation(level, null);
+          const assignee = await resolveQMEscalation(level, pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Inspection Backlog: ${row.project_name} (${pendingCount} pending)`,
@@ -379,7 +391,8 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveQMEscalation('L2', null);
+          const stalepm = await resolveProjectManager(row.project_id);
+          const assignee = await resolveQMEscalation('L2', stalepm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Stale Inspections: ${row.project_name}`,
@@ -426,7 +439,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
           const pm = await resolveProjectManager(proj.id);
-          const assignee = await resolveQMEscalation('L2', null);
+          const assignee = await resolveQMEscalation('L2', pm);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] No Inspection Orders: ${proj.name}`,
@@ -484,7 +497,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveQMEscalation('L2', null);
+          const assignee = await resolveQMEscalation('L2', await resolveQCHead());
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] CRITICAL: Instrument In Use With Expired Calibration: ${inst.instrument_id}`,
@@ -523,7 +536,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveQMEscalation('L3', null);
+          const assignee = await resolveQMEscalation('L3', await resolveQCHead());
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] SYSTEMIC: ${inUseOverdue.length} Instruments In Use With Expired Calibration`,
@@ -666,7 +679,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
           const level = escalationLevelFromSeverity(sev);
-          const assignee = await resolveQMEscalation(level, null);
+          const assignee = await resolveQMEscalation(level, await resolveQCHead());
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Active Welder Expired Certificate: ${welder.name} (${welder.welderId})`,
@@ -877,7 +890,7 @@ export class QualityManagementAgent implements IAgent {
         });
         if (!finding.isDuplicate) findingsCount++;
         if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveQMEscalation('L2', null);
+          const assignee = await resolveQMEscalation('L2', await resolveQCHead());
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Expired PMA Still Active: ${pma.pma_number}`,

@@ -6,7 +6,7 @@ import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
-  resolveProjectManager, resolveGM, resolveAssignment,
+  resolveProjectManager,
   resolveDepartmentHead, hasOpenTask as hasOpenTaskShared,
 } from './project-control-shared';
 
@@ -120,7 +120,6 @@ export class ProductionManagementAgent implements IAgent {
     const insightManager = new InsightManager(context.runId, this.key);
     const recommendationManager = new RecommendationManager(context.runId, this.key);
 
-    const gmId = await resolveGM();
     const tasksClosed = await autoCloseResolvedTasks();
 
     // ════════════════════════════════════════════════════════════════════════════════
@@ -319,7 +318,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Scheduling Conflict: ${conflict.wo_a} & ${conflict.wo_b} on ${conflict.production_line}`,
               description: `Scheduling conflict detected on production line "${conflict.production_line}".\nWO-A: ${conflict.wo_a} (${conflict.a_start} → ${conflict.a_end})\nWO-B: ${conflict.wo_b} (${conflict.b_start} → ${conflict.b_end})\nagent_severity: ${severity}\n\nAction Required: Reschedule one of the work orders to resolve overlap.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -481,7 +480,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Supervisor Capacity Exceeded: ${row.username} (${row.open_count} open WOs)`,
               description: `Supervisor "${row.username}" is overloaded with ${row.open_count} open work orders.\nLines: ${row.lines || 'N/A'}\nagent_severity: ${severity}\n\nAction Required: Review workload distribution and reassign WOs to other supervisors.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -598,7 +597,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Material Shortage Risk: WO ${row.work_order_number} (${row.consumption_pct}% consumed)`,
               description: `Material for WO "${row.work_order_number}" is nearly depleted.\nRequired: ${row.quantity_required} | Consumed: ${row.quantity_consumed}\nProject: ${row.project_name}\nagent_severity: ${severity}\n\nAction Required: Arrange additional material procurement immediately.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: 'Critical',
               category: `Production ${fingerprint}`,
             },
@@ -793,7 +792,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Machine Idle With Pending Orders: ${row.machine_name} (${row.downtime_minutes}min)`,
               description: `Machine "${row.machine_name}" is idle with pending work order ${row.work_order_number}.\nDowntime: ${row.downtime_minutes} minutes\nagent_severity: ${severity}\n\nAction Required: Investigate idle reason and resume production.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -870,7 +869,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Frequent Machine Stoppage: ${row.machine_name} (${row.stoppage_count} stops)`,
               description: `Machine "${row.machine_name}" is experiencing frequent stoppages.\nStoppages: ${row.stoppage_count} in 7 days\nTotal downtime: ${row.total_downtime} minutes\nagent_severity: ${severity}\n\nAction Required: Schedule preventive maintenance and investigate root cause.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -1000,7 +999,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Low Production Yield: WO ${row.work_order_number} (${row.yield_pct}%)`,
               description: `WO "${row.work_order_number}" has a yield below threshold.\nYield: ${row.yield_pct}%\nProduced: ${row.total_produced} | Rejected: ${row.total_rejected}\nProject: ${row.project_name}\nagent_severity: ${severity}\n\nAction Required: Investigate root cause of rejections and implement corrective measures.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -1142,7 +1141,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Bottleneck Machine Detected: ${row.machine_name} (${row.total_idle}min idle)`,
               description: `Machine "${row.machine_name}" is causing a production bottleneck.\nSetup time: ${row.total_setup}min | Downtime: ${row.total_downtime}min\nTotal idle: ${row.total_idle}min in 30 days\nagent_severity: ${severity}\n\nAction Required: Optimize setup, schedule preventive maintenance, or add parallel capacity.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -1201,7 +1200,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Shift Staffing Shortage: ${absentToday.length}/${totalProdStaff} Production Staff Absent`,
               description: `Production team staffing shortage detected.\nAbsent: ${absentNames}\nTotal production staff: ${totalProdStaff}\nDate: ${today}\nagent_severity: ${severity}\n\nAction Required: Arrange backup staffing or adjust production schedule.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -1375,7 +1374,7 @@ export class ProductionManagementAgent implements IAgent {
               actionPayload: {
                 title: `[Agent] DPR Missing: ${user.username} (${yesterday})`,
                 description: `Production team member "${user.username}" has not submitted a Daily Production Report for ${yesterday}.\nUser was marked as present in attendance.\nagent_severity: ${severity}\n\nAction Required: Follow up with ${user.username} and ensure DPR is submitted.`,
-                assignedTo: PROD_MANAGER_ID,
+                assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
                 priority: priorityFromSeverity(severity),
                 category: `Production ${fingerprint}`,
               },
@@ -1581,7 +1580,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Slippage Trend: ${proj.name} (${slippagePct}% overdue)`,
               description: `Project "${proj.name}" (${proj.code}) has systematic production slippage.\nOverdue: ${overdueCount}/${openCount} open WOs (${slippagePct}%)\nLate completed: ${lateCompleted}\nagent_severity: ${severity}\n\nAction Required: Conduct production schedule review meeting and reallocate resources.`,
-              assignedTo: pm || PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', pm || PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
@@ -1692,7 +1691,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Throughput Drop (${dropPct}% decline, ${backlog} WOs backlog)`,
               description: `Production throughput has declined significantly.\nCurrent: ${currCompleted}/week | Previous: ${prevCompleted}/week\nBacklog: ${backlog} open WOs\nagent_severity: ${severity}\n\nAction Required: Investigate root cause and optimize production workflow.`,
-              assignedTo: PROD_MANAGER_ID,
+              assignedTo: await resolveEscalation('L1', PROD_MANAGER_ID),
               priority: priorityFromSeverity(severity),
               category: `Production ${fingerprint}`,
             },
