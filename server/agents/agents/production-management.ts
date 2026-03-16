@@ -1248,7 +1248,7 @@ export class ProductionManagementAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Production Supervisor Missing: Jawahar Not Checked In (${today})`,
               description: `Production Manager Jawahar has not checked in today.\nDate: ${today}\nImpact: Production floor without direct supervision\nagent_severity: ${severity}\n\nAction Required: Assign acting production supervisor immediately.`,
-              assignedTo: await resolveEscalation('L3', null),
+              assignedTo: await resolveEscalation('L3', PROD_MANAGER_ID),
               priority: 'Critical',
               category: `Production ${fingerprint}`,
             },

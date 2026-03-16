@@ -1337,7 +1337,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Design Impacting Milestone: ${project.name} (${incompleteCount} design stages, ${daysUntil}d to deadline)`,
               description: `Project "${project.name}" has ${incompleteCount} incomplete design key stages.\nDeadline: ${project.target_end_date} (${daysUntil <= 0 ? 'OVERDUE' : daysUntil + 'd remaining'})\nagent_severity: ${severity}\n\nRequires immediate management review.`,
-              assignedTo: await resolveEscalation('L3', null), priority: 'Critical', category: `Design ${fingerprint}`,
+              assignedTo: await resolveEscalation('L3', project.manager_id ? Number(project.manager_id) : pm), priority: 'Critical', category: `Design ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.9,
           });
@@ -1913,7 +1913,7 @@ export class ProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Project Control – Material Delay Affecting Project: PO#${po.doc_num} → ${proj.name}`,
               description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue.\nProject: ${proj.name}\nManufacturing phase: ${daysToMfg <= 0 ? 'OVERDUE' : daysToMfg + 'd away'}\nagent_severity: ${severity}\n\nRequires immediate management intervention.`,
-              assignedTo: await resolveEscalation('L3', null), priority: 'Critical', category: `Procurement ${fingerprint}`,
+              assignedTo: await resolveEscalation('L3', proj.manager_id ? Number(proj.manager_id) : pm), priority: 'Critical', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.85,
           });

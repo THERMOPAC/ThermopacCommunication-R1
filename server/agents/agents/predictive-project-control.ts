@@ -924,7 +924,7 @@ export class PredictiveProjectControlAgent implements IAgent {
                 actionPayload: {
                   title: `[Agent] Predictive Control – System-Wide Risk Trending Up (${increasePct}% more findings)`,
                   description: `Project Control Agent findings increased from ${prevFindings} to ${latestFindings} (${increasePct}% increase).\nThis indicates systemic project control issues are building.\nagent_severity: ${severity}\n\nRequires executive review of project portfolio health.`,
-                  assignedTo: await resolveEscalation('L3', null),
+                  assignedTo: await resolveEscalation('L3', await resolveGM()),
                   priority: 'Critical',
                   category: `Prediction ${fingerprint}`,
                 },
