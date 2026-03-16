@@ -331,9 +331,11 @@ export default function AttendancePage() {
     }
   };
 
-  // Helper function to get status badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, record?: any) => {
     const statusLower = status?.toLowerCase() || '';
+    if (statusLower === 'present' && record && record.checkInTime && !record.checkOutTime) {
+      return <Badge className="bg-blue-100 text-blue-800">Checked In</Badge>;
+    }
     switch (statusLower) {
       case 'present':
         return <Badge className="bg-green-100 text-green-800">Present</Badge>;
@@ -659,7 +661,7 @@ export default function AttendancePage() {
                           </span>
                         )}
                       </td>
-                      <td className="p-3">{getStatusBadge(record.status)}</td>
+                      <td className="p-3">{getStatusBadge(record.status, record)}</td>
                       <td className="p-3 text-gray-600">
                         {record.workLocation ? `${record.workLocation.name}` : '-'}
                       </td>

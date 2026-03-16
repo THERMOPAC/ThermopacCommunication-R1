@@ -159,7 +159,10 @@ export default function AttendanceManagementPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, record?: any) => {
+    if (status === 'Present' && record && record.checkInTime && !record.checkOutTime) {
+      return <Badge className="bg-blue-100 text-blue-800">Checked In</Badge>;
+    }
     const statusConfig = {
       'Present': { variant: 'default', color: 'bg-green-100 text-green-800' },
       'Absent': { variant: 'destructive', color: 'bg-red-100 text-red-800' },
@@ -696,7 +699,7 @@ export default function AttendanceManagementPage() {
                       <td className="p-3">
                         {record.workHours ? `${record.workHours.toFixed(1)}h` : '-'}
                       </td>
-                      <td className="p-3">{getStatusBadge(record.status)}</td>
+                      <td className="p-3">{getStatusBadge(record.status, { checkInTime: record.timeIn, checkOutTime: record.timeOut })}</td>
                       <td className="p-3 text-gray-600">{record.location || '-'}</td>
                     </tr>
                   ))
