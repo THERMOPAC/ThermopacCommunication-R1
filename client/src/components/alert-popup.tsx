@@ -54,11 +54,6 @@ export default function AlertPopup() {
           return combined.slice(0, 5);
         });
 
-        newAlerts.forEach(alert => {
-          setTimeout(() => {
-            setPopups(prev => prev.filter(p => p.id !== alert.id));
-          }, 8000);
-        });
       }
     } catch {
     }
