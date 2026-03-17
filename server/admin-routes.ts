@@ -2357,6 +2357,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         firstName: users.firstName,
         lastName: users.lastName,
         jobTitle: users.jobTitle,
+        userRole: users.role,
         department: users.department,
         panNumber: users.panNumber,
         dateOfJoining: users.dateOfJoining,
@@ -2421,7 +2422,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       employee: {
         name: employeeFullName,
         employeeCode: record.employeeCode || 'N/A',
-        designation: record.jobTitle || 'N/A',
+        designation: (record as any).userRole || 'N/A',
         department: record.department || 'N/A',
         joiningDate: (record as any).dateOfJoining || 'N/A',
         panNumber: (record as any).panNumber || 'N/A',
