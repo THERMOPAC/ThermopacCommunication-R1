@@ -53,6 +53,8 @@ const editUserSchema = z.object({
   epfNo: z.string().optional(),
   esicNo: z.string().optional(),
   stdCode: z.string().optional(),
+  panNumber: z.string().optional(),
+  dateOfJoining: z.string().optional(),
   reportingManagerId: z.string().min(1, "Reporting Manager is required"),
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
   password: z.string().optional(), // Optional for updates
@@ -89,6 +91,8 @@ interface User {
   epfNo?: string;
   esicNo?: string;
   stdCode?: string;
+  panNumber?: string;
+  dateOfJoining?: string;
   reportingManagerId?: number;
   workLocationId?: number;
   isActive: boolean;
@@ -145,6 +149,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       epfNo: '',
       esicNo: '',
       stdCode: '',
+      panNumber: '',
+      dateOfJoining: '',
       reportingManagerId: '',
       workLocationId: 'none',
       password: '',
@@ -201,6 +207,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         epfNo: user.epfNo || '',
         esicNo: user.esicNo || '',
         stdCode: user.stdCode || '',
+        panNumber: (user as any).panNumber || '',
+        dateOfJoining: (user as any).dateOfJoining || '',
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
         password: '',
@@ -240,6 +248,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         epfNo: data.epfNo?.trim() || null,
         esicNo: data.esicNo?.trim() || null,
         stdCode: data.stdCode?.trim() || null,
+        panNumber: data.panNumber?.trim() || null,
+        dateOfJoining: data.dateOfJoining?.trim() || null,
         // Convert string IDs to numbers, handle empty strings and "none" values properly
         reportingManagerId: parseInt(data.reportingManagerId),
         workLocationId: data.workLocationId && data.workLocationId !== '' && data.workLocationId !== 'none'
@@ -439,6 +449,34 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                     <FormLabel>Employee Code</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter employee code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="panNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PAN Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. ABCDE1234F" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dateOfJoining"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of Joining</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
