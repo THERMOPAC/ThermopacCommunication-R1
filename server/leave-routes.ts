@@ -207,17 +207,31 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       .returning();
 
     const currentYear = new Date().getFullYear();
-    await db
-      .update(leaveBalances)
-      .set({
-        pendingDays: sql`pending_days + ${totalDays}`,
+    const [existingBalance] = await db.select().from(leaveBalances).where(and(
+      eq(leaveBalances.userId, userId),
+      eq(leaveBalances.leaveTypeId, leaveTypeId),
+      eq(leaveBalances.year, currentYear)
+    ));
+    if (!existingBalance) {
+      await db.insert(leaveBalances).values({
+        userId,
+        leaveTypeId,
+        year: currentYear,
+        allocatedDays: '0.00',
+        usedDays: '0.00',
+        pendingDays: totalDays.toString(),
+        carryoverDays: '0.00',
         lastUpdated: new Date()
-      })
-      .where(and(
-        eq(leaveBalances.userId, userId),
-        eq(leaveBalances.leaveTypeId, leaveTypeId),
-        eq(leaveBalances.year, currentYear)
-      ));
+      });
+    } else {
+      await db
+        .update(leaveBalances)
+        .set({
+          pendingDays: sql`pending_days + ${totalDays}`,
+          lastUpdated: new Date()
+        })
+        .where(eq(leaveBalances.id, existingBalance.id));
+    }
 
     if (managerId) {
       const user = req.user as any;
@@ -389,18 +403,32 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
       .where(eq(leaveRequests.id, requestId));
 
     const currentYear = new Date().getFullYear();
-    await db
-      .update(leaveBalances)
-      .set({
-        pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
-        usedDays: sql`used_days + ${existingRequest.totalDays}`,
+    const [approvalBalance] = await db.select().from(leaveBalances).where(and(
+      eq(leaveBalances.userId, existingRequest.employeeId),
+      eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
+      eq(leaveBalances.year, currentYear)
+    ));
+    if (!approvalBalance) {
+      await db.insert(leaveBalances).values({
+        userId: existingRequest.employeeId,
+        leaveTypeId: existingRequest.leaveTypeId,
+        year: currentYear,
+        allocatedDays: '0.00',
+        usedDays: existingRequest.totalDays.toString(),
+        pendingDays: '0.00',
+        carryoverDays: '0.00',
         lastUpdated: new Date()
-      })
-      .where(and(
-        eq(leaveBalances.userId, existingRequest.employeeId),
-        eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-        eq(leaveBalances.year, currentYear)
-      ));
+      });
+    } else {
+      await db
+        .update(leaveBalances)
+        .set({
+          pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
+          usedDays: sql`used_days + ${existingRequest.totalDays}`,
+          lastUpdated: new Date()
+        })
+        .where(eq(leaveBalances.id, approvalBalance.id));
+    }
 
     const manager = req.user as any;
     const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, existingRequest.leaveTypeId));
@@ -461,17 +489,20 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
       .where(eq(leaveRequests.id, requestId));
 
     const currentYear = new Date().getFullYear();
-    await db
-      .update(leaveBalances)
-      .set({
-        pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
-        lastUpdated: new Date()
-      })
-      .where(and(
-        eq(leaveBalances.userId, existingRequest.employeeId),
-        eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-        eq(leaveBalances.year, currentYear)
-      ));
+    const [rejectionBalance] = await db.select().from(leaveBalances).where(and(
+      eq(leaveBalances.userId, existingRequest.employeeId),
+      eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
+      eq(leaveBalances.year, currentYear)
+    ));
+    if (rejectionBalance) {
+      await db
+        .update(leaveBalances)
+        .set({
+          pendingDays: sql`GREATEST(0, pending_days - ${existingRequest.totalDays})`,
+          lastUpdated: new Date()
+        })
+        .where(eq(leaveBalances.id, rejectionBalance.id));
+    }
 
     const manager = req.user as any;
     const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, existingRequest.leaveTypeId));
