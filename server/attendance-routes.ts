@@ -766,9 +766,30 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
     }
 
-    const validTypes = ['outdoor_duty', 'missed_checkin', 'missed_checkout', 'full_day_regularization'];
+    const validTypes = ['outdoor_duty', 'missed_checkout', 'full_day_regularization'];
     if (!validTypes.includes(requestType)) {
       return res.status(400).json({ error: 'Invalid request type' });
+    }
+
+    const [attendanceState] = await db.select({
+      checkInTime: attendanceRecords.checkInTime,
+      checkOutTime: attendanceRecords.checkOutTime,
+      status: attendanceRecords.status,
+    }).from(attendanceRecords).where(and(
+      eq(attendanceRecords.userId, user.id),
+      eq(attendanceRecords.date, requestDate)
+    ));
+
+    const hasCheckIn = !!attendanceState?.checkInTime;
+    const hasCheckOut = !!attendanceState?.checkOutTime;
+    const isMissingCheckout = hasCheckIn && !hasCheckOut;
+    const isNoRecord = !attendanceState || (!hasCheckIn && !hasCheckOut) || attendanceState.status === 'absent';
+
+    if (requestType === 'missed_checkout' && !isMissingCheckout) {
+      return res.status(400).json({ error: 'Missed Check-Out is only valid when check-in exists but check-out is missing' });
+    }
+    if ((requestType === 'outdoor_duty' || requestType === 'full_day_regularization') && isMissingCheckout) {
+      return res.status(400).json({ error: 'This request type is not valid for a date with existing check-in. Use Missed Check-Out instead.' });
     }
 
     const lockCheck = await checkPayrollLock('attendance', requestDate, user.id);
@@ -914,16 +935,16 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
       ));
     const holidayDates = new Set(holidays.map(h => h.date));
 
-    const pendingRegs = await db
-      .select({ requestDate: attendanceRegularizations.requestDate })
+    const existingRegs = await db
+      .select({ requestDate: attendanceRegularizations.requestDate, status: attendanceRegularizations.status })
       .from(attendanceRegularizations)
       .where(and(
         eq(attendanceRegularizations.employeeId, user.id),
-        eq(attendanceRegularizations.status, 'pending'),
+        inArray(attendanceRegularizations.status, ['pending', 'approved']),
         gte(attendanceRegularizations.requestDate, startStr),
         lte(attendanceRegularizations.requestDate, endStr)
       ));
-    const pendingRegDates = new Set(pendingRegs.map(r => r.requestDate));
+    const excludedRegDates = new Set(existingRegs.map(r => r.requestDate));
 
     const [userRecord] = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, user.id));
     const weeklyOff = new Set<number>(userRecord?.weeklyOffDays || [0]);
@@ -938,19 +959,17 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
       if (weeklyOff.has(dayOfWeek)) continue;
       if (holidayDates.has(dateStr)) continue;
       if (leaveDates.has(dateStr)) continue;
-      if (pendingRegDates.has(dateStr)) continue;
+      if (excludedRegDates.has(dateStr)) continue;
 
       const record = attendanceMap.get(dateStr);
       if (!record) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No attendance record' });
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No attendance record', attendanceState: 'no_record' });
       } else if (record.status === 'absent') {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Marked absent' });
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Marked absent', attendanceState: 'absent' });
       } else if (!record.checkInTime && !record.checkOutTime) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No check-in or check-out' });
-      } else if (!record.checkInTime) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Missing check-in' });
-      } else if (!record.checkOutTime) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Missing check-out' });
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No attendance record', attendanceState: 'no_record' });
+      } else if (!record.checkOutTime && record.checkInTime) {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Missing check-out', attendanceState: 'missing_checkout' });
       }
     }
 

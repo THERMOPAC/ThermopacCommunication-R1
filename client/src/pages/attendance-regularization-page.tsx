@@ -72,11 +72,9 @@ export default function AttendanceRegularizationPage() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const [newRequest, setNewRequest] = useState({
-    requestDate: '',
-    requestType: '',
-    reason: '',
-  });
+  const [selectedAbsentDay, setSelectedAbsentDay] = useState<any>(null);
+  const [newRequestType, setNewRequestType] = useState('');
+  const [newRequestReason, setNewRequestReason] = useState('');
   const [approveRemarks, setApproveRemarks] = useState('');
   const [rejectReason, setRejectReason] = useState('');
 
@@ -138,8 +136,11 @@ export default function AttendanceRegularizationPage() {
     onSuccess: () => {
       toast({ title: 'Request submitted', description: 'Your regularization request has been submitted for approval.' });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/my-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/absent-days'] });
       setShowNewDialog(false);
-      setNewRequest({ requestDate: '', requestType: '', reason: '' });
+      setSelectedAbsentDay(null);
+      setNewRequestType('');
+      setNewRequestReason('');
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message || 'Failed to submit request', variant: 'destructive' });
@@ -518,7 +519,10 @@ export default function AttendanceRegularizationPage() {
         )}
       </Tabs>
 
-      <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+      <Dialog open={showNewDialog} onOpenChange={(open) => {
+        setShowNewDialog(open);
+        if (!open) { setSelectedAbsentDay(null); setNewRequestType(''); setNewRequestReason(''); }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -528,26 +532,41 @@ export default function AttendanceRegularizationPage() {
             <DialogDescription>Select an absent day to submit a correction request</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {loadingAbsent && (
+              <div className="text-center py-4 text-muted-foreground text-sm">Loading absent days...</div>
+            )}
+            {absentError && (
+              <div className="text-center py-4 bg-red-50 rounded-lg">
+                <AlertCircle className="h-8 w-8 mx-auto text-red-500 mb-1" />
+                <p className="text-sm text-red-700 font-medium">Failed to load absent days</p>
+              </div>
+            )}
+            {!loadingAbsent && !absentError && absentDays.length === 0 && (
+              <div className="text-center py-4 bg-green-50 rounded-lg">
+                <CheckCircle className="h-8 w-8 mx-auto text-green-500 mb-1" />
+                <p className="text-sm text-green-700 font-medium">No absent days this month!</p>
+                <p className="text-xs text-green-600">All your attendance records are complete.</p>
+              </div>
+            )}
             {absentDays.length > 0 && (
               <div>
                 <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
                   <CalendarX className="h-4 w-4 text-red-500" />
                   Absent Days This Month ({absentDays.length})
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
                   {absentDays.map((day: any) => {
-                    const isSelected = newRequest.requestDate === day.date;
-                    const reasonIcon = day.reason.includes('Missing check-in') ? 'missed_checkin'
-                      : day.reason.includes('Missing check-out') ? 'missed_checkout'
-                      : 'full_day_regularization';
+                    const isSelected = selectedAbsentDay?.date === day.date;
                     return (
                       <div
                         key={day.date}
                         onClick={() => {
-                          const suggestedType = day.reason.includes('Missing check-in') ? 'missed_checkin'
-                            : day.reason.includes('Missing check-out') ? 'missed_checkout'
-                            : 'full_day_regularization';
-                          setNewRequest({ ...newRequest, requestDate: day.date, requestType: suggestedType });
+                          setSelectedAbsentDay(day);
+                          if (day.attendanceState === 'missing_checkout') {
+                            setNewRequestType('missed_checkout');
+                          } else {
+                            setNewRequestType('');
+                          }
                         }}
                         className={`cursor-pointer border rounded-lg p-3 transition-all ${
                           isSelected
@@ -560,12 +579,10 @@ export default function AttendanceRegularizationPage() {
                             <p className="font-semibold text-sm">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</p>
                             <p className="text-xs text-muted-foreground">{day.dayName}</p>
                           </div>
-                          <div className="text-right">
-                            <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              {day.reason}
-                            </Badge>
-                          </div>
+                          <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            {day.reason}
+                          </Badge>
                         </div>
                       </div>
                     );
@@ -573,69 +590,62 @@ export default function AttendanceRegularizationPage() {
                 </div>
               </div>
             )}
-            {loadingAbsent && (
-              <div className="text-center py-4 text-muted-foreground text-sm">Loading absent days...</div>
-            )}
-            {absentError && (
-              <div className="text-center py-4 bg-red-50 rounded-lg">
-                <AlertCircle className="h-8 w-8 mx-auto text-red-500 mb-1" />
-                <p className="text-sm text-red-700 font-medium">Failed to load absent days</p>
-                <p className="text-xs text-red-600">You can still submit a request using the date picker below.</p>
+
+            {selectedAbsentDay && (
+              <div className="border-t pt-3 space-y-3">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm font-medium">
+                    Selected: {format(new Date(selectedAbsentDay.date + 'T00:00:00'), 'dd MMM yyyy')} ({selectedAbsentDay.dayName})
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Status: {selectedAbsentDay.reason}</div>
+                </div>
+
+                {selectedAbsentDay.attendanceState === 'missing_checkout' ? (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
+                    <div className="font-medium">Auto-classified: Missed Check-Out</div>
+                    <div className="text-xs mt-1">Check-in exists. Check-out will be auto-filled from your duty end time on approval.</div>
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-sm font-medium">Request Type *</Label>
+                    <Select value={newRequestType} onValueChange={setNewRequestType}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="outdoor_duty">Outdoor Duty (client visit, travel, site visit)</SelectItem>
+                        <SelectItem value="full_day_regularization">Full Day Regularization (was present but no punches)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {newRequestType && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 mt-2">
+                        {newRequestType === 'outdoor_duty' && <span>Full day attendance from your duty schedule will be applied on approval.</span>}
+                        {newRequestType === 'full_day_regularization' && <span>Full day attendance from your duty schedule will be applied on approval.</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <Label className="text-sm font-medium">Reason *</Label>
+                  <Textarea
+                    value={newRequestReason}
+                    onChange={(e) => setNewRequestReason(e.target.value)}
+                    placeholder="Provide a detailed reason for this regularization request"
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
               </div>
             )}
-            {!loadingAbsent && !absentError && absentDays.length === 0 && (
-              <div className="text-center py-4 bg-green-50 rounded-lg">
-                <CheckCircle className="h-8 w-8 mx-auto text-green-500 mb-1" />
-                <p className="text-sm text-green-700 font-medium">No absent days this month!</p>
-                <p className="text-xs text-green-600">You can still submit a request for outdoor duty using the date picker below.</p>
-              </div>
-            )}
-            <div className="border-t pt-3">
-              <Label className="text-sm text-muted-foreground">Or enter a date manually</Label>
-              <Input
-                type="date"
-                value={newRequest.requestDate}
-                onChange={(e) => setNewRequest({ ...newRequest, requestDate: e.target.value })}
-                max={format(new Date(), 'yyyy-MM-dd')}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Request Type *</Label>
-              <Select value={newRequest.requestType} onValueChange={(v) => setNewRequest({ ...newRequest, requestType: v })}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="outdoor_duty">Outdoor Duty (client visit, travel, site visit)</SelectItem>
-                  <SelectItem value="missed_checkin">Missed Check-In</SelectItem>
-                  <SelectItem value="missed_checkout">Missed Check-Out</SelectItem>
-                  <SelectItem value="full_day_regularization">Full Day Regularization (no punches)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {newRequest.requestType && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                <div className="font-medium mb-1">Auto-applied on approval:</div>
-                {newRequest.requestType === 'outdoor_duty' && <span>Check-in and check-out will be set from your duty schedule.</span>}
-                {newRequest.requestType === 'missed_checkin' && <span>Check-in will be set from your duty start time.</span>}
-                {newRequest.requestType === 'missed_checkout' && <span>Check-out will be set from your duty end time.</span>}
-                {newRequest.requestType === 'full_day_regularization' && <span>Full day attendance will be created from your duty schedule.</span>}
-              </div>
-            )}
-            <div>
-              <Label>Reason *</Label>
-              <Textarea
-                value={newRequest.reason}
-                onChange={(e) => setNewRequest({ ...newRequest, reason: e.target.value })}
-                placeholder="Provide a detailed reason for this regularization request"
-                rows={3}
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewDialog(false)}>Cancel</Button>
             <Button
-              onClick={() => submitMutation.mutate(newRequest)}
-              disabled={!newRequest.requestDate || !newRequest.requestType || !newRequest.reason || submitMutation.isPending}
+              onClick={() => submitMutation.mutate({
+                requestDate: selectedAbsentDay?.date,
+                requestType: newRequestType,
+                reason: newRequestReason,
+              })}
+              disabled={!selectedAbsentDay || !newRequestType || !newRequestReason.trim() || submitMutation.isPending}
             >
               {submitMutation.isPending ? 'Submitting...' : 'Submit Request'}
             </Button>
