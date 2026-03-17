@@ -75,8 +75,6 @@ export default function AttendanceRegularizationPage() {
   const [newRequest, setNewRequest] = useState({
     requestDate: '',
     requestType: '',
-    correctedCheckIn: '',
-    correctedCheckOut: '',
     reason: '',
   });
   const [approveRemarks, setApproveRemarks] = useState('');
@@ -141,7 +139,7 @@ export default function AttendanceRegularizationPage() {
       toast({ title: 'Request submitted', description: 'Your regularization request has been submitted for approval.' });
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/my-requests'] });
       setShowNewDialog(false);
-      setNewRequest({ requestDate: '', requestType: '', correctedCheckIn: '', correctedCheckOut: '', reason: '' });
+      setNewRequest({ requestDate: '', requestType: '', reason: '' });
     },
     onError: (error: any) => {
       toast({ title: 'Error', description: error.message || 'Failed to submit request', variant: 'destructive' });
@@ -193,9 +191,6 @@ export default function AttendanceRegularizationPage() {
       toast({ title: 'Error', description: error.message || 'Failed to cancel', variant: 'destructive' });
     },
   });
-
-  const needsCheckIn = !newRequest.requestType || newRequest.requestType === 'missed_checkin' || newRequest.requestType === 'outdoor_duty' || newRequest.requestType === 'full_day_regularization';
-  const needsCheckOut = !newRequest.requestType || newRequest.requestType === 'missed_checkout' || newRequest.requestType === 'outdoor_duty' || newRequest.requestType === 'full_day_regularization';
 
   const pendingCount = pendingApprovals.length;
 
@@ -312,7 +307,7 @@ export default function AttendanceRegularizationPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Corrected Times</TableHead>
+                      <TableHead>Correction</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Approver</TableHead>
@@ -326,10 +321,12 @@ export default function AttendanceRegularizationPage() {
                           {format(new Date(req.requestDate), 'dd MMM yyyy')}
                         </TableCell>
                         <TableCell><RequestTypeBadge type={req.requestType} /></TableCell>
-                        <TableCell className="text-sm">
-                          {req.correctedCheckIn && <div>In: {format(new Date(req.correctedCheckIn), 'hh:mm a')}</div>}
-                          {req.correctedCheckOut && <div>Out: {format(new Date(req.correctedCheckOut), 'hh:mm a')}</div>}
-                          {!req.correctedCheckIn && !req.correctedCheckOut && <span className="text-muted-foreground">—</span>}
+                        <TableCell className="text-sm text-muted-foreground">
+                          {req.status === 'approved' ? (
+                            <span className="text-green-700">Applied from duty schedule</span>
+                          ) : (
+                            <span>Auto from duty schedule</span>
+                          )}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate text-sm">{req.reason}</TableCell>
                         <TableCell><StatusBadge status={req.status} /></TableCell>
@@ -379,7 +376,7 @@ export default function AttendanceRegularizationPage() {
                         <TableHead>Employee</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Type</TableHead>
-                        <TableHead>Corrected Times</TableHead>
+                        <TableHead>Correction</TableHead>
                         <TableHead>Original Data</TableHead>
                         <TableHead>Reason</TableHead>
                         <TableHead>Submitted</TableHead>
@@ -399,9 +396,8 @@ export default function AttendanceRegularizationPage() {
                               {format(new Date(req.requestDate), 'dd MMM yyyy')}
                             </TableCell>
                             <TableCell><RequestTypeBadge type={req.requestType} /></TableCell>
-                            <TableCell className="text-sm">
-                              {req.correctedCheckIn && <div className="text-green-700">In: {format(new Date(req.correctedCheckIn), 'hh:mm a')}</div>}
-                              {req.correctedCheckOut && <div className="text-green-700">Out: {format(new Date(req.correctedCheckOut), 'hh:mm a')}</div>}
+                            <TableCell className="text-sm text-muted-foreground">
+                              Auto from duty schedule
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {orig?.status === 'no_record' ? (
@@ -616,24 +612,13 @@ export default function AttendanceRegularizationPage() {
                 </SelectContent>
               </Select>
             </div>
-            {needsCheckIn && newRequest.requestType && newRequest.requestType !== 'missed_checkout' && (
-              <div>
-                <Label>Corrected Check-In Time {newRequest.requestType !== 'missed_checkin' ? '' : '*'}</Label>
-                <Input
-                  type="datetime-local"
-                  value={newRequest.correctedCheckIn}
-                  onChange={(e) => setNewRequest({ ...newRequest, correctedCheckIn: e.target.value })}
-                />
-              </div>
-            )}
-            {needsCheckOut && newRequest.requestType && newRequest.requestType !== 'missed_checkin' && (
-              <div>
-                <Label>Corrected Check-Out Time {newRequest.requestType !== 'missed_checkout' ? '' : '*'}</Label>
-                <Input
-                  type="datetime-local"
-                  value={newRequest.correctedCheckOut}
-                  onChange={(e) => setNewRequest({ ...newRequest, correctedCheckOut: e.target.value })}
-                />
+            {newRequest.requestType && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                <div className="font-medium mb-1">Auto-applied on approval:</div>
+                {newRequest.requestType === 'outdoor_duty' && <span>Check-in and check-out will be set from your duty schedule.</span>}
+                {newRequest.requestType === 'missed_checkin' && <span>Check-in will be set from your duty start time.</span>}
+                {newRequest.requestType === 'missed_checkout' && <span>Check-out will be set from your duty end time.</span>}
+                {newRequest.requestType === 'full_day_regularization' && <span>Full day attendance will be created from your duty schedule.</span>}
               </div>
             )}
             <div>
@@ -670,8 +655,7 @@ export default function AttendanceRegularizationPage() {
             <div className="bg-blue-50 p-3 rounded-lg text-sm space-y-1">
               <div><span className="font-medium">Type:</span> {REQUEST_TYPE_LABELS[selectedRequest?.requestType] || selectedRequest?.requestType}</div>
               <div><span className="font-medium">Reason:</span> {selectedRequest?.reason}</div>
-              {selectedRequest?.correctedCheckIn && <div><span className="font-medium">Check-In:</span> {format(new Date(selectedRequest.correctedCheckIn), 'hh:mm a')}</div>}
-              {selectedRequest?.correctedCheckOut && <div><span className="font-medium">Check-Out:</span> {format(new Date(selectedRequest.correctedCheckOut), 'hh:mm a')}</div>}
+              <div className="text-blue-700 mt-1">Attendance will be auto-corrected using the employee's duty schedule.</div>
             </div>
             <div>
               <Label>Remarks (Optional)</Label>

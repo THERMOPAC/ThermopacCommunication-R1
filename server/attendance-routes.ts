@@ -760,7 +760,7 @@ router.get('/daily-quote', async (req: Request, res: Response) => {
 router.post('/regularization', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    const { requestDate, requestType, correctedCheckIn, correctedCheckOut, reason } = req.body;
+    const { requestDate, requestType, reason } = req.body;
 
     if (!requestDate || !requestType || !reason) {
       return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
@@ -808,10 +808,12 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       workingHours: attendanceRec.workingHours,
     } : { status: 'no_record' };
 
+    const empName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
+
     const auditEntry = [{
       action: 'submitted',
       by: user.id,
-      byName: user.fullName || user.username,
+      byName: empName,
       at: new Date().toISOString(),
       details: `Regularization request submitted: ${requestType}`,
     }];
@@ -821,8 +823,8 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       attendanceRecordId: attendanceRec?.id || null,
       requestDate,
       requestType,
-      correctedCheckIn: correctedCheckIn ? new Date(correctedCheckIn) : null,
-      correctedCheckOut: correctedCheckOut ? new Date(correctedCheckOut) : null,
+      correctedCheckIn: null,
+      correctedCheckOut: null,
       reason,
       status: 'pending',
       approverId,
@@ -836,8 +838,8 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       await createNotification({
         userId: approverId,
         type: 'approval_request',
-        title: `Attendance Regularization: ${user.fullName || user.username}`,
-        message: `${user.fullName || user.username} has submitted a ${typeLabel} regularization request for ${requestDate}. Reason: ${reason}`,
+        title: `Attendance Regularization: ${empName}`,
+        message: `${empName} has submitted a ${typeLabel} regularization request for ${requestDate}. Reason: ${reason}`,
         link: '/attendance/regularization',
         sourceType: 'attendance_regularization',
         sourceId: reg.id,
@@ -1058,16 +1060,37 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       return res.status(403).json({ error: 'Payroll is locked for this period. Cannot approve regularization.' });
     }
 
+    const approverName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
+
     const existingTrail = (reg.auditTrail as any[]) || [];
     existingTrail.push({
       action: 'approved',
       by: user.id,
-      byName: user.fullName || user.username,
+      byName: approverName,
       at: new Date().toISOString(),
       remarks,
     });
 
     let appliedToAttendance = false;
+
+    const [employee] = await db.select({
+      dutyTimeIn: users.dutyTimeIn,
+      dutyTimeOut: users.dutyTimeOut,
+      minimumDailyHours: users.minimumDailyHours,
+    }).from(users).where(eq(users.id, reg.employeeId));
+
+    const dutyIn = employee?.dutyTimeIn || '09:00';
+    const dutyOut = employee?.dutyTimeOut || '18:00';
+
+    function buildDutyDateTime(dateStr: string, timeStr: string): Date {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const dt = new Date(dateStr + 'T00:00:00');
+      dt.setHours(hours, minutes, 0, 0);
+      return dt;
+    }
+
+    const dutyCheckIn = buildDutyDateTime(reg.requestDate, dutyIn);
+    const dutyCheckOut = buildDutyDateTime(reg.requestDate, dutyOut);
 
     const [existingAttendance] = await db.select().from(attendanceRecords)
       .where(and(
@@ -1079,9 +1102,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
           status: 'present',
-          checkInTime: reg.correctedCheckIn || existingAttendance.checkInTime,
-          checkOutTime: reg.correctedCheckOut || existingAttendance.checkOutTime,
-          workingHours: calculateWorkingHours(reg.correctedCheckIn || existingAttendance.checkInTime, reg.correctedCheckOut || existingAttendance.checkOutTime),
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
+          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1093,9 +1116,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         await db.insert(attendanceRecords).values({
           userId: reg.employeeId,
           date: reg.requestDate,
-          checkInTime: reg.correctedCheckIn,
-          checkOutTime: reg.correctedCheckOut,
-          workingHours: calculateWorkingHours(reg.correctedCheckIn, reg.correctedCheckOut),
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
+          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           status: 'present',
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1108,9 +1131,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
     } else if (reg.requestType === 'missed_checkin') {
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
-          checkInTime: reg.correctedCheckIn,
+          checkInTime: dutyCheckIn,
           status: existingAttendance.checkOutTime ? 'present' : existingAttendance.status,
-          workingHours: calculateWorkingHours(reg.correctedCheckIn, existingAttendance.checkOutTime),
+          workingHours: calculateWorkingHours(dutyCheckIn, existingAttendance.checkOutTime),
           isIncomplete: false,
           adminNotes: `Regularized: Missed check-in - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1120,13 +1143,28 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
         appliedToAttendance = true;
+      } else {
+        await db.insert(attendanceRecords).values({
+          userId: reg.employeeId,
+          date: reg.requestDate,
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
+          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
+          status: 'present',
+          adminNotes: `Regularized: Missed check-in (no existing record, full day applied) - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Missed check-in regularization approved - no existing record, full day from duty schedule`,
+          adjustmentDate: new Date(),
+        });
+        appliedToAttendance = true;
       }
     } else if (reg.requestType === 'missed_checkout') {
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
-          checkOutTime: reg.correctedCheckOut,
+          checkOutTime: dutyCheckOut,
           status: 'present',
-          workingHours: calculateWorkingHours(existingAttendance.checkInTime, reg.correctedCheckOut),
+          workingHours: calculateWorkingHours(existingAttendance.checkInTime, dutyCheckOut),
           isIncomplete: false,
           adminNotes: `Regularized: Missed check-out - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1136,14 +1174,29 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
         appliedToAttendance = true;
+      } else {
+        await db.insert(attendanceRecords).values({
+          userId: reg.employeeId,
+          date: reg.requestDate,
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
+          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
+          status: 'present',
+          adminNotes: `Regularized: Missed check-out (no existing record, full day applied) - ${reg.reason}`,
+          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
+          adjustedBy: user.id,
+          adjustmentReason: `Missed check-out regularization approved - no existing record, full day from duty schedule`,
+          adjustmentDate: new Date(),
+        });
+        appliedToAttendance = true;
       }
     } else if (reg.requestType === 'full_day_regularization') {
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
-          checkInTime: reg.correctedCheckIn,
-          checkOutTime: reg.correctedCheckOut,
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
           status: 'present',
-          workingHours: calculateWorkingHours(reg.correctedCheckIn, reg.correctedCheckOut),
+          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           isIncomplete: false,
           adminNotes: `Regularized: Full day - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1156,9 +1209,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         await db.insert(attendanceRecords).values({
           userId: reg.employeeId,
           date: reg.requestDate,
-          checkInTime: reg.correctedCheckIn,
-          checkOutTime: reg.correctedCheckOut,
-          workingHours: calculateWorkingHours(reg.correctedCheckIn, reg.correctedCheckOut),
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
+          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           status: 'present',
           adminNotes: `Regularized: Full day - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1176,6 +1229,8 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       approvedAt: new Date(),
       approverRemarks: remarks || null,
       appliedToAttendance,
+      correctedCheckIn: dutyCheckIn,
+      correctedCheckOut: dutyCheckOut,
       auditTrail: existingTrail,
       updatedAt: new Date(),
     }).where(eq(attendanceRegularizations.id, regId));
@@ -1185,7 +1240,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       userId: reg.employeeId,
       type: 'approval_decision',
       title: `Regularization Approved: ${typeLabel}`,
-      message: `Your attendance regularization for ${reg.requestDate} (${typeLabel}) has been approved by ${user.fullName || user.username}.${remarks ? ` Remarks: ${remarks}` : ''} Your attendance record has been updated.`,
+      message: `Your attendance regularization for ${reg.requestDate} (${typeLabel}) has been approved by ${approverName}.${remarks ? ` Remarks: ${remarks}` : ''} Your attendance record has been updated.`,
       link: '/attendance/regularization',
       sourceType: 'attendance_regularization',
       sourceId: reg.id,
@@ -1220,11 +1275,13 @@ router.post('/regularization/:id/reject', ensureAuthenticated, async (req: Reque
       return res.status(403).json({ error: 'You are not authorized to reject this request' });
     }
 
+    const rejecterName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
+
     const existingTrail = (reg.auditTrail as any[]) || [];
     existingTrail.push({
       action: 'rejected',
       by: user.id,
-      byName: user.fullName || user.username,
+      byName: rejecterName,
       at: new Date().toISOString(),
       rejectionReason,
     });
@@ -1243,7 +1300,7 @@ router.post('/regularization/:id/reject', ensureAuthenticated, async (req: Reque
       userId: reg.employeeId,
       type: 'approval_decision',
       title: `Regularization Rejected: ${typeLabel}`,
-      message: `Your attendance regularization for ${reg.requestDate} (${typeLabel}) has been rejected by ${user.fullName || user.username}. Reason: ${rejectionReason}`,
+      message: `Your attendance regularization for ${reg.requestDate} (${typeLabel}) has been rejected by ${rejecterName}. Reason: ${rejectionReason}`,
       link: '/attendance/regularization',
       sourceType: 'attendance_regularization',
       sourceId: reg.id,
