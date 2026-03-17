@@ -753,6 +753,8 @@ const userSchema = {
   epfNo: text('epf_no'),
   esicNo: text('esic_no'),
   stdCode: text('std_code'),
+  panNumber: text('pan_number'),
+  dateOfJoining: text('date_of_joining'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

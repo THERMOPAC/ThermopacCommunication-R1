@@ -2358,6 +2358,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         lastName: users.lastName,
         jobTitle: users.jobTitle,
         department: users.department,
+        panNumber: users.panNumber,
+        dateOfJoining: users.dateOfJoining,
         
         // Period details
         periodName: payrollPeriods.periodName,
@@ -2407,16 +2409,22 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const lopDays = parseFloat((record as any).lopDays?.toString() || '0');
     const absentDays = lopDays;
 
+    const employeePfVal = Math.round(parseFloat(record.providentFund?.toString() || '0'));
+    const ptVal = Math.round(parseFloat(record.professionalTax?.toString() || '0'));
+    const esicVal = Math.round(parseFloat(record.esic?.toString() || '0'));
+    const tdsVal = Math.round(parseFloat(record.incomeTax?.toString() || '0'));
+    const otherDeductionsVal = Math.round(parseFloat(record.otherDeductions?.toString() || '0'));
+    const actualTotalDeductions = employeePfVal + ptVal + esicVal + tdsVal + otherDeductionsVal;
+    const actualNetPay = Math.round(grossPay) - actualTotalDeductions;
+
     const salarySlipData = {
       employee: {
         name: employeeFullName,
         employeeCode: record.employeeCode || 'N/A',
         designation: record.jobTitle || 'N/A',
         department: record.department || 'N/A',
-        joiningDate: 'N/A',
-        bankAccount: 'N/A',
-        panNumber: undefined,
-        uan: undefined
+        joiningDate: (record as any).dateOfJoining || 'N/A',
+        panNumber: (record as any).panNumber || 'N/A',
       },
       company: {
         name: 'THERMOPAC',
@@ -2448,12 +2456,12 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         otherAllowances: Math.round(parseFloat(record.otherAllowances?.toString() || '0'))
       },
       deductions: {
-        providentFund: Math.round(parseFloat(record.providentFund?.toString() || '0')),
-        professionalTax: Math.round(parseFloat(record.professionalTax?.toString() || '0')),
-        incomeTax: Math.round(parseFloat(record.incomeTax?.toString() || '0')),
-        esic: Math.round(parseFloat(record.esic?.toString() || '0')),
+        providentFund: employeePfVal,
+        professionalTax: ptVal,
+        incomeTax: tdsVal,
+        esic: esicVal,
         groupInsurance: 0,
-        otherDeductions: Math.round(parseFloat(record.otherDeductions?.toString() || '0')),
+        otherDeductions: otherDeductionsVal,
         loanDeduction: 0,
         advanceDeduction: 0,
       },
@@ -2465,13 +2473,13 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       },
       totals: {
         grossEarnings: Math.round(grossPay),
-        totalDeductions: Math.round(grossPay - netPay),
-        netPay: Math.round(netPay),
+        totalDeductions: actualTotalDeductions,
+        netPay: actualNetPay,
         ctcMonthly: Math.round(ctcMonthly),
         ctcYearly: Math.round(ctcYearly),
       },
       kgpPercent,
-      netPayInWords: numberToWords(Math.round(netPay))
+      netPayInWords: numberToWords(Math.round(actualNetPay))
     };
 
     // Generate and send PDF
