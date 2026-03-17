@@ -1363,8 +1363,9 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRecurringPattern(id: number): Promise<void> {
     console.log(`Deleting recurring pattern ${id}`);
+    await db.delete(recurringTasksTable).where(eq(recurringTasksTable.recurringPatternId, id));
     await db.delete(recurringPatternsTable).where(eq(recurringPatternsTable.id, id));
-    console.log(`Deleted recurring pattern ${id}`);
+    console.log(`Deleted recurring pattern ${id} and its tasks`);
   }
 
   async getUserRecurringPatterns(userId: number): Promise<RecurringPattern[]> {
