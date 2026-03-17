@@ -964,12 +964,12 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
       const record = attendanceMap.get(dateStr);
       if (!record) {
         absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-In & Out', attendanceState: 'no_record' });
-      } else if (record.status === 'absent') {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Absent', attendanceState: 'absent' });
+      } else if (record.checkInTime && !record.checkOutTime) {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-Out', attendanceState: 'missing_checkout' });
       } else if (!record.checkInTime && !record.checkOutTime) {
         absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-In & Out', attendanceState: 'no_record' });
-      } else if (!record.checkOutTime && record.checkInTime) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-Out', attendanceState: 'missing_checkout' });
+      } else if (record.status === 'absent') {
+        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Absent', attendanceState: 'absent' });
       }
     }
 
