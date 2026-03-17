@@ -2415,8 +2415,10 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const esicVal = Math.round(parseFloat(record.esic?.toString() || '0'));
     const tdsVal = Math.round(parseFloat(record.incomeTax?.toString() || '0'));
     const otherDeductionsVal = Math.round(parseFloat(record.otherDeductions?.toString() || '0'));
+    const loanDeductionVal = Math.round(parseFloat(record.loanDeductions?.toString() || '0'));
+    const advanceDeductionVal = Math.round(parseFloat(record.advanceDeductions?.toString() || '0'));
     const actualTotalDeductions = employeePfVal + ptVal + esicVal + tdsVal + otherDeductionsVal;
-    const actualNetPay = Math.round(grossPay) - actualTotalDeductions;
+    const actualNetPay = Math.round(grossPay) - actualTotalDeductions - loanDeductionVal - advanceDeductionVal;
 
     const salarySlipData = {
       employee: {
@@ -2463,8 +2465,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         esic: esicVal,
         groupInsurance: 0,
         otherDeductions: otherDeductionsVal,
-        loanDeduction: 0,
-        advanceDeduction: 0,
+        loanDeduction: Math.round(parseFloat(record.loanDeductions?.toString() || '0')),
+        advanceDeduction: Math.round(parseFloat(record.advanceDeductions?.toString() || '0')),
       },
       employerCosts: {
         esicEmployer: Math.round(employerEsic),

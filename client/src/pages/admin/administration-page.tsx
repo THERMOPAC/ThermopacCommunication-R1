@@ -14,7 +14,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Users, CreditCard, Settings, BarChart3, UserPlus, Wallet, Clock, Plane } from "lucide-react";
+import { Users, CreditCard, Settings, BarChart3, UserPlus, Wallet, Clock, Plane, Landmark } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -63,6 +63,13 @@ export default function AdministrationPage() {
       icon: BarChart3,
       link: "/admin/reports",
       stats: { reports: "15", automated: "8", custom: "7" }
+    },
+    {
+      title: "Loans & Advances",
+      description: "Manage employee loans, salary advances, and recovery tracking",
+      icon: Landmark,
+      link: "/loans-advances",
+      stats: { active: "0", pending: "0", closed: "0" }
     }
   ];
 

@@ -336,23 +336,18 @@ export async function computeAndSaveTdsForPeriod(
       const computation = await computeMonthlyTds(record.userId, periodId, month, year, grossSalary);
       await saveTdsRecord(record.userId, periodId, month, year, computation);
 
+      const pf = parseFloat(record.employeePf || record.providentFund || '0');
+      const pt = parseFloat(record.professionalTax || '0');
+      const esic = parseFloat(record.employeeEsic || record.esic || '0');
+      const loanDed = parseFloat(record.loanDeductions || '0');
+      const advDed = parseFloat(record.advanceDeductions || '0');
+      const statutoryPlusTds = pf + pt + esic + computation.tdsActualMonthly;
+
       await db.update(payrollRecords).set({
         incomeTax: computation.tdsActualMonthly.toFixed(2),
-        totalDeductions: (
-          parseFloat(record.providentFund || '0') +
-          parseFloat(record.professionalTax || '0') +
-          parseFloat(record.esic || '0') +
-          parseFloat(record.groupInsurance || '0') +
-          computation.tdsActualMonthly
-        ).toFixed(2),
-        netPay: (
-          grossSalary -
-          parseFloat(record.providentFund || '0') -
-          parseFloat(record.professionalTax || '0') -
-          parseFloat(record.esic || '0') -
-          parseFloat(record.groupInsurance || '0') -
-          computation.tdsActualMonthly
-        ).toFixed(2),
+        tdsAmount: computation.tdsActualMonthly.toFixed(2),
+        totalDeductions: statutoryPlusTds.toFixed(2),
+        netPay: (grossSalary - statutoryPlusTds - loanDed - advDed).toFixed(2),
         updatedAt: new Date(),
       }).where(eq(payrollRecords.id, record.id));
 

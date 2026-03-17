@@ -4702,6 +4702,14 @@ export const payrollRecords = pgTable('payroll_records', {
   employerEsic: decimal('employer_esic', { precision: 10, scale: 2 }).default('0'),
   gratuity: decimal('gratuity', { precision: 10, scale: 2 }).default('0'),
 
+  // Loan & Advance deductions (reduce net pay only, not totalDeductions)
+  loanDeductions: decimal('loan_deductions', { precision: 10, scale: 2 }).default('0'),
+  advanceDeductions: decimal('advance_deductions', { precision: 10, scale: 2 }).default('0'),
+  reimbursements: decimal('reimbursements', { precision: 10, scale: 2 }).default('0'),
+
+  // TDS
+  tdsAmount: decimal('tds_amount', { precision: 10, scale: 2 }).default('0'),
+
   // Net pay
   netPay: decimal('net_pay', { precision: 12, scale: 2 }).notNull(),
   
@@ -4733,6 +4741,97 @@ export const payrollSettings = pgTable('payroll_settings', {
   updatedAt: timestamp('updated_at').defaultNow(),
   updatedBy: integer('updated_by').references(() => users.id),
 });
+
+// Employee Loans
+export const employeeLoans = pgTable('employee_loans', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  loanType: varchar('loan_type', { length: 30 }).notNull(), // personal, housing, vehicle, emergency, other
+  loanReference: varchar('loan_reference', { length: 50 }).notNull().unique(),
+  principalAmount: decimal('principal_amount', { precision: 12, scale: 2 }).notNull(),
+  interestRate: decimal('interest_rate', { precision: 5, scale: 2 }).default('0'),
+  emiAmount: decimal('emi_amount', { precision: 10, scale: 2 }).notNull(),
+  tenureMonths: integer('tenure_months').notNull(),
+  disbursementDate: text('disbursement_date').notNull(),
+  startDeductionDate: text('start_deduction_date').notNull(),
+  totalRepaid: decimal('total_repaid', { precision: 12, scale: 2 }).default('0'),
+  outstandingBalance: decimal('outstanding_balance', { precision: 12, scale: 2 }).notNull(),
+  installmentsPaid: integer('installments_paid').default(0),
+  status: varchar('status', { length: 20 }).default('active'), // active, paused, closed, written_off
+  remarks: text('remarks'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Employee Loan Repayments
+export const employeeLoanRepayments = pgTable('employee_loan_repayments', {
+  id: serial('id').primaryKey(),
+  loanId: integer('loan_id').notNull().references(() => employeeLoans.id),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  installmentNumber: integer('installment_number').notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  repaymentDate: text('repayment_date'),
+  payrollRecordId: integer('payroll_record_id').references(() => payrollRecords.id),
+  payrollPeriodId: integer('payroll_period_id').references(() => payrollPeriods.id),
+  runNumber: integer('run_number'),
+  balanceAfter: decimal('balance_after', { precision: 12, scale: 2 }),
+  status: varchar('status', { length: 20 }).default('pending'), // deducted, reversed, pending, partial, skipped
+  reversedAt: timestamp('reversed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Employee Advances
+export const employeeAdvances = pgTable('employee_advances', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  advanceReference: varchar('advance_reference', { length: 50 }).notNull().unique(),
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  recoveryType: varchar('recovery_type', { length: 20 }).notNull(), // lump_sum, installment
+  recoveryAmount: decimal('recovery_amount', { precision: 10, scale: 2 }),
+  recoveryMonths: integer('recovery_months'),
+  advanceDate: text('advance_date').notNull(),
+  startRecoveryDate: text('start_recovery_date').notNull(),
+  totalRecovered: decimal('total_recovered', { precision: 12, scale: 2 }).default('0'),
+  outstandingBalance: decimal('outstanding_balance', { precision: 12, scale: 2 }).notNull(),
+  installmentsRecovered: integer('installments_recovered').default(0),
+  status: varchar('status', { length: 20 }).default('active'), // active, paused, closed, written_off
+  reason: text('reason'),
+  approvedBy: integer('approved_by').references(() => users.id),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Employee Advance Recoveries
+export const employeeAdvanceRecoveries = pgTable('employee_advance_recoveries', {
+  id: serial('id').primaryKey(),
+  advanceId: integer('advance_id').notNull().references(() => employeeAdvances.id),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  installmentNumber: integer('installment_number').notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  recoveryDate: text('recovery_date'),
+  payrollRecordId: integer('payroll_record_id').references(() => payrollRecords.id),
+  payrollPeriodId: integer('payroll_period_id').references(() => payrollPeriods.id),
+  runNumber: integer('run_number'),
+  balanceAfter: decimal('balance_after', { precision: 12, scale: 2 }),
+  status: varchar('status', { length: 20 }).default('pending'), // deducted, reversed, pending, partial, skipped
+  reversedAt: timestamp('reversed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const insertEmployeeLoanSchema = createInsertSchema(employeeLoans).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEmployeeLoanRepaymentSchema = createInsertSchema(employeeLoanRepayments).omit({ id: true, createdAt: true });
+export const insertEmployeeAdvanceSchema = createInsertSchema(employeeAdvances).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEmployeeAdvanceRecoverySchema = createInsertSchema(employeeAdvanceRecoveries).omit({ id: true, createdAt: true });
+
+export type EmployeeLoan = typeof employeeLoans.$inferSelect;
+export type InsertEmployeeLoan = z.infer<typeof insertEmployeeLoanSchema>;
+export type EmployeeLoanRepayment = typeof employeeLoanRepayments.$inferSelect;
+export type EmployeeAdvance = typeof employeeAdvances.$inferSelect;
+export type InsertEmployeeAdvance = z.infer<typeof insertEmployeeAdvanceSchema>;
+export type EmployeeAdvanceRecovery = typeof employeeAdvanceRecoveries.$inferSelect;
 
 // Bonus calculation rules
 export const bonusRules = pgTable('bonus_rules', {

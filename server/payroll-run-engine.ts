@@ -17,6 +17,10 @@ import {
   companyHolidays,
   workweekPolicies,
   payrollLocks,
+  employeeLoans,
+  employeeLoanRepayments,
+  employeeAdvances,
+  employeeAdvanceRecoveries,
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between, inArray } from 'drizzle-orm';
 import { createPayrollLock } from './payroll-lock-service';
@@ -1010,8 +1014,296 @@ async function stepDeductionCalculation(
       }
 
       const grossPay = parseFloat(record.grossPay);
-      const totalDeductions = formulaPf + formulaEsic + formulaPt;
-      const netPay = grossPay - totalDeductions;
+      const statutoryDeductions = formulaPf + formulaEsic + formulaPt;
+      const availableForRecovery = grossPay - statutoryDeductions;
+
+      const minTakeHomeSetting = await db.select().from(payrollSettings)
+        .where(eq(payrollSettings.settingName, 'minimum_take_home'));
+      const minimumTakeHome = minTakeHomeSetting.length > 0 ? parseFloat(minTakeHomeSetting[0].settingValue) : 10000;
+
+      const maxRecoverable = Math.max(0, availableForRecovery - minimumTakeHome);
+
+      // Phase 2: Reverse prior loan/advance deductions for this period + run_number
+      const priorLoanRepayments = await db.select().from(employeeLoanRepayments)
+        .where(and(
+          eq(employeeLoanRepayments.employeeId, record.userId),
+          eq(employeeLoanRepayments.payrollPeriodId, periodId),
+          eq(employeeLoanRepayments.runNumber, runNumber),
+          eq(employeeLoanRepayments.status, 'deducted')
+        ));
+      for (const rep of priorLoanRepayments) {
+        await db.update(employeeLoanRepayments).set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(employeeLoanRepayments.id, rep.id));
+        const parentLoan = await db.select().from(employeeLoans).where(eq(employeeLoans.id, rep.loanId));
+        if (parentLoan.length > 0) {
+          const pl = parentLoan[0];
+          const newRepaid = Math.max(0, parseFloat(pl.totalRepaid || '0') - parseFloat(rep.amount));
+          const newBalance = parseFloat(pl.outstandingBalance || '0') + parseFloat(rep.amount);
+          const newInstPaid = Math.max(0, (pl.installmentsPaid || 0) - 1);
+          await db.update(employeeLoans).set({
+            totalRepaid: newRepaid.toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsPaid: newInstPaid,
+            status: pl.status === 'closed' ? 'active' : pl.status,
+            updatedAt: new Date(),
+          }).where(eq(employeeLoans.id, rep.loanId));
+        }
+      }
+
+      const priorAdvRecoveries = await db.select().from(employeeAdvanceRecoveries)
+        .where(and(
+          eq(employeeAdvanceRecoveries.employeeId, record.userId),
+          eq(employeeAdvanceRecoveries.payrollPeriodId, periodId),
+          eq(employeeAdvanceRecoveries.runNumber, runNumber),
+          eq(employeeAdvanceRecoveries.status, 'deducted')
+        ));
+      for (const rec of priorAdvRecoveries) {
+        await db.update(employeeAdvanceRecoveries).set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(employeeAdvanceRecoveries.id, rec.id));
+        const parentAdv = await db.select().from(employeeAdvances).where(eq(employeeAdvances.id, rec.advanceId));
+        if (parentAdv.length > 0) {
+          const pa = parentAdv[0];
+          const newRecovered = Math.max(0, parseFloat(pa.totalRecovered || '0') - parseFloat(rec.amount));
+          const newBalance = parseFloat(pa.outstandingBalance || '0') + parseFloat(rec.amount);
+          const newInstRec = Math.max(0, (pa.installmentsRecovered || 0) - 1);
+          await db.update(employeeAdvances).set({
+            totalRecovered: newRecovered.toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsRecovered: newInstRec,
+            status: pa.status === 'closed' ? 'active' : pa.status,
+            updatedAt: new Date(),
+          }).where(eq(employeeAdvances.id, rec.advanceId));
+        }
+      }
+
+      // Also reverse 'partial' status records
+      const priorPartialLoan = await db.select().from(employeeLoanRepayments)
+        .where(and(
+          eq(employeeLoanRepayments.employeeId, record.userId),
+          eq(employeeLoanRepayments.payrollPeriodId, periodId),
+          eq(employeeLoanRepayments.runNumber, runNumber),
+          eq(employeeLoanRepayments.status, 'partial')
+        ));
+      for (const rep of priorPartialLoan) {
+        await db.update(employeeLoanRepayments).set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(employeeLoanRepayments.id, rep.id));
+        const parentLoan = await db.select().from(employeeLoans).where(eq(employeeLoans.id, rep.loanId));
+        if (parentLoan.length > 0) {
+          const pl = parentLoan[0];
+          const newRepaid = Math.max(0, parseFloat(pl.totalRepaid || '0') - parseFloat(rep.amount));
+          const newBalance = parseFloat(pl.outstandingBalance || '0') + parseFloat(rep.amount);
+          const newInstPaid = Math.max(0, (pl.installmentsPaid || 0) - 1);
+          await db.update(employeeLoans).set({
+            totalRepaid: newRepaid.toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsPaid: newInstPaid,
+            updatedAt: new Date(),
+          }).where(eq(employeeLoans.id, rep.loanId));
+        }
+      }
+
+      const priorPartialAdv = await db.select().from(employeeAdvanceRecoveries)
+        .where(and(
+          eq(employeeAdvanceRecoveries.employeeId, record.userId),
+          eq(employeeAdvanceRecoveries.payrollPeriodId, periodId),
+          eq(employeeAdvanceRecoveries.runNumber, runNumber),
+          eq(employeeAdvanceRecoveries.status, 'partial')
+        ));
+      for (const rec of priorPartialAdv) {
+        await db.update(employeeAdvanceRecoveries).set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(employeeAdvanceRecoveries.id, rec.id));
+        const parentAdv = await db.select().from(employeeAdvances).where(eq(employeeAdvances.id, rec.advanceId));
+        if (parentAdv.length > 0) {
+          const pa = parentAdv[0];
+          const newRecovered = Math.max(0, parseFloat(pa.totalRecovered || '0') - parseFloat(rec.amount));
+          const newBalance = parseFloat(pa.outstandingBalance || '0') + parseFloat(rec.amount);
+          const newInstRec = Math.max(0, (pa.installmentsRecovered || 0) - 1);
+          await db.update(employeeAdvances).set({
+            totalRecovered: newRecovered.toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsRecovered: newInstRec,
+            updatedAt: new Date(),
+          }).where(eq(employeeAdvances.id, rec.advanceId));
+        }
+      }
+
+      let totalLoanDeduction = 0;
+      let totalAdvanceDeduction = 0;
+      let remaining = maxRecoverable;
+
+      const periodEndDate = period.endDate;
+
+      // Phase 4: Advances first (Priority 1)
+      if (remaining > 0) {
+        const activeAdvances = await db.select().from(employeeAdvances)
+          .where(and(
+            eq(employeeAdvances.employeeId, record.userId),
+            eq(employeeAdvances.status, 'active'),
+            lte(employeeAdvances.startRecoveryDate, periodEndDate)
+          )).orderBy(asc(employeeAdvances.createdAt));
+
+        for (const adv of activeAdvances) {
+          if (remaining <= 0) {
+            exceptions.push({
+              userId: record.userId,
+              type: 'skipped_deduction',
+              severity: 'warning',
+              title: `Advance recovery skipped for ${adv.advanceReference}`,
+              details: `Insufficient salary after minimum take-home protection.`,
+            });
+            continue;
+          }
+
+          let requested: number;
+          if (adv.recoveryType === 'lump_sum') {
+            requested = Math.min(parseFloat(adv.outstandingBalance || '0'), remaining);
+          } else {
+            requested = Math.min(parseFloat(adv.recoveryAmount || '0'), parseFloat(adv.outstandingBalance || '0'));
+          }
+
+          const actualDeduction = Math.min(requested, remaining);
+          let repaymentStatus = 'deducted';
+          if (actualDeduction <= 0) {
+            repaymentStatus = 'skipped';
+            exceptions.push({
+              userId: record.userId,
+              type: 'skipped_deduction',
+              severity: 'warning',
+              title: `Advance recovery skipped for ${adv.advanceReference}`,
+              details: `No remaining salary budget for advance recovery.`,
+            });
+            continue;
+          } else if (actualDeduction < requested) {
+            repaymentStatus = 'partial';
+            exceptions.push({
+              userId: record.userId,
+              type: 'partial_deduction',
+              severity: 'warning',
+              title: `Partial advance recovery for ${adv.advanceReference}`,
+              details: `Requested ₹${requested.toFixed(2)}, deducted ₹${actualDeduction.toFixed(2)} due to minimum take-home protection.`,
+            });
+          }
+
+          const newBalance = parseFloat(adv.outstandingBalance || '0') - actualDeduction;
+          const instNum = (adv.installmentsRecovered || 0) + 1;
+
+          await db.insert(employeeAdvanceRecoveries).values({
+            advanceId: adv.id,
+            employeeId: record.userId,
+            installmentNumber: instNum,
+            amount: actualDeduction.toFixed(2),
+            recoveryDate: periodEndDate,
+            payrollRecordId: record.id,
+            payrollPeriodId: periodId,
+            runNumber: runNumber,
+            balanceAfter: newBalance.toFixed(2),
+            status: repaymentStatus,
+          });
+
+          await db.update(employeeAdvances).set({
+            totalRecovered: (parseFloat(adv.totalRecovered || '0') + actualDeduction).toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsRecovered: instNum,
+            status: newBalance <= 0 ? 'closed' : 'active',
+            updatedAt: new Date(),
+          }).where(eq(employeeAdvances.id, adv.id));
+
+          totalAdvanceDeduction += actualDeduction;
+          remaining -= actualDeduction;
+        }
+      }
+
+      // Phase 5: Emergency Loans (Priority 2), then Other Loans (Priority 3)
+      if (remaining > 0) {
+        const activeLoans = await db.select().from(employeeLoans)
+          .where(and(
+            eq(employeeLoans.employeeId, record.userId),
+            eq(employeeLoans.status, 'active'),
+            lte(employeeLoans.startDeductionDate, periodEndDate)
+          )).orderBy(asc(employeeLoans.createdAt));
+
+        const emergencyLoans = activeLoans.filter(l => l.loanType === 'emergency');
+        const otherLoans = activeLoans.filter(l => l.loanType !== 'emergency');
+        const sortedLoans = [...emergencyLoans, ...otherLoans];
+
+        for (const loan of sortedLoans) {
+          if (remaining <= 0) {
+            exceptions.push({
+              userId: record.userId,
+              type: 'skipped_deduction',
+              severity: 'warning',
+              title: `Loan EMI skipped for ${loan.loanReference}`,
+              details: `Insufficient salary after minimum take-home protection.`,
+            });
+            continue;
+          }
+
+          const requested = Math.min(parseFloat(loan.emiAmount || '0'), parseFloat(loan.outstandingBalance || '0'));
+          const actualDeduction = Math.min(requested, remaining);
+          let repaymentStatus = 'deducted';
+
+          if (actualDeduction <= 0) {
+            repaymentStatus = 'skipped';
+            exceptions.push({
+              userId: record.userId,
+              type: 'skipped_deduction',
+              severity: 'warning',
+              title: `Loan EMI skipped for ${loan.loanReference}`,
+              details: `No remaining salary budget for loan deduction.`,
+            });
+            continue;
+          } else if (actualDeduction < requested) {
+            repaymentStatus = 'partial';
+            exceptions.push({
+              userId: record.userId,
+              type: 'partial_deduction',
+              severity: 'warning',
+              title: `Partial loan EMI for ${loan.loanReference}`,
+              details: `Requested ₹${requested.toFixed(2)}, deducted ₹${actualDeduction.toFixed(2)} due to minimum take-home protection.`,
+            });
+          }
+
+          const newBalance = parseFloat(loan.outstandingBalance || '0') - actualDeduction;
+          const instNum = (loan.installmentsPaid || 0) + 1;
+
+          await db.insert(employeeLoanRepayments).values({
+            loanId: loan.id,
+            employeeId: record.userId,
+            installmentNumber: instNum,
+            amount: actualDeduction.toFixed(2),
+            repaymentDate: periodEndDate,
+            payrollRecordId: record.id,
+            payrollPeriodId: periodId,
+            runNumber: runNumber,
+            balanceAfter: newBalance.toFixed(2),
+            status: repaymentStatus,
+          });
+
+          await db.update(employeeLoans).set({
+            totalRepaid: (parseFloat(loan.totalRepaid || '0') + actualDeduction).toFixed(2),
+            outstandingBalance: newBalance.toFixed(2),
+            installmentsPaid: instNum,
+            status: newBalance <= 0 ? 'closed' : 'active',
+            updatedAt: new Date(),
+          }).where(eq(employeeLoans.id, loan.id));
+
+          totalLoanDeduction += actualDeduction;
+          remaining -= actualDeduction;
+        }
+      }
+
+      if (maxRecoverable <= 0 && (totalLoanDeduction > 0 || totalAdvanceDeduction > 0)) {
+        exceptions.push({
+          userId: record.userId,
+          type: 'minimum_takehome_applied',
+          severity: 'info',
+          title: `Minimum take-home protection applied for user ${record.userId}`,
+          details: `Available for recovery: ₹${availableForRecovery.toFixed(2)}, Minimum take-home: ₹${minimumTakeHome}`,
+        });
+      }
+
+      const totalDeductions = statutoryDeductions;
+      const netPay = grossPay - statutoryDeductions - totalLoanDeduction - totalAdvanceDeduction;
 
       const existingSnapshot = record.calculationSnapshot as any || {};
 
@@ -1020,6 +1312,8 @@ async function stepDeductionCalculation(
         .set({
           groupInsurance: groupIns.toFixed(2),
           totalDeductions: totalDeductions.toFixed(2),
+          loanDeductions: totalLoanDeduction.toFixed(2),
+          advanceDeductions: totalAdvanceDeduction.toFixed(2),
           netPay: netPay.toFixed(2),
           calculationSnapshot: {
             ...existingSnapshot,
@@ -1027,8 +1321,14 @@ async function stepDeductionCalculation(
               formulaDeductions: { pf: formulaPf, esic: formulaEsic, pt: formulaPt },
               configDeductions: { pf: configPf, esic: configEsic, pt: configPt },
               groupInsuranceInCtcOnly: groupIns,
+              statutoryDeductions,
+              loanDeductions: totalLoanDeduction,
+              advanceDeductions: totalAdvanceDeduction,
               totalDeductions,
               netPay,
+              availableForRecovery,
+              maxRecoverable,
+              minimumTakeHome,
               validatedAt: new Date().toISOString(),
             },
           },

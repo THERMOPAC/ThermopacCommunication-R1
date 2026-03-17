@@ -12,6 +12,7 @@ import Dashboard from "@/pages/dashboard";
 import ProfilePage from "@/pages/profile-page";
 import LeaderboardPage from "@/pages/leaderboard-page";
 import RecurringTasksPage from "@/pages/recurring-tasks-page";
+import LoansAdvancesPage from "@/pages/loans-advances-page";
 import EmailsPage from "@/pages/emails-page";
 import MessagesPage from "@/pages/messages-page";
 
@@ -201,6 +202,7 @@ function Router() {
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
       <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
+      <ProtectedRoute path="/loans-advances" component={LoansAdvancesPage} />
 
       {/* Sales and Marketing Routes */}
       <ProtectedRoute path="/radar" component={RadarPage} />

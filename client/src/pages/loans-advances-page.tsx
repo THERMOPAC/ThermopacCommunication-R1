@@ -1,0 +1,653 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Eye, Pause, Play, XCircle, IndianRupee, Landmark, Wallet, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
+
+function formatCurrency(val: number | string) {
+  const n = typeof val === 'string' ? parseFloat(val) : val;
+  return `₹${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function statusBadge(status: string) {
+  const colors: Record<string, string> = {
+    active: 'bg-green-100 text-green-700',
+    paused: 'bg-yellow-100 text-yellow-700',
+    closed: 'bg-gray-100 text-gray-600',
+    written_off: 'bg-red-100 text-red-700',
+    deducted: 'bg-green-100 text-green-700',
+    reversed: 'bg-orange-100 text-orange-700',
+    pending: 'bg-blue-100 text-blue-700',
+    partial: 'bg-yellow-100 text-yellow-700',
+    skipped: 'bg-red-100 text-red-700',
+  };
+  return <Badge className={colors[status] || 'bg-gray-100'}>{status}</Badge>;
+}
+
+export default function LoansAdvancesPage() {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("loans");
+  const [showLoanDialog, setShowLoanDialog] = useState(false);
+  const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<any>(null);
+  const [selectedAdvance, setSelectedAdvance] = useState<any>(null);
+  const [loanForm, setLoanForm] = useState({
+    employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0',
+    emiAmount: '', tenureMonths: '', disbursementDate: '', startDeductionDate: '', remarks: '',
+  });
+  const [advanceForm, setAdvanceForm] = useState({
+    employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '',
+    recoveryMonths: '', advanceDate: '', startRecoveryDate: '', reason: '',
+  });
+
+  const { data: users = [] } = useQuery<any[]>({ queryKey: ['/api/users'] });
+  const { data: loans = [], isLoading: loansLoading } = useQuery<any[]>({ queryKey: ['/api/loan-advance/loans'] });
+  const { data: advances = [], isLoading: advancesLoading } = useQuery<any[]>({ queryKey: ['/api/loan-advance/advances'] });
+
+  const createLoanMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/loan-advance/loans', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
+      setShowLoanDialog(false);
+      toast({ title: 'Loan created successfully' });
+      resetLoanForm();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const createAdvanceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/loan-advance/advances', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
+      setShowAdvanceDialog(false);
+      toast({ title: 'Advance created successfully' });
+      resetAdvanceForm();
+    },
+    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const updateLoanMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest('PATCH', `/api/loan-advance/loans/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
+      toast({ title: 'Loan updated' });
+    },
+  });
+
+  const updateAdvanceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest('PATCH', `/api/loan-advance/advances/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
+      toast({ title: 'Advance updated' });
+    },
+  });
+
+  function resetLoanForm() {
+    setLoanForm({ employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0', emiAmount: '', tenureMonths: '', disbursementDate: '', startDeductionDate: '', remarks: '' });
+  }
+  function resetAdvanceForm() {
+    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '', recoveryMonths: '', advanceDate: '', startRecoveryDate: '', reason: '' });
+  }
+
+  const totalLoanOutstanding = loans.filter((l: any) => l.status === 'active').reduce((s: number, l: any) => s + parseFloat(l.outstandingBalance || '0'), 0);
+  const totalAdvanceOutstanding = advances.filter((a: any) => a.status === 'active').reduce((s: number, a: any) => s + parseFloat(a.outstandingBalance || '0'), 0);
+  const activeLoansCount = loans.filter((l: any) => l.status === 'active').length;
+  const activeAdvancesCount = advances.filter((a: any) => a.status === 'active').length;
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Loans & Advances Management</h1>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg"><Landmark className="h-5 w-5 text-blue-600" /></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Loans</p>
+                <p className="text-2xl font-bold">{activeLoansCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg"><IndianRupee className="h-5 w-5 text-red-600" /></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Loan Outstanding</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalLoanOutstanding)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg"><Wallet className="h-5 w-5 text-purple-600" /></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Advances</p>
+                <p className="text-2xl font-bold">{activeAdvancesCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg"><IndianRupee className="h-5 w-5 text-orange-600" /></div>
+              <div>
+                <p className="text-sm text-muted-foreground">Advance Outstanding</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalAdvanceOutstanding)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="loans">Loans</TabsTrigger>
+            <TabsTrigger value="advances">Advances</TabsTrigger>
+          </TabsList>
+          <div className="flex gap-2">
+            {activeTab === 'loans' && (
+              <Button onClick={() => { resetLoanForm(); setShowLoanDialog(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> New Loan
+              </Button>
+            )}
+            {activeTab === 'advances' && (
+              <Button onClick={() => { resetAdvanceForm(); setShowAdvanceDialog(true); }}>
+                <Plus className="h-4 w-4 mr-2" /> New Advance
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <TabsContent value="loans">
+          <Card>
+            <CardContent className="pt-6">
+              {loansLoading ? <p>Loading...</p> : loans.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No loans found. Create a new loan to get started.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Principal</TableHead>
+                      <TableHead>EMI</TableHead>
+                      <TableHead>Repaid</TableHead>
+                      <TableHead>Outstanding</TableHead>
+                      <TableHead>Installments</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loans.map((loan: any) => (
+                      <TableRow key={loan.id}>
+                        <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
+                        <TableCell>{loan.employeeName}</TableCell>
+                        <TableCell className="capitalize">{loan.loanType}</TableCell>
+                        <TableCell>{formatCurrency(loan.principalAmount)}</TableCell>
+                        <TableCell>{formatCurrency(loan.emiAmount)}</TableCell>
+                        <TableCell>{formatCurrency(loan.totalRepaid)}</TableCell>
+                        <TableCell className="font-semibold">{formatCurrency(loan.outstandingBalance)}</TableCell>
+                        <TableCell>{loan.installmentsPaid}/{loan.tenureMonths}</TableCell>
+                        <TableCell>{statusBadge(loan.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => setSelectedLoan(loan)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {loan.status === 'active' && (
+                              <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'paused' } })}>
+                                <Pause className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {loan.status === 'paused' && (
+                              <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'active' } })}>
+                                <Play className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="advances">
+          <Card>
+            <CardContent className="pt-6">
+              {advancesLoading ? <p>Loading...</p> : advances.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No advances found. Create a new advance to get started.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Recovery Type</TableHead>
+                      <TableHead>Recovery/Month</TableHead>
+                      <TableHead>Recovered</TableHead>
+                      <TableHead>Outstanding</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {advances.map((adv: any) => (
+                      <TableRow key={adv.id}>
+                        <TableCell className="font-mono text-sm">{adv.advanceReference}</TableCell>
+                        <TableCell>{adv.employeeName}</TableCell>
+                        <TableCell>{formatCurrency(adv.amount)}</TableCell>
+                        <TableCell className="capitalize">{adv.recoveryType?.replace('_', ' ')}</TableCell>
+                        <TableCell>{adv.recoveryType === 'installment' ? formatCurrency(adv.recoveryAmount || 0) : 'Full'}</TableCell>
+                        <TableCell>{formatCurrency(adv.totalRecovered)}</TableCell>
+                        <TableCell className="font-semibold">{formatCurrency(adv.outstandingBalance)}</TableCell>
+                        <TableCell>{statusBadge(adv.status)}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => setSelectedAdvance(adv)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {adv.status === 'active' && (
+                              <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'paused' } })}>
+                                <Pause className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {adv.status === 'paused' && (
+                              <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'active' } })}>
+                                <Play className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* New Loan Dialog */}
+      <Dialog open={showLoanDialog} onOpenChange={setShowLoanDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Create New Loan</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label>Employee</Label>
+              <Select value={loanForm.employeeId} onValueChange={(v) => setLoanForm({ ...loanForm, employeeId: v })}>
+                <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
+                <SelectContent>
+                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Loan Type</Label>
+              <Select value={loanForm.loanType} onValueChange={(v) => setLoanForm({ ...loanForm, loanType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="housing">Housing</SelectItem>
+                  <SelectItem value="vehicle">Vehicle</SelectItem>
+                  <SelectItem value="emergency">Emergency</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Principal Amount</Label>
+                <Input type="number" value={loanForm.principalAmount} onChange={(e) => setLoanForm({ ...loanForm, principalAmount: e.target.value })} />
+              </div>
+              <div>
+                <Label>Interest Rate (%)</Label>
+                <Input type="number" value={loanForm.interestRate} onChange={(e) => setLoanForm({ ...loanForm, interestRate: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>EMI Amount</Label>
+                <Input type="number" value={loanForm.emiAmount} onChange={(e) => setLoanForm({ ...loanForm, emiAmount: e.target.value })} />
+              </div>
+              <div>
+                <Label>Tenure (Months)</Label>
+                <Input type="number" value={loanForm.tenureMonths} onChange={(e) => setLoanForm({ ...loanForm, tenureMonths: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Disbursement Date</Label>
+                <Input type="date" value={loanForm.disbursementDate} onChange={(e) => setLoanForm({ ...loanForm, disbursementDate: e.target.value })} />
+              </div>
+              <div>
+                <Label>Start Deduction Date</Label>
+                <Input type="date" value={loanForm.startDeductionDate} onChange={(e) => setLoanForm({ ...loanForm, startDeductionDate: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Remarks</Label>
+              <Textarea value={loanForm.remarks} onChange={(e) => setLoanForm({ ...loanForm, remarks: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLoanDialog(false)}>Cancel</Button>
+            <Button
+              disabled={!loanForm.employeeId || !loanForm.principalAmount || !loanForm.emiAmount || !loanForm.tenureMonths || !loanForm.disbursementDate || !loanForm.startDeductionDate}
+              onClick={() => createLoanMutation.mutate({
+                employeeId: Number(loanForm.employeeId),
+                loanType: loanForm.loanType,
+                principalAmount: parseFloat(loanForm.principalAmount),
+                interestRate: parseFloat(loanForm.interestRate || '0'),
+                emiAmount: parseFloat(loanForm.emiAmount),
+                tenureMonths: parseInt(loanForm.tenureMonths),
+                disbursementDate: loanForm.disbursementDate,
+                startDeductionDate: loanForm.startDeductionDate,
+                remarks: loanForm.remarks,
+              })}
+            >
+              {createLoanMutation.isPending ? 'Creating...' : 'Create Loan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Advance Dialog */}
+      <Dialog open={showAdvanceDialog} onOpenChange={setShowAdvanceDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Create New Advance</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label>Employee</Label>
+              <Select value={advanceForm.employeeId} onValueChange={(v) => setAdvanceForm({ ...advanceForm, employeeId: v })}>
+                <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
+                <SelectContent>
+                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Advance Amount</Label>
+                <Input type="number" value={advanceForm.amount} onChange={(e) => setAdvanceForm({ ...advanceForm, amount: e.target.value })} />
+              </div>
+              <div>
+                <Label>Recovery Type</Label>
+                <Select value={advanceForm.recoveryType} onValueChange={(v) => setAdvanceForm({ ...advanceForm, recoveryType: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="installment">Installment</SelectItem>
+                    <SelectItem value="lump_sum">Lump Sum</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {advanceForm.recoveryType === 'installment' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Recovery Amount/Month</Label>
+                  <Input type="number" value={advanceForm.recoveryAmount} onChange={(e) => setAdvanceForm({ ...advanceForm, recoveryAmount: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Recovery Months</Label>
+                  <Input type="number" value={advanceForm.recoveryMonths} onChange={(e) => setAdvanceForm({ ...advanceForm, recoveryMonths: e.target.value })} />
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Advance Date</Label>
+                <Input type="date" value={advanceForm.advanceDate} onChange={(e) => setAdvanceForm({ ...advanceForm, advanceDate: e.target.value })} />
+              </div>
+              <div>
+                <Label>Start Recovery Date</Label>
+                <Input type="date" value={advanceForm.startRecoveryDate} onChange={(e) => setAdvanceForm({ ...advanceForm, startRecoveryDate: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <Label>Reason</Label>
+              <Textarea value={advanceForm.reason} onChange={(e) => setAdvanceForm({ ...advanceForm, reason: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdvanceDialog(false)}>Cancel</Button>
+            <Button
+              disabled={!advanceForm.employeeId || !advanceForm.amount || !advanceForm.advanceDate || !advanceForm.startRecoveryDate}
+              onClick={() => createAdvanceMutation.mutate({
+                employeeId: Number(advanceForm.employeeId),
+                amount: parseFloat(advanceForm.amount),
+                recoveryType: advanceForm.recoveryType,
+                recoveryAmount: advanceForm.recoveryAmount ? parseFloat(advanceForm.recoveryAmount) : null,
+                recoveryMonths: advanceForm.recoveryMonths ? parseInt(advanceForm.recoveryMonths) : null,
+                advanceDate: advanceForm.advanceDate,
+                startRecoveryDate: advanceForm.startRecoveryDate,
+                reason: advanceForm.reason,
+              })}
+            >
+              {createAdvanceMutation.isPending ? 'Creating...' : 'Create Advance'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loan Detail Dialog */}
+      <LoanDetailDialog loan={selectedLoan} onClose={() => setSelectedLoan(null)} onStatusChange={(id: number, status: string) => updateLoanMutation.mutate({ id, data: { status } })} />
+
+      {/* Advance Detail Dialog */}
+      <AdvanceDetailDialog advance={selectedAdvance} onClose={() => setSelectedAdvance(null)} onStatusChange={(id: number, status: string) => updateAdvanceMutation.mutate({ id, data: { status } })} />
+    </div>
+  );
+}
+
+function LoanDetailDialog({ loan, onClose, onStatusChange }: { loan: any; onClose: () => void; onStatusChange: (id: number, status: string) => void }) {
+  const { data: detail } = useQuery<any>({
+    queryKey: ['/api/loan-advance/loans', loan?.id],
+    enabled: !!loan?.id,
+  });
+
+  if (!loan) return null;
+  const d = detail || loan;
+
+  return (
+    <Dialog open={!!loan} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Loan Details — {d.loanReference}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-sm text-muted-foreground">Employee</p><p className="font-medium">{d.employeeName}</p></div>
+            <div><p className="text-sm text-muted-foreground">Type</p><p className="font-medium capitalize">{d.loanType}</p></div>
+            <div><p className="text-sm text-muted-foreground">Principal</p><p className="font-medium">{formatCurrency(d.principalAmount)}</p></div>
+            <div><p className="text-sm text-muted-foreground">EMI</p><p className="font-medium">{formatCurrency(d.emiAmount)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Interest Rate</p><p className="font-medium">{d.interestRate}%</p></div>
+            <div><p className="text-sm text-muted-foreground">Tenure</p><p className="font-medium">{d.tenureMonths} months</p></div>
+            <div><p className="text-sm text-muted-foreground">Disbursement Date</p><p className="font-medium">{d.disbursementDate}</p></div>
+            <div><p className="text-sm text-muted-foreground">Start Deduction</p><p className="font-medium">{d.startDeductionDate}</p></div>
+            <div><p className="text-sm text-muted-foreground">Total Repaid</p><p className="font-medium text-green-600">{formatCurrency(d.totalRepaid)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Outstanding</p><p className="font-medium text-red-600">{formatCurrency(d.outstandingBalance)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Installments</p><p className="font-medium">{d.installmentsPaid}/{d.tenureMonths}</p></div>
+            <div><p className="text-sm text-muted-foreground">Status</p>{statusBadge(d.status)}</div>
+          </div>
+          {d.remarks && <div><p className="text-sm text-muted-foreground">Remarks</p><p>{d.remarks}</p></div>}
+
+          {d.repayments && d.repayments.length > 0 && (
+            <div>
+              <h4 className="font-semibold mb-2">Repayment History</h4>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Balance After</TableHead>
+                    <TableHead>Run #</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {d.repayments.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.installmentNumber}</TableCell>
+                      <TableCell>{formatCurrency(r.amount)}</TableCell>
+                      <TableCell>{r.repaymentDate}</TableCell>
+                      <TableCell>{formatCurrency(r.balanceAfter)}</TableCell>
+                      <TableCell>{r.runNumber}</TableCell>
+                      <TableCell>{statusBadge(r.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          {d.status === 'active' && (
+            <>
+              <Button variant="outline" onClick={() => { onStatusChange(d.id, 'paused'); onClose(); }}>
+                <Pause className="h-4 w-4 mr-2" /> Pause Loan
+              </Button>
+              <Button variant="destructive" onClick={() => { onStatusChange(d.id, 'written_off'); onClose(); }}>
+                <XCircle className="h-4 w-4 mr-2" /> Write Off
+              </Button>
+            </>
+          )}
+          {d.status === 'paused' && (
+            <Button onClick={() => { onStatusChange(d.id, 'active'); onClose(); }}>
+              <Play className="h-4 w-4 mr-2" /> Resume Loan
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdvanceDetailDialog({ advance, onClose, onStatusChange }: { advance: any; onClose: () => void; onStatusChange: (id: number, status: string) => void }) {
+  const { data: detail } = useQuery<any>({
+    queryKey: ['/api/loan-advance/advances', advance?.id],
+    enabled: !!advance?.id,
+  });
+
+  if (!advance) return null;
+  const d = detail || advance;
+
+  return (
+    <Dialog open={!!advance} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Advance Details — {d.advanceReference}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div><p className="text-sm text-muted-foreground">Employee</p><p className="font-medium">{d.employeeName}</p></div>
+            <div><p className="text-sm text-muted-foreground">Amount</p><p className="font-medium">{formatCurrency(d.amount)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Recovery Type</p><p className="font-medium capitalize">{d.recoveryType?.replace('_', ' ')}</p></div>
+            {d.recoveryType === 'installment' && (
+              <>
+                <div><p className="text-sm text-muted-foreground">Recovery/Month</p><p className="font-medium">{formatCurrency(d.recoveryAmount || 0)}</p></div>
+                <div><p className="text-sm text-muted-foreground">Recovery Months</p><p className="font-medium">{d.recoveryMonths}</p></div>
+              </>
+            )}
+            <div><p className="text-sm text-muted-foreground">Advance Date</p><p className="font-medium">{d.advanceDate}</p></div>
+            <div><p className="text-sm text-muted-foreground">Start Recovery</p><p className="font-medium">{d.startRecoveryDate}</p></div>
+            <div><p className="text-sm text-muted-foreground">Total Recovered</p><p className="font-medium text-green-600">{formatCurrency(d.totalRecovered)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Outstanding</p><p className="font-medium text-red-600">{formatCurrency(d.outstandingBalance)}</p></div>
+            <div><p className="text-sm text-muted-foreground">Status</p>{statusBadge(d.status)}</div>
+          </div>
+          {d.reason && <div><p className="text-sm text-muted-foreground">Reason</p><p>{d.reason}</p></div>}
+
+          {d.recoveries && d.recoveries.length > 0 && (
+            <div>
+              <h4 className="font-semibold mb-2">Recovery History</h4>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Balance After</TableHead>
+                    <TableHead>Run #</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {d.recoveries.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell>{r.installmentNumber}</TableCell>
+                      <TableCell>{formatCurrency(r.amount)}</TableCell>
+                      <TableCell>{r.recoveryDate}</TableCell>
+                      <TableCell>{formatCurrency(r.balanceAfter)}</TableCell>
+                      <TableCell>{r.runNumber}</TableCell>
+                      <TableCell>{statusBadge(r.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          {d.status === 'active' && (
+            <>
+              <Button variant="outline" onClick={() => { onStatusChange(d.id, 'paused'); onClose(); }}>
+                <Pause className="h-4 w-4 mr-2" /> Pause Recovery
+              </Button>
+              <Button variant="destructive" onClick={() => { onStatusChange(d.id, 'written_off'); onClose(); }}>
+                <XCircle className="h-4 w-4 mr-2" /> Write Off
+              </Button>
+            </>
+          )}
+          {d.status === 'paused' && (
+            <Button onClick={() => { onStatusChange(d.id, 'active'); onClose(); }}>
+              <Play className="h-4 w-4 mr-2" /> Resume Recovery
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
