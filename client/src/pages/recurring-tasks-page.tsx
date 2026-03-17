@@ -9,13 +9,15 @@ import { User, RecurringTask } from "@shared/schema";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function RecurringTasksPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("patterns");
-  const [dueDateFilter, setDueDateFilter] = useState<number>(30); // Default to 30 days
+  const [dueDateFilter, setDueDateFilter] = useState<number>(30);
+  const [assignedToFilter, setAssignedToFilter] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -153,6 +155,23 @@ export default function RecurringTasksPage() {
                       View and manage tasks that recur on a regular schedule
                     </p>
                   </div>
+                  <div className="w-48">
+                    <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Assigned To" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Users</SelectItem>
+                        {getUsers()
+                          .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+                          .map(u => (
+                            <SelectItem key={u.id} value={String(u.id)}>
+                              {u.firstName} {u.lastName}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="w-64">
                     <DueDateFilter 
                       defaultValue={dueDateFilter} 
@@ -163,13 +182,12 @@ export default function RecurringTasksPage() {
               </div>
               <RecurringTaskList 
                 recurringTasks={recurringTasks.filter(task => {
-                  // Filter tasks by due date range
                   const today = new Date();
                   const dueDate = new Date(task.dueDate);
                   const daysDifference = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                  
-                  // Show tasks that are due within the specified days or are overdue
-                  return daysDifference <= dueDateFilter || daysDifference <= 0;
+                  const dueDateMatch = daysDifference <= dueDateFilter || daysDifference <= 0;
+                  const assigneeMatch = assignedToFilter === "all" || String(task.assignedTo) === assignedToFilter;
+                  return dueDateMatch && assigneeMatch;
                 })} 
                 subordinates={subordinates} 
               />
