@@ -54,7 +54,7 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
       sourceId: notifications.sourceId,
       createdBy: notifications.createdBy,
       createdAt: notifications.createdAt,
-      createdByName: users.fullName,
+      createdByName: users.firstName,
     })
     .from(notifications)
     .leftJoin(users, eq(notifications.createdBy, users.id))

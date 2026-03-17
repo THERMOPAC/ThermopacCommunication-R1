@@ -916,7 +916,7 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
       .select({ requestDate: attendanceRegularizations.requestDate })
       .from(attendanceRegularizations)
       .where(and(
-        eq(attendanceRegularizations.userId, user.id),
+        eq(attendanceRegularizations.employeeId, user.id),
         eq(attendanceRegularizations.status, 'pending'),
         gte(attendanceRegularizations.requestDate, startStr),
         lte(attendanceRegularizations.requestDate, endStr)
@@ -986,7 +986,7 @@ router.get('/regularization/my-requests', ensureAuthenticated, async (req: Reque
       rejectionReason: attendanceRegularizations.rejectionReason,
       appliedToAttendance: attendanceRegularizations.appliedToAttendance,
       createdAt: attendanceRegularizations.createdAt,
-      approverName: users.fullName,
+      approverName: users.firstName,
     })
     .from(attendanceRegularizations)
     .leftJoin(users, eq(attendanceRegularizations.approverId, users.id))
@@ -1022,8 +1022,8 @@ router.get('/regularization/pending-approvals', ensureAuthenticated, async (req:
       status: attendanceRegularizations.status,
       originalData: attendanceRegularizations.originalData,
       createdAt: attendanceRegularizations.createdAt,
-      employeeName: users.fullName,
-      employeeCode: users.employeeId,
+      employeeName: users.firstName,
+      employeeCode: users.employeeCode,
     })
     .from(attendanceRegularizations)
     .innerJoin(users, eq(attendanceRegularizations.employeeId, users.id))
@@ -1310,8 +1310,8 @@ router.get('/regularization/all', ensureAuthenticated, async (req: Request, res:
       originalData: attendanceRegularizations.originalData,
       auditTrail: attendanceRegularizations.auditTrail,
       createdAt: attendanceRegularizations.createdAt,
-      employeeName: users.fullName,
-      employeeCode: users.employeeId,
+      employeeName: users.firstName,
+      employeeCode: users.employeeCode,
     })
     .from(attendanceRegularizations)
     .innerJoin(users, eq(attendanceRegularizations.employeeId, users.id))
