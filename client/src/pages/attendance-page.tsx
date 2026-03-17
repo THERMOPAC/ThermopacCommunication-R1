@@ -342,13 +342,16 @@ export default function AttendancePage() {
 
   const getStatusBadge = (status: string, record?: any) => {
     const statusLower = status?.toLowerCase() || '';
-    if (statusLower === 'present' && record && record.checkInTime && !record.checkOutTime) {
+    if (record && record.checkInTime && !record.checkOutTime) {
       const today = new Date().toISOString().split('T')[0];
       const recordDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
       if (recordDate === today) {
         return <Badge className="bg-blue-100 text-blue-800">Checked In</Badge>;
       }
-      return <Badge className="bg-red-100 text-red-800">Absent</Badge>;
+      return <Badge className="bg-orange-100 text-orange-800">No Check-Out</Badge>;
+    }
+    if (statusLower === 'absent' && record && !record.checkInTime && !record.checkOutTime) {
+      return <Badge className="bg-red-100 text-red-800">No Check-In & Out</Badge>;
     }
     switch (statusLower) {
       case 'present':
