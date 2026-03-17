@@ -152,7 +152,9 @@ export default function AttendanceRegularizationPage() {
     },
     onSuccess: () => {
       toast({ title: 'Approved', description: 'Regularization request approved and attendance updated.' });
-      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/my-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/all'] });
       setShowApproveDialog(false);
       setApproveRemarks('');
     },
@@ -167,7 +169,9 @@ export default function AttendanceRegularizationPage() {
     },
     onSuccess: () => {
       toast({ title: 'Rejected', description: 'Regularization request has been rejected.' });
-      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/pending-approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/my-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/all'] });
       setShowRejectDialog(false);
       setRejectReason('');
     },
