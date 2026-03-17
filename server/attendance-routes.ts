@@ -272,9 +272,19 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       }
     }
 
-    // Determine attendance status based on DWAR completion
-    // If DWAR is not submitted, mark as absent
-    const attendanceStatus = isDwarCompleted ? 'present' : 'absent';
+    // Determine attendance status based on DWAR completion and working hours
+    let attendanceStatus: string;
+    if (!isDwarCompleted) {
+      attendanceStatus = 'absent';
+    } else {
+      const employeeUser = req.user as any;
+      const halfDayMin = Number(employeeUser.halfDayMinimumHours) || 4.5;
+      if (workingHours < halfDayMin) {
+        attendanceStatus = 'half_day';
+      } else {
+        attendanceStatus = 'present';
+      }
+    }
     
     // Update attendance record
     const [updatedRecord] = await db
