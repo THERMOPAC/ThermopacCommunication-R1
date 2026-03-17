@@ -185,6 +185,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
   const { user } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
   const [editingPattern, setEditingPattern] = useState<RecurringPattern | null>(null);
+  const [assignedToFilter, setAssignedToFilter] = useState<string>("all");
   
   // Get all recurring patterns for the current user
   const { data: patterns = [], isLoading: patternsLoading } = useQuery({
@@ -1421,14 +1422,43 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
         </div>
       </div>
       
+      <div className="flex items-center gap-4 mb-2">
+        <div className="w-48">
+          <Select value={assignedToFilter} onValueChange={setAssignedToFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Assigned To" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {users
+                .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+                .map(u => (
+                  <SelectItem key={u.id} value={String(u.id)}>
+                    {u.firstName} {u.lastName}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {patternsLoading ? (
         <div className="flex justify-center my-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
-      ) : patterns.length > 0 ? (
+      ) : patterns.filter((p: RecurringPattern) => {
+        if (assignedToFilter === "all") return true;
+        if (assignedToFilter === "unassigned") return !p.templateAssignedTo;
+        return String(p.templateAssignedTo) === assignedToFilter;
+      }).length > 0 ? (
         <div className="space-y-4">
           <Accordion type="multiple" className="w-full">
-            {patterns.map((pattern: RecurringPattern) => (
+            {patterns.filter((p: RecurringPattern) => {
+              if (assignedToFilter === "all") return true;
+              if (assignedToFilter === "unassigned") return !p.templateAssignedTo;
+              return String(p.templateAssignedTo) === assignedToFilter;
+            }).map((pattern: RecurringPattern) => (
               <AccordionItem value={`pattern-${pattern.id}`} key={pattern.id}>
                 <AccordionTrigger className="hover:no-underline px-4 py-2 hover:bg-muted/50 rounded-lg">
                   <div className="flex-1 flex items-center justify-between mr-2">
