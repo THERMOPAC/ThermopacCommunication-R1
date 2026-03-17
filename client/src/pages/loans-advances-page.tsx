@@ -52,7 +52,7 @@ export default function LoansAdvancesPage() {
     recoveryMonths: '', advanceDate: '', startRecoveryDate: '', reason: '',
   });
 
-  const { data: users = [] } = useQuery<any[]>({ queryKey: ['/api/users'] });
+  const { data: users = [] } = useQuery<any[]>({ queryKey: ['/api/users/selection'] });
   const { data: loans = [], isLoading: loansLoading } = useQuery<any[]>({ queryKey: ['/api/loan-advance/loans'] });
   const { data: advances = [], isLoading: advancesLoading } = useQuery<any[]>({ queryKey: ['/api/loan-advance/advances'] });
 
@@ -323,7 +323,7 @@ export default function LoansAdvancesPage() {
               <Select value={loanForm.employeeId} onValueChange={(v) => setLoanForm({ ...loanForm, employeeId: v })}>
                 <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
                 <SelectContent>
-                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>)}
+                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -343,21 +343,54 @@ export default function LoansAdvancesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Principal Amount</Label>
-                <Input type="number" value={loanForm.principalAmount} onChange={(e) => setLoanForm({ ...loanForm, principalAmount: e.target.value })} />
+                <Input type="number" value={loanForm.principalAmount} onChange={(e) => {
+                  const principal = e.target.value;
+                  const updated = { ...loanForm, principalAmount: principal };
+                  if (principal && updated.tenureMonths) {
+                    const r = parseFloat(updated.interestRate || '0') / 100 / 12;
+                    const n = parseInt(updated.tenureMonths);
+                    const p = parseFloat(principal);
+                    const emi = r > 0 ? (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : p / n;
+                    updated.emiAmount = Math.round(emi).toString();
+                  }
+                  setLoanForm(updated);
+                }} />
               </div>
               <div>
                 <Label>Interest Rate (%)</Label>
-                <Input type="number" value={loanForm.interestRate} onChange={(e) => setLoanForm({ ...loanForm, interestRate: e.target.value })} />
+                <Input type="number" value={loanForm.interestRate} onChange={(e) => {
+                  const rate = e.target.value;
+                  const updated = { ...loanForm, interestRate: rate };
+                  if (updated.principalAmount && updated.tenureMonths) {
+                    const r = parseFloat(rate || '0') / 100 / 12;
+                    const n = parseInt(updated.tenureMonths);
+                    const p = parseFloat(updated.principalAmount);
+                    const emi = r > 0 ? (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : p / n;
+                    updated.emiAmount = Math.round(emi).toString();
+                  }
+                  setLoanForm(updated);
+                }} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>EMI Amount</Label>
-                <Input type="number" value={loanForm.emiAmount} onChange={(e) => setLoanForm({ ...loanForm, emiAmount: e.target.value })} />
+                <Label>Tenure (Months)</Label>
+                <Input type="number" value={loanForm.tenureMonths} onChange={(e) => {
+                  const tenure = e.target.value;
+                  const updated = { ...loanForm, tenureMonths: tenure };
+                  if (updated.principalAmount && tenure) {
+                    const r = parseFloat(updated.interestRate || '0') / 100 / 12;
+                    const n = parseInt(tenure);
+                    const p = parseFloat(updated.principalAmount);
+                    const emi = r > 0 ? (p * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : p / n;
+                    updated.emiAmount = Math.round(emi).toString();
+                  }
+                  setLoanForm(updated);
+                }} />
               </div>
               <div>
-                <Label>Tenure (Months)</Label>
-                <Input type="number" value={loanForm.tenureMonths} onChange={(e) => setLoanForm({ ...loanForm, tenureMonths: e.target.value })} />
+                <Label>EMI Amount (Auto-calculated)</Label>
+                <Input type="number" value={loanForm.emiAmount} onChange={(e) => setLoanForm({ ...loanForm, emiAmount: e.target.value })} className="bg-muted" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -407,7 +440,7 @@ export default function LoansAdvancesPage() {
               <Select value={advanceForm.employeeId} onValueChange={(v) => setAdvanceForm({ ...advanceForm, employeeId: v })}>
                 <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
                 <SelectContent>
-                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>)}
+                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
