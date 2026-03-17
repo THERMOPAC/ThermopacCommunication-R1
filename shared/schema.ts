@@ -1207,7 +1207,7 @@ export const insertRecurringTaskSchema = createInsertSchema(recurringTasks).exte
 
 // Recurring pattern insert schema
 export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns, {
-  pattern: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
+  pattern: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'yearly']),
   interval: z.number().min(1),
   daysOfWeek: z.string().optional(),
   dayOfMonth: z.number().optional(),
