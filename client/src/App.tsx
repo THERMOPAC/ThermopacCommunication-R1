@@ -100,6 +100,7 @@ import TdsCompliancePage from "@/pages/finance/statutory/tds-compliance-page";
 import PfCompliancePage from "@/pages/finance/statutory/pf-compliance-page";
 import EsicCompliancePage from "@/pages/finance/statutory/esic-compliance-page";
 import PtCompliancePage from "@/pages/finance/statutory/pt-compliance-page";
+import CompanyIncomeTaxPage from "@/pages/finance/company-income-tax-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -261,6 +262,7 @@ function Router() {
       <ProtectedRoute path="/finance/statutory/pf" component={PfCompliancePage} />
       <ProtectedRoute path="/finance/statutory/esic" component={EsicCompliancePage} />
       <ProtectedRoute path="/finance/statutory/pt" component={PtCompliancePage} />
+      <ProtectedRoute path="/finance/company-income-tax" component={CompanyIncomeTaxPage} />
       
       {/* Administration Module Routes */}
       <ProtectedRoute path="/admin" component={AdministrationPage} />

@@ -9757,3 +9757,182 @@ export const ptStateConfig = pgTable('pt_state_config', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+export const companyTaxYears = pgTable('company_tax_years', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  assessmentYear: varchar('assessment_year', { length: 10 }).notNull(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  companyPan: varchar('company_pan', { length: 15 }),
+  taxRegime: varchar('tax_regime', { length: 20 }),
+  baseTaxRate: decimal('base_tax_rate', { precision: 5, scale: 2 }).notNull(),
+  surchargeRate: decimal('surcharge_rate', { precision: 5, scale: 2 }).default('0'),
+  surchargePolicy: text('surcharge_policy'),
+  cessRate: decimal('cess_rate', { precision: 5, scale: 2 }).default('4'),
+  effectiveRate: decimal('effective_rate', { precision: 6, scale: 3 }),
+  rateOverrideNotes: text('rate_override_notes'),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  remarks: text('remarks'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCompanyTaxYearSchema = createInsertSchema(companyTaxYears).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCompanyTaxYear = z.infer<typeof insertCompanyTaxYearSchema>;
+export type CompanyTaxYear = typeof companyTaxYears.$inferSelect;
+
+export const companyTaxEstimates = pgTable('company_tax_estimates', {
+  id: serial('id').primaryKey(),
+  taxYearId: integer('tax_year_id').references(() => companyTaxYears.id).notNull(),
+  estimateDate: timestamp('estimate_date').notNull(),
+  estimateLabel: varchar('estimate_label', { length: 50 }),
+  grossRevenue: decimal('gross_revenue', { precision: 14, scale: 2 }),
+  totalExpenses: decimal('total_expenses', { precision: 14, scale: 2 }),
+  profitBeforeTax: decimal('profit_before_tax', { precision: 14, scale: 2 }),
+  adjustments: decimal('adjustments', { precision: 14, scale: 2 }).default('0'),
+  adjustmentDetails: jsonb('adjustment_details'),
+  taxableIncome: decimal('taxable_income', { precision: 14, scale: 2 }),
+  taxAtNormalRate: decimal('tax_at_normal_rate', { precision: 12, scale: 2 }),
+  surcharge: decimal('surcharge', { precision: 10, scale: 2 }).default('0'),
+  educationCess: decimal('education_cess', { precision: 10, scale: 2 }).default('0'),
+  totalTaxLiability: decimal('total_tax_liability', { precision: 12, scale: 2 }),
+  matApplicable: boolean('mat_applicable').default(false),
+  matAmount: decimal('mat_amount', { precision: 12, scale: 2 }),
+  effectiveTaxPayable: decimal('effective_tax_payable', { precision: 12, scale: 2 }),
+  tdsReceivable: decimal('tds_receivable', { precision: 12, scale: 2 }).default('0'),
+  advanceTaxPaid: decimal('advance_tax_paid', { precision: 12, scale: 2 }).default('0'),
+  selfAssessmentTaxPaid: decimal('self_assessment_tax_paid', { precision: 12, scale: 2 }).default('0'),
+  netTaxPayable: decimal('net_tax_payable', { precision: 12, scale: 2 }),
+  isLatest: boolean('is_latest').default(false),
+  notes: text('notes'),
+  preparedBy: integer('prepared_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertCompanyTaxEstimateSchema = createInsertSchema(companyTaxEstimates).omit({ id: true, createdAt: true });
+export type InsertCompanyTaxEstimate = z.infer<typeof insertCompanyTaxEstimateSchema>;
+export type CompanyTaxEstimate = typeof companyTaxEstimates.$inferSelect;
+
+export const companyTaxChallans = pgTable('company_tax_challans', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  taxYearId: integer('tax_year_id').references(() => companyTaxYears.id).notNull(),
+  challanReference: varchar('challan_reference', { length: 50 }).unique(),
+  paymentType: varchar('payment_type', { length: 30 }).notNull(),
+  challanNo: varchar('challan_no', { length: 10 }).default('280'),
+  bsrCode: varchar('bsr_code', { length: 20 }),
+  cinNumber: varchar('cin_number', { length: 50 }),
+  taxAmount: decimal('tax_amount', { precision: 12, scale: 2 }).notNull(),
+  surchargeAmount: decimal('surcharge_amount', { precision: 10, scale: 2 }).default('0'),
+  cessAmount: decimal('cess_amount', { precision: 10, scale: 2 }).default('0'),
+  interestAmount: decimal('interest_amount', { precision: 10, scale: 2 }).default('0'),
+  penaltyAmount: decimal('penalty_amount', { precision: 10, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
+  advanceTaxId: integer('advance_tax_id'),
+  paymentDate: timestamp('payment_date'),
+  paymentMode: varchar('payment_mode', { length: 20 }),
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  bankName: varchar('bank_name', { length: 100 }),
+  sapJeReference: varchar('sap_je_reference', { length: 50 }),
+  glPostingId: integer('gl_posting_id'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCompanyTaxChallanSchema = createInsertSchema(companyTaxChallans).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCompanyTaxChallan = z.infer<typeof insertCompanyTaxChallanSchema>;
+export type CompanyTaxChallan = typeof companyTaxChallans.$inferSelect;
+
+export const companyAdvanceTax = pgTable('company_advance_tax', {
+  id: serial('id').primaryKey(),
+  taxYearId: integer('tax_year_id').references(() => companyTaxYears.id).notNull(),
+  estimateId: integer('estimate_id'),
+  installment: varchar('installment', { length: 5 }).notNull(),
+  dueDate: timestamp('due_date').notNull(),
+  cumulativePercent: decimal('cumulative_percent', { precision: 5, scale: 2 }),
+  estimatedLiability: decimal('estimated_liability', { precision: 12, scale: 2 }),
+  amountDue: decimal('amount_due', { precision: 12, scale: 2 }),
+  amountPaid: decimal('amount_paid', { precision: 12, scale: 2 }).default('0'),
+  paymentDate: timestamp('payment_date'),
+  challanId: integer('challan_id'),
+  interest234c: decimal('interest_234c', { precision: 10, scale: 2 }).default('0'),
+  interest234b: decimal('interest_234b', { precision: 10, scale: 2 }).default('0'),
+  status: varchar('status', { length: 20 }).notNull().default('upcoming'),
+  remarks: text('remarks'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCompanyAdvanceTaxSchema = createInsertSchema(companyAdvanceTax).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCompanyAdvanceTax = z.infer<typeof insertCompanyAdvanceTaxSchema>;
+export type CompanyAdvanceTax = typeof companyAdvanceTax.$inferSelect;
+
+export const companyTaxProvisions = pgTable('company_tax_provisions', {
+  id: serial('id').primaryKey(),
+  taxYearId: integer('tax_year_id').references(() => companyTaxYears.id).notNull(),
+  provisionDate: timestamp('provision_date').notNull(),
+  provisionPeriod: varchar('provision_period', { length: 30 }),
+  provisionType: varchar('provision_type', { length: 20 }),
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  cumulativeProvision: decimal('cumulative_provision', { precision: 12, scale: 2 }),
+  estimateId: integer('estimate_id'),
+  reversedProvisionId: integer('reversed_provision_id'),
+  adjustmentReference: varchar('adjustment_reference', { length: 100 }),
+  sapJeReference: varchar('sap_je_reference', { length: 50 }),
+  glPostingId: integer('gl_posting_id'),
+  postingStatus: varchar('posting_status', { length: 20 }).notNull().default('draft'),
+  notes: text('notes'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCompanyTaxProvisionSchema = createInsertSchema(companyTaxProvisions).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCompanyTaxProvision = z.infer<typeof insertCompanyTaxProvisionSchema>;
+export type CompanyTaxProvision = typeof companyTaxProvisions.$inferSelect;
+
+export const companyTaxReturns = pgTable('company_tax_returns', {
+  id: serial('id').primaryKey(),
+  taxYearId: integer('tax_year_id').references(() => companyTaxYears.id).notNull(),
+  returnType: varchar('return_type', { length: 20 }).notNull(),
+  formType: varchar('form_type', { length: 10 }).default('ITR-6'),
+  dueDate: timestamp('due_date'),
+  filingDate: timestamp('filing_date'),
+  acknowledgementNumber: varchar('acknowledgement_number', { length: 50 }),
+  totalIncomeReported: decimal('total_income_reported', { precision: 14, scale: 2 }),
+  totalTaxPayable: decimal('total_tax_payable', { precision: 12, scale: 2 }),
+  totalTaxPaid: decimal('total_tax_paid', { precision: 12, scale: 2 }),
+  interest234a: decimal('interest_234a', { precision: 10, scale: 2 }).default('0'),
+  interest234b: decimal('interest_234b', { precision: 10, scale: 2 }).default('0'),
+  interest234c: decimal('interest_234c', { precision: 10, scale: 2 }).default('0'),
+  totalInterest: decimal('total_interest', { precision: 10, scale: 2 }).default('0'),
+  refundClaimed: decimal('refund_claimed', { precision: 12, scale: 2 }).default('0'),
+  refundReceived: decimal('refund_received', { precision: 12, scale: 2 }).default('0'),
+  refundDate: timestamp('refund_date'),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  remarks: text('remarks'),
+  filedBy: integer('filed_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertCompanyTaxReturnSchema = createInsertSchema(companyTaxReturns).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertCompanyTaxReturn = z.infer<typeof insertCompanyTaxReturnSchema>;
+export type CompanyTaxReturn = typeof companyTaxReturns.$inferSelect;
+
+export const companyTaxNotices = pgTable('company_tax_notices', {
+  id: serial('id').primaryKey(),
+  taxYearId: integer('tax_year_id').references(() => companyTaxYears.id).notNull(),
+  noticeType: varchar('notice_type', { length: 30 }),
+  noticeDate: timestamp('notice_date'),
+  dueDate: timestamp('due_date'),
+  demandAmount: decimal('demand_amount', { precision: 12, scale: 2 }),
+  status: varchar('status', { length: 20 }).notNull().default('received'),
+  remarks: text('remarks'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

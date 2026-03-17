@@ -61,7 +61,8 @@ import {
   Radar,
   Target,
   Bot,
-  Landmark
+  Landmark,
+  Building2
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -328,6 +329,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Shield, label: "PF Compliance", href: "/finance/statutory/pf" },
         { icon: HeartPulse, label: "ESIC Compliance", href: "/finance/statutory/esic" },
         { icon: FileCheck, label: "PT Compliance", href: "/finance/statutory/pt" },
+        { icon: Building2, label: "Company Income Tax", href: "/finance/company-income-tax" },
         { icon: Settings, label: "Finance Tools", href: "/finance/tools" }
       ]
     }] : []),
