@@ -130,8 +130,7 @@ export default function AttendanceRegularizationPage() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/attendance/regularization', data);
-      return res.json();
+      return await apiRequest('POST', '/api/attendance/regularization', data);
     },
     onSuccess: () => {
       toast({ title: 'Request submitted', description: 'Your regularization request has been submitted for approval.' });
@@ -149,8 +148,7 @@ export default function AttendanceRegularizationPage() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, remarks }: { id: number; remarks: string }) => {
-      const res = await apiRequest('POST', `/api/attendance/regularization/${id}/approve`, { remarks });
-      return res.json();
+      return await apiRequest('POST', `/api/attendance/regularization/${id}/approve`, { remarks });
     },
     onSuccess: () => {
       toast({ title: 'Approved', description: 'Regularization request approved and attendance updated.' });
@@ -165,8 +163,7 @@ export default function AttendanceRegularizationPage() {
 
   const rejectMutation = useMutation({
     mutationFn: async ({ id, rejectionReason }: { id: number; rejectionReason: string }) => {
-      const res = await apiRequest('POST', `/api/attendance/regularization/${id}/reject`, { rejectionReason });
-      return res.json();
+      return await apiRequest('POST', `/api/attendance/regularization/${id}/reject`, { rejectionReason });
     },
     onSuccess: () => {
       toast({ title: 'Rejected', description: 'Regularization request has been rejected.' });
@@ -181,8 +178,7 @@ export default function AttendanceRegularizationPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('DELETE', `/api/attendance/regularization/${id}`);
-      return res.json();
+      return await apiRequest('DELETE', `/api/attendance/regularization/${id}`);
     },
     onSuccess: () => {
       toast({ title: 'Cancelled', description: 'Your request has been cancelled.' });
