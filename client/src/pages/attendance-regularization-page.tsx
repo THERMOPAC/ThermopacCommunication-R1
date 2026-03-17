@@ -581,7 +581,13 @@ export default function AttendanceRegularizationPage() {
                             <span className="text-xs text-muted-foreground ml-2">{day.dayName}</span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200 shrink-0">
+                        <Badge variant="outline" className={`text-[10px] shrink-0 ${
+                          day.attendanceState === 'missing_checkout'
+                            ? 'bg-orange-50 text-orange-700 border-orange-200'
+                            : day.attendanceState === 'absent'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
                           <AlertTriangle className="h-3 w-3 mr-1" />
                           {day.reason}
                         </Badge>
