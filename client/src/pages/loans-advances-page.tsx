@@ -106,11 +106,19 @@ export default function LoansAdvancesPage() {
     },
   });
 
+  function getToday() {
+    return new Date().toISOString().split('T')[0];
+  }
+  function getFirstOfNextMonth() {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return next.toISOString().split('T')[0];
+  }
   function resetLoanForm() {
-    setLoanForm({ employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0', emiAmount: '', tenureMonths: '', disbursementDate: '', startDeductionDate: '', remarks: '' });
+    setLoanForm({ employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0', emiAmount: '', tenureMonths: '', disbursementDate: getToday(), startDeductionDate: getFirstOfNextMonth(), remarks: '' });
   }
   function resetAdvanceForm() {
-    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '', recoveryMonths: '', advanceDate: '', startRecoveryDate: '', reason: '' });
+    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '' });
   }
 
   const totalLoanOutstanding = loans.filter((l: any) => l.status === 'active').reduce((s: number, l: any) => s + parseFloat(l.outstandingBalance || '0'), 0);
