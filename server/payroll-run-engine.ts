@@ -606,7 +606,8 @@ async function stepSalaryCalculation(
         proratedBase,
         allowances: { hra, conveyance: conv, lta: ltaVal, specialAllowance: specAllow, supplementaryAllowance: suppAllow, kgpAllowance: kgpAllow, bonus: bonusAllow },
         overtime: { hours: overtimeHours, pay: overtimePay },
-        deductions: { employeePF, employerPF, employeeESIC, employerESIC, professionalTax, gratuity: gratuityAmount, groupInsurance: groupInsuranceAmount },
+        deductions: { employeePF, employerPF, employeeESIC, employerESIC, professionalTax, gratuity: gratuityAmount },
+        employerCosts: { groupInsurance: groupInsuranceAmount, gratuity: gratuityAmount, employerPF, employerESIC },
         grossPay,
         totalDeductions,
         netPay,
@@ -708,6 +709,7 @@ async function stepKpiAdjustment(
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
+  let kpiAdjustedCount = 0;
 
   const records = await db
     .select()
@@ -762,80 +764,37 @@ async function stepKpiAdjustment(
       const kpiEligibleRoles = ['Manager', 'Employee'];
       const isKpiEligible = kpiEligibleRoles.includes(empRole);
 
-      const kpiScore = isKpiEligible ? (productivityScore / 100) : 1;
+      const kpiPercent = isKpiEligible ? (productivityScore / 100) : 1;
 
-      const originalPaidDays = parseFloat(record.paidDays || '0');
-      const kpiAdjustedPaidDays = originalPaidDays * kpiScore;
-      const kpiDaysDeducted = originalPaidDays - kpiAdjustedPaidDays;
+      const snap = record.calculationSnapshot as any || {};
+      const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
+      const paidDays = parseFloat(record.paidDays || '0');
+      const totalWorkDays = record.workingDays || 26;
 
-      if (kpiDaysDeducted > 0.01 && isKpiEligible) {
-        const snap = record.calculationSnapshot as any || {};
-        const totalWorkDays = record.workingDays || 26;
-        const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
-        const salaryType = snap.salaryType || 'monthly';
-        const ptConfig = await getProfessionalTaxConfig();
+      const originalKgp = parseFloat(record.kgpAllowance || '0');
+      let newKgpAllow = originalKgp;
+      let kgpReduction = 0;
 
-        let proratedBase: number, grossPay: number;
-        let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0;
+      if (isKpiEligible && kpiPercent < 1.0) {
+        newKgpAllow = basicSalary * 0.15 * kpiPercent;
+        kgpReduction = originalKgp - newKgpAllow;
 
-        if (salaryType === 'daily') {
-          proratedBase = basicSalary * kpiAdjustedPaidDays;
-          const salRec = await db.select().from(employeeSalaries)
-            .where(and(eq(employeeSalaries.userId, record.userId), eq(employeeSalaries.isActive, true)))
-            .orderBy(desc(employeeSalaries.effectiveDate)).limit(1);
-          kgpAllow = parseFloat(salRec[0]?.kgpAllowance || '0') * (kpiAdjustedPaidDays / totalWorkDays);
-          grossPay = proratedBase + kgpAllow;
-        } else {
-          proratedBase = (basicSalary / totalWorkDays) * kpiAdjustedPaidDays;
-          hra = proratedBase * 0.4;
-          conv = proratedBase * 0.3;
-          ltaVal = proratedBase * 0.2;
-          specAllow = proratedBase * 0.3;
-          suppAllow = proratedBase * 0.3;
-          if (['Manager', 'Employee'].includes(empRole)) {
-            kgpAllow = basicSalary * 0.15 * (kpiAdjustedPaidDays / totalWorkDays);
-          }
-          grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
-        }
-
-        const pfBase = Math.min(proratedBase, 15000);
+        const grossPay = parseFloat(record.grossPay) - kgpReduction;
+        const pfBase = Math.min(parseFloat(record.baseSalary), 15000);
         const employeePF = pfBase * 0.12;
-        const employerPF = pfBase * 0.12;
         const employeeESIC = grossPay <= 21000 ? grossPay * 0.0075 : 0;
-        const employerESIC = grossPay <= 21000 ? grossPay * 0.0325 : 0;
-        const gratuityAmount = (basicSalary * 15 / 26) / 12;
-        const groupInsuranceAmount = parseFloat(snap.deductions?.groupInsurance?.toString() || '1500');
-
-        let professionalTax = 0;
-        if (empRole !== 'Superuser') {
-          const periodMonth = new Date(period.startDate).getMonth() + 1;
-          professionalTax = periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
-        }
+        const professionalTax = parseFloat(record.professionalTax || '0');
 
         const totalDeductions = employeePF + employeeESIC + professionalTax;
         const netPay = grossPay - totalDeductions;
-        const bonusAllow = basicSalary * 0.0833;
 
         await db.update(payrollRecords).set({
-          paidDays: kpiAdjustedPaidDays.toFixed(2),
-          baseSalary: proratedBase.toFixed(2),
-          hra: hra.toFixed(2),
-          conveyanceAllowance: conv.toFixed(2),
-          ltaAllowance: ltaVal.toFixed(2),
-          specialAllowance: specAllow.toFixed(2),
-          supplementaryAllowance: suppAllow.toFixed(2),
-          kgpAllowance: kgpAllow.toFixed(2),
-          bonus: bonusAllow.toFixed(2),
+          kgpAllowance: newKgpAllow.toFixed(2),
           grossPay: grossPay.toFixed(2),
           employeePf: employeePF.toFixed(2),
           employeeEsic: employeeESIC.toFixed(2),
-          employerPf: employerPF.toFixed(2),
-          employerEsic: employerESIC.toFixed(2),
           providentFund: employeePF.toFixed(2),
           esiDeduction: employeeESIC.toFixed(2),
-          professionalTax: professionalTax.toFixed(2),
-          gratuity: gratuityAmount.toFixed(2),
-          groupInsurance: groupInsuranceAmount.toFixed(2),
           totalDeductions: totalDeductions.toFixed(2),
           netPay: netPay.toFixed(2),
           dwarProductivityScore: productivityScore.toFixed(2),
@@ -845,22 +804,24 @@ async function stepKpiAdjustment(
           calculationSnapshot: {
             ...snap,
             kpiAdjustment: {
-              originalPaidDays,
-              kpiScore: productivityScore,
-              kpiAdjustedPaidDays,
-              kpiDaysDeducted,
+              kpiPercent: productivityScore,
+              originalKgp,
+              adjustedKgp: newKgpAllow,
+              kgpReduction,
+              paidDaysUnchanged: true,
             },
             kpiMetrics: { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction },
           },
           updatedAt: new Date(),
         }).where(eq(payrollRecords.id, record.id));
 
+        kpiAdjustedCount++;
         exceptions.push({
           userId: record.userId,
           type: 'kpi_adjustment',
           severity: 'info',
-          title: `KPI adjusted paid days for user ${record.userId}`,
-          details: `KPI score ${productivityScore.toFixed(1)}% reduced paid days from ${originalPaidDays.toFixed(2)} to ${kpiAdjustedPaidDays.toFixed(2)} (${kpiDaysDeducted.toFixed(2)} days deducted)`,
+          title: `KPI adjusted KGP for user ${record.userId}`,
+          details: `KPI ${productivityScore.toFixed(1)}% reduced KGP from ₹${originalKgp.toFixed(2)} to ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
         });
       } else {
         await db.update(payrollRecords).set({
@@ -869,8 +830,14 @@ async function stepKpiAdjustment(
           tasksCompleted: totalTasksCompleted,
           averageSatisfactionRating: avgSatisfaction.toFixed(2),
           calculationSnapshot: {
-            ...(record.calculationSnapshot as any || {}),
-            kpiAdjustment: { originalPaidDays, kpiScore: productivityScore, kpiAdjustedPaidDays: originalPaidDays, kpiDaysDeducted: 0 },
+            ...snap,
+            kpiAdjustment: {
+              kpiPercent: productivityScore,
+              originalKgp,
+              adjustedKgp: originalKgp,
+              kgpReduction: 0,
+              paidDaysUnchanged: true,
+            },
             kpiMetrics: { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction },
           },
           updatedAt: new Date(),
@@ -895,7 +862,7 @@ async function stepKpiAdjustment(
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
-    summary: { totalRecords: records.length, kpiAdjusted: exceptions.filter(e => e.type === 'kpi_adjustment').length },
+    summary: { totalRecords: records.length, kpiAdjusted: kpiAdjustedCount },
     exceptions,
   };
 }
@@ -971,7 +938,7 @@ async function stepDeductionCalculation(
       }
 
       const grossPay = parseFloat(record.grossPay);
-      const totalDeductions = formulaPf + formulaEsic + formulaPt + groupIns;
+      const totalDeductions = formulaPf + formulaEsic + formulaPt;
       const netPay = grossPay - totalDeductions;
 
       const existingSnapshot = record.calculationSnapshot as any || {};
@@ -987,7 +954,7 @@ async function stepDeductionCalculation(
             step5Validation: {
               formulaDeductions: { pf: formulaPf, esic: formulaEsic, pt: formulaPt },
               configDeductions: { pf: configPf, esic: configEsic, pt: configPt },
-              groupInsurance: groupIns,
+              groupInsuranceInCtcOnly: groupIns,
               totalDeductions,
               netPay,
               validatedAt: new Date().toISOString(),
