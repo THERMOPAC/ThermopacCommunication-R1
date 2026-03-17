@@ -654,16 +654,6 @@ export default function PayrollPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          {period.status === 'draft' && (
-                            <Button
-                              size="sm"
-                              onClick={() => generatePayrollMutation.mutate(period.id)}
-                              disabled={generatePayrollMutation.isPending}
-                            >
-                              <Play className="h-4 w-4 mr-1" />
-                              Generate
-                            </Button>
-                          )}
                           <Button
                             size="sm"
                             variant="outline"

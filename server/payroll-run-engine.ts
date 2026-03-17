@@ -14,8 +14,10 @@ import {
   payrollSettings,
   dailyWorkReports,
   users,
+  companyHolidays,
+  workweekPolicies,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, asc, sql, ne, isNull } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between } from 'drizzle-orm';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
 
@@ -166,19 +168,58 @@ export async function executeStep(
 
 async function getActiveEmployees(): Promise<any[]> {
   return db
-    .select({ id: users.id, username: users.username, email: users.email })
+    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department })
     .from(users)
     .where(and(eq(users.isActive, true), ne(users.role, 'superuser')));
 }
 
-function getWorkingDaysInRange(startDate: string, endDate: string): number {
+async function getWorkweekPolicyForEmployee(workLocationId?: number, department?: string): Promise<number[]> {
+  let policy: any = null;
+
+  if (workLocationId) {
+    const [locPolicy] = await db.select().from(workweekPolicies)
+      .where(and(eq(workweekPolicies.policyType, 'location'), eq(workweekPolicies.locationId, workLocationId), eq(workweekPolicies.isActive, true)))
+      .orderBy(desc(workweekPolicies.createdAt)).limit(1);
+    if (locPolicy) policy = locPolicy;
+  }
+
+  if (!policy && department) {
+    const [deptPolicy] = await db.select().from(workweekPolicies)
+      .where(and(eq(workweekPolicies.policyType, 'department'), eq(workweekPolicies.department, department), eq(workweekPolicies.isActive, true)))
+      .orderBy(desc(workweekPolicies.createdAt)).limit(1);
+    if (deptPolicy) policy = deptPolicy;
+  }
+
+  if (!policy) {
+    const [globalPolicy] = await db.select().from(workweekPolicies)
+      .where(and(eq(workweekPolicies.policyType, 'global'), eq(workweekPolicies.isActive, true)))
+      .orderBy(desc(workweekPolicies.createdAt)).limit(1);
+    if (globalPolicy) policy = globalPolicy;
+  }
+
+  const days = policy?.workingDays;
+  if (Array.isArray(days)) return days;
+  return [1, 2, 3, 4, 5, 6];
+}
+
+async function getCompanyHolidayDates(startDate: string, endDate: string): Promise<Set<string>> {
+  const holidays = await db.select({ date: companyHolidays.date })
+    .from(companyHolidays)
+    .where(between(companyHolidays.date, startDate, endDate));
+  return new Set(holidays.map(h => String(h.date)));
+}
+
+function countWorkingDays(startDate: string, endDate: string, workingDayNums: number[], holidayDates: Set<string>): number {
   const start = new Date(startDate);
   const end = new Date(endDate);
   let count = 0;
   const cur = new Date(start);
   while (cur <= end) {
-    const day = cur.getDay();
-    if (day !== 0) count++;
+    const dayOfWeek = cur.getDay();
+    const dateStr = cur.toISOString().split('T')[0];
+    if (workingDayNums.includes(dayOfWeek) && !holidayDates.has(dateStr)) {
+      count++;
+    }
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -193,10 +234,13 @@ async function stepAttendanceSnapshot(
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
-  const totalWorkingDays = getWorkingDaysInRange(period.startDate, period.endDate);
+  const holidayDates = await getCompanyHolidayDates(period.startDate, period.endDate);
 
   for (const emp of employees) {
     try {
+      const workingDayNums = await getWorkweekPolicyForEmployee(emp.workLocationId, emp.department);
+      const totalWorkingDays = countWorkingDays(period.startDate, period.endDate, workingDayNums, holidayDates);
+
       const records = await db
         .select()
         .from(attendanceRecords)
@@ -209,7 +253,7 @@ async function stepAttendanceSnapshot(
         );
 
       const presentFull = records.filter(r => r.status === 'present').length;
-      const halfDays = records.filter(r => r.status === 'half-day').length;
+      const halfDays = records.filter(r => r.status === 'half_day').length;
       const lateDays = records.filter(r => r.status === 'late').length;
       const presentDays = presentFull + lateDays + (halfDays * 0.5);
       const absentDays = totalWorkingDays - presentFull - halfDays - lateDays;
@@ -689,7 +733,7 @@ async function stepKpiAdjustment(
       const productivityScore = totalPlannedHours > 0 ? Math.min((totalActualHours / totalPlannedHours) * 100, 100) : 100;
 
       const totalWorkingDays = attendanceData.length || 1;
-      const presentCount = attendanceData.filter(r => r.status === 'present' || r.status === 'half-day' || r.status === 'late').length;
+      const presentCount = attendanceData.filter(r => r.status === 'present' || r.status === 'half_day' || r.status === 'late').length;
       const attendancePercentage = Math.min((presentCount / totalWorkingDays) * 100, 100);
 
       const totalTasksCompleted = dwarReports.reduce((sum, r) => sum + (r.tasksCompleted || 0), 0);

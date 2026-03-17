@@ -198,116 +198,16 @@ router.post('/payroll-periods/generate-year', async (req, res) => {
   }
 });
 
-// Generate Payroll Records for a Period
-router.post('/generate-payroll/:periodId', async (req, res) => {
-  try {
-    const periodId = parseInt(req.params.periodId);
-    
-    // Get the payroll period
-    const [period] = await db
-      .select()
-      .from(payrollPeriods)
-      .where(eq(payrollPeriods.id, periodId));
-
-    if (!period) {
-      return res.status(404).json({ error: 'Payroll period not found' });
-    }
-
-    // Get all active employee salaries
-    const activeSalaries = await db
-      .select({
-        userId: employeeSalaries.userId,
-        baseSalary: employeeSalaries.baseSalary,
-        userName: users.username,
-        userEmail: users.email,
-      })
-      .from(employeeSalaries)
-      .leftJoin(users, eq(employeeSalaries.userId, users.id))
-      .where(eq(employeeSalaries.isActive, true));
-
-    // Get payroll settings
-    const settings = await db.select().from(payrollSettings);
-    const settingsMap = settings.reduce((acc, setting) => {
-      acc[setting.settingName] = setting.settingValue;
-      return acc;
-    }, {} as Record<string, string>);
-
-    // Get bonus rules
-    const rules = await db
-      .select()
-      .from(bonusRules)
-      .where(eq(bonusRules.isActive, true));
-
-    const payrollRecordsToInsert = [];
-
-    for (const salary of activeSalaries) {
-      // Calculate KPI metrics for the period
-      const kpiMetrics = await calculateKPIMetrics(salary.userId, period.startDate, period.endDate);
-      
-      // Calculate bonuses based on KPI and rules
-      const bonuses = calculateBonuses(kpiMetrics, rules, parseFloat(salary.baseSalary));
-      
-      // Calculate deductions
-      const deductions = calculateDeductions(parseFloat(salary.baseSalary), settingsMap);
-      
-      const grossPay = parseFloat(salary.baseSalary) + bonuses.total;
-      const netPay = grossPay - deductions.total;
-
-      payrollRecordsToInsert.push({
-        periodId,
-        userId: salary.userId,
-        baseSalary: salary.baseSalary,
-        productivityBonus: bonuses.productivity.toString(),
-        attendanceBonus: bonuses.attendance.toString(),
-        taskCompletionBonus: bonuses.taskCompletion.toString(),
-        satisfactionBonus: bonuses.satisfaction.toString(),
-        grossPay: grossPay.toString(),
-        incomeTax: deductions.incomeTax.toString(),
-        professionalTax: deductions.professionalTax.toString(),
-        providentFund: deductions.providentFund.toString(),
-        esiDeduction: deductions.esi.toString(),
-        totalDeductions: deductions.total.toString(),
-        netPay: netPay.toString(),
-        dwarProductivityScore: kpiMetrics.productivityScore.toString(),
-        attendancePercentage: kpiMetrics.attendancePercentage.toString(),
-        tasksCompleted: kpiMetrics.tasksCompleted,
-        averageSatisfactionRating: kpiMetrics.avgSatisfaction.toString(),
-        status: 'draft',
-      });
-    }
-
-    // Insert all payroll records
-    const insertedRecords = await db
-      .insert(payrollRecords)
-      .values(payrollRecordsToInsert)
-      .returning();
-
-    // Update period totals
-    const totalGross = payrollRecordsToInsert.reduce((sum, record) => sum + parseFloat(record.grossPay), 0);
-    const totalDeductions = payrollRecordsToInsert.reduce((sum, record) => sum + parseFloat(record.totalDeductions), 0);
-    const totalNet = payrollRecordsToInsert.reduce((sum, record) => sum + parseFloat(record.netPay), 0);
-
-    await db
-      .update(payrollPeriods)
-      .set({
-        totalEmployees: insertedRecords.length,
-        totalGrossPay: totalGross.toString(),
-        totalDeductions: totalDeductions.toString(),
-        totalNetPay: totalNet.toString(),
-        status: 'processing',
-      })
-      .where(eq(payrollPeriods.id, periodId));
-
-    res.json({ 
-      message: 'Payroll records generated successfully', 
-      recordsCreated: insertedRecords.length,
-      totalGrossPay: totalGross,
-      totalNetPay: totalNet,
-    });
-  } catch (error) {
-    console.error('Error generating payroll:', error);
-    res.status(500).json({ error: 'Failed to generate payroll records' });
-  }
+// [DEPRECATED] Legacy payroll generation endpoint — uses flat-rate deductions instead of the 6-step pipeline.
+// Disabled 2026-03-17. Use POST /run/start + POST /run/step pipeline instead.
+// Kept for reference only — do not re-enable without review.
+router.post('/generate-payroll/:periodId', async (_req, res) => {
+  return res.status(410).json({
+    error: 'This endpoint is deprecated. Use the Payroll Run Engine pipeline (POST /api/payroll/run/start) instead.',
+    deprecated: true,
+    deprecatedAt: '2026-03-17',
+    replacement: 'POST /api/payroll/run/start + POST /api/payroll/run/step',
+  });
 });
 
 // Get Payroll Records for a Period
@@ -454,7 +354,7 @@ async function calculateKPIMetrics(userId: number, startDate: Date, endDate: Dat
   const productivityScore = totalPlannedHours > 0 ? (totalActualHours / totalPlannedHours) * 100 : 0;
 
   const totalWorkingDays = attendanceData.length;
-  const presentDays = attendanceData.filter(record => record.status === 'present' || record.status === 'half-day').length;
+  const presentDays = attendanceData.filter(record => record.status === 'present' || record.status === 'half_day').length;
   const attendancePercentage = totalWorkingDays > 0 ? (presentDays / totalWorkingDays) * 100 : 0;
 
   const totalTasksCompleted = dwarReports.reduce((sum, report) => sum + (report.tasksCompleted || 0), 0);
