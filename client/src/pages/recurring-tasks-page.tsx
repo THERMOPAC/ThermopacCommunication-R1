@@ -72,7 +72,7 @@ export default function RecurringTasksPage() {
     enabled: !!user,
   });
 
-  // Fetch users based on role permissions
+  // Fetch all users for assignment dropdown
   const { data: assignableUsers = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
     queryFn: async () => {
@@ -82,7 +82,7 @@ export default function RecurringTasksPage() {
       }
       return res.json();
     },
-    enabled: !!user && (user.role === "Superuser" || user.role === "General Manager"),
+    enabled: !!user,
   });
 
   // Fetch recurring tasks
@@ -91,19 +91,17 @@ export default function RecurringTasksPage() {
     enabled: !!user,
   });
 
-  // Combine user lists based on role
+  // All users can assign tasks to anyone
   const getUsers = () => {
     if (!user) return [];
     
-    // For Superuser and General Manager, use all users
-    if (user.role === "Superuser" || user.role === "General Manager") {
+    if (assignableUsers.length > 0) {
       return assignableUsers;
     }
     
-    // For other roles, use subordinates plus themselves
+    // Fallback: use subordinates plus themselves
     const userList = [...subordinates];
     if (user) {
-      // Check if the user is already in the list
       if (!userList.some(u => u.id === user.id)) {
         userList.push(user);
       }
