@@ -249,6 +249,8 @@ async function stepAttendanceSnapshot(
   let processed = 0;
   let skipped = 0;
   const holidayDates = await getCompanyHolidayDates(period.startDate, period.endDate);
+  const defaultWorkingDayNums = [1, 2, 3, 4, 5];
+  const periodTotalWorkingDays = countWorkingDays(period.startDate, period.endDate, defaultWorkingDayNums, holidayDates);
 
   for (const emp of employees) {
     try {
@@ -334,7 +336,7 @@ async function stepAttendanceSnapshot(
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
-    summary: { totalWorkingDays, totalEmployees: employees.length },
+    summary: { totalWorkingDays: periodTotalWorkingDays, totalEmployees: employees.length },
     exceptions,
   };
 }
