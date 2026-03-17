@@ -139,6 +139,8 @@ function Layout({ children }: LayoutProps) {
                         location === '/finance/invoices' ||
                         location === '/finance/payments' ||
                         location.startsWith('/finance/reports') ||
+                        location.startsWith('/finance/statutory') ||
+                        location === '/finance/gl-mapping' ||
                         location === '/finance/brc';
   
   // Check if we're on any administration-related page
@@ -321,6 +323,11 @@ function Layout({ children }: LayoutProps) {
         { icon: FileCheck, label: "Write-off Management", href: "/finance/write-offs" },
         { icon: CreditCard, label: "Inward Remittances", href: "/finance/reports/remittances" },
         { icon: DollarSign, label: "BRC Management", href: "/finance/brc-management" },
+        { icon: Landmark, label: "GL Mapping", href: "/finance/gl-mapping" },
+        { icon: ShieldCheck, label: "TDS Compliance", href: "/finance/statutory/tds" },
+        { icon: Shield, label: "PF Compliance", href: "/finance/statutory/pf" },
+        { icon: HeartPulse, label: "ESIC Compliance", href: "/finance/statutory/esic" },
+        { icon: FileCheck, label: "PT Compliance", href: "/finance/statutory/pt" },
         { icon: Settings, label: "Finance Tools", href: "/finance/tools" }
       ]
     }] : []),

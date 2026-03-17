@@ -95,6 +95,11 @@ import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation
 import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
 import WriteOffManagementPage from "@/pages/finance/write-off-management";
 import FinanceToolsPage from "@/pages/finance-tools-page";
+import GlMappingPage from "@/pages/finance/gl-mapping-page";
+import TdsCompliancePage from "@/pages/finance/statutory/tds-compliance-page";
+import PfCompliancePage from "@/pages/finance/statutory/pf-compliance-page";
+import EsicCompliancePage from "@/pages/finance/statutory/esic-compliance-page";
+import PtCompliancePage from "@/pages/finance/statutory/pt-compliance-page";
 
 // New Material Identification pages
 import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
@@ -251,6 +256,11 @@ function Router() {
       <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
       <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
       <ProtectedRoute path="/finance/tools" component={FinanceToolsPage} />
+      <ProtectedRoute path="/finance/gl-mapping" component={GlMappingPage} />
+      <ProtectedRoute path="/finance/statutory/tds" component={TdsCompliancePage} />
+      <ProtectedRoute path="/finance/statutory/pf" component={PfCompliancePage} />
+      <ProtectedRoute path="/finance/statutory/esic" component={EsicCompliancePage} />
+      <ProtectedRoute path="/finance/statutory/pt" component={PtCompliancePage} />
       
       {/* Administration Module Routes */}
       <ProtectedRoute path="/admin" component={AdministrationPage} />

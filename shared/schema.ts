@@ -9609,3 +9609,151 @@ export const insertAttendanceRegularizationSchema = createInsertSchema(attendanc
   .omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertAttendanceRegularization = z.infer<typeof insertAttendanceRegularizationSchema>;
 export type AttendanceRegularization = typeof attendanceRegularizations.$inferSelect;
+
+export const glAccountMappings = pgTable('gl_account_mappings', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  componentCode: varchar('component_code', { length: 50 }).notNull(),
+  componentName: varchar('component_name', { length: 100 }).notNull(),
+  category: varchar('category', { length: 30 }).notNull(),
+  postingContext: varchar('posting_context', { length: 30 }).notNull(),
+  glAccountCode: varchar('gl_account_code', { length: 30 }).notNull(),
+  glAccountName: varchar('gl_account_name', { length: 200 }),
+  debitCredit: varchar('debit_credit', { length: 10 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueComponentContext: uniqueIndex('gl_component_context_uniq').on(table.componentCode, table.postingContext, table.companyId),
+}));
+
+export const insertGlAccountMappingSchema = createInsertSchema(glAccountMappings).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGlAccountMapping = z.infer<typeof insertGlAccountMappingSchema>;
+export type GlAccountMapping = typeof glAccountMappings.$inferSelect;
+
+export const glPostingLog = pgTable('gl_posting_log', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  sourceModule: varchar('source_module', { length: 30 }).notNull(),
+  sourceReferenceId: integer('source_reference_id'),
+  payrollPeriodId: integer('payroll_period_id').references(() => payrollPeriods.id),
+  postingType: varchar('posting_type', { length: 30 }).notNull(),
+  totalDebit: decimal('total_debit', { precision: 12, scale: 2 }).notNull(),
+  totalCredit: decimal('total_credit', { precision: 12, scale: 2 }).notNull(),
+  sapJeNumber: varchar('sap_je_number', { length: 50 }),
+  sapDocEntry: integer('sap_doc_entry'),
+  postingStatus: varchar('posting_status', { length: 20 }).notNull().default('draft'),
+  postedBy: integer('posted_by').references(() => users.id),
+  postedAt: timestamp('posted_at'),
+  errorMessage: text('error_message'),
+  lineItems: jsonb('line_items'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertGlPostingLogSchema = createInsertSchema(glPostingLog).omit({ id: true, createdAt: true });
+export type InsertGlPostingLog = z.infer<typeof insertGlPostingLogSchema>;
+export type GlPostingLog = typeof glPostingLog.$inferSelect;
+
+export const statutoryChallans = pgTable('statutory_challans', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  challanReference: varchar('challan_reference', { length: 50 }).notNull().unique(),
+  moduleType: varchar('module_type', { length: 10 }).notNull(),
+  payrollPeriodId: integer('payroll_period_id').notNull().references(() => payrollPeriods.id),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  state: varchar('state', { length: 50 }),
+  employeeCount: integer('employee_count').default(0),
+  totalEmployeeContribution: decimal('total_employee_contribution', { precision: 12, scale: 2 }).notNull().default('0'),
+  totalEmployerContribution: decimal('total_employer_contribution', { precision: 12, scale: 2 }).notNull().default('0'),
+  adminCharges: decimal('admin_charges', { precision: 10, scale: 2 }).default('0'),
+  interest: decimal('interest', { precision: 10, scale: 2 }).default('0'),
+  penalty: decimal('penalty', { precision: 10, scale: 2 }).default('0'),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  tdsSection: varchar('tds_section', { length: 10 }),
+  tdsQuarter: varchar('tds_quarter', { length: 5 }),
+  bsrCode: varchar('bsr_code', { length: 20 }),
+  cinNumber: varchar('cin_number', { length: 50 }),
+  establishmentCode: varchar('establishment_code', { length: 30 }),
+  trrnNumber: varchar('trrn_number', { length: 50 }),
+  employerEps: decimal('employer_eps', { precision: 12, scale: 2 }),
+  ecrGenerated: boolean('ecr_generated').default(false),
+  ecrFileKey: text('ecr_file_key'),
+  esicEmployerCode: varchar('esic_employer_code', { length: 30 }),
+  ptrcNumber: varchar('ptrc_number', { length: 30 }),
+  grnNumber: varchar('grn_number', { length: 50 }),
+  paymentDate: timestamp('payment_date'),
+  paymentMode: varchar('payment_mode', { length: 20 }),
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  bankName: varchar('bank_name', { length: 100 }),
+  challanSerial: varchar('challan_serial', { length: 30 }),
+  sapJeReference: varchar('sap_je_reference', { length: 50 }),
+  glPostingId: integer('gl_posting_id'),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertStatutoryChallanSchema = createInsertSchema(statutoryChallans).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertStatutoryChallan = z.infer<typeof insertStatutoryChallanSchema>;
+export type StatutoryChallan = typeof statutoryChallans.$inferSelect;
+
+export const statutoryChallanDetails = pgTable('statutory_challan_details', {
+  id: serial('id').primaryKey(),
+  challanId: integer('challan_id').notNull().references(() => statutoryChallans.id, { onDelete: 'cascade' }),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  payrollRecordId: integer('payroll_record_id').references(() => payrollRecords.id),
+  employeeContribution: decimal('employee_contribution', { precision: 10, scale: 2 }).default('0'),
+  employerContribution: decimal('employer_contribution', { precision: 10, scale: 2 }).default('0'),
+  grossSalary: decimal('gross_salary', { precision: 12, scale: 2 }).default('0'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertStatutoryChallanDetailSchema = createInsertSchema(statutoryChallanDetails).omit({ id: true, createdAt: true });
+export type InsertStatutoryChallanDetail = z.infer<typeof insertStatutoryChallanDetailSchema>;
+export type StatutoryChallanDetail = typeof statutoryChallanDetails.$inferSelect;
+
+export const statutoryFilingStatus = pgTable('statutory_filing_status', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  moduleType: varchar('module_type', { length: 10 }).notNull(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  filingPeriod: varchar('filing_period', { length: 30 }).notNull(),
+  formType: varchar('form_type', { length: 20 }),
+  state: varchar('state', { length: 50 }),
+  dueDate: timestamp('due_date'),
+  filingDate: timestamp('filing_date'),
+  acknowledgementNumber: varchar('acknowledgement_number', { length: 50 }),
+  totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).default('0'),
+  employeeCount: integer('employee_count').default(0),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  remarks: text('remarks'),
+  filedBy: integer('filed_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueFiling: uniqueIndex('statutory_filing_uniq').on(table.moduleType, table.financialYear, table.filingPeriod, table.state, table.companyId),
+}));
+
+export const insertStatutoryFilingStatusSchema = createInsertSchema(statutoryFilingStatus).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertStatutoryFilingStatus = z.infer<typeof insertStatutoryFilingStatusSchema>;
+export type StatutoryFilingStatus = typeof statutoryFilingStatus.$inferSelect;
+
+export const ptStateConfig = pgTable('pt_state_config', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').default(1),
+  state: varchar('state', { length: 50 }).notNull(),
+  ptrcNumber: varchar('ptrc_number', { length: 30 }),
+  filingFrequency: varchar('filing_frequency', { length: 20 }).notNull().default('monthly'),
+  paymentDueDay: integer('payment_due_day').default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  slabConfig: jsonb('slab_config'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

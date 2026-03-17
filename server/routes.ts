@@ -60,6 +60,7 @@ import { default as dwarRoutes } from "./dwar-routes";
 import { default as leaveRoutes } from "./leave-routes";
 import { default as payrollRoutes } from "./payroll-routes";
 import { default as loanAdvanceRoutes } from "./loan-advance-routes";
+import { default as statutoryComplianceRoutes } from "./statutory-compliance-routes";
 import { default as salaryCalculationRoutes } from "./salary-calculation-routes";
 import { setupDedicatedPaymentCreation } from "./dedicated-payment-creation";
 import { setupCleanPaymentCreation } from "./clean-payment-creation";
@@ -771,7 +772,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up Payroll Management routes
   app.use('/api/payroll', payrollRoutes);
   app.use('/api/loan-advance', loanAdvanceRoutes);
+  app.use('/api/statutory', statutoryComplianceRoutes);
   console.log('Payroll routes registered at /api/payroll');
+  console.log('Statutory compliance routes registered at /api/statutory');
   
   // Set up Salary Calculation Engine routes
   app.use('/api/salary-calculation', salaryCalculationRoutes);
