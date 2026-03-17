@@ -60,7 +60,8 @@ import {
   Search,
   Radar,
   Target,
-  Bot
+  Bot,
+  Landmark
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -270,7 +271,8 @@ function Layout({ children }: LayoutProps) {
         { icon: Gavel, label: "Legal Management", href: "/admin/legal-management" },
         { icon: Calendar, label: "Workweek Policy Management", href: "/admin/workweek-policies" },
         { icon: Shield, label: "Module Permissions", href: "/module-permissions" },
-        { icon: ShieldCheck, label: "Password Compliance", href: "/admin/password-compliance" }
+        { icon: ShieldCheck, label: "Password Compliance", href: "/admin/password-compliance" },
+        { icon: Landmark, label: "Loans & Advances", href: "/loans-advances" }
       ]
     }] : []),
     ...(hasViewPermission("Digital Marketing") ? [{ 
