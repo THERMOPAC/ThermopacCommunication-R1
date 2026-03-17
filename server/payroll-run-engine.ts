@@ -16,10 +16,24 @@ import {
   users,
   companyHolidays,
   workweekPolicies,
+  payrollLocks,
 } from '@shared/schema';
 import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between } from 'drizzle-orm';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
+
+async function getProfessionalTaxConfig(): Promise<{ monthly: number; february: number }> {
+  const settings = await db.select().from(payrollSettings).where(
+    sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`
+  );
+  let monthly = 200;
+  let february = 300;
+  for (const s of settings) {
+    if (s.settingName === 'professional_tax_monthly') monthly = parseFloat(s.settingValue) || 200;
+    if (s.settingName === 'professional_tax_february') february = parseFloat(s.settingValue) || 300;
+  }
+  return { monthly, february };
+}
 
 export type PipelineStep =
   | 'attendance_snapshot'
@@ -528,9 +542,9 @@ async function stepSalaryCalculation(
 
       const basicSalary = parseFloat(sal.basicSalary || sal.baseSalary);
       const salaryType = sal.salaryType || 'monthly';
-      const actualDays = sal.actualDays || 30;
       const workingHoursPerDay = sal.workingHoursPerDay || 8;
       const groupInsuranceAmount = parseFloat(sal.groupInsurance || '1500');
+      const ptConfig = await getProfessionalTaxConfig();
 
       let proratedBase: number, overtimePay: number, grossPay: number;
       let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0, bonusAllow = 0;
@@ -544,7 +558,7 @@ async function stepSalaryCalculation(
         bonusAllow = basicSalary * 0.0833;
         grossPay = proratedBase + overtimePay + kgpAllow;
       } else {
-        proratedBase = (basicSalary / actualDays) * paidDays;
+        proratedBase = (basicSalary / totalWorkingDays) * paidDays;
         overtimePay = 0;
         hra = proratedBase * 0.4;
         conv = proratedBase * 0.3;
@@ -554,7 +568,7 @@ async function stepSalaryCalculation(
         bonusAllow = basicSalary * 0.0833;
 
         if (['Manager', 'Employee'].includes(emp.role || '')) {
-          kgpAllow = basicSalary * 0.15 * (paidDays / (actualDays || 30));
+          kgpAllow = basicSalary * 0.15 * (paidDays / totalWorkingDays);
         } else {
           kgpAllow = parseFloat(sal.kgpAllowance || '0') * (paidDays / totalWorkingDays);
         }
@@ -574,7 +588,7 @@ async function stepSalaryCalculation(
       let professionalTax = 0;
       if (emp.role !== 'Superuser') {
         const periodMonth = new Date(period.startDate).getMonth() + 1;
-        professionalTax = periodMonth === 2 ? 300 : 200;
+        professionalTax = periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
       }
 
       const totalDeductions = employeePF + employeeESIC + professionalTax;
@@ -586,7 +600,6 @@ async function stepSalaryCalculation(
       const calculationSnapshot = {
         basicSalary,
         salaryType,
-        actualDays,
         totalWorkingDays,
         paidDays,
         lopDays,
@@ -760,7 +773,7 @@ async function stepKpiAdjustment(
         const totalWorkDays = record.workingDays || 26;
         const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
         const salaryType = snap.salaryType || 'monthly';
-        const actualDays = snap.actualDays || 30;
+        const ptConfig = await getProfessionalTaxConfig();
 
         let proratedBase: number, grossPay: number;
         let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0;
@@ -773,14 +786,14 @@ async function stepKpiAdjustment(
           kgpAllow = parseFloat(salRec[0]?.kgpAllowance || '0') * (kpiAdjustedPaidDays / totalWorkDays);
           grossPay = proratedBase + kgpAllow;
         } else {
-          proratedBase = (basicSalary / actualDays) * kpiAdjustedPaidDays;
+          proratedBase = (basicSalary / totalWorkDays) * kpiAdjustedPaidDays;
           hra = proratedBase * 0.4;
           conv = proratedBase * 0.3;
           ltaVal = proratedBase * 0.2;
           specAllow = proratedBase * 0.3;
           suppAllow = proratedBase * 0.3;
           if (['Manager', 'Employee'].includes(empRole)) {
-            kgpAllow = basicSalary * 0.15 * (kpiAdjustedPaidDays / actualDays);
+            kgpAllow = basicSalary * 0.15 * (kpiAdjustedPaidDays / totalWorkDays);
           }
           grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
         }
@@ -796,7 +809,7 @@ async function stepKpiAdjustment(
         let professionalTax = 0;
         if (empRole !== 'Superuser') {
           const periodMonth = new Date(period.startDate).getMonth() + 1;
-          professionalTax = periodMonth === 2 ? 300 : 200;
+          professionalTax = periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
         }
 
         const totalDeductions = employeePF + employeeESIC + professionalTax;
@@ -882,7 +895,7 @@ async function stepKpiAdjustment(
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
-    summary: { rulesApplied: rules.length },
+    summary: { totalRecords: records.length, kpiAdjusted: exceptions.filter(e => e.type === 'kpi_adjustment').length },
     exceptions,
   };
 }
@@ -896,6 +909,7 @@ async function stepDeductionCalculation(
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
+  const MISMATCH_THRESHOLD = 1.0;
 
   const records = await db
     .select()
@@ -904,6 +918,10 @@ async function stepDeductionCalculation(
 
   for (const record of records) {
     try {
+      const formulaPf = parseFloat(record.employeePf || '0');
+      const formulaEsic = parseFloat(record.employeeEsic || '0');
+      const formulaPt = parseFloat(record.professionalTax || '0');
+
       const salSnap = await db
         .select()
         .from(payrollSalarySnapshot)
@@ -915,18 +933,45 @@ async function stepDeductionCalculation(
           )
         );
 
-      let employeePf = 0, professionalTax = 0, esic = 0, groupIns = 0, incomeTax = 0;
-
+      let configPf = 0, configPt = 0, configEsic = 0, groupIns = 0;
       if (salSnap.length > 0) {
         const snap = salSnap[0];
-        employeePf = parseFloat(snap.employeePfContribution || '0');
-        professionalTax = parseFloat(snap.professionalTax || '0');
-        esic = parseFloat(snap.employeeEsicContribution || '0');
+        configPf = parseFloat(snap.employeePfContribution || '0');
+        configPt = parseFloat(snap.professionalTax || '0');
+        configEsic = parseFloat(snap.employeeEsicContribution || '0');
         groupIns = parseFloat(snap.groupInsurance || '0');
       }
 
+      if (configPf > 0 && Math.abs(formulaPf - configPf) > MISMATCH_THRESHOLD) {
+        exceptions.push({
+          userId: record.userId,
+          type: 'deduction_mismatch',
+          severity: 'warning',
+          title: `PF mismatch for user ${record.userId}`,
+          details: `Formula PF: ₹${formulaPf.toFixed(2)}, Config PF: ₹${configPf.toFixed(2)}. Formula value retained.`,
+        });
+      }
+      if (configEsic > 0 && Math.abs(formulaEsic - configEsic) > MISMATCH_THRESHOLD) {
+        exceptions.push({
+          userId: record.userId,
+          type: 'deduction_mismatch',
+          severity: 'warning',
+          title: `ESIC mismatch for user ${record.userId}`,
+          details: `Formula ESIC: ₹${formulaEsic.toFixed(2)}, Config ESIC: ₹${configEsic.toFixed(2)}. Formula value retained.`,
+        });
+      }
+      if (configPt > 0 && Math.abs(formulaPt - configPt) > MISMATCH_THRESHOLD) {
+        exceptions.push({
+          userId: record.userId,
+          type: 'deduction_mismatch',
+          severity: 'warning',
+          title: `PT mismatch for user ${record.userId}`,
+          details: `Formula PT: ₹${formulaPt.toFixed(2)}, Config PT: ₹${configPt.toFixed(2)}. Formula value retained.`,
+        });
+      }
+
       const grossPay = parseFloat(record.grossPay);
-      const totalDeductions = employeePf + professionalTax + esic + groupIns + incomeTax;
+      const totalDeductions = formulaPf + formulaEsic + formulaPt + groupIns;
       const netPay = grossPay - totalDeductions;
 
       const existingSnapshot = record.calculationSnapshot as any || {};
@@ -934,18 +979,19 @@ async function stepDeductionCalculation(
       await db
         .update(payrollRecords)
         .set({
-          providentFund: employeePf.toFixed(2),
-          professionalTax: professionalTax.toFixed(2),
-          esic: esic.toFixed(2),
           groupInsurance: groupIns.toFixed(2),
-          incomeTax: incomeTax.toFixed(2),
           totalDeductions: totalDeductions.toFixed(2),
           netPay: netPay.toFixed(2),
           calculationSnapshot: {
             ...existingSnapshot,
-            deductions: { employeePf, professionalTax, esic, groupInsurance: groupIns, incomeTax, totalDeductions },
-            netPay,
-            finalizedAt: new Date().toISOString(),
+            step5Validation: {
+              formulaDeductions: { pf: formulaPf, esic: formulaEsic, pt: formulaPt },
+              configDeductions: { pf: configPf, esic: configEsic, pt: configPt },
+              groupInsurance: groupIns,
+              totalDeductions,
+              netPay,
+              validatedAt: new Date().toISOString(),
+            },
           },
           updatedAt: new Date(),
         })
@@ -958,14 +1004,14 @@ async function stepDeductionCalculation(
         userId: record.userId,
         type: 'calculation_error',
         severity: 'error',
-        title: `Deduction calculation failed for user ${record.userId}`,
+        title: `Deduction validation failed for user ${record.userId}`,
         details: error.message,
       });
     }
   }
 
-  const totalGross = records.reduce((s, r) => s + parseFloat(r.grossPay), 0);
   const updatedRecords = await db.select().from(payrollRecords).where(eq(payrollRecords.periodId, periodId));
+  const totalGross = updatedRecords.reduce((s, r) => s + parseFloat(r.grossPay), 0);
   const totalNet = updatedRecords.reduce((s, r) => s + parseFloat(r.netPay), 0);
   const totalDed = updatedRecords.reduce((s, r) => s + parseFloat(r.totalDeductions || '0'), 0);
 
@@ -974,7 +1020,6 @@ async function stepDeductionCalculation(
     totalGrossPay: totalGross.toFixed(2),
     totalDeductions: totalDed.toFixed(2),
     totalNetPay: totalNet.toFixed(2),
-    status: 'processed',
   }).where(eq(payrollPeriods.id, periodId));
 
   return {
@@ -1022,7 +1067,7 @@ async function stepTdsCalculation(
       status: 'processed',
     }).where(eq(payrollPeriods.id, periodId));
 
-    await createPayrollLock(periodId, 'salary', executedBy, 'Auto-locked after TDS calculation');
+    await createPayrollLock(periodId, 'salary', executedBy, 'Auto-locked after TDS calculation and final net pay');
 
     return {
       success: result.errors === 0,
