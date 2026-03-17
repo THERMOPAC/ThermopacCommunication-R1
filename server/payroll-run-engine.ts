@@ -720,6 +720,7 @@ async function stepKpiAdjustment(
     try {
       const validDwars = await db
         .select({
+          reportDate: dailyWorkReports.reportDate,
           productivityScore: dailyWorkReports.productivityScore,
           tasksCompleted: dailyWorkReports.tasksCompleted,
           satisfactionRating: dailyWorkReports.satisfactionRating,
@@ -735,7 +736,7 @@ async function stepKpiAdjustment(
         );
 
       const attendanceData = await db
-        .select({ status: attendanceRecords.status })
+        .select({ date: attendanceRecords.date, status: attendanceRecords.status })
         .from(attendanceRecords)
         .where(
           and(
@@ -746,7 +747,8 @@ async function stepKpiAdjustment(
         );
 
       const totalWorkingDays = attendanceData.length || 1;
-      const presentCount = attendanceData.filter(r => r.status === 'present' || r.status === 'half_day' || r.status === 'late').length;
+      const paidAttendanceDays = attendanceData.filter(r => r.status === 'present' || r.status === 'half_day' || r.status === 'late');
+      const presentCount = paidAttendanceDays.length;
       const attendancePercentage = Math.min((presentCount / totalWorkingDays) * 100, 100);
 
       const totalTasksCompleted = validDwars.reduce((sum, r) => sum + (r.tasksCompleted || 0), 0);
@@ -772,15 +774,17 @@ async function stepKpiAdjustment(
       let newKgpAllow = originalKgp;
       let kgpReduction = 0;
       let kpiSource = '';
+      let dwarDaysMatched = 0;
+      let dwarDaysMissing = 0;
 
       if (!isKpiEligible) {
         monthlyKpiPercent = 1;
         productivityScore = 100;
         kpiSource = 'not_eligible';
-      } else if (validDwars.length === 0) {
+      } else if (presentCount === 0) {
         monthlyKpiPercent = 0;
         productivityScore = 0;
-        kpiSource = 'no_valid_dwar';
+        kpiSource = 'no_paid_days';
         newKgpAllow = 0;
         kgpReduction = originalKgp;
 
@@ -788,17 +792,54 @@ async function stepKpiAdjustment(
           userId: record.userId,
           type: 'kpi_missing_dwar',
           severity: 'high',
-          title: `No submitted/approved DWAR for ${empName} (ID: ${record.userId})`,
-          details: `No submitted or approved DWAR found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. KGP set to ₹0. Submit DWARs or override manually.`,
+          title: `No paid attendance days for ${empName} (ID: ${record.userId})`,
+          details: `No paid attendance days found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. KGP set to ₹0.`,
         });
       } else {
-        const scores = validDwars.map(r => parseFloat(r.productivityScore?.toString() || '0'));
-        productivityScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+        const dwarByDate = new Map<string, number>();
+        for (const dwar of validDwars) {
+          const dateStr = typeof dwar.reportDate === 'string' ? dwar.reportDate : new Date(dwar.reportDate).toISOString().split('T')[0];
+          dwarByDate.set(dateStr, parseFloat(dwar.productivityScore?.toString() || '0'));
+        }
+
+        let totalKpiScore = 0;
+        for (const attDay of paidAttendanceDays) {
+          const dateStr = typeof attDay.date === 'string' ? attDay.date : new Date(attDay.date).toISOString().split('T')[0];
+          const dayScore = dwarByDate.get(dateStr) ?? 0;
+          totalKpiScore += dayScore;
+          if (dwarByDate.has(dateStr)) {
+            dwarDaysMatched++;
+          } else {
+            dwarDaysMissing++;
+          }
+        }
+
+        productivityScore = totalKpiScore / presentCount;
         monthlyKpiPercent = productivityScore / 100;
-        kpiSource = `avg_of_${validDwars.length}_dwars`;
+        kpiSource = `attendance_based_${presentCount}_days_${dwarDaysMatched}_dwars_${dwarDaysMissing}_missing`;
 
         newKgpAllow = basicSalary * 0.15 * monthlyKpiPercent;
         kgpReduction = originalKgp - newKgpAllow;
+
+        if (dwarDaysMissing > 0) {
+          exceptions.push({
+            userId: record.userId,
+            type: 'kpi_missing_dwar',
+            severity: 'medium',
+            title: `${dwarDaysMissing} paid day(s) without DWAR for ${empName} (ID: ${record.userId})`,
+            details: `${empName} was present ${presentCount} days but has submitted/approved DWARs for only ${dwarDaysMatched} days. ${dwarDaysMissing} day(s) counted as KPI=0 in average. Monthly KPI: ${productivityScore.toFixed(1)}%.`,
+          });
+        }
+
+        if (validDwars.length === 0) {
+          exceptions.push({
+            userId: record.userId,
+            type: 'kpi_missing_dwar',
+            severity: 'high',
+            title: `No submitted/approved DWAR for ${empName} (ID: ${record.userId})`,
+            details: `No submitted or approved DWAR found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. All ${presentCount} paid days counted as KPI=0. KGP set to ₹0.`,
+          });
+        }
       }
 
       if (isKpiEligible && kgpReduction !== 0) {
@@ -829,7 +870,9 @@ async function stepKpiAdjustment(
             kpiAdjustment: {
               monthlyKpiPercent: productivityScore,
               kpiSource,
-              validDwarCount: validDwars.length,
+              paidAttendanceDays: presentCount,
+              dwarDaysMatched,
+              dwarDaysMissing,
               originalKgp,
               adjustedKgp: newKgpAllow,
               kgpReduction,
@@ -840,15 +883,13 @@ async function stepKpiAdjustment(
         }).where(eq(payrollRecords.id, record.id));
 
         kpiAdjustedCount++;
-        if (kpiSource !== 'no_valid_dwar') {
-          exceptions.push({
-            userId: record.userId,
-            type: 'kpi_adjustment',
-            severity: 'info',
-            title: `KPI adjusted KGP for ${empName} (ID: ${record.userId})`,
-            details: `Monthly KPI ${productivityScore.toFixed(1)}% (avg of ${validDwars.length} DWARs) reduced KGP from ₹${originalKgp.toFixed(2)} to ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
-          });
-        }
+        exceptions.push({
+          userId: record.userId,
+          type: 'kpi_adjustment',
+          severity: 'info',
+          title: `KPI adjusted KGP for ${empName} (ID: ${record.userId})`,
+          details: `Monthly KPI ${productivityScore.toFixed(1)}% (${dwarDaysMatched} DWARs across ${presentCount} paid days, ${dwarDaysMissing} days at 0) reduced KGP from ₹${originalKgp.toFixed(2)} to ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
+        });
       } else {
         await db.update(payrollRecords).set({
           dwarProductivityScore: productivityScore.toFixed(2),
@@ -860,7 +901,9 @@ async function stepKpiAdjustment(
             kpiAdjustment: {
               monthlyKpiPercent: productivityScore,
               kpiSource,
-              validDwarCount: validDwars.length,
+              paidAttendanceDays: presentCount,
+              dwarDaysMatched,
+              dwarDaysMissing,
               originalKgp,
               adjustedKgp: originalKgp,
               kgpReduction: 0,
