@@ -554,7 +554,7 @@ export default function AttendanceRegularizationPage() {
                   <CalendarX className="h-4 w-4 text-red-500" />
                   Absent Days This Month ({absentDays.length})
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                <div className="border rounded-lg divide-y max-h-[240px] overflow-y-auto">
                   {absentDays.map((day: any) => {
                     const isSelected = selectedAbsentDay?.date === day.date;
                     return (
@@ -568,22 +568,23 @@ export default function AttendanceRegularizationPage() {
                             setNewRequestType('');
                           }
                         }}
-                        className={`cursor-pointer border rounded-lg p-3 transition-all ${
+                        className={`cursor-pointer flex items-center justify-between px-3 py-2.5 transition-all ${
                           isSelected
-                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                            ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                            : 'hover:bg-gray-50 border-l-4 border-l-transparent'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Calendar className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
                           <div>
-                            <p className="font-semibold text-sm">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</p>
-                            <p className="text-xs text-muted-foreground">{day.dayName}</p>
+                            <span className="text-sm font-medium">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</span>
+                            <span className="text-xs text-muted-foreground ml-2">{day.dayName}</span>
                           </div>
-                          <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            {day.reason}
-                          </Badge>
                         </div>
+                        <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200 shrink-0">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          {day.reason}
+                        </Badge>
                       </div>
                     );
                   })}
