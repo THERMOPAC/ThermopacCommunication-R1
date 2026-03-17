@@ -1189,16 +1189,19 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         appliedToAttendance = true;
       }
     } else if (reg.requestType === 'missed_checkout') {
-      if (existingAttendance) {
+      if (existingAttendance && existingAttendance.checkInTime) {
+        const standardHours = Number(employee?.minimumDailyHours) || 9;
+        const actualCheckIn = new Date(existingAttendance.checkInTime);
+        const computedCheckOut = new Date(actualCheckIn.getTime() + standardHours * 60 * 60 * 1000);
         await db.update(attendanceRecords).set({
-          checkOutTime: dutyCheckOut,
+          checkOutTime: computedCheckOut,
           status: 'present',
-          workingHours: calculateWorkingHours(existingAttendance.checkInTime, dutyCheckOut),
+          workingHours: String(standardHours),
           isIncomplete: false,
           adminNotes: `Regularized: Missed check-out - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
-          adjustmentReason: `Missed check-out regularization approved`,
+          adjustmentReason: `Missed check-out regularization approved - check-out set to check-in + ${standardHours}h`,
           adjustmentDate: new Date(),
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
