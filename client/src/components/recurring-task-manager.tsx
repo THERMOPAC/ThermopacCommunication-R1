@@ -64,7 +64,7 @@ import { Calendar as CalendarIcon, ChevronRight, Edit, Plus, Trash2 } from "luci
 // Create a schema for the recurring task form
 const recurringTaskSchema = z.object({
   // Core fields
-  patternType: z.enum(["daily", "weekly", "monthly", "yearly"]), // UI field, maps to 'pattern' in the database
+  patternType: z.enum(["daily", "weekly", "monthly", "quarterly", "half_yearly", "yearly"]),
   interval: z.coerce.number().int().min(1, "Interval must be at least 1"),
   
   // Template fields - all required
@@ -109,12 +109,11 @@ const recurringTaskSchema = z.object({
     }
   }
   
-  // For monthly pattern, validate day of month
-  if (data.patternType === "monthly") {
+  if (data.patternType === "monthly" || data.patternType === "quarterly" || data.patternType === "half_yearly") {
     if (data.dayOfMonth === undefined) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Monthly pattern requires a day of the month",
+        message: "This pattern requires a day of the month",
         path: ["dayOfMonth"]
       });
     }
@@ -153,7 +152,7 @@ type RecurringTaskForm = z.infer<typeof recurringTaskSchema>;
 
 // Define a type for the API submission data
 interface RecurringPatternSubmitData {
-  pattern: "daily" | "weekly" | "monthly" | "yearly";
+  pattern: "daily" | "weekly" | "monthly" | "quarterly" | "half_yearly" | "yearly";
   interval: number;
   startDate: string;
   templateTitle: string;
@@ -417,10 +416,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
           console.log("🔵 Added daysOfWeek for edit:", dataToSubmit.daysOfWeek);
         }
         
-        if (data.patternType === "monthly") {
-          // Monthly patterns require day of month
+        if (data.patternType === "monthly" || data.patternType === "quarterly" || data.patternType === "half_yearly") {
           if (!data.dayOfMonth) {
-            throw new Error("Monthly pattern requires a day of the month");
+            throw new Error("This pattern requires a day of the month");
           }
           dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
           console.log("🔵 Added dayOfMonth for edit:", dataToSubmit.dayOfMonth);
@@ -502,10 +500,9 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
           console.log("🔵 Added daysOfWeek for new:", dataToSubmit.daysOfWeek);
         }
         
-        if (data.patternType === "monthly") {
-          // Monthly patterns require day of month
+        if (data.patternType === "monthly" || data.patternType === "quarterly" || data.patternType === "half_yearly") {
           if (!data.dayOfMonth) {
-            throw new Error("Monthly pattern requires a day of the month");
+            throw new Error("This pattern requires a day of the month");
           }
           dataToSubmit.dayOfMonth = Number(data.dayOfMonth);
           console.log("🔵 Added dayOfMonth for new:", dataToSubmit.dayOfMonth);
@@ -635,9 +632,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       patternData.daysOfWeek = data.daysOfWeek.join(",");
     }
 
-    // Add day of month for monthly pattern
-    if (data.patternType === "monthly" && data.dayOfMonth) {
-      patternData.dayOfMonth = Number(data.dayOfMonth); // Ensure it's a number
+    if ((data.patternType === "monthly" || data.patternType === "quarterly" || data.patternType === "half_yearly") && data.dayOfMonth) {
+      patternData.dayOfMonth = Number(data.dayOfMonth);
     }
 
     // Add month of year for yearly pattern
@@ -701,8 +697,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       formData.daysOfWeek = pattern.daysOfWeek.split(",");
     }
 
-    // Add day of month for monthly pattern
-    if (pattern.pattern === "monthly" && pattern.dayOfMonth) {
+    if ((pattern.pattern === "monthly" || pattern.pattern === "quarterly" || pattern.pattern === "half_yearly") && pattern.dayOfMonth) {
       formData.dayOfMonth = pattern.dayOfMonth;
     }
 
@@ -744,6 +739,20 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
           description = `Every ${pattern.interval > 1 ? pattern.interval + ' months' : 'month'} on day ${pattern.dayOfMonth}`;
         } else {
           description = `Every ${pattern.interval > 1 ? pattern.interval + ' months' : 'month'}`;
+        }
+        break;
+      case "quarterly":
+        if (pattern.dayOfMonth) {
+          description = `Every ${pattern.interval > 1 ? pattern.interval + ' quarters' : 'quarter'} on day ${pattern.dayOfMonth}`;
+        } else {
+          description = `Every ${pattern.interval > 1 ? pattern.interval + ' quarters' : 'quarter'}`;
+        }
+        break;
+      case "half_yearly":
+        if (pattern.dayOfMonth) {
+          description = `Every ${pattern.interval > 1 ? pattern.interval + ' half-years' : 'half year'} on day ${pattern.dayOfMonth}`;
+        } else {
+          description = `Every ${pattern.interval > 1 ? pattern.interval + ' half-years' : 'half year'}`;
         }
         break;
       case "yearly":
@@ -880,7 +889,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                             <FormItem>
                               <FormLabel>Recurrence Pattern</FormLabel>
                               <Select 
-                                onValueChange={(value: "daily" | "weekly" | "monthly" | "yearly") => {
+                                onValueChange={(value: "daily" | "weekly" | "monthly" | "quarterly" | "half_yearly" | "yearly") => {
                                   field.onChange(value);
                                   // No need to sync with pattern field anymore, as it's handled in the transformation
                                 }}
@@ -895,6 +904,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                   <SelectItem value="daily">Daily</SelectItem>
                                   <SelectItem value="weekly">Weekly</SelectItem>
                                   <SelectItem value="monthly">Monthly</SelectItem>
+                                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                                  <SelectItem value="half_yearly">Half Yearly</SelectItem>
                                   <SelectItem value="yearly">Yearly</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -921,6 +932,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                     {form.watch("patternType") === "daily" && "day(s)"}
                                     {form.watch("patternType") === "weekly" && "week(s)"}
                                     {form.watch("patternType") === "monthly" && "month(s)"}
+                                    {form.watch("patternType") === "quarterly" && "quarter(s)"}
+                                    {form.watch("patternType") === "half_yearly" && "half-year(s)"}
                                     {form.watch("patternType") === "yearly" && "year(s)"}
                                   </span>
                                 </div>
@@ -969,8 +982,8 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                         />
                       )}
                       
-                      {/* Monthly pattern options */}
-                      {form.watch("patternType") === "monthly" && (
+                      {/* Monthly / Quarterly / Half Yearly pattern options */}
+                      {(form.watch("patternType") === "monthly" || form.watch("patternType") === "quarterly" || form.watch("patternType") === "half_yearly") && (
                         <FormField
                           control={form.control}
                           name="dayOfMonth"

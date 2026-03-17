@@ -1576,6 +1576,40 @@ export class DatabaseStorage implements IStorage {
         console.log(`Monthly pattern: Every ${interval} month(s) on day ${targetDay}, next = ${nextOccurrence.toISOString().split('T')[0]}`);
         break;
 
+      case 'quarterly': {
+        const qInterval = (pattern.interval || 1) * 3;
+        let qTargetMonth = today.getMonth() + qInterval;
+        let qTargetYear = today.getFullYear();
+        while (qTargetMonth > 11) {
+          qTargetMonth -= 12;
+          qTargetYear += 1;
+        }
+        const qTargetDay = pattern.dayOfMonth || today.getDate();
+        nextOccurrence = new Date(qTargetYear, qTargetMonth, 1);
+        const qLastDay = new Date(qTargetYear, qTargetMonth + 1, 0).getDate();
+        const qActualDay = Math.min(qTargetDay, qLastDay);
+        nextOccurrence.setDate(qActualDay);
+        console.log(`Quarterly pattern: Every ${pattern.interval || 1} quarter(s), next = ${nextOccurrence.toISOString().split('T')[0]}`);
+        break;
+      }
+
+      case 'half_yearly': {
+        const hyInterval = (pattern.interval || 1) * 6;
+        let hyTargetMonth = today.getMonth() + hyInterval;
+        let hyTargetYear = today.getFullYear();
+        while (hyTargetMonth > 11) {
+          hyTargetMonth -= 12;
+          hyTargetYear += 1;
+        }
+        const hyTargetDay = pattern.dayOfMonth || today.getDate();
+        nextOccurrence = new Date(hyTargetYear, hyTargetMonth, 1);
+        const hyLastDay = new Date(hyTargetYear, hyTargetMonth + 1, 0).getDate();
+        const hyActualDay = Math.min(hyTargetDay, hyLastDay);
+        nextOccurrence.setDate(hyActualDay);
+        console.log(`Half-yearly pattern: Every ${pattern.interval || 1} half-year(s), next = ${nextOccurrence.toISOString().split('T')[0]}`);
+        break;
+      }
+
       case 'yearly':
         // Yearly: Add interval number of years
         const currentYear = today.getFullYear();
