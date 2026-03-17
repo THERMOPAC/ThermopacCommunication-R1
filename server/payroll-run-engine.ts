@@ -18,7 +18,7 @@ import {
   workweekPolicies,
   payrollLocks,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between, inArray } from 'drizzle-orm';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
 
@@ -716,19 +716,21 @@ async function stepKpiAdjustment(
     .from(payrollRecords)
     .where(eq(payrollRecords.periodId, periodId));
 
-  const startDate = new Date(period.startDate);
-  const endDate = new Date(period.endDate);
-
   for (const record of records) {
     try {
-      const dwarReports = await db
-        .select()
+      const validDwars = await db
+        .select({
+          productivityScore: dailyWorkReports.productivityScore,
+          tasksCompleted: dailyWorkReports.tasksCompleted,
+          satisfactionRating: dailyWorkReports.satisfactionRating,
+        })
         .from(dailyWorkReports)
         .where(
           and(
             eq(dailyWorkReports.userId, record.userId),
-            gte(dailyWorkReports.reportDate, startDate),
-            lte(dailyWorkReports.reportDate, endDate)
+            gte(dailyWorkReports.reportDate, period.startDate),
+            lte(dailyWorkReports.reportDate, period.endDate),
+            inArray(dailyWorkReports.status, ['submitted', 'approved'])
           )
         );
 
@@ -743,42 +745,63 @@ async function stepKpiAdjustment(
           )
         );
 
-      const totalPlannedHours = dwarReports.reduce((sum, r) => sum + (parseFloat(r.plannedHours as string) || 0), 0);
-      const totalActualHours = dwarReports.reduce((sum, r) => sum + (parseFloat(r.actualHours as string) || 0), 0);
-      const productivityScore = totalPlannedHours > 0 ? Math.min((totalActualHours / totalPlannedHours) * 100, 100) : 100;
-
       const totalWorkingDays = attendanceData.length || 1;
       const presentCount = attendanceData.filter(r => r.status === 'present' || r.status === 'half_day' || r.status === 'late').length;
       const attendancePercentage = Math.min((presentCount / totalWorkingDays) * 100, 100);
 
-      const totalTasksCompleted = dwarReports.reduce((sum, r) => sum + (r.tasksCompleted || 0), 0);
-      const satisfactionRatings = dwarReports
-        .filter(r => r.satisfactionLevel)
-        .map(r => parseFloat(r.satisfactionLevel!));
+      const totalTasksCompleted = validDwars.reduce((sum, r) => sum + (r.tasksCompleted || 0), 0);
+      const satisfactionRatings = validDwars
+        .filter(r => r.satisfactionRating != null)
+        .map(r => r.satisfactionRating!);
       const avgSatisfaction = satisfactionRatings.length > 0
         ? satisfactionRatings.reduce((s, v) => s + v, 0) / satisfactionRatings.length
         : 0;
 
-      const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
+      const [empUser] = await db.select({ role: users.role, firstName: users.firstName, lastName: users.lastName }).from(users).where(eq(users.id, record.userId)).limit(1);
       const empRole = empUser?.role || '';
+      const empName = `${empUser?.firstName || ''} ${empUser?.lastName || ''}`.trim();
       const kpiEligibleRoles = ['Manager', 'Employee'];
       const isKpiEligible = kpiEligibleRoles.includes(empRole);
 
-      const kpiPercent = isKpiEligible ? (productivityScore / 100) : 1;
-
       const snap = record.calculationSnapshot as any || {};
       const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
-      const paidDays = parseFloat(record.paidDays || '0');
-      const totalWorkDays = record.workingDays || 26;
-
       const originalKgp = parseFloat(record.kgpAllowance || '0');
+
+      let monthlyKpiPercent: number;
+      let productivityScore: number;
       let newKgpAllow = originalKgp;
       let kgpReduction = 0;
+      let kpiSource = '';
 
-      if (isKpiEligible && kpiPercent < 1.0) {
-        newKgpAllow = basicSalary * 0.15 * kpiPercent;
+      if (!isKpiEligible) {
+        monthlyKpiPercent = 1;
+        productivityScore = 100;
+        kpiSource = 'not_eligible';
+      } else if (validDwars.length === 0) {
+        monthlyKpiPercent = 0;
+        productivityScore = 0;
+        kpiSource = 'no_valid_dwar';
+        newKgpAllow = 0;
+        kgpReduction = originalKgp;
+
+        exceptions.push({
+          userId: record.userId,
+          type: 'kpi_missing_dwar',
+          severity: 'high',
+          title: `No submitted/approved DWAR for ${empName} (ID: ${record.userId})`,
+          details: `No submitted or approved DWAR found for ${empName} in payroll period ${period.startDate} to ${period.endDate}. KGP set to ₹0. Submit DWARs or override manually.`,
+        });
+      } else {
+        const scores = validDwars.map(r => parseFloat(r.productivityScore?.toString() || '0'));
+        productivityScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+        monthlyKpiPercent = productivityScore / 100;
+        kpiSource = `avg_of_${validDwars.length}_dwars`;
+
+        newKgpAllow = basicSalary * 0.15 * monthlyKpiPercent;
         kgpReduction = originalKgp - newKgpAllow;
+      }
 
+      if (isKpiEligible && kgpReduction !== 0) {
         const grossPay = parseFloat(record.grossPay) - kgpReduction;
         const pfBase = Math.min(parseFloat(record.baseSalary), 15000);
         const employeePF = pfBase * 0.12;
@@ -804,25 +827,28 @@ async function stepKpiAdjustment(
           calculationSnapshot: {
             ...snap,
             kpiAdjustment: {
-              kpiPercent: productivityScore,
+              monthlyKpiPercent: productivityScore,
+              kpiSource,
+              validDwarCount: validDwars.length,
               originalKgp,
               adjustedKgp: newKgpAllow,
               kgpReduction,
               paidDaysUnchanged: true,
             },
-            kpiMetrics: { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction },
           },
           updatedAt: new Date(),
         }).where(eq(payrollRecords.id, record.id));
 
         kpiAdjustedCount++;
-        exceptions.push({
-          userId: record.userId,
-          type: 'kpi_adjustment',
-          severity: 'info',
-          title: `KPI adjusted KGP for user ${record.userId}`,
-          details: `KPI ${productivityScore.toFixed(1)}% reduced KGP from ₹${originalKgp.toFixed(2)} to ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
-        });
+        if (kpiSource !== 'no_valid_dwar') {
+          exceptions.push({
+            userId: record.userId,
+            type: 'kpi_adjustment',
+            severity: 'info',
+            title: `KPI adjusted KGP for ${empName} (ID: ${record.userId})`,
+            details: `Monthly KPI ${productivityScore.toFixed(1)}% (avg of ${validDwars.length} DWARs) reduced KGP from ₹${originalKgp.toFixed(2)} to ₹${newKgpAllow.toFixed(2)} (reduction: ₹${kgpReduction.toFixed(2)}). Base salary and paidDays unchanged.`,
+          });
+        }
       } else {
         await db.update(payrollRecords).set({
           dwarProductivityScore: productivityScore.toFixed(2),
@@ -832,13 +858,14 @@ async function stepKpiAdjustment(
           calculationSnapshot: {
             ...snap,
             kpiAdjustment: {
-              kpiPercent: productivityScore,
+              monthlyKpiPercent: productivityScore,
+              kpiSource,
+              validDwarCount: validDwars.length,
               originalKgp,
               adjustedKgp: originalKgp,
               kgpReduction: 0,
               paidDaysUnchanged: true,
             },
-            kpiMetrics: { productivityScore, attendancePercentage, tasksCompleted: totalTasksCompleted, avgSatisfaction },
           },
           updatedAt: new Date(),
         }).where(eq(payrollRecords.id, record.id));
