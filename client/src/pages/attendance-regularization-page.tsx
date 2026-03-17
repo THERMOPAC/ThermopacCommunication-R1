@@ -82,15 +82,25 @@ export default function AttendanceRegularizationPage() {
   const [approveRemarks, setApproveRemarks] = useState('');
   const [rejectReason, setRejectReason] = useState('');
 
-  const now = new Date();
-  const { data: absentDays = [], isLoading: loadingAbsent } = useQuery<any[]>({
-    queryKey: ['/api/attendance/regularization/absent-days', now.getMonth() + 1, now.getFullYear()],
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  const { data: absentDays = [], isLoading: loadingAbsent, error: absentError, refetch: refetchAbsent } = useQuery<any[]>({
+    queryKey: ['/api/attendance/regularization/absent-days', currentMonth, currentYear],
     queryFn: async () => {
-      const res = await fetch(`/api/attendance/regularization/absent-days?month=${now.getMonth() + 1}&year=${now.getFullYear()}`);
-      if (!res.ok) throw new Error('Failed to fetch');
-      return res.json();
+      const res = await fetch(`/api/attendance/regularization/absent-days?month=${currentMonth}&year=${currentYear}`, {
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Absent days API error:', res.status, errorText);
+        throw new Error(`Failed to fetch: ${res.status}`);
+      }
+      const data = await res.json();
+      return data;
     },
     enabled: showNewDialog,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: myRequests = [], isLoading: loadingMy } = useQuery<any[]>({
@@ -204,7 +214,7 @@ export default function AttendanceRegularizationPage() {
             <p className="text-sm text-muted-foreground">Submit and manage attendance correction requests</p>
           </div>
         </div>
-        <Button onClick={() => setShowNewDialog(true)} className="gap-2">
+        <Button onClick={() => { setShowNewDialog(true); setTimeout(() => refetchAbsent(), 100); }} className="gap-2">
           <Plus className="h-4 w-4" /> New Request
         </Button>
       </div>
@@ -570,7 +580,14 @@ export default function AttendanceRegularizationPage() {
             {loadingAbsent && (
               <div className="text-center py-4 text-muted-foreground text-sm">Loading absent days...</div>
             )}
-            {!loadingAbsent && absentDays.length === 0 && (
+            {absentError && (
+              <div className="text-center py-4 bg-red-50 rounded-lg">
+                <AlertCircle className="h-8 w-8 mx-auto text-red-500 mb-1" />
+                <p className="text-sm text-red-700 font-medium">Failed to load absent days</p>
+                <p className="text-xs text-red-600">You can still submit a request using the date picker below.</p>
+              </div>
+            )}
+            {!loadingAbsent && !absentError && absentDays.length === 0 && (
               <div className="text-center py-4 bg-green-50 rounded-lg">
                 <CheckCircle className="h-8 w-8 mx-auto text-green-500 mb-1" />
                 <p className="text-sm text-green-700 font-medium">No absent days this month!</p>

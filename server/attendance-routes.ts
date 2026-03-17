@@ -855,6 +855,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
 router.get('/regularization/absent-days', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
+    console.log('[absent-days] Fetching for user:', user.id, 'query:', req.query);
     const { month, year } = req.query;
     const now = new Date();
     const targetMonth = month ? parseInt(month as string) - 1 : now.getMonth();
@@ -951,6 +952,7 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
       }
     }
 
+    console.log('[absent-days] Found', absentDays.length, 'absent days');
     res.json(absentDays);
   } catch (error) {
     console.error('Error fetching absent days:', error);
