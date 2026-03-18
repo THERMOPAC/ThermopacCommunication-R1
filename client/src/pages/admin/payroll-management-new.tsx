@@ -421,14 +421,18 @@ function TestSapJeButton() {
   const [result, setResult] = useState<any>(null);
 
   const testPayload = {
+    ReferenceDate: "18/03/2026",
+    DueDate: "18/03/2026",
+    TaxDate: "18/03/2026",
+    Memo: "Test Salary JE - Sanjeev Kale",
     JournalEntryLines: [
       {
         AccountCode: "50207350101",
-        Debit: 10000
+        Debit: 10000.0
       },
       {
         AccountCode: "50106040400",
-        Credit: 10000
+        Credit: 10000.0
       }
     ]
   };
