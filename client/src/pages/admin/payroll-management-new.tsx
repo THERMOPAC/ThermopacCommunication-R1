@@ -421,12 +421,6 @@ function TestSapJeButton() {
   const [result, setResult] = useState<any>(null);
 
   const testPayload = {
-    Memo: "Salary JE - Sanjeev Kale - February 2026",
-    U_Employee_Name: "Sanjeev Kale",
-    U_TDS_Status: "A",
-    U_PF_Status: "A",
-    U_ESIC_Status: "A",
-    U_PT_Status: "A",
     JournalEntryLines: [
       {
         AccountCode: "50207350101",
