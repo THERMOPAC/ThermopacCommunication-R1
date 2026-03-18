@@ -754,6 +754,8 @@ const userSchema = {
   esicNo: text('esic_no'),
   stdCode: text('std_code'),
   panNumber: text('pan_number'),
+  cardCode: text('card_code'),
+  cardName: text('card_name'),
   dateOfJoining: text('date_of_joining'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),

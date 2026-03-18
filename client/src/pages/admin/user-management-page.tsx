@@ -87,6 +87,8 @@ const userFormSchema = z.object({
   department: z.string().optional(),
   branch: z.string().optional(),
   employeeCode: z.string().optional(),
+  cardCode: z.string().optional(),
+  cardName: z.string().optional(),
   role: z.enum(roles),
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
   countryCode: z.string().default("+91"),
@@ -122,6 +124,8 @@ interface User {
   department?: string;
   branch?: string;
   employeeCode?: string;
+  cardCode?: string;
+  cardName?: string;
   role: string;
   mobileNumber: string;
   countryCode: string;
@@ -347,6 +351,8 @@ export default function UserManagementPage() {
       department: user.department || "",
       branch: user.branch || "",
       employeeCode: user.employeeCode || "",
+      cardCode: user.cardCode || "",
+      cardName: user.cardName || "",
       role: user.role as any,
       mobileNumber: user.mobileNumber,
       countryCode: user.countryCode,
@@ -425,6 +431,35 @@ export default function UserManagementPage() {
                 <FormLabel>Email *</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="Enter email" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="cardCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Card Code</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter SAP card code" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="cardName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Card Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter SAP card name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

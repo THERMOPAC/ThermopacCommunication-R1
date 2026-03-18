@@ -54,6 +54,8 @@ const editUserSchema = z.object({
   esicNo: z.string().optional(),
   stdCode: z.string().optional(),
   panNumber: z.string().optional(),
+  cardCode: z.string().optional(),
+  cardName: z.string().optional(),
   dateOfJoining: z.string().optional(),
   reportingManagerId: z.string().min(1, "Reporting Manager is required"),
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
@@ -92,6 +94,8 @@ interface User {
   esicNo?: string;
   stdCode?: string;
   panNumber?: string;
+  cardCode?: string;
+  cardName?: string;
   dateOfJoining?: string;
   reportingManagerId?: number;
   workLocationId?: number;
@@ -150,6 +154,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       esicNo: '',
       stdCode: '',
       panNumber: '',
+      cardCode: '',
+      cardName: '',
       dateOfJoining: '',
       reportingManagerId: '',
       workLocationId: 'none',
@@ -208,6 +214,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         esicNo: user.esicNo || '',
         stdCode: user.stdCode || '',
         panNumber: (user as any).panNumber || '',
+        cardCode: (user as any).cardCode || '',
+        cardName: (user as any).cardName || '',
         dateOfJoining: (user as any).dateOfJoining || '',
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
@@ -249,6 +257,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         esicNo: data.esicNo?.trim() || null,
         stdCode: data.stdCode?.trim() || null,
         panNumber: data.panNumber?.trim() || null,
+        cardCode: data.cardCode?.trim() || null,
+        cardName: data.cardName?.trim() || null,
         dateOfJoining: data.dateOfJoining?.trim() || null,
         // Convert string IDs to numbers, handle empty strings and "none" values properly
         reportingManagerId: parseInt(data.reportingManagerId),
@@ -338,6 +348,34 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                     <FormLabel>Last Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter last name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="cardCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Card Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter SAP card code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="cardName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Card Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter SAP card name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
