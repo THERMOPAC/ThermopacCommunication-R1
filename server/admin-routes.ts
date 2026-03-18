@@ -385,6 +385,7 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
         bonus: employeeSalaries.bonus,
         gratuityCost: employeeSalaries.gratuityCost,
         kgpAllowance: employeeSalaries.kgpAllowance,
+        kpiPercent: employeeSalaries.kpiPercent,
         employeePfContribution: employeeSalaries.employeePfContribution,
         employerPfContribution: employeeSalaries.employerPfContribution,
         employeeEsicContribution: employeeSalaries.employeeEsicContribution,

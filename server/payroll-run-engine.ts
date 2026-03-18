@@ -588,7 +588,8 @@ async function stepSalaryCalculation(
         ltaVal = Math.round(basicSalary * 0.2 * ratio * 100) / 100;
         specAllow = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
         suppAllow = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
-        kgpAllow = Math.round(parseFloat(sal.kgpAllowance || '0') * ratio * 100) / 100;
+        const kpiPct = parseFloat(sal.kpiPercent || '0');
+        kgpAllow = Math.round(basicSalary * 0.15 * (kpiPct / 100) * ratio * 100) / 100;
         bonusAllow = Math.round(basicSalary * 0.0833 * ratio * 100) / 100;
 
         grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow + bonusAllow;

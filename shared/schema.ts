@@ -4569,6 +4569,7 @@ export const employeeSalaries = pgTable('employee_salaries', {
   bonus: decimal('bonus', { precision: 10, scale: 2 }).default('0'),
   gratuityCost: decimal('gratuity_cost', { precision: 10, scale: 2 }).default('0'),
   kgpAllowance: decimal('kgp_allowance', { precision: 10, scale: 2 }).default('0'),
+  kpiPercent: decimal('kpi_percent', { precision: 5, scale: 2 }).default('0'),
   
   // PF & ESIC Contributions
   employeePfContribution: decimal('employee_pf_contribution', { precision: 10, scale: 2 }).default('0'),
