@@ -2279,12 +2279,31 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
     console.log(`[Test SAP JE] Fresh login to ${sapDb} as ${sapUser}...`);
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
-    console.log(`[Test SAP JE] Login OK, posting JE...`);
+
+    let routeId = '';
+    const setCookieHeader = loginResult.response.headers['set-cookie'];
+    if (setCookieHeader) {
+      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      for (const cookie of cookieArray) {
+        const match = cookie.match(/ROUTEID=([^;]+)/);
+        if (match) {
+          routeId = match[1];
+          break;
+        }
+      }
+    }
+    console.log(`[Test SAP JE] Login OK, sessionId=${sessionId}, routeId=${routeId}, posting JE...`);
+
+    const headers: Record<string, string> = {};
+    if (routeId) {
+      headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
+    }
 
     const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
       body: jePayload,
+      headers,
     });
 
     if (sapResponse.ok) {
