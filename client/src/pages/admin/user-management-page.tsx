@@ -89,6 +89,8 @@ const userFormSchema = z.object({
   employeeCode: z.string().min(1, "Employee Code is required"),
   cardCode: z.string().min(1, "Card Code is required"),
   cardName: z.string().min(1, "Card Name is required"),
+  panNumber: z.string().min(1, "PAN Number is required"),
+  dateOfJoining: z.string().min(1, "Date of Joining is required"),
   role: z.enum(roles),
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
   countryCode: z.string().default("+91"),
@@ -126,6 +128,8 @@ interface User {
   employeeCode?: string;
   cardCode?: string;
   cardName?: string;
+  panNumber?: string;
+  dateOfJoining?: string;
   role: string;
   mobileNumber: string;
   countryCode: string;
@@ -311,6 +315,8 @@ export default function UserManagementPage() {
       employeeCode: "",
       cardCode: "",
       cardName: "",
+      panNumber: "",
+      dateOfJoining: "",
     },
   });
 
@@ -357,6 +363,8 @@ export default function UserManagementPage() {
       employeeCode: user.employeeCode || "",
       cardCode: user.cardCode || "",
       cardName: user.cardName || "",
+      panNumber: user.panNumber || "",
+      dateOfJoining: user.dateOfJoining || "",
       role: user.role as any,
       mobileNumber: user.mobileNumber,
       countryCode: user.countryCode,
@@ -581,6 +589,35 @@ export default function UserManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="panNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>PAN Number *</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. ABCDE1234F" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="dateOfJoining"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date of Joining *</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
