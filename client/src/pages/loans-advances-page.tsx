@@ -43,6 +43,7 @@ export default function LoansAdvancesPage() {
   const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [selectedAdvance, setSelectedAdvance] = useState<any>(null);
+  const [employeeFilter, setEmployeeFilter] = useState("all");
   const [loanForm, setLoanForm] = useState({
     employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0',
     emiAmount: '', tenureMonths: '', disbursementDate: '', startDeductionDate: '', remarks: '',
@@ -117,10 +118,19 @@ export default function LoansAdvancesPage() {
     setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '' });
   }
 
-  const totalLoanOutstanding = loans.filter((l: any) => l.status === 'active').reduce((s: number, l: any) => s + parseFloat(l.outstandingBalance || '0'), 0);
-  const totalAdvanceOutstanding = advances.filter((a: any) => a.status === 'active').reduce((s: number, a: any) => s + parseFloat(a.outstandingBalance || '0'), 0);
-  const activeLoansCount = loans.filter((l: any) => l.status === 'active').length;
-  const activeAdvancesCount = advances.filter((a: any) => a.status === 'active').length;
+  const filteredLoans = employeeFilter === 'all' ? loans : loans.filter((l: any) => String(l.employeeId) === employeeFilter);
+  const filteredAdvances = employeeFilter === 'all' ? advances : advances.filter((a: any) => String(a.employeeId) === employeeFilter);
+
+  const totalLoanOutstanding = filteredLoans.filter((l: any) => l.status === 'active').reduce((s: number, l: any) => s + parseFloat(l.outstandingBalance || '0'), 0);
+  const totalAdvanceOutstanding = filteredAdvances.filter((a: any) => a.status === 'active').reduce((s: number, a: any) => s + parseFloat(a.outstandingBalance || '0'), 0);
+  const activeLoansCount = filteredLoans.filter((l: any) => l.status === 'active').length;
+  const activeAdvancesCount = filteredAdvances.filter((a: any) => a.status === 'active').length;
+
+  const employeesWithLoansOrAdvances = Array.from(
+    new Map(
+      [...loans, ...advances].map((item: any) => [String(item.employeeId), item.employeeName || 'Unknown'])
+    ).entries()
+  ).sort((a, b) => a[1].localeCompare(b[1]));
 
   return (
     <div className="p-6 space-y-6">
@@ -186,7 +196,18 @@ export default function LoansAdvancesPage() {
             <TabsTrigger value="loans">Loans</TabsTrigger>
             <TabsTrigger value="advances">Advances</TabsTrigger>
           </TabsList>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Filter by Employee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {employeesWithLoansOrAdvances.map(([id, name]) => (
+                  <SelectItem key={id} value={id}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {activeTab === 'loans' && (
               <Button onClick={() => { resetLoanForm(); setShowLoanDialog(true); }}>
                 <Plus className="h-4 w-4 mr-2" /> New Loan
@@ -203,8 +224,10 @@ export default function LoansAdvancesPage() {
         <TabsContent value="loans">
           <Card>
             <CardContent className="pt-6">
-              {loansLoading ? <p>Loading...</p> : loans.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No loans found. Create a new loan to get started.</p>
+              {loansLoading ? <p>Loading...</p> : filteredLoans.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {employeeFilter !== 'all' ? 'No loans found for selected employee.' : 'No loans found. Create a new loan to get started.'}
+                </p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -222,7 +245,7 @@ export default function LoansAdvancesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loans.map((loan: any) => (
+                    {filteredLoans.map((loan: any) => (
                       <TableRow key={loan.id}>
                         <TableCell className="font-mono text-sm">{loan.loanReference}</TableCell>
                         <TableCell>{loan.employeeName}</TableCell>
@@ -262,8 +285,10 @@ export default function LoansAdvancesPage() {
         <TabsContent value="advances">
           <Card>
             <CardContent className="pt-6">
-              {advancesLoading ? <p>Loading...</p> : advances.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No advances found. Create a new advance to get started.</p>
+              {advancesLoading ? <p>Loading...</p> : filteredAdvances.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {employeeFilter !== 'all' ? 'No advances found for selected employee.' : 'No advances found. Create a new advance to get started.'}
+                </p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -280,7 +305,7 @@ export default function LoansAdvancesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {advances.map((adv: any) => (
+                    {filteredAdvances.map((adv: any) => (
                       <TableRow key={adv.id}>
                         <TableCell className="font-mono text-sm">{adv.advanceReference}</TableCell>
                         <TableCell>{adv.employeeName}</TableCell>

@@ -33,12 +33,14 @@ router.get('/loans', async (req: Request, res: Response) => {
       : await query;
 
     const loansWithNames = await Promise.all(loans.map(async (loan) => {
-      const emp = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, loan.employeeId));
-      const approver = loan.approvedBy ? await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, loan.approvedBy)) : [];
+      const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, loan.employeeId));
+      const approver = loan.approvedBy ? await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, loan.approvedBy)) : [];
+      const empName = emp[0] ? (emp[0].firstName && emp[0].lastName ? `${emp[0].firstName} ${emp[0].lastName}` : emp[0].username) : 'Unknown';
+      const approverName = approver[0] ? (approver[0].firstName && approver[0].lastName ? `${approver[0].firstName} ${approver[0].lastName}` : approver[0].username) : null;
       return {
         ...loan,
-        employeeName: emp[0]?.fullName || 'Unknown',
-        approvedByName: approver[0]?.fullName || null,
+        employeeName: empName,
+        approvedByName: approverName,
       };
     }));
 
@@ -57,9 +59,10 @@ router.get('/loans/:id', async (req: Request, res: Response) => {
       .where(eq(employeeLoanRepayments.loanId, Number(req.params.id)))
       .orderBy(desc(employeeLoanRepayments.createdAt));
 
-    const emp = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, loan[0].employeeId));
+    const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, loan[0].employeeId));
+    const empName = emp[0] ? (emp[0].firstName && emp[0].lastName ? `${emp[0].firstName} ${emp[0].lastName}` : emp[0].username) : 'Unknown';
 
-    res.json({ ...loan[0], employeeName: emp[0]?.fullName || 'Unknown', repayments });
+    res.json({ ...loan[0], employeeName: empName, repayments });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -138,12 +141,14 @@ router.get('/advances', async (req: Request, res: Response) => {
       : await db.select().from(employeeAdvances).orderBy(desc(employeeAdvances.createdAt));
 
     const advancesWithNames = await Promise.all(advances.map(async (adv) => {
-      const emp = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, adv.employeeId));
-      const approver = adv.approvedBy ? await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, adv.approvedBy)) : [];
+      const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, adv.employeeId));
+      const approver = adv.approvedBy ? await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, adv.approvedBy)) : [];
+      const empName = emp[0] ? (emp[0].firstName && emp[0].lastName ? `${emp[0].firstName} ${emp[0].lastName}` : emp[0].username) : 'Unknown';
+      const approverName = approver[0] ? (approver[0].firstName && approver[0].lastName ? `${approver[0].firstName} ${approver[0].lastName}` : approver[0].username) : null;
       return {
         ...adv,
-        employeeName: emp[0]?.fullName || 'Unknown',
-        approvedByName: approver[0]?.fullName || null,
+        employeeName: empName,
+        approvedByName: approverName,
       };
     }));
 
@@ -162,9 +167,10 @@ router.get('/advances/:id', async (req: Request, res: Response) => {
       .where(eq(employeeAdvanceRecoveries.advanceId, Number(req.params.id)))
       .orderBy(desc(employeeAdvanceRecoveries.createdAt));
 
-    const emp = await db.select({ fullName: users.fullName }).from(users).where(eq(users.id, advance[0].employeeId));
+    const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, advance[0].employeeId));
+    const empName = emp[0] ? (emp[0].firstName && emp[0].lastName ? `${emp[0].firstName} ${emp[0].lastName}` : emp[0].username) : 'Unknown';
 
-    res.json({ ...advance[0], employeeName: emp[0]?.fullName || 'Unknown', recoveries });
+    res.json({ ...advance[0], employeeName: empName, recoveries });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
