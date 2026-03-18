@@ -618,11 +618,37 @@ function PayrollRunTab() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Employees (full run)</SelectItem>
-                      {salaryConfigs.map((sc: any) => (
-                        <SelectItem key={sc.userId} value={sc.userId.toString()}>
-                          {sc.firstName && sc.lastName ? `${sc.firstName} ${sc.lastName}` : sc.username} — ₹{parseFloat(sc.basicSalary || 0).toLocaleString('en-IN')} | {sc.salaryType}
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Employee': 4 };
+                        const sorted = [...salaryConfigs].sort((a: any, b: any) => {
+                          const ra = roleOrder[a.role] ?? 5;
+                          const rb = roleOrder[b.role] ?? 5;
+                          if (ra !== rb) return ra - rb;
+                          const na = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+                          const nb = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+                          return na.localeCompare(nb);
+                        });
+                        const grouped = sorted.reduce((acc: Record<string, any[]>, sc: any) => {
+                          const role = sc.role || 'Other';
+                          if (!acc[role]) acc[role] = [];
+                          acc[role].push(sc);
+                          return acc;
+                        }, {});
+                        return Object.entries(grouped).map(([role, items]) => (
+                          <SelectGroup key={role}>
+                            <SelectLabel className="text-xs font-semibold text-blue-600">{role}</SelectLabel>
+                            {items.map((sc: any) => {
+                              const name = sc.firstName && sc.lastName ? `${sc.firstName} ${sc.lastName}` : sc.username;
+                              const dept = sc.department ? ` • ${sc.department}` : '';
+                              return (
+                                <SelectItem key={sc.userId} value={sc.userId.toString()}>
+                                  {name}{dept}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
