@@ -151,7 +151,12 @@ export async function computeMonthlyTds(
     (sum, r) => sum + parseFloat(r.grossSalaryMonthly || '0'), 0
   ) + grossSalaryThisMonth;
 
-  const grossSalaryProjected = grossSalaryYtd + (grossSalaryThisMonth * remainingMonths);
+  const monthsWithData = previousTdsRecords.length + 1;
+  const annualizedFromCurrent = grossSalaryThisMonth * 12;
+  const projectedFromYtd = grossSalaryYtd + (grossSalaryThisMonth * remainingMonths);
+  const grossSalaryProjected = monthsWithData < monthsElapsed
+    ? Math.max(annualizedFromCurrent, projectedFromYtd)
+    : projectedFromYtd;
 
   const previousEmployerIncome = declaration ? parseFloat(declaration.previousEmployerIncome || '0') : 0;
   const previousEmployerTds = declaration ? parseFloat(declaration.previousEmployerTds || '0') : 0;
