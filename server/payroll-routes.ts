@@ -519,8 +519,8 @@ router.post('/run/single-user', async (req, res) => {
     const startDate = period.startDate;
     const endDate = period.endDate;
 
-    const { companyHolidays, attendanceRecords: attRecords, workweekPolicies, payrollAttendanceSnapshot, payrollSalarySnapshot, payrollRecords: payrollRecs, loanDeductions, advanceDeductions, employeeLoans, salaryAdvances } = await import('@shared/schema');
-    const { between, ne } = await import('drizzle-orm');
+    const { companyHolidays, attendanceRecords: attRecords, workweekPolicies, payrollRecords: payrollRecs, employeeLoans, employeeAdvances, employeeLoanRepayments, employeeAdvanceRecoveries } = await import('@shared/schema');
+    const { between } = await import('drizzle-orm');
 
     const holidays = await db.select({ date: companyHolidays.date })
       .from(companyHolidays)
@@ -603,27 +603,54 @@ router.post('/run/single-user', async (req, res) => {
 
     let loanDed = 0;
     let advDed = 0;
-    try {
-      const activeLoans = await db.select().from(employeeLoans)
-        .where(and(eq(employeeLoans.userId, userId), eq(employeeLoans.status, 'active')));
-      for (const loan of activeLoans) {
-        const pending = await db.select().from(loanDeductions)
-          .where(and(eq(loanDeductions.loanId, loan.id), eq(loanDeductions.status, 'pending')))
-          .orderBy(asc(loanDeductions.dueDate)).limit(1);
-        if (pending.length > 0) loanDed += parseFloat(pending[0].amount);
-      }
-      const activeAdvances = await db.select().from(salaryAdvances)
-        .where(and(eq(salaryAdvances.userId, userId), eq(salaryAdvances.status, 'approved')));
-      for (const adv of activeAdvances) {
-        const pending = await db.select().from(advanceDeductions)
-          .where(and(eq(advanceDeductions.advanceId, adv.id), eq(advanceDeductions.status, 'pending')))
-          .orderBy(asc(advanceDeductions.dueDate)).limit(1);
-        if (pending.length > 0) advDed += parseFloat(pending[0].amount);
-      }
-    } catch {}
+    const periodEndDate = endDate;
 
-    const totalDeductions = empPf + pt + empEsic;
-    const netPay = grossPay - totalDeductions - loanDed - advDed;
+    const statutoryDeductions = empPf + pt + empEsic;
+    const availableForRecovery = grossPay - statutoryDeductions;
+
+    const minTakeHomeSetting = await db.select().from(payrollSettings)
+      .where(eq(payrollSettings.settingName, 'minimum_take_home'));
+    const minimumTakeHome = minTakeHomeSetting.length > 0 ? parseFloat(minTakeHomeSetting[0].settingValue) : 10000;
+    let remaining = Math.max(0, availableForRecovery - minimumTakeHome);
+
+    const activeAdvances = await db.select().from(employeeAdvances)
+      .where(and(
+        eq(employeeAdvances.employeeId, userId),
+        eq(employeeAdvances.status, 'active'),
+        lte(employeeAdvances.startRecoveryDate, periodEndDate)
+      )).orderBy(asc(employeeAdvances.createdAt));
+
+    for (const adv of activeAdvances) {
+      if (remaining <= 0) break;
+      let requested: number;
+      if (adv.recoveryType === 'lump_sum') {
+        requested = parseFloat(adv.outstandingBalance || '0');
+      } else {
+        requested = Math.min(parseFloat(adv.recoveryAmount || '0'), parseFloat(adv.outstandingBalance || '0'));
+      }
+      const actual = Math.min(requested, remaining);
+      if (actual > 0) { advDed += actual; remaining -= actual; }
+    }
+
+    const activeLoans = await db.select().from(employeeLoans)
+      .where(and(
+        eq(employeeLoans.employeeId, userId),
+        eq(employeeLoans.status, 'active'),
+        lte(employeeLoans.startDeductionDate, periodEndDate)
+      )).orderBy(asc(employeeLoans.createdAt));
+
+    const emergencyLoans = activeLoans.filter(l => l.loanType === 'emergency');
+    const otherLoans = activeLoans.filter(l => l.loanType !== 'emergency');
+    const sortedLoans = [...emergencyLoans, ...otherLoans];
+
+    for (const loan of sortedLoans) {
+      if (remaining <= 0) break;
+      const requested = Math.min(parseFloat(loan.emiAmount || '0'), parseFloat(loan.outstandingBalance || '0'));
+      const actual = Math.min(requested, remaining);
+      if (actual > 0) { loanDed += actual; remaining -= actual; }
+    }
+    const totalDeductionsPreTds = statutoryDeductions + loanDed + advDed;
+    const netPayPreTds = grossPay - totalDeductionsPreTds;
 
     const ctcMonthly = grossPay + emplrPf + emplrEsic + gratuity + groupIns;
 
@@ -632,7 +659,7 @@ router.post('/run/single-user', async (req, res) => {
     const [record] = await db.insert(payrollRecs).values({
       periodId,
       userId,
-      baseSalary: basic.toFixed(2),
+      baseSalary: earnBasic.toFixed(2),
       hra: earnHra.toFixed(2),
       conveyanceAllowance: earnConv.toFixed(2),
       ltaAllowance: earnLta.toFixed(2),
@@ -654,8 +681,8 @@ router.post('/run/single-user', async (req, res) => {
       advanceDeductions: advDed.toFixed(2),
       incomeTax: '0',
       tdsAmount: '0',
-      totalDeductions: totalDeductions.toFixed(2),
-      netPay: netPay.toFixed(2),
+      totalDeductions: totalDeductionsPreTds.toFixed(2),
+      netPay: netPayPreTds.toFixed(2),
       workingDays: totalWorkingDays,
       paidDays: paidDays.toFixed(1),
       presentDays: presentFull.toFixed(1),
@@ -670,8 +697,8 @@ router.post('/run/single-user', async (req, res) => {
     await saveTdsRecord(userId, periodId, month, year, tdsResult);
 
     const tds = tdsResult.tdsActualMonthly;
-    const finalDeductions = totalDeductions + tds;
-    const finalNet = grossPay - finalDeductions - loanDed - advDed;
+    const finalDeductions = statutoryDeductions + tds + loanDed + advDed;
+    const finalNet = grossPay - finalDeductions;
 
     await db.update(payrollRecs).set({
       incomeTax: tds.toFixed(2),
@@ -680,14 +707,23 @@ router.post('/run/single-user', async (req, res) => {
       netPay: finalNet.toFixed(2),
     }).where(eq(payrollRecs.id, record.id));
 
+    const employeeName = employee.firstName && employee.lastName
+      ? `${employee.firstName} ${employee.lastName}`
+      : employee.username;
+
     res.json({
       success: true,
-      employee: employee.username,
+      employee: employeeName,
       period: period.periodName,
       grossPay: grossPay.toFixed(2),
       totalDeductions: finalDeductions.toFixed(2),
       netPay: finalNet.toFixed(2),
-      attendance: { daysInMonth, workingDays: totalWorkingDays, presentDays: presentFull, halfDays: presentHalf, absentDays: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size },
+      loanDeductions: loanDed.toFixed(2),
+      advanceDeductions: advDed.toFixed(2),
+      attendance: { daysInMonth, workingDays: totalWorkingDays, presentDays: presentFull, halfDays: presentHalf, absentDays: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size, lopDays },
+      salary: { basic: earnBasic, hra: earnHra, conveyance: earnConv, lta: earnLta, specialAllowance: earnSpecial, supplementary: earnSupp, kgp: earnKgp, bonus: earnBonus },
+      deductions: { pf: empPf, esic: empEsic, pt, tds, loanDeductions: loanDed, advanceDeductions: advDed },
+      employer: { pf: emplrPf, esic: emplrEsic, gratuity, groupInsurance: groupIns, ctcMonthly },
       tds: { regime: tdsResult.regime, projectedAnnualIncome: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTaxLiability: tdsResult.totalTaxLiabilityAnnual, monthlyTds: tds },
     });
   } catch (error: any) {

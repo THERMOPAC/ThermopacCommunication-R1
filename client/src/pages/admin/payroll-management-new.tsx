@@ -683,10 +683,24 @@ function PayrollRunTab() {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Salary Breakdown</h4>
+                <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Salary & Deductions</h4>
                 <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-sm">
                   <div className="flex justify-between"><span className="text-gray-500">Gross Pay</span><span className="font-medium">₹{parseFloat(singleUserResult.grossPay || 0).toLocaleString('en-IN')}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Total Deductions</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.totalDeductions || 0).toLocaleString('en-IN')}</span></div>
+                  {singleUserResult.deductions && (
+                    <>
+                      <div className="flex justify-between"><span className="text-gray-500">PF (Employee)</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.deductions.pf || 0).toLocaleString('en-IN')}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">ESIC</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.deductions.esic || 0).toLocaleString('en-IN')}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">Professional Tax</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.deductions.pt || 0).toLocaleString('en-IN')}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">TDS</span><span className="font-medium text-orange-600">₹{parseFloat(singleUserResult.deductions.tds || 0).toLocaleString('en-IN')}</span></div>
+                      {parseFloat(singleUserResult.deductions.loanDeductions || 0) > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Loan EMI</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.deductions.loanDeductions || 0).toLocaleString('en-IN')}</span></div>
+                      )}
+                      {parseFloat(singleUserResult.deductions.advanceDeductions || 0) > 0 && (
+                        <div className="flex justify-between"><span className="text-gray-500">Advance Recovery</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.deductions.advanceDeductions || 0).toLocaleString('en-IN')}</span></div>
+                      )}
+                    </>
+                  )}
+                  <div className="flex justify-between font-medium"><span className="text-gray-500">Total Deductions</span><span className="text-red-600">₹{parseFloat(singleUserResult.totalDeductions || 0).toLocaleString('en-IN')}</span></div>
                   <div className="border-t pt-1.5 mt-1.5 flex justify-between text-base"><span className="font-semibold">Net Pay</span><span className="font-bold text-green-700">₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}</span></div>
                 </div>
               </div>

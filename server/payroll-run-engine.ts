@@ -855,7 +855,9 @@ async function stepKpiAdjustment(
         const employeeESIC = grossPay <= 21000 ? grossPay * 0.0075 : 0;
         const professionalTax = parseFloat(record.professionalTax || '0');
 
-        const totalDeductions = employeePF + employeeESIC + professionalTax;
+        const loanDedVal = parseFloat(record.loanDeductions || '0');
+        const advDedVal = parseFloat(record.advanceDeductions || '0');
+        const totalDeductions = employeePF + employeeESIC + professionalTax + loanDedVal + advDedVal;
         const netPay = grossPay - totalDeductions;
 
         await db.update(payrollRecords).set({
@@ -1302,8 +1304,8 @@ async function stepDeductionCalculation(
         });
       }
 
-      const totalDeductions = statutoryDeductions;
-      const netPay = grossPay - statutoryDeductions - totalLoanDeduction - totalAdvanceDeduction;
+      const totalDeductions = statutoryDeductions + totalLoanDeduction + totalAdvanceDeduction;
+      const netPay = grossPay - totalDeductions;
 
       const existingSnapshot = record.calculationSnapshot as any || {};
 
