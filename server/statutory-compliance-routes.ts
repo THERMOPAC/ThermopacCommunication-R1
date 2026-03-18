@@ -165,7 +165,6 @@ const PAYROLL_SEED_ROWS = [
 
 const TDS_SEED_ROWS = [
   { componentCode: 'TDS', componentName: 'Tax Deducted at Source', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'debit' },
-  { componentCode: 'TDS_BANK', componentName: 'Bank (TDS Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'TDS_INTEREST', componentName: 'TDS Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'TDS_INTEREST', componentName: 'TDS Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'TDS_PENALTY', componentName: 'TDS Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
@@ -177,7 +176,6 @@ const TDS_SEED_ROWS = [
 const PF_SEED_ROWS = [
   { componentCode: 'PF_EMPLOYEE', componentName: 'Employee PF Contribution', category: 'deduction', postingContext: 'statutory_payment', debitCredit: 'debit' },
   { componentCode: 'PF_EMPLOYER', componentName: 'Employer PF Contribution', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
-  { componentCode: 'PF_BANK', componentName: 'Bank (PF Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
   { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
@@ -196,7 +194,6 @@ const PF_SEED_ROWS = [
 const ESIC_SEED_ROWS = [
   { componentCode: 'ESIC_EMPLOYEE', componentName: 'Employee ESIC', category: 'deduction', postingContext: 'statutory_payment', debitCredit: 'debit' },
   { componentCode: 'ESIC_EMPLOYER', componentName: 'Employer ESIC', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
-  { componentCode: 'ESIC_BANK', componentName: 'Bank (ESIC Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'ESIC_INTEREST', componentName: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'ESIC_INTEREST', componentName: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'ESIC_PENALTY', componentName: 'ESIC Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
@@ -205,7 +202,6 @@ const ESIC_SEED_ROWS = [
 
 const PT_SEED_ROWS = [
   { componentCode: 'PT', componentName: 'Professional Tax', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'debit' },
-  { componentCode: 'PT_BANK', componentName: 'Bank (PT Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'PT_INTEREST', componentName: 'PT Interest (Late Payment)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'PT_INTEREST', componentName: 'PT Interest (Late Payment)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'PT_PENALTY', componentName: 'PT Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
@@ -213,7 +209,6 @@ const PT_SEED_ROWS = [
 ];
 
 const CIT_SEED_ROWS = [
-  { componentCode: 'CIT_BANK', componentName: 'Bank (Income Tax Payment)', category: 'company_tax', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'CIT_CURRENT_TAX_EXPENSE', componentName: 'Current Tax Expense', category: 'company_tax', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'CIT_DEFERRED_TAX', componentName: 'Deferred Tax Expense/Benefit', category: 'company_tax', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'CIT_DEFERRED_TAX', componentName: 'Deferred Tax Expense/Benefit', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'credit' },
@@ -749,19 +744,56 @@ function getGlCode(mappings: any[], code: string, context: string): string | nul
   return m ? m.glAccountCode : null;
 }
 
+router.get('/sap-bank-accounts', async (req: Request, res: Response) => {
+  try {
+    const currentUser = (req as any).user;
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+
+    if (!sapUser || !sapPass || !sapDb) {
+      return res.status(500).json({ error: 'SAP credentials not configured' });
+    }
+
+    const session = sapSessionManager.getSession(currentUser.id);
+    let sessionId: string;
+    if (session) {
+      sessionId = session.sessionId;
+    } else {
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sapSessionManager.setSession(currentUser.id, { sessionId: loginResult.sessionId, routeId: undefined, userId: currentUser.id, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+      sessionId = loginResult.sessionId;
+    }
+
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: "/b1s/v1/ChartOfAccounts?$filter=ActiveAccount eq 'tYES' and (AccountType eq 'at_Other')&$select=Code,Name,AccountType&$top=500",
+    });
+
+    if (sapResponse.ok) {
+      const data = JSON.parse(sapResponse.body);
+      const allAccounts = data.value || [];
+      return res.json({ accounts: allAccounts.map((a: any) => ({ code: a.Code, name: `${a.Code} - ${a.Name}` })) });
+    } else {
+      return res.status(500).json({ error: 'Failed to fetch accounts from SAP' });
+    }
+  } catch (err: any) {
+    console.error('Error fetching SAP bank accounts:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 const MODULE_CONFIG: Record<string, {
   liabilityComponents: { code: string; amountKey: string }[];
-  bankCode: string;
   interestCode?: string;
   penaltyCode?: string;
-  lateFeeeCode?: string;
+  lateFeeCode?: string;
 }> = {
   TDS: {
     liabilityComponents: [{ code: 'TDS', amountKey: 'totalEmployeeContribution' }],
-    bankCode: 'TDS_BANK',
     interestCode: 'TDS_INTEREST',
     penaltyCode: 'TDS_PENALTY',
-    lateFeeeCode: 'TDS_LATE_FEE',
+    lateFeeCode: 'TDS_LATE_FEE',
   },
   PF: {
     liabilityComponents: [
@@ -769,7 +801,6 @@ const MODULE_CONFIG: Record<string, {
       { code: 'PF_EMPLOYER', amountKey: 'totalEmployerContribution' },
       { code: 'PF_ADMIN_CHARGES', amountKey: 'adminCharges' },
     ],
-    bankCode: 'PF_BANK',
     interestCode: 'PF_INTEREST',
     penaltyCode: 'PF_PENALTY',
   },
@@ -778,13 +809,11 @@ const MODULE_CONFIG: Record<string, {
       { code: 'ESIC_EMPLOYEE', amountKey: 'totalEmployeeContribution' },
       { code: 'ESIC_EMPLOYER', amountKey: 'totalEmployerContribution' },
     ],
-    bankCode: 'ESIC_BANK',
     interestCode: 'ESIC_INTEREST',
     penaltyCode: 'ESIC_PENALTY',
   },
   PT: {
     liabilityComponents: [{ code: 'PT', amountKey: 'totalEmployeeContribution' }],
-    bankCode: 'PT_BANK',
     interestCode: 'PT_INTEREST',
     penaltyCode: 'PT_PENALTY',
   },
@@ -794,6 +823,11 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
   try {
     const challanId = parseInt(req.params.id);
     const currentUser = (req as any).user;
+    const { bankAccountCode } = req.body;
+
+    if (!bankAccountCode || typeof bankAccountCode !== 'string' || bankAccountCode.trim() === '') {
+      return res.status(400).json({ error: 'bankAccountCode is required. Please select a bank/cash account for this payment.' });
+    }
 
     const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, challanId));
     if (!challan) return res.status(404).json({ error: 'Challan not found' });
@@ -823,9 +857,6 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
 
     const missingMappings: string[] = [];
-    const bankGl = getGlCode(allMappings, config.bankCode, 'statutory_payment');
-    if (!bankGl) missingMappings.push(`${config.bankCode} (statutory_payment)`);
-
     for (const comp of config.liabilityComponents) {
       if (!getGlCode(allMappings, comp.code, 'statutory_payment')) {
         missingMappings.push(`${comp.code} (statutory_payment)`);
@@ -898,7 +929,7 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
     if (totalBankCredit > 0) {
       jeLines.push({
         Line_ID: lineNum++,
-        AccountCode: bankGl,
+        AccountCode: bankAccountCode.trim(),
         Debit: 0,
         Credit: totalBankCredit,
         LineMemo: `Bank Payment - ${moduleType} Challan ${challan.challanReference} - ${periodLabel}`,
@@ -965,6 +996,11 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
   try {
     const challanId = parseInt(req.params.id);
     const currentUser = (req as any).user;
+    const { bankAccountCode } = req.body;
+
+    if (!bankAccountCode || typeof bankAccountCode !== 'string' || bankAccountCode.trim() === '') {
+      return res.status(400).json({ error: 'bankAccountCode is required. Please select the bank/cash account used for the original payment.' });
+    }
 
     const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, challanId));
     if (!challan) return res.status(404).json({ error: 'Challan not found' });
@@ -982,7 +1018,6 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
     if (!config) return res.status(400).json({ error: `Unsupported module type: ${moduleType}` });
 
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
-    const bankGl = getGlCode(allMappings, config.bankCode, 'statutory_payment');
 
     const jeLines: any[] = [];
     let lineNum = 0;
@@ -1030,7 +1065,7 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
     if (totalBankDebit > 0) {
       jeLines.push({
         Line_ID: lineNum++,
-        AccountCode: bankGl,
+        AccountCode: bankAccountCode.trim(),
         Debit: totalBankDebit,
         Credit: 0,
         LineMemo: `REVERSAL: Bank - ${moduleType} Challan ${challan.challanReference} - ${periodLabel}`,

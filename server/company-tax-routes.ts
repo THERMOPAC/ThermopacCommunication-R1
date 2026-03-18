@@ -242,6 +242,11 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const currentUser = (req as any).user;
+    const { bankAccountCode } = req.body;
+
+    if (!bankAccountCode || typeof bankAccountCode !== 'string' || bankAccountCode.trim() === '') {
+      return res.status(400).json({ error: 'bankAccountCode is required. Please select a bank/cash account for this payment.' });
+    }
 
     const [challan] = await db.select().from(companyTaxChallans).where(eq(companyTaxChallans.id, id));
     if (!challan) return res.status(404).json({ error: 'Challan not found' });
@@ -254,14 +259,10 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
     }
 
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
-    const bankGl = getGlCode(allMappings, 'CIT_BANK', 'statutory_payment');
     const provisionGl = getGlCode(allMappings, 'CIT_TAX_PROVISION', 'statutory_payment');
 
-    if (!bankGl || !provisionGl) {
-      const missing = [];
-      if (!bankGl) missing.push('CIT_BANK (statutory_payment)');
-      if (!provisionGl) missing.push('CIT_TAX_PROVISION (statutory_payment)');
-      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings: missing });
+    if (!provisionGl) {
+      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings: ['CIT_TAX_PROVISION (statutory_payment)'] });
     }
 
     const amount = parseFloat(challan.amount?.toString() || '0');
@@ -280,7 +281,7 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
       Reference3: 'CIT',
       JournalEntryLines: [
         { Line_ID: 0, AccountCode: provisionGl, Debit: amount, Credit: 0, LineMemo: `CIT Tax Provision Payment - ${challan.challanType} - ${challan.challanReference}` },
-        { Line_ID: 1, AccountCode: bankGl, Debit: 0, Credit: amount, LineMemo: `Bank - CIT Challan ${challan.challanReference}` },
+        { Line_ID: 1, AccountCode: bankAccountCode.trim(), Debit: 0, Credit: amount, LineMemo: `Bank - CIT Challan ${challan.challanReference}` },
       ],
     };
 
@@ -316,6 +317,11 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
   try {
     const id = parseInt(req.params.id);
     const currentUser = (req as any).user;
+    const { bankAccountCode } = req.body;
+
+    if (!bankAccountCode || typeof bankAccountCode !== 'string' || bankAccountCode.trim() === '') {
+      return res.status(400).json({ error: 'bankAccountCode is required. Please select the bank/cash account used for the original payment.' });
+    }
 
     const [challan] = await db.select().from(companyTaxChallans).where(eq(companyTaxChallans.id, id));
     if (!challan) return res.status(404).json({ error: 'Challan not found' });
@@ -328,7 +334,6 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
     }
 
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
-    const bankGl = getGlCode(allMappings, 'CIT_BANK', 'statutory_payment');
     const provisionGl = getGlCode(allMappings, 'CIT_TAX_PROVISION', 'statutory_payment');
 
     const amount = parseFloat(challan.amount?.toString() || '0');
@@ -340,7 +345,7 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
       Reference3: 'CIT-REV',
       JournalEntryLines: [
         { Line_ID: 0, AccountCode: provisionGl, Debit: 0, Credit: amount, LineMemo: `REVERSAL: CIT Tax Provision - ${challan.challanReference}` },
-        { Line_ID: 1, AccountCode: bankGl, Debit: amount, Credit: 0, LineMemo: `REVERSAL: Bank - CIT Challan ${challan.challanReference}` },
+        { Line_ID: 1, AccountCode: bankAccountCode.trim(), Debit: amount, Credit: 0, LineMemo: `REVERSAL: Bank - CIT Challan ${challan.challanReference}` },
       ],
     };
 

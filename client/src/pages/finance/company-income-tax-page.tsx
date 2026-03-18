@@ -15,8 +15,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Building2, Calculator, IndianRupee, FileText, TrendingUp, AlertTriangle,
-  Plus, Check, X, Clock, ArrowUpDown, Landmark, Shield, Scale
+  Plus, Check, X, Clock, ArrowUpDown, Landmark, Shield, Scale, Undo2
 } from "lucide-react";
+import SapBankAccountDialog from "@/components/sap-bank-account-dialog";
 
 function fmt(v: any): string {
   const n = parseFloat(v || '0');
@@ -605,12 +606,15 @@ function ProvisionsTab({ provisions, selectedTaxYearId, showDialog, setShowDialo
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
+  const [showSapDialog, setShowSapDialog] = useState(false);
+  const [sapTarget, setSapTarget] = useState<{ id: number } | null>(null);
+
   const postSapMutation = useMutation({
-    mutationFn: async ({ id, sapJeReference }: { id: number; sapJeReference: string }) => {
-      return await apiRequest('PUT', `/api/company-tax/provisions/${id}/post-sap`, { sapJeReference });
+    mutationFn: async ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) => {
+      return await apiRequest('POST', `/api/company-tax/provisions/${id}/post-sap`, { bankAccountCode });
     },
-    onSuccess: () => { invalidateAll(); toast({ title: 'Posted to SAP' }); },
-    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+    onSuccess: () => { invalidateAll(); setShowSapDialog(false); setSapTarget(null); toast({ title: 'Provision posted to SAP' }); },
+    onError: (err: any) => toast({ title: 'SAP Posting Error', description: err.message, variant: 'destructive' }),
   });
 
   if (!selectedTaxYearId) return <Card><CardContent className="p-8 text-center text-muted-foreground">Select an Assessment Year first</CardContent></Card>;
@@ -646,15 +650,15 @@ function ProvisionsTab({ provisions, selectedTaxYearId, showDialog, setShowDialo
               <TableCell>{p.provisionType || '-'}</TableCell>
               <TableCell className="text-right">₹{fmt(p.amount)}</TableCell>
               <TableCell className="text-right">₹{fmt(p.cumulativeProvision)}</TableCell>
-              <TableCell>{p.sapJeReference || '-'}</TableCell>
+              <TableCell>{p.sapJeReference || p.sapJeNumber || '-'}</TableCell>
               <TableCell>{p.adjustmentReference || (p.reversedProvisionId ? `Rev. of #${p.reversedProvisionId}` : '-')}</TableCell>
-              <TableCell>{statusBadge(p.postingStatus)}</TableCell>
+              <TableCell>{statusBadge(p.postingStatus || p.sapPostingStatus || 'draft')}</TableCell>
               <TableCell>
                 <div className="flex gap-1">
-                  {p.postingStatus === 'draft' && (
+                  {(!p.sapPostingStatus || p.sapPostingStatus === 'draft' || p.sapPostingStatus === 'failed') && p.postingStatus !== 'posted' && p.postingStatus !== 'reversed' && (
                     <Button size="sm" variant="outline" onClick={() => {
-                      const je = prompt('Enter SAP JE Reference:');
-                      if (je) postSapMutation.mutate({ id: p.id, sapJeReference: je });
+                      setSapTarget({ id: p.id });
+                      setShowSapDialog(true);
                     }}>Post SAP</Button>
                   )}
                   {p.postingStatus === 'posted' && !p.reversedProvisionId && (
@@ -669,6 +673,17 @@ function ProvisionsTab({ provisions, selectedTaxYearId, showDialog, setShowDialo
           )}
         </TableBody>
       </Table>
+
+      <SapBankAccountDialog
+        open={showSapDialog}
+        onOpenChange={setShowSapDialog}
+        onConfirm={(bankAccountCode) => {
+          if (sapTarget) postSapMutation.mutate({ id: sapTarget.id, bankAccountCode });
+        }}
+        title="Post Provision to SAP"
+        description="Select the bank/cash account. For provisions, this creates Dr Tax Expense / Cr Tax Provision Liability in SAP."
+        isPending={postSapMutation.isPending}
+      />
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
@@ -723,13 +738,26 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
+  const [showChallanSapDialog, setShowChallanSapDialog] = useState(false);
+  const [challanSapTarget, setChallanSapTarget] = useState<{ id: number } | null>(null);
+
   const postSapMutation = useMutation({
-    mutationFn: async ({ id, sapJeReference }: { id: number; sapJeReference: string }) => {
-      return await apiRequest('PUT', `/api/company-tax/challans/${id}/post-sap`, { sapJeReference });
+    mutationFn: async ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) => {
+      return await apiRequest('POST', `/api/company-tax/challans/${id}/post-sap`, { bankAccountCode });
     },
-    onSuccess: () => { invalidateAll(); toast({ title: 'Posted to SAP' }); },
-    onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+    onSuccess: () => { invalidateAll(); setShowChallanSapDialog(false); setChallanSapTarget(null); toast({ title: 'Challan posted to SAP' }); },
+    onError: (err: any) => toast({ title: 'SAP Posting Error', description: err.message, variant: 'destructive' }),
   });
+
+  const reverseSapMutation = useMutation({
+    mutationFn: async ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) => {
+      return await apiRequest('POST', `/api/company-tax/challans/${id}/reverse-sap`, { bankAccountCode });
+    },
+    onSuccess: () => { invalidateAll(); setShowChallanSapDialog(false); setChallanSapTarget(null); toast({ title: 'Challan reversal posted to SAP' }); },
+    onError: (err: any) => toast({ title: 'SAP Reversal Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const [sapAction, setSapAction] = useState<'post' | 'reverse'>('post');
 
   if (!selectedTaxYearId) return <Card><CardContent className="p-8 text-center text-muted-foreground">Select an Assessment Year first</CardContent></Card>;
 
@@ -773,18 +801,29 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
               <TableCell className="text-right">₹{fmt(c.penaltyAmount)}</TableCell>
               <TableCell className="text-right font-medium">₹{fmt(c.totalAmount)}</TableCell>
               <TableCell>{formatDate(c.paymentDate)}</TableCell>
-              <TableCell>{c.sapJeReference || '-'}</TableCell>
-              <TableCell>{statusBadge(c.status)}</TableCell>
+              <TableCell>{c.sapJeReference || c.sapJeNumber || '-'}</TableCell>
+              <TableCell>{statusBadge(c.sapPostingStatus || c.status)}</TableCell>
               <TableCell>
                 <div className="flex gap-1">
                   {c.status === 'draft' && (
                     <Button size="sm" variant="outline" onClick={() => { setSelectedChallan(c); setPaymentForm({}); setShowPaymentDialog(true); }}>Pay</Button>
                   )}
-                  {c.status === 'paid' && (
+                  {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'draft' || c.sapPostingStatus === 'failed' || c.sapPostingStatus === 'not_posted') && (
                     <Button size="sm" variant="outline" onClick={() => {
-                      const je = prompt('Enter SAP JE Reference:');
-                      if (je) postSapMutation.mutate({ id: c.id, sapJeReference: je });
+                      setChallanSapTarget({ id: c.id });
+                      setSapAction('post');
+                      setShowChallanSapDialog(true);
                     }}>Post SAP</Button>
+                  )}
+                  {c.sapPostingStatus === 'posted' && !c.reversalSapDocEntry && (
+                    <Button size="sm" variant="outline" className="text-orange-600" onClick={() => {
+                      setChallanSapTarget({ id: c.id });
+                      setSapAction('reverse');
+                      setShowChallanSapDialog(true);
+                    }}><Undo2 className="h-3 w-3 mr-1" /> Reverse</Button>
+                  )}
+                  {c.sapPostingStatus === 'reversed' && (
+                    <Badge variant="outline" className="text-xs text-gray-500">Reversed</Badge>
                   )}
                 </div>
               </TableCell>
@@ -795,6 +834,26 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
           )}
         </TableBody>
       </Table>
+
+      <SapBankAccountDialog
+        open={showChallanSapDialog}
+        onOpenChange={setShowChallanSapDialog}
+        onConfirm={(bankAccountCode) => {
+          if (challanSapTarget) {
+            if (sapAction === 'post') {
+              postSapMutation.mutate({ id: challanSapTarget.id, bankAccountCode });
+            } else {
+              reverseSapMutation.mutate({ id: challanSapTarget.id, bankAccountCode });
+            }
+          }
+        }}
+        title={sapAction === 'post' ? "Post CIT Challan to SAP" : "Reverse CIT Challan in SAP"}
+        description={sapAction === 'post'
+          ? "Select the bank/cash account from which this tax payment was made. JE: Dr Tax Provision, Cr Bank."
+          : "Select the bank/cash account used for the original payment. A reversal JE will be posted: Dr Bank, Cr Tax Provision."
+        }
+        isPending={postSapMutation.isPending || reverseSapMutation.isPending}
+      />
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>

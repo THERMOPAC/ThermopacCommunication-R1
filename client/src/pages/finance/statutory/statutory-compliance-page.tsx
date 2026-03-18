@@ -11,16 +11,20 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarDays, FileText, CheckCircle, Clock, AlertTriangle, IndianRupee, Users, Download, CreditCard } from "lucide-react";
+import { CalendarDays, FileText, CheckCircle, Clock, AlertTriangle, IndianRupee, Users, Download, CreditCard, Undo2, Upload } from "lucide-react";
 import Layout from "@/components/layout";
+import SapBankAccountDialog from "@/components/sap-bank-account-dialog";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
   calculated: 'bg-blue-100 text-blue-800',
   paid: 'bg-green-100 text-green-800',
-  filed: 'bg-purple-100 text-purple-800',
-  reversed: 'bg-red-100 text-red-800',
+  posted: 'bg-emerald-100 text-emerald-800',
+  reversed: 'bg-orange-100 text-orange-800',
+  failed: 'bg-red-100 text-red-800',
   pending: 'bg-yellow-100 text-yellow-800',
+  filed: 'bg-purple-100 text-purple-800',
+  not_posted: 'bg-gray-100 text-gray-600',
 };
 
 const MODULE_CONFIG: Record<string, {
@@ -170,6 +174,34 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
       toast({ title: 'Filing status updated' });
     },
+  });
+
+  const [showSapPostDialog, setShowSapPostDialog] = useState(false);
+  const [sapChallanTarget, setSapChallanTarget] = useState<{ id: number } | null>(null);
+  const [sapPostAction, setSapPostAction] = useState<'post' | 'reverse'>('post');
+
+  const postSapMutation = useMutation({
+    mutationFn: ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) =>
+      apiRequest('POST', `/api/statutory/challans/${id}/post-sap`, { bankAccountCode }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
+      setShowSapPostDialog(false);
+      setSapChallanTarget(null);
+      toast({ title: 'Challan posted to SAP' });
+    },
+    onError: (e: any) => toast({ title: 'SAP Posting Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const reverseSapMutation = useMutation({
+    mutationFn: ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) =>
+      apiRequest('POST', `/api/statutory/challans/${id}/reverse-sap`, { bankAccountCode }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
+      setShowSapPostDialog(false);
+      setSapChallanTarget(null);
+      toast({ title: 'Challan reversal posted to SAP' });
+    },
+    onError: (e: any) => toast({ title: 'SAP Reversal Error', description: e.message, variant: 'destructive' }),
   });
 
   const createFilingMutation = useMutation({
@@ -373,13 +405,34 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
                       <TableCell>{c.paymentReference || '—'}</TableCell>
                       {moduleType === 'TDS' && <TableCell className="text-sm">{c.bsrCode || '—'} / {c.cinNumber || '—'}</TableCell>}
                       {moduleType === 'PF' && <TableCell>{c.trrnNumber || '—'}</TableCell>}
-                      <TableCell>{c.sapJeReference || '—'}</TableCell>
-                      <TableCell><Badge className={STATUS_COLORS[c.status]}>{c.status}</Badge></TableCell>
+                      <TableCell>{c.sapJeReference || c.sapJeNumber || '—'}</TableCell>
+                      <TableCell>
+                        <Badge className={STATUS_COLORS[c.sapPostingStatus || c.status]}>{c.sapPostingStatus || c.status}</Badge>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="ghost" onClick={() => openDetail(c)}>View</Button>
                           {c.status === 'calculated' && <Button size="sm" variant="outline" onClick={() => openPaymentDialog(c)}><CreditCard className="h-3 w-3 mr-1" />Pay</Button>}
-                          {c.status === 'paid' && <Button size="sm" variant="outline" onClick={() => filingMutation.mutate({ id: c.id })}><FileText className="h-3 w-3 mr-1" />File</Button>}
+                          {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'failed') && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => filingMutation.mutate({ id: c.id })}><FileText className="h-3 w-3 mr-1" />File</Button>
+                              <Button size="sm" variant="outline" onClick={() => {
+                                setSapChallanTarget({ id: c.id });
+                                setSapPostAction('post');
+                                setShowSapPostDialog(true);
+                              }}><Upload className="h-3 w-3 mr-1" />Post SAP</Button>
+                            </>
+                          )}
+                          {c.sapPostingStatus === 'posted' && !c.reversalSapDocEntry && (
+                            <Button size="sm" variant="outline" className="text-orange-600" onClick={() => {
+                              setSapChallanTarget({ id: c.id });
+                              setSapPostAction('reverse');
+                              setShowSapPostDialog(true);
+                            }}><Undo2 className="h-3 w-3 mr-1" />Reverse</Button>
+                          )}
+                          {c.sapPostingStatus === 'reversed' && (
+                            <Badge variant="outline" className="text-xs text-gray-500">Reversed</Badge>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -711,6 +764,23 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
           ) : null}
         </DialogContent>
       </Dialog>
+      <SapBankAccountDialog
+        open={showSapPostDialog}
+        onOpenChange={(open) => { setShowSapPostDialog(open); if (!open) setSapChallanTarget(null); }}
+        title={sapPostAction === 'post' ? 'Post Statutory Challan to SAP' : 'Reverse Statutory Challan in SAP'}
+        description={sapPostAction === 'post'
+          ? 'Select the bank account for the payment journal entry in SAP B1.'
+          : 'Select the bank account for the reversal journal entry in SAP B1.'}
+        onConfirm={(bankAccountCode) => {
+          if (!sapChallanTarget) return;
+          if (sapPostAction === 'post') {
+            postSapMutation.mutate({ id: sapChallanTarget.id, bankAccountCode });
+          } else {
+            reverseSapMutation.mutate({ id: sapChallanTarget.id, bankAccountCode });
+          }
+        }}
+        isPending={postSapMutation.isPending || reverseSapMutation.isPending}
+      />
     </div>
     </Layout>
   );
