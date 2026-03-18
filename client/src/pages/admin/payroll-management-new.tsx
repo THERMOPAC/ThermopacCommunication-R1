@@ -434,14 +434,12 @@ function TestSapJeButton() {
       {
         AccountCode: "50207350101-ARL",
         Debit: 10000,
-        Credit: 0,
-        LineMemo: "SPECIAL_ALLOWANCE - Sanjeev Kale - February 2026"
+        Credit: 0
       },
       {
         AccountCode: "50106040400-ARL",
         Debit: 0,
-        Credit: 10000,
-        LineMemo: "Net Pay - Sanjeev Kale - February 2026"
+        Credit: 10000
       }
     ]
   };
