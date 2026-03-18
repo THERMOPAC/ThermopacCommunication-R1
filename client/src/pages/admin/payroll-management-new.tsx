@@ -415,6 +415,93 @@ function SapStatusBadge({ record }: { record: any }) {
   );
 }
 
+function TestSapJeButton() {
+  const { toast } = useToast();
+  const [showResult, setShowResult] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const testPayload = {
+    ReferenceDate: "2026-02-28",
+    DueDate: "2026-02-28",
+    TaxDate: "2026-02-28",
+    Memo: "Salary JE - Sanjeev Kale - February 2026",
+    Ref2: "V10337",
+    Ref3: "92B",
+    U_Employee_Name: "Sanjeev Kale",
+    U_TDS_Status: "A",
+    U_PF_Status: "A",
+    U_ESIC_Status: "A",
+    U_PT_Status: "A",
+    JournalEntryLines: [
+      {
+        AccountCode: "50207350101-ARL",
+        Debit: 10000,
+        Credit: 0,
+        LineMemo: "BASIC - Sanjeev Kale - February 2026"
+      },
+      {
+        ShortName: "V10337",
+        Debit: 0,
+        Credit: 10000,
+        LineMemo: "Net Pay - Sanjeev Kale - February 2026"
+      }
+    ]
+  };
+
+  const testMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/admin/payroll/test-sap-je', { jePayload: testPayload }),
+    onSuccess: (data: any) => {
+      setResult(data);
+      setShowResult(true);
+      toast({ title: 'Test JE Posted!', description: `DocEntry: ${data.sapDocEntry}, JE #${data.sapJeNumber}` });
+    },
+    onError: (e: any) => {
+      setResult({ error: e.message });
+      setShowResult(true);
+      toast({ title: 'Test JE Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  return (
+    <>
+      <Card className="border-orange-200 bg-orange-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-orange-800">SAP JE Test Mode</h4>
+              <p className="text-sm text-orange-700 mt-1">
+                Post a test Journal Entry (₹10,000 Dr Basic / ₹10,000 Cr V10337) to SAP B1
+              </p>
+            </div>
+            <Button
+              onClick={() => testMutation.mutate()}
+              disabled={testMutation.isPending}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {testMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Posting Test JE...</>
+              ) : (
+                <><Send className="h-4 w-4 mr-2" /> Test SAP JE</>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showResult} onOpenChange={setShowResult}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{result?.success ? 'Test JE Posted Successfully' : 'Test JE Result'}</DialogTitle>
+          </DialogHeader>
+          <pre className="bg-muted p-4 rounded text-xs overflow-auto max-h-96 whitespace-pre-wrap">
+            {JSON.stringify(result, null, 2)}
+          </pre>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function GeneratedSalariesView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1480,7 +1567,10 @@ export default function PayrollManagementNew() {
           </TabsContent>
 
           <TabsContent value="generated">
-            <GeneratedSalariesView />
+            <div className="space-y-4">
+              <TestSapJeButton />
+              <GeneratedSalariesView />
+            </div>
           </TabsContent>
 
           <TabsContent value="payroll-run">

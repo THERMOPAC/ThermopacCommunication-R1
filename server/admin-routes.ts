@@ -2257,6 +2257,66 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
 });
 
 /**
+ * Test SAP JE posting with custom payload
+ */
+router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    const jePayload = req.body.jePayload;
+
+    if (!jePayload) {
+      return res.status(400).json({ error: 'jePayload is required' });
+    }
+
+    const session = sapSessionManager.getSession(currentUser.id);
+    let sessionId: string;
+
+    if (session) {
+      sessionId = session.sessionId;
+    } else {
+      const sapUser = process.env.SAP_USERNAME || '';
+      const sapPass = process.env.SAP_PASSWORD || '';
+      const sapDb = process.env.SAP_COMPANY_DB || '';
+
+      if (!sapUser || !sapPass || !sapDb) {
+        return res.status(500).json({ error: 'SAP credentials not configured' });
+      }
+
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sessionId = loginResult.sessionId;
+      sapSessionManager.setSession(currentUser.id, { sessionId, routeId: undefined, userId: currentUser.id, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+    }
+
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/JournalEntries',
+      body: jePayload,
+    });
+
+    if (sapResponse.ok) {
+      const responseData = JSON.parse(sapResponse.body);
+      return res.json({
+        success: true,
+        message: 'Test JE posted successfully',
+        sapDocEntry: responseData.DocEntry,
+        sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+        response: responseData,
+      });
+    } else {
+      let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
+      try {
+        const errParsed = JSON.parse(sapResponse.body);
+        errorMsg = errParsed?.error?.message?.value || errorMsg;
+      } catch (_) {}
+      return res.status(500).json({ error: errorMsg, rawResponse: sapResponse.body });
+    }
+  } catch (error: any) {
+    console.error('Error in test SAP JE:', error);
+    res.status(500).json({ error: error.message || 'Failed to post test JE to SAP' });
+  }
+});
+
+/**
  * Post payroll salary JE to SAP B1
  */
 router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Request, res: Response) => {
