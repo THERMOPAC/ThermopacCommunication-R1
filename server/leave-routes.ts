@@ -36,6 +36,7 @@ router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Respons
         leaveTypeName: leaveTypes.name,
         leaveTypeCode: leaveTypes.code,
         colorCode: leaveTypes.colorCode,
+        isPaid: leaveTypes.isPaid,
         allocatedDays: leaveBalances.allocatedDays,
         usedDays: leaveBalances.usedDays,
         pendingDays: leaveBalances.pendingDays,

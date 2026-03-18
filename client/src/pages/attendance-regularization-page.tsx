@@ -78,6 +78,15 @@ export default function AttendanceRegularizationPage() {
   const [approveRemarks, setApproveRemarks] = useState('');
   const [rejectReason, setRejectReason] = useState('');
 
+  const { data: leaveBalance = [] } = useQuery<any[]>({
+    queryKey: ['/api/leave/balance'],
+  });
+
+  const totalPaidLeaveAvailable = leaveBalance
+    .filter((b: any) => b.isPaid)
+    .reduce((sum: number, b: any) => sum + Math.max(0, b.availableDays), 0);
+  const hasNoLeaveBalance = leaveBalance.length > 0 && totalPaidLeaveAvailable <= 0;
+
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
   const { data: absentDays = [], isLoading: loadingAbsent, error: absentError, refetch: refetchAbsent } = useQuery<any[]>({
@@ -211,7 +220,7 @@ export default function AttendanceRegularizationPage() {
           </div>
         </div>
         <Button onClick={() => { setShowNewDialog(true); setTimeout(() => refetchAbsent(), 100); }} className="gap-2">
-          <Plus className="h-4 w-4" /> New Request
+          <Plus className="h-4 w-4" /> {hasNoLeaveBalance ? 'No Leave Balance' : 'New Request'}
         </Button>
       </div>
 
@@ -532,6 +541,17 @@ export default function AttendanceRegularizationPage() {
             <DialogDescription>Select an absent day to submit a correction request</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {hasNoLeaveBalance && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-500" />
+                  <div>
+                    <p className="text-sm font-medium text-red-800">No Paid Leave Balance Available</p>
+                    <p className="text-xs text-red-600 mt-0.5">You cannot submit regularization requests without leave balance. Please contact HR to allocate leave days.</p>
+                  </div>
+                </div>
+              </div>
+            )}
             {loadingAbsent && (
               <div className="text-center py-4 text-muted-foreground text-sm">Loading absent days...</div>
             )}
@@ -652,9 +672,9 @@ export default function AttendanceRegularizationPage() {
                 requestType: newRequestType,
                 reason: newRequestReason,
               })}
-              disabled={!selectedAbsentDay || !newRequestType || !newRequestReason.trim() || submitMutation.isPending}
+              disabled={!selectedAbsentDay || !newRequestType || !newRequestReason.trim() || submitMutation.isPending || hasNoLeaveBalance}
             >
-              {submitMutation.isPending ? 'Submitting...' : 'Submit Request'}
+              {submitMutation.isPending ? 'Submitting...' : hasNoLeaveBalance ? 'No Leave Balance' : 'Submit Request'}
             </Button>
           </DialogFooter>
         </DialogContent>

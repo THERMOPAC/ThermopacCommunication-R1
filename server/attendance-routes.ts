@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays, leaveTypes, leaveBalances } from '@shared/schema';
 import { createNotification } from './notification-routes';
 import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
@@ -811,6 +811,36 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     const reqDate = new Date(requestDate);
     if (reqDate > today) {
       return res.status(400).json({ error: 'Cannot submit regularization for a future date' });
+    }
+
+    const balanceYear = reqDate.getFullYear();
+    const paidLeaveTypesList = await db.select({ id: leaveTypes.id, name: leaveTypes.name })
+      .from(leaveTypes).where(eq(leaveTypes.isPaid, true));
+
+    if (paidLeaveTypesList.length > 0) {
+      const paidLeaveTypeIds = paidLeaveTypesList.map(lt => lt.id);
+      const balances = await db.select().from(leaveBalances).where(and(
+        eq(leaveBalances.userId, user.id),
+        eq(leaveBalances.year, balanceYear),
+        inArray(leaveBalances.leaveTypeId, paidLeaveTypeIds)
+      ));
+
+      let totalAvailable = 0;
+      for (const b of balances) {
+        const allocated = parseFloat(b.allocatedDays || '0');
+        const carryover = parseFloat(b.carryoverDays || '0');
+        const used = parseFloat(b.usedDays || '0');
+        const pending = parseFloat(b.pendingDays || '0');
+        totalAvailable += Math.max(0, allocated + carryover - used - pending);
+      }
+
+      if (totalAvailable <= 0) {
+        return res.status(400).json({
+          error: 'No paid leave balance available. You cannot submit a regularization request without leave balance. Please contact HR.',
+          code: 'NO_LEAVE_BALANCE',
+          totalAvailable: 0,
+        });
+      }
     }
 
     const existing = await db.select().from(attendanceRegularizations)
