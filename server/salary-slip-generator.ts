@@ -330,15 +330,13 @@ export class SalarySlipGenerator {
     this.hLine(totalRowY + 13, '#1E3A5F', 0.6);
     y = totalRowY + 16;
 
-    doc.save();
-    doc.rect(m, y, w, 22).fillColor('#1E3A5F').fill();
-    doc.restore();
-    doc.font('Helvetica').fontSize(6.5).fillColor('#C8D8E8');
-    this.t('NET PAY', m + 10, y + 2);
-    doc.font('Helvetica-Bold').fontSize(13).fillColor('#FFFFFF');
+    this.hLine(y, '#000000', 0.8);
+    doc.font('Helvetica-Bold').fontSize(7).fillColor('#000000');
+    this.t('NET PAY', m + 10, y + 3);
+    doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000');
     this.t(fmtDec(d.totals.netPay), m + 10, y + 2, { width: w - 20, align: 'right' });
     const wordsText = d.netPayInWords || numberToWords(Math.round(d.totals.netPay));
-    doc.font('Helvetica').fontSize(6).fillColor('#C8D8E8');
+    doc.font('Helvetica').fontSize(6).fillColor('#374151');
     this.t(wordsText, m + 10, y + 15);
     y += 25;
 
