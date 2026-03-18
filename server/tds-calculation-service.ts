@@ -123,7 +123,7 @@ export async function computeMonthlyTds(
       eq(employeeTaxDeclarations.financialYear, financialYear)
     ));
 
-  const regime = declaration?.regime || 'new';
+  const regime = 'new';
 
   const slabs = await db.select().from(taxSlabs)
     .where(and(
