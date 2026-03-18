@@ -292,6 +292,7 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
         sapDocEntry: result.docEntry,
         sapJeNumber: result.jeNumber,
         sapJeReference: result.jeNumber,
+        sapBankAccountCode: bankAccountCode.trim(),
         sapPostedAt: new Date(),
         sapPostingStatus: 'posted',
         sapPostingError: null,
@@ -317,11 +318,6 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
   try {
     const id = parseInt(req.params.id);
     const currentUser = (req as any).user;
-    const { bankAccountCode } = req.body;
-
-    if (!bankAccountCode || typeof bankAccountCode !== 'string' || bankAccountCode.trim() === '') {
-      return res.status(400).json({ error: 'bankAccountCode is required. Please select the bank/cash account used for the original payment.' });
-    }
 
     const [challan] = await db.select().from(companyTaxChallans).where(eq(companyTaxChallans.id, id));
     if (!challan) return res.status(404).json({ error: 'Challan not found' });
@@ -331,6 +327,11 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
     }
     if (challan.reversalSapDocEntry) {
       return res.status(400).json({ error: 'Already reversed', reversalJeNumber: challan.reversalSapJeNumber });
+    }
+
+    const bankAccountCode = challan.sapBankAccountCode;
+    if (!bankAccountCode) {
+      return res.status(400).json({ error: 'Original bank account code not found on this challan. Cannot reverse without matching the original JE.' });
     }
 
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
@@ -345,7 +346,7 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
       Reference3: 'CIT-REV',
       JournalEntryLines: [
         { Line_ID: 0, AccountCode: provisionGl, Debit: 0, Credit: amount, LineMemo: `REVERSAL: CIT Tax Provision - ${challan.challanReference}` },
-        { Line_ID: 1, AccountCode: bankAccountCode.trim(), Debit: amount, Credit: 0, LineMemo: `REVERSAL: Bank - CIT Challan ${challan.challanReference}` },
+        { Line_ID: 1, AccountCode: bankAccountCode, Debit: amount, Credit: 0, LineMemo: `REVERSAL: Bank - CIT Challan ${challan.challanReference}` },
       ],
     };
 

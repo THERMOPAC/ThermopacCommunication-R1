@@ -965,6 +965,7 @@ router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
         sapDocEntry: result.docEntry,
         sapJeNumber: result.jeNumber,
         sapJeReference: result.jeNumber,
+        sapBankAccountCode: bankAccountCode.trim(),
         sapPostedAt: new Date(),
         sapPostingStatus: 'posted',
         sapPostingError: null,
@@ -996,11 +997,6 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
   try {
     const challanId = parseInt(req.params.id);
     const currentUser = (req as any).user;
-    const { bankAccountCode } = req.body;
-
-    if (!bankAccountCode || typeof bankAccountCode !== 'string' || bankAccountCode.trim() === '') {
-      return res.status(400).json({ error: 'bankAccountCode is required. Please select the bank/cash account used for the original payment.' });
-    }
 
     const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, challanId));
     if (!challan) return res.status(404).json({ error: 'Challan not found' });
@@ -1011,6 +1007,11 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
 
     if (challan.reversalSapDocEntry) {
       return res.status(400).json({ error: 'This challan has already been reversed.', reversalJeNumber: challan.reversalSapJeNumber });
+    }
+
+    const bankAccountCode = challan.sapBankAccountCode;
+    if (!bankAccountCode) {
+      return res.status(400).json({ error: 'Original bank account code not found on this challan. Cannot reverse without matching the original JE.' });
     }
 
     const moduleType = challan.moduleType.toUpperCase();
@@ -1065,7 +1066,7 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
     if (totalBankDebit > 0) {
       jeLines.push({
         Line_ID: lineNum++,
-        AccountCode: bankAccountCode.trim(),
+        AccountCode: bankAccountCode,
         Debit: totalBankDebit,
         Credit: 0,
         LineMemo: `REVERSAL: Bank - ${moduleType} Challan ${challan.challanReference} - ${periodLabel}`,

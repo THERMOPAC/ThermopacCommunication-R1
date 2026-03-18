@@ -750,14 +750,12 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
   });
 
   const reverseSapMutation = useMutation({
-    mutationFn: async ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) => {
-      return await apiRequest('POST', `/api/company-tax/challans/${id}/reverse-sap`, { bankAccountCode });
+    mutationFn: async (id: number) => {
+      return await apiRequest('POST', `/api/company-tax/challans/${id}/reverse-sap`, {});
     },
-    onSuccess: () => { invalidateAll(); setShowChallanSapDialog(false); setChallanSapTarget(null); toast({ title: 'Challan reversal posted to SAP' }); },
+    onSuccess: () => { invalidateAll(); toast({ title: 'Challan reversal posted to SAP' }); },
     onError: (err: any) => toast({ title: 'SAP Reversal Error', description: err.message, variant: 'destructive' }),
   });
-
-  const [sapAction, setSapAction] = useState<'post' | 'reverse'>('post');
 
   if (!selectedTaxYearId) return <Card><CardContent className="p-8 text-center text-muted-foreground">Select an Assessment Year first</CardContent></Card>;
 
@@ -811,16 +809,17 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
                   {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'draft' || c.sapPostingStatus === 'failed' || c.sapPostingStatus === 'not_posted') && (
                     <Button size="sm" variant="outline" onClick={() => {
                       setChallanSapTarget({ id: c.id });
-                      setSapAction('post');
                       setShowChallanSapDialog(true);
                     }}>Post SAP</Button>
                   )}
                   {c.sapPostingStatus === 'posted' && !c.reversalSapDocEntry && (
-                    <Button size="sm" variant="outline" className="text-orange-600" onClick={() => {
-                      setChallanSapTarget({ id: c.id });
-                      setSapAction('reverse');
-                      setShowChallanSapDialog(true);
-                    }}><Undo2 className="h-3 w-3 mr-1" /> Reverse</Button>
+                    <Button size="sm" variant="outline" className="text-orange-600"
+                      disabled={reverseSapMutation.isPending}
+                      onClick={() => {
+                        if (confirm(`Reverse SAP JE for challan ${c.challanReference}? This will post a mirror reversal entry using the original bank account (${c.sapBankAccountCode || 'stored'}).`)) {
+                          reverseSapMutation.mutate(c.id);
+                        }
+                      }}><Undo2 className="h-3 w-3 mr-1" /> Reverse</Button>
                   )}
                   {c.sapPostingStatus === 'reversed' && (
                     <Badge variant="outline" className="text-xs text-gray-500">Reversed</Badge>
@@ -837,22 +836,15 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
 
       <SapBankAccountDialog
         open={showChallanSapDialog}
-        onOpenChange={setShowChallanSapDialog}
+        onOpenChange={(open) => { setShowChallanSapDialog(open); if (!open) setChallanSapTarget(null); }}
         onConfirm={(bankAccountCode) => {
           if (challanSapTarget) {
-            if (sapAction === 'post') {
-              postSapMutation.mutate({ id: challanSapTarget.id, bankAccountCode });
-            } else {
-              reverseSapMutation.mutate({ id: challanSapTarget.id, bankAccountCode });
-            }
+            postSapMutation.mutate({ id: challanSapTarget.id, bankAccountCode });
           }
         }}
-        title={sapAction === 'post' ? "Post CIT Challan to SAP" : "Reverse CIT Challan in SAP"}
-        description={sapAction === 'post'
-          ? "Select the bank/cash account from which this tax payment was made. JE: Dr Tax Provision, Cr Bank."
-          : "Select the bank/cash account used for the original payment. A reversal JE will be posted: Dr Bank, Cr Tax Provision."
-        }
-        isPending={postSapMutation.isPending || reverseSapMutation.isPending}
+        title="Post CIT Challan to SAP"
+        description="Select the bank/cash account from which this tax payment was made. JE: Dr Tax Provision, Cr Bank. This bank account will be stored and automatically used if you need to reverse later."
+        isPending={postSapMutation.isPending}
       />
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

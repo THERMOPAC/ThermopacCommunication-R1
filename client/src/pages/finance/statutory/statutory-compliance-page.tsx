@@ -178,7 +178,6 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
 
   const [showSapPostDialog, setShowSapPostDialog] = useState(false);
   const [sapChallanTarget, setSapChallanTarget] = useState<{ id: number } | null>(null);
-  const [sapPostAction, setSapPostAction] = useState<'post' | 'reverse'>('post');
 
   const postSapMutation = useMutation({
     mutationFn: ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) =>
@@ -193,12 +192,10 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
   });
 
   const reverseSapMutation = useMutation({
-    mutationFn: ({ id, bankAccountCode }: { id: number; bankAccountCode: string }) =>
-      apiRequest('POST', `/api/statutory/challans/${id}/reverse-sap`, { bankAccountCode }),
+    mutationFn: (id: number) =>
+      apiRequest('POST', `/api/statutory/challans/${id}/reverse-sap`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
-      setShowSapPostDialog(false);
-      setSapChallanTarget(null);
       toast({ title: 'Challan reversal posted to SAP' });
     },
     onError: (e: any) => toast({ title: 'SAP Reversal Error', description: e.message, variant: 'destructive' }),
@@ -424,11 +421,13 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
                             </>
                           )}
                           {c.sapPostingStatus === 'posted' && !c.reversalSapDocEntry && (
-                            <Button size="sm" variant="outline" className="text-orange-600" onClick={() => {
-                              setSapChallanTarget({ id: c.id });
-                              setSapPostAction('reverse');
-                              setShowSapPostDialog(true);
-                            }}><Undo2 className="h-3 w-3 mr-1" />Reverse</Button>
+                            <Button size="sm" variant="outline" className="text-orange-600"
+                              disabled={reverseSapMutation.isPending}
+                              onClick={() => {
+                                if (confirm(`Reverse SAP JE for challan ${c.challanReference}? This will post a mirror reversal entry using the original bank account (${c.sapBankAccountCode || 'stored'}).`)) {
+                                  reverseSapMutation.mutate(c.id);
+                                }
+                              }}><Undo2 className="h-3 w-3 mr-1" />Reverse</Button>
                           )}
                           {c.sapPostingStatus === 'reversed' && (
                             <Badge variant="outline" className="text-xs text-gray-500">Reversed</Badge>
@@ -767,19 +766,13 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
       <SapBankAccountDialog
         open={showSapPostDialog}
         onOpenChange={(open) => { setShowSapPostDialog(open); if (!open) setSapChallanTarget(null); }}
-        title={sapPostAction === 'post' ? 'Post Statutory Challan to SAP' : 'Reverse Statutory Challan in SAP'}
-        description={sapPostAction === 'post'
-          ? 'Select the bank account for the payment journal entry in SAP B1.'
-          : 'Select the bank account for the reversal journal entry in SAP B1.'}
+        title="Post Statutory Challan to SAP"
+        description="Select the bank account for the payment journal entry in SAP B1. This bank account will be stored and automatically used if you need to reverse later."
         onConfirm={(bankAccountCode) => {
           if (!sapChallanTarget) return;
-          if (sapPostAction === 'post') {
-            postSapMutation.mutate({ id: sapChallanTarget.id, bankAccountCode });
-          } else {
-            reverseSapMutation.mutate({ id: sapChallanTarget.id, bankAccountCode });
-          }
+          postSapMutation.mutate({ id: sapChallanTarget.id, bankAccountCode });
         }}
-        isPending={postSapMutation.isPending || reverseSapMutation.isPending}
+        isPending={postSapMutation.isPending}
       />
     </div>
     </Layout>
