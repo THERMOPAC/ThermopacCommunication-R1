@@ -462,7 +462,7 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
         break;
     }
 
-    if (empAmt > 0 || emprAmt > 0) {
+    if ((empAmt > 0 || emprAmt > 0) && rec.employeeId) {
       totalEmp += empAmt;
       totalEmpr += emprAmt;
       detailRows.push({
