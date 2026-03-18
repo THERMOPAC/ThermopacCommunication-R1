@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { CalendarDays, FileText, CheckCircle, Clock, AlertTriangle, IndianRupee, Users, Download, CreditCard } from "lucide-react";
+import Layout from "@/components/layout";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
@@ -218,6 +219,7 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
   }, []);
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -710,5 +712,6 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
         </DialogContent>
       </Dialog>
     </div>
+    </Layout>
   );
 }

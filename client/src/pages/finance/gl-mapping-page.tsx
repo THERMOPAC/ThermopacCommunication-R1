@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Plus, AlertTriangle, CheckCircle, Pencil, Trash2, Landmark } from "lucide-react";
+import Layout from "@/components/layout";
 
 const COMPONENTS = [
   { code: 'BASIC', name: 'Basic Salary', category: 'earning' },
@@ -126,6 +127,7 @@ export default function GlMappingPage() {
   const contextLabel = (ctx: string) => CONTEXTS.find(c => c.value === ctx)?.label || ctx;
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -295,5 +297,6 @@ export default function GlMappingPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </Layout>
   );
 }
