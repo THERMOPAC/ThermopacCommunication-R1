@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, Pencil, Landmark, Database, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle, Pencil, Landmark, Search } from "lucide-react";
 import Layout from "@/components/layout";
 
 const COMPONENTS = [
@@ -81,14 +81,6 @@ const CATEGORIES = [
 
 const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'employee_payable', 'statutory_penalty', 'company_tax', 'company_tax_penalty'];
 
-const SEED_MODULES = [
-  { key: 'payroll', label: 'Payroll' },
-  { key: 'tds', label: 'TDS' },
-  { key: 'pf', label: 'PF' },
-  { key: 'esic', label: 'ESIC' },
-  { key: 'pt', label: 'PT' },
-  { key: 'cit', label: 'Company Income Tax' },
-];
 
 export default function GlMappingPage() {
   const { toast } = useToast();
@@ -115,23 +107,6 @@ export default function GlMappingPage() {
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
-  const seedAllMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/statutory/gl-mappings/seed-all'),
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
-      toast({ title: 'All GL Mappings Seeded', description: `${data.created} of ${data.total} rows created` });
-    },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
-  });
-
-  const seedModuleMutation = useMutation({
-    mutationFn: (module: string) => apiRequest('POST', `/api/statutory/gl-mappings/seed/${module}`),
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
-      toast({ title: 'GL Mappings Seeded', description: `${data.created} of ${data.total} rows created` });
-    },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
-  });
 
   function openEdit(m: any) {
     setEditId(m.id);
@@ -211,24 +186,6 @@ export default function GlMappingPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Landmark className="h-6 w-6" /> GL Account Mapping</h1>
           <p className="text-muted-foreground mt-1">Centralized GL mapping for all payroll and statutory modules</p>
         </div>
-        {isAdmin && (
-          <div className="flex gap-2 items-center">
-            <Select onValueChange={(module) => seedModuleMutation.mutate(module)}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Seed by Module..." />
-              </SelectTrigger>
-              <SelectContent>
-                {SEED_MODULES.map(m => (
-                  <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending} variant="outline">
-              <Database className="h-4 w-4 mr-2" />
-              {seedAllMutation.isPending ? 'Seeding...' : 'Seed All Modules'}
-            </Button>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
