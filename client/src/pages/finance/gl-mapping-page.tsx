@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, Pencil, Landmark, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle, Pencil, Landmark, Search, Database } from "lucide-react";
 import Layout from "@/components/layout";
 
 const COMPONENTS = [
@@ -34,7 +34,7 @@ const COMPONENTS = [
   { code: 'ESIC_EMPLOYER', name: 'Employer ESIC', category: 'employer_contribution' },
   { code: 'GRATUITY', name: 'Gratuity Provision', category: 'employer_contribution' },
   { code: 'GROUP_INSURANCE', name: 'Group Insurance', category: 'employer_contribution' },
-  { code: 'EMPLOYEE_PAYABLE', name: 'Employee Payable (Net Salary)', category: 'employee_payable' },
+  { code: 'NET_PAY', name: 'Net Salary Payable', category: 'net_pay' },
   { code: 'TDS_INTEREST', name: 'TDS Interest (Late Deposit)', category: 'statutory_penalty' },
   { code: 'TDS_PENALTY', name: 'TDS Penalty', category: 'statutory_penalty' },
   { code: 'TDS_LATE_FEE', name: 'TDS Late Filing Fee (234E)', category: 'statutory_penalty' },
@@ -73,13 +73,13 @@ const CATEGORIES = [
   { value: 'deduction', label: 'Deductions', color: 'bg-red-100 text-red-800' },
   { value: 'statutory', label: 'Statutory', color: 'bg-blue-100 text-blue-800' },
   { value: 'employer_contribution', label: 'Employer Contributions', color: 'bg-purple-100 text-purple-800' },
-  { value: 'employee_payable', label: 'Employee Payable', color: 'bg-orange-100 text-orange-800' },
+  { value: 'net_pay', label: 'Net Pay', color: 'bg-orange-100 text-orange-800' },
   { value: 'statutory_penalty', label: 'Statutory Penalty / Interest', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'company_tax', label: 'Company Income Tax', color: 'bg-indigo-100 text-indigo-800' },
   { value: 'company_tax_penalty', label: 'Company Tax Penalty / Interest', color: 'bg-rose-100 text-rose-800' },
 ];
 
-const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'employee_payable', 'statutory_penalty', 'company_tax', 'company_tax_penalty'];
+const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'net_pay', 'statutory_penalty', 'company_tax', 'company_tax_penalty'];
 
 
 export default function GlMappingPage() {

@@ -71,6 +71,21 @@ router.delete('/gl-mappings/:id', async (req: Request, res: Response) => {
 
 router.get('/gl-mappings/validate/:moduleType', async (req: Request, res: Response) => {
   const moduleType = req.params.moduleType.toUpperCase();
+  if (moduleType === 'PAYROLL') {
+    const allMappings = await db.select().from(glAccountMappings)
+      .where(eq(glAccountMappings.isActive, true));
+    const payrollCodes = PAYROLL_SEED_ROWS.map(r => `${r.componentCode}|${r.postingContext}`);
+    const mappedKeys = new Set(
+      allMappings
+        .filter(m => m.glAccountCode && m.glAccountCode.trim() !== '')
+        .map(m => `${m.componentCode}|${m.postingContext}`)
+    );
+    const missingComponents = PAYROLL_SEED_ROWS
+      .filter(r => !mappedKeys.has(`${r.componentCode}|${r.postingContext}`))
+      .map(r => ({ componentCode: r.componentCode, postingContext: r.postingContext, componentName: r.componentName }));
+    return res.json({ valid: missingComponents.length === 0, missing: missingComponents.map(m => m.componentCode), missingComponents, total: PAYROLL_SEED_ROWS.length, mapped: PAYROLL_SEED_ROWS.length - missingComponents.length });
+  }
+
   const componentMap: Record<string, string[]> = {
     TDS: ['TDS'],
     PF: ['PF_EMPLOYEE', 'PF_EMPLOYER'],
@@ -84,7 +99,7 @@ router.get('/gl-mappings/validate/:moduleType', async (req: Request, res: Respon
       eq(glAccountMappings.postingContext, 'statutory_payment'),
       eq(glAccountMappings.isActive, true),
     ));
-  const mapped = mappings.map(m => m.componentCode);
+  const mapped = mappings.filter(m => m.glAccountCode && m.glAccountCode.trim() !== '').map(m => m.componentCode);
   const missing = required.filter(r => !mapped.includes(r));
   res.json({ valid: missing.length === 0, missing, mapped });
 });
@@ -141,7 +156,7 @@ const PAYROLL_SEED_ROWS = [
   { componentCode: 'GRATUITY', componentName: 'Gratuity Provision', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
   { componentCode: 'GROUP_INSURANCE', componentName: 'Group Insurance', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'GROUP_INSURANCE', componentName: 'Group Insurance', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
-  { componentCode: 'EMPLOYEE_PAYABLE', componentName: 'Employee Payable (Net Salary)', category: 'employee_payable', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'NET_PAY', componentName: 'Net Salary Payable', category: 'net_pay', postingContext: 'payroll_liability', debitCredit: 'credit' },
 ];
 
 const TDS_SEED_ROWS = [
