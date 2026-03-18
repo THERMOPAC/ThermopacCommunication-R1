@@ -373,7 +373,16 @@ export default function LoansAdvancesPage() {
               <Select value={loanForm.employeeId} onValueChange={(v) => setLoanForm({ ...loanForm, employeeId: v })}>
                 <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
                 <SelectContent>
-                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}</SelectItem>)}
+                  {Object.entries(groupedByRole).map(([role, roleUsers]) => (
+                    <SelectGroup key={role}>
+                      <SelectLabel className="text-xs font-semibold text-blue-600">{role}</SelectLabel>
+                      {roleUsers.map((u: any) => {
+                        const name = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username;
+                        const dept = u.department ? ` • ${u.department}` : '';
+                        return <SelectItem key={u.id} value={String(u.id)}>{name}{dept}</SelectItem>;
+                      })}
+                    </SelectGroup>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -490,7 +499,16 @@ export default function LoansAdvancesPage() {
               <Select value={advanceForm.employeeId} onValueChange={(v) => setAdvanceForm({ ...advanceForm, employeeId: v })}>
                 <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
                 <SelectContent>
-                  {users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username}</SelectItem>)}
+                  {Object.entries(groupedByRole).map(([role, roleUsers]) => (
+                    <SelectGroup key={role}>
+                      <SelectLabel className="text-xs font-semibold text-blue-600">{role}</SelectLabel>
+                      {roleUsers.map((u: any) => {
+                        const name = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username;
+                        const dept = u.department ? ` • ${u.department}` : '';
+                        return <SelectItem key={u.id} value={String(u.id)}>{name}{dept}</SelectItem>;
+                      })}
+                    </SelectGroup>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
