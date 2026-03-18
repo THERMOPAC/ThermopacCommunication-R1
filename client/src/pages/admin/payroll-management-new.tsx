@@ -424,12 +424,10 @@ function TestSapJeButton() {
     JournalEntryLines: [
       {
         AccountCode: "50207350101",
-        Debit: 10000,
-        Credit: 0
+        Debit: 10000
       },
       {
         AccountCode: "50106040400",
-        Debit: 0,
         Credit: 10000
       }
     ]
