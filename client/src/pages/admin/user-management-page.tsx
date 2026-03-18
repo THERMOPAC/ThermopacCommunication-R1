@@ -80,9 +80,9 @@ const userFormSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().optional(),
-  firstName: z.string().optional(),
+  firstName: z.string().min(1, "First Name is required"),
   middleName: z.string().optional(),
-  lastName: z.string().optional(),
+  lastName: z.string().min(1, "Last Name is required"),
   jobTitle: z.string().optional(),
   department: z.string().min(1, "Department is required"),
   branch: z.string().optional(),
@@ -311,6 +311,8 @@ export default function UserManagementPage() {
     defaultValues: {
       countryCode: "+91",
       role: "Employee",
+      firstName: "",
+      lastName: "",
       department: "",
       employeeCode: "",
       cardCode: "",
@@ -398,7 +400,7 @@ export default function UserManagementPage() {
             name="firstName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>First Name</FormLabel>
+                <FormLabel>First Name *</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter first name" {...field} />
                 </FormControl>
@@ -411,7 +413,7 @@ export default function UserManagementPage() {
             name="lastName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Last Name</FormLabel>
+                <FormLabel>Last Name *</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter last name" {...field} />
                 </FormControl>
