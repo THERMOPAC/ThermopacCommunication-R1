@@ -493,7 +493,7 @@ function PayrollRunTab() {
     queryKey: ['/api/payroll/payroll-periods'],
   });
   const { data: salaryConfigs = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/salary-configs'],
+    queryKey: ['/api/admin/payroll/salary-setup'],
   });
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
