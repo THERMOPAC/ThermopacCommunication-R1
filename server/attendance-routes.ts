@@ -1034,13 +1034,11 @@ router.get('/regularization/my-requests', ensureAuthenticated, async (req: Reque
 router.get('/regularization/pending-approvals', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    const userRole = user.role || '';
-    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
 
-    let conditions: any[] = [eq(attendanceRegularizations.status, 'pending')];
-    if (!isAdmin) {
-      conditions.push(eq(attendanceRegularizations.approverId, user.id));
-    }
+    let conditions: any[] = [
+      eq(attendanceRegularizations.status, 'pending'),
+      eq(attendanceRegularizations.approverId, user.id),
+    ];
 
     const pending = await db.select({
       id: attendanceRegularizations.id,
@@ -1078,9 +1076,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
     if (!reg) return res.status(404).json({ error: 'Request not found' });
     if (reg.status !== 'pending') return res.status(400).json({ error: 'Request is not pending' });
 
-    const userRole = user.role || '';
-    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
-    if (!isAdmin && reg.approverId !== user.id) {
+    if (reg.approverId !== user.id) {
       return res.status(403).json({ error: 'You are not authorized to approve this request' });
     }
 
@@ -1301,9 +1297,7 @@ router.post('/regularization/:id/reject', ensureAuthenticated, async (req: Reque
     if (!reg) return res.status(404).json({ error: 'Request not found' });
     if (reg.status !== 'pending') return res.status(400).json({ error: 'Request is not pending' });
 
-    const userRole = user.role || '';
-    const isAdmin = ['Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
-    if (!isAdmin && reg.approverId !== user.id) {
+    if (reg.approverId !== user.id) {
       return res.status(403).json({ error: 'You are not authorized to reject this request' });
     }
 
