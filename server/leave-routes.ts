@@ -180,6 +180,37 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       return res.status(403).json({ error: `Leave modifications are locked for this period: ${lockCheck.message}` });
     }
 
+    const [leaveType] = await db.select().from(leaveTypes).where(eq(leaveTypes.id, leaveTypeId));
+    if (!leaveType) {
+      return res.status(400).json({ error: 'Invalid leave type' });
+    }
+
+    if (leaveType.isPaid) {
+      const currentYear = new Date(startDate).getFullYear();
+      const [balance] = await db.select().from(leaveBalances).where(and(
+        eq(leaveBalances.userId, userId),
+        eq(leaveBalances.leaveTypeId, leaveTypeId),
+        eq(leaveBalances.year, currentYear)
+      ));
+
+      const allocated = parseFloat(balance?.allocatedDays || '0');
+      const carryover = parseFloat(balance?.carryoverDays || '0');
+      const used = parseFloat(balance?.usedDays || '0');
+      const pending = parseFloat(balance?.pendingDays || '0');
+      const available = allocated + carryover - used - pending;
+      const requestedDays = parseFloat(totalDays);
+
+      if (requestedDays > available) {
+        return res.status(400).json({
+          error: `Insufficient ${leaveType.name} balance. Available: ${available} day${available !== 1 ? 's' : ''}, Requested: ${requestedDays} day${requestedDays !== 1 ? 's' : ''}. You may apply for Unpaid Leave instead.`,
+          code: 'INSUFFICIENT_BALANCE',
+          available,
+          requested: requestedDays,
+          leaveTypeName: leaveType.name,
+        });
+      }
+    }
+
     const [currentUser] = await db
       .select({ reportingManagerId: users.reportingManagerId })
       .from(users)
@@ -206,17 +237,17 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       })
       .returning();
 
-    const currentYear = new Date().getFullYear();
+    const balanceYear = new Date(startDate).getFullYear();
     const [existingBalance] = await db.select().from(leaveBalances).where(and(
       eq(leaveBalances.userId, userId),
       eq(leaveBalances.leaveTypeId, leaveTypeId),
-      eq(leaveBalances.year, currentYear)
+      eq(leaveBalances.year, balanceYear)
     ));
     if (!existingBalance) {
       await db.insert(leaveBalances).values({
         userId,
         leaveTypeId,
-        year: currentYear,
+        year: balanceYear,
         allocatedDays: '0.00',
         usedDays: '0.00',
         pendingDays: totalDays.toString(),

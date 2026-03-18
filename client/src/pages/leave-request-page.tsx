@@ -293,6 +293,17 @@ export default function LeaveRequestPage() {
     return differenceInDays(end, start) + 1;
   };
 
+  const selectedLeaveType = formData.leaveTypeId
+    ? leaveTypes.find(t => t.id === parseInt(formData.leaveTypeId))
+    : null;
+  const selectedBalance = formData.leaveTypeId
+    ? leaveBalances.find(b => b.leaveTypeId === parseInt(formData.leaveTypeId))
+    : null;
+  const availableDays = selectedBalance ? selectedBalance.availableDays : 0;
+  const requestedDays = calculateDays();
+  const isPaidLeave = selectedLeaveType?.isPaid ?? false;
+  const hasInsufficientBalance = isPaidLeave && requestedDays > 0 && requestedDays > availableDays;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -300,6 +311,15 @@ export default function LeaveRequestPage() {
       toast({
         title: 'Validation Error',
         description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (hasInsufficientBalance) {
+      toast({
+        title: 'Insufficient Leave Balance',
+        description: `You have ${availableDays} day${availableDays !== 1 ? 's' : ''} available but requested ${requestedDays}. Consider applying for Unpaid Leave.`,
         variant: 'destructive',
       });
       return;
@@ -863,6 +883,27 @@ export default function LeaveRequestPage() {
                 </div>
               )}
 
+              {selectedLeaveType && isPaidLeave && (
+                <div className={`p-3 rounded-md ${hasInsufficientBalance ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+                  <p className={`text-sm font-medium ${hasInsufficientBalance ? 'text-red-800' : 'text-green-800'}`}>
+                    {selectedLeaveType.name} Balance: {availableDays} day{availableDays !== 1 ? 's' : ''} available
+                  </p>
+                  {hasInsufficientBalance && (
+                    <p className="text-sm text-red-600 mt-1">
+                      Insufficient balance — you need {requestedDays} day{requestedDays !== 1 ? 's' : ''} but only {availableDays} available. You may apply for Unpaid Leave instead.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {selectedLeaveType && !isPaidLeave && (
+                <div className="p-3 rounded-md bg-gray-50 border border-gray-200">
+                  <p className="text-sm text-gray-700">
+                    {selectedLeaveType.name} — no balance deduction (unpaid leave)
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="reason">Reason *</Label>
                 <Textarea
@@ -909,10 +950,10 @@ export default function LeaveRequestPage() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={createRequestMutation.isPending}
+                  disabled={createRequestMutation.isPending || hasInsufficientBalance}
                   data-testid="button-submit-leave-request"
                 >
-                  {createRequestMutation.isPending ? 'Submitting...' : 'Submit Request'}
+                  {createRequestMutation.isPending ? 'Submitting...' : hasInsufficientBalance ? 'Insufficient Balance' : 'Submit Request'}
                 </Button>
               </div>
             </form>
