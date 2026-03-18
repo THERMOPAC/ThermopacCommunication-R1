@@ -438,7 +438,7 @@ function TestSapJeButton() {
         LineMemo: "SPECIAL_ALLOWANCE - Sanjeev Kale - February 2026"
       },
       {
-        ShortName: "50106040400-ARL",
+        AccountCode: "50106040400-ARL",
         Debit: 0,
         Credit: 10000,
         LineMemo: "Net Pay - Sanjeev Kale - February 2026"
