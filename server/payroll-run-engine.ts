@@ -186,7 +186,7 @@ export async function executeStep(
 
 async function getActiveEmployees(): Promise<any[]> {
   return db
-    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department })
+    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays })
     .from(users)
     .where(and(eq(users.isActive, true), ne(users.role, 'superuser')));
 }
@@ -282,6 +282,17 @@ async function stepAttendanceSnapshot(
         0
       );
 
+      const weeklyOffs = emp.weeklyOffDays || [0, 6];
+      const sDate = new Date(period.startDate);
+      const eDate = new Date(period.endDate);
+      let weekOffCount = 0;
+      const cur = new Date(sDate);
+      while (cur <= eDate) {
+        if (weeklyOffs.includes(cur.getDay())) weekOffCount++;
+        cur.setDate(cur.getDate() + 1);
+      }
+      const initialPaidDays = presentDays + weekOffCount + holidayDates.size;
+
       await db
         .insert(payrollAttendanceSnapshot)
         .values({
@@ -294,7 +305,7 @@ async function stepAttendanceSnapshot(
           halfDays: halfDays.toString(),
           lateDays,
           overtimeHours: totalOT.toString(),
-          paidDays: presentDays.toString(),
+          paidDays: initialPaidDays.toString(),
           paidLeaveDays: '0',
           unpaidLeaveDays: '0',
           lopDays: '0',
@@ -308,7 +319,7 @@ async function stepAttendanceSnapshot(
             halfDays: halfDays.toString(),
             lateDays,
             overtimeHours: totalOT.toString(),
-            paidDays: presentDays.toString(),
+            paidDays: initialPaidDays.toString(),
           },
         });
 
@@ -402,7 +413,8 @@ async function stepLeaveConsolidation(
         const remainingAbsent = absentDays - coveredByPaidLeave;
         const coveredByUnpaidLeave = Math.min(unpaidLeaveDays, remainingAbsent);
         const lopDays = Math.max(0, remainingAbsent - coveredByUnpaidLeave);
-        const newPaidDays = parseFloat(snap.presentDays) + coveredByPaidLeave;
+        const currentPaidDays = parseFloat(snap.paidDays);
+        const newPaidDays = currentPaidDays + coveredByPaidLeave;
 
         await db
           .update(payrollAttendanceSnapshot)
@@ -552,6 +564,10 @@ async function stepSalaryCalculation(
       const groupInsuranceAmount = parseFloat(sal.groupInsurance || '1500');
       const ptConfig = await getProfessionalTaxConfig();
 
+      const startD = new Date(period.startDate);
+      const endD = new Date(period.endDate);
+      const daysInMonth = Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1;
+
       let proratedBase: number, overtimePay: number, grossPay: number;
       let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0, bonusAllow = 0;
 
@@ -564,22 +580,18 @@ async function stepSalaryCalculation(
         bonusAllow = basicSalary * 0.0833;
         grossPay = proratedBase + overtimePay + kgpAllow;
       } else {
-        proratedBase = (basicSalary / totalWorkingDays) * paidDays;
+        const ratio = paidDays / daysInMonth;
+        proratedBase = Math.round(basicSalary * ratio * 100) / 100;
         overtimePay = 0;
-        hra = proratedBase * 0.4;
-        conv = proratedBase * 0.3;
-        ltaVal = proratedBase * 0.2;
-        specAllow = proratedBase * 0.3;
-        suppAllow = proratedBase * 0.3;
-        bonusAllow = basicSalary * 0.0833;
+        hra = Math.round(parseFloat(sal.houseRentAllowance || '0') * ratio * 100) / 100;
+        conv = Math.round(parseFloat(sal.conveyance || '0') * ratio * 100) / 100;
+        ltaVal = Math.round(parseFloat(sal.lta || '0') * ratio * 100) / 100;
+        specAllow = Math.round(parseFloat(sal.specialAllowance || '0') * ratio * 100) / 100;
+        suppAllow = Math.round(parseFloat(sal.supplementaryAllowance || '0') * ratio * 100) / 100;
+        kgpAllow = Math.round(parseFloat(sal.kgpAllowance || '0') * ratio * 100) / 100;
+        bonusAllow = Math.round(parseFloat(sal.bonus || '0') * ratio * 100) / 100;
 
-        if (['Manager', 'Employee'].includes(emp.role || '')) {
-          kgpAllow = basicSalary * 0.15 * (paidDays / totalWorkingDays);
-        } else {
-          kgpAllow = parseFloat(sal.kgpAllowance || '0') * (paidDays / totalWorkingDays);
-        }
-
-        grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
+        grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow + bonusAllow;
       }
 
       const pfBase = Math.min(proratedBase, 15000);
