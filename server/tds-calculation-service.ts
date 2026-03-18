@@ -137,11 +137,13 @@ export async function computeMonthlyTds(
     throw new Error(`No tax slabs found for FY ${financialYear}, regime ${regime}`);
   }
 
-  const previousTdsRecords = await db.select().from(tdsMonthlyRecords)
+  const allTdsRecords = await db.select().from(tdsMonthlyRecords)
     .where(and(
       eq(tdsMonthlyRecords.userId, userId),
       eq(tdsMonthlyRecords.financialYear, financialYear)
     ));
+
+  const previousTdsRecords = allTdsRecords.filter(r => r.periodId !== periodId);
 
   const tdsDeductedYtd = previousTdsRecords.reduce(
     (sum, r) => sum + parseFloat(r.tdsActualMonthly || '0'), 0
