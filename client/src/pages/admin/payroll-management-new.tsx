@@ -421,9 +421,6 @@ function TestSapJeButton() {
   const [result, setResult] = useState<any>(null);
 
   const testPayload = {
-    ReferenceDate: "2026-02-28",
-    DueDate: "2026-02-28",
-    TaxDate: "2026-02-28",
     Memo: "Salary JE - Sanjeev Kale - February 2026",
     U_Employee_Name: "Sanjeev Kale",
     U_TDS_Status: "A",
