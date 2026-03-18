@@ -81,8 +81,7 @@ export default function GlMappingPage() {
 
   const seedMutation = useMutation({
     mutationFn: () => apiRequest('POST', '/api/statutory/gl-mappings/seed-payroll'),
-    onSuccess: async (res: any) => {
-      const data = await res.json();
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
       toast({ title: 'Payroll GL Mappings Seeded', description: `${data.created} of ${data.total} rows created` });
     },
