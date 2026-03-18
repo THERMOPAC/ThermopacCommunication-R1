@@ -4,7 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 
-// Load environment variables from .env file
+// Load environment variables from .env file (does NOT override existing env vars)
 dotenv.config();
 
 const app = express();
