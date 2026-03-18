@@ -2035,14 +2035,25 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   }, []);
 
   const handleSubmit = (values: SalaryFormValues) => {
-    // Include the auto-calculated bonus and KGP allowance in the submission
     const submissionValues = {
       ...values,
-      bonus: calculations.bonus.toString(),
-      kgpAllowance: calculations.kgpAllowance.toString()
+      houseRentAllowance: calculations.houseRent.toFixed(2),
+      conveyance: calculations.conveyance.toFixed(2),
+      lta: calculations.lta.toFixed(2),
+      specialAllowance: calculations.special.toFixed(2),
+      supplementaryAllowance: calculations.supplementary.toFixed(2),
+      bonus: calculations.bonus.toFixed(2),
+      kgpAllowance: calculations.kgpAllowance.toFixed(2),
+      employeePfContribution: calculations.employeePF.toFixed(2),
+      employerPfContribution: calculations.employerPF.toFixed(2),
+      employeeEsicContribution: calculations.employeeESIC.toFixed(2),
+      employerEsicContribution: calculations.employerESIC.toFixed(2),
+      gratuityCost: calculations.gratuity.toFixed(2),
+      professionalTax: calculations.professionalTax.toFixed(2),
+      takeHomeSalary: calculations.takeHome.toFixed(2),
+      ctcMonthly: calculations.ctcMonthly.toFixed(2),
+      ctcYearly: calculations.ctcYearly.toFixed(2),
     };
-    console.log('Form submission values:', submissionValues);
-    console.log('Form validation errors:', form.formState.errors);
     onSubmit(submissionValues);
   };
 
