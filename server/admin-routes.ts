@@ -2408,6 +2408,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         lopDays: payrollRecords.lopDays,
         workingDays: payrollRecords.workingDays,
         totalDeductions: payrollRecords.totalDeductions,
+        loanDeductions: payrollRecords.loanDeductions,
+        advanceDeductions: payrollRecords.advanceDeductions,
         createdAt: payrollRecords.createdAt,
         
         // Employee details
