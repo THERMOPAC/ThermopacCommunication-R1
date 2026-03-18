@@ -23,7 +23,12 @@ import {
   insertLeavePolicySchema,
   insertWorkweekPolicySchema,
   insertEmployeeWorkweekAssignmentSchema,
-  insertWorkweekCalendarOverrideSchema
+  insertWorkweekCalendarOverrideSchema,
+  employeeLoanRepayments,
+  employeeAdvanceRecoveries,
+  employeeLoans,
+  employeeAdvances,
+  tdsMonthlyRecords
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -2203,6 +2208,36 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
   } catch (error) {
     console.error('Error fetching payroll records:', error);
     res.status(500).json({ error: 'Failed to fetch payroll records' });
+  }
+});
+
+router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const allRecords = await db.select({ id: payrollRecords.id }).from(payrollRecords);
+    const recordIds = allRecords.map(r => r.id);
+
+    if (recordIds.length > 0) {
+      const { inArray } = await import('drizzle-orm');
+      await db.delete(employeeLoanRepayments).where(inArray(employeeLoanRepayments.payrollRecordId, recordIds));
+      await db.delete(employeeAdvanceRecoveries).where(inArray(employeeAdvanceRecoveries.payrollRecordId, recordIds));
+    }
+
+    await db.delete(tdsMonthlyRecords);
+    const result = await db.delete(payrollRecords);
+
+    await db.update(employeeLoans).set({
+      totalRepaid: '0.00', outstandingBalance: sql`principal_amount`,
+      installmentsPaid: 0, status: 'active', updatedAt: new Date(),
+    });
+    await db.update(employeeAdvances).set({
+      totalRecovered: '0.00', outstandingBalance: sql`amount`,
+      installmentsRecovered: 0, status: 'active', updatedAt: new Date(),
+    });
+
+    res.json({ success: true, message: `Cleared ${allRecords.length} payroll records and related data` });
+  } catch (error) {
+    console.error('Error clearing payroll records:', error);
+    res.status(500).json({ error: 'Failed to clear payroll records' });
   }
 });
 

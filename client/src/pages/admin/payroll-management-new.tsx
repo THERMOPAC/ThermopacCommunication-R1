@@ -386,13 +386,26 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
 
 // Generated Salaries View Component
 function GeneratedSalariesView() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
     enabled: true
   });
 
+  const clearAllMutation = useMutation({
+    mutationFn: () => apiRequest('DELETE', '/api/admin/payroll/records/clear-all'),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+      setShowClearConfirm(false);
+      toast({ title: 'All Records Cleared', description: data.message });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
   const handleDownloadSalarySlip = (payrollRecordId: number) => {
-    // Open the PDF in a new window/tab
     const url = `/api/admin/salary-slip/${payrollRecordId}`;
     window.open(url, '_blank');
   };
@@ -420,9 +433,17 @@ function GeneratedSalariesView() {
   }
 
   return (
+    <>
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Generated Salary Records</CardTitle>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={() => setShowClearConfirm(true)}
+        >
+          <Trash2 className="h-4 w-4 mr-2" /> Clear All Records
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -483,6 +504,31 @@ function GeneratedSalariesView() {
         </div>
       </CardContent>
     </Card>
+
+    <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-red-600">Clear All Generated Salaries</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This will permanently delete <strong>{generatedSalaries.length}</strong> salary record{generatedSalaries.length > 1 ? 's' : ''} along with all related TDS records, loan repayments, and advance recoveries. Loan and advance balances will be reset.
+          </p>
+          <p className="text-sm font-semibold text-red-600">This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowClearConfirm(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => clearAllMutation.mutate()}
+              disabled={clearAllMutation.isPending}
+            >
+              {clearAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing...</> : 'Yes, Clear All'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
