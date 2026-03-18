@@ -85,6 +85,98 @@ router.get('/gl-mappings/validate/:moduleType', async (req: Request, res: Respon
   res.json({ valid: missing.length === 0, missing, mapped });
 });
 
+router.post('/gl-mappings/validate-je', async (req: Request, res: Response) => {
+  try {
+    const { components } = req.body;
+    if (!components || !Array.isArray(components) || components.length === 0) {
+      return res.status(400).json({ error: 'components array is required — pass only the component codes used in this JE' });
+    }
+    const needed: { code: string; context: string }[] = components;
+    const allMappings = await db.select().from(glAccountMappings)
+      .where(eq(glAccountMappings.isActive, true));
+
+    const missing: { componentCode: string; postingContext: string; componentName: string }[] = [];
+    for (const c of needed) {
+      const match = allMappings.find(
+        m => m.componentCode === c.code && m.postingContext === c.context && m.glAccountCode && m.glAccountCode.trim() !== ''
+      );
+      if (!match) {
+        const nameRow = allMappings.find(m => m.componentCode === c.code);
+        missing.push({ componentCode: c.code, postingContext: c.context, componentName: nameRow?.componentName || c.code });
+      }
+    }
+    res.json({ valid: missing.length === 0, missing, totalChecked: needed.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+const PAYROLL_SEED_ROWS = [
+  { componentCode: 'BASIC', componentName: 'Basic Salary', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'HRA', componentName: 'House Rent Allowance', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CONVEYANCE', componentName: 'Conveyance Allowance', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'LTA', componentName: 'Leave Travel Allowance', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'SPECIAL_ALLOWANCE', componentName: 'Special Allowance', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'SUPPLEMENTARY', componentName: 'Supplementary Allowance', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'KGP', componentName: 'KPI Growth Pay', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'BONUS', componentName: 'Bonus', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'OVERTIME', componentName: 'Overtime Pay', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'OTHER_ALLOWANCES', componentName: 'Other Allowances', category: 'earning', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PF_EMPLOYEE', componentName: 'Employee PF Contribution', category: 'deduction', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'ESIC_EMPLOYEE', componentName: 'Employee ESIC', category: 'deduction', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'LOAN_DEDUCTION', componentName: 'Loan EMI Recovery', category: 'deduction', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'ADVANCE_DEDUCTION', componentName: 'Advance Recovery', category: 'deduction', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'OTHER_DEDUCTIONS', componentName: 'Other Deductions', category: 'deduction', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'PT', componentName: 'Professional Tax', category: 'statutory', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'TDS', componentName: 'Tax Deducted at Source', category: 'statutory', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'PF_EMPLOYER', componentName: 'Employer PF Contribution', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PF_EMPLOYER', componentName: 'Employer PF Contribution', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'ESIC_EMPLOYER', componentName: 'Employer ESIC', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'ESIC_EMPLOYER', componentName: 'Employer ESIC', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'GRATUITY', componentName: 'Gratuity Provision', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'GRATUITY', componentName: 'Gratuity Provision', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'GROUP_INSURANCE', componentName: 'Group Insurance', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'GROUP_INSURANCE', componentName: 'Group Insurance', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'EMPLOYEE_PAYABLE', componentName: 'Employee Payable (Net Salary)', category: 'employee_payable', postingContext: 'payroll_liability', debitCredit: 'credit' },
+];
+
+router.post('/gl-mappings/seed-payroll', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Only administrators can seed GL mappings' });
+    }
+
+    const existing = await db.select({
+      code: glAccountMappings.componentCode,
+      ctx: glAccountMappings.postingContext,
+    }).from(glAccountMappings);
+
+    const existingKeys = new Set(existing.map(e => `${e.code}|${e.ctx}`));
+    const toInsert = PAYROLL_SEED_ROWS.filter(r => !existingKeys.has(`${r.componentCode}|${r.postingContext}`));
+
+    if (toInsert.length === 0) {
+      return res.json({ message: 'All payroll GL mappings already exist', created: 0, total: PAYROLL_SEED_ROWS.length });
+    }
+
+    const inserted = await db.insert(glAccountMappings).values(
+      toInsert.map(r => ({
+        ...r,
+        glAccountCode: '',
+        glAccountName: '',
+        isActive: true,
+        companyId: 1,
+        createdBy: user.id,
+        updatedBy: user.id,
+      }))
+    ).returning();
+
+    res.json({ message: `Seeded ${inserted.length} payroll GL mappings`, created: inserted.length, total: PAYROLL_SEED_ROWS.length, rows: inserted });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/challans', async (req: Request, res: Response) => {
   const { moduleType, financialYear, status } = req.query;
   let query = db.select().from(statutoryChallans);
