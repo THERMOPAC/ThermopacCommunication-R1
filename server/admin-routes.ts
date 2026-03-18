@@ -2342,18 +2342,33 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     const glResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'GET',
-      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name&$filter=ActiveAccount eq 'tYES' and PostableAccount eq 'tYES'&$top=5",
+      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name,ActiveAccount&$top=50",
       headers,
     });
     let discoveredAccounts: any[] = [];
     if (glResponse.ok) {
       try {
         const glData = JSON.parse(glResponse.body);
-        discoveredAccounts = glData.value || [];
-        console.log(`[Test SAP JE] Found ${discoveredAccounts.length} postable GL accounts:`, discoveredAccounts.map((a: any) => `${a.Code} - ${a.Name}`));
+        const allAccounts = glData.value || [];
+        console.log(`[Test SAP JE] Got ${allAccounts.length} GL accounts from SAP. First 5:`, allAccounts.slice(0, 5).map((a: any) => JSON.stringify(a)));
+        discoveredAccounts = allAccounts.filter((a: any) => a.ActiveAccount === 'tYES');
+        if (discoveredAccounts.length === 0) discoveredAccounts = allAccounts;
+        console.log(`[Test SAP JE] Using ${discoveredAccounts.length} active accounts. First 2:`, discoveredAccounts.slice(0, 2).map((a: any) => `${a.Code} - ${a.Name}`));
       } catch (_) {}
     } else {
       console.log(`[Test SAP JE] GL query failed: ${glResponse.statusCode} ${glResponse.body}`);
+      const glResponse2 = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET',
+        path: "/b1s/v1/ChartOfAccounts?$top=5",
+        headers,
+      });
+      console.log(`[Test SAP JE] Fallback GL query: ${glResponse2.statusCode} ${glResponse2.body.substring(0, 500)}`);
+      if (glResponse2.ok) {
+        try {
+          const glData2 = JSON.parse(glResponse2.body);
+          discoveredAccounts = glData2.value || [];
+        } catch (_) {}
+      }
     }
 
     let finalPayload = jePayload;
