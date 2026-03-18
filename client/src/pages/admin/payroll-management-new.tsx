@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
@@ -491,6 +491,34 @@ function TestSapJeButton() {
   );
 }
 
+function WorkflowStatusBadge({ record }: { record: any }) {
+  const status = record.status || 'generated';
+  switch (status) {
+    case 'generated':
+      return <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50"><Clock className="h-3 w-3 mr-1" /> Generated</Badge>;
+    case 'verified':
+      return <Badge className="bg-emerald-600 text-white"><ShieldCheck className="h-3 w-3 mr-1" /> Verified</Badge>;
+    case 'transferred':
+      return <Badge className="bg-green-700 text-white"><Lock className="h-3 w-3 mr-1" /> Transferred</Badge>;
+    case 'held':
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge className="bg-amber-500 text-white"><Pause className="h-3 w-3 mr-1" /> Held</Badge>
+          {record.heldReason && <span className="text-xs text-amber-700 max-w-[180px] truncate" title={record.heldReason}>{record.heldReason}</span>}
+        </div>
+      );
+    case 'rejected':
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>
+          {record.heldReason && <span className="text-xs text-red-600 max-w-[180px] truncate" title={record.heldReason}>{record.heldReason}</span>}
+        </div>
+      );
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
 function GeneratedSalariesView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -498,6 +526,14 @@ function GeneratedSalariesView() {
   const [clearRecordId, setClearRecordId] = useState<number | null>(null);
   const [showClearRecordConfirm, setShowClearRecordConfirm] = useState(false);
   const [postingId, setPostingId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [reasonAction, setReasonAction] = useState<'hold' | 'reject'>('hold');
+  const [reasonRecordId, setReasonRecordId] = useState<number | null>(null);
+  const [reasonText, setReasonText] = useState('');
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [historyRecord, setHistoryRecord] = useState<any>(null);
+
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
     enabled: true
@@ -553,9 +589,36 @@ function GeneratedSalariesView() {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ recordId, action, reason }: { recordId: number; action: string; reason?: string }) =>
+      apiRequest('PATCH', `/api/admin/payroll/records/${recordId}/status`, { action, reason }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      toast({ title: 'Status Updated', description: data.message });
+      setReasonDialogOpen(false);
+      setReasonText('');
+      setReasonRecordId(null);
+    },
+    onError: (e: any) => {
+      toast({ title: 'Status Update Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
   const handleDownloadSalarySlip = (payrollRecordId: number) => {
     const url = `/api/admin/salary-slip/${payrollRecordId}`;
     window.open(url, '_blank');
+  };
+
+  const openReasonDialog = (recordId: number, action: 'hold' | 'reject') => {
+    setReasonRecordId(recordId);
+    setReasonAction(action);
+    setReasonText('');
+    setReasonDialogOpen(true);
+  };
+
+  const submitReasonAction = () => {
+    if (!reasonRecordId || !reasonText.trim()) return;
+    statusMutation.mutate({ recordId: reasonRecordId, action: reasonAction, reason: reasonText });
   };
 
   if (isLoadingGenerated) {
@@ -580,8 +643,43 @@ function GeneratedSalariesView() {
     );
   }
 
+  const filteredRecords = statusFilter === 'all'
+    ? generatedSalaries
+    : (generatedSalaries as any[]).filter((r: any) => (r.status || 'generated') === statusFilter);
+
+  const statusCounts = (generatedSalaries as any[]).reduce((acc: any, r: any) => {
+    const s = r.status || 'generated';
+    acc[s] = (acc[s] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <>
+    <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex items-center gap-2 mr-4">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium text-muted-foreground">Filter:</span>
+      </div>
+      {[
+        { key: 'all', label: 'All', count: (generatedSalaries as any[]).length, color: 'bg-gray-100 text-gray-700 hover:bg-gray-200' },
+        { key: 'generated', label: 'Generated', count: statusCounts['generated'] || 0, color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200' },
+        { key: 'verified', label: 'Verified', count: statusCounts['verified'] || 0, color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
+        { key: 'transferred', label: 'Transferred', count: statusCounts['transferred'] || 0, color: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200' },
+        { key: 'held', label: 'Held', count: statusCounts['held'] || 0, color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200' },
+        { key: 'rejected', label: 'Rejected', count: statusCounts['rejected'] || 0, color: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200' },
+      ].map(f => (
+        <Button
+          key={f.key}
+          variant={statusFilter === f.key ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter(f.key)}
+          className={statusFilter !== f.key ? f.color : ''}
+        >
+          {f.label} ({f.count})
+        </Button>
+      ))}
+    </div>
+
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Generated Salary Records</CardTitle>
@@ -597,96 +695,245 @@ function GeneratedSalariesView() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b">
-                <th className="text-left p-4">Employee</th>
-                <th className="text-left p-4">Period</th>
-                <th className="text-left p-4">Basic Salary</th>
-                <th className="text-left p-4">Gross Earnings</th>
-                <th className="text-left p-4">Deductions</th>
-                <th className="text-left p-4">Net Salary</th>
-                <th className="text-left p-4">SAP Status</th>
-                <th className="text-left p-4">Generated On</th>
-                <th className="text-left p-4">Actions</th>
+              <tr className="border-b bg-muted/30">
+                <th className="text-left p-3 text-xs font-semibold uppercase text-muted-foreground">Employee</th>
+                <th className="text-left p-3 text-xs font-semibold uppercase text-muted-foreground">Period</th>
+                <th className="text-right p-3 text-xs font-semibold uppercase text-muted-foreground">Gross</th>
+                <th className="text-right p-3 text-xs font-semibold uppercase text-muted-foreground">Deductions</th>
+                <th className="text-right p-3 text-xs font-semibold uppercase text-muted-foreground">Net Salary</th>
+                <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">Workflow Status</th>
+                <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">SAP Status</th>
+                <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {generatedSalaries.map((record: any) => (
-                <tr key={record.id} className="border-b hover:bg-gray-50">
-                  <td className="p-4">
-                    <div className="font-medium">{record.employeeName}</div>
-                    <div className="text-sm text-gray-500">{record.employeeCode}</div>
+              {filteredRecords.map((record: any) => {
+                const recStatus = record.status || 'generated';
+                const isLocked = recStatus === 'transferred' || record.sapPostingStatus === 'posted';
+                return (
+                <tr key={record.id} className={`border-b hover:bg-gray-50 ${isLocked ? 'bg-green-50/30' : recStatus === 'rejected' ? 'bg-red-50/20' : recStatus === 'held' ? 'bg-amber-50/20' : ''}`}>
+                  <td className="p-3">
+                    <div className="font-medium text-sm">{record.employeeName}</div>
+                    <div className="text-xs text-gray-500">{record.employeeCode}</div>
                   </td>
-                  <td className="p-4">
+                  <td className="p-3 text-sm">
                     {record.month}/{record.year}
                   </td>
-                  <td className="p-4">
-                    ₹{parseFloat(record.basicSalary || 0).toLocaleString('en-IN')}
-                  </td>
-                  <td className="p-4">
+                  <td className="p-3 text-sm text-right">
                     ₹{parseFloat(record.grossEarnings || 0).toLocaleString('en-IN')}
                   </td>
-                  <td className="p-4">
+                  <td className="p-3 text-sm text-right">
                     ₹{parseFloat(record.totalDeductions || 0).toLocaleString('en-IN')}
                   </td>
-                  <td className="p-4">
-                    <span className="font-medium text-green-600">
+                  <td className="p-3 text-right">
+                    <span className="font-semibold text-green-600">
                       ₹{parseFloat(record.netSalary || 0).toLocaleString('en-IN')}
                     </span>
                   </td>
-                  <td className="p-4">
+                  <td className="p-3 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <WorkflowStatusBadge record={record} />
+                      {record.verifiedAt && recStatus === 'verified' && (
+                        <span className="text-[10px] text-emerald-600">
+                          {new Date(record.verifiedAt).toLocaleDateString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-3 text-center">
                     <SapStatusBadge record={record} />
                   </td>
-                  <td className="p-4">
-                    {new Date(record.createdAt).toLocaleDateString('en-IN')}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDownloadSalarySlip(record.id)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        <Download className="h-3.5 w-3.5 mr-1" /> Slip
-                      </Button>
-                      {record.sapPostingStatus === 'posted' ? (
-                        <Button variant="outline" size="sm" disabled className="text-green-600">
-                          <CheckCircle className="h-3.5 w-3.5 mr-1" /> JE #{record.sapJeNumber}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => postToSapMutation.mutate(record.id)}
-                          disabled={postToSapMutation.isPending && postingId === record.id}
-                          className="text-orange-600 hover:text-orange-800 hover:border-orange-300"
-                        >
-                          {postToSapMutation.isPending && postingId === record.id ? (
-                            <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Posting...</>
-                          ) : record.sapPostingStatus === 'failed' ? (
-                            <><RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry SAP</>
-                          ) : (
-                            <><Send className="h-3.5 w-3.5 mr-1" /> Transfer to SAP</>
-                          )}
-                        </Button>
-                      )}
+                  <td className="p-3">
+                    <div className="flex flex-wrap gap-1 justify-center">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => { setClearRecordId(record.id); setShowClearRecordConfirm(true); }}
-                        className="text-red-600 hover:text-red-800 hover:border-red-300"
+                        onClick={() => handleDownloadSalarySlip(record.id)}
+                        className="text-blue-600 hover:text-blue-800 h-7 px-2 text-xs"
                       >
-                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+                        <Download className="h-3 w-3 mr-1" /> Slip
                       </Button>
+
+                      {recStatus === 'generated' && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => statusMutation.mutate({ recordId: record.id, action: 'verify' })}
+                            disabled={statusMutation.isPending}
+                            className="text-emerald-600 hover:text-emerald-800 hover:border-emerald-300 h-7 px-2 text-xs"
+                          >
+                            <ShieldCheck className="h-3 w-3 mr-1" /> Verify
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openReasonDialog(record.id, 'hold')}
+                            className="text-amber-600 hover:text-amber-800 hover:border-amber-300 h-7 px-2 text-xs"
+                          >
+                            <Pause className="h-3 w-3 mr-1" /> Hold
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openReasonDialog(record.id, 'reject')}
+                            className="text-red-600 hover:text-red-800 hover:border-red-300 h-7 px-2 text-xs"
+                          >
+                            <XCircle className="h-3 w-3 mr-1" /> Reject
+                          </Button>
+                        </>
+                      )}
+
+                      {recStatus === 'verified' && !isLocked && (
+                        <>
+                          {record.sapPostingStatus === 'posted' ? (
+                            <Button variant="outline" size="sm" disabled className="text-green-600 h-7 px-2 text-xs">
+                              <CheckCircle className="h-3 w-3 mr-1" /> JE #{record.sapJeNumber}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => postToSapMutation.mutate(record.id)}
+                              disabled={postToSapMutation.isPending && postingId === record.id}
+                              className="text-orange-600 hover:text-orange-800 hover:border-orange-300 h-7 px-2 text-xs"
+                            >
+                              {postToSapMutation.isPending && postingId === record.id ? (
+                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Posting...</>
+                              ) : record.sapPostingStatus === 'failed' ? (
+                                <><RefreshCw className="h-3 w-3 mr-1" /> Retry SAP</>
+                              ) : (
+                                <><Send className="h-3 w-3 mr-1" /> Transfer to SAP</>
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openReasonDialog(record.id, 'hold')}
+                            className="text-amber-600 hover:text-amber-800 hover:border-amber-300 h-7 px-2 text-xs"
+                          >
+                            <Pause className="h-3 w-3 mr-1" /> Hold
+                          </Button>
+                        </>
+                      )}
+
+                      {(recStatus === 'held' || recStatus === 'rejected') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => statusMutation.mutate({ recordId: record.id, action: 'reopen' })}
+                          disabled={statusMutation.isPending}
+                          className="text-blue-600 hover:text-blue-800 hover:border-blue-300 h-7 px-2 text-xs"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" /> Reopen
+                        </Button>
+                      )}
+
+                      {isLocked && (
+                        <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 h-7 px-2 text-xs flex items-center">
+                          <Lock className="h-3 w-3 mr-1" /> Locked
+                        </Badge>
+                      )}
+
+                      {!isLocked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setClearRecordId(record.id); setShowClearRecordConfirm(true); }}
+                          className="text-red-600 hover:text-red-800 hover:border-red-300 h-7 px-2 text-xs"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Clear
+                        </Button>
+                      )}
+
+                      {Array.isArray(record.statusHistory) && record.statusHistory.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => { setHistoryRecord(record); setShowHistoryDialog(true); }}
+                          className="text-gray-500 hover:text-gray-700 h-7 px-2 text-xs"
+                        >
+                          <History className="h-3 w-3 mr-1" /> Audit
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
       </CardContent>
     </Card>
+
+    <Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className={reasonAction === 'hold' ? 'text-amber-600' : 'text-red-600'}>
+            {reasonAction === 'hold' ? 'Hold Salary Record' : 'Reject Salary Record'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {reasonAction === 'hold'
+              ? 'Held records can be reopened later and then verified. Please provide a reason for holding this record.'
+              : 'Rejected records will need to be reopened before they can proceed. Please provide a reason for rejection.'}
+          </p>
+          <div>
+            <Label htmlFor="reason">Reason *</Label>
+            <Input
+              id="reason"
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              placeholder={reasonAction === 'hold' ? 'e.g. Pending attendance verification' : 'e.g. Incorrect overtime calculation'}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setReasonDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant={reasonAction === 'hold' ? 'default' : 'destructive'}
+              onClick={submitReasonAction}
+              disabled={statusMutation.isPending || !reasonText.trim()}
+              className={reasonAction === 'hold' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+            >
+              {statusMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processing...</> : reasonAction === 'hold' ? 'Hold Record' : 'Reject Record'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Audit Trail — {historyRecord?.employeeName}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-80 overflow-y-auto space-y-2">
+          {historyRecord?.statusHistory?.map((entry: any, idx: number) => (
+            <div key={idx} className="flex items-start gap-3 p-2 rounded bg-muted/50 text-sm">
+              <div className="mt-0.5">
+                {entry.to === 'verified' && <ShieldCheck className="h-4 w-4 text-emerald-600" />}
+                {entry.to === 'held' && <Pause className="h-4 w-4 text-amber-600" />}
+                {entry.to === 'rejected' && <XCircle className="h-4 w-4 text-red-600" />}
+                {entry.to === 'generated' && <RotateCcw className="h-4 w-4 text-blue-600" />}
+                {entry.to === 'transferred' && <Lock className="h-4 w-4 text-green-700" />}
+              </div>
+              <div className="flex-1">
+                <div className="font-medium">
+                  <span className="capitalize">{entry.from}</span> → <span className="capitalize">{entry.to}</span>
+                </div>
+                {entry.reason && <p className="text-xs text-muted-foreground mt-0.5">Reason: {entry.reason}</p>}
+                <p className="text-xs text-muted-foreground mt-0.5">By {entry.by} on {new Date(entry.at).toLocaleString('en-IN')}</p>
+              </div>
+            </div>
+          ))}
+          {(!historyRecord?.statusHistory || historyRecord.statusHistory.length === 0) && (
+            <p className="text-sm text-muted-foreground text-center py-4">No status changes recorded.</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
       <DialogContent className="max-w-md">

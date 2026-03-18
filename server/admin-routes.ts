@@ -2145,6 +2145,13 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         incomeTax: payrollRecords.incomeTax,
         professionalTax: payrollRecords.professionalTax,
         providentFund: payrollRecords.providentFund,
+        status: payrollRecords.status,
+        verifiedBy: payrollRecords.verifiedBy,
+        verifiedAt: payrollRecords.verifiedAt,
+        heldReason: payrollRecords.heldReason,
+        heldBy: payrollRecords.heldBy,
+        heldAt: payrollRecords.heldAt,
+        statusHistory: payrollRecords.statusHistory,
         sapDocEntry: payrollRecords.sapDocEntry,
         sapJeNumber: payrollRecords.sapJeNumber,
         sapPostedAt: payrollRecords.sapPostedAt,
@@ -2210,6 +2217,13 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           netSalary: record.netPay,
           month: month,
           year: year,
+          status: record.status || 'generated',
+          verifiedBy: record.verifiedBy,
+          verifiedAt: record.verifiedAt,
+          heldReason: record.heldReason,
+          heldBy: record.heldBy,
+          heldAt: record.heldAt,
+          statusHistory: record.statusHistory || [],
           sapDocEntry: record.sapDocEntry,
           sapJeNumber: record.sapJeNumber,
           sapPostedAt: record.sapPostedAt,
@@ -2494,6 +2508,109 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
   }
 });
 
+router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.id);
+    const currentUser = req.user as any;
+    const { action, reason } = req.body;
+
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
+    if (!record) return res.status(404).json({ error: 'Payroll record not found' });
+
+    if (record.sapPostingStatus === 'posted') {
+      return res.status(400).json({ error: 'This record has been transferred to SAP and is locked.' });
+    }
+
+    const currentStatus = record.status || 'generated';
+    const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
+    const now = new Date();
+    const userName = currentUser.firstName && currentUser.lastName
+      ? `${currentUser.firstName} ${currentUser.lastName}` : currentUser.username;
+
+    let newStatus: string;
+    const updateData: any = { updatedAt: now };
+
+    switch (action) {
+      case 'verify':
+        if (currentStatus !== 'generated' && currentStatus !== 'held') {
+          return res.status(400).json({ error: `Cannot verify a record in '${currentStatus}' status. Only 'Generated' or 'Held' records can be verified.` });
+        }
+        newStatus = 'verified';
+        updateData.verifiedBy = currentUser.id;
+        updateData.verifiedAt = now;
+        updateData.heldReason = null;
+        updateData.heldBy = null;
+        updateData.heldAt = null;
+        break;
+
+      case 'hold':
+        if (currentStatus !== 'generated' && currentStatus !== 'verified') {
+          return res.status(400).json({ error: `Cannot hold a record in '${currentStatus}' status.` });
+        }
+        if (!reason || reason.trim() === '') {
+          return res.status(400).json({ error: 'A reason is required when holding a record.' });
+        }
+        newStatus = 'held';
+        updateData.heldReason = reason.trim();
+        updateData.heldBy = currentUser.id;
+        updateData.heldAt = now;
+        updateData.verifiedBy = null;
+        updateData.verifiedAt = null;
+        break;
+
+      case 'reject':
+        if (currentStatus !== 'generated' && currentStatus !== 'verified' && currentStatus !== 'held') {
+          return res.status(400).json({ error: `Cannot reject a record in '${currentStatus}' status.` });
+        }
+        if (!reason || reason.trim() === '') {
+          return res.status(400).json({ error: 'A reason is required when rejecting a record.' });
+        }
+        newStatus = 'rejected';
+        updateData.heldReason = reason.trim();
+        updateData.heldBy = currentUser.id;
+        updateData.heldAt = now;
+        updateData.verifiedBy = null;
+        updateData.verifiedAt = null;
+        break;
+
+      case 'reopen':
+        if (currentStatus !== 'held' && currentStatus !== 'rejected') {
+          return res.status(400).json({ error: `Cannot reopen a record in '${currentStatus}' status.` });
+        }
+        newStatus = 'generated';
+        updateData.heldReason = null;
+        updateData.heldBy = null;
+        updateData.heldAt = null;
+        updateData.verifiedBy = null;
+        updateData.verifiedAt = null;
+        break;
+
+      default:
+        return res.status(400).json({ error: `Unknown action: ${action}` });
+    }
+
+    history.push({
+      from: currentStatus,
+      to: newStatus,
+      action,
+      reason: reason || null,
+      by: userName,
+      byId: currentUser.id,
+      at: now.toISOString(),
+    });
+
+    updateData.status = newStatus;
+    updateData.statusHistory = history;
+
+    await db.update(payrollRecords).set(updateData).where(eq(payrollRecords.id, recordId));
+
+    res.json({ success: true, status: newStatus, message: `Record ${action === 'verify' ? 'verified' : action === 'hold' ? 'held' : action === 'reject' ? 'rejected' : 'reopened'} successfully` });
+  } catch (error: any) {
+    console.error('Error updating payroll record status:', error);
+    res.status(500).json({ error: error.message || 'Failed to update record status' });
+  }
+});
+
 /**
  * Post payroll salary JE to SAP B1
  */
@@ -2509,6 +2626,10 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
 
     if (record.sapPostingStatus === 'posted') {
       return res.status(400).json({ error: 'This salary record has already been posted to SAP', sapJeNumber: record.sapJeNumber, sapDocEntry: record.sapDocEntry });
+    }
+
+    if (record.status !== 'verified') {
+      return res.status(400).json({ error: `Only verified records can be transferred to SAP. Current status: ${record.status || 'generated'}. Please verify the record first.` });
     }
 
     const [employee] = await db.select({
@@ -2705,6 +2826,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
             sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
             sapPostedAt: new Date(),
             sapPostingStatus: 'posted',
+            status: 'transferred',
             sapErrorMessage: null,
             updatedAt: new Date(),
           }).where(eq(payrollRecords.id, recordId));
@@ -2755,6 +2877,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
             sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
             sapPostedAt: new Date(),
             sapPostingStatus: 'posted',
+            status: 'transferred',
             sapErrorMessage: null,
             updatedAt: new Date(),
           }).where(eq(payrollRecords.id, recordId));

@@ -4725,9 +4725,16 @@ export const payrollRecords = pgTable('payroll_records', {
   tasksCompleted: integer('tasks_completed').default(0),
   averageSatisfactionRating: decimal('average_satisfaction_rating', { precision: 3, scale: 2 }),
   
-  status: varchar('status', { length: 20 }).default('draft'),
+  status: varchar('status', { length: 20 }).default('generated'),
   paymentReference: varchar('payment_reference', { length: 100 }),
   paymentDate: date('payment_date'),
+
+  verifiedBy: integer('verified_by').references(() => users.id),
+  verifiedAt: timestamp('verified_at'),
+  heldReason: text('held_reason'),
+  heldBy: integer('held_by').references(() => users.id),
+  heldAt: timestamp('held_at'),
+  statusHistory: jsonb('status_history').default([]),
 
   sapDocEntry: integer('sap_doc_entry'),
   sapJeNumber: text('sap_je_number'),
