@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Shield, Database, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useQuery } from '@tanstack/react-query';
 
 interface SapLoginModalProps {
   isOpen: boolean;
@@ -13,11 +14,22 @@ interface SapLoginModalProps {
 }
 
 export function SapLoginModal({ isOpen, onClose, onSuccess }: SapLoginModalProps) {
+  const { data: sapConfig } = useQuery<{ companyDb: string }>({
+    queryKey: ['/api/sap/config'],
+  });
+  const defaultDb = sapConfig?.companyDb || '';
+
   const [credentials, setCredentials] = useState({
     username: '',
     password: '',
-    companyDb: 'TPEL_LIVE'
+    companyDb: ''
   });
+
+  useEffect(() => {
+    if (defaultDb && !credentials.companyDb) {
+      setCredentials(prev => ({ ...prev, companyDb: defaultDb }));
+    }
+  }, [defaultDb]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,11 +60,10 @@ export function SapLoginModal({ isOpen, onClose, onSuccess }: SapLoginModalProps
       }
 
       if (data.success) {
-        // Clear form and close modal
         setCredentials({
           username: '',
           password: '',
-          companyDb: 'TPEL_LIVE'
+          companyDb: defaultDb
         });
         onSuccess();
         onClose();
@@ -71,7 +82,7 @@ export function SapLoginModal({ isOpen, onClose, onSuccess }: SapLoginModalProps
     setCredentials({
       username: '',
       password: '',
-      companyDb: 'TPEL_LIVE'
+      companyDb: defaultDb
     });
     setError(null);
     onClose();

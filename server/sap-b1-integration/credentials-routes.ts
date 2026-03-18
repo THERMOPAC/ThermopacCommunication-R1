@@ -166,4 +166,11 @@ router.get('/connection/status', async (req, res) => {
   }
 });
 
+router.get('/config', ensureAuthenticated, async (req, res) => {
+  res.json({
+    companyDb: process.env.SAP_COMPANY_DB || '',
+    serviceLayerUrl: process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000/b1s/v1',
+  });
+});
+
 export default router;

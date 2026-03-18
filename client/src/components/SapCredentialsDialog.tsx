@@ -23,11 +23,22 @@ interface SapConnectionStatus {
 
 export function SapCredentialsDialog() {
   const [isOpen, setIsOpen] = useState(false);
+  const { data: sapConfig } = useQuery<{ companyDb: string }>({
+    queryKey: ['/api/sap/config'],
+  });
+  const defaultDb = sapConfig?.companyDb || '';
+
   const [credentials, setCredentials] = useState<SapCredentials>({
     username: '',
     password: '',
-    companyDb: 'TPEL_LIVE'
+    companyDb: ''
   });
+
+  React.useEffect(() => {
+    if (defaultDb && !credentials.companyDb) {
+      setCredentials(prev => ({ ...prev, companyDb: defaultDb }));
+    }
+  }, [defaultDb]);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -212,7 +223,7 @@ export function SapCredentialsDialog() {
             <Input
               id="sapCompanyDb"
               type="text"
-              placeholder="e.g., TPEL_LIVE"
+              placeholder="e.g., Company Database"
               value={credentials.companyDb}
               onChange={(e) => setCredentials(prev => ({ ...prev, companyDb: e.target.value }))}
             />
