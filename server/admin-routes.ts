@@ -2407,7 +2407,6 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
         AccountCode: glMap.get('NET_PAY|payroll_liability'),
         Debit: 0,
         Credit: netPayValue,
-        ShortName: employee.cardCode,
         LineMemo: `Net Pay - ${empName} - ${periodLabel}`,
       });
     }
