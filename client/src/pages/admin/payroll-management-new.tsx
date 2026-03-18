@@ -492,14 +492,33 @@ function PayrollRunTab() {
   const { data: periods = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/payroll/payroll-periods'],
   });
+  const { data: salaryConfigs = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/salary-configs'],
+  });
 
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [singleUserResult, setSingleUserResult] = useState<any>(null);
   const [showCreatePeriod, setShowCreatePeriod] = useState(false);
   const [newPeriod, setNewPeriod] = useState({
     periodName: '',
     startDate: '',
     endDate: '',
     payDate: '',
+  });
+
+  const singleUserRunMutation = useMutation({
+    mutationFn: async (data: { periodId: number; userId: number }) => {
+      return await apiRequest('POST', '/api/payroll/run/single-user', data);
+    },
+    onSuccess: (data: any) => {
+      setSingleUserResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+      toast({ title: 'Single User Payroll Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay || 0).toLocaleString('en-IN')}` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Payroll Run Failed', description: err.message, variant: 'destructive' });
+    },
   });
 
   const createPeriodMutation = useMutation({
@@ -562,32 +581,134 @@ function PayrollRunTab() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {periods.length === 0 ? (
             <div className="text-center py-4 text-gray-500">
               No payroll periods yet. Click "New Period" to create one.
             </div>
           ) : (
-            <Select
-              value={selectedPeriodId?.toString() || ''}
-              onValueChange={(val) => setSelectedPeriodId(parseInt(val))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a payroll period..." />
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map((p: any) => (
-                  <SelectItem key={p.id} value={p.id.toString()}>
-                    {p.periodName} ({p.startDate} - {p.endDate}) — {(p.status || 'draft').toUpperCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">Payroll Period</Label>
+                  <Select
+                    value={selectedPeriodId?.toString() || ''}
+                    onValueChange={(val) => { setSelectedPeriodId(parseInt(val)); setSingleUserResult(null); }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a payroll period..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {periods.map((p: any) => (
+                        <SelectItem key={p.id} value={p.id.toString()}>
+                          {p.periodName} ({p.startDate} - {p.endDate}) — {(p.status || 'draft').toUpperCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">Employee (optional — select for single-user run)</Label>
+                  <Select
+                    value={selectedUserId}
+                    onValueChange={(val) => { setSelectedUserId(val); setSingleUserResult(null); }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Employees (full run)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Employees (full run)</SelectItem>
+                      {salaryConfigs.map((sc: any) => (
+                        <SelectItem key={sc.userId} value={sc.userId.toString()}>
+                          {sc.firstName && sc.lastName ? `${sc.firstName} ${sc.lastName}` : sc.username} — ₹{parseFloat(sc.basicSalary || 0).toLocaleString('en-IN')} | {sc.salaryType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {selectedPeriodId && selectedUserId !== 'all' && (
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={() => {
+                      singleUserRunMutation.mutate({
+                        periodId: selectedPeriodId,
+                        userId: parseInt(selectedUserId),
+                      });
+                    }}
+                    disabled={singleUserRunMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {singleUserRunMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Running...</>
+                    ) : (
+                      <><Play className="h-4 w-4 mr-2" /> Run Payroll for Selected Employee</>
+                    )}
+                  </Button>
+                  {singleUserResult && (
+                    <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
+                      Net Pay: ₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {selectedPeriod && (
+      {singleUserResult && selectedUserId !== 'all' && (
+        <Card className="border-green-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Single User Payroll Result — {singleUserResult.employee}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Attendance</h4>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Days in Month</span><span className="font-medium">{singleUserResult.attendance?.daysInMonth ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Working Days</span><span className="font-medium">{singleUserResult.attendance?.workingDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Present</span><span className="font-medium">{singleUserResult.attendance?.presentDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Half Days</span><span className="font-medium">{singleUserResult.attendance?.halfDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Paid Days</span><span className="font-medium">{singleUserResult.attendance?.paidDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Weekly Offs</span><span className="font-medium">{singleUserResult.attendance?.weeklyOffs ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Holidays</span><span className="font-medium">{singleUserResult.attendance?.holidays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Absent</span><span className="font-medium text-red-600">{singleUserResult.attendance?.absentDays ?? 'N/A'}</span></div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Salary Breakdown</h4>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-500">Gross Pay</span><span className="font-medium">₹{parseFloat(singleUserResult.grossPay || 0).toLocaleString('en-IN')}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Total Deductions</span><span className="font-medium text-red-600">₹{parseFloat(singleUserResult.totalDeductions || 0).toLocaleString('en-IN')}</span></div>
+                  <div className="border-t pt-1.5 mt-1.5 flex justify-between text-base"><span className="font-semibold">Net Pay</span><span className="font-bold text-green-700">₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}</span></div>
+                </div>
+              </div>
+
+              {singleUserResult.tds && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">TDS / Income Tax</h4>
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Regime</span><span className="font-medium">{singleUserResult.tds.regime || 'new'}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Projected Annual</span><span className="font-medium">₹{parseFloat(singleUserResult.tds.projectedAnnualIncome || 0).toLocaleString('en-IN')}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Taxable Income</span><span className="font-medium">₹{parseFloat(singleUserResult.tds.taxableIncome || 0).toLocaleString('en-IN')}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Annual Tax</span><span className="font-medium">₹{parseFloat(singleUserResult.tds.annualTaxLiability || 0).toLocaleString('en-IN')}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Monthly TDS</span><span className="font-medium text-orange-600">₹{parseFloat(singleUserResult.tds.monthlyTds || 0).toLocaleString('en-IN')}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {selectedPeriod && selectedUserId === 'all' && (
         <Card>
           <CardContent className="pt-6">
             <PayrollRunWizard period={selectedPeriod} />
