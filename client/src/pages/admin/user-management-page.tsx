@@ -84,11 +84,11 @@ const userFormSchema = z.object({
   middleName: z.string().optional(),
   lastName: z.string().optional(),
   jobTitle: z.string().optional(),
-  department: z.string().optional(),
+  department: z.string().min(1, "Department is required"),
   branch: z.string().optional(),
-  employeeCode: z.string().optional(),
-  cardCode: z.string().optional(),
-  cardName: z.string().optional(),
+  employeeCode: z.string().min(1, "Employee Code is required"),
+  cardCode: z.string().min(1, "Card Code is required"),
+  cardName: z.string().min(1, "Card Name is required"),
   role: z.enum(roles),
   mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
   countryCode: z.string().default("+91"),
@@ -307,6 +307,10 @@ export default function UserManagementPage() {
     defaultValues: {
       countryCode: "+91",
       role: "Employee",
+      department: "",
+      employeeCode: "",
+      cardCode: "",
+      cardName: "",
     },
   });
 
@@ -415,7 +419,7 @@ export default function UserManagementPage() {
             name="cardCode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Card Code</FormLabel>
+                <FormLabel>Card Code *</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter SAP card code" {...field} />
                 </FormControl>
@@ -428,7 +432,7 @@ export default function UserManagementPage() {
             name="cardName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Card Name</FormLabel>
+                <FormLabel>Card Name *</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter SAP card name" {...field} />
                 </FormControl>
@@ -517,7 +521,7 @@ export default function UserManagementPage() {
             name="department"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Department</FormLabel>
+                <FormLabel>Department *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -549,7 +553,7 @@ export default function UserManagementPage() {
             name="employeeCode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Employee Code</FormLabel>
+                <FormLabel>Employee Code *</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter employee code" {...field} />
                 </FormControl>
