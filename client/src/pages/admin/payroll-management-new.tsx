@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
@@ -662,6 +662,9 @@ export default function PayrollManagementNew() {
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [calculationPreview, setCalculationPreview] = useState<any>(null);
+  const [isTestRunDialogOpen, setIsTestRunDialogOpen] = useState(false);
+  const [testRunConfig, setTestRunConfig] = useState<SalaryConfig | null>(null);
+  const [testRunResult, setTestRunResult] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -669,6 +672,29 @@ export default function PayrollManagementNew() {
   const { data: salaryConfigs = [], isLoading } = useQuery<SalaryConfig[]>({
     queryKey: ['/api/admin/payroll/salary-setup'],
   });
+
+  const { data: payrollPeriods = [] } = useQuery<any[]>({
+    queryKey: ['/api/payroll/periods'],
+  });
+
+  const testRunMutation = useMutation({
+    mutationFn: async (data: { periodId: number; userId: number }) => {
+      const res = await apiRequest('POST', '/api/payroll/run/single-user', data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setTestRunResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/records'] });
+      toast({ title: 'Payroll Test Run Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay).toLocaleString()}` });
+    },
+    onError: (e: any) => toast({ title: 'Test Run Failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const handleTestRun = (config: SalaryConfig) => {
+    setTestRunConfig(config);
+    setTestRunResult(null);
+    setIsTestRunDialogOpen(true);
+  };
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
@@ -1140,6 +1166,15 @@ export default function PayrollManagementNew() {
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleTestRun(config)}
+                              title="Run Payroll Engine (Test)"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+                            >
+                              <Play className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleEdit(config)}
                             >
                               <Edit className="h-4 w-4" />
@@ -1574,6 +1609,103 @@ export default function PayrollManagementNew() {
                     {generateSalaryMutation.isPending ? 'Generating...' : 'Generate & Download PDF'}
                   </Button>
                 </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Single User Test Run Dialog */}
+        <Dialog open={isTestRunDialogOpen} onOpenChange={(open) => { setIsTestRunDialogOpen(open); if (!open) { setTestRunResult(null); setTestRunConfig(null); } }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Payroll Engine — Single User Test Run</DialogTitle>
+            </DialogHeader>
+            {testRunConfig && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-blue-900">
+                    {testRunConfig.firstName && testRunConfig.lastName
+                      ? `${testRunConfig.firstName} ${testRunConfig.lastName}`
+                      : testRunConfig.username}
+                  </h3>
+                  <p className="text-sm text-blue-600">Basic: ₹{parseFloat(testRunConfig.basicSalary).toLocaleString('en-IN')} | {testRunConfig.salaryType}</p>
+                </div>
+
+                {!testRunResult && (
+                  <div className="space-y-3">
+                    <Label>Select Payroll Period</Label>
+                    <Select onValueChange={(val) => {
+                      const period = payrollPeriods.find((p: any) => p.id === parseInt(val));
+                      if (period && testRunConfig) {
+                        testRunMutation.mutate({ periodId: period.id, userId: testRunConfig.userId });
+                      }
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Choose a period..." /></SelectTrigger>
+                      <SelectContent>
+                        {payrollPeriods.map((p: any) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.periodName || `${p.month}/${p.year}`} — {p.status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {testRunMutation.isPending && (
+                      <div className="flex items-center gap-2 text-blue-600 p-3 bg-blue-50 rounded">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Running payroll engine...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {testRunResult && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Test run completed successfully</span>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      <h4 className="font-semibold text-gray-800">Attendance</h4>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div><span className="text-gray-500">Days in Month:</span> <span className="font-medium">{testRunResult.attendance?.daysInMonth ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Working Days:</span> <span className="font-medium">{testRunResult.attendance?.workingDays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Present:</span> <span className="font-medium">{testRunResult.attendance?.presentDays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Paid Days:</span> <span className="font-medium">{testRunResult.attendance?.paidDays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Weekly Offs:</span> <span className="font-medium">{testRunResult.attendance?.weeklyOffs ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Holidays:</span> <span className="font-medium">{testRunResult.attendance?.holidays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Absent:</span> <span className="font-medium text-red-600">{testRunResult.attendance?.absentDays ?? 'N/A'}</span></div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                      <h4 className="font-semibold text-gray-800">Salary Summary</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between"><span className="text-gray-500">Gross Pay</span><span className="font-medium">₹{parseFloat(testRunResult.grossPay || 0).toLocaleString('en-IN')}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Total Deductions</span><span className="font-medium text-red-600">₹{parseFloat(testRunResult.totalDeductions || 0).toLocaleString('en-IN')}</span></div>
+                        <Separator />
+                        <div className="flex justify-between text-base"><span className="font-semibold">Net Pay</span><span className="font-bold text-green-700">₹{parseFloat(testRunResult.netPay || 0).toLocaleString('en-IN')}</span></div>
+                      </div>
+                    </div>
+
+                    {testRunResult.tds && (
+                      <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                        <h4 className="font-semibold text-gray-800">TDS Details</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between"><span className="text-gray-500">Regime</span><span className="font-medium">{testRunResult.tds.regime || 'new'}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Projected Annual Income</span><span className="font-medium">₹{parseFloat(testRunResult.tds.projectedAnnualIncome || 0).toLocaleString('en-IN')}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Taxable Income</span><span className="font-medium">₹{parseFloat(testRunResult.tds.taxableIncome || 0).toLocaleString('en-IN')}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Annual Tax Liability</span><span className="font-medium">₹{parseFloat(testRunResult.tds.annualTaxLiability || 0).toLocaleString('en-IN')}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Monthly TDS</span><span className="font-medium text-orange-600">₹{parseFloat(testRunResult.tds.monthlyTds || 0).toLocaleString('en-IN')}</span></div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={() => { setTestRunResult(null); }}>Run Another Period</Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
