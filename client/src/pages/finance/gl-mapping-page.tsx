@@ -553,7 +553,7 @@ export default function GlMappingPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Category</label>
-                  <p className="text-sm">{catBadge(editRow.category)}</p>
+                  <div className="text-sm">{catBadge(editRow.category)}</div>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Posting Context</label>
