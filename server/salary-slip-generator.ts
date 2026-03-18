@@ -83,8 +83,17 @@ export class SalarySlipGenerator {
   private w: number;
 
   constructor() {
-    this.doc = new PDFDocument({ size: 'A4', margin: this.m, autoFirstPage: true });
+    this.doc = new PDFDocument({ size: 'A4', margin: this.m });
     this.w = this.pw - this.m * 2;
+    const origAddPage = this.doc.addPage.bind(this.doc);
+    let pageCount = 1;
+    this.doc.addPage = function(...args: any[]) {
+      pageCount++;
+      if (pageCount > 1) {
+        return this;
+      }
+      return origAddPage(...args);
+    };
   }
 
   async generateSalarySlip(data: SalarySlipData, res: Response): Promise<void> {
@@ -116,6 +125,8 @@ export class SalarySlipGenerator {
 
   private t(text: string, x: number, y: number, opts: any = {}) {
     this.doc.text(text, x, y, { ...opts, lineBreak: false });
+    this.doc.x = this.m;
+    this.doc.y = this.m;
   }
 
   private render(d: SalarySlipData): void {
