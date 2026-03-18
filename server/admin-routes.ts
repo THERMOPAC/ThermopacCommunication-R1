@@ -217,9 +217,19 @@ router.post('/users', ensureAuthenticated, async (req: Request, res: Response) =
     // Remove password from response
     const { password: _, ...userWithoutPassword } = newUser;
     res.status(201).json(userWithoutPassword);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Failed to create user' });
+    if (error?.code === '23505') {
+      const detail = error?.detail || '';
+      if (detail.includes('email')) {
+        return res.status(400).json({ error: 'This email address is already in use. Please use a different email.' });
+      }
+      if (detail.includes('username')) {
+        return res.status(400).json({ error: 'This username is already taken. Please choose a different username.' });
+      }
+      return res.status(400).json({ error: 'A user with these details already exists. Please check for duplicates.' });
+    }
+    res.status(500).json({ error: 'Failed to create user. Please try again.' });
   }
 });
 
