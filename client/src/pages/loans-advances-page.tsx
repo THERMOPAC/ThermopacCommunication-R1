@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -126,11 +126,21 @@ export default function LoansAdvancesPage() {
   const activeLoansCount = filteredLoans.filter((l: any) => l.status === 'active').length;
   const activeAdvancesCount = filteredAdvances.filter((a: any) => a.status === 'active').length;
 
-  const employeesWithLoansOrAdvances = Array.from(
-    new Map(
-      [...loans, ...advances].map((item: any) => [String(item.employeeId), item.employeeName || 'Unknown'])
-    ).entries()
-  ).sort((a, b) => a[1].localeCompare(b[1]));
+  const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Employee': 4 };
+  const sortedUsers = [...users].sort((a: any, b: any) => {
+    const ra = roleOrder[a.role] ?? 5;
+    const rb = roleOrder[b.role] ?? 5;
+    if (ra !== rb) return ra - rb;
+    const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+    const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+    return nameA.localeCompare(nameB);
+  });
+  const groupedByRole = sortedUsers.reduce((acc: Record<string, any[]>, u: any) => {
+    const role = u.role || 'Other';
+    if (!acc[role]) acc[role] = [];
+    acc[role].push(u);
+    return acc;
+  }, {});
 
   return (
     <div className="p-6 space-y-6">
@@ -198,13 +208,24 @@ export default function LoansAdvancesPage() {
           </TabsList>
           <div className="flex gap-2 items-center">
             <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Filter by Employee" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Employees</SelectItem>
-                {employeesWithLoansOrAdvances.map(([id, name]) => (
-                  <SelectItem key={id} value={id}>{name}</SelectItem>
+                {Object.entries(groupedByRole).map(([role, roleUsers]) => (
+                  <SelectGroup key={role}>
+                    <SelectLabel className="text-xs font-semibold text-blue-600">{role}</SelectLabel>
+                    {roleUsers.map((u: any) => {
+                      const name = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username;
+                      const dept = u.department ? ` \u2022 ${u.department}` : '';
+                      return (
+                        <SelectItem key={u.id} value={String(u.id)}>
+                          {name}{dept}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>
