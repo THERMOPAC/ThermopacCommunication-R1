@@ -495,6 +495,8 @@ function GeneratedSalariesView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearRecordId, setClearRecordId] = useState<number | null>(null);
+  const [showClearRecordConfirm, setShowClearRecordConfirm] = useState(false);
   const [postingId, setPostingId] = useState<number | null>(null);
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
@@ -510,6 +512,28 @@ function GeneratedSalariesView() {
       toast({ title: 'All Records Cleared', description: data.message });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const clearRecordMutation = useMutation({
+    mutationFn: (recordId: number) => apiRequest('DELETE', `/api/admin/payroll/records/${recordId}/clear`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
+      setShowClearRecordConfirm(false);
+      setClearRecordId(null);
+      const reversals = data.reversals || [];
+      const reversalMsg = reversals.length > 0
+        ? reversals.map((r: any) => `${r.type} ${r.reference}: ${r.success ? `Reversed (JE #${r.reversalJeNumber})` : `Failed - ${r.error}`}`).join('; ')
+        : 'No SAP reversals needed';
+      toast({ title: 'Record Cleared', description: `${data.message} | ${reversalMsg}` });
+    },
+    onError: (e: any) => {
+      setShowClearRecordConfirm(false);
+      setClearRecordId(null);
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    },
   });
 
   const postToSapMutation = useMutation({
@@ -646,6 +670,14 @@ function GeneratedSalariesView() {
                           )}
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setClearRecordId(record.id); setShowClearRecordConfirm(true); }}
+                        className="text-red-600 hover:text-red-800 hover:border-red-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -674,6 +706,33 @@ function GeneratedSalariesView() {
               disabled={clearAllMutation.isPending}
             >
               {clearAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing...</> : 'Yes, Clear All'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showClearRecordConfirm} onOpenChange={setShowClearRecordConfirm}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-red-600">Clear Salary Record</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This will delete this salary record along with its TDS records, loan repayments, and advance recoveries. Loan and advance balances will be reset.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            If any Loan or Advance disbursement JEs were posted to SAP, they will be <strong>reversed</strong> by posting reversal Journal Entries.
+          </p>
+          <p className="text-sm font-semibold text-red-600">This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setShowClearRecordConfirm(false); setClearRecordId(null); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => clearRecordId && clearRecordMutation.mutate(clearRecordId)}
+              disabled={clearRecordMutation.isPending}
+            >
+              {clearRecordMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing & Reversing...</> : 'Yes, Clear & Reverse SAP'}
             </Button>
           </div>
         </div>

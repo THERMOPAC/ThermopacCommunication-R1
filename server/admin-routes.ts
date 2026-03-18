@@ -38,6 +38,7 @@ import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
 import { glAccountMappings } from '../shared/schema';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
 import { sapSessionManager } from './sap-session-manager';
+import { postReversalJE } from './loan-advance-routes';
 
 const router = express.Router();
 
@@ -2253,6 +2254,78 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
   } catch (error) {
     console.error('Error clearing payroll records:', error);
     res.status(500).json({ error: 'Failed to clear payroll records' });
+  }
+});
+
+router.delete('/payroll/records/:id/clear', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = Number(req.params.id);
+    const currentUser = (req.user as any)?.id || 1;
+
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
+    if (!record) return res.status(404).json({ error: 'Payroll record not found' });
+
+    const { inArray } = await import('drizzle-orm');
+
+    const loanRepayments = await db.select().from(employeeLoanRepayments).where(eq(employeeLoanRepayments.payrollRecordId, recordId));
+    const advanceRecoveries = await db.select().from(employeeAdvanceRecoveries).where(eq(employeeAdvanceRecoveries.payrollRecordId, recordId));
+
+    const reversalResults: { type: string; reference: string; result: any }[] = [];
+
+    const uniqueLoanIds = [...new Set(loanRepayments.map(r => r.loanId))];
+    for (const loanId of uniqueLoanIds) {
+      const result = await postReversalJE('loan', loanId, currentUser);
+      const [loan] = await db.select({ ref: employeeLoans.loanReference }).from(employeeLoans).where(eq(employeeLoans.id, loanId));
+      reversalResults.push({ type: 'Loan', reference: loan?.ref || `ID:${loanId}`, result });
+    }
+
+    const uniqueAdvanceIds = [...new Set(advanceRecoveries.map(r => r.advanceId))];
+    for (const advanceId of uniqueAdvanceIds) {
+      const result = await postReversalJE('advance', advanceId, currentUser);
+      const [adv] = await db.select({ ref: employeeAdvances.advanceReference }).from(employeeAdvances).where(eq(employeeAdvances.id, advanceId));
+      reversalResults.push({ type: 'Advance', reference: adv?.ref || `ID:${advanceId}`, result });
+    }
+
+    await db.delete(employeeLoanRepayments).where(eq(employeeLoanRepayments.payrollRecordId, recordId));
+    await db.delete(employeeAdvanceRecoveries).where(eq(employeeAdvanceRecoveries.payrollRecordId, recordId));
+
+    for (const loanId of uniqueLoanIds) {
+      await db.update(employeeLoans).set({
+        totalRepaid: '0.00', outstandingBalance: sql`principal_amount`,
+        installmentsPaid: 0, status: 'active', updatedAt: new Date(),
+      }).where(eq(employeeLoans.id, loanId));
+    }
+    for (const advanceId of uniqueAdvanceIds) {
+      await db.update(employeeAdvances).set({
+        totalRecovered: '0.00', outstandingBalance: sql`amount`,
+        installmentsRecovered: 0, status: 'active', updatedAt: new Date(),
+      }).where(eq(employeeAdvances.id, advanceId));
+    }
+
+    if (record.periodId && record.userId) {
+      await db.delete(tdsMonthlyRecords).where(
+        and(eq(tdsMonthlyRecords.userId, record.userId), eq(tdsMonthlyRecords.periodId, record.periodId))
+      );
+    }
+    await db.delete(payrollRecords).where(eq(payrollRecords.id, recordId));
+
+    const failed = reversalResults.filter(r => !r.result.success);
+
+    res.json({
+      success: true,
+      message: `Payroll record cleared. ${reversalResults.length} SAP reversal(s) processed.`,
+      reversals: reversalResults.map(r => ({
+        type: r.type,
+        reference: r.reference,
+        success: r.result.success,
+        reversalJeNumber: r.result.reversalJeNumber,
+        error: r.result.error,
+      })),
+      warnings: failed.length > 0 ? `${failed.length} SAP reversal(s) failed. Check details.` : undefined,
+    });
+  } catch (error: any) {
+    console.error('Error clearing payroll record:', error);
+    res.status(500).json({ error: error.message || 'Failed to clear payroll record' });
   }
 });
 

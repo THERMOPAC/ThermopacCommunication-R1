@@ -490,4 +490,135 @@ router.post('/advances/:id/transfer-sap', async (req: Request, res: Response) =>
   }
 });
 
+export async function postReversalJE(
+  type: 'loan' | 'advance',
+  recordId: number,
+  currentUserId: number,
+): Promise<{ success: boolean; reversalDocEntry?: number; reversalJeNumber?: string; error?: string }> {
+  const table = type === 'loan' ? employeeLoans : employeeAdvances;
+
+  const [record] = await db.select().from(table).where(eq(table.id, recordId));
+  if (!record) return { success: false, error: `${type} not found` };
+
+  if ((record as any).sapPostingStatus !== 'posted') {
+    return { success: true };
+  }
+
+  const amount = parseFloat(type === 'loan' ? (record as any).principalAmount : (record as any).amount);
+  const reference = type === 'loan' ? (record as any).loanReference : (record as any).advanceReference;
+  const employeeId = (record as any).employeeId;
+
+  const [employee] = await db.select({
+    firstName: users.firstName,
+    lastName: users.lastName,
+    username: users.username,
+    cardCode: users.cardCode,
+  }).from(users).where(eq(users.id, employeeId));
+
+  const empName = employee?.firstName && employee?.lastName
+    ? `${employee.firstName} ${employee.lastName}`
+    : employee?.username || 'Unknown';
+
+  const debitContext = type === 'loan' ? 'loan_disbursement' : 'advance_disbursement';
+  const debitCode = type === 'loan' ? 'LOAN_RECEIVABLE' : 'ADVANCE_RECEIVABLE';
+  const creditCode = 'LOAN_ADVANCE_BANK';
+
+  const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+  const debitMapping = allMappings.find(
+    m => m.componentCode === debitCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+  );
+  const creditMapping = allMappings.find(
+    m => m.componentCode === creditCode && m.postingContext === debitContext && m.glAccountCode && m.glAccountCode.trim() !== ''
+  );
+
+  if (!debitMapping || !creditMapping) {
+    return { success: false, error: `GL mappings missing for reversal. Go to Finance > GL Mapping.` };
+  }
+
+  const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
+  const postingDate = new Date().toISOString().split('T')[0];
+
+  const jePayload = {
+    ReferenceDate: postingDate,
+    Memo: `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`,
+    Reference2: employee?.cardCode || '',
+    Reference3: `REV-${reference}`,
+    JournalEntryLines: [
+      {
+        Line_ID: 0,
+        AccountCode: creditMapping.glAccountCode,
+        Debit: amount,
+        Credit: 0,
+        LineMemo: `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`,
+      },
+      {
+        Line_ID: 1,
+        AccountCode: debitMapping.glAccountCode,
+        Debit: 0,
+        Credit: amount,
+        LineMemo: `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`,
+      },
+    ],
+  };
+
+  const sapUrl = process.env.SAP_SERVICE_LAYER_URL || '';
+  const sapUser = process.env.SAP_USERNAME || '';
+  const sapPass = process.env.SAP_PASSWORD || '';
+  const sapDb = process.env.SAP_COMPANY_DB || '';
+
+  if (!sapUser || !sapPass || !sapDb || !sapUrl) {
+    return { success: false, error: 'SAP credentials not configured' };
+  }
+
+  try {
+    let sessionId: string;
+    const existingSession = sapSessionManager.getSession(currentUserId);
+    if (existingSession) {
+      sessionId = existingSession.sessionId;
+    } else {
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sessionId = loginResult.sessionId;
+      sapSessionManager.setSession(currentUserId, {
+        sessionId: loginResult.sessionId,
+        routeId: undefined,
+        userId: currentUserId,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 60000),
+      });
+    }
+
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/JournalEntries',
+      body: jePayload,
+    });
+
+    if (sapResponse.ok) {
+      const responseData = JSON.parse(sapResponse.body);
+      const docEntry = responseData.DocEntry;
+      const jeNumber = String(responseData.Number || responseData.DocNum || responseData.DocEntry);
+
+      await db.update(table).set({
+        sapDocEntry: null,
+        sapJeNumber: null,
+        sapPostingStatus: 'not_posted',
+        sapPostedAt: null,
+        sapErrorMessage: null,
+        updatedAt: new Date(),
+      } as any).where(eq(table.id, recordId));
+
+      return { success: true, reversalDocEntry: docEntry, reversalJeNumber: jeNumber };
+    } else {
+      let errorMsg = `SAP reversal failed (${sapResponse.statusCode})`;
+      try {
+        const errParsed = JSON.parse(sapResponse.body);
+        errorMsg = errParsed?.error?.message?.value || errorMsg;
+      } catch (_) {}
+      return { success: false, error: errorMsg };
+    }
+  } catch (sapErr: any) {
+    return { success: false, error: `SAP connection error: ${sapErr.message}` };
+  }
+}
+
 export default router;
