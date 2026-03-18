@@ -583,13 +583,14 @@ async function stepSalaryCalculation(
         const ratio = paidDays / daysInMonth;
         proratedBase = Math.round(basicSalary * ratio * 100) / 100;
         overtimePay = 0;
-        hra = Math.round(parseFloat(sal.houseRentAllowance || '0') * ratio * 100) / 100;
-        conv = Math.round(parseFloat(sal.conveyance || '0') * ratio * 100) / 100;
-        ltaVal = Math.round(parseFloat(sal.lta || '0') * ratio * 100) / 100;
-        specAllow = Math.round(parseFloat(sal.specialAllowance || '0') * ratio * 100) / 100;
-        suppAllow = Math.round(parseFloat(sal.supplementaryAllowance || '0') * ratio * 100) / 100;
-        kgpAllow = Math.round(parseFloat(sal.kgpAllowance || '0') * ratio * 100) / 100;
-        bonusAllow = Math.round(parseFloat(sal.bonus || '0') * ratio * 100) / 100;
+        hra = Math.round(basicSalary * 0.4 * ratio * 100) / 100;
+        conv = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
+        ltaVal = Math.round(basicSalary * 0.2 * ratio * 100) / 100;
+        specAllow = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
+        suppAllow = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
+        const isKgpEligible = emp.role && ['Manager', 'Employee'].includes(emp.role);
+        kgpAllow = isKgpEligible ? Math.round(basicSalary * 0.15 * ratio * 100) / 100 : 0;
+        bonusAllow = Math.round(basicSalary * 0.0833 * ratio * 100) / 100;
 
         grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow + bonusAllow;
       }
