@@ -490,6 +490,217 @@ router.post('/run/reset', async (req, res) => {
   }
 });
 
+router.post('/run/single-user', async (req, res) => {
+  try {
+    const { periodId, userId } = req.body;
+    const executedBy = req.user?.id || 1;
+
+    if (!periodId || !userId) {
+      return res.status(400).json({ error: 'periodId and userId are required' });
+    }
+
+    const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
+    if (!period) return res.status(404).json({ error: 'Period not found' });
+
+    const [salaryConfig] = await db.select().from(employeeSalaries)
+      .where(and(eq(employeeSalaries.userId, userId), eq(employeeSalaries.isActive, true)))
+      .limit(1);
+    if (!salaryConfig) return res.status(400).json({ error: 'No active salary configuration for this user' });
+
+    const [employee] = await db.select().from(users).where(eq(users.id, userId));
+    if (!employee) return res.status(404).json({ error: 'User not found' });
+
+    await db.delete(payrollRecords).where(
+      and(eq(payrollRecords.periodId, periodId), eq(payrollRecords.userId, userId))
+    );
+
+    const { computeMonthlyTds, saveTdsRecord } = await import('./tds-calculation-service');
+
+    const startDate = period.startDate;
+    const endDate = period.endDate;
+
+    const { companyHolidays, attendanceRecords: attRecords, workweekPolicies, payrollAttendanceSnapshot, payrollSalarySnapshot, payrollRecords: payrollRecs, loanDeductions, advanceDeductions, employeeLoans, salaryAdvances } = await import('@shared/schema');
+    const { between, ne } = await import('drizzle-orm');
+
+    const holidays = await db.select({ date: companyHolidays.date })
+      .from(companyHolidays)
+      .where(between(companyHolidays.date, startDate, endDate));
+    const holidayDates = new Set(holidays.map(h => String(h.date)));
+
+    let workingDayNums = [1, 2, 3, 4, 5, 6];
+    if (employee.workLocationId) {
+      const [locPolicy] = await db.select().from(workweekPolicies)
+        .where(and(eq(workweekPolicies.policyType, 'location'), eq(workweekPolicies.locationId, employee.workLocationId), eq(workweekPolicies.isActive, true)))
+        .orderBy(desc(workweekPolicies.createdAt)).limit(1);
+      if (locPolicy?.workingDays && Array.isArray(locPolicy.workingDays)) workingDayNums = locPolicy.workingDays as number[];
+    }
+
+    const sDate = new Date(startDate);
+    const eDate = new Date(endDate);
+    let totalWorkingDays = 0;
+    const cur = new Date(sDate);
+    while (cur <= eDate) {
+      const dayOfWeek = cur.getDay();
+      const dateStr = cur.toISOString().split('T')[0];
+      if (workingDayNums.includes(dayOfWeek) && !holidayDates.has(dateStr)) totalWorkingDays++;
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    const daysInMonth = Math.round((eDate.getTime() - sDate.getTime()) / (86400000)) + 1;
+    const weeklyOffs = (employee.weeklyOffDays || [0, 6]);
+    let weekOffCount = 0;
+    const cur2 = new Date(sDate);
+    while (cur2 <= eDate) {
+      if (weeklyOffs.includes(cur2.getDay())) weekOffCount++;
+      cur2.setDate(cur2.getDate() + 1);
+    }
+
+    const attRecordsDb = await db.select().from(attRecords)
+      .where(and(eq(attRecords.userId, userId), gte(attRecords.date, startDate), lte(attRecords.date, endDate)));
+
+    const presentFull = attRecordsDb.filter(r => r.status === 'present').length;
+    const presentHalf = attRecordsDb.filter(r => r.status === 'half_day').length;
+    const absentCount = totalWorkingDays - presentFull - presentHalf;
+    const paidDays = presentFull + (presentHalf * 0.5) + weekOffCount + holidayDates.size;
+
+    const sal = salaryConfig;
+    const basic = parseFloat(sal.basicSalary || '0');
+    const hra = parseFloat(sal.houseRentAllowance || '0');
+    const conv = parseFloat(sal.conveyance || '0');
+    const lta = parseFloat(sal.lta || '0');
+    const special = parseFloat(sal.specialAllowance || '0');
+    const supp = parseFloat(sal.supplementaryAllowance || '0');
+    const kgp = parseFloat(sal.kgpAllowance || '0');
+    const bonus = parseFloat(sal.bonus || '0');
+    const ratio = paidDays / daysInMonth;
+
+    const earnBasic = Math.round(basic * ratio * 100) / 100;
+    const earnHra = Math.round(hra * ratio * 100) / 100;
+    const earnConv = Math.round(conv * ratio * 100) / 100;
+    const earnLta = Math.round(lta * ratio * 100) / 100;
+    const earnSpecial = Math.round(special * ratio * 100) / 100;
+    const earnSupp = Math.round(supp * ratio * 100) / 100;
+    const earnKgp = Math.round(kgp * ratio * 100) / 100;
+    const earnBonus = Math.round(bonus * ratio * 100) / 100;
+    const grossPay = earnBasic + earnHra + earnConv + earnLta + earnSpecial + earnSupp + earnKgp + earnBonus;
+
+    const pfBase = Math.min(earnBasic, 15000);
+    const empPf = Math.round(pfBase * 0.12 * 100) / 100;
+    const emplrPf = Math.round(pfBase * 0.12 * 100) / 100;
+
+    let empEsic = 0, emplrEsic = 0;
+    if (grossPay <= 21000) {
+      empEsic = Math.round(grossPay * 0.0075 * 100) / 100;
+      emplrEsic = Math.round(grossPay * 0.0325 * 100) / 100;
+    }
+
+    let pt = 0;
+    if (grossPay > 10000) pt = 300;
+    else if (grossPay > 7500) pt = 175;
+
+    const gratuity = Math.round((earnBasic * 15 / 26) / 12 * 100) / 100;
+    const groupIns = parseFloat(sal.groupInsurance || '0');
+
+    let loanDed = 0;
+    let advDed = 0;
+    try {
+      const activeLoans = await db.select().from(employeeLoans)
+        .where(and(eq(employeeLoans.userId, userId), eq(employeeLoans.status, 'active')));
+      for (const loan of activeLoans) {
+        const pending = await db.select().from(loanDeductions)
+          .where(and(eq(loanDeductions.loanId, loan.id), eq(loanDeductions.status, 'pending')))
+          .orderBy(asc(loanDeductions.dueDate)).limit(1);
+        if (pending.length > 0) loanDed += parseFloat(pending[0].amount);
+      }
+      const activeAdvances = await db.select().from(salaryAdvances)
+        .where(and(eq(salaryAdvances.userId, userId), eq(salaryAdvances.status, 'approved')));
+      for (const adv of activeAdvances) {
+        const pending = await db.select().from(advanceDeductions)
+          .where(and(eq(advanceDeductions.advanceId, adv.id), eq(advanceDeductions.status, 'pending')))
+          .orderBy(asc(advanceDeductions.dueDate)).limit(1);
+        if (pending.length > 0) advDed += parseFloat(pending[0].amount);
+      }
+    } catch {}
+
+    const totalDeductions = empPf + pt + empEsic;
+    const netPay = grossPay - totalDeductions - loanDed - advDed;
+
+    const ctcMonthly = grossPay + emplrPf + emplrEsic + gratuity + groupIns;
+
+    const [record] = await db.insert(payrollRecs).values({
+      periodId,
+      userId,
+      basicSalary: earnBasic.toFixed(2),
+      houseRentAllowance: earnHra.toFixed(2),
+      conveyanceAllowance: earnConv.toFixed(2),
+      lta: earnLta.toFixed(2),
+      specialAllowance: earnSpecial.toFixed(2),
+      supplementaryAllowance: earnSupp.toFixed(2),
+      kgpAllowance: earnKgp.toFixed(2),
+      bonus: earnBonus.toFixed(2),
+      grossPay: grossPay.toFixed(2),
+      employeePf: empPf.toFixed(2),
+      providentFund: empPf.toFixed(2),
+      employerPf: emplrPf.toFixed(2),
+      employeeEsic: empEsic.toFixed(2),
+      employerEsic: emplrEsic.toFixed(2),
+      esic: empEsic.toFixed(2),
+      professionalTax: pt.toFixed(2),
+      gratuity: gratuity.toFixed(2),
+      groupInsurance: groupIns.toFixed(2),
+      loanDeductions: loanDed.toFixed(2),
+      advanceDeductions: advDed.toFixed(2),
+      incomeTax: '0',
+      tdsAmount: '0',
+      totalDeductions: totalDeductions.toFixed(2),
+      netPay: netPay.toFixed(2),
+      ctcMonthly: ctcMonthly.toFixed(2),
+      ctcYearly: (ctcMonthly * 12).toFixed(2),
+      daysInMonth: daysInMonth.toString(),
+      paidDays: paidDays.toFixed(1),
+      presentDays: presentFull.toString(),
+      absentDays: absentCount.toFixed(1),
+      weeklyOffs: weekOffCount.toString(),
+      holidays: holidayDates.size.toString(),
+      workingDays: totalWorkingDays.toString(),
+      halfDays: presentHalf.toString(),
+      status: 'generated',
+      createdBy: executedBy,
+    } as any).returning();
+
+    const endDateObj = new Date(endDate);
+    const month = endDateObj.getMonth() + 1;
+    const year = endDateObj.getFullYear();
+    const tdsResult = await computeMonthlyTds(userId, periodId, month, year, grossPay);
+    await saveTdsRecord(userId, periodId, month, year, tdsResult);
+
+    const tds = tdsResult.tdsActualMonthly;
+    const finalDeductions = totalDeductions + tds;
+    const finalNet = grossPay - finalDeductions - loanDed - advDed;
+
+    await db.update(payrollRecs).set({
+      incomeTax: tds.toFixed(2),
+      tdsAmount: tds.toFixed(2),
+      totalDeductions: finalDeductions.toFixed(2),
+      netPay: finalNet.toFixed(2),
+    }).where(eq(payrollRecs.id, record.id));
+
+    res.json({
+      success: true,
+      employee: employee.username,
+      period: period.periodName,
+      grossPay: grossPay.toFixed(2),
+      tds: tds.toFixed(2),
+      totalDeductions: finalDeductions.toFixed(2),
+      netPay: finalNet.toFixed(2),
+      attendance: { daysInMonth, totalWorkingDays, present: presentFull, halfDays: presentHalf, absent: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size },
+      tdsDetails: { regime: tdsResult.regime, projectedAnnual: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTax: tdsResult.totalTaxLiabilityAnnual },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/run/log/:periodId', async (req, res) => {
   try {
     const periodId = parseInt(req.params.periodId);

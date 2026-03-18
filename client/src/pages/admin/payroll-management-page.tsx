@@ -62,7 +62,8 @@ import {
   Loader2,
   Calendar,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Play
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -218,6 +219,10 @@ export default function PayrollManagementPage() {
   const [salaryGenMonth, setSalaryGenMonth] = useState(new Date().getMonth() + 1);
   const [salaryGenYear, setSalaryGenYear] = useState(new Date().getFullYear());
   const [salaryResult, setSalaryResult] = useState<SalaryCalculationResult | null>(null);
+
+  const [isTestRunDialogOpen, setIsTestRunDialogOpen] = useState(false);
+  const [testRunConfig, setTestRunConfig] = useState<SalaryConfig | null>(null);
+  const [testRunResult, setTestRunResult] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -231,6 +236,29 @@ export default function PayrollManagementPage() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
   });
+
+  const { data: payrollPeriods = [] } = useQuery<any[]>({
+    queryKey: ['/api/payroll/periods'],
+  });
+
+  const testRunMutation = useMutation({
+    mutationFn: async (data: { periodId: number; userId: number }) => {
+      const res = await apiRequest('POST', '/api/payroll/run/single-user', data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setTestRunResult(data);
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/records'] });
+      toast({ title: 'Payroll Test Run Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay).toLocaleString()}` });
+    },
+    onError: (e: any) => toast({ title: 'Test Run Failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const handleTestRun = (config: SalaryConfig) => {
+    setTestRunConfig(config);
+    setTestRunResult(null);
+    setIsTestRunDialogOpen(true);
+  };
 
   // Filter users that don't have salary configuration yet
   const availableUsers = users.filter(user => 
@@ -1624,6 +1652,15 @@ export default function PayrollManagementPage() {
                           >
                             <Calculator className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleTestRun(config)}
+                            title="Run Payroll Engine (Test)"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Play className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1917,6 +1954,95 @@ export default function PayrollManagementPage() {
                             ₹{salaryResult.ctcMonthly.toLocaleString()}
                           </div>
                         </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isTestRunDialogOpen} onOpenChange={setIsTestRunDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5 text-blue-600" />
+                Payroll Engine — Single User Test Run
+              </DialogTitle>
+              <DialogDescription>
+                Run the full payroll pipeline for {testRunConfig?.firstName} {testRunConfig?.lastName || testRunConfig?.username}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Select Payroll Period</label>
+                <Select onValueChange={(v) => {
+                  testRunMutation.mutate({ periodId: parseInt(v), userId: testRunConfig!.userId });
+                }}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Choose a period to run..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {payrollPeriods.map((p: any) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.periodName} ({p.status})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {testRunMutation.isPending && (
+                <div className="flex items-center gap-2 text-blue-600 py-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Running payroll engine...</span>
+                </div>
+              )}
+
+              {testRunResult && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="font-semibold">Payroll Run Complete</span>
+                  </div>
+
+                  <Card>
+                    <CardContent className="p-4 space-y-3">
+                      <h4 className="font-semibold text-sm">Attendance</h4>
+                      <div className="grid grid-cols-4 gap-2 text-sm">
+                        <div><span className="text-muted-foreground">Days in Month:</span> {testRunResult.attendance.daysInMonth}</div>
+                        <div><span className="text-muted-foreground">Working Days:</span> {testRunResult.attendance.totalWorkingDays}</div>
+                        <div><span className="text-muted-foreground">Present:</span> {testRunResult.attendance.present}</div>
+                        <div><span className="text-muted-foreground">Paid Days:</span> {testRunResult.attendance.paidDays}</div>
+                        <div><span className="text-muted-foreground">Weekly Offs:</span> {testRunResult.attendance.weeklyOffs}</div>
+                        <div><span className="text-muted-foreground">Holidays:</span> {testRunResult.attendance.holidays}</div>
+                        <div><span className="text-muted-foreground">Half Days:</span> {testRunResult.attendance.halfDays || 0}</div>
+                        <div><span className="text-muted-foreground">Absent:</span> {testRunResult.attendance.absent}</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4 space-y-3">
+                      <h4 className="font-semibold text-sm">Salary Summary</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Gross Pay:</span> <span className="font-mono">₹{parseFloat(testRunResult.grossPay).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">TDS:</span> <span className="font-mono">₹{parseFloat(testRunResult.tds).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Total Deductions:</span> <span className="font-mono">₹{parseFloat(testRunResult.totalDeductions).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground font-semibold">Net Pay:</span> <span className="font-mono font-bold text-green-600">₹{parseFloat(testRunResult.netPay).toLocaleString()}</span></div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-4 space-y-3">
+                      <h4 className="font-semibold text-sm">TDS Calculation Details</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Regime:</span> <Badge variant="outline">{testRunResult.tdsDetails.regime.toUpperCase()}</Badge></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Projected Annual:</span> <span className="font-mono">₹{parseFloat(testRunResult.tdsDetails.projectedAnnual).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Taxable Income:</span> <span className="font-mono">₹{parseFloat(testRunResult.tdsDetails.taxableIncome).toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Annual Tax:</span> <span className="font-mono">₹{parseFloat(testRunResult.tdsDetails.annualTax).toLocaleString()}</span></div>
                       </div>
                     </CardContent>
                   </Card>
