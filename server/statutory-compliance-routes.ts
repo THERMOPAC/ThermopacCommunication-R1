@@ -8,6 +8,8 @@ import {
 } from '@shared/schema';
 import { eq, and, sql, desc, asc, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
+import { sapSessionManager } from './sap-session-manager';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -163,6 +165,7 @@ const PAYROLL_SEED_ROWS = [
 
 const TDS_SEED_ROWS = [
   { componentCode: 'TDS', componentName: 'Tax Deducted at Source', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'TDS_BANK', componentName: 'Bank (TDS Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'TDS_INTEREST', componentName: 'TDS Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'TDS_INTEREST', componentName: 'TDS Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'TDS_PENALTY', componentName: 'TDS Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
@@ -174,6 +177,7 @@ const TDS_SEED_ROWS = [
 const PF_SEED_ROWS = [
   { componentCode: 'PF_EMPLOYEE', componentName: 'Employee PF Contribution', category: 'deduction', postingContext: 'statutory_payment', debitCredit: 'debit' },
   { componentCode: 'PF_EMPLOYER', componentName: 'Employer PF Contribution', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'PF_BANK', componentName: 'Bank (PF Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
   { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
@@ -192,6 +196,7 @@ const PF_SEED_ROWS = [
 const ESIC_SEED_ROWS = [
   { componentCode: 'ESIC_EMPLOYEE', componentName: 'Employee ESIC', category: 'deduction', postingContext: 'statutory_payment', debitCredit: 'debit' },
   { componentCode: 'ESIC_EMPLOYER', componentName: 'Employer ESIC', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'ESIC_BANK', componentName: 'Bank (ESIC Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'ESIC_INTEREST', componentName: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'ESIC_INTEREST', componentName: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'ESIC_PENALTY', componentName: 'ESIC Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
@@ -200,6 +205,7 @@ const ESIC_SEED_ROWS = [
 
 const PT_SEED_ROWS = [
   { componentCode: 'PT', componentName: 'Professional Tax', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'PT_BANK', componentName: 'Bank (PT Payment)', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'PT_INTEREST', componentName: 'PT Interest (Late Payment)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'PT_INTEREST', componentName: 'PT Interest (Late Payment)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'PT_PENALTY', componentName: 'PT Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
@@ -207,6 +213,7 @@ const PT_SEED_ROWS = [
 ];
 
 const CIT_SEED_ROWS = [
+  { componentCode: 'CIT_BANK', componentName: 'Bank (Income Tax Payment)', category: 'company_tax', postingContext: 'statutory_payment', debitCredit: 'credit' },
   { componentCode: 'CIT_CURRENT_TAX_EXPENSE', componentName: 'Current Tax Expense', category: 'company_tax', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'CIT_DEFERRED_TAX', componentName: 'Deferred Tax Expense/Benefit', category: 'company_tax', postingContext: 'expense', debitCredit: 'debit' },
   { componentCode: 'CIT_DEFERRED_TAX', componentName: 'Deferred Tax Expense/Benefit', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'credit' },
@@ -690,4 +697,381 @@ router.get('/reconciliation/:moduleType', async (req: Request, res: Response) =>
   res.json(result);
 });
 
+async function postJeToSap(userId: number, jePayload: any): Promise<{ success: boolean; docEntry?: number; jeNumber?: string; error?: string }> {
+  const session = sapSessionManager.getSession(userId);
+  const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
+  const sapUser = process.env.SAP_USERNAME || '';
+  const sapPass = process.env.SAP_PASSWORD || '';
+  const sapDb = process.env.SAP_COMPANY_DB || '';
+
+  if (!sapUser || !sapPass || !sapDb) {
+    return { success: false, error: 'SAP credentials not configured. Please set SAP_USERNAME, SAP_PASSWORD, and SAP_COMPANY_DB.' };
+  }
+
+  try {
+    let sessionId: string;
+    if (session) {
+      sessionId = session.sessionId;
+    } else {
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+      sessionId = loginResult.sessionId;
+    }
+
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/JournalEntries',
+      body: jePayload,
+    });
+
+    if (sapResponse.ok) {
+      const responseData = JSON.parse(sapResponse.body);
+      return {
+        success: true,
+        docEntry: responseData.DocEntry,
+        jeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+      };
+    } else {
+      let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
+      try {
+        const errParsed = JSON.parse(sapResponse.body);
+        errorMsg = errParsed?.error?.message?.value || errorMsg;
+      } catch (_) {}
+      return { success: false, error: errorMsg };
+    }
+  } catch (err: any) {
+    return { success: false, error: `SAP connection error: ${err.message}` };
+  }
+}
+
+function getGlCode(mappings: any[], code: string, context: string): string | null {
+  const m = mappings.find(r => r.componentCode === code && r.postingContext === context && r.glAccountCode && r.glAccountCode.trim() !== '' && r.isActive);
+  return m ? m.glAccountCode : null;
+}
+
+const MODULE_CONFIG: Record<string, {
+  liabilityComponents: { code: string; amountKey: string }[];
+  bankCode: string;
+  interestCode?: string;
+  penaltyCode?: string;
+  lateFeeeCode?: string;
+}> = {
+  TDS: {
+    liabilityComponents: [{ code: 'TDS', amountKey: 'totalEmployeeContribution' }],
+    bankCode: 'TDS_BANK',
+    interestCode: 'TDS_INTEREST',
+    penaltyCode: 'TDS_PENALTY',
+    lateFeeeCode: 'TDS_LATE_FEE',
+  },
+  PF: {
+    liabilityComponents: [
+      { code: 'PF_EMPLOYEE', amountKey: 'totalEmployeeContribution' },
+      { code: 'PF_EMPLOYER', amountKey: 'totalEmployerContribution' },
+      { code: 'PF_ADMIN_CHARGES', amountKey: 'adminCharges' },
+    ],
+    bankCode: 'PF_BANK',
+    interestCode: 'PF_INTEREST',
+    penaltyCode: 'PF_PENALTY',
+  },
+  ESIC: {
+    liabilityComponents: [
+      { code: 'ESIC_EMPLOYEE', amountKey: 'totalEmployeeContribution' },
+      { code: 'ESIC_EMPLOYER', amountKey: 'totalEmployerContribution' },
+    ],
+    bankCode: 'ESIC_BANK',
+    interestCode: 'ESIC_INTEREST',
+    penaltyCode: 'ESIC_PENALTY',
+  },
+  PT: {
+    liabilityComponents: [{ code: 'PT', amountKey: 'totalEmployeeContribution' }],
+    bankCode: 'PT_BANK',
+    interestCode: 'PT_INTEREST',
+    penaltyCode: 'PT_PENALTY',
+  },
+};
+
+router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
+  try {
+    const challanId = parseInt(req.params.id);
+    const currentUser = (req as any).user;
+
+    const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, challanId));
+    if (!challan) return res.status(404).json({ error: 'Challan not found' });
+
+    if (challan.sapPostingStatus === 'posted') {
+      return res.status(400).json({
+        error: 'This challan has already been posted to SAP.',
+        sapJeNumber: challan.sapJeNumber,
+        sapDocEntry: challan.sapDocEntry,
+      });
+    }
+
+    if (challan.sapPostingStatus === 'reversed') {
+      return res.status(400).json({ error: 'This challan has been reversed and cannot be reposted.' });
+    }
+
+    if (challan.status !== 'paid') {
+      return res.status(400).json({ error: `Only paid challans can be posted to SAP. Current status: ${challan.status}. Please record payment first.` });
+    }
+
+    const moduleType = challan.moduleType.toUpperCase();
+    const config = MODULE_CONFIG[moduleType];
+    if (!config) {
+      return res.status(400).json({ error: `Unsupported module type: ${moduleType}` });
+    }
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+
+    const missingMappings: string[] = [];
+    const bankGl = getGlCode(allMappings, config.bankCode, 'statutory_payment');
+    if (!bankGl) missingMappings.push(`${config.bankCode} (statutory_payment)`);
+
+    for (const comp of config.liabilityComponents) {
+      if (!getGlCode(allMappings, comp.code, 'statutory_payment')) {
+        missingMappings.push(`${comp.code} (statutory_payment)`);
+      }
+    }
+
+    if (config.interestCode && parseFloat(challan.interest?.toString() || '0') > 0) {
+      if (!getGlCode(allMappings, config.interestCode, 'expense')) {
+        missingMappings.push(`${config.interestCode} (expense)`);
+      }
+    }
+    if (config.penaltyCode && parseFloat(challan.penalty?.toString() || '0') > 0) {
+      if (!getGlCode(allMappings, config.penaltyCode, 'expense')) {
+        missingMappings.push(`${config.penaltyCode} (expense)`);
+      }
+    }
+
+    if (missingMappings.length > 0) {
+      await db.update(statutoryChallans).set({
+        sapPostingStatus: 'failed',
+        sapPostingError: `GL mappings missing: ${missingMappings.join(', ')}`,
+        updatedAt: new Date(),
+      }).where(eq(statutoryChallans.id, challanId));
+      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings });
+    }
+
+    const jeLines: any[] = [];
+    let lineNum = 0;
+    let totalBankCredit = 0;
+    const periodLabel = `${challan.month}/${challan.year}`;
+
+    for (const comp of config.liabilityComponents) {
+      const amount = parseFloat((challan as any)[comp.amountKey]?.toString() || '0');
+      if (amount > 0) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: getGlCode(allMappings, comp.code, 'statutory_payment'),
+          Debit: amount,
+          Credit: 0,
+          LineMemo: `${comp.code} Payment - ${moduleType} - ${periodLabel}`,
+        });
+        totalBankCredit += amount;
+      }
+    }
+
+    const interestAmt = parseFloat(challan.interest?.toString() || '0');
+    if (interestAmt > 0 && config.interestCode) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: getGlCode(allMappings, config.interestCode, 'expense'),
+        Debit: interestAmt,
+        Credit: 0,
+        LineMemo: `${config.interestCode} - ${moduleType} - ${periodLabel}`,
+      });
+      totalBankCredit += interestAmt;
+    }
+
+    const penaltyAmt = parseFloat(challan.penalty?.toString() || '0');
+    if (penaltyAmt > 0 && config.penaltyCode) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: getGlCode(allMappings, config.penaltyCode, 'expense'),
+        Debit: penaltyAmt,
+        Credit: 0,
+        LineMemo: `${config.penaltyCode} - ${moduleType} - ${periodLabel}`,
+      });
+      totalBankCredit += penaltyAmt;
+    }
+
+    if (totalBankCredit > 0) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: bankGl,
+        Debit: 0,
+        Credit: totalBankCredit,
+        LineMemo: `Bank Payment - ${moduleType} Challan ${challan.challanReference} - ${periodLabel}`,
+      });
+    }
+
+    if (jeLines.length === 0) {
+      return res.status(400).json({ error: 'No amounts to post. All challan amounts are zero.' });
+    }
+
+    const postingDate = challan.paymentDate
+      ? new Date(challan.paymentDate).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `${moduleType} Payment - Challan ${challan.challanReference} - ${periodLabel}`,
+      Reference2: challan.challanReference,
+      Reference3: moduleType,
+      JournalEntryLines: jeLines,
+    };
+
+    await db.update(statutoryChallans).set({
+      sapPostingStatus: 'pending',
+      sapPostingError: null,
+      updatedAt: new Date(),
+    }).where(eq(statutoryChallans.id, challanId));
+
+    const result = await postJeToSap(currentUser.id, jePayload);
+
+    if (result.success) {
+      await db.update(statutoryChallans).set({
+        sapDocEntry: result.docEntry,
+        sapJeNumber: result.jeNumber,
+        sapJeReference: result.jeNumber,
+        sapPostedAt: new Date(),
+        sapPostingStatus: 'posted',
+        sapPostingError: null,
+        updatedAt: new Date(),
+      }).where(eq(statutoryChallans.id, challanId));
+
+      return res.json({
+        success: true,
+        message: `${moduleType} challan posted to SAP successfully`,
+        sapDocEntry: result.docEntry,
+        sapJeNumber: result.jeNumber,
+      });
+    } else {
+      await db.update(statutoryChallans).set({
+        sapPostingStatus: 'failed',
+        sapPostingError: result.error,
+        updatedAt: new Date(),
+      }).where(eq(statutoryChallans.id, challanId));
+
+      return res.status(500).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error('Error posting statutory challan to SAP:', error);
+    res.status(500).json({ error: error.message || 'Failed to post challan to SAP' });
+  }
+});
+
+router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => {
+  try {
+    const challanId = parseInt(req.params.id);
+    const currentUser = (req as any).user;
+
+    const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, challanId));
+    if (!challan) return res.status(404).json({ error: 'Challan not found' });
+
+    if (challan.sapPostingStatus !== 'posted') {
+      return res.status(400).json({ error: 'Only posted challans can be reversed.' });
+    }
+
+    if (challan.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This challan has already been reversed.', reversalJeNumber: challan.reversalSapJeNumber });
+    }
+
+    const moduleType = challan.moduleType.toUpperCase();
+    const config = MODULE_CONFIG[moduleType];
+    if (!config) return res.status(400).json({ error: `Unsupported module type: ${moduleType}` });
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const bankGl = getGlCode(allMappings, config.bankCode, 'statutory_payment');
+
+    const jeLines: any[] = [];
+    let lineNum = 0;
+    let totalBankDebit = 0;
+    const periodLabel = `${challan.month}/${challan.year}`;
+
+    for (const comp of config.liabilityComponents) {
+      const amount = parseFloat((challan as any)[comp.amountKey]?.toString() || '0');
+      if (amount > 0) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: getGlCode(allMappings, comp.code, 'statutory_payment'),
+          Debit: 0,
+          Credit: amount,
+          LineMemo: `REVERSAL: ${comp.code} Payment - ${moduleType} - ${periodLabel}`,
+        });
+        totalBankDebit += amount;
+      }
+    }
+
+    const interestAmt = parseFloat(challan.interest?.toString() || '0');
+    if (interestAmt > 0 && config.interestCode) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: getGlCode(allMappings, config.interestCode, 'expense'),
+        Debit: 0,
+        Credit: interestAmt,
+        LineMemo: `REVERSAL: ${config.interestCode} - ${moduleType} - ${periodLabel}`,
+      });
+      totalBankDebit += interestAmt;
+    }
+
+    const penaltyAmt = parseFloat(challan.penalty?.toString() || '0');
+    if (penaltyAmt > 0 && config.penaltyCode) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: getGlCode(allMappings, config.penaltyCode, 'expense'),
+        Debit: 0,
+        Credit: penaltyAmt,
+        LineMemo: `REVERSAL: ${config.penaltyCode} - ${moduleType} - ${periodLabel}`,
+      });
+      totalBankDebit += penaltyAmt;
+    }
+
+    if (totalBankDebit > 0) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: bankGl,
+        Debit: totalBankDebit,
+        Credit: 0,
+        LineMemo: `REVERSAL: Bank - ${moduleType} Challan ${challan.challanReference} - ${periodLabel}`,
+      });
+    }
+
+    const jePayload = {
+      ReferenceDate: new Date().toISOString().split('T')[0],
+      Memo: `REVERSAL: ${moduleType} Payment - Challan ${challan.challanReference} - ${periodLabel}`,
+      Reference2: challan.challanReference,
+      Reference3: `${moduleType}-REV`,
+      JournalEntryLines: jeLines,
+    };
+
+    const result = await postJeToSap(currentUser.id, jePayload);
+
+    if (result.success) {
+      await db.update(statutoryChallans).set({
+        reversalSapDocEntry: result.docEntry,
+        reversalSapJeNumber: result.jeNumber,
+        reversalSapPostedAt: new Date(),
+        reversedBy: currentUser.id,
+        reversedAt: new Date(),
+        sapPostingStatus: 'reversed',
+        updatedAt: new Date(),
+      }).where(eq(statutoryChallans.id, challanId));
+
+      return res.json({
+        success: true,
+        message: `${moduleType} challan reversal JE posted to SAP.`,
+        reversalDocEntry: result.docEntry,
+        reversalJeNumber: result.jeNumber,
+      });
+    } else {
+      return res.status(500).json({ error: `Reversal failed: ${result.error}` });
+    }
+  } catch (error: any) {
+    console.error('Error reversing statutory challan in SAP:', error);
+    res.status(500).json({ error: error.message || 'Failed to reverse challan in SAP' });
+  }
+});
+
+export { postJeToSap, getGlCode };
 export default router;

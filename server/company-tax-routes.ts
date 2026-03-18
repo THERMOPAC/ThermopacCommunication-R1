@@ -10,6 +10,7 @@ import {
 } from '@shared/schema';
 import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { postJeToSap, getGlCode } from './statutory-compliance-routes';
 
 const router = Router();
 router.use(ensureAuthenticated);
@@ -237,17 +238,131 @@ router.put('/challans/:id/payment', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/challans/:id/post-sap', async (req: Request, res: Response) => {
+router.post('/challans/:id/post-sap', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const { sapJeReference } = req.body;
-    const [row] = await db.update(companyTaxChallans)
-      .set({ sapJeReference, status: 'posted', updatedAt: new Date() })
-      .where(eq(companyTaxChallans.id, id))
-      .returning();
-    res.json(row);
+    const currentUser = (req as any).user;
+
+    const [challan] = await db.select().from(companyTaxChallans).where(eq(companyTaxChallans.id, id));
+    if (!challan) return res.status(404).json({ error: 'Challan not found' });
+
+    if (challan.sapPostingStatus === 'posted') {
+      return res.status(400).json({ error: 'Already posted to SAP', sapJeNumber: challan.sapJeNumber });
+    }
+    if (challan.status !== 'paid') {
+      return res.status(400).json({ error: 'Only paid challans can be posted to SAP' });
+    }
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const bankGl = getGlCode(allMappings, 'CIT_BANK', 'statutory_payment');
+    const provisionGl = getGlCode(allMappings, 'CIT_TAX_PROVISION', 'statutory_payment');
+
+    if (!bankGl || !provisionGl) {
+      const missing = [];
+      if (!bankGl) missing.push('CIT_BANK (statutory_payment)');
+      if (!provisionGl) missing.push('CIT_TAX_PROVISION (statutory_payment)');
+      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings: missing });
+    }
+
+    const amount = parseFloat(challan.amount?.toString() || '0');
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Challan amount is zero or negative' });
+    }
+
+    const postingDate = challan.paymentDate
+      ? new Date(challan.paymentDate).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `Company Income Tax Payment - Challan ${challan.challanReference} - ${challan.challanType}`,
+      Reference2: challan.challanReference,
+      Reference3: 'CIT',
+      JournalEntryLines: [
+        { Line_ID: 0, AccountCode: provisionGl, Debit: amount, Credit: 0, LineMemo: `CIT Tax Provision Payment - ${challan.challanType} - ${challan.challanReference}` },
+        { Line_ID: 1, AccountCode: bankGl, Debit: 0, Credit: amount, LineMemo: `Bank - CIT Challan ${challan.challanReference}` },
+      ],
+    };
+
+    const result = await postJeToSap(currentUser.id, jePayload);
+
+    if (result.success) {
+      await db.update(companyTaxChallans).set({
+        sapDocEntry: result.docEntry,
+        sapJeNumber: result.jeNumber,
+        sapJeReference: result.jeNumber,
+        sapPostedAt: new Date(),
+        sapPostingStatus: 'posted',
+        sapPostingError: null,
+        status: 'posted',
+        updatedAt: new Date(),
+      }).where(eq(companyTaxChallans.id, id));
+
+      return res.json({ success: true, sapDocEntry: result.docEntry, sapJeNumber: result.jeNumber });
+    } else {
+      await db.update(companyTaxChallans).set({
+        sapPostingStatus: 'failed',
+        sapPostingError: result.error,
+        updatedAt: new Date(),
+      }).where(eq(companyTaxChallans.id, id));
+      return res.status(500).json({ error: result.error });
+    }
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const currentUser = (req as any).user;
+
+    const [challan] = await db.select().from(companyTaxChallans).where(eq(companyTaxChallans.id, id));
+    if (!challan) return res.status(404).json({ error: 'Challan not found' });
+
+    if (challan.sapPostingStatus !== 'posted') {
+      return res.status(400).json({ error: 'Only posted challans can be reversed' });
+    }
+    if (challan.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'Already reversed', reversalJeNumber: challan.reversalSapJeNumber });
+    }
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const bankGl = getGlCode(allMappings, 'CIT_BANK', 'statutory_payment');
+    const provisionGl = getGlCode(allMappings, 'CIT_TAX_PROVISION', 'statutory_payment');
+
+    const amount = parseFloat(challan.amount?.toString() || '0');
+
+    const jePayload = {
+      ReferenceDate: new Date().toISOString().split('T')[0],
+      Memo: `REVERSAL: CIT Payment - Challan ${challan.challanReference}`,
+      Reference2: challan.challanReference,
+      Reference3: 'CIT-REV',
+      JournalEntryLines: [
+        { Line_ID: 0, AccountCode: provisionGl, Debit: 0, Credit: amount, LineMemo: `REVERSAL: CIT Tax Provision - ${challan.challanReference}` },
+        { Line_ID: 1, AccountCode: bankGl, Debit: amount, Credit: 0, LineMemo: `REVERSAL: Bank - CIT Challan ${challan.challanReference}` },
+      ],
+    };
+
+    const result = await postJeToSap(currentUser.id, jePayload);
+
+    if (result.success) {
+      await db.update(companyTaxChallans).set({
+        reversalSapDocEntry: result.docEntry,
+        reversalSapJeNumber: result.jeNumber,
+        reversalSapPostedAt: new Date(),
+        reversedBy: currentUser.id,
+        reversedAt: new Date(),
+        sapPostingStatus: 'reversed',
+        updatedAt: new Date(),
+      }).where(eq(companyTaxChallans.id, id));
+
+      return res.json({ success: true, reversalDocEntry: result.docEntry, reversalJeNumber: result.jeNumber });
+    } else {
+      return res.status(500).json({ error: `Reversal failed: ${result.error}` });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -290,17 +405,77 @@ router.put('/provisions/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/provisions/:id/post-sap', async (req: Request, res: Response) => {
+router.post('/provisions/:id/post-sap', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    const { sapJeReference } = req.body;
-    const [row] = await db.update(companyTaxProvisions)
-      .set({ sapJeReference, postingStatus: 'posted', updatedAt: new Date() })
-      .where(eq(companyTaxProvisions.id, id))
-      .returning();
-    res.json(row);
+    const currentUser = (req as any).user;
+
+    const [provision] = await db.select().from(companyTaxProvisions).where(eq(companyTaxProvisions.id, id));
+    if (!provision) return res.status(404).json({ error: 'Provision not found' });
+
+    if (provision.sapPostingStatus === 'posted') {
+      return res.status(400).json({ error: 'Already posted to SAP', sapJeNumber: provision.sapJeNumber });
+    }
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const expenseGl = getGlCode(allMappings, 'CIT_CURRENT_TAX_EXPENSE', 'expense');
+    const provisionGl = getGlCode(allMappings, 'CIT_TAX_PROVISION', 'tax_liability');
+
+    if (!expenseGl || !provisionGl) {
+      const missing = [];
+      if (!expenseGl) missing.push('CIT_CURRENT_TAX_EXPENSE (expense)');
+      if (!provisionGl) missing.push('CIT_TAX_PROVISION (tax_liability)');
+      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings: missing });
+    }
+
+    const amount = parseFloat(provision.amount?.toString() || '0');
+    if (amount === 0) {
+      return res.status(400).json({ error: 'Provision amount is zero' });
+    }
+
+    const postingDate = provision.provisionDate
+      ? new Date(provision.provisionDate).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const isReversal = amount < 0;
+    const absAmount = Math.abs(amount);
+
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `${isReversal ? 'REVERSAL: ' : ''}Income Tax Provision - ${provision.provisionPeriod} - ${provision.provisionType}`,
+      Reference2: `CIT-PROV-${id}`,
+      Reference3: isReversal ? 'CIT-PROV-REV' : 'CIT-PROV',
+      JournalEntryLines: [
+        { Line_ID: 0, AccountCode: expenseGl, Debit: isReversal ? 0 : absAmount, Credit: isReversal ? absAmount : 0, LineMemo: `${isReversal ? 'REVERSAL: ' : ''}Tax Expense Provision - ${provision.provisionPeriod}` },
+        { Line_ID: 1, AccountCode: provisionGl, Debit: isReversal ? absAmount : 0, Credit: isReversal ? 0 : absAmount, LineMemo: `${isReversal ? 'REVERSAL: ' : ''}Tax Provision Liability - ${provision.provisionPeriod}` },
+      ],
+    };
+
+    const result = await postJeToSap(currentUser.id, jePayload);
+
+    if (result.success) {
+      await db.update(companyTaxProvisions).set({
+        sapDocEntry: result.docEntry,
+        sapJeNumber: result.jeNumber,
+        sapJeReference: result.jeNumber,
+        sapPostedAt: new Date(),
+        sapPostingStatus: 'posted',
+        sapPostingError: null,
+        postingStatus: 'posted',
+        updatedAt: new Date(),
+      }).where(eq(companyTaxProvisions.id, id));
+
+      return res.json({ success: true, sapDocEntry: result.docEntry, sapJeNumber: result.jeNumber });
+    } else {
+      await db.update(companyTaxProvisions).set({
+        sapPostingStatus: 'failed',
+        sapPostingError: result.error,
+        updatedAt: new Date(),
+      }).where(eq(companyTaxProvisions.id, id));
+      return res.status(500).json({ error: result.error });
+    }
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
