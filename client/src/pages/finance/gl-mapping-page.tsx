@@ -154,6 +154,9 @@ export default function GlMappingPage() {
   const [filterContext, setFilterContext] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [form, setForm] = useState({ glAccountCode: '', glAccountName: '' });
+  const [sapAccounts, setSapAccounts] = useState<any[]>([]);
+  const [sapLoading, setSapLoading] = useState(false);
+  const [sapSearch, setSapSearch] = useState('');
 
   const { data: user } = useQuery<any>({ queryKey: ['/api/user'] });
   const isAdmin = user?.role === 'Superuser' || user?.role === 'Manager';
@@ -172,7 +175,7 @@ export default function GlMappingPage() {
     mutationFn: () => apiRequest('POST', '/api/statutory/gl-mappings/seed-all'),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
-      toast({ title: 'GL Mappings Seeded', description: `Created ${data.totalCreated || 0} new mapping rows across all modules.` });
+      toast({ title: 'GL Mappings Seeded', description: data.created > 0 ? `Created ${data.created} new mapping rows.` : 'All mappings already exist — nothing to seed.' });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -187,10 +190,24 @@ export default function GlMappingPage() {
     });
   }
 
+  async function loadSapAccounts() {
+    if (sapAccounts.length > 0) return;
+    setSapLoading(true);
+    try {
+      const data = await apiRequest('GET', '/api/admin/payroll/sap-gl-accounts');
+      setSapAccounts(data.accounts || []);
+    } catch {
+      setSapAccounts([]);
+    } finally {
+      setSapLoading(false);
+    }
+  }
+
   function openEdit(m: any) {
     setEditId(m.id);
     setEditRow(m);
     setForm({ glAccountCode: m.glAccountCode || '', glAccountName: m.glAccountName || '' });
+    setSapSearch('');
     setShowDialog(true);
   }
 
@@ -277,10 +294,10 @@ export default function GlMappingPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Landmark className="h-6 w-6" /> GL Account Mapping</h1>
           <p className="text-muted-foreground mt-1">Centralized GL mapping for all payroll and statutory modules</p>
         </div>
-        {isAdmin && mappings.length === 0 && (
-          <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending}>
+        {isAdmin && (
+          <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending} variant={mappings.length === 0 ? 'default' : 'outline'}>
             {seedAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sprout className="h-4 w-4 mr-2" />}
-            Seed All GL Mappings
+            {mappings.length === 0 ? 'Seed All GL Mappings' : 'Seed Missing Mappings'}
           </Button>
         )}
       </div>
@@ -344,11 +361,21 @@ export default function GlMappingPage() {
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-              <div>
+              <div className="flex-1">
                 <h4 className="font-semibold text-amber-800">{totalUnmapped} component{totalUnmapped > 1 ? 's' : ''} missing GL account code</h4>
                 <p className="text-sm text-amber-700 mt-1">
                   SAP posting will be blocked for any JE that uses unmapped components. Click any GL Account Code cell to assign it directly.
                 </p>
+                {unmappedLabels.length > 0 && unmappedLabels.length <= 15 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {unmappedLabels.map((label, i) => (
+                      <Badge key={i} variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-xs">{label}</Badge>
+                    ))}
+                  </div>
+                )}
+                {unmappedLabels.length > 15 && (
+                  <p className="text-xs text-amber-600 mt-2">{unmappedLabels.length} unmapped — use "Unmapped Only" filter to see them all.</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -558,6 +585,38 @@ export default function GlMappingPage() {
                   placeholder="Enter GL account name"
                   className="mt-1"
                 />
+              </div>
+              <div>
+                <Button variant="outline" size="sm" type="button" onClick={loadSapAccounts} disabled={sapLoading}>
+                  {sapLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Search className="h-3.5 w-3.5 mr-1.5" />}
+                  {sapAccounts.length > 0 ? 'SAP GL Accounts Loaded' : 'Load SAP GL Accounts'}
+                </Button>
+                {sapAccounts.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      value={sapSearch}
+                      onChange={e => setSapSearch(e.target.value)}
+                      placeholder="Search SAP accounts..."
+                      className="h-8 text-sm"
+                    />
+                    <div className="max-h-40 overflow-y-auto border rounded-md">
+                      {sapAccounts
+                        .filter(a => !sapSearch || a.name?.toLowerCase().includes(sapSearch.toLowerCase()) || a.code?.toLowerCase().includes(sapSearch.toLowerCase()))
+                        .slice(0, 20)
+                        .map((a: any) => (
+                          <div
+                            key={a.code}
+                            className="px-3 py-1.5 hover:bg-muted cursor-pointer text-sm flex justify-between items-center border-b last:border-b-0"
+                            onClick={() => setForm(f => ({ ...f, glAccountCode: a.code, glAccountName: a.name }))}
+                          >
+                            <span className="font-mono text-xs">{a.code}</span>
+                            <span className="text-xs text-muted-foreground truncate ml-2">{a.name}</span>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>

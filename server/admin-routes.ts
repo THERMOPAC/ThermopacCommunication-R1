@@ -2282,13 +2282,15 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
 
     const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'GET',
-      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name,ActiveAccount,PostableAccount&$filter=PostableAccount eq 'tYES'&$top=20",
+      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name,ActiveAccount&$top=500",
       headers,
     });
 
     if (sapResponse.ok) {
       const data = JSON.parse(sapResponse.body);
-      return res.json(data.value || data);
+      const allAccounts = data.value || [];
+      const accounts = allAccounts.map((a: any) => ({ code: a.Code, name: a.Name, active: a.ActiveAccount }));
+      return res.json({ accounts, total: accounts.length });
     } else {
       return res.status(500).json({ error: sapResponse.body });
     }
