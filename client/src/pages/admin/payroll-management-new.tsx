@@ -425,8 +425,6 @@ function TestSapJeButton() {
     DueDate: "2026-02-28",
     TaxDate: "2026-02-28",
     Memo: "Salary JE - Sanjeev Kale - February 2026",
-    Reference2: "V10337",
-    Reference3: "92B",
     U_Employee_Name: "Sanjeev Kale",
     U_TDS_Status: "A",
     U_PF_Status: "A",
@@ -437,10 +435,10 @@ function TestSapJeButton() {
         AccountCode: "50207350101-ARL",
         Debit: 10000,
         Credit: 0,
-        LineMemo: "BASIC - Sanjeev Kale - February 2026"
+        LineMemo: "SPECIAL_ALLOWANCE - Sanjeev Kale - February 2026"
       },
       {
-        ShortName: "V10337",
+        ShortName: "50106040400-ARL",
         Debit: 0,
         Credit: 10000,
         LineMemo: "Net Pay - Sanjeev Kale - February 2026"
