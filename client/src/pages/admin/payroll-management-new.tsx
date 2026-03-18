@@ -432,12 +432,12 @@ function TestSapJeButton() {
     U_PT_Status: "A",
     JournalEntryLines: [
       {
-        AccountCode: "50207350101-ARL",
+        AccountCode: "50207350101",
         Debit: 10000,
         Credit: 0
       },
       {
-        AccountCode: "50106040400-ARL",
+        AccountCode: "50106040400",
         Debit: 0,
         Credit: 10000
       }
