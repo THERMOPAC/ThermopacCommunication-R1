@@ -35,11 +35,35 @@ const COMPONENTS = [
   { code: 'GRATUITY', name: 'Gratuity Provision', category: 'employer_contribution' },
   { code: 'GROUP_INSURANCE', name: 'Group Insurance', category: 'employer_contribution' },
   { code: 'EMPLOYEE_PAYABLE', name: 'Employee Payable (Net Salary)', category: 'employee_payable' },
+  { code: 'TDS_INTEREST', name: 'TDS Interest (Late Deposit)', category: 'statutory_penalty' },
+  { code: 'TDS_PENALTY', name: 'TDS Penalty', category: 'statutory_penalty' },
+  { code: 'TDS_LATE_FEE', name: 'TDS Late Filing Fee (234E)', category: 'statutory_penalty' },
+  { code: 'PF_ADMIN_CHARGES', name: 'PF Admin Charges (0.5%)', category: 'employer_contribution' },
+  { code: 'EDLI_CONTRIBUTION', name: 'EDLI Contribution (0.5%)', category: 'employer_contribution' },
+  { code: 'EDLI_ADMIN_CHARGES', name: 'EDLI Admin Charges', category: 'employer_contribution' },
+  { code: 'PF_INTEREST', name: 'PF Interest (Late Deposit)', category: 'statutory_penalty' },
+  { code: 'PF_PENALTY', name: 'PF Penalty / Damages', category: 'statutory_penalty' },
+  { code: 'ESIC_INTEREST', name: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty' },
+  { code: 'ESIC_PENALTY', name: 'ESIC Penalty', category: 'statutory_penalty' },
+  { code: 'PT_INTEREST', name: 'PT Interest (Late Payment)', category: 'statutory_penalty' },
+  { code: 'PT_PENALTY', name: 'PT Penalty', category: 'statutory_penalty' },
+  { code: 'CIT_CURRENT_TAX_EXPENSE', name: 'Current Tax Expense', category: 'company_tax' },
+  { code: 'CIT_DEFERRED_TAX', name: 'Deferred Tax Expense/Benefit', category: 'company_tax' },
+  { code: 'CIT_TAX_PROVISION', name: 'Income Tax Provision', category: 'company_tax' },
+  { code: 'CIT_PROVISION_OFFSET', name: 'Provision Offset (Year-End Adjustment)', category: 'company_tax' },
+  { code: 'CIT_ADVANCE_TAX', name: 'Advance Tax Paid', category: 'company_tax' },
+  { code: 'CIT_TDS_RECEIVABLE', name: 'TDS Receivable (Tax Credits)', category: 'company_tax' },
+  { code: 'CIT_TAX_REFUND', name: 'Tax Refund Receivable', category: 'company_tax' },
+  { code: 'CIT_INTEREST_234B', name: 'Interest u/s 234B (Advance Tax Default)', category: 'company_tax_penalty' },
+  { code: 'CIT_INTEREST_234C', name: 'Interest u/s 234C (Deferment)', category: 'company_tax_penalty' },
+  { code: 'CIT_INTEREST_234A', name: 'Interest u/s 234A (Late Filing)', category: 'company_tax_penalty' },
+  { code: 'CIT_TAX_PENALTY', name: 'Income Tax Penalty', category: 'company_tax_penalty' },
 ];
 
 const CONTEXTS = [
   { value: 'payroll_liability', label: 'Payroll Liability' },
   { value: 'statutory_payment', label: 'Statutory Payment' },
+  { value: 'tax_liability', label: 'Tax Liability' },
   { value: 'recovery', label: 'Recovery' },
   { value: 'expense', label: 'Expense' },
 ];
@@ -50,9 +74,21 @@ const CATEGORIES = [
   { value: 'statutory', label: 'Statutory', color: 'bg-blue-100 text-blue-800' },
   { value: 'employer_contribution', label: 'Employer Contributions', color: 'bg-purple-100 text-purple-800' },
   { value: 'employee_payable', label: 'Employee Payable', color: 'bg-orange-100 text-orange-800' },
+  { value: 'statutory_penalty', label: 'Statutory Penalty / Interest', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'company_tax', label: 'Company Income Tax', color: 'bg-indigo-100 text-indigo-800' },
+  { value: 'company_tax_penalty', label: 'Company Tax Penalty / Interest', color: 'bg-rose-100 text-rose-800' },
 ];
 
-const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'employee_payable'];
+const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'employee_payable', 'statutory_penalty', 'company_tax', 'company_tax_penalty'];
+
+const SEED_MODULES = [
+  { key: 'payroll', label: 'Payroll' },
+  { key: 'tds', label: 'TDS' },
+  { key: 'pf', label: 'PF' },
+  { key: 'esic', label: 'ESIC' },
+  { key: 'pt', label: 'PT' },
+  { key: 'cit', label: 'Company Income Tax' },
+];
 
 export default function GlMappingPage() {
   const { toast } = useToast();
@@ -79,11 +115,20 @@ export default function GlMappingPage() {
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
-  const seedMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/statutory/gl-mappings/seed-payroll'),
+  const seedAllMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/statutory/gl-mappings/seed-all'),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
-      toast({ title: 'Payroll GL Mappings Seeded', description: `${data.created} of ${data.total} rows created` });
+      toast({ title: 'All GL Mappings Seeded', description: `${data.created} of ${data.total} rows created` });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const seedModuleMutation = useMutation({
+    mutationFn: (module: string) => apiRequest('POST', `/api/statutory/gl-mappings/seed/${module}`),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
+      toast({ title: 'GL Mappings Seeded', description: `${data.created} of ${data.total} rows created` });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -138,6 +183,7 @@ export default function GlMappingPage() {
   const contextShortLabel = (ctx: string) => {
     if (ctx === 'expense') return 'Expense';
     if (ctx === 'payroll_liability') return 'Liability';
+    if (ctx === 'tax_liability') return 'Tax Liability';
     if (ctx === 'recovery') return 'Recovery';
     if (ctx === 'statutory_payment') return 'Statutory Pmt';
     return ctx;
@@ -166,10 +212,22 @@ export default function GlMappingPage() {
           <p className="text-muted-foreground mt-1">Centralized GL mapping for all payroll and statutory modules</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending} variant="outline">
-            <Database className="h-4 w-4 mr-2" />
-            {seedMutation.isPending ? 'Seeding...' : 'Seed Payroll GL Mappings'}
-          </Button>
+          <div className="flex gap-2 items-center">
+            <Select onValueChange={(module) => seedModuleMutation.mutate(module)}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Seed by Module..." />
+              </SelectTrigger>
+              <SelectContent>
+                {SEED_MODULES.map(m => (
+                  <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending} variant="outline">
+              <Database className="h-4 w-4 mr-2" />
+              {seedAllMutation.isPending ? 'Seeding...' : 'Seed All Modules'}
+            </Button>
+          </div>
         )}
       </div>
 

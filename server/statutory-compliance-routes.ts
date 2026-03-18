@@ -140,6 +140,83 @@ const PAYROLL_SEED_ROWS = [
   { componentCode: 'EMPLOYEE_PAYABLE', componentName: 'Employee Payable (Net Salary)', category: 'employee_payable', postingContext: 'payroll_liability', debitCredit: 'credit' },
 ];
 
+const TDS_SEED_ROWS = [
+  { componentCode: 'TDS', componentName: 'Tax Deducted at Source', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'TDS_INTEREST', componentName: 'TDS Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'TDS_INTEREST', componentName: 'TDS Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'TDS_PENALTY', componentName: 'TDS Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'TDS_PENALTY', componentName: 'TDS Penalty', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'TDS_LATE_FEE', componentName: 'TDS Late Filing Fee (234E)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'TDS_LATE_FEE', componentName: 'TDS Late Filing Fee (234E)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+];
+
+const PF_SEED_ROWS = [
+  { componentCode: 'PF_EMPLOYEE', componentName: 'Employee PF Contribution', category: 'deduction', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'PF_EMPLOYER', componentName: 'Employer PF Contribution', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'PF_ADMIN_CHARGES', componentName: 'PF Admin Charges (0.5%)', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'EDLI_CONTRIBUTION', componentName: 'EDLI Contribution (0.5%)', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'EDLI_CONTRIBUTION', componentName: 'EDLI Contribution (0.5%)', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'EDLI_CONTRIBUTION', componentName: 'EDLI Contribution (0.5%)', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'EDLI_ADMIN_CHARGES', componentName: 'EDLI Admin Charges', category: 'employer_contribution', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'EDLI_ADMIN_CHARGES', componentName: 'EDLI Admin Charges', category: 'employer_contribution', postingContext: 'payroll_liability', debitCredit: 'credit' },
+  { componentCode: 'EDLI_ADMIN_CHARGES', componentName: 'EDLI Admin Charges', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'PF_INTEREST', componentName: 'PF Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PF_INTEREST', componentName: 'PF Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'PF_PENALTY', componentName: 'PF Penalty / Damages', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PF_PENALTY', componentName: 'PF Penalty / Damages', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+];
+
+const ESIC_SEED_ROWS = [
+  { componentCode: 'ESIC_EMPLOYEE', componentName: 'Employee ESIC', category: 'deduction', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'ESIC_EMPLOYER', componentName: 'Employer ESIC', category: 'employer_contribution', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'ESIC_INTEREST', componentName: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'ESIC_INTEREST', componentName: 'ESIC Interest (Late Deposit)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'ESIC_PENALTY', componentName: 'ESIC Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'ESIC_PENALTY', componentName: 'ESIC Penalty', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+];
+
+const PT_SEED_ROWS = [
+  { componentCode: 'PT', componentName: 'Professional Tax', category: 'statutory', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'PT_INTEREST', componentName: 'PT Interest (Late Payment)', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PT_INTEREST', componentName: 'PT Interest (Late Payment)', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'PT_PENALTY', componentName: 'PT Penalty', category: 'statutory_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'PT_PENALTY', componentName: 'PT Penalty', category: 'statutory_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+];
+
+const CIT_SEED_ROWS = [
+  { componentCode: 'CIT_CURRENT_TAX_EXPENSE', componentName: 'Current Tax Expense', category: 'company_tax', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CIT_DEFERRED_TAX', componentName: 'Deferred Tax Expense/Benefit', category: 'company_tax', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CIT_DEFERRED_TAX', componentName: 'Deferred Tax Expense/Benefit', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'credit' },
+  { componentCode: 'CIT_TAX_PROVISION', componentName: 'Income Tax Provision', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'credit' },
+  { componentCode: 'CIT_TAX_PROVISION', componentName: 'Income Tax Provision', category: 'company_tax', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'CIT_PROVISION_OFFSET', componentName: 'Provision Offset (Year-End Adjustment)', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'debit' },
+  { componentCode: 'CIT_ADVANCE_TAX', componentName: 'Advance Tax Paid', category: 'company_tax', postingContext: 'statutory_payment', debitCredit: 'debit' },
+  { componentCode: 'CIT_ADVANCE_TAX', componentName: 'Advance Tax Paid', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'credit' },
+  { componentCode: 'CIT_TDS_RECEIVABLE', componentName: 'TDS Receivable (Tax Credits)', category: 'company_tax', postingContext: 'recovery', debitCredit: 'debit' },
+  { componentCode: 'CIT_TDS_RECEIVABLE', componentName: 'TDS Receivable (Tax Credits)', category: 'company_tax', postingContext: 'tax_liability', debitCredit: 'credit' },
+  { componentCode: 'CIT_TAX_REFUND', componentName: 'Tax Refund Receivable', category: 'company_tax', postingContext: 'recovery', debitCredit: 'debit' },
+  { componentCode: 'CIT_TAX_REFUND', componentName: 'Tax Refund Receivable', category: 'company_tax', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'CIT_INTEREST_234B', componentName: 'Interest u/s 234B (Advance Tax Default)', category: 'company_tax_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CIT_INTEREST_234B', componentName: 'Interest u/s 234B (Advance Tax Default)', category: 'company_tax_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'CIT_INTEREST_234C', componentName: 'Interest u/s 234C (Deferment)', category: 'company_tax_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CIT_INTEREST_234C', componentName: 'Interest u/s 234C (Deferment)', category: 'company_tax_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'CIT_INTEREST_234A', componentName: 'Interest u/s 234A (Late Filing)', category: 'company_tax_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CIT_INTEREST_234A', componentName: 'Interest u/s 234A (Late Filing)', category: 'company_tax_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+  { componentCode: 'CIT_TAX_PENALTY', componentName: 'Income Tax Penalty', category: 'company_tax_penalty', postingContext: 'expense', debitCredit: 'debit' },
+  { componentCode: 'CIT_TAX_PENALTY', componentName: 'Income Tax Penalty', category: 'company_tax_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
+];
+
+const ALL_SEED_MODULES: Record<string, { rows: typeof PAYROLL_SEED_ROWS; label: string }> = {
+  payroll: { rows: PAYROLL_SEED_ROWS, label: 'Payroll' },
+  tds: { rows: TDS_SEED_ROWS, label: 'TDS Compliance' },
+  pf: { rows: PF_SEED_ROWS, label: 'PF Compliance' },
+  esic: { rows: ESIC_SEED_ROWS, label: 'ESIC Compliance' },
+  pt: { rows: PT_SEED_ROWS, label: 'PT Compliance' },
+  cit: { rows: CIT_SEED_ROWS, label: 'Company Income Tax' },
+};
+
 router.post('/gl-mappings/seed-payroll', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -172,6 +249,92 @@ router.post('/gl-mappings/seed-payroll', async (req: Request, res: Response) => 
     ).returning();
 
     res.json({ message: `Seeded ${inserted.length} payroll GL mappings`, created: inserted.length, total: PAYROLL_SEED_ROWS.length, rows: inserted });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/gl-mappings/seed/:module', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Only administrators can seed GL mappings' });
+    }
+
+    const moduleName = req.params.module.toLowerCase();
+    const moduleDef = ALL_SEED_MODULES[moduleName];
+    if (!moduleDef) {
+      return res.status(400).json({ error: `Unknown module: ${moduleName}. Valid: ${Object.keys(ALL_SEED_MODULES).join(', ')}` });
+    }
+
+    const existing = await db.select({
+      code: glAccountMappings.componentCode,
+      ctx: glAccountMappings.postingContext,
+    }).from(glAccountMappings);
+
+    const existingKeys = new Set(existing.map(e => `${e.code}|${e.ctx}`));
+    const toInsert = moduleDef.rows.filter(r => !existingKeys.has(`${r.componentCode}|${r.postingContext}`));
+
+    if (toInsert.length === 0) {
+      return res.json({ message: `All ${moduleDef.label} GL mappings already exist`, created: 0, total: moduleDef.rows.length });
+    }
+
+    const inserted = await db.insert(glAccountMappings).values(
+      toInsert.map(r => ({
+        ...r,
+        glAccountCode: '',
+        glAccountName: '',
+        isActive: true,
+        companyId: 1,
+        createdBy: user.id,
+        updatedBy: user.id,
+      }))
+    ).returning();
+
+    res.json({ message: `Seeded ${inserted.length} ${moduleDef.label} GL mappings`, created: inserted.length, total: moduleDef.rows.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/gl-mappings/seed-all', async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user || user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Only administrators can seed GL mappings' });
+    }
+
+    const allRows = Object.values(ALL_SEED_MODULES).flatMap(m => m.rows);
+    const existing = await db.select({
+      code: glAccountMappings.componentCode,
+      ctx: glAccountMappings.postingContext,
+    }).from(glAccountMappings);
+
+    const existingKeys = new Set(existing.map(e => `${e.code}|${e.ctx}`));
+    const toInsert = allRows.filter(r => !existingKeys.has(`${r.componentCode}|${r.postingContext}`));
+
+    if (toInsert.length === 0) {
+      return res.json({ message: 'All GL mappings already exist', created: 0, total: allRows.length });
+    }
+
+    const inserted = await db.insert(glAccountMappings).values(
+      toInsert.map(r => ({
+        ...r,
+        glAccountCode: '',
+        glAccountName: '',
+        isActive: true,
+        companyId: 1,
+        createdBy: user.id,
+        updatedBy: user.id,
+      }))
+    ).returning();
+
+    const summary = Object.entries(ALL_SEED_MODULES).map(([key, def]) => {
+      const moduleInserted = inserted.filter(i => def.rows.some(r => r.componentCode === i.componentCode && r.postingContext === i.postingContext));
+      return `${def.label}: ${moduleInserted.length}/${def.rows.length}`;
+    });
+
+    res.json({ message: `Seeded ${inserted.length} GL mappings`, created: inserted.length, total: allRows.length, breakdown: summary });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
