@@ -4770,6 +4770,11 @@ export const employeeLoans = pgTable('employee_loans', {
   remarks: text('remarks'),
   approvedBy: integer('approved_by').references(() => users.id),
   createdBy: integer('created_by').references(() => users.id),
+  sapDocEntry: integer('sap_doc_entry'),
+  sapJeNumber: varchar('sap_je_number', { length: 50 }),
+  sapPostingStatus: varchar('sap_posting_status', { length: 20 }).default('not_posted'),
+  sapPostedAt: timestamp('sap_posted_at'),
+  sapErrorMessage: text('sap_error_message'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -4809,6 +4814,11 @@ export const employeeAdvances = pgTable('employee_advances', {
   reason: text('reason'),
   approvedBy: integer('approved_by').references(() => users.id),
   createdBy: integer('created_by').references(() => users.id),
+  sapDocEntry: integer('sap_doc_entry'),
+  sapJeNumber: varchar('sap_je_number', { length: 50 }),
+  sapPostingStatus: varchar('sap_posting_status', { length: 20 }).default('not_posted'),
+  sapPostedAt: timestamp('sap_posted_at'),
+  sapErrorMessage: text('sap_error_message'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

@@ -58,6 +58,9 @@ const COMPONENTS = [
   { code: 'CIT_INTEREST_234C', name: 'Interest u/s 234C (Deferment)', category: 'company_tax_penalty' },
   { code: 'CIT_INTEREST_234A', name: 'Interest u/s 234A (Late Filing)', category: 'company_tax_penalty' },
   { code: 'CIT_TAX_PENALTY', name: 'Income Tax Penalty', category: 'company_tax_penalty' },
+  { code: 'LOAN_RECEIVABLE', name: 'Loans to Employees (Asset)', category: 'loan_advance' },
+  { code: 'ADVANCE_RECEIVABLE', name: 'Advances to Employees (Asset)', category: 'loan_advance' },
+  { code: 'LOAN_ADVANCE_BANK', name: 'Bank / Cash (Disbursement)', category: 'loan_advance' },
 ];
 
 const CONTEXTS = [
@@ -66,6 +69,8 @@ const CONTEXTS = [
   { value: 'tax_liability', label: 'Tax Liability' },
   { value: 'recovery', label: 'Recovery' },
   { value: 'expense', label: 'Expense' },
+  { value: 'loan_disbursement', label: 'Loan Disbursement' },
+  { value: 'advance_disbursement', label: 'Advance Disbursement' },
 ];
 
 const CATEGORIES = [
@@ -77,9 +82,10 @@ const CATEGORIES = [
   { value: 'statutory_penalty', label: 'Statutory Penalty / Interest', color: 'bg-yellow-100 text-yellow-800' },
   { value: 'company_tax', label: 'Company Income Tax', color: 'bg-indigo-100 text-indigo-800' },
   { value: 'company_tax_penalty', label: 'Company Tax Penalty / Interest', color: 'bg-rose-100 text-rose-800' },
+  { value: 'loan_advance', label: 'Loan & Advance Disbursement', color: 'bg-teal-100 text-teal-800' },
 ];
 
-const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'net_pay', 'statutory_penalty', 'company_tax', 'company_tax_penalty'];
+const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'net_pay', 'statutory_penalty', 'company_tax', 'company_tax_penalty', 'loan_advance'];
 
 function InlineEditCell({ value, onSave, placeholder, className = '' }: { value: string; onSave: (v: string) => void; placeholder: string; className?: string }) {
   const [editing, setEditing] = useState(false);

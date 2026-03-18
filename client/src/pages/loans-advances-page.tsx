@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Eye, Pause, Play, XCircle, IndianRupee, Landmark, Wallet, ArrowLeft } from "lucide-react";
+import { Plus, Eye, Pause, Play, XCircle, IndianRupee, Landmark, Wallet, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocation } from "wouter";
 
 function formatCurrency(val: number | string) {
@@ -101,6 +102,28 @@ export default function LoansAdvancesPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
       toast({ title: 'Advance updated' });
     },
+  });
+
+  const transferLoanMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest('POST', `/api/loan-advance/loans/${id}/transfer-sap`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
+      toast({ title: 'Loan JE posted to SAP', description: `JE Number: ${data.sapJeNumber}` });
+    },
+    onError: (err: any) => toast({ title: 'SAP Transfer Failed', description: err.message, variant: 'destructive' }),
+  });
+
+  const transferAdvanceMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest('POST', `/api/loan-advance/advances/${id}/transfer-sap`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
+      toast({ title: 'Advance JE posted to SAP', description: `JE Number: ${data.sapJeNumber}` });
+    },
+    onError: (err: any) => toast({ title: 'SAP Transfer Failed', description: err.message, variant: 'destructive' }),
   });
 
   function getToday() {
@@ -262,6 +285,7 @@ export default function LoansAdvancesPage() {
                       <TableHead>Outstanding</TableHead>
                       <TableHead>Installments</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>SAP</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -278,10 +302,53 @@ export default function LoansAdvancesPage() {
                         <TableCell>{loan.installmentsPaid}/{loan.tenureMonths}</TableCell>
                         <TableCell>{statusBadge(loan.status)}</TableCell>
                         <TableCell>
+                          {loan.sapPostingStatus === 'posted' ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge className="bg-green-100 text-green-700 gap-1"><CheckCircle2 className="h-3 w-3" />JE #{loan.sapJeNumber}</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>Posted to SAP on {loan.sapPostedAt ? new Date(loan.sapPostedAt).toLocaleDateString() : 'N/A'}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : loan.sapPostingStatus === 'failed' ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge className="bg-red-100 text-red-700 gap-1"><AlertCircle className="h-3 w-3" />Failed</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">{loan.sapErrorMessage || 'Unknown error'}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : loan.sapPostingStatus === 'pending' ? (
+                            <Badge className="bg-blue-100 text-blue-700 gap-1"><Loader2 className="h-3 w-3 animate-spin" />Pending</Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 text-gray-500">Not Posted</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => setSelectedLoan(loan)}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {loan.sapPostingStatus !== 'posted' && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-blue-600 hover:text-blue-800"
+                                      disabled={transferLoanMutation.isPending}
+                                      onClick={() => transferLoanMutation.mutate(loan.id)}
+                                    >
+                                      {transferLoanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Transfer to SAP</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                             {loan.status === 'active' && (
                               <Button size="sm" variant="ghost" onClick={() => updateLoanMutation.mutate({ id: loan.id, data: { status: 'paused' } })}>
                                 <Pause className="h-4 w-4" />
@@ -322,6 +389,7 @@ export default function LoansAdvancesPage() {
                       <TableHead>Recovered</TableHead>
                       <TableHead>Outstanding</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>SAP</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -337,10 +405,53 @@ export default function LoansAdvancesPage() {
                         <TableCell className="font-semibold">{formatCurrency(adv.outstandingBalance)}</TableCell>
                         <TableCell>{statusBadge(adv.status)}</TableCell>
                         <TableCell>
+                          {adv.sapPostingStatus === 'posted' ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge className="bg-green-100 text-green-700 gap-1"><CheckCircle2 className="h-3 w-3" />JE #{adv.sapJeNumber}</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>Posted to SAP on {adv.sapPostedAt ? new Date(adv.sapPostedAt).toLocaleDateString() : 'N/A'}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : adv.sapPostingStatus === 'failed' ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge className="bg-red-100 text-red-700 gap-1"><AlertCircle className="h-3 w-3" />Failed</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">{adv.sapErrorMessage || 'Unknown error'}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : adv.sapPostingStatus === 'pending' ? (
+                            <Badge className="bg-blue-100 text-blue-700 gap-1"><Loader2 className="h-3 w-3 animate-spin" />Pending</Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 text-gray-500">Not Posted</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <div className="flex gap-1">
                             <Button size="sm" variant="ghost" onClick={() => setSelectedAdvance(adv)}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {adv.sapPostingStatus !== 'posted' && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-blue-600 hover:text-blue-800"
+                                      disabled={transferAdvanceMutation.isPending}
+                                      onClick={() => transferAdvanceMutation.mutate(adv.id)}
+                                    >
+                                      {transferAdvanceMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Transfer to SAP</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                             {adv.status === 'active' && (
                               <Button size="sm" variant="ghost" onClick={() => updateAdvanceMutation.mutate({ id: adv.id, data: { status: 'paused' } })}>
                                 <Pause className="h-4 w-4" />

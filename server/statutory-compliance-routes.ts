@@ -71,19 +71,21 @@ router.delete('/gl-mappings/:id', async (req: Request, res: Response) => {
 
 router.get('/gl-mappings/validate/:moduleType', async (req: Request, res: Response) => {
   const moduleType = req.params.moduleType.toUpperCase();
-  if (moduleType === 'PAYROLL') {
+  const seedRows = moduleType === 'PAYROLL' ? PAYROLL_SEED_ROWS
+    : moduleType === 'LOAN_ADVANCE' ? LOAN_ADVANCE_SEED_ROWS
+    : null;
+  if (seedRows) {
     const allMappings = await db.select().from(glAccountMappings)
       .where(eq(glAccountMappings.isActive, true));
-    const payrollCodes = PAYROLL_SEED_ROWS.map(r => `${r.componentCode}|${r.postingContext}`);
     const mappedKeys = new Set(
       allMappings
         .filter(m => m.glAccountCode && m.glAccountCode.trim() !== '')
         .map(m => `${m.componentCode}|${m.postingContext}`)
     );
-    const missingComponents = PAYROLL_SEED_ROWS
+    const missingComponents = seedRows
       .filter(r => !mappedKeys.has(`${r.componentCode}|${r.postingContext}`))
       .map(r => ({ componentCode: r.componentCode, postingContext: r.postingContext, componentName: r.componentName }));
-    return res.json({ valid: missingComponents.length === 0, missing: missingComponents.map(m => m.componentCode), missingComponents, total: PAYROLL_SEED_ROWS.length, mapped: PAYROLL_SEED_ROWS.length - missingComponents.length });
+    return res.json({ valid: missingComponents.length === 0, missing: missingComponents.map(m => m.componentCode), missingComponents, total: seedRows.length, mapped: seedRows.length - missingComponents.length });
   }
 
   const componentMap: Record<string, string[]> = {
@@ -227,8 +229,16 @@ const CIT_SEED_ROWS = [
   { componentCode: 'CIT_TAX_PENALTY', componentName: 'Income Tax Penalty', category: 'company_tax_penalty', postingContext: 'statutory_payment', debitCredit: 'credit' },
 ];
 
+const LOAN_ADVANCE_SEED_ROWS = [
+  { componentCode: 'LOAN_RECEIVABLE', componentName: 'Loans to Employees (Asset)', category: 'loan_advance', postingContext: 'loan_disbursement', debitCredit: 'debit' },
+  { componentCode: 'ADVANCE_RECEIVABLE', componentName: 'Advances to Employees (Asset)', category: 'loan_advance', postingContext: 'advance_disbursement', debitCredit: 'debit' },
+  { componentCode: 'LOAN_ADVANCE_BANK', componentName: 'Bank / Cash (Disbursement)', category: 'loan_advance', postingContext: 'loan_disbursement', debitCredit: 'credit' },
+  { componentCode: 'LOAN_ADVANCE_BANK', componentName: 'Bank / Cash (Disbursement)', category: 'loan_advance', postingContext: 'advance_disbursement', debitCredit: 'credit' },
+];
+
 const ALL_SEED_MODULES: Record<string, { rows: typeof PAYROLL_SEED_ROWS; label: string }> = {
   payroll: { rows: PAYROLL_SEED_ROWS, label: 'Payroll' },
+  loan_advance: { rows: LOAN_ADVANCE_SEED_ROWS, label: 'Loan & Advance Disbursement' },
   tds: { rows: TDS_SEED_ROWS, label: 'TDS Compliance' },
   pf: { rows: PF_SEED_ROWS, label: 'PF Compliance' },
   esic: { rows: ESIC_SEED_ROWS, label: 'ESIC Compliance' },
