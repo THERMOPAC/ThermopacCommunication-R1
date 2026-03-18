@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
@@ -514,6 +514,13 @@ function WorkflowStatusBadge({ record }: { record: any }) {
           {record.heldReason && <span className="text-xs text-red-600 max-w-[180px] truncate" title={record.heldReason}>{record.heldReason}</span>}
         </div>
       );
+    case 'reversed':
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge className="bg-purple-600 text-white"><Undo2 className="h-3 w-3 mr-1" /> Reversed</Badge>
+          {record.reversalSapJeNumber && <span className="text-xs text-purple-600">Rev JE #{record.reversalSapJeNumber}</span>}
+        </div>
+      );
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -533,6 +540,9 @@ function GeneratedSalariesView() {
   const [reasonText, setReasonText] = useState('');
   const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [historyRecord, setHistoryRecord] = useState<any>(null);
+  const [showReverseConfirm, setShowReverseConfirm] = useState(false);
+  const [reverseRecordId, setReverseRecordId] = useState<number | null>(null);
+  const [reversingId, setReversingId] = useState<number | null>(null);
 
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
@@ -604,6 +614,30 @@ function GeneratedSalariesView() {
     },
   });
 
+  const reverseSapMutation = useMutation({
+    mutationFn: (recordId: number) => {
+      setReversingId(recordId);
+      return apiRequest('POST', `/api/admin/payroll/records/${recordId}/reverse-sap`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setReversingId(null);
+      setShowReverseConfirm(false);
+      setReverseRecordId(null);
+      toast({
+        title: 'Reversal JE Posted',
+        description: `Reversal JE #${data.reversalJeNumber} posted to SAP (Original JE #${data.originalJeNumber})`,
+      });
+    },
+    onError: (e: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setReversingId(null);
+      setShowReverseConfirm(false);
+      setReverseRecordId(null);
+      toast({ title: 'Reversal Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
   const handleDownloadSalarySlip = (payrollRecordId: number) => {
     const url = `/api/admin/salary-slip/${payrollRecordId}`;
     window.open(url, '_blank');
@@ -667,6 +701,7 @@ function GeneratedSalariesView() {
         { key: 'transferred', label: 'Transferred', count: statusCounts['transferred'] || 0, color: 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200' },
         { key: 'held', label: 'Held', count: statusCounts['held'] || 0, color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200' },
         { key: 'rejected', label: 'Rejected', count: statusCounts['rejected'] || 0, color: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200' },
+        { key: 'reversed', label: 'Reversed', count: statusCounts['reversed'] || 0, color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200' },
       ].map(f => (
         <Button
           key={f.key}
@@ -709,9 +744,11 @@ function GeneratedSalariesView() {
             <tbody>
               {filteredRecords.map((record: any) => {
                 const recStatus = record.status || 'generated';
-                const isLocked = recStatus === 'transferred' || record.sapPostingStatus === 'posted';
+                const isTransferred = recStatus === 'transferred' || (record.sapPostingStatus === 'posted' && recStatus !== 'reversed');
+                const isReversed = recStatus === 'reversed';
+                const isLocked = isTransferred || isReversed;
                 return (
-                <tr key={record.id} className={`border-b hover:bg-gray-50 ${isLocked ? 'bg-green-50/30' : recStatus === 'rejected' ? 'bg-red-50/20' : recStatus === 'held' ? 'bg-amber-50/20' : ''}`}>
+                <tr key={record.id} className={`border-b hover:bg-gray-50 ${isTransferred ? 'bg-green-50/30' : isReversed ? 'bg-purple-50/20' : recStatus === 'rejected' ? 'bg-red-50/20' : recStatus === 'held' ? 'bg-amber-50/20' : ''}`}>
                   <td className="p-3">
                     <div className="font-medium text-sm">{record.employeeName}</div>
                     <div className="text-xs text-gray-500">{record.employeeCode}</div>
@@ -830,6 +867,28 @@ function GeneratedSalariesView() {
                         </Button>
                       )}
 
+                      {isTransferred && !isReversed && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setReverseRecordId(record.id); setShowReverseConfirm(true); }}
+                          disabled={reverseSapMutation.isPending && reversingId === record.id}
+                          className="text-purple-600 hover:text-purple-800 hover:border-purple-300 h-7 px-2 text-xs"
+                        >
+                          {reverseSapMutation.isPending && reversingId === record.id ? (
+                            <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Reversing...</>
+                          ) : (
+                            <><Undo2 className="h-3 w-3 mr-1" /> Reverse Entry</>
+                          )}
+                        </Button>
+                      )}
+
+                      {isReversed && (
+                        <Badge variant="outline" className="text-purple-700 border-purple-300 bg-purple-50 h-7 px-2 text-xs flex items-center">
+                          <Ban className="h-3 w-3 mr-1" /> No Repost
+                        </Badge>
+                      )}
+
                       {isLocked && (
                         <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 h-7 px-2 text-xs flex items-center">
                           <Lock className="h-3 w-3 mr-1" /> Locked
@@ -918,6 +977,7 @@ function GeneratedSalariesView() {
                 {entry.to === 'rejected' && <XCircle className="h-4 w-4 text-red-600" />}
                 {entry.to === 'generated' && <RotateCcw className="h-4 w-4 text-blue-600" />}
                 {entry.to === 'transferred' && <Lock className="h-4 w-4 text-green-700" />}
+                {entry.to === 'reversed' && <Undo2 className="h-4 w-4 text-purple-600" />}
               </div>
               <div className="flex-1">
                 <div className="font-medium">
@@ -931,6 +991,39 @@ function GeneratedSalariesView() {
           {(!historyRecord?.statusHistory || historyRecord.statusHistory.length === 0) && (
             <p className="text-sm text-muted-foreground text-center py-4">No status changes recorded.</p>
           )}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showReverseConfirm} onOpenChange={setShowReverseConfirm}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-purple-600">Reverse SAP Journal Entry</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This will post a <strong>reversal Journal Entry</strong> to SAP B1 that swaps all debit and credit lines of the original salary JE.
+          </p>
+          <div className="bg-purple-50 border border-purple-200 rounded p-3 text-sm space-y-1">
+            <p className="font-medium text-purple-800">What happens:</p>
+            <ul className="list-disc list-inside text-purple-700 text-xs space-y-0.5">
+              <li>A new reversal JE is created in SAP (debit ↔ credit swapped)</li>
+              <li>The original JE is <strong>NOT deleted</strong> — both entries remain</li>
+              <li>Record status changes to "Reversed"</li>
+              <li>Record is permanently locked — no reposting allowed</li>
+            </ul>
+          </div>
+          <p className="text-sm font-semibold text-purple-600">This action cannot be undone.</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setShowReverseConfirm(false); setReverseRecordId(null); }}>Cancel</Button>
+            <Button
+              className="bg-purple-600 hover:bg-purple-700"
+              onClick={() => reverseRecordId && reverseSapMutation.mutate(reverseRecordId)}
+              disabled={reverseSapMutation.isPending}
+            >
+              {reverseSapMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Posting Reversal...</> : <><Undo2 className="h-4 w-4 mr-2" /> Yes, Reverse Entry</>}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

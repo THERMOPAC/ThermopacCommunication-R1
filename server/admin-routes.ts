@@ -2157,6 +2157,12 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         sapPostedAt: payrollRecords.sapPostedAt,
         sapPostingStatus: payrollRecords.sapPostingStatus,
         sapErrorMessage: payrollRecords.sapErrorMessage,
+        reversalSapDocEntry: payrollRecords.reversalSapDocEntry,
+        reversalSapJeNumber: payrollRecords.reversalSapJeNumber,
+        reversalSapPostedAt: payrollRecords.reversalSapPostedAt,
+        reversedBy: payrollRecords.reversedBy,
+        reversedAt: payrollRecords.reversedAt,
+        reversalMemo: payrollRecords.reversalMemo,
         createdAt: payrollRecords.createdAt,
         updatedAt: payrollRecords.updatedAt
       })
@@ -2229,6 +2235,12 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           sapPostedAt: record.sapPostedAt,
           sapPostingStatus: record.sapPostingStatus,
           sapErrorMessage: record.sapErrorMessage,
+          reversalSapDocEntry: record.reversalSapDocEntry,
+          reversalSapJeNumber: record.reversalSapJeNumber,
+          reversalSapPostedAt: record.reversalSapPostedAt,
+          reversedBy: record.reversedBy,
+          reversedAt: record.reversedAt,
+          reversalMemo: record.reversalMemo,
           createdAt: record.createdAt
         };
       })
@@ -2521,6 +2533,10 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
       return res.status(400).json({ error: 'This record has been transferred to SAP and is locked.' });
     }
 
+    if (record.status === 'reversed' || record.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This record has been reversed and is permanently locked.' });
+    }
+
     const currentStatus = record.status || 'generated';
     const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
     const now = new Date();
@@ -2626,6 +2642,10 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
 
     if (record.sapPostingStatus === 'posted') {
       return res.status(400).json({ error: 'This salary record has already been posted to SAP', sapJeNumber: record.sapJeNumber, sapDocEntry: record.sapDocEntry });
+    }
+
+    if (record.status === 'reversed' || record.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This record has been reversed and cannot be reposted to SAP.' });
     }
 
     if (record.status !== 'verified') {
@@ -2917,6 +2937,213 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
   } catch (error: any) {
     console.error('Error posting salary JE to SAP:', error);
     res.status(500).json({ error: error.message || 'Failed to post salary JE to SAP' });
+  }
+});
+
+router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.id);
+    const currentUser = req.user as any;
+
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
+    if (!record) {
+      return res.status(404).json({ error: 'Payroll record not found' });
+    }
+
+    if (record.sapPostingStatus !== 'posted') {
+      return res.status(400).json({ error: 'Only SAP-posted records can be reversed.' });
+    }
+
+    if (record.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This record has already been reversed.', reversalJeNumber: record.reversalSapJeNumber });
+    }
+
+    const [employee] = await db.select({
+      id: users.id, firstName: users.firstName, lastName: users.lastName,
+      username: users.username, cardCode: users.cardCode, employeeCode: users.employeeCode,
+    }).from(users).where(eq(users.id, record.userId));
+
+    if (!employee) return res.status(400).json({ error: 'Employee not found' });
+
+    const empName = employee.firstName && employee.lastName
+      ? `${employee.firstName} ${employee.lastName}` : employee.username || 'Unknown';
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const glMap = new Map<string, string>();
+    for (const m of allMappings) {
+      if (m.componentCode && m.postingContext && m.glAccountCode && m.glAccountCode.trim() !== '') {
+        glMap.set(`${m.componentCode}|${m.postingContext}`, m.glAccountCode);
+      }
+    }
+
+    const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
+      .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
+    const periodLabel = period?.periodName || 'Unknown Period';
+
+    const jeLines: any[] = [];
+    let lineNum = 0;
+
+    const earningComponents = [
+      { code: 'BASIC', value: parseFloat(record.baseSalary || '0') },
+      { code: 'HRA', value: parseFloat(record.hra || '0') },
+      { code: 'CONVEYANCE', value: parseFloat(record.conveyanceAllowance || '0') },
+      { code: 'LTA', value: parseFloat(record.ltaAllowance || '0') },
+      { code: 'SPECIAL_ALLOWANCE', value: parseFloat(record.specialAllowance || '0') },
+      { code: 'SUPPLEMENTARY', value: parseFloat(record.supplementaryAllowance || '0') },
+      { code: 'KGP', value: parseFloat(record.kgpAllowance || '0') },
+      { code: 'BONUS', value: parseFloat(record.bonus || '0') },
+      { code: 'OVERTIME', value: parseFloat(record.overtimePay || '0') },
+      { code: 'OTHER_ALLOWANCES', value: parseFloat(record.otherAllowances || '0') },
+    ];
+
+    for (const comp of earningComponents) {
+      if (comp.value > 0) {
+        const acctCode = glMap.get(`${comp.code}|expense`);
+        if (acctCode) {
+          jeLines.push({
+            Line_ID: lineNum++,
+            AccountCode: acctCode,
+            Debit: 0,
+            Credit: comp.value,
+            LineMemo: `REVERSAL - ${comp.code} - ${empName} - ${periodLabel}`,
+          });
+        }
+      }
+    }
+
+    const deductionComponents = [
+      { code: 'PF_EMPLOYEE', value: parseFloat(record.employeePf || record.providentFund || '0') },
+      { code: 'ESIC_EMPLOYEE', value: parseFloat(record.employeeEsic || record.esiDeduction || record.esic || '0') },
+      { code: 'PT', value: parseFloat(record.professionalTax || '0') },
+      { code: 'TDS', value: parseFloat(record.tdsAmount || record.incomeTax || '0') },
+      { code: 'LOAN_DEDUCTION', value: parseFloat(record.loanDeductions || '0') },
+      { code: 'ADVANCE_DEDUCTION', value: parseFloat(record.advanceDeductions || '0') },
+      { code: 'OTHER_DEDUCTIONS', value: parseFloat(record.otherDeductions || '0') },
+    ];
+
+    for (const comp of deductionComponents) {
+      if (comp.value > 0) {
+        const acctCode = glMap.get(`${comp.code}|payroll_liability`);
+        if (acctCode) {
+          jeLines.push({
+            Line_ID: lineNum++,
+            AccountCode: acctCode,
+            Debit: comp.value,
+            Credit: 0,
+            LineMemo: `REVERSAL - ${comp.code} - ${empName} - ${periodLabel}`,
+          });
+        }
+      }
+    }
+
+    const netPayValue = parseFloat(record.netPay || '0');
+    if (netPayValue > 0) {
+      const acctCode = glMap.get('NET_PAY|payroll_liability');
+      if (acctCode) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: acctCode,
+          Debit: netPayValue,
+          Credit: 0,
+          LineMemo: `REVERSAL - Net Pay - ${empName} - ${periodLabel}`,
+        });
+      }
+    }
+
+    if (jeLines.length === 0) {
+      return res.status(400).json({ error: 'No JE lines could be built for reversal. GL mappings may be missing.' });
+    }
+
+    const postingDate = new Date().toISOString().split('T')[0];
+    const originalJeRef = record.sapJeNumber || String(record.sapDocEntry);
+
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `REVERSAL - Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+      Reference2: employee.cardCode || '',
+      Reference3: `REV-SAL-${originalJeRef}`,
+      U_Employee_Name: empName,
+      JournalEntryLines: jeLines,
+    };
+
+    const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+
+    if (!sapUser || !sapPass || !sapDb) {
+      return res.status(500).json({ error: 'SAP credentials not configured' });
+    }
+
+    let sessionId: string;
+    const existingSession = sapSessionManager.getSession(currentUser.id);
+    if (existingSession) {
+      sessionId = existingSession.sessionId;
+    } else {
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sapSessionManager.setSession(currentUser.id, {
+        sessionId: loginResult.sessionId, routeId: undefined,
+        userId: currentUser.id, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000),
+      });
+      sessionId = loginResult.sessionId;
+    }
+
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'POST',
+      path: '/b1s/v1/JournalEntries',
+      body: jePayload,
+    });
+
+    const userName = currentUser.firstName && currentUser.lastName
+      ? `${currentUser.firstName} ${currentUser.lastName}` : currentUser.username;
+
+    if (sapResponse.ok) {
+      const responseData = JSON.parse(sapResponse.body);
+      const reversalDocEntry = responseData.DocEntry;
+      const reversalJeNumber = String(responseData.Number || responseData.DocNum || responseData.DocEntry);
+
+      const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
+      history.push({
+        from: record.status || 'transferred',
+        to: 'reversed',
+        action: 'reverse',
+        reason: `Reversal JE #${reversalJeNumber} posted to SAP`,
+        by: userName,
+        byId: currentUser.id,
+        at: new Date().toISOString(),
+      });
+
+      await db.update(payrollRecords).set({
+        status: 'reversed',
+        reversalSapDocEntry: reversalDocEntry,
+        reversalSapJeNumber: reversalJeNumber,
+        reversalSapPostedAt: new Date(),
+        reversedBy: currentUser.id,
+        reversedAt: new Date(),
+        reversalMemo: `REVERSAL of Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+        statusHistory: history,
+        updatedAt: new Date(),
+      }).where(eq(payrollRecords.id, recordId));
+
+      return res.json({
+        success: true,
+        message: `Reversal JE posted successfully`,
+        originalJeNumber: record.sapJeNumber,
+        originalDocEntry: record.sapDocEntry,
+        reversalDocEntry,
+        reversalJeNumber,
+      });
+    } else {
+      let errorMsg = `SAP reversal failed (${sapResponse.statusCode})`;
+      try {
+        const errParsed = JSON.parse(sapResponse.body);
+        errorMsg = errParsed?.error?.message?.value || errorMsg;
+      } catch (_) {}
+      return res.status(500).json({ error: errorMsg });
+    }
+  } catch (error: any) {
+    console.error('Error posting reversal salary JE to SAP:', error);
+    res.status(500).json({ error: error.message || 'Failed to post reversal JE to SAP' });
   }
 });
 

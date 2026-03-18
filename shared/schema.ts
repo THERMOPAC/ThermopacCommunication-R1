@@ -4741,6 +4741,13 @@ export const payrollRecords = pgTable('payroll_records', {
   sapPostedAt: timestamp('sap_posted_at'),
   sapPostingStatus: varchar('sap_posting_status', { length: 20 }),
   sapErrorMessage: text('sap_error_message'),
+
+  reversalSapDocEntry: integer('reversal_sap_doc_entry'),
+  reversalSapJeNumber: text('reversal_sap_je_number'),
+  reversalSapPostedAt: timestamp('reversal_sap_posted_at'),
+  reversedBy: integer('reversed_by').references(() => users.id),
+  reversedAt: timestamp('reversed_at'),
+  reversalMemo: text('reversal_memo'),
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
