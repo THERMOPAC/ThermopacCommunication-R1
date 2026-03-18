@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
@@ -381,10 +381,45 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
 };
 
 // Generated Salaries View Component
+function SapStatusBadge({ record }: { record: any }) {
+  if (record.sapPostingStatus === 'posted') {
+    return (
+      <Badge className="bg-green-600 text-white">
+        <CheckCircle className="h-3 w-3 mr-1" /> Posted (JE #{record.sapJeNumber})
+      </Badge>
+    );
+  }
+  if (record.sapPostingStatus === 'failed') {
+    return (
+      <div className="flex flex-col gap-1">
+        <Badge variant="destructive">
+          <AlertCircle className="h-3 w-3 mr-1" /> Failed
+        </Badge>
+        <span className="text-xs text-red-600 max-w-[200px] truncate" title={record.sapErrorMessage}>
+          {record.sapErrorMessage}
+        </span>
+      </div>
+    );
+  }
+  if (record.sapPostingStatus === 'pending') {
+    return (
+      <Badge variant="outline" className="text-amber-600 border-amber-300">
+        <Loader2 className="h-3 w-3 mr-1 animate-spin" /> Posting...
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-gray-500">
+      Not Posted
+    </Badge>
+  );
+}
+
 function GeneratedSalariesView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [postingId, setPostingId] = useState<number | null>(null);
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
     enabled: true
@@ -399,6 +434,23 @@ function GeneratedSalariesView() {
       toast({ title: 'All Records Cleared', description: data.message });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const postToSapMutation = useMutation({
+    mutationFn: (recordId: number) => {
+      setPostingId(recordId);
+      return apiRequest('POST', `/api/admin/payroll/records/${recordId}/post-sap`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setPostingId(null);
+      toast({ title: 'SAP JE Posted', description: `Journal Entry #${data.sapJeNumber} created in SAP B1 (DocEntry: ${data.sapDocEntry})` });
+    },
+    onError: (e: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setPostingId(null);
+      toast({ title: 'SAP Posting Failed', description: e.message, variant: 'destructive' });
+    },
   });
 
   const handleDownloadSalarySlip = (payrollRecordId: number) => {
@@ -452,6 +504,7 @@ function GeneratedSalariesView() {
                 <th className="text-left p-4">Gross Earnings</th>
                 <th className="text-left p-4">Deductions</th>
                 <th className="text-left p-4">Net Salary</th>
+                <th className="text-left p-4">SAP Status</th>
                 <th className="text-left p-4">Generated On</th>
                 <th className="text-left p-4">Actions</th>
               </tr>
@@ -481,17 +534,43 @@ function GeneratedSalariesView() {
                     </span>
                   </td>
                   <td className="p-4">
+                    <SapStatusBadge record={record} />
+                  </td>
+                  <td className="p-4">
                     {new Date(record.createdAt).toLocaleDateString('en-IN')}
                   </td>
                   <td className="p-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleDownloadSalarySlip(record.id)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      Download Slip
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleDownloadSalarySlip(record.id)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1" /> Slip
+                      </Button>
+                      {record.sapPostingStatus === 'posted' ? (
+                        <Button variant="outline" size="sm" disabled className="text-green-600">
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" /> Posted
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => postToSapMutation.mutate(record.id)}
+                          disabled={postToSapMutation.isPending && postingId === record.id}
+                          className="text-orange-600 hover:text-orange-800 hover:border-orange-300"
+                        >
+                          {postToSapMutation.isPending && postingId === record.id ? (
+                            <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Posting...</>
+                          ) : record.sapPostingStatus === 'failed' ? (
+                            <><RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry SAP</>
+                          ) : (
+                            <><Send className="h-3.5 w-3.5 mr-1" /> Transfer to SAP</>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
