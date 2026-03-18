@@ -627,13 +627,15 @@ router.post('/run/single-user', async (req, res) => {
 
     const ctcMonthly = grossPay + emplrPf + emplrEsic + gratuity + groupIns;
 
+    const lopDays = Math.max(0, totalWorkingDays - presentFull - (presentHalf * 0.5));
+
     const [record] = await db.insert(payrollRecs).values({
       periodId,
       userId,
-      basicSalary: earnBasic.toFixed(2),
-      houseRentAllowance: earnHra.toFixed(2),
+      baseSalary: basic.toFixed(2),
+      hra: earnHra.toFixed(2),
       conveyanceAllowance: earnConv.toFixed(2),
-      lta: earnLta.toFixed(2),
+      ltaAllowance: earnLta.toFixed(2),
       specialAllowance: earnSpecial.toFixed(2),
       supplementaryAllowance: earnSupp.toFixed(2),
       kgpAllowance: earnKgp.toFixed(2),
@@ -654,18 +656,11 @@ router.post('/run/single-user', async (req, res) => {
       tdsAmount: '0',
       totalDeductions: totalDeductions.toFixed(2),
       netPay: netPay.toFixed(2),
-      ctcMonthly: ctcMonthly.toFixed(2),
-      ctcYearly: (ctcMonthly * 12).toFixed(2),
-      daysInMonth: daysInMonth.toString(),
+      workingDays: totalWorkingDays,
       paidDays: paidDays.toFixed(1),
-      presentDays: presentFull.toString(),
-      absentDays: absentCount.toFixed(1),
-      weeklyOffs: weekOffCount.toString(),
-      holidays: holidayDates.size.toString(),
-      workingDays: totalWorkingDays.toString(),
-      halfDays: presentHalf.toString(),
+      presentDays: presentFull.toFixed(1),
+      lopDays: lopDays.toFixed(2),
       status: 'generated',
-      createdBy: executedBy,
     } as any).returning();
 
     const endDateObj = new Date(endDate);
@@ -690,11 +685,10 @@ router.post('/run/single-user', async (req, res) => {
       employee: employee.username,
       period: period.periodName,
       grossPay: grossPay.toFixed(2),
-      tds: tds.toFixed(2),
       totalDeductions: finalDeductions.toFixed(2),
       netPay: finalNet.toFixed(2),
-      attendance: { daysInMonth, totalWorkingDays, present: presentFull, halfDays: presentHalf, absent: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size },
-      tdsDetails: { regime: tdsResult.regime, projectedAnnual: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTax: tdsResult.totalTaxLiabilityAnnual },
+      attendance: { daysInMonth, workingDays: totalWorkingDays, presentDays: presentFull, halfDays: presentHalf, absentDays: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size },
+      tds: { regime: tdsResult.regime, projectedAnnualIncome: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTaxLiability: tdsResult.totalTaxLiabilityAnnual, monthlyTds: tds },
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
