@@ -51,9 +51,9 @@ interface SalarySlipData {
     advanceDeduction: number;
   };
   employerCosts: {
+    pfEmployer: number;
     esicEmployer: number;
     groupInsurance: number;
-    pfEmployer: number;
     gratuity: number;
   };
   totals: {
@@ -64,19 +64,15 @@ interface SalarySlipData {
     ctcYearly: number;
   };
   kgpPercent: number;
-  netPayInWords: string;
+  netPayInWords?: string;
 }
 
-export { SalarySlipData };
-
-const rupee = String.fromCharCode(8377);
-
-function fmtDec(num: number): string {
-  return rupee + ' ' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtINR(v: number): string {
+  return '\u00B9 ' + v.toLocaleString('en-IN');
 }
 
-function fmtINR(num: number): string {
-  return rupee + ' ' + Math.round(num).toLocaleString('en-IN');
+function fmtDec(v: number): string {
+  return '\u00B9 ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export class SalarySlipGenerator {
@@ -87,7 +83,7 @@ export class SalarySlipGenerator {
   private w: number;
 
   constructor() {
-    this.doc = new PDFDocument({ size: 'A4', margin: this.m });
+    this.doc = new PDFDocument({ size: 'A4', margin: this.m, autoFirstPage: true });
     this.w = this.pw - this.m * 2;
   }
 
@@ -134,32 +130,32 @@ export class SalarySlipGenerator {
     let y = m;
 
     doc.save();
-    doc.rect(m, y, w, 50).fillColor('#1E3A5F').fill();
+    doc.rect(m, y, w, 44).fillColor('#1E3A5F').fill();
     doc.restore();
-    doc.font('Helvetica-Bold').fontSize(16).fillColor('#FFFFFF');
-    this.t('THERMOPAC', m + 15, y + 8);
-    doc.font('Helvetica').fontSize(8).fillColor('#C8D8E8');
-    this.t('Engineering Excellence', m + 15, y + 27);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF');
-    this.t('SALARY SLIP', m + 15, y + 12, { width: w - 30, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(15).fillColor('#FFFFFF');
+    this.t('THERMOPAC', m + 12, y + 7);
     doc.font('Helvetica').fontSize(7.5).fillColor('#C8D8E8');
-    this.t(`${d.period.month} ${d.period.year}  |  Date: ${dateStr}`, m + 15, y + 27, { width: w - 30, align: 'right' });
+    this.t('Engineering Excellence', m + 12, y + 24);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF');
+    this.t('SALARY SLIP', m + 12, y + 10, { width: w - 24, align: 'right' });
+    doc.font('Helvetica').fontSize(7).fillColor('#C8D8E8');
+    this.t(`${d.period.month} ${d.period.year}  |  Date: ${dateStr}`, m + 12, y + 24, { width: w - 24, align: 'right' });
 
-    y += 56;
+    y += 48;
     doc.fillColor('#000000');
 
     doc.save();
-    doc.rect(m, y, w, 50).fillColor('#F8FAFC').fill();
+    doc.rect(m, y, w, 44).fillColor('#F8FAFC').fill();
     doc.restore();
     this.hLine(y, '#1E3A5F', 0.8);
-    y += 6;
+    y += 5;
 
     const col1 = m + 8;
-    const col2 = m + 100;
+    const col2 = m + 95;
     const col3 = midX + 8;
-    const col4 = midX + 100;
+    const col4 = midX + 95;
     const infoFontSize = 7;
-    const infoLineH = 12;
+    const infoLineH = 11;
 
     doc.font('Helvetica').fontSize(infoFontSize).fillColor('#6B7280');
     this.t('Employee Name', col1, y);
@@ -184,15 +180,15 @@ export class SalarySlipGenerator {
     this.t(d.employee.joiningDate || 'N/A', col2, y);
     this.t(d.employee.panNumber || 'N/A', col4, y);
 
-    y += infoLineH + 6;
+    y += infoLineH + 4;
 
     doc.save();
-    doc.rect(m, y, w, 14).fillColor('#EFF6FF').fill();
+    doc.rect(m, y, w, 13).fillColor('#EFF6FF').fill();
     doc.restore();
     this.hLine(y, '#1E3A5F', 0.6);
-    doc.font('Helvetica-Bold').fontSize(7).fillColor('#1E3A5F');
-    this.t('ATTENDANCE SUMMARY', m + 8, y + 4);
-    y += 16;
+    doc.font('Helvetica-Bold').fontSize(6.5).fillColor('#1E3A5F');
+    this.t('ATTENDANCE SUMMARY', m + 8, y + 3.5);
+    y += 14;
 
     const attData = [
       { label: 'Days in Month', value: d.period.daysInMonth.toString() },
@@ -206,38 +202,38 @@ export class SalarySlipGenerator {
 
     const attColW = w / 7;
     doc.save();
-    doc.rect(m, y, w, 22).fillColor('#FFFFFF').fill();
+    doc.rect(m, y, w, 20).fillColor('#FFFFFF').fill();
     doc.restore();
     for (let i = 0; i < attData.length; i++) {
       const x = m + i * attColW;
-      doc.font('Helvetica').fontSize(6).fillColor('#6B7280');
-      this.t(attData[i].label, x + 2, y + 2, { width: attColW - 4, align: 'center' });
-      doc.font('Helvetica-Bold').fontSize(8).fillColor('#1F2937');
-      this.t(attData[i].value, x + 2, y + 11, { width: attColW - 4, align: 'center' });
-      if (i > 0) this.vLine(x, y, y + 22, '#E5E7EB', 0.3);
+      doc.font('Helvetica').fontSize(5.5).fillColor('#6B7280');
+      this.t(attData[i].label, x + 2, y + 1, { width: attColW - 4, align: 'center' });
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#1F2937');
+      this.t(attData[i].value, x + 2, y + 10, { width: attColW - 4, align: 'center' });
+      if (i > 0) this.vLine(x, y, y + 20, '#E5E7EB', 0.3);
     }
-    this.hLine(y + 22, '#D1D5DB', 0.4);
-    y += 26;
+    this.hLine(y + 20, '#D1D5DB', 0.4);
+    y += 23;
 
     const earningsX = m;
     const deductionsX = midX;
     const tableTop = y;
 
     doc.save();
-    doc.rect(earningsX, tableTop, w / 2, 14).fillColor('#F0FDF4').fill();
-    doc.rect(deductionsX, tableTop, w / 2, 14).fillColor('#FEF2F2').fill();
+    doc.rect(earningsX, tableTop, w / 2, 13).fillColor('#F0FDF4').fill();
+    doc.rect(deductionsX, tableTop, w / 2, 13).fillColor('#FEF2F2').fill();
     doc.restore();
     this.hLine(tableTop, '#1E3A5F', 0.6);
-    this.vLine(midX, tableTop, tableTop + 14, '#1E3A5F', 0.6);
+    this.vLine(midX, tableTop, tableTop + 13, '#1E3A5F', 0.6);
 
-    doc.font('Helvetica-Bold').fontSize(7).fillColor('#166534');
-    this.t('EARNINGS', earningsX + 8, tableTop + 4);
-    this.t('Amount', earningsX + 8, tableTop + 4, { width: w / 2 - 16, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(6.5).fillColor('#166534');
+    this.t('EARNINGS', earningsX + 8, tableTop + 3.5);
+    this.t('Amount', earningsX + 8, tableTop + 3.5, { width: w / 2 - 16, align: 'right' });
     doc.fillColor('#991B1B');
-    this.t('DEDUCTIONS', deductionsX + 8, tableTop + 4);
-    this.t('Amount', deductionsX + 8, tableTop + 4, { width: w / 2 - 16, align: 'right' });
+    this.t('DEDUCTIONS', deductionsX + 8, tableTop + 3.5);
+    this.t('Amount', deductionsX + 8, tableTop + 3.5, { width: w / 2 - 16, align: 'right' });
 
-    y = tableTop + 16;
+    y = tableTop + 14;
 
     const earnRows = [
       { label: 'Basic Salary', value: d.earnings.basicSalary },
@@ -257,16 +253,23 @@ export class SalarySlipGenerator {
       earnRows.push({ label: 'Other Allowances', value: d.earnings.otherAllowances });
     }
 
-    const dedRows = [
+    const dedRows: { label: string; value: number }[] = [
       { label: 'Provident Fund (Employee)', value: d.deductions.providentFund },
       { label: 'Professional Tax', value: d.deductions.professionalTax },
       { label: 'ESIC (Employee)', value: d.deductions.esic },
       { label: 'Income Tax (TDS)', value: d.deductions.incomeTax },
-      { label: 'Loan Deduction', value: d.deductions.loanDeduction },
-      { label: 'Advance Deduction', value: d.deductions.advanceDeduction },
     ];
+    if (d.deductions.loanDeduction > 0) {
+      dedRows.push({ label: 'Loan Deduction', value: d.deductions.loanDeduction });
+    }
+    if (d.deductions.advanceDeduction > 0) {
+      dedRows.push({ label: 'Advance Deduction', value: d.deductions.advanceDeduction });
+    }
+    if (d.deductions.otherDeductions > 0) {
+      dedRows.push({ label: 'Other Deductions', value: d.deductions.otherDeductions });
+    }
 
-    const rowH = 13;
+    const rowH = 12;
     const maxRows = Math.max(earnRows.length, dedRows.length);
 
     for (let i = 0; i < maxRows; i++) {
@@ -278,56 +281,56 @@ export class SalarySlipGenerator {
       doc.restore();
 
       if (i < earnRows.length) {
-        doc.font('Helvetica').fontSize(7).fillColor('#374151');
-        this.t(earnRows[i].label, earningsX + 8, rowY + 3, { width: w / 2 - 80 });
-        this.t(fmtDec(earnRows[i].value), earningsX + 8, rowY + 3, { width: w / 2 - 16, align: 'right' });
+        doc.font('Helvetica').fontSize(6.5).fillColor('#374151');
+        this.t(earnRows[i].label, earningsX + 8, rowY + 2.5, { width: w / 2 - 80 });
+        this.t(fmtDec(earnRows[i].value), earningsX + 8, rowY + 2.5, { width: w / 2 - 16, align: 'right' });
       }
 
       if (i < dedRows.length) {
-        doc.font('Helvetica').fontSize(7).fillColor('#374151');
-        this.t(dedRows[i].label, deductionsX + 8, rowY + 3, { width: w / 2 - 80 });
-        this.t(fmtDec(dedRows[i].value), deductionsX + 8, rowY + 3, { width: w / 2 - 16, align: 'right' });
+        doc.font('Helvetica').fontSize(6.5).fillColor('#374151');
+        this.t(dedRows[i].label, deductionsX + 8, rowY + 2.5, { width: w / 2 - 80 });
+        this.t(fmtDec(dedRows[i].value), deductionsX + 8, rowY + 2.5, { width: w / 2 - 16, align: 'right' });
       }
       this.vLine(midX, rowY, rowY + rowH, '#E5E7EB', 0.3);
     }
 
     const totalRowY = y + maxRows * rowH;
     doc.save();
-    doc.rect(earningsX, totalRowY, w / 2, 14).fillColor('#ECFDF5').fill();
-    doc.rect(deductionsX, totalRowY, w / 2, 14).fillColor('#FEF2F2').fill();
+    doc.rect(earningsX, totalRowY, w / 2, 13).fillColor('#ECFDF5').fill();
+    doc.rect(deductionsX, totalRowY, w / 2, 13).fillColor('#FEF2F2').fill();
     doc.restore();
     this.hLine(totalRowY, '#D1D5DB', 0.4);
-    this.vLine(midX, totalRowY, totalRowY + 14, '#1E3A5F', 0.4);
+    this.vLine(midX, totalRowY, totalRowY + 13, '#1E3A5F', 0.4);
 
-    doc.font('Helvetica-Bold').fontSize(7).fillColor('#166534');
-    this.t('Gross Earnings', earningsX + 8, totalRowY + 4);
-    this.t(fmtDec(d.totals.grossEarnings), earningsX + 8, totalRowY + 4, { width: w / 2 - 16, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(6.5).fillColor('#166534');
+    this.t('Gross Earnings', earningsX + 8, totalRowY + 3.5);
+    this.t(fmtDec(d.totals.grossEarnings), earningsX + 8, totalRowY + 3.5, { width: w / 2 - 16, align: 'right' });
     doc.fillColor('#991B1B');
-    this.t('Total Deductions', deductionsX + 8, totalRowY + 4);
-    this.t(fmtDec(d.totals.totalDeductions), deductionsX + 8, totalRowY + 4, { width: w / 2 - 16, align: 'right' });
+    this.t('Total Deductions', deductionsX + 8, totalRowY + 3.5);
+    this.t(fmtDec(d.totals.totalDeductions), deductionsX + 8, totalRowY + 3.5, { width: w / 2 - 16, align: 'right' });
 
-    this.hLine(totalRowY + 14, '#1E3A5F', 0.6);
-    y = totalRowY + 18;
+    this.hLine(totalRowY + 13, '#1E3A5F', 0.6);
+    y = totalRowY + 16;
 
     doc.save();
-    doc.rect(m, y, w, 24).fillColor('#1E3A5F').fill();
+    doc.rect(m, y, w, 22).fillColor('#1E3A5F').fill();
     doc.restore();
-    doc.font('Helvetica').fontSize(7).fillColor('#C8D8E8');
-    this.t('NET PAY', m + 12, y + 3);
-    doc.font('Helvetica-Bold').fontSize(14).fillColor('#FFFFFF');
-    this.t(fmtDec(d.totals.netPay), m + 12, y + 3, { width: w - 24, align: 'right' });
-    const wordsText = d.netPayInWords || numberToWords(Math.round(d.totals.netPay));
     doc.font('Helvetica').fontSize(6.5).fillColor('#C8D8E8');
-    this.t(wordsText, m + 12, y + 16);
-    y += 28;
+    this.t('NET PAY', m + 10, y + 2);
+    doc.font('Helvetica-Bold').fontSize(13).fillColor('#FFFFFF');
+    this.t(fmtDec(d.totals.netPay), m + 10, y + 2, { width: w - 20, align: 'right' });
+    const wordsText = d.netPayInWords || numberToWords(Math.round(d.totals.netPay));
+    doc.font('Helvetica').fontSize(6).fillColor('#C8D8E8');
+    this.t(wordsText, m + 10, y + 15);
+    y += 25;
 
     doc.save();
-    doc.rect(m, y, w, 13).fillColor('#EFF6FF').fill();
+    doc.rect(m, y, w, 12).fillColor('#EFF6FF').fill();
     doc.restore();
     this.hLine(y, '#1E3A5F', 0.6);
-    doc.font('Helvetica-Bold').fontSize(7).fillColor('#1E3A5F');
-    this.t('EMPLOYER CONTRIBUTIONS & CTC', m + 8, y + 4);
-    y += 15;
+    doc.font('Helvetica-Bold').fontSize(6.5).fillColor('#1E3A5F');
+    this.t('EMPLOYER CONTRIBUTIONS & CTC', m + 8, y + 3);
+    y += 13;
 
     const ctcItems = [
       { label: 'PF (Employer)', value: fmtINR(d.employerCosts.pfEmployer) },
@@ -342,44 +345,44 @@ export class SalarySlipGenerator {
       const col = i % 3;
       const row = Math.floor(i / 3);
       const x = m + col * ctcColW;
-      const ry = y + row * 12;
-      doc.font('Helvetica').fontSize(6.5).fillColor('#6B7280');
+      const ry = y + row * 11;
+      doc.font('Helvetica').fontSize(6).fillColor('#6B7280');
       this.t(ctcItems[i].label + ':', x + 8, ry + 1);
-      doc.font('Helvetica-Bold').fontSize(6.5).fillColor('#1F2937');
-      this.t(ctcItems[i].value, x + 85, ry + 1);
+      doc.font('Helvetica-Bold').fontSize(6).fillColor('#1F2937');
+      this.t(ctcItems[i].value, x + 80, ry + 1);
     }
-    y += Math.ceil(ctcItems.length / 3) * 12 + 2;
+    y += Math.ceil(ctcItems.length / 3) * 11 + 1;
 
     this.hLine(y, '#D1D5DB', 0.3);
-    y += 3;
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#1E3A5F');
+    y += 2;
+    doc.font('Helvetica-Bold').fontSize(7).fillColor('#1E3A5F');
     this.t(`CTC (Monthly): ${fmtINR(d.totals.ctcMonthly)}`, m + 8, y);
     this.t(`CTC (Annual): ${fmtINR(d.totals.ctcYearly)}`, m + 8, y, { width: w - 16, align: 'right' });
-    y += 14;
+    y += 12;
 
     this.hLine(y, '#D1D5DB', 0.3);
-    y += 20;
+    y += 16;
 
-    doc.font('Helvetica').fontSize(7.5).fillColor('#6B7280');
+    doc.font('Helvetica').fontSize(7).fillColor('#6B7280');
     this.t('For THERMOPAC', m, y, { width: w - 16, align: 'right' });
-    y += 30;
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#1F2937');
+    y += 24;
+    doc.font('Helvetica-Bold').fontSize(7).fillColor('#1F2937');
     this.t('Authorized Signatory', m, y, { width: w - 16, align: 'right' });
 
-    y += 14;
-    doc.font('Helvetica').fontSize(6).fillColor('#9CA3AF');
+    y += 10;
+    doc.font('Helvetica').fontSize(5.5).fillColor('#9CA3AF');
     this.t('This is a computer-generated document and does not require a physical signature.', m, y, { width: w, align: 'center' });
 
-    const footerY = this.ph - 36;
-    this.hLine(footerY - 4, '#1E3A5F', 0.6);
-    doc.font('Helvetica').fontSize(6).fillColor('#6B7280');
+    const footerY = this.ph - 32;
+    this.hLine(footerY - 3, '#1E3A5F', 0.6);
+    doc.font('Helvetica').fontSize(5.5).fillColor('#6B7280');
     this.t(
       'THERMOPAC  |  L 4, 405 The Summit Business Bay, Vile Parle, Western Express Highway, Mumbai 400 057',
       m, footerY, { width: w, align: 'center' }
     );
     this.t(
       'Tel: +91 22 2617 8080-84  |  Fax: +91 22 2617 8084  |  Email: sales@thermopac.in',
-      m, footerY + 9, { width: w, align: 'center' }
+      m, footerY + 8, { width: w, align: 'center' }
     );
   }
 }
