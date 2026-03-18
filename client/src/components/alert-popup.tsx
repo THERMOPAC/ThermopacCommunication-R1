@@ -30,10 +30,25 @@ interface PopupAlert {
   dismissedAt?: number;
 }
 
+function getSeenIds(): Set<number> {
+  try {
+    const stored = sessionStorage.getItem('alert_popup_seen');
+    if (stored) return new Set(JSON.parse(stored));
+  } catch {}
+  return new Set();
+}
+
+function persistSeenIds(ids: Set<number>) {
+  try {
+    const arr = Array.from(ids).slice(-200);
+    sessionStorage.setItem('alert_popup_seen', JSON.stringify(arr));
+  } catch {}
+}
+
 export default function AlertPopup() {
   const [popups, setPopups] = useState<PopupAlert[]>([]);
   const lastCheckRef = useRef<string | null>(null);
-  const seenIdsRef = useRef<Set<number>>(new Set());
+  const seenIdsRef = useRef<Set<number>>(getSeenIds());
   const [, navigate] = useLocation();
 
   const fetchNewAlerts = useCallback(async () => {
@@ -48,6 +63,7 @@ export default function AlertPopup() {
         for (const a of newAlerts) {
           seenIdsRef.current.add(a.id);
         }
+        persistSeenIds(seenIdsRef.current);
 
         setPopups(prev => {
           const combined = [...newAlerts.map(a => ({ ...a, dismissedAt: undefined })), ...prev];
