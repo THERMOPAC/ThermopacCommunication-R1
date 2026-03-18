@@ -70,11 +70,11 @@ interface SalarySlipData {
 }
 
 function fmtINR(v: number): string {
-  return '\u00B9 ' + v.toLocaleString('en-IN');
+  return 'Rs. ' + v.toLocaleString('en-IN');
 }
 
 function fmtDec(v: number): string {
-  return '\u00B9 ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return 'Rs. ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export class SalarySlipGenerator {
