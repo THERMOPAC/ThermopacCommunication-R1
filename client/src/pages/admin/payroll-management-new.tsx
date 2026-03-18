@@ -674,7 +674,7 @@ export default function PayrollManagementNew() {
   });
 
   const { data: payrollPeriods = [] } = useQuery<any[]>({
-    queryKey: ['/api/payroll/periods'],
+    queryKey: ['/api/payroll/payroll-periods'],
   });
 
   const testRunMutation = useMutation({
