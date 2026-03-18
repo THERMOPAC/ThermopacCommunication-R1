@@ -2257,6 +2257,47 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
 });
 
 /**
+ * Fetch GL accounts from SAP Chart of Accounts
+ */
+router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+
+    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+    const sessionId = loginResult.sessionId;
+    let routeId = '';
+    const setCookieHeader = loginResult.response.headers['set-cookie'];
+    if (setCookieHeader) {
+      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      for (const cookie of cookieArray) {
+        const match = cookie.match(/ROUTEID=([^;]+)/);
+        if (match) { routeId = match[1]; break; }
+      }
+    }
+    const headers: Record<string, string> = {};
+    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
+
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name,ActiveAccount,PostableAccount&$filter=PostableAccount eq 'tYES'&$top=20",
+      headers,
+    });
+
+    if (sapResponse.ok) {
+      const data = JSON.parse(sapResponse.body);
+      return res.json(data.value || data);
+    } else {
+      return res.status(500).json({ error: sapResponse.body });
+    }
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+/**
  * Test SAP JE posting with custom payload
  */
 router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, res: Response) => {
