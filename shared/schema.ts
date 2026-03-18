@@ -4728,6 +4728,12 @@ export const payrollRecords = pgTable('payroll_records', {
   status: varchar('status', { length: 20 }).default('draft'),
   paymentReference: varchar('payment_reference', { length: 100 }),
   paymentDate: date('payment_date'),
+
+  sapDocEntry: integer('sap_doc_entry'),
+  sapJeNumber: text('sap_je_number'),
+  sapPostedAt: timestamp('sap_posted_at'),
+  sapPostingStatus: varchar('sap_posting_status', { length: 20 }),
+  sapErrorMessage: text('sap_error_message'),
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

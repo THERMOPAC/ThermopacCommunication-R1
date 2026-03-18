@@ -35,6 +35,9 @@ import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
 import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
+import { glAccountMappings } from '../shared/schema';
+import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
+import { sapSessionManager } from './sap-session-manager';
 
 const router = express.Router();
 
@@ -2141,6 +2144,11 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         incomeTax: payrollRecords.incomeTax,
         professionalTax: payrollRecords.professionalTax,
         providentFund: payrollRecords.providentFund,
+        sapDocEntry: payrollRecords.sapDocEntry,
+        sapJeNumber: payrollRecords.sapJeNumber,
+        sapPostedAt: payrollRecords.sapPostedAt,
+        sapPostingStatus: payrollRecords.sapPostingStatus,
+        sapErrorMessage: payrollRecords.sapErrorMessage,
         createdAt: payrollRecords.createdAt,
         updatedAt: payrollRecords.updatedAt
       })
@@ -2192,6 +2200,7 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
 
         return {
           id: record.id,
+          userId: record.userId,
           employeeName,
           employeeCode: userInfo.employeeCode,
           basicSalary: record.baseSalary,
@@ -2200,6 +2209,11 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           netSalary: record.netPay,
           month: month,
           year: year,
+          sapDocEntry: record.sapDocEntry,
+          sapJeNumber: record.sapJeNumber,
+          sapPostedAt: record.sapPostedAt,
+          sapPostingStatus: record.sapPostingStatus,
+          sapErrorMessage: record.sapErrorMessage,
           createdAt: record.createdAt
         };
       })
@@ -2239,6 +2253,303 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
   } catch (error) {
     console.error('Error clearing payroll records:', error);
     res.status(500).json({ error: 'Failed to clear payroll records' });
+  }
+});
+
+/**
+ * Post payroll salary JE to SAP B1
+ */
+router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.id);
+    const currentUser = req.user as any;
+
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
+    if (!record) {
+      return res.status(404).json({ error: 'Payroll record not found' });
+    }
+
+    if (record.sapPostingStatus === 'posted') {
+      return res.status(400).json({ error: 'This salary record has already been posted to SAP', sapJeNumber: record.sapJeNumber, sapDocEntry: record.sapDocEntry });
+    }
+
+    const [employee] = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      username: users.username,
+      cardCode: users.cardCode,
+      cardName: users.cardName,
+      employeeCode: users.employeeCode,
+    }).from(users).where(eq(users.id, record.userId));
+
+    if (!employee) {
+      return res.status(400).json({ error: 'Employee not found' });
+    }
+
+    const empName = employee.firstName && employee.lastName
+      ? `${employee.firstName} ${employee.lastName}`
+      : employee.username || 'Unknown';
+
+    if (!employee.cardCode || employee.cardCode.trim() === '') {
+      await db.update(payrollRecords).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: `Employee ${empName} has no SAP BP code linked. Please assign a BP code before posting.`,
+        updatedAt: new Date(),
+      }).where(eq(payrollRecords.id, recordId));
+      return res.status(400).json({ error: `Employee ${empName} has no SAP BP code linked. Please assign a BP code before posting.` });
+    }
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+
+    const REQUIRED_COMPONENTS = [
+      { code: 'BASIC', context: 'expense' },
+      { code: 'HRA', context: 'expense' },
+      { code: 'CONVEYANCE', context: 'expense' },
+      { code: 'LTA', context: 'expense' },
+      { code: 'SPECIAL_ALLOWANCE', context: 'expense' },
+      { code: 'SUPPLEMENTARY', context: 'expense' },
+      { code: 'KGP', context: 'expense' },
+      { code: 'BONUS', context: 'expense' },
+      { code: 'OVERTIME', context: 'expense' },
+      { code: 'OTHER_ALLOWANCES', context: 'expense' },
+      { code: 'PF_EMPLOYEE', context: 'payroll_liability' },
+      { code: 'ESIC_EMPLOYEE', context: 'payroll_liability' },
+      { code: 'LOAN_DEDUCTION', context: 'payroll_liability' },
+      { code: 'ADVANCE_DEDUCTION', context: 'payroll_liability' },
+      { code: 'OTHER_DEDUCTIONS', context: 'payroll_liability' },
+      { code: 'PT', context: 'payroll_liability' },
+      { code: 'TDS', context: 'payroll_liability' },
+      { code: 'NET_PAY', context: 'payroll_liability' },
+    ];
+
+    const missingMappings: string[] = [];
+    const glMap = new Map<string, string>();
+
+    for (const comp of REQUIRED_COMPONENTS) {
+      const mapping = allMappings.find(
+        m => m.componentCode === comp.code && m.postingContext === comp.context && m.glAccountCode && m.glAccountCode.trim() !== ''
+      );
+      if (!mapping) {
+        missingMappings.push(`${comp.code} (${comp.context})`);
+      } else {
+        glMap.set(`${comp.code}|${comp.context}`, mapping.glAccountCode!);
+      }
+    }
+
+    if (missingMappings.length > 0) {
+      await db.update(payrollRecords).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: `GL mappings missing for: ${missingMappings.join(', ')}`,
+        updatedAt: new Date(),
+      }).where(eq(payrollRecords.id, recordId));
+      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings });
+    }
+
+    const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
+      .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
+    const periodLabel = period?.periodName || 'Unknown Period';
+
+    const jeLines: any[] = [];
+    let lineNum = 0;
+
+    const earningComponents = [
+      { code: 'BASIC', value: parseFloat(record.baseSalary || '0') },
+      { code: 'HRA', value: parseFloat(record.hra || '0') },
+      { code: 'CONVEYANCE', value: parseFloat(record.conveyanceAllowance || '0') },
+      { code: 'LTA', value: parseFloat(record.ltaAllowance || '0') },
+      { code: 'SPECIAL_ALLOWANCE', value: parseFloat(record.specialAllowance || '0') },
+      { code: 'SUPPLEMENTARY', value: parseFloat(record.supplementaryAllowance || '0') },
+      { code: 'KGP', value: parseFloat(record.kgpAllowance || '0') },
+      { code: 'BONUS', value: parseFloat(record.bonus || '0') },
+      { code: 'OVERTIME', value: parseFloat(record.overtimePay || '0') },
+      { code: 'OTHER_ALLOWANCES', value: parseFloat(record.otherAllowances || '0') },
+    ];
+
+    for (const comp of earningComponents) {
+      if (comp.value > 0) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: glMap.get(`${comp.code}|expense`),
+          Debit: comp.value,
+          Credit: 0,
+          LineMemo: `${comp.code} - ${empName} - ${periodLabel}`,
+        });
+      }
+    }
+
+    const deductionComponents = [
+      { code: 'PF_EMPLOYEE', value: parseFloat(record.employeePf || record.providentFund || '0') },
+      { code: 'ESIC_EMPLOYEE', value: parseFloat(record.employeeEsic || record.esiDeduction || record.esic || '0') },
+      { code: 'PT', value: parseFloat(record.professionalTax || '0') },
+      { code: 'TDS', value: parseFloat(record.tdsAmount || record.incomeTax || '0') },
+      { code: 'LOAN_DEDUCTION', value: parseFloat(record.loanDeductions || '0') },
+      { code: 'ADVANCE_DEDUCTION', value: parseFloat(record.advanceDeductions || '0') },
+      { code: 'OTHER_DEDUCTIONS', value: parseFloat(record.otherDeductions || '0') },
+    ];
+
+    for (const comp of deductionComponents) {
+      if (comp.value > 0) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: glMap.get(`${comp.code}|payroll_liability`),
+          Debit: 0,
+          Credit: comp.value,
+          LineMemo: `${comp.code} - ${empName} - ${periodLabel}`,
+        });
+      }
+    }
+
+    const netPayValue = parseFloat(record.netPay || '0');
+    if (netPayValue > 0) {
+      jeLines.push({
+        Line_ID: lineNum++,
+        AccountCode: glMap.get('NET_PAY|payroll_liability'),
+        Debit: 0,
+        Credit: netPayValue,
+        ShortName: employee.cardCode,
+        LineMemo: `Net Pay - ${empName} - ${periodLabel}`,
+      });
+    }
+
+    const postingDate = period?.startDate
+      ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `Salary JE - ${empName} - ${periodLabel}`,
+      JournalEntryLines: jeLines,
+    };
+
+    await db.update(payrollRecords).set({
+      sapPostingStatus: 'pending',
+      sapErrorMessage: null,
+      updatedAt: new Date(),
+    }).where(eq(payrollRecords.id, recordId));
+
+    const session = sapSessionManager.getSession(currentUser.id);
+    if (!session) {
+      try {
+        const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
+        const sapUser = process.env.SAP_USERNAME || '';
+        const sapPass = process.env.SAP_PASSWORD || '';
+        const sapDb = process.env.SAP_COMPANY_DB || '';
+
+        if (!sapUser || !sapPass || !sapDb) {
+          await db.update(payrollRecords).set({
+            sapPostingStatus: 'failed',
+            sapErrorMessage: 'SAP credentials not configured. Please set SAP_USERNAME, SAP_PASSWORD, and SAP_COMPANY_DB.',
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+          return res.status(500).json({ error: 'SAP credentials not configured' });
+        }
+
+        const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+        sapSessionManager.setSession(currentUser.id, { sessionId: loginResult.sessionId, routeId: undefined, userId: currentUser.id, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+
+        const sapResponse = await sapHttpsClient.authenticatedRequest(loginResult.sessionId, {
+          method: 'POST',
+          path: '/b1s/v1/JournalEntries',
+          body: jePayload,
+        });
+
+        if (sapResponse.ok) {
+          const responseData = JSON.parse(sapResponse.body);
+          await db.update(payrollRecords).set({
+            sapDocEntry: responseData.DocEntry,
+            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+            sapPostedAt: new Date(),
+            sapPostingStatus: 'posted',
+            sapErrorMessage: null,
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+
+          return res.json({
+            success: true,
+            message: `Salary JE posted to SAP successfully`,
+            sapDocEntry: responseData.DocEntry,
+            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+          });
+        } else {
+          const errorBody = sapResponse.body;
+          let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
+          try {
+            const errParsed = JSON.parse(errorBody);
+            errorMsg = errParsed?.error?.message?.value || errorMsg;
+          } catch (_) {}
+
+          await db.update(payrollRecords).set({
+            sapPostingStatus: 'failed',
+            sapErrorMessage: errorMsg,
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+
+          return res.status(500).json({ error: errorMsg });
+        }
+      } catch (sapErr: any) {
+        const errorMsg = `SAP connection error: ${sapErr.message}`;
+        await db.update(payrollRecords).set({
+          sapPostingStatus: 'failed',
+          sapErrorMessage: errorMsg,
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, recordId));
+        return res.status(500).json({ error: errorMsg });
+      }
+    } else {
+      try {
+        const sapResponse = await sapHttpsClient.authenticatedRequest(session.sessionId, {
+          method: 'POST',
+          path: '/b1s/v1/JournalEntries',
+          body: jePayload,
+        });
+
+        if (sapResponse.ok) {
+          const responseData = JSON.parse(sapResponse.body);
+          await db.update(payrollRecords).set({
+            sapDocEntry: responseData.DocEntry,
+            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+            sapPostedAt: new Date(),
+            sapPostingStatus: 'posted',
+            sapErrorMessage: null,
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+
+          return res.json({
+            success: true,
+            message: `Salary JE posted to SAP successfully`,
+            sapDocEntry: responseData.DocEntry,
+            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+          });
+        } else {
+          const errorBody = sapResponse.body;
+          let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
+          try {
+            const errParsed = JSON.parse(errorBody);
+            errorMsg = errParsed?.error?.message?.value || errorMsg;
+          } catch (_) {}
+
+          await db.update(payrollRecords).set({
+            sapPostingStatus: 'failed',
+            sapErrorMessage: errorMsg,
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+
+          return res.status(500).json({ error: errorMsg });
+        }
+      } catch (sapErr: any) {
+        const errorMsg = `SAP connection error: ${sapErr.message}`;
+        await db.update(payrollRecords).set({
+          sapPostingStatus: 'failed',
+          sapErrorMessage: errorMsg,
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, recordId));
+        return res.status(500).json({ error: errorMsg });
+      }
+    }
+  } catch (error: any) {
+    console.error('Error posting salary JE to SAP:', error);
+    res.status(500).json({ error: error.message || 'Failed to post salary JE to SAP' });
   }
 });
 
