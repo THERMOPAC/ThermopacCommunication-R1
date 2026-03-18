@@ -52,8 +52,8 @@ router.post('/gl-mappings', async (req: Request, res: Response) => {
 
 router.put('/gl-mappings/:id', async (req: Request, res: Response) => {
   const user = (req as any).user;
-  if (!user || (user.role !== 'Superuser' && user.role !== 'Account Manager')) {
-    return res.status(403).json({ error: 'Only Superuser or Account Manager can edit GL mappings' });
+  if (!user || (user.role !== 'Superuser' && user.role !== 'Manager')) {
+    return res.status(403).json({ error: 'Only Superuser or Manager can edit GL mappings' });
   }
   const id = parseInt(req.params.id);
   const { glAccountCode, glAccountName, debitCredit, isActive } = req.body;
@@ -224,8 +224,8 @@ const ALL_SEED_MODULES: Record<string, { rows: typeof PAYROLL_SEED_ROWS; label: 
 router.post('/gl-mappings/seed-payroll', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user || (user.role !== 'Superuser' && user.role !== 'Account Manager')) {
-      return res.status(403).json({ error: 'Only Superuser or Account Manager can seed GL mappings' });
+    if (!user || (user.role !== 'Superuser' && user.role !== 'Manager')) {
+      return res.status(403).json({ error: 'Only Superuser or Manager can seed GL mappings' });
     }
 
     const existing = await db.select({
@@ -261,8 +261,8 @@ router.post('/gl-mappings/seed-payroll', async (req: Request, res: Response) => 
 router.post('/gl-mappings/seed/:module', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user || (user.role !== 'Superuser' && user.role !== 'Account Manager')) {
-      return res.status(403).json({ error: 'Only Superuser or Account Manager can seed GL mappings' });
+    if (!user || (user.role !== 'Superuser' && user.role !== 'Manager')) {
+      return res.status(403).json({ error: 'Only Superuser or Manager can seed GL mappings' });
     }
 
     const moduleName = req.params.module.toLowerCase();
@@ -304,8 +304,8 @@ router.post('/gl-mappings/seed/:module', async (req: Request, res: Response) => 
 router.post('/gl-mappings/seed-all', async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!user || (user.role !== 'Superuser' && user.role !== 'Account Manager')) {
-      return res.status(403).json({ error: 'Only Superuser or Account Manager can seed GL mappings' });
+    if (!user || (user.role !== 'Superuser' && user.role !== 'Manager')) {
+      return res.status(403).json({ error: 'Only Superuser or Manager can seed GL mappings' });
     }
 
     const allRows = Object.values(ALL_SEED_MODULES).flatMap(m => m.rows);

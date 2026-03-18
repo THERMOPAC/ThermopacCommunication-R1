@@ -93,7 +93,7 @@ export default function GlMappingPage() {
   const [form, setForm] = useState({ glAccountCode: '', glAccountName: '' });
 
   const { data: user } = useQuery<any>({ queryKey: ['/api/user'] });
-  const isAdmin = user?.role === 'Superuser' || user?.role === 'Account Manager';
+  const isAdmin = user?.role === 'Superuser' || user?.role === 'Manager';
 
   const { data: mappings = [], isLoading } = useQuery<any[]>({ queryKey: ['/api/statutory/gl-mappings'] });
 
