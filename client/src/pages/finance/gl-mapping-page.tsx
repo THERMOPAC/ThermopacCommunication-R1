@@ -130,9 +130,25 @@ export default function GlMappingPage() {
 
   const totalMapped = mappings.filter((m: any) => isMapped(m)).length;
   const totalUnmapped = mappings.filter((m: any) => !isMapped(m)).length;
-  const unmappedNames = mappings
+
+  const codeCounts: Record<string, number> = {};
+  mappings.forEach((m: any) => { codeCounts[m.componentCode] = (codeCounts[m.componentCode] || 0) + 1; });
+  const isDuplicate = (code: string) => (codeCounts[code] || 0) > 1;
+
+  const contextShortLabel = (ctx: string) => {
+    if (ctx === 'expense') return 'Expense';
+    if (ctx === 'payroll_liability') return 'Liability';
+    if (ctx === 'recovery') return 'Recovery';
+    if (ctx === 'statutory_payment') return 'Statutory Pmt';
+    return ctx;
+  };
+
+  const unmappedLabels = mappings
     .filter((m: any) => !isMapped(m))
-    .map((m: any) => m.componentName);
+    .map((m: any) => isDuplicate(m.componentCode)
+      ? `${m.componentName} (${contextShortLabel(m.postingContext)} – ${m.debitCredit === 'debit' ? 'Dr' : 'Cr'})`
+      : m.componentName
+    );
 
   const catBadge = (cat: string) => {
     const c = CATEGORIES.find(x => x.value === cat);
@@ -192,7 +208,7 @@ export default function GlMappingPage() {
               <div>
                 <h4 className="font-semibold text-amber-800">{totalUnmapped} component{totalUnmapped > 1 ? 's' : ''} missing GL account code</h4>
                 <p className="text-sm text-amber-700 mt-1">
-                  SAP posting will be blocked for any JE that uses these unmapped components: {unmappedNames.join(', ')}
+                  SAP posting will be blocked for any JE that uses these unmapped components: {unmappedLabels.join(', ')}
                 </p>
               </div>
             </div>
@@ -279,7 +295,20 @@ export default function GlMappingPage() {
                           : <AlertTriangle className="h-4 w-4 text-amber-500" />}
                       </TableCell>
                       <TableCell className="font-mono text-sm font-medium">{m.componentCode}</TableCell>
-                      <TableCell>{m.componentName}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{m.componentName}</span>
+                          {isDuplicate(m.componentCode) && (
+                            <Badge variant="outline" className={
+                              m.postingContext === 'expense'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-violet-50 text-violet-700 border-violet-200'
+                            }>
+                              {contextShortLabel(m.postingContext)} ({m.debitCredit === 'debit' ? 'Dr' : 'Cr'})
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell><Badge variant="outline">{contextLabel(m.postingContext)}</Badge></TableCell>
                       <TableCell>
                         {isMapped(m)
