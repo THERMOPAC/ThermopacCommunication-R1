@@ -27,7 +27,7 @@ import {
   insertEmployeeTaxDeclarationSchema,
   insertEmployeeInvestmentProofSchema,
 } from '@shared/schema';
-import { eq, and, gte, lte, desc, asc, sum, avg, count } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sum, avg, count, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   startPayrollRun,
@@ -510,6 +510,45 @@ router.post('/run/single-user', async (req, res) => {
     const [employee] = await db.select().from(users).where(eq(users.id, userId));
     if (!employee) return res.status(404).json({ error: 'User not found' });
 
+    const priorRecords = await db.select({ id: payrollRecords.id }).from(payrollRecords)
+      .where(and(eq(payrollRecords.periodId, periodId), eq(payrollRecords.userId, userId)));
+
+    for (const pr of priorRecords) {
+      const priorLoanReps = await db.select().from(employeeLoanRepayments)
+        .where(and(eq(employeeLoanRepayments.payrollRecordId, pr.id), inArray(employeeLoanRepayments.status, ['deducted', 'partial'])));
+      for (const rep of priorLoanReps) {
+        await db.update(employeeLoanRepayments).set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(employeeLoanRepayments.id, rep.id));
+        const [parentLoan] = await db.select().from(employeeLoans).where(eq(employeeLoans.id, rep.loanId));
+        if (parentLoan) {
+          const newRepaid = Math.max(0, parseFloat(parentLoan.totalRepaid || '0') - parseFloat(rep.amount));
+          const newBalance = parseFloat(parentLoan.outstandingBalance || '0') + parseFloat(rep.amount);
+          const newInstPaid = Math.max(0, (parentLoan.installmentsPaid || 0) - 1);
+          await db.update(employeeLoans).set({
+            totalRepaid: newRepaid.toFixed(2), outstandingBalance: newBalance.toFixed(2),
+            installmentsPaid: newInstPaid, status: parentLoan.status === 'closed' ? 'active' : parentLoan.status, updatedAt: new Date(),
+          }).where(eq(employeeLoans.id, rep.loanId));
+        }
+      }
+
+      const priorAdvRecs = await db.select().from(employeeAdvanceRecoveries)
+        .where(and(eq(employeeAdvanceRecoveries.payrollRecordId, pr.id), inArray(employeeAdvanceRecoveries.status, ['deducted', 'partial'])));
+      for (const rec of priorAdvRecs) {
+        await db.update(employeeAdvanceRecoveries).set({ status: 'reversed', reversedAt: new Date() })
+          .where(eq(employeeAdvanceRecoveries.id, rec.id));
+        const [parentAdv] = await db.select().from(employeeAdvances).where(eq(employeeAdvances.id, rec.advanceId));
+        if (parentAdv) {
+          const newRecovered = Math.max(0, parseFloat(parentAdv.totalRecovered || '0') - parseFloat(rec.amount));
+          const newBalance = parseFloat(parentAdv.outstandingBalance || '0') + parseFloat(rec.amount);
+          const newInstRec = Math.max(0, (parentAdv.installmentsRecovered || 0) - 1);
+          await db.update(employeeAdvances).set({
+            totalRecovered: newRecovered.toFixed(2), outstandingBalance: newBalance.toFixed(2),
+            installmentsRecovered: newInstRec, status: parentAdv.status === 'closed' ? 'active' : parentAdv.status, updatedAt: new Date(),
+          }).where(eq(employeeAdvances.id, rec.advanceId));
+        }
+      }
+    }
+
     await db.delete(payrollRecords).where(
       and(eq(payrollRecords.periodId, periodId), eq(payrollRecords.userId, userId))
     );
@@ -620,6 +659,7 @@ router.post('/run/single-user', async (req, res) => {
         lte(employeeAdvances.startRecoveryDate, periodEndDate)
       )).orderBy(asc(employeeAdvances.createdAt));
 
+    const advDeductions: { adv: any; actual: number; requested: number }[] = [];
     for (const adv of activeAdvances) {
       if (remaining <= 0) break;
       let requested: number;
@@ -629,7 +669,7 @@ router.post('/run/single-user', async (req, res) => {
         requested = Math.min(parseFloat(adv.recoveryAmount || '0'), parseFloat(adv.outstandingBalance || '0'));
       }
       const actual = Math.min(requested, remaining);
-      if (actual > 0) { advDed += actual; remaining -= actual; }
+      if (actual > 0) { advDed += actual; remaining -= actual; advDeductions.push({ adv, actual, requested }); }
     }
 
     const activeLoans = await db.select().from(employeeLoans)
@@ -643,11 +683,12 @@ router.post('/run/single-user', async (req, res) => {
     const otherLoans = activeLoans.filter(l => l.loanType !== 'emergency');
     const sortedLoans = [...emergencyLoans, ...otherLoans];
 
+    const loanDeductions: { loan: any; actual: number; requested: number }[] = [];
     for (const loan of sortedLoans) {
       if (remaining <= 0) break;
       const requested = Math.min(parseFloat(loan.emiAmount || '0'), parseFloat(loan.outstandingBalance || '0'));
       const actual = Math.min(requested, remaining);
-      if (actual > 0) { loanDed += actual; remaining -= actual; }
+      if (actual > 0) { loanDed += actual; remaining -= actual; loanDeductions.push({ loan, actual, requested }); }
     }
     const totalDeductionsPreTds = statutoryDeductions + loanDed + advDed;
     const netPayPreTds = grossPay - totalDeductionsPreTds;
@@ -689,6 +730,38 @@ router.post('/run/single-user', async (req, res) => {
       lopDays: lopDays.toFixed(2),
       status: 'generated',
     } as any).returning();
+
+    for (const { adv, actual, requested } of advDeductions) {
+      const newBalance = parseFloat(adv.outstandingBalance || '0') - actual;
+      const instNum = (adv.installmentsRecovered || 0) + 1;
+      const status = actual < requested ? 'partial' : 'deducted';
+      await db.insert(employeeAdvanceRecoveries).values({
+        advanceId: adv.id, employeeId: userId, installmentNumber: instNum,
+        amount: actual.toFixed(2), recoveryDate: periodEndDate, payrollRecordId: record.id,
+        payrollPeriodId: periodId, runNumber: 1, balanceAfter: newBalance.toFixed(2), status,
+      });
+      await db.update(employeeAdvances).set({
+        totalRecovered: (parseFloat(adv.totalRecovered || '0') + actual).toFixed(2),
+        outstandingBalance: newBalance.toFixed(2), installmentsRecovered: instNum,
+        status: newBalance <= 0 ? 'closed' : 'active', updatedAt: new Date(),
+      }).where(eq(employeeAdvances.id, adv.id));
+    }
+
+    for (const { loan, actual, requested } of loanDeductions) {
+      const newBalance = parseFloat(loan.outstandingBalance || '0') - actual;
+      const instNum = (loan.installmentsPaid || 0) + 1;
+      const status = actual < requested ? 'partial' : 'deducted';
+      await db.insert(employeeLoanRepayments).values({
+        loanId: loan.id, employeeId: userId, installmentNumber: instNum,
+        amount: actual.toFixed(2), repaymentDate: periodEndDate, payrollRecordId: record.id,
+        payrollPeriodId: periodId, runNumber: 1, balanceAfter: newBalance.toFixed(2), status,
+      });
+      await db.update(employeeLoans).set({
+        totalRepaid: (parseFloat(loan.totalRepaid || '0') + actual).toFixed(2),
+        outstandingBalance: newBalance.toFixed(2), installmentsPaid: instNum,
+        status: newBalance <= 0 ? 'closed' : 'active', updatedAt: new Date(),
+      }).where(eq(employeeLoans.id, loan.id));
+    }
 
     const endDateObj = new Date(endDate);
     const month = endDateObj.getMonth() + 1;
