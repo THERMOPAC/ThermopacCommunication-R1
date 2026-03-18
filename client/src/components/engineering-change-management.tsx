@@ -121,8 +121,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   } = useQuery({
     queryKey: ['/api/ecr/item', itemId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/ecr/item/${itemId}`);
-      return await res.json();
+      return await apiRequest('GET', `/api/ecr/item/${itemId}`);
     },
     enabled: !!itemId,
   });
@@ -134,8 +133,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   } = useQuery({
     queryKey: ['/api/ecn/item', itemId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/ecn/item/${itemId}`);
-      return await res.json();
+      return await apiRequest('GET', `/api/ecn/item/${itemId}`);
     },
     enabled: !!itemId,
   });
@@ -147,7 +145,6 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
         ...data,
         item_id: itemId
       });
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/ecr/item', itemId] });
@@ -174,7 +171,6 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
         ...data,
         item_id: itemId
       });
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/ecn/item', itemId] });
@@ -204,8 +200,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   // Update ECR status mutation
   const updateEcrStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number, status: string }) => {
-      const res = await apiRequest('PUT', `/api/ecr/${id}`, { status });
-      return await res.json();
+      return await apiRequest('PUT', `/api/ecr/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/ecr/item', itemId] });
@@ -226,8 +221,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   // Update ECN status mutation
   const updateEcnStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number, status: string }) => {
-      const res = await apiRequest('PUT', `/api/ecn/${id}`, { status });
-      return await res.json();
+      return await apiRequest('PUT', `/api/ecn/${id}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/ecn/item', itemId] });
@@ -297,8 +291,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
       formData.append('documentType', docType);
       
       const url = type === 'ecr' ? `/api/ecr/${id}/documents` : `/api/ecn/${id}/documents`;
-      const res = await apiRequest('POST', url, formData, true);
-      return await res.json();
+      return await apiRequest('POST', url, formData, true);
     },
     onSuccess: (_, variables) => {
       const queryKey = variables.type === 'ecr' ? ['/api/ecr/item', itemId] : ['/api/ecn/item', itemId];

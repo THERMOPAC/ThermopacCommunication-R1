@@ -370,8 +370,7 @@ export default function AgentDashboardPage() {
 
   const approveAndExecuteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("POST", `/api/agents/recommendations/${id}/approve-and-execute`);
-      return res.json();
+      return await apiRequest("POST", `/api/agents/recommendations/${id}/approve-and-execute`);
     },
     onSuccess: (data: any) => {
       invalidateAll();
@@ -384,8 +383,7 @@ export default function AgentDashboardPage() {
 
   const executeMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("POST", `/api/agents/recommendations/${id}/execute`);
-      return res.json();
+      return await apiRequest("POST", `/api/agents/recommendations/${id}/execute`);
     },
     onSuccess: (data: any) => {
       invalidateAll();

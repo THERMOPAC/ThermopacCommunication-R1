@@ -386,8 +386,7 @@ function EstimatesTab({ estimates, selectedTaxYearId, showDialog, setShowDialog,
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/company-tax/estimates', data);
-      return res.json();
+      return await apiRequest('POST', '/api/company-tax/estimates', data);
     },
     onSuccess: () => { invalidateAll(); setShowDialog(false); toast({ title: 'Estimate created' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -526,11 +525,10 @@ function EstimatesTab({ estimates, selectedTaxYearId, showDialog, setShowDialog,
 function AdvanceTaxTab({ advanceTax, selectedTaxYearId, selectedTaxYear, invalidateAll, toast }: any) {
   const initMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/company-tax/advance-tax/initialize', {
+      return await apiRequest('POST', '/api/company-tax/advance-tax/initialize', {
         taxYearId: selectedTaxYearId,
         financialYear: selectedTaxYear?.financialYear,
       });
-      return res.json();
     },
     onSuccess: () => { invalidateAll(); toast({ title: 'Advance tax installments initialized' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -593,8 +591,7 @@ function ProvisionsTab({ provisions, selectedTaxYearId, showDialog, setShowDialo
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/company-tax/provisions', data);
-      return res.json();
+      return await apiRequest('POST', '/api/company-tax/provisions', data);
     },
     onSuccess: () => { invalidateAll(); setShowDialog(false); toast({ title: 'Provision created' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -602,8 +599,7 @@ function ProvisionsTab({ provisions, selectedTaxYearId, showDialog, setShowDialo
 
   const reverseMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('PUT', `/api/company-tax/provisions/${id}/reverse`, {});
-      return res.json();
+      return await apiRequest('PUT', `/api/company-tax/provisions/${id}/reverse`, {});
     },
     onSuccess: () => { invalidateAll(); toast({ title: 'Provision reversed' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -611,8 +607,7 @@ function ProvisionsTab({ provisions, selectedTaxYearId, showDialog, setShowDialo
 
   const postSapMutation = useMutation({
     mutationFn: async ({ id, sapJeReference }: { id: number; sapJeReference: string }) => {
-      const res = await apiRequest('PUT', `/api/company-tax/provisions/${id}/post-sap`, { sapJeReference });
-      return res.json();
+      return await apiRequest('PUT', `/api/company-tax/provisions/${id}/post-sap`, { sapJeReference });
     },
     onSuccess: () => { invalidateAll(); toast({ title: 'Posted to SAP' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -714,8 +709,7 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/company-tax/challans', data);
-      return res.json();
+      return await apiRequest('POST', '/api/company-tax/challans', data);
     },
     onSuccess: () => { invalidateAll(); setShowDialog(false); toast({ title: 'Challan created' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -723,8 +717,7 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
 
   const paymentMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('PUT', `/api/company-tax/challans/${selectedChallan.id}/payment`, data);
-      return res.json();
+      return await apiRequest('PUT', `/api/company-tax/challans/${selectedChallan.id}/payment`, data);
     },
     onSuccess: () => { invalidateAll(); setShowPaymentDialog(false); toast({ title: 'Payment recorded' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -732,8 +725,7 @@ function ChallansTab({ challans, selectedTaxYearId, showDialog, setShowDialog, s
 
   const postSapMutation = useMutation({
     mutationFn: async ({ id, sapJeReference }: { id: number; sapJeReference: string }) => {
-      const res = await apiRequest('PUT', `/api/company-tax/challans/${id}/post-sap`, { sapJeReference });
-      return res.json();
+      return await apiRequest('PUT', `/api/company-tax/challans/${id}/post-sap`, { sapJeReference });
     },
     onSuccess: () => { invalidateAll(); toast({ title: 'Posted to SAP' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -880,8 +872,7 @@ function ReturnsTab({ returns, selectedTaxYearId, showDialog, setShowDialog, inv
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/company-tax/returns', data);
-      return res.json();
+      return await apiRequest('POST', '/api/company-tax/returns', data);
     },
     onSuccess: () => { invalidateAll(); setShowDialog(false); toast({ title: 'Return record created' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -889,8 +880,7 @@ function ReturnsTab({ returns, selectedTaxYearId, showDialog, setShowDialog, inv
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const res = await apiRequest('PUT', `/api/company-tax/returns/${id}`, data);
-      return res.json();
+      return await apiRequest('PUT', `/api/company-tax/returns/${id}`, data);
     },
     onSuccess: () => { invalidateAll(); toast({ title: 'Return updated' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -1077,8 +1067,7 @@ function NoticesTab({ notices, selectedTaxYearId, showDialog, setShowDialog, inv
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/company-tax/notices', data);
-      return res.json();
+      return await apiRequest('POST', '/api/company-tax/notices', data);
     },
     onSuccess: () => { invalidateAll(); setShowDialog(false); toast({ title: 'Notice recorded' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -1086,8 +1075,7 @@ function NoticesTab({ notices, selectedTaxYearId, showDialog, setShowDialog, inv
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const res = await apiRequest('PUT', `/api/company-tax/notices/${id}`, data);
-      return res.json();
+      return await apiRequest('PUT', `/api/company-tax/notices/${id}`, data);
     },
     onSuccess: () => { invalidateAll(); toast({ title: 'Notice updated' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -1179,8 +1167,7 @@ function TaxYearDialog({ open, onClose, invalidateAll, toast }: any) {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/company-tax/tax-years', data);
-      return res.json();
+      return await apiRequest('POST', '/api/company-tax/tax-years', data);
     },
     onSuccess: () => { invalidateAll(); onClose(); toast({ title: 'Tax year created' }); setForm({ cessRate: '4', status: 'active' }); },
     onError: (err: any) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),

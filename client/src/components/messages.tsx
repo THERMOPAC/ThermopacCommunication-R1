@@ -46,8 +46,7 @@ function Messages() {
   const { data: connectionStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["/api/gmail/status"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/gmail/status");
-      return await res.json();
+      return await apiRequest("GET", "/api/gmail/status");
     }
   });
 
@@ -55,8 +54,7 @@ function Messages() {
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["/api/gmail/settings"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/gmail/settings");
-      return await res.json();
+      return await apiRequest("GET", "/api/gmail/settings");
     },
     enabled: connectionStatus?.connected === true
   });
@@ -65,8 +63,7 @@ function Messages() {
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/users");
-      return await res.json();
+      return await apiRequest("GET", "/api/users");
     }
   });
 
@@ -93,9 +90,8 @@ function Messages() {
           }
         }
         
-        const res = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
-        const data = await res.json();
-        console.log('Messages fetched successfully:', data.length);
+        const data = await apiRequest("GET", `/api/gmail/messages?${queryParams.toString()}`);
+        console.log('Messages fetched successfully:', (data as any[])?.length);
         return data;
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -113,8 +109,7 @@ function Messages() {
   // Mark message as read
   const markAsReadMutation = useMutation({
     mutationFn: async (messageId: number) => {
-      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead: true });
-      return await res.json();
+      return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/read`, { isRead: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
@@ -131,10 +126,9 @@ function Messages() {
   // Toggle message importance
   const toggleImportanceMutation = useMutation({
     mutationFn: async ({ messageId, important }: { messageId: number, important: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/gmail/messages/${messageId}/important`, {
+      return await apiRequest("PATCH", `/api/gmail/messages/${messageId}/important`, {
         important
       });
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/messages"] });
@@ -151,8 +145,7 @@ function Messages() {
   // Delete message
   const deleteMessageMutation = useMutation({
     mutationFn: async (messageId: number) => {
-      const res = await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
-      return await res.json();
+      return await apiRequest("DELETE", `/api/gmail/messages/${messageId}`);
     },
     onSuccess: () => {
       setSelectedMessageId(null); // Return to message list after deletion
@@ -187,33 +180,9 @@ function Messages() {
   const syncMutation = useMutation({
     mutationFn: async () => {
       console.log('Starting sync mutation');
-      try {
-        const res = await apiRequest("POST", "/api/gmail/sync");
-        
-        if (!res.ok) {
-          // Get the error message from the response
-          const errorData = await res.json();
-          console.error('Sync error:', errorData);
-          
-          if (errorData.error === 'Gmail API not enabled or still activating') {
-            throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. If already enabled, please wait 5-10 minutes for the changes to propagate.');
-          } else if (errorData.error === 'Gmail API not enabled') {
-            throw new Error(errorData.message || 'The Gmail API needs to be enabled in your Google Cloud project. Please visit the Google Cloud Console to enable it.');
-          } else if (errorData.error === 'Gmail API error') {
-            throw new Error(`Gmail API error: ${errorData.message || 'Unknown API error'}`);
-          } else {
-            throw new Error(errorData.error || 'Failed to sync Gmail messages');
-          }
-        }
-        
-        console.log('Sync request successful, parsing response');
-        const data = await res.json();
-        console.log('Sync response data:', data);
-        return data;
-      } catch (error) {
-        console.error('Sync mutation error:', error);
-        throw error;
-      }
+      const data = await apiRequest("POST", "/api/gmail/sync");
+      console.log('Sync response data:', data);
+      return data;
     },
     onSuccess: (data) => {
       console.log('Sync successful:', data);
@@ -262,8 +231,7 @@ function Messages() {
   // Manual auth mutation
   const manualAuthMutation = useMutation({
     mutationFn: async (code: string) => {
-      const res = await apiRequest("POST", "/api/gmail/manual-auth", { code });
-      return await res.json();
+      return await apiRequest("POST", "/api/gmail/manual-auth", { code });
     },
     onSuccess: () => {
       toast({
@@ -459,8 +427,7 @@ function Messages() {
   // Disconnect from Gmail
   const disconnectMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/gmail/disconnect");
-      return await res.json();
+      return await apiRequest("POST", "/api/gmail/disconnect");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/status"] });
@@ -580,8 +547,7 @@ function Messages() {
   // Update Gmail settings
   const updateSettingsMutation = useMutation({
     mutationFn: async (updateData: { autoSyncEnabled?: boolean, syncFrequencyMinutes?: number }) => {
-      const res = await apiRequest("PATCH", "/api/gmail/settings", updateData);
-      return await res.json();
+      return await apiRequest("PATCH", "/api/gmail/settings", updateData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/settings"] });

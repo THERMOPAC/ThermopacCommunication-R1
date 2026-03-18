@@ -58,8 +58,7 @@ export default function LoansAdvancesPage() {
 
   const createLoanMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/loan-advance/loans', data);
-      return res.json();
+      return await apiRequest('POST', '/api/loan-advance/loans', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
@@ -72,8 +71,7 @@ export default function LoansAdvancesPage() {
 
   const createAdvanceMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/loan-advance/advances', data);
-      return res.json();
+      return await apiRequest('POST', '/api/loan-advance/advances', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
@@ -86,8 +84,7 @@ export default function LoansAdvancesPage() {
 
   const updateLoanMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const res = await apiRequest('PATCH', `/api/loan-advance/loans/${id}`, data);
-      return res.json();
+      return await apiRequest('PATCH', `/api/loan-advance/loans/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
@@ -97,8 +94,7 @@ export default function LoansAdvancesPage() {
 
   const updateAdvanceMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const res = await apiRequest('PATCH', `/api/loan-advance/advances/${id}`, data);
-      return res.json();
+      return await apiRequest('PATCH', `/api/loan-advance/advances/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });

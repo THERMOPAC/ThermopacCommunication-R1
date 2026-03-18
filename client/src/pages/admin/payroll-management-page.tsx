@@ -243,8 +243,7 @@ export default function PayrollManagementPage() {
 
   const testRunMutation = useMutation({
     mutationFn: async (data: { periodId: number; userId: number }) => {
-      const res = await apiRequest('POST', '/api/payroll/run/single-user', data);
-      return res.json();
+      return await apiRequest('POST', '/api/payroll/run/single-user', data);
     },
     onSuccess: (data: any) => {
       setTestRunResult(data);
