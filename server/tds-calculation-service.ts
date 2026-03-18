@@ -223,7 +223,8 @@ export async function computeMonthlyTds(
 
   const totalTdsRequired = totalTaxLiabilityAnnual - previousEmployerTds;
   const tdsRemaining = Math.max(0, totalTdsRequired - tdsDeductedYtd);
-  const monthsLeft = Math.max(1, remainingMonths + 1);
+  const hasNoPriorTds = previousTdsRecords.length === 0 && tdsDeductedYtd === 0;
+  const monthsLeft = hasNoPriorTds ? 12 : Math.max(1, remainingMonths + 1);
   const tdsRequiredMonthly = Math.round((tdsRemaining / monthsLeft) * 100) / 100;
 
   const catchUpAdjustment = 0;
@@ -347,12 +348,13 @@ export async function computeAndSaveTdsForPeriod(
       const loanDed = parseFloat(record.loanDeductions || '0');
       const advDed = parseFloat(record.advanceDeductions || '0');
       const statutoryPlusTds = pf + pt + esic + computation.tdsActualMonthly;
+      const allDeductions = statutoryPlusTds + loanDed + advDed;
 
       await db.update(payrollRecords).set({
         incomeTax: computation.tdsActualMonthly.toFixed(2),
         tdsAmount: computation.tdsActualMonthly.toFixed(2),
-        totalDeductions: statutoryPlusTds.toFixed(2),
-        netPay: (grossSalary - statutoryPlusTds - loanDed - advDed).toFixed(2),
+        totalDeductions: allDeductions.toFixed(2),
+        netPay: (grossSalary - allDeductions).toFixed(2),
         updatedAt: new Date(),
       }).where(eq(payrollRecords.id, record.id));
 
