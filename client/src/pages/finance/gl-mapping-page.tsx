@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, Pencil, Landmark, Search, Database } from "lucide-react";
+import { AlertTriangle, CheckCircle, Pencil, Landmark, Search, Database, Loader2, SeedlingIcon, Sprout, Check, X } from "lucide-react";
 import Layout from "@/components/layout";
 
 const COMPONENTS = [
@@ -81,6 +81,69 @@ const CATEGORIES = [
 
 const CATEGORY_ORDER = ['earning', 'deduction', 'statutory', 'employer_contribution', 'net_pay', 'statutory_penalty', 'company_tax', 'company_tax_penalty'];
 
+function InlineEditCell({ value, onSave, placeholder, className = '' }: { value: string; onSave: (v: string) => void; placeholder: string; className?: string }) {
+  const [editing, setEditing] = useState(false);
+  const [editVal, setEditVal] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  function startEdit() {
+    setEditVal(value);
+    setEditing(true);
+  }
+
+  function save() {
+    setEditing(false);
+    if (editVal !== value) {
+      onSave(editVal);
+    }
+  }
+
+  function cancel() {
+    setEditing(false);
+    setEditVal(value);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          ref={inputRef}
+          value={editVal}
+          onChange={e => setEditVal(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') cancel();
+          }}
+          onBlur={save}
+          className="h-7 text-sm py-0 px-2"
+          placeholder={placeholder}
+        />
+      </div>
+    );
+  }
+
+  const isEmpty = !value || value.trim() === '';
+  return (
+    <div
+      className={`cursor-pointer hover:bg-muted/50 rounded px-2 py-1 min-h-[28px] flex items-center group ${className}`}
+      onClick={startEdit}
+      title="Click to edit"
+    >
+      {isEmpty
+        ? <span className="text-amber-500 italic text-sm">{placeholder}</span>
+        : <span className="font-mono text-sm">{value}</span>}
+      <Pencil className="h-3 w-3 ml-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  );
+}
+
 
 export default function GlMappingPage() {
   const { toast } = useToast();
@@ -101,12 +164,28 @@ export default function GlMappingPage() {
     mutationFn: ({ id, ...data }: any) => apiRequest('PUT', `/api/statutory/gl-mappings/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
-      setShowDialog(false);
-      toast({ title: 'GL Mapping updated' });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const seedAllMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/statutory/gl-mappings/seed-all'),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
+      toast({ title: 'GL Mappings Seeded', description: `Created ${data.totalCreated || 0} new mapping rows across all modules.` });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  function inlineSave(m: any, field: 'glAccountCode' | 'glAccountName', value: string) {
+    updateMutation.mutate({
+      id: m.id,
+      glAccountCode: field === 'glAccountCode' ? value : m.glAccountCode,
+      glAccountName: field === 'glAccountName' ? value : m.glAccountName,
+      debitCredit: m.debitCredit,
+      isActive: m.isActive,
+    });
+  }
 
   function openEdit(m: any) {
     setEditId(m.id);
@@ -124,6 +203,8 @@ export default function GlMappingPage() {
       debitCredit: editRow?.debitCredit,
       isActive: true,
     });
+    setShowDialog(false);
+    toast({ title: 'GL Mapping updated' });
   }
 
   const isMapped = (m: any) => m.glAccountCode && m.glAccountCode.trim() !== '';
@@ -178,6 +259,16 @@ export default function GlMappingPage() {
 
   const contextLabel = (ctx: string) => CONTEXTS.find(c => c.value === ctx)?.label || ctx;
 
+  const moduleStats = [
+    { label: 'Payroll', cats: ['earning', 'deduction', 'statutory', 'employer_contribution', 'net_pay'] },
+    { label: 'Statutory Penalty', cats: ['statutory_penalty'] },
+    { label: 'Company Tax', cats: ['company_tax', 'company_tax_penalty'] },
+  ].map(mod => {
+    const modMappings = mappings.filter((m: any) => mod.cats.includes(m.category));
+    const mapped = modMappings.filter((m: any) => isMapped(m)).length;
+    return { ...mod, total: modMappings.length, mapped, unmapped: modMappings.length - mapped };
+  });
+
   return (
     <Layout>
     <div className="p-6 space-y-6">
@@ -186,6 +277,12 @@ export default function GlMappingPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2"><Landmark className="h-6 w-6" /> GL Account Mapping</h1>
           <p className="text-muted-foreground mt-1">Centralized GL mapping for all payroll and statutory modules</p>
         </div>
+        {isAdmin && mappings.length === 0 && (
+          <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending}>
+            {seedAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sprout className="h-4 w-4 mr-2" />}
+            Seed All GL Mappings
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -215,6 +312,33 @@ export default function GlMappingPage() {
         </Card>
       </div>
 
+      {moduleStats.length > 0 && mappings.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {moduleStats.map(mod => (
+            <Card key={mod.label} className={mod.unmapped > 0 ? 'border-amber-200' : 'border-green-200'}>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{mod.label}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={mod.unmapped === 0 ? 'default' : 'outline'} className={mod.unmapped === 0 ? 'bg-green-600' : ''}>
+                      {mod.mapped}/{mod.total}
+                    </Badge>
+                    {mod.unmapped > 0 && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
+                    {mod.unmapped === 0 && <CheckCircle className="h-3.5 w-3.5 text-green-600" />}
+                  </div>
+                </div>
+                <div className="mt-1.5 bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${mod.unmapped === 0 ? 'bg-green-500' : 'bg-amber-400'}`}
+                    style={{ width: `${mod.total > 0 ? (mod.mapped / mod.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {totalUnmapped > 0 && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="p-4">
@@ -223,7 +347,7 @@ export default function GlMappingPage() {
               <div>
                 <h4 className="font-semibold text-amber-800">{totalUnmapped} component{totalUnmapped > 1 ? 's' : ''} missing GL account code</h4>
                 <p className="text-sm text-amber-700 mt-1">
-                  SAP posting will be blocked for any JE that uses these unmapped components: {unmappedLabels.join(', ')}
+                  SAP posting will be blocked for any JE that uses unmapped components. Click any GL Account Code cell to assign it directly.
                 </p>
               </div>
             </div>
@@ -231,7 +355,7 @@ export default function GlMappingPage() {
         </Card>
       )}
 
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-center">
         <Select value={filterCategory} onValueChange={setFilterCategory}>
           <SelectTrigger className="w-52"><SelectValue placeholder="Filter by Category" /></SelectTrigger>
           <SelectContent>
@@ -254,20 +378,31 @@ export default function GlMappingPage() {
             <SelectItem value="unmapped">Unmapped Only</SelectItem>
           </SelectContent>
         </Select>
+        {(filterCategory !== 'all' || filterContext !== 'all' || filterStatus !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setFilterCategory('all'); setFilterContext('all'); setFilterStatus('all'); }}>
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
-        <div className="text-center py-10">Loading...</div>
+        <div className="text-center py-10"><Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" /></div>
       ) : mappings.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center">
             <Database className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold">No GL Mappings Found</h3>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-muted-foreground mt-2 mb-4">
               {isAdmin
-                ? 'Click "Seed Payroll GL Mappings" above to create all 26 payroll component rows.'
-                : 'Ask your administrator to seed the payroll GL mappings.'}
+                ? 'Click the "Seed All GL Mappings" button to create all payroll, statutory and company tax component rows.'
+                : 'Ask your administrator to seed the GL mappings.'}
             </p>
+            {isAdmin && (
+              <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending} size="lg">
+                {seedAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sprout className="h-4 w-4 mr-2" />}
+                Seed All GL Mappings
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : grouped.length === 0 ? (
@@ -284,7 +419,9 @@ export default function GlMappingPage() {
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Badge className={group.color}>{group.label}</Badge>
-                <span className="text-sm text-muted-foreground">({group.items.length} mapping{group.items.length > 1 ? 's' : ''})</span>
+                <span className="text-sm text-muted-foreground">
+                  ({group.items.filter((m: any) => isMapped(m)).length}/{group.items.length} mapped)
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -326,14 +463,30 @@ export default function GlMappingPage() {
                       </TableCell>
                       <TableCell><Badge variant="outline">{contextLabel(m.postingContext)}</Badge></TableCell>
                       <TableCell>
-                        {isMapped(m)
-                          ? <span className="font-mono">{m.glAccountCode}</span>
-                          : <span className="text-amber-500 italic text-sm">Not assigned</span>}
+                        {isAdmin ? (
+                          <InlineEditCell
+                            value={m.glAccountCode || ''}
+                            onSave={(v) => inlineSave(m, 'glAccountCode', v)}
+                            placeholder="Enter GL code"
+                          />
+                        ) : (
+                          isMapped(m)
+                            ? <span className="font-mono">{m.glAccountCode}</span>
+                            : <span className="text-amber-500 italic text-sm">Not assigned</span>
+                        )}
                       </TableCell>
                       <TableCell>
-                        {m.glAccountName
-                          ? m.glAccountName
-                          : <span className="text-muted-foreground italic text-sm">—</span>}
+                        {isAdmin ? (
+                          <InlineEditCell
+                            value={m.glAccountName || ''}
+                            onSave={(v) => inlineSave(m, 'glAccountName', v)}
+                            placeholder="Enter GL name"
+                          />
+                        ) : (
+                          m.glAccountName
+                            ? m.glAccountName
+                            : <span className="text-muted-foreground italic text-sm">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={m.debitCredit === 'debit' ? 'default' : 'secondary'}>
