@@ -521,6 +521,13 @@ function WorkflowStatusBadge({ record }: { record: any }) {
           {record.reversalSapJeNumber && <span className="text-xs text-purple-600">Rev JE #{record.reversalSapJeNumber}</span>}
         </div>
       );
+    case 'voided':
+      return (
+        <div className="flex flex-col gap-1">
+          <Badge className="bg-gray-600 text-white"><Ban className="h-3 w-3 mr-1" /> Voided</Badge>
+          {record.heldReason && <span className="text-xs text-gray-600 max-w-[180px] truncate" title={record.heldReason}>{record.heldReason}</span>}
+        </div>
+      );
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -529,9 +536,11 @@ function WorkflowStatusBadge({ record }: { record: any }) {
 function GeneratedSalariesView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [clearRecordId, setClearRecordId] = useState<number | null>(null);
-  const [showClearRecordConfirm, setShowClearRecordConfirm] = useState(false);
+  const [showVoidAllConfirm, setShowVoidAllConfirm] = useState(false);
+  const [voidAllReason, setVoidAllReason] = useState('');
+  const [voidRecordId, setVoidRecordId] = useState<number | null>(null);
+  const [showVoidRecordConfirm, setShowVoidRecordConfirm] = useState(false);
+  const [voidRecordReason, setVoidRecordReason] = useState('');
   const [postingId, setPostingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
@@ -549,35 +558,33 @@ function GeneratedSalariesView() {
     enabled: true
   });
 
-  const clearAllMutation = useMutation({
-    mutationFn: () => apiRequest('DELETE', '/api/admin/payroll/records/clear-all'),
+  const voidAllMutation = useMutation({
+    mutationFn: (reason: string) => apiRequest('PATCH', '/api/admin/payroll/records/void-all', { reason }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
-      setShowClearConfirm(false);
-      toast({ title: 'All Records Cleared', description: data.message });
+      setShowVoidAllConfirm(false);
+      setVoidAllReason('');
+      toast({ title: 'Records Voided', description: data.message });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
-  const clearRecordMutation = useMutation({
-    mutationFn: (recordId: number) => apiRequest('DELETE', `/api/admin/payroll/records/${recordId}/clear`),
+  const voidRecordMutation = useMutation({
+    mutationFn: ({ recordId, reason }: { recordId: number; reason: string }) =>
+      apiRequest('PATCH', `/api/admin/payroll/records/${recordId}/void`, { reason }),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
-      setShowClearRecordConfirm(false);
-      setClearRecordId(null);
-      const reversals = data.reversals || [];
-      const reversalMsg = reversals.length > 0
-        ? reversals.map((r: any) => `${r.type} ${r.reference}: ${r.success ? `Reversed (JE #${r.reversalJeNumber})` : `Failed - ${r.error}`}`).join('; ')
-        : 'No SAP reversals needed';
-      toast({ title: 'Record Cleared', description: `${data.message} | ${reversalMsg}` });
+      setShowVoidRecordConfirm(false);
+      setVoidRecordId(null);
+      setVoidRecordReason('');
+      toast({ title: 'Record Voided', description: data.message });
     },
     onError: (e: any) => {
-      setShowClearRecordConfirm(false);
-      setClearRecordId(null);
+      setShowVoidRecordConfirm(false);
+      setVoidRecordId(null);
+      setVoidRecordReason('');
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     },
   });
@@ -702,6 +709,7 @@ function GeneratedSalariesView() {
         { key: 'held', label: 'Held', count: statusCounts['held'] || 0, color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200' },
         { key: 'rejected', label: 'Rejected', count: statusCounts['rejected'] || 0, color: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200' },
         { key: 'reversed', label: 'Reversed', count: statusCounts['reversed'] || 0, color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200' },
+        { key: 'voided', label: 'Voided', count: statusCounts['voided'] || 0, color: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200' },
       ].map(f => (
         <Button
           key={f.key}
@@ -721,9 +729,9 @@ function GeneratedSalariesView() {
         <Button
           variant="destructive"
           size="sm"
-          onClick={() => setShowClearConfirm(true)}
+          onClick={() => setShowVoidAllConfirm(true)}
         >
-          <Trash2 className="h-4 w-4 mr-2" /> Clear All Records
+          <Ban className="h-4 w-4 mr-2" /> Void All Records
         </Button>
       </CardHeader>
       <CardContent>
@@ -746,9 +754,10 @@ function GeneratedSalariesView() {
                 const recStatus = record.status || 'generated';
                 const isTransferred = recStatus === 'transferred' || (record.sapPostingStatus === 'posted' && recStatus !== 'reversed');
                 const isReversed = recStatus === 'reversed';
-                const isLocked = isTransferred || isReversed;
+                const isVoided = recStatus === 'voided';
+                const isLocked = isTransferred || isReversed || isVoided;
                 return (
-                <tr key={record.id} className={`border-b hover:bg-gray-50 ${isTransferred ? 'bg-green-50/30' : isReversed ? 'bg-purple-50/20' : recStatus === 'rejected' ? 'bg-red-50/20' : recStatus === 'held' ? 'bg-amber-50/20' : ''}`}>
+                <tr key={record.id} className={`border-b hover:bg-gray-50 ${isTransferred ? 'bg-green-50/30' : isReversed ? 'bg-purple-50/20' : isVoided ? 'bg-gray-50/30' : recStatus === 'rejected' ? 'bg-red-50/20' : recStatus === 'held' ? 'bg-amber-50/20' : ''}`}>
                   <td className="p-3">
                     <div className="font-medium text-sm">{record.employeeName}</div>
                     <div className="text-xs text-gray-500">{record.employeeCode}</div>
@@ -889,7 +898,7 @@ function GeneratedSalariesView() {
                         </Badge>
                       )}
 
-                      {isLocked && (
+                      {(isTransferred || isReversed) && (
                         <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 h-7 px-2 text-xs flex items-center">
                           <Lock className="h-3 w-3 mr-1" /> Locked
                         </Badge>
@@ -899,11 +908,17 @@ function GeneratedSalariesView() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { setClearRecordId(record.id); setShowClearRecordConfirm(true); }}
-                          className="text-red-600 hover:text-red-800 hover:border-red-300 h-7 px-2 text-xs"
+                          onClick={() => { setVoidRecordId(record.id); setVoidRecordReason(''); setShowVoidRecordConfirm(true); }}
+                          className="text-gray-600 hover:text-gray-800 hover:border-gray-400 h-7 px-2 text-xs"
                         >
-                          <Trash2 className="h-3 w-3 mr-1" /> Clear
+                          <Ban className="h-3 w-3 mr-1" /> Void
                         </Button>
+                      )}
+
+                      {isVoided && (
+                        <Badge variant="outline" className="text-gray-600 border-gray-300 bg-gray-50 h-7 px-2 text-xs flex items-center">
+                          <Lock className="h-3 w-3 mr-1" /> Voided
+                        </Badge>
                       )}
 
                       {Array.isArray(record.statusHistory) && record.statusHistory.length > 0 && (
@@ -1028,51 +1043,70 @@ function GeneratedSalariesView() {
       </DialogContent>
     </Dialog>
 
-    <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+    <Dialog open={showVoidAllConfirm} onOpenChange={setShowVoidAllConfirm}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-red-600">Clear All Generated Salaries</DialogTitle>
+          <DialogTitle className="text-gray-700">Void All Eligible Records</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This will permanently delete <strong>{generatedSalaries.length}</strong> salary record{generatedSalaries.length > 1 ? 's' : ''} along with all related TDS records, loan repayments, and advance recoveries. Loan and advance balances will be reset.
+            This will mark all eligible records as <strong>Voided</strong>. Records that are already transferred, reversed, or voided will be skipped.
           </p>
-          <p className="text-sm font-semibold text-red-600">This action cannot be undone.</p>
+          <p className="text-sm text-muted-foreground">
+            Voided records are <strong>preserved for audit</strong> — they are not deleted. No SAP entries or loan/advance balances are affected.
+          </p>
+          <div>
+            <label className="text-sm font-medium">Reason for voiding <span className="text-red-500">*</span></label>
+            <textarea
+              className="w-full mt-1 p-2 border rounded text-sm min-h-[60px]"
+              placeholder="e.g., Incorrect payroll period, re-run required..."
+              value={voidAllReason}
+              onChange={(e) => setVoidAllReason(e.target.value)}
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setShowClearConfirm(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowVoidAllConfirm(false); setVoidAllReason(''); }}>Cancel</Button>
             <Button
               variant="destructive"
-              onClick={() => clearAllMutation.mutate()}
-              disabled={clearAllMutation.isPending}
+              onClick={() => voidAllMutation.mutate(voidAllReason)}
+              disabled={voidAllMutation.isPending || !voidAllReason.trim()}
             >
-              {clearAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing...</> : 'Yes, Clear All'}
+              {voidAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Voiding...</> : 'Yes, Void All'}
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
 
-    <Dialog open={showClearRecordConfirm} onOpenChange={setShowClearRecordConfirm}>
+    <Dialog open={showVoidRecordConfirm} onOpenChange={setShowVoidRecordConfirm}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-red-600">Clear Salary Record</DialogTitle>
+          <DialogTitle className="text-gray-700">Void Salary Record</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This will delete this salary record along with its TDS records, loan repayments, and advance recoveries. Loan and advance balances will be reset.
+            This will mark this salary record as <strong>Voided</strong>. The record will be preserved for audit trail purposes — it is not deleted.
           </p>
           <p className="text-sm text-muted-foreground">
-            If any Loan or Advance disbursement JEs were posted to SAP, they will be <strong>reversed</strong> by posting reversal Journal Entries.
+            No SAP entries, loan balances, or advance balances are affected. Only the payroll record status changes.
           </p>
-          <p className="text-sm font-semibold text-red-600">This action cannot be undone.</p>
+          <div>
+            <label className="text-sm font-medium">Reason for voiding <span className="text-red-500">*</span></label>
+            <textarea
+              className="w-full mt-1 p-2 border rounded text-sm min-h-[60px]"
+              placeholder="e.g., Incorrect salary calculation, wrong employee..."
+              value={voidRecordReason}
+              onChange={(e) => setVoidRecordReason(e.target.value)}
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => { setShowClearRecordConfirm(false); setClearRecordId(null); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowVoidRecordConfirm(false); setVoidRecordId(null); setVoidRecordReason(''); }}>Cancel</Button>
             <Button
               variant="destructive"
-              onClick={() => clearRecordId && clearRecordMutation.mutate(clearRecordId)}
-              disabled={clearRecordMutation.isPending}
+              onClick={() => voidRecordId && voidRecordMutation.mutate({ recordId: voidRecordId, reason: voidRecordReason })}
+              disabled={voidRecordMutation.isPending || !voidRecordReason.trim()}
             >
-              {clearRecordMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing & Reversing...</> : 'Yes, Clear & Reverse SAP'}
+              {voidRecordMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Voiding...</> : 'Yes, Void Record'}
             </Button>
           </div>
         </div>
