@@ -2268,24 +2268,18 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       return res.status(400).json({ error: 'jePayload is required' });
     }
 
-    const session = sapSessionManager.getSession(currentUser.id);
-    let sessionId: string;
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
 
-    if (session) {
-      sessionId = session.sessionId;
-    } else {
-      const sapUser = process.env.SAP_USERNAME || '';
-      const sapPass = process.env.SAP_PASSWORD || '';
-      const sapDb = process.env.SAP_COMPANY_DB || '';
-
-      if (!sapUser || !sapPass || !sapDb) {
-        return res.status(500).json({ error: 'SAP credentials not configured' });
-      }
-
-      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-      sessionId = loginResult.sessionId;
-      sapSessionManager.setSession(currentUser.id, { sessionId, routeId: undefined, userId: currentUser.id, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+    if (!sapUser || !sapPass || !sapDb) {
+      return res.status(500).json({ error: 'SAP credentials not configured' });
     }
+
+    console.log(`[Test SAP JE] Fresh login to ${sapDb} as ${sapUser}...`);
+    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+    const sessionId = loginResult.sessionId;
+    console.log(`[Test SAP JE] Login OK, posting JE...`);
 
     const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
