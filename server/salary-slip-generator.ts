@@ -1,5 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { Response } from 'express';
+import path from 'path';
+import fs from 'fs';
 
 interface SalarySlipData {
   employee: {
@@ -140,19 +142,26 @@ export class SalarySlipGenerator {
 
     let y = m;
 
+    const headerH = 48;
     doc.save();
-    doc.rect(m, y, w, 44).fillColor('#1E3A5F').fill();
+    doc.rect(m, y, w, headerH).fillColor('#1E3A5F').fill();
     doc.restore();
-    doc.font('Helvetica-Bold').fontSize(15).fillColor('#FFFFFF');
-    this.t('THERMOPAC', m + 12, y + 7);
-    doc.font('Helvetica').fontSize(7.5).fillColor('#C8D8E8');
-    this.t('Engineering Excellence', m + 12, y + 24);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#FFFFFF');
-    this.t('SALARY SLIP', m + 12, y + 10, { width: w - 24, align: 'right' });
-    doc.font('Helvetica').fontSize(7).fillColor('#C8D8E8');
-    this.t(`${d.period.month} ${d.period.year}  |  Date: ${dateStr}`, m + 12, y + 24, { width: w - 24, align: 'right' });
 
-    y += 48;
+    const logoPath = path.join(process.cwd(), 'client', 'public', 'images', 'thermopac-logo.jpg');
+    if (fs.existsSync(logoPath)) {
+      try {
+        doc.image(logoPath, m + w - 55, y + 4, { width: 40, height: 40 });
+      } catch (_e) {}
+    }
+
+    doc.font('Helvetica-Bold').fontSize(13).fillColor('#FFFFFF');
+    this.t('THERMOPAC PROCESS ENGINEERING LLP', m + 12, y + 8);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF');
+    this.t('SALARY SLIP', m + 12, y + 24);
+    doc.font('Helvetica').fontSize(7).fillColor('#C8D8E8');
+    this.t(`${d.period.month} ${d.period.year}  |  Date: ${dateStr}`, m + 12, y + 36);
+
+    y += headerH + 4;
     doc.fillColor('#000000');
 
     doc.save();
@@ -375,7 +384,7 @@ export class SalarySlipGenerator {
     y += 16;
 
     doc.font('Helvetica').fontSize(7).fillColor('#6B7280');
-    this.t('For THERMOPAC', m, y, { width: w - 16, align: 'right' });
+    this.t('For THERMOPAC PROCESS ENGINEERING LLP', m, y, { width: w - 16, align: 'right' });
     y += 24;
     doc.font('Helvetica-Bold').fontSize(7).fillColor('#1F2937');
     this.t('Authorized Signatory', m, y, { width: w - 16, align: 'right' });
