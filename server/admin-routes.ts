@@ -2333,17 +2333,49 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
         }
       }
     }
-    console.log(`[Test SAP JE] Login OK, sessionId=${sessionId}, routeId=${routeId}, posting JE...`);
+    console.log(`[Test SAP JE] Login OK, sessionId=${sessionId}, routeId=${routeId}`);
 
     const headers: Record<string, string> = {};
     if (routeId) {
       headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
     }
 
+    const glResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name&$filter=ActiveAccount eq 'tYES' and PostableAccount eq 'tYES'&$top=5",
+      headers,
+    });
+    let discoveredAccounts: any[] = [];
+    if (glResponse.ok) {
+      try {
+        const glData = JSON.parse(glResponse.body);
+        discoveredAccounts = glData.value || [];
+        console.log(`[Test SAP JE] Found ${discoveredAccounts.length} postable GL accounts:`, discoveredAccounts.map((a: any) => `${a.Code} - ${a.Name}`));
+      } catch (_) {}
+    } else {
+      console.log(`[Test SAP JE] GL query failed: ${glResponse.statusCode} ${glResponse.body}`);
+    }
+
+    let finalPayload = jePayload;
+    if (discoveredAccounts.length >= 2 && jePayload.JournalEntryLines) {
+      const acct1 = discoveredAccounts[0].Code;
+      const acct2 = discoveredAccounts[1].Code;
+      console.log(`[Test SAP JE] Auto-using discovered GL codes: debit=${acct1}, credit=${acct2}`);
+      finalPayload = {
+        ...jePayload,
+        JournalEntryLines: [
+          { ...jePayload.JournalEntryLines[0], AccountCode: acct1 },
+          { ...jePayload.JournalEntryLines[1], AccountCode: acct2 },
+        ],
+      };
+    }
+
+    console.log(`[Test SAP JE] Posting JE:`, JSON.stringify(finalPayload));
+
     const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
-      body: jePayload,
+      body: finalPayload,
       headers,
     });
 
@@ -2355,6 +2387,8 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
         sapDocEntry: responseData.DocEntry,
         sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
         response: responseData,
+        usedPayload: finalPayload,
+        discoveredAccounts: discoveredAccounts.map((a: any) => ({ code: a.Code, name: a.Name })),
       });
     } else {
       let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
@@ -2362,7 +2396,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
         const errParsed = JSON.parse(sapResponse.body);
         errorMsg = errParsed?.error?.message?.value || errorMsg;
       } catch (_) {}
-      return res.status(500).json({ error: errorMsg, rawResponse: sapResponse.body });
+      return res.status(500).json({ error: errorMsg, rawResponse: sapResponse.body, usedPayload: finalPayload, discoveredAccounts: discoveredAccounts.map((a: any) => ({ code: a.Code, name: a.Name })) });
     }
   } catch (error: any) {
     console.error('Error in test SAP JE:', error);
