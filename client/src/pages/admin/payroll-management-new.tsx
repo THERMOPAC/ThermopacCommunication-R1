@@ -427,11 +427,11 @@ function TestSapJeButton() {
     Memo: "Test Salary JE - Sanjeev Kale",
     JournalEntryLines: [
       {
-        AccountCode: "10100000000-ARL",
+        AccountCode: "10201000000-ARL",
         Debit: 10000.0
       },
       {
-        AccountCode: "10200000000-ARL",
+        AccountCode: "10301000000-ARL",
         Credit: 10000.0
       }
     ]
