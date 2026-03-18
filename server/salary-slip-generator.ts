@@ -142,25 +142,23 @@ export class SalarySlipGenerator {
 
     let y = m;
 
-    const headerH = 48;
-    doc.save();
-    doc.rect(m, y, w, headerH).fillColor('#1E3A5F').fill();
-    doc.restore();
+    const headerH = 44;
 
     const logoPath = path.join(process.cwd(), 'client', 'public', 'images', 'thermopac-logo.jpg');
     if (fs.existsSync(logoPath)) {
       try {
-        doc.image(logoPath, m + w - 55, y + 4, { width: 40, height: 40 });
+        doc.image(logoPath, m + w - 50, y + 2, { width: 38, height: 38 });
       } catch (_e) {}
     }
 
-    doc.font('Helvetica-Bold').fontSize(13).fillColor('#FFFFFF');
-    this.t('THERMOPAC PROCESS ENGINEERING LLP', m + 12, y + 8);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor('#FFFFFF');
-    this.t('SALARY SLIP', m + 12, y + 24);
-    doc.font('Helvetica').fontSize(7).fillColor('#C8D8E8');
-    this.t(`${d.period.month} ${d.period.year}  |  Date: ${dateStr}`, m + 12, y + 36);
+    doc.font('Helvetica-Bold').fontSize(13).fillColor('#000000');
+    this.t('THERMOPAC PROCESS ENGINEERING LLP', m, y + 4);
+    doc.font('Helvetica-Bold').fontSize(9).fillColor('#000000');
+    this.t('SALARY SLIP', m, y + 20);
+    doc.font('Helvetica').fontSize(7).fillColor('#374151');
+    this.t(`${d.period.month} ${d.period.year}  |  Date: ${dateStr}`, m, y + 33);
 
+    this.hLine(y + headerH, '#1E3A5F', 1);
     y += headerH + 4;
     doc.fillColor('#000000');
 
