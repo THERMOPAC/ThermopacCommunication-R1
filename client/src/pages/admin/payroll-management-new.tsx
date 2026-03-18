@@ -1421,7 +1421,7 @@ export default function PayrollManagementNew() {
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Salary Configuration</DialogTitle>
+              <DialogTitle>Edit Salary Configuration — {selectedEmployee ? (selectedEmployee.firstName && selectedEmployee.lastName ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : selectedEmployee.username) : ''}</DialogTitle>
             </DialogHeader>
             {selectedEmployee && (
               <SalaryForm 
