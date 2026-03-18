@@ -2419,6 +2419,13 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     const jePayload = {
       ReferenceDate: postingDate,
       Memo: `Salary JE - ${empName} - ${periodLabel}`,
+      Reference2: employee.cardCode,
+      Reference3: '92B',
+      U_Employee_Name: empName,
+      U_TDS_Status: 'A',
+      U_PF_Status: 'A',
+      U_ESIC_Status: 'A',
+      U_PT_Status: 'A',
       JournalEntryLines: jeLines,
     };
 
