@@ -9617,7 +9617,7 @@ export const glAccountMappings = pgTable('gl_account_mappings', {
   componentName: varchar('component_name', { length: 100 }).notNull(),
   category: varchar('category', { length: 30 }).notNull(),
   postingContext: varchar('posting_context', { length: 30 }).notNull(),
-  glAccountCode: varchar('gl_account_code', { length: 30 }).notNull(),
+  glAccountCode: varchar('gl_account_code', { length: 30 }).notNull().default(''),
   glAccountName: varchar('gl_account_name', { length: 200 }),
   debitCredit: varchar('debit_credit', { length: 10 }).notNull(),
   isActive: boolean('is_active').notNull().default(true),
