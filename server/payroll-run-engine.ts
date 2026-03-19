@@ -664,10 +664,8 @@ async function stepSalaryCalculation(
         const otRate = parseFloat(sal.otRate || '1.0');
         const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
         overtimePay = hourlyRate * overtimeHours * otRate * otMultiplier;
-        const configKgp = parseFloat(sal.kgpAllowance || '0');
-        kgpAllow = configKgp > 0 ? Math.round(configKgp * paidDays * 100) / 100 : 0;
         bonusAllow = Math.round(proratedBase * 0.0833 * 100) / 100;
-        grossPay = proratedBase + overtimePay + kgpAllow + bonusAllow;
+        grossPay = proratedBase + overtimePay + bonusAllow;
       } else {
         paidDays = Math.min(rawPaidDays, MONTHLY_DIVISOR);
 
@@ -865,6 +863,12 @@ async function stepKpiAdjustment(
 
   for (const record of records) {
     try {
+      const snap = record.calculationSnapshot as any || {};
+      if (snap.salaryType === 'daily') {
+        skipped++;
+        continue;
+      }
+
       const validDwars = await db
         .select({
           reportDate: dailyWorkReports.reportDate,
@@ -912,7 +916,6 @@ async function stepKpiAdjustment(
       const kpiEligibleRoles = ['Manager', 'Employee'];
       const isKpiEligible = kpiEligibleRoles.includes(empRole);
 
-      const snap = record.calculationSnapshot as any || {};
       const basicSalary = snap.basicSalary || parseFloat(record.baseSalary);
       const originalKgp = parseFloat(record.kgpAllowance || '0');
 

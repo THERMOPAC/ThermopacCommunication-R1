@@ -473,9 +473,10 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
       salaryData.lta = null;
       salaryData.specialAllowance = null;
       salaryData.supplementaryAllowance = null;
+      salaryData.kgpAllowance = null;
+      salaryData.kpiPercent = null;
     }
 
-    // Calculate CTC values
     const grossSalary = parseFloat(salaryData.basicSalary) + 
                        parseFloat(salaryData.houseRentAllowance || 0) + 
                        parseFloat(salaryData.conveyance || 0) + 
@@ -582,6 +583,8 @@ router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request
       salaryData.lta = null;
       salaryData.specialAllowance = null;
       salaryData.supplementaryAllowance = null;
+      salaryData.kgpAllowance = null;
+      salaryData.kpiPercent = null;
     }
 
     const grossSalary = parseFloat(salaryData.basicSalary) + 

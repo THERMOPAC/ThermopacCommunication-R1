@@ -191,7 +191,7 @@ const exportToExcel = (employee: any, month: string, year: string, calculationDa
       ['Special Allowance', special, ''],
       ['Supplementary Allowance', supplementary, ''],
     ] : []),
-    ['KGP Allowance', kgp, ''],
+    ...(calculationData?.salaryType !== 'daily' && kgp > 0 ? [['KGP Allowance', kgp, '']] : []),
     ['Bonus (Calculated, Not Paid Monthly)', bonus, ''],
     ['Gross Earnings', grossEarnings, ''],
     ['', '', ''],
@@ -271,9 +271,8 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
     // Auto-calculate bonus as 8.33% of Basic Salary
     const bonus = basicAmount * 0.0833;
     
-    // KGP Allowance = Basic Salary × 15% × KPI%
     const kpiPct = parseFloat(formData.kpiPercent || '0');
-    let kgp = basicAmount * 0.15 * (kpiPct / 100);
+    let kgp = salaryType === 'daily' ? 0 : basicAmount * 0.15 * (kpiPct / 100);
     
     const groupInsuranceAmount = parseFloat(formData.groupInsurance || '1500');
 
@@ -309,7 +308,7 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
       grossBasic = basicAmount * paidDays;
       const hourlyRate = basicAmount / workingHours;
       overtimePay = hourlyRate * overtimeHours * otRate;
-      grossEarnings = grossBasic + overtimePay + kgp;
+      grossEarnings = grossBasic + overtimePay;
     } else {
       // Monthly worker calculations
       const proRatedBasic = (basicAmount / actualDays) * paidDays;
@@ -2320,10 +2319,12 @@ export default function PayrollManagementNew() {
                           </div>
                         </>
                       )}
-                      <div className="flex justify-between">
-                        <span>KGP Allowance:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.kgpAllowance || 0)).toLocaleString('en-IN')}</span>
-                      </div>
+                      {calculationPreview.data?.salaryType !== 'daily' && parseFloat(calculationPreview.data?.kgpAllowance || 0) > 0 && (
+                        <div className="flex justify-between">
+                          <span>KGP Allowance:</span>
+                          <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.kgpAllowance || 0)).toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span>Bonus (Calculated, Not Paid Monthly):</span>
                         <span className="font-medium text-orange-600">₹{Math.round(parseFloat(calculationPreview.data?.bonus || 0)).toLocaleString('en-IN')}</span>
@@ -2665,8 +2666,8 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       specialAllowance: isDaily ? null : calculations.special.toFixed(2),
       supplementaryAllowance: isDaily ? null : calculations.supplementary.toFixed(2),
       bonus: calculations.bonus.toFixed(2),
-      kgpAllowance: calculations.kgpAllowance.toFixed(2),
-      kpiPercent: values.kpiPercent || '0',
+      kgpAllowance: isDaily ? null : calculations.kgpAllowance.toFixed(2),
+      kpiPercent: isDaily ? null : (values.kpiPercent || '0'),
       employeePfContribution: calculations.employeePF.toFixed(2),
       employerPfContribution: calculations.employerPF.toFixed(2),
       employeeEsicContribution: calculations.employeeESIC.toFixed(2),
@@ -2951,35 +2952,39 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="kpiPercent"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>KPI % (for KGP Allowance = Basic × 15% × KPI%)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        placeholder="0"
-                        autoComplete="off"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div>
-                <label className="text-sm font-medium">KGP Allowance (Auto-calculated)</label>
-                <Input
-                  value={`₹${calculations.kgpAllowance ? calculations.kgpAllowance.toFixed(2) : '0.00'}`}
-                  readOnly
-                  className="bg-gray-50 cursor-not-allowed mt-1"
-                />
-              </div>
+              {watchedValues.salaryType !== 'daily' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="kpiPercent"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>KPI % (for KGP Allowance = Basic × 15% × KPI%)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            placeholder="0"
+                            autoComplete="off"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div>
+                    <label className="text-sm font-medium">KGP Allowance (Auto-calculated)</label>
+                    <Input
+                      value={`₹${calculations.kgpAllowance ? calculations.kgpAllowance.toFixed(2) : '0.00'}`}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed mt-1"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4">
@@ -3182,17 +3187,18 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                     <span className="text-sm">Bonus (8.33%) - Calculated Only:</span>
                     <span className="font-medium text-orange-600">₹{Math.round(calculations.bonus || 0).toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">
-                      KGP Allowance
-                      {watchedValues.salaryType === 'monthly' && 
-                       selectedUserRole && 
-                       ['Manager', 'Employee'].includes(selectedUserRole) && 
-                       ' (15%)'
-                      }:
-                    </span>
-                    <span className="font-medium">₹{Math.round(calculations.kgpAllowance || 0).toLocaleString('en-IN')}</span>
-                  </div>
+                  {watchedValues.salaryType !== 'daily' && calculations.kgpAllowance > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">
+                        KGP Allowance
+                        {selectedUserRole && 
+                         ['Manager', 'Employee'].includes(selectedUserRole) && 
+                         ' (15%)'
+                        }:
+                      </span>
+                      <span className="font-medium">₹{Math.round(calculations.kgpAllowance || 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between font-semibold">
                     <span>Gross Earnings:</span>

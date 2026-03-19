@@ -683,9 +683,7 @@ export class SalaryCalculationEngine {
       ltaAllowance = 0;
       specialAllowance = 0;
       supplementaryAllowance = 0;
-      
-      const configKgp = parseFloat(salaryConfig.kgpAllowance || '0');
-      kgpAllowance = configKgp > 0 ? configKgp * adjustedPaidDays : 0;
+      kgpAllowance = 0;
       
     } else {
       const lopDays = leaveData.lopDays || 0;

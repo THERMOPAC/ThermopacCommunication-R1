@@ -269,7 +269,7 @@ export class SalarySlipGenerator {
         { label: 'Supplementary Allowance', value: d.earnings.supplementaryAllowance },
       );
     }
-    if (d.kgpPercent > 0 || d.earnings.kgpAllowance > 0) {
+    if (!isDaily && (d.kgpPercent > 0 || d.earnings.kgpAllowance > 0)) {
       earnRows.push({ label: `KGP Allowance (${d.kgpPercent}%)`, value: d.earnings.kgpAllowance });
     }
     if (d.earnings.overtimePay > 0) {
