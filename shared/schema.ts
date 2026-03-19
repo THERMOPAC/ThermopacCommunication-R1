@@ -4591,6 +4591,7 @@ export const employeeSalaries = pgTable('employee_salaries', {
   
   // Salary Configuration
   salaryType: varchar('salary_type', { length: 20 }).default('monthly'),
+  hourlyRate: decimal('hourly_rate', { precision: 10, scale: 2 }),
   actualDays: integer('actual_days').default(30),
   workingHoursPerDay: integer('working_hours_per_day').default(8),
   overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),

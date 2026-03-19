@@ -30,6 +30,7 @@ const salaryFormSchema = z.object({
   salaryStartDate: z.string().min(1, 'Please select salary start date'),
   salaryType: z.enum(['monthly', 'daily']),
   basicSalary: z.string().min(1, 'Basic salary is required'),
+  hourlyRate: z.string().optional(),
   actualDays: z.string().default('30'),
   paidDays: z.string().default('30'),
   workingHoursPerDay: z.string().default('8'),
@@ -66,6 +67,7 @@ interface SalaryConfig {
   employeeCode?: string;
   salaryType: string;
   basicSalary: string;
+  hourlyRate?: string;
   actualDays: string;
   paidDays: string;
   workingHoursPerDay: string;
@@ -2548,6 +2550,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       salaryStartDate: initialData.salaryStartDate,
       salaryType: initialData.salaryType as 'monthly' | 'daily',
       basicSalary: initialData.basicSalary,
+      hourlyRate: initialData.hourlyRate || '',
       actualDays: (initialData.actualDays || 30).toString(),
       paidDays: (initialData.paidDays || initialData.actualDays || 30).toString(),
       workingHoursPerDay: (initialData.workingHoursPerDay || 8).toString(),
@@ -2563,6 +2566,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       salaryStartDate: '',
       salaryType: 'monthly',
       basicSalary: '',
+      hourlyRate: '',
       actualDays: '30',
       paidDays: '30',
       workingHoursPerDay: '8',
@@ -2630,8 +2634,17 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
       }
     }
   }, [watchedValues.userId, getEmployeeWorkweekPolicy, users, form, initialData]);
-  
 
+  useEffect(() => {
+    if (watchedValues.salaryType === 'daily') {
+      const basic = parseFloat(watchedValues.basicSalary || '0');
+      const minHours = parseFloat(watchedValues.workingHoursPerDay || '8');
+      if (basic > 0 && minHours > 0) {
+        const rate = (basic * 2.5) / 26 / minHours;
+        form.setValue('hourlyRate', rate.toFixed(2));
+      }
+    }
+  }, [watchedValues.salaryType, watchedValues.basicSalary, watchedValues.workingHoursPerDay, form]);
   
   const calculations = useSalaryCalculations(watchedValues, selectedUserRole);
 
@@ -2782,6 +2795,30 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                   </FormItem>
                 )}
               />
+
+              {watchedValues.salaryType === 'daily' && (
+                <FormField
+                  control={form.control}
+                  name="hourlyRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hourly Rate (Auto)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          key="hourlyRate"
+                          placeholder="0.00" 
+                          autoComplete="off"
+                          readOnly
+                          className="bg-gray-50"
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Basic × 2.5 / 26 / Min Daily Hrs</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-4">
