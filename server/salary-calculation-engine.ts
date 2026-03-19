@@ -729,9 +729,11 @@ export class SalaryCalculationEngine {
       kgpAllowance = Math.round(configKgp * ratio * 100) / 100;
     }
     
-    const bonus = (input.bonusAmount !== undefined)
-      ? input.bonusAmount
-      : Math.round(grossBasic * 0.0833 * 100) / 100;
+    const bonus = salaryType === 'daily'
+      ? 0
+      : (input.bonusAmount !== undefined)
+        ? input.bonusAmount
+        : Math.round(grossBasic * 0.0833 * 100) / 100;
     
     const grossEarnings = grossBasic + houseRentAllowance + conveyanceAllowance + 
                          ltaAllowance + specialAllowance + supplementaryAllowance + 

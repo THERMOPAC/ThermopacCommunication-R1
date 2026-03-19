@@ -672,8 +672,8 @@ async function stepSalaryCalculation(
         const otRate = parseFloat(sal.otRate || '1.0');
         const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
         overtimePay = hourlyRate * overtimeHours * otRate * otMultiplier;
-        bonusAllow = Math.round(proratedBase * 0.0833 * 100) / 100;
-        grossPay = proratedBase + overtimePay + bonusAllow;
+        bonusAllow = 0;
+        grossPay = proratedBase + overtimePay;
       } else {
         paidDays = Math.min(rawPaidDays, MONTHLY_DIVISOR);
 
@@ -746,7 +746,10 @@ async function stepSalaryCalculation(
       const netPay = grossPay - totalDeductions;
 
       const ctcMonthly = grossPay + employerPF + employerESIC + gratuityAmount + groupInsuranceAmount;
-      const ctcYearly = (ctcMonthly * 12) + (bonusAllow * 12);
+      const annualBonus = salaryType === 'daily'
+        ? Math.round(basicSalary * paidDays * 0.0833 * 100) / 100
+        : bonusAllow;
+      const ctcYearly = (ctcMonthly * 12) + (annualBonus * 12);
 
       const calculationSnapshot = {
         basicSalary,
