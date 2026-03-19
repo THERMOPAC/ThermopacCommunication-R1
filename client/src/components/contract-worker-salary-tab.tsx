@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,31 +89,30 @@ export function ContractWorkerSalaryTab() {
     },
   });
 
-  const preview = useMemo(() => {
+  const [preview, setPreview] = useState<any>(null);
+
+  const previewMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('POST', '/api/manual-salary/preview', data),
+    onSuccess: (data: any) => setPreview(data),
+  });
+
+  useEffect(() => {
     const baseRate = parseFloat(formData.baseRate || '0');
-    if (baseRate <= 0) return null;
-
-    let baseEarnings = 0;
-    if (formData.entryType === 'daily') baseEarnings = parseFloat(formData.daysWorked || '0') * baseRate;
-    else if (formData.entryType === 'hourly') baseEarnings = parseFloat(formData.hoursWorked || '0') * baseRate;
-    else baseEarnings = parseFloat(formData.quantity || '0') * baseRate;
-
-    const hourlyForOT = formData.entryType === 'hourly' ? baseRate : baseRate / 8;
-    const otHours = parseFloat(formData.overtimeHours || '0');
-    const otMult = parseFloat(formData.overtimeRateMultiplier || '1.5');
-    const overtimeEarned = otHours * hourlyForOT * otMult;
-    const grossEarnings = baseEarnings + overtimeEarned;
-
-    const pfBase = Math.min(baseEarnings, 15000);
-    const pf = Math.round(pfBase * 0.12 * 100) / 100;
-    const esic = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075 * 100) / 100 : 0;
-    const pt = 200;
-    const tds = Math.round(grossEarnings * 0.01 * 100) / 100;
-    const totalDed = Math.round((pf + pt + esic + tds) * 100) / 100;
-    const netPay = Math.round((grossEarnings - totalDed) * 100) / 100;
-
-    return { baseEarnings, overtimeEarned, grossEarnings, pf, esic, pt, tds, totalDed, netPay };
-  }, [formData]);
+    if (baseRate <= 0) { setPreview(null); return; }
+    const timer = setTimeout(() => {
+      previewMutation.mutate({
+        entryType: formData.entryType,
+        daysWorked: formData.daysWorked,
+        hoursWorked: formData.hoursWorked,
+        quantity: formData.quantity,
+        baseRate: formData.baseRate,
+        overtimeHours: formData.overtimeHours,
+        overtimeRateMultiplier: formData.overtimeRateMultiplier,
+        periodId: formData.periodId ? parseInt(formData.periodId) : undefined,
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [formData.entryType, formData.daysWorked, formData.hoursWorked, formData.quantity, formData.baseRate, formData.overtimeHours, formData.overtimeRateMultiplier, formData.periodId]);
 
   const invalidateList = () => qc.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
 
@@ -360,11 +359,11 @@ export function ContractWorkerSalaryTab() {
                   <div className="flex justify-between"><span>Base Earnings:</span><span className="font-mono">{fmt(preview.baseEarnings)}</span></div>
                   <div className="flex justify-between"><span>Overtime:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
                   <div className="flex justify-between font-semibold"><span>Gross:</span><span className="font-mono">{fmt(preview.grossEarnings)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>PF (12%):</span><span className="font-mono">{fmt(preview.pf)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>ESIC (0.75%):</span><span className="font-mono">{fmt(preview.esic)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>PT:</span><span className="font-mono">{fmt(preview.pt)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>TDS (1%):</span><span className="font-mono">{fmt(preview.tds)}</span></div>
-                  <div className="flex justify-between text-red-600 font-semibold"><span>Total Ded:</span><span className="font-mono">{fmt(preview.totalDed)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>PF (12%):</span><span className="font-mono">{fmt(preview.pfAmount)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>ESIC (0.75%):</span><span className="font-mono">{fmt(preview.esicAmount)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>PT:</span><span className="font-mono">{fmt(preview.ptAmount)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>TDS (1%):</span><span className="font-mono">{fmt(preview.tdsAmount)}</span></div>
+                  <div className="flex justify-between text-red-600 font-semibold"><span>Total Ded:</span><span className="font-mono">{fmt(preview.totalDeductions)}</span></div>
                   <div className="flex justify-between text-green-700 font-bold text-base"><span>Net Pay:</span><span className="font-mono">{fmt(preview.netPay)}</span></div>
                 </div>
               </CardContent>
