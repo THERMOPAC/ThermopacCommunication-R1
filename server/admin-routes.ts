@@ -2210,10 +2210,11 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           year = startDate.getFullYear();
         }
 
-        // Calculate total deductions
-        const totalDeductions = (parseFloat(record.incomeTax || '0') + 
-                               parseFloat(record.professionalTax || '0') + 
-                               parseFloat(record.providentFund || '0')).toFixed(2);
+        const totalDeductions = record.salarySource === 'manual_salary'
+          ? (parseFloat(record.grossPay || '0') - parseFloat(record.netPay || '0')).toFixed(2)
+          : (parseFloat(record.incomeTax || '0') + 
+             parseFloat(record.professionalTax || '0') + 
+             parseFloat(record.providentFund || '0')).toFixed(2);
 
         return {
           id: record.id,

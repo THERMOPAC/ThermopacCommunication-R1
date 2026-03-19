@@ -753,6 +753,7 @@ function GeneratedSalariesView() {
             <tbody>
               {filteredRecords.map((record: any) => {
                 const recStatus = record.status || 'generated';
+                const isManualSalary = record.salarySource === 'manual_salary';
                 const isTransferred = recStatus === 'transferred' || (record.sapPostingStatus === 'posted' && recStatus !== 'reversed');
                 const isReversed = recStatus === 'reversed';
                 const isVoided = recStatus === 'voided';
@@ -797,16 +798,22 @@ function GeneratedSalariesView() {
                   </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1 justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadSalarySlip(record.id)}
-                        className="text-blue-600 hover:text-blue-800 h-7 px-2 text-xs"
-                      >
-                        <Download className="h-3 w-3 mr-1" /> Slip
-                      </Button>
+                      {!isManualSalary && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadSalarySlip(record.id)}
+                          className="text-blue-600 hover:text-blue-800 h-7 px-2 text-xs"
+                        >
+                          <Download className="h-3 w-3 mr-1" /> Slip
+                        </Button>
+                      )}
 
-                      {recStatus === 'generated' && (
+                      {isManualSalary && (
+                        <span className="text-[10px] text-orange-600 italic">Manage via Contract Workers tab</span>
+                      )}
+
+                      {!isManualSalary && recStatus === 'generated' && (
                         <>
                           <Button
                             variant="outline"
@@ -836,7 +843,7 @@ function GeneratedSalariesView() {
                         </>
                       )}
 
-                      {recStatus === 'verified' && !isLocked && (
+                      {!isManualSalary && recStatus === 'verified' && !isLocked && (
                         <>
                           {record.sapPostingStatus === 'posted' ? (
                             <Button variant="outline" size="sm" disabled className="text-green-600 h-7 px-2 text-xs">
@@ -870,7 +877,7 @@ function GeneratedSalariesView() {
                         </>
                       )}
 
-                      {(recStatus === 'held' || recStatus === 'rejected') && (
+                      {!isManualSalary && (recStatus === 'held' || recStatus === 'rejected') && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -882,7 +889,7 @@ function GeneratedSalariesView() {
                         </Button>
                       )}
 
-                      {isTransferred && !isReversed && (
+                      {!isManualSalary && isTransferred && !isReversed && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -898,19 +905,19 @@ function GeneratedSalariesView() {
                         </Button>
                       )}
 
-                      {isReversed && (
+                      {!isManualSalary && isReversed && (
                         <Badge variant="outline" className="text-purple-700 border-purple-300 bg-purple-50 h-7 px-2 text-xs flex items-center">
                           <Ban className="h-3 w-3 mr-1" /> No Repost
                         </Badge>
                       )}
 
-                      {(isTransferred || isReversed) && (
+                      {!isManualSalary && (isTransferred || isReversed) && (
                         <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 h-7 px-2 text-xs flex items-center">
                           <Lock className="h-3 w-3 mr-1" /> Locked
                         </Badge>
                       )}
 
-                      {!isLocked && (
+                      {!isManualSalary && !isLocked && (
                         <Button
                           variant="outline"
                           size="sm"
