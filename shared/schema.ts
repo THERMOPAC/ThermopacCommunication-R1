@@ -10001,3 +10001,91 @@ export const companyTaxNotices = pgTable('company_tax_notices', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+export const tdsComplianceRegister = pgTable('tds_compliance_register', {
+  id: serial('id').primaryKey(),
+  sourceCategory: varchar('source_category', { length: 30 }).notNull(),
+  tdsSection: varchar('tds_section', { length: 10 }).notNull(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  quarter: varchar('quarter', { length: 5 }).notNull(),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  deducteeName: varchar('deductee_name', { length: 200 }).notNull(),
+  deducteePan: varchar('deductee_pan', { length: 15 }),
+  panStatus: varchar('pan_status', { length: 20 }).notNull().default('unverified'),
+  panValidationError: varchar('pan_validation_error', { length: 100 }),
+  deducteeType: varchar('deductee_type', { length: 20 }).notNull(),
+  employeeId: integer('employee_id').references(() => users.id),
+  payrollRecordId: integer('payroll_record_id').references(() => payrollRecords.id),
+  sapVendorCode: varchar('sap_vendor_code', { length: 50 }),
+  sapDocEntry: integer('sap_doc_entry'),
+  sapDocType: varchar('sap_doc_type', { length: 30 }),
+  sapWtCode: varchar('sap_wt_code', { length: 20 }),
+  sapLineIndex: integer('sap_line_index'),
+  deductionStage: varchar('deduction_stage', { length: 20 }),
+  baseAmount: decimal('base_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+  tdsAmount: decimal('tds_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  tdsRate: decimal('tds_rate', { precision: 5, scale: 2 }),
+  deductionDate: timestamp('deduction_date'),
+  challanId: integer('challan_id').references(() => statutoryChallans.id),
+  challanStatus: varchar('challan_status', { length: 20 }).notNull().default('pending'),
+  syncBatchId: varchar('sync_batch_id', { length: 50 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertTdsComplianceRegisterSchema = createInsertSchema(tdsComplianceRegister).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertTdsComplianceRegister = z.infer<typeof insertTdsComplianceRegisterSchema>;
+export type TdsComplianceRegister = typeof tdsComplianceRegister.$inferSelect;
+
+export const tdsPayrollSapReconciliation = pgTable('tds_payroll_sap_reconciliation', {
+  id: serial('id').primaryKey(),
+  employeeId: integer('employee_id').notNull().references(() => users.id),
+  employeeName: varchar('employee_name', { length: 200 }).notNull(),
+  employeeCode: varchar('employee_code', { length: 20 }),
+  periodId: integer('period_id').references(() => payrollPeriods.id),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  quarter: varchar('quarter', { length: 5 }).notNull(),
+  payrollTdsAmount: decimal('payroll_tds_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  sapPostingStatus: varchar('sap_posting_status', { length: 20 }).notNull().default('sap_missing'),
+  sapDocEntry: integer('sap_doc_entry'),
+  sapJeNumber: varchar('sap_je_number', { length: 50 }),
+  sapPostingDate: timestamp('sap_posting_date'),
+  sapVerifiedTdsAmount: decimal('sap_verified_tds_amount', { precision: 12, scale: 2 }),
+  sapVerificationStatus: varchar('sap_verification_status', { length: 20 }).default('not_verified'),
+  variance: decimal('variance', { precision: 12, scale: 2 }),
+  toleranceApplied: decimal('tolerance_applied', { precision: 10, scale: 2 }),
+  payrollRecordId: integer('payroll_record_id').references(() => payrollRecords.id),
+  lastReconciledAt: timestamp('last_reconciled_at'),
+  lastVerifiedAt: timestamp('last_verified_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertTdsPayrollSapReconciliationSchema = createInsertSchema(tdsPayrollSapReconciliation).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertTdsPayrollSapReconciliation = z.infer<typeof insertTdsPayrollSapReconciliationSchema>;
+export type TdsPayrollSapReconciliation = typeof tdsPayrollSapReconciliation.$inferSelect;
+
+export const sapWhtSyncLog = pgTable('sap_wht_sync_log', {
+  id: serial('id').primaryKey(),
+  syncBatchId: varchar('sync_batch_id', { length: 50 }).notNull().unique(),
+  financialYear: varchar('financial_year', { length: 10 }).notNull(),
+  month: integer('month').notNull(),
+  year: integer('year').notNull(),
+  recordsFetched: integer('records_fetched').default(0),
+  recordsInserted: integer('records_inserted').default(0),
+  recordsSkipped: integer('records_skipped').default(0),
+  recordsUpdated: integer('records_updated').default(0),
+  syncStatus: varchar('sync_status', { length: 20 }).notNull().default('pending'),
+  errorMessage: text('error_message'),
+  sapDocTypesQueried: text('sap_doc_types_queried'),
+  syncedBy: integer('synced_by').references(() => users.id),
+  syncedAt: timestamp('synced_at').defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertSapWhtSyncLogSchema = createInsertSchema(sapWhtSyncLog).omit({ id: true, createdAt: true });
+export type InsertSapWhtSyncLog = z.infer<typeof insertSapWhtSyncLogSchema>;
+export type SapWhtSyncLog = typeof sapWhtSyncLog.$inferSelect;

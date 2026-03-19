@@ -86,9 +86,10 @@ function fmtDate(d: string | null | undefined): string {
 
 interface Props {
   moduleType: 'TDS' | 'PF' | 'ESIC' | 'PT';
+  embedded?: boolean;
 }
 
-export default function StatutoryCompliancePage({ moduleType }: Props) {
+export default function StatutoryCompliancePage({ moduleType, embedded }: Props) {
   const { toast } = useToast();
   const config = MODULE_CONFIG[moduleType];
   const [selectedTab, setSelectedTab] = useState('dashboard');
@@ -247,9 +248,8 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
     });
   }, []);
 
-  return (
-    <Layout>
-    <div className="p-6 space-y-6">
+  const content = (
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{config.title}</h1>
@@ -775,6 +775,8 @@ export default function StatutoryCompliancePage({ moduleType }: Props) {
         isPending={postSapMutation.isPending}
       />
     </div>
-    </Layout>
   );
+
+  if (embedded) return content;
+  return <Layout>{content}</Layout>;
 }

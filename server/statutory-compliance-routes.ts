@@ -4,9 +4,11 @@ import {
   glAccountMappings, glPostingLog, 
   statutoryChallans, statutoryChallanDetails, statutoryFilingStatus,
   ptStateConfig, payrollPeriods, payrollRecords, users,
+  tdsComplianceRegister, tdsPayrollSapReconciliation, sapWhtSyncLog,
   insertGlAccountMappingSchema, insertStatutoryFilingStatusSchema
 } from '@shared/schema';
-import { eq, and, sql, desc, asc, inArray } from 'drizzle-orm';
+import { eq, and, sql, desc, asc, inArray, isNull } from 'drizzle-orm';
+import { payrollSettings } from '@shared/schema';
 import { ensureAuthenticated } from './auth-middleware';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
 import { sapSessionManager } from './sap-session-manager';
@@ -1106,6 +1108,220 @@ router.post('/challans/:id/reverse-sap', async (req: Request, res: Response) => 
   } catch (error: any) {
     console.error('Error reversing statutory challan in SAP:', error);
     res.status(500).json({ error: error.message || 'Failed to reverse challan in SAP' });
+  }
+});
+
+router.get('/tds/reconciliation', async (req: Request, res: Response) => {
+  try {
+    const { financialYear, quarter, periodId } = req.query;
+    const conditions: any[] = [];
+    if (financialYear) conditions.push(eq(tdsPayrollSapReconciliation.financialYear, financialYear as string));
+    if (quarter) conditions.push(eq(tdsPayrollSapReconciliation.quarter, quarter as string));
+    if (periodId) conditions.push(eq(tdsPayrollSapReconciliation.periodId, parseInt(periodId as string)));
+
+    const rows = await db.select().from(tdsPayrollSapReconciliation)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(tdsPayrollSapReconciliation.year), desc(tdsPayrollSapReconciliation.month), asc(tdsPayrollSapReconciliation.employeeName));
+
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/tds/reconciliation/refresh', async (req: Request, res: Response) => {
+  try {
+    const { periodId } = req.body;
+    if (!periodId) return res.status(400).json({ error: 'periodId is required' });
+
+    const period = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId)).limit(1);
+    if (!period.length) return res.status(404).json({ error: 'Period not found' });
+
+    const p = period[0];
+    const startDate = new Date(p.startDate);
+    const month = startDate.getMonth() + 1;
+    const year = startDate.getFullYear();
+    const fy = getFinancialYear(month, year);
+    const qtr = getTdsQuarter(month);
+
+    const records = await db.select({
+      pr: payrollRecords,
+      u: users,
+    }).from(payrollRecords)
+      .innerJoin(users, eq(payrollRecords.userId, users.id))
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        inArray(payrollRecords.status, ['processed', 'approved', 'paid', 'locked', 'verified', 'transferred']),
+      ));
+
+    if (!records.length) return res.json({ message: 'No payroll records found for this period', refreshed: 0 });
+
+    await db.delete(tdsPayrollSapReconciliation).where(eq(tdsPayrollSapReconciliation.periodId, periodId));
+
+    const now = new Date();
+    const insertRows = [];
+
+    for (const { pr, u } of records) {
+      if (!pr.userId) continue;
+      const tdsAmt = parseFloat(pr.tdsAmount?.toString() || pr.incomeTax?.toString() || '0');
+      if (tdsAmt <= 0) continue;
+
+      let postingStatus = 'sap_missing';
+      if (pr.sapPostingStatus === 'posted') postingStatus = 'posted';
+      else if (pr.sapPostingStatus === 'failed') postingStatus = 'posting_failed';
+
+      insertRows.push({
+        employeeId: pr.userId,
+        employeeName: u.name || u.username || 'Unknown',
+        employeeCode: u.employeeCode || null,
+        periodId: periodId,
+        month,
+        year,
+        financialYear: fy,
+        quarter: qtr,
+        payrollTdsAmount: tdsAmt.toFixed(2),
+        sapPostingStatus: postingStatus,
+        sapDocEntry: pr.sapDocEntry || null,
+        sapJeNumber: pr.sapJeNumber || null,
+        sapPostingDate: pr.sapPostedAt || null,
+        sapVerifiedTdsAmount: null,
+        sapVerificationStatus: 'not_verified',
+        variance: null,
+        toleranceApplied: null,
+        payrollRecordId: pr.id,
+        lastReconciledAt: now,
+        lastVerifiedAt: null,
+      });
+    }
+
+    if (insertRows.length > 0) {
+      await db.insert(tdsPayrollSapReconciliation).values(insertRows as any);
+    }
+
+    const summary = {
+      total: insertRows.length,
+      posted: insertRows.filter(r => r.sapPostingStatus === 'posted').length,
+      sapMissing: insertRows.filter(r => r.sapPostingStatus === 'sap_missing').length,
+      postingFailed: insertRows.filter(r => r.sapPostingStatus === 'posting_failed').length,
+    };
+
+    res.json({ message: 'Reconciliation refreshed', refreshed: insertRows.length, summary });
+  } catch (error: any) {
+    console.error('Error refreshing TDS reconciliation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/tds/mismatch-exceptions', async (req: Request, res: Response) => {
+  try {
+    const { financialYear, quarter } = req.query;
+    const conditions: any[] = [
+      sql`${tdsPayrollSapReconciliation.sapPostingStatus} IN ('sap_missing', 'posting_failed')
+          OR ${tdsPayrollSapReconciliation.sapVerificationStatus} = 'mismatched'`,
+    ];
+    if (financialYear) conditions.push(eq(tdsPayrollSapReconciliation.financialYear, financialYear as string));
+    if (quarter) conditions.push(eq(tdsPayrollSapReconciliation.quarter, quarter as string));
+
+    const rows = await db.select().from(tdsPayrollSapReconciliation)
+      .where(and(...conditions))
+      .orderBy(desc(tdsPayrollSapReconciliation.year), desc(tdsPayrollSapReconciliation.month));
+
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/tds/tolerance', async (_req: Request, res: Response) => {
+  try {
+    const result = await db.select().from(payrollSettings)
+      .where(eq(payrollSettings.settingName, 'tds_reconciliation_tolerance'))
+      .limit(1);
+    const tolerance = result.length ? result[0].settingValue : '1.00';
+    res.json({ tolerance: parseFloat(tolerance || '1.00') });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/tds/tolerance', async (req: Request, res: Response) => {
+  try {
+    const { tolerance } = req.body;
+    if (tolerance === undefined || tolerance === null || isNaN(parseFloat(tolerance))) {
+      return res.status(400).json({ error: 'Valid numeric tolerance value is required' });
+    }
+    const val = parseFloat(tolerance).toFixed(2);
+    const existing = await db.select().from(payrollSettings)
+      .where(eq(payrollSettings.settingName, 'tds_reconciliation_tolerance'))
+      .limit(1);
+
+    if (existing.length) {
+      await db.update(payrollSettings)
+        .set({ settingValue: val, updatedAt: new Date() })
+        .where(eq(payrollSettings.settingName, 'tds_reconciliation_tolerance'));
+    } else {
+      await db.insert(payrollSettings).values({
+        settingName: 'tds_reconciliation_tolerance',
+        settingValue: val,
+        description: 'Tolerance amount (INR) for TDS payroll-SAP reconciliation variance matching',
+      } as any);
+    }
+
+    res.json({ tolerance: parseFloat(val) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/tds/compliance-register', async (req: Request, res: Response) => {
+  try {
+    const { financialYear, quarter, month, tdsSection, sourceCategory, deductionStage, challanStatus } = req.query;
+    const conditions: any[] = [];
+    if (financialYear) conditions.push(eq(tdsComplianceRegister.financialYear, financialYear as string));
+    if (quarter) conditions.push(eq(tdsComplianceRegister.quarter, quarter as string));
+    if (month) conditions.push(eq(tdsComplianceRegister.month, parseInt(month as string)));
+    if (tdsSection) conditions.push(eq(tdsComplianceRegister.tdsSection, tdsSection as string));
+    if (sourceCategory) conditions.push(eq(tdsComplianceRegister.sourceCategory, sourceCategory as string));
+    if (deductionStage) conditions.push(eq(tdsComplianceRegister.deductionStage, deductionStage as string));
+    if (challanStatus) conditions.push(eq(tdsComplianceRegister.challanStatus, challanStatus as string));
+
+    const rows = await db.select().from(tdsComplianceRegister)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(tdsComplianceRegister.year), desc(tdsComplianceRegister.month), asc(tdsComplianceRegister.deducteeName));
+
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/tds/sync-log', async (req: Request, res: Response) => {
+  try {
+    const { financialYear } = req.query;
+    const conditions: any[] = [];
+    if (financialYear) conditions.push(eq(sapWhtSyncLog.financialYear, financialYear as string));
+
+    const rows = await db.select().from(sapWhtSyncLog)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(sapWhtSyncLog.syncedAt));
+
+    res.json(rows);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/tds/gl-config', async (_req: Request, res: Response) => {
+  try {
+    const mappings = await db.select().from(glAccountMappings)
+      .where(and(
+        eq(glAccountMappings.isActive, true),
+        sql`${glAccountMappings.componentCode} LIKE 'TDS%'`,
+      ))
+      .orderBy(asc(glAccountMappings.componentCode));
+    res.json(mappings);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
