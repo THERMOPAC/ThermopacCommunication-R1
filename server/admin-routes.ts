@@ -2288,6 +2288,10 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
 
     const deletableIds = deletableRecords.map(r => r.id);
 
+    for (const rec of deletableRecords) {
+      await reverseLinkedDeductions(rec.id, 0, 'System', 0, 'clear-all');
+    }
+
     const idList = sql.join(deletableIds.map(id => sql`${id}`), sql`, `);
     await db.execute(sql`DELETE FROM employee_advance_recoveries WHERE payroll_record_id IN (${idList})`);
     await db.execute(sql`DELETE FROM employee_loan_repayments WHERE payroll_record_id IN (${idList})`);
@@ -2307,6 +2311,70 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
     res.status(500).json({ error: 'Failed to clear payroll records' });
   }
 });
+
+async function reverseLinkedDeductions(recordId: number, employeeId: number, actionBy: string, actionById: number, actionType: string) {
+  const reversals: { type: string; reference: string; amount: number; }[] = [];
+
+  const loanRepayments = await db.select().from(employeeLoanRepayments)
+    .where(and(
+      eq(employeeLoanRepayments.payrollRecordId, recordId),
+      inArray(employeeLoanRepayments.status, ['deducted', 'partial'])
+    ));
+
+  for (const rep of loanRepayments) {
+    await db.update(employeeLoanRepayments).set({
+      status: 'reversed',
+      reversedAt: new Date(),
+    }).where(eq(employeeLoanRepayments.id, rep.id));
+
+    const [parentLoan] = await db.select().from(employeeLoans).where(eq(employeeLoans.id, rep.loanId));
+    if (parentLoan) {
+      const repAmount = parseFloat(rep.amount);
+      const newRepaid = Math.max(0, parseFloat(parentLoan.totalRepaid || '0') - repAmount);
+      const newBalance = parseFloat(parentLoan.outstandingBalance || '0') + repAmount;
+      const newInstPaid = Math.max(0, (parentLoan.installmentsPaid || 0) - 1);
+      await db.update(employeeLoans).set({
+        totalRepaid: newRepaid.toFixed(2),
+        outstandingBalance: newBalance.toFixed(2),
+        installmentsPaid: newInstPaid,
+        status: parentLoan.status === 'closed' ? 'active' : parentLoan.status,
+        updatedAt: new Date(),
+      }).where(eq(employeeLoans.id, rep.loanId));
+      reversals.push({ type: 'loan', reference: parentLoan.loanReference, amount: repAmount });
+    }
+  }
+
+  const advRecoveries = await db.select().from(employeeAdvanceRecoveries)
+    .where(and(
+      eq(employeeAdvanceRecoveries.payrollRecordId, recordId),
+      inArray(employeeAdvanceRecoveries.status, ['deducted', 'partial'])
+    ));
+
+  for (const rec of advRecoveries) {
+    await db.update(employeeAdvanceRecoveries).set({
+      status: 'reversed',
+      reversedAt: new Date(),
+    }).where(eq(employeeAdvanceRecoveries.id, rec.id));
+
+    const [parentAdv] = await db.select().from(employeeAdvances).where(eq(employeeAdvances.id, rec.advanceId));
+    if (parentAdv) {
+      const recAmount = parseFloat(rec.amount);
+      const newRecovered = Math.max(0, parseFloat(parentAdv.totalRecovered || '0') - recAmount);
+      const newBalance = parseFloat(parentAdv.outstandingBalance || '0') + recAmount;
+      const newInstRec = Math.max(0, (parentAdv.installmentsRecovered || 0) - 1);
+      await db.update(employeeAdvances).set({
+        totalRecovered: newRecovered.toFixed(2),
+        outstandingBalance: newBalance.toFixed(2),
+        installmentsRecovered: newInstRec,
+        status: parentAdv.status === 'closed' ? 'active' : parentAdv.status,
+        updatedAt: new Date(),
+      }).where(eq(employeeAdvances.id, rec.advanceId));
+      reversals.push({ type: 'advance', reference: parentAdv.advanceReference, amount: recAmount });
+    }
+  }
+
+  return reversals;
+}
 
 router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -2337,6 +2405,8 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
       return res.status(400).json({ error: 'A reason is required when voiding a record.' });
     }
 
+    const reversals = await reverseLinkedDeductions(recordId, record.userId, userName, currentUser.id, 'void');
+
     const now = new Date();
     const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
     history.push({
@@ -2347,6 +2417,7 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
       by: userName,
       byId: currentUser.id,
       at: now.toISOString(),
+      reversals,
     });
 
     await db.update(payrollRecords).set({
@@ -2358,9 +2429,13 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
       updatedAt: now,
     }).where(eq(payrollRecords.id, recordId));
 
+    const reversalMsg = reversals.length > 0
+      ? ` Reversed ${reversals.length} linked deduction(s): ${reversals.map(r => `${r.reference} ₹${r.amount.toFixed(2)}`).join(', ')}.`
+      : '';
+
     res.json({
       success: true,
-      message: `Payroll record voided successfully. Record preserved for audit.`,
+      message: `Payroll record voided successfully.${reversalMsg} Record preserved for audit.`,
     });
   } catch (error: any) {
     console.error('Error voiding payroll record:', error);
@@ -2595,20 +2670,23 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
         updateData.verifiedAt = null;
         break;
 
-      case 'reject':
+      case 'reject': {
         if (currentStatus !== 'generated' && currentStatus !== 'verified' && currentStatus !== 'held') {
           return res.status(400).json({ error: `Cannot reject a record in '${currentStatus}' status.` });
         }
         if (!reason || reason.trim() === '') {
           return res.status(400).json({ error: 'A reason is required when rejecting a record.' });
         }
+        const rejectReversals = await reverseLinkedDeductions(recordId, record.userId, userName, currentUser.id, 'reject');
         newStatus = 'rejected';
         updateData.heldReason = reason.trim();
         updateData.heldBy = currentUser.id;
         updateData.heldAt = now;
         updateData.verifiedBy = null;
         updateData.verifiedAt = null;
+        (updateData as any)._reversals = rejectReversals;
         break;
+      }
 
       case 'reopen':
         if (currentStatus !== 'held' && currentStatus !== 'rejected') {
@@ -2626,6 +2704,9 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
         return res.status(400).json({ error: `Unknown action: ${action}` });
     }
 
+    const reversals = (updateData as any)._reversals || [];
+    delete (updateData as any)._reversals;
+
     history.push({
       from: currentStatus,
       to: newStatus,
@@ -2634,6 +2715,7 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
       by: userName,
       byId: currentUser.id,
       at: now.toISOString(),
+      ...(reversals.length > 0 ? { reversals } : {}),
     });
 
     updateData.status = newStatus;
@@ -2641,7 +2723,11 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
 
     await db.update(payrollRecords).set(updateData).where(eq(payrollRecords.id, recordId));
 
-    res.json({ success: true, status: newStatus, message: `Record ${action === 'verify' ? 'verified' : action === 'hold' ? 'held' : action === 'reject' ? 'rejected' : 'reopened'} successfully` });
+    const reversalMsg = reversals.length > 0
+      ? ` Reversed ${reversals.length} linked deduction(s): ${reversals.map((r: any) => `${r.reference} ₹${r.amount.toFixed(2)}`).join(', ')}.`
+      : '';
+
+    res.json({ success: true, status: newStatus, message: `Record ${action === 'verify' ? 'verified' : action === 'hold' ? 'held' : action === 'reject' ? 'rejected' : 'reopened'} successfully.${reversalMsg}` });
   } catch (error: any) {
     console.error('Error updating payroll record status:', error);
     res.status(500).json({ error: error.message || 'Failed to update record status' });
