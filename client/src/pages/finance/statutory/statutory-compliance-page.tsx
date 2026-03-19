@@ -536,11 +536,16 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
               <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
                 <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
                 <SelectContent>
-                  {periods.map((p: any) => (
+                  {periods
+                    .filter((p: any) => !challans.some((c: any) => c.payrollPeriodId === p.id))
+                    .map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()}>
                       {p.periodName || `${new Date(p.startDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`} — {p.status}
                     </SelectItem>
                   ))}
+                  {periods.filter((p: any) => !challans.some((c: any) => c.payrollPeriodId === p.id)).length === 0 && (
+                    <SelectItem value="__none__" disabled>All finalized periods already have challans</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
