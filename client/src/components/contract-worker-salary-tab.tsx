@@ -340,7 +340,7 @@ export function ManualSalaryTab() {
               <Select value={formData.userId} onValueChange={v => setFormData(d => ({ ...d, userId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select worker" /></SelectTrigger>
                 <SelectContent>
-                  {allUsers.filter((u: any) => u.isActive && u.userType === 'non_system_user').map((u: any) => (
+                  {allUsers.filter((u: any) => u.isActive && u.otApplicable === 'yes').map((u: any) => (
                     <SelectItem key={u.id} value={u.id.toString()}>
                       {u.cardName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username)}
                       {u.employeeCode ? ` (${u.employeeCode})` : ''}
@@ -613,7 +613,7 @@ export function ManualSalaryTab() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <HardHat className="h-5 w-5 text-orange-600" /> New Manual Salary Entry
+              <HardHat className="h-5 w-5 text-orange-600" /> Manual Over Time Entry
             </DialogTitle>
           </DialogHeader>
           {renderFormFields(false)}
