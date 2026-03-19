@@ -561,13 +561,13 @@ function GeneratedSalariesView() {
   });
 
   const voidAllMutation = useMutation({
-    mutationFn: (reason: string) => apiRequest('PATCH', '/api/admin/payroll/records/void-all', { reason }),
+    mutationFn: () => apiRequest('DELETE', '/api/admin/payroll/records/clear-all'),
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
       setShowVoidAllConfirm(false);
       setVoidAllReason('');
-      toast({ title: 'Records Voided', description: data.message });
+      toast({ title: 'Records Cleared', description: data.message });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -1060,32 +1060,23 @@ function GeneratedSalariesView() {
     <Dialog open={showVoidAllConfirm} onOpenChange={setShowVoidAllConfirm}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-gray-700">Void All Eligible Records</DialogTitle>
+          <DialogTitle className="text-gray-700">Clear All Generated Salaries</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            This will mark all eligible records as <strong>Voided</strong>. Records that are already transferred, reversed, or voided will be skipped.
+            This will <strong>permanently delete</strong> all generated salary records. Records that are already transferred to SAP will be preserved.
           </p>
-          <p className="text-sm text-muted-foreground">
-            Voided records are <strong>preserved for audit</strong> — they are not deleted. No SAP entries or loan/advance balances are affected.
+          <p className="text-sm text-orange-600 text-sm font-medium">
+            This action cannot be undone. You will need to re-run the payroll engine to regenerate salary records.
           </p>
-          <div>
-            <label className="text-sm font-medium">Reason for voiding <span className="text-red-500">*</span></label>
-            <textarea
-              className="w-full mt-1 p-2 border rounded text-sm min-h-[60px]"
-              placeholder="e.g., Incorrect payroll period, re-run required..."
-              value={voidAllReason}
-              onChange={(e) => setVoidAllReason(e.target.value)}
-            />
-          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => { setShowVoidAllConfirm(false); setVoidAllReason(''); }}>Cancel</Button>
             <Button
               variant="destructive"
-              onClick={() => voidAllMutation.mutate(voidAllReason)}
-              disabled={voidAllMutation.isPending || !voidAllReason.trim()}
+              onClick={() => voidAllMutation.mutate()}
+              disabled={voidAllMutation.isPending}
             >
-              {voidAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Voiding...</> : 'Yes, Void All'}
+              {voidAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing...</> : 'Yes, Clear All'}
             </Button>
           </div>
         </div>

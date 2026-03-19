@@ -30,7 +30,7 @@ import {
   employeeAdvances,
   tdsMonthlyRecords
 } from '../shared/schema';
-import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne } from 'drizzle-orm';
+import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
@@ -2270,53 +2270,32 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
   }
 });
 
-router.patch('/payroll/records/void-all', ensureAuthenticated, async (req: Request, res: Response) => {
+router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
-    const currentUser = req.user as any;
-    const userName = currentUser.firstName && currentUser.lastName
-      ? `${currentUser.firstName} ${currentUser.lastName}` : currentUser.username;
-    const { reason } = req.body;
+    const allRecords = await db.select({ id: payrollRecords.id, status: payrollRecords.status, sapPostingStatus: payrollRecords.sapPostingStatus }).from(payrollRecords);
 
-    const allRecords = await db.select({ id: payrollRecords.id, status: payrollRecords.status, sapPostingStatus: payrollRecords.sapPostingStatus, statusHistory: payrollRecords.statusHistory }).from(payrollRecords);
-
-    const voidableRecords = allRecords.filter(r =>
-      r.status !== 'voided' && r.status !== 'transferred' && r.status !== 'reversed' && r.sapPostingStatus !== 'posted'
+    const protectedRecords = allRecords.filter(r =>
+      r.status === 'transferred' || r.sapPostingStatus === 'posted'
     );
 
-    if (voidableRecords.length === 0) {
-      return res.status(400).json({ error: 'No records eligible for voiding. Transferred/reversed/already-voided records cannot be voided.' });
+    const deletableRecords = allRecords.filter(r =>
+      r.status !== 'transferred' && r.sapPostingStatus !== 'posted'
+    );
+
+    if (deletableRecords.length === 0) {
+      return res.status(400).json({ error: 'No records to clear. Only transferred/SAP-posted records are protected.' });
     }
 
-    const now = new Date();
-    for (const record of voidableRecords) {
-      const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
-      history.push({
-        from: record.status || 'generated',
-        to: 'voided',
-        action: 'void',
-        reason: reason || 'Bulk void',
-        by: userName,
-        byId: currentUser.id,
-        at: now.toISOString(),
-      });
-      await db.update(payrollRecords).set({
-        status: 'voided',
-        heldReason: reason || 'Bulk void',
-        heldBy: currentUser.id,
-        heldAt: now,
-        statusHistory: history,
-        updatedAt: now,
-      }).where(eq(payrollRecords.id, record.id));
-    }
+    const deletableIds = deletableRecords.map(r => r.id);
+    await db.delete(payrollRecords).where(inArray(payrollRecords.id, deletableIds));
 
-    const skipped = allRecords.length - voidableRecords.length;
     res.json({
       success: true,
-      message: `${voidableRecords.length} record(s) voided.${skipped > 0 ? ` ${skipped} locked/voided record(s) skipped.` : ''}`,
+      message: `${deletableRecords.length} record(s) deleted.${protectedRecords.length > 0 ? ` ${protectedRecords.length} transferred/posted record(s) preserved.` : ''}`,
     });
   } catch (error) {
-    console.error('Error voiding payroll records:', error);
-    res.status(500).json({ error: 'Failed to void payroll records' });
+    console.error('Error clearing payroll records:', error);
+    res.status(500).json({ error: 'Failed to clear payroll records' });
   }
 });
 
