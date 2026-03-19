@@ -1352,8 +1352,36 @@ function validatePan(pan: string | null | undefined): { status: string; error?: 
   return { status: 'valid' };
 }
 
-async function fetchSapWhtDocuments(sessionId: string, routeId: string | undefined, docType: string, dateFilter: string): Promise<any[]> {
-  const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
+async function sapServiceLayerLogin(): Promise<{ sessionId: string; routeId: string }> {
+  const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
+  const sapUsername = process.env.SAP_USERNAME;
+  const sapPassword = process.env.SAP_PASSWORD;
+  const sapCompanyDb = process.env.SAP_COMPANY_DB;
+
+  if (!sapUsername || !sapPassword || !sapCompanyDb) {
+    throw new Error('SAP credentials not configured (SAP_USERNAME, SAP_PASSWORD, SAP_COMPANY_DB)');
+  }
+
+  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+
+  const loginResponse = await fetch(`${sapUrl}/Login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ CompanyDB: sapCompanyDb, UserName: sapUsername, Password: sapPassword }),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!loginResponse.ok) {
+    const errorText = await loginResponse.text();
+    throw new Error(`SAP login failed: ${loginResponse.status} - ${errorText}`);
+  }
+
+  const loginData = await loginResponse.json() as any;
+  return { sessionId: loginData.SessionId, routeId: loginData.RouteId || '.node1' };
+}
+
+async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType: string, dateFilter: string): Promise<any[]> {
+  const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
   const results: any[] = [];
   let skip = 0;
   const top = 50;
@@ -1367,28 +1395,30 @@ async function fetchSapWhtDocuments(sessionId: string, routeId: string | undefin
   const entity = entityMap[docType];
   if (!entity) return [];
 
+  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+
   while (true) {
     const filter = `${dateFilter} and WithholdingTaxDataCollection/any(w: w/WTAmountSC ne 0)`;
-    const path = `/b1s/v1/${entity}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,WithholdingTaxDataCollection`;
-
-    const headers: Record<string, string> = {
-      'Cookie': `B1SESSION=${sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`,
-      'Prefer': 'odata.maxpagesize=50',
-    };
+    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,WithholdingTaxDataCollection`;
 
     try {
-      const response = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET',
-        url: `${sapUrl}${path}`,
-        headers,
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cookie': `B1SESSION=${sessionId}; ROUTEID=${routeId}`,
+          'Prefer': 'odata.maxpagesize=50',
+        },
+        signal: AbortSignal.timeout(30000),
       });
 
       if (!response.ok) {
-        console.error(`SAP WHT fetch error for ${docType}: ${response.statusCode} - ${response.body}`);
+        const errBody = await response.text();
+        console.error(`SAP WHT fetch error for ${docType}: ${response.status} - ${errBody}`);
         break;
       }
 
-      const data = JSON.parse(response.body);
+      const data = await response.json() as any;
       const items = data.value || [];
       results.push(...items.map((item: any) => ({ ...item, _docType: docType })));
 
@@ -1416,9 +1446,13 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     const fy = getFinancialYear(m, y);
     const qtr = getTdsQuarter(m);
 
-    const session = sapSessionManager.getSession(currentUser.id);
-    if (!session) {
-      return res.status(401).json({ error: 'SAP session required. Please login to SAP B1 first.', code: 'SAP_SESSION_REQUIRED' });
+    let sapSession: { sessionId: string; routeId: string };
+    try {
+      sapSession = await sapServiceLayerLogin();
+      console.log('✅ SAP WHT Sync: Service Layer login successful');
+    } catch (loginErr: any) {
+      console.error('SAP WHT Sync login failed:', loginErr.message);
+      return res.status(503).json({ error: `SAP Service Layer login failed: ${loginErr.message}`, code: 'SAP_LOGIN_FAILED' });
     }
 
     const batchId = `WHT-${fy}-${String(m).padStart(2, '0')}-${Date.now()}`;
@@ -1443,7 +1477,7 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     let allDocs: any[] = [];
 
     for (const docType of docTypes) {
-      const docs = await fetchSapWhtDocuments(session.sessionId, session.routeId, docType, dateFilter);
+      const docs = await fetchSapWhtDocuments(sapSession.sessionId, sapSession.routeId, docType, dateFilter);
       allDocs = allDocs.concat(docs);
     }
 

@@ -10,10 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertTriangle, CheckCircle, Clock, RefreshCw, Settings, FileSearch, Shield, XCircle, ArrowUpDown, Download, Loader2, History, LogIn, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, RefreshCw, Settings, FileSearch, Shield, XCircle, ArrowUpDown, Download, Loader2, History } from "lucide-react";
 import Layout from "@/components/layout";
 import StatutoryCompliancePage from "./statutory-compliance-page";
-import { SapLoginModal } from "@/components/sap/SapLoginModal";
 
 const POSTING_STATUS_COLORS: Record<string, string> = {
   posted: 'bg-green-100 text-green-800',
@@ -109,24 +108,10 @@ function ComplianceRegisterTab() {
   const [filterStage, setFilterStage] = useState('all');
   const [filterChallanStatus, setFilterChallanStatus] = useState('all');
   const [showSyncLog, setShowSyncLog] = useState(false);
-  const [showSapLogin, setShowSapLogin] = useState(false);
 
   const now = new Date();
   const [syncMonth, setSyncMonth] = useState(String(now.getMonth() + 1));
   const [syncYear, setSyncYear] = useState(String(now.getFullYear()));
-
-  const { data: sapSession, refetch: refetchSapSession } = useQuery<any>({
-    queryKey: ['/api/sap/b1/session/status'],
-    queryFn: async () => {
-      try {
-        const res = await fetch('/api/sap/b1/session/status');
-        if (!res.ok) return { active: false };
-        return await res.json();
-      } catch { return { active: false }; }
-    },
-    refetchInterval: 30000,
-  });
-  const isSapConnected = sapSession?.active === true;
 
   const queryParams = new URLSearchParams({ financialYear: filterFY });
   if (filterSection !== 'all') queryParams.set('tdsSection', filterSection);
@@ -158,10 +143,9 @@ function ComplianceRegisterTab() {
     },
     onError: (error: any) => {
       const msg = error?.message || 'SAP WHT sync failed';
-      const isSapSession = msg.includes('SAP session') || msg.includes('SAP_SESSION');
       toast({
-        title: isSapSession ? 'SAP Login Required' : 'Sync Failed',
-        description: isSapSession ? 'Please connect to SAP B1 first (SAP menu → Connect).' : msg,
+        title: 'Sync Failed',
+        description: msg.replace(/^\d+:\s*/, '').replace(/^\{.*"error"\s*:\s*"([^"]+)".*\}$/, '$1'),
         variant: 'destructive',
       });
     },
@@ -181,43 +165,18 @@ function ComplianceRegisterTab() {
 
   return (
     <div className="space-y-4">
-      <SapLoginModal
-        isOpen={showSapLogin}
-        onClose={() => setShowSapLogin(false)}
-        onSuccess={() => {
-          refetchSapSession();
-          toast({ title: 'SAP Connected', description: 'You can now sync WHT data from SAP B1.' });
-        }}
-      />
-
-      <Card className={`border ${isSapConnected ? 'border-emerald-200 bg-emerald-50/30' : 'border-orange-200 bg-orange-50/30'}`}>
+      <Card className="border-emerald-200 bg-emerald-50/30">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Download className="h-5 w-5 text-emerald-600" />
               <CardTitle className="text-base">SAP WHT Import</CardTitle>
-              {isSapConnected ? (
-                <Badge className="bg-green-100 text-green-800 text-xs ml-2"><Wifi className="h-3 w-3 mr-1" />SAP Connected</Badge>
-              ) : (
-                <Badge className="bg-orange-100 text-orange-800 text-xs ml-2"><WifiOff className="h-3 w-3 mr-1" />SAP Not Connected</Badge>
-              )}
             </div>
-            <div className="flex items-center gap-2">
-              {!isSapConnected && (
-                <Button size="sm" onClick={() => setShowSapLogin(true)} className="bg-blue-600 hover:bg-blue-700 text-xs">
-                  <LogIn className="h-3 w-3 mr-1" /> Connect to SAP
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" onClick={() => setShowSyncLog(!showSyncLog)} className="text-xs">
-                <History className="h-3 w-3 mr-1" /> {showSyncLog ? 'Hide' : 'Show'} Sync Log
-              </Button>
-            </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowSyncLog(!showSyncLog)} className="text-xs">
+              <History className="h-3 w-3 mr-1" /> {showSyncLog ? 'Hide' : 'Show'} Sync Log
+            </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {isSapConnected
-              ? 'Import non-salary withholding tax data from SAP B1 (Purchase Invoices, Vendor Payments, AP Credit Memos)'
-              : 'Connect to SAP B1 first to import non-salary withholding tax data'}
-          </p>
+          <p className="text-xs text-muted-foreground">Import non-salary withholding tax data from SAP B1 Service Layer (Purchase Invoices, Vendor Payments, AP Credit Memos)</p>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="flex items-center gap-3 flex-wrap">
@@ -239,13 +198,7 @@ function ComplianceRegisterTab() {
               </SelectContent>
             </Select>
             <Button
-              onClick={() => {
-                if (!isSapConnected) {
-                  setShowSapLogin(true);
-                  return;
-                }
-                syncMutation.mutate();
-              }}
+              onClick={() => syncMutation.mutate()}
               disabled={syncMutation.isPending}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
