@@ -336,14 +336,19 @@ async function stepAttendanceSnapshot(
         paidDays = presentDays;
         lopDays = 0;
       } else {
-        if (records.length < calendarDaysInPeriod) {
-          const missingDays = calendarDaysInPeriod - records.length;
+        const requiredDays = calendarDaysInPeriod - weekOffCount;
+        const nonWeekoffRecords = records.filter(r => {
+          const d = new Date(r.date);
+          return !weeklyOffs.includes(d.getDay());
+        });
+        if (nonWeekoffRecords.length < requiredDays) {
+          const missingDays = requiredDays - nonWeekoffRecords.length;
           exceptions.push({
             userId: emp.id,
             type: 'attendance_incomplete',
             severity: 'error',
             title: `Attendance incomplete for ${emp.username}`,
-            details: `${records.length} of ${calendarDaysInPeriod} days have attendance records. ${missingDays} day(s) missing. Please mark all days before processing payroll.`,
+            details: `${nonWeekoffRecords.length} of ${requiredDays} working days have attendance records. ${missingDays} day(s) missing. Please mark all working days before processing payroll.`,
           });
           skipped++;
           continue;
