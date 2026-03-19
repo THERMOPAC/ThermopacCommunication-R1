@@ -1500,17 +1500,11 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     const unmappedCodes: Record<string, number> = {};
     const zeroAmountCodes: Record<string, number> = {};
 
-    let sampleLogged = false;
     for (const doc of allDocs) {
       const whtLines = doc.WithholdingTaxDataCollection || doc.WithholdingTaxDataWTXCollection || [];
       for (let lineIdx = 0; lineIdx < whtLines.length; lineIdx++) {
         const wht = whtLines[lineIdx];
         fetched++;
-
-        if (!sampleLogged && wht.WTCode) {
-          console.log(`SAP WHT Sample line (${doc._docType} DocEntry=${doc.DocEntry}):`, JSON.stringify(wht));
-          sampleLogged = true;
-        }
 
         const wtCode = wht.WTCode || '';
         const mapping = SAP_WT_CODE_MAP[wtCode];
@@ -1521,7 +1515,7 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
           continue;
         }
 
-        const tdsAmount = parseFloat(wht.WTAmountSC?.toString() || '0');
+        const tdsAmount = parseFloat(wht.WTAmount?.toString() || wht.WTAmountSC?.toString() || wht.WTAmountSys?.toString() || '0');
         if (tdsAmount === 0) {
           zeroAmountCodes[wtCode] = (zeroAmountCodes[wtCode] || 0) + 1;
           skipped++;
@@ -1531,7 +1525,7 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
         const isCreditMemo = doc._docType === 'APCreditMemo';
         const finalTdsAmount = isCreditMemo ? -Math.abs(tdsAmount) : Math.abs(tdsAmount);
 
-        const baseAmount = parseFloat(wht.TaxableAmountSC?.toString() || wht.BaseAmountSC?.toString() || '0');
+        const baseAmount = parseFloat(wht.TaxableAmount?.toString() || wht.TaxableAmountSC?.toString() || wht.TaxableAmountinSys?.toString() || '0');
         const vendorPan = wht.BPTaxNum || doc.FederalTaxID || null;
         const panResult = validatePan(vendorPan);
 
