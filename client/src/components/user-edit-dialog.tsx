@@ -71,6 +71,7 @@ const editUserSchema = z.object({
   workTimePolicy: z.enum(['Fixed', 'Flexible']).optional(),
   minimumDailyHours: z.number().optional(),
   halfDayMinimumHours: z.number().optional(),
+  weeklyOffDays: z.array(z.number()).optional(),
 });
 
 type EditUserFormValues = z.infer<typeof editUserSchema>;
@@ -112,6 +113,7 @@ interface User {
   workTimePolicy?: 'Fixed' | 'Flexible';
   minimumDailyHours?: number;
   halfDayMinimumHours?: number;
+  weeklyOffDays?: number[];
 }
 
 interface UserEditDialogProps {
@@ -174,6 +176,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       workTimePolicy: 'Fixed',
       minimumDailyHours: 8,
       halfDayMinimumHours: 4,
+      weeklyOffDays: [0, 6],
     },
   });
 
@@ -236,6 +239,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         workTimePolicy: (user.workTimePolicy as 'Fixed' | 'Flexible') || 'Fixed',
         minimumDailyHours: user.minimumDailyHours ?? 8,
         halfDayMinimumHours: user.halfDayMinimumHours ?? 4,
+        weeklyOffDays: (user as any).weeklyOffDays ?? [0, 6],
       });
     }
   }, [user, open, form]);
@@ -283,6 +287,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         workTimePolicy: data.workTimePolicy || 'Fixed',
         minimumDailyHours: data.minimumDailyHours ?? 8,
         halfDayMinimumHours: data.halfDayMinimumHours ?? 4,
+        weeklyOffDays: data.weeklyOffDays ?? [0, 6],
       };
 
       // Only include password if it's provided
@@ -688,6 +693,55 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+
+              {/* Weekly Off Days */}
+              <FormField
+                control={form.control}
+                name="weeklyOffDays"
+                render={({ field }) => {
+                  const days = [
+                    { value: 0, label: 'Sun' },
+                    { value: 1, label: 'Mon' },
+                    { value: 2, label: 'Tue' },
+                    { value: 3, label: 'Wed' },
+                    { value: 4, label: 'Thu' },
+                    { value: 5, label: 'Fri' },
+                    { value: 6, label: 'Sat' },
+                  ];
+                  const selected = field.value || [0, 6];
+                  const toggle = (dayVal: number) => {
+                    const newVal = selected.includes(dayVal)
+                      ? selected.filter((d: number) => d !== dayVal)
+                      : [...selected, dayVal].sort();
+                    field.onChange(newVal);
+                  };
+                  return (
+                    <FormItem className="mb-4">
+                      <FormLabel>Weekly Off Days</FormLabel>
+                      <div className="flex gap-2 flex-wrap">
+                        {days.map(day => (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => toggle(day.value)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                              selected.includes(day.value)
+                                ? 'bg-red-100 border-red-400 text-red-700'
+                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                            }`}
+                          >
+                            {day.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selected.length === 0 ? 'No weekly off (all 7 days working)' : `Off: ${selected.map((d: number) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')}`}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               {/* Fixed Policy Fields */}
