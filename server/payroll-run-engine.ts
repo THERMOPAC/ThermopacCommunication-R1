@@ -172,6 +172,14 @@ export async function executeStep(
         throw new Error(`Unknown step: ${step}`);
     }
 
+    await db.delete(payrollExceptions).where(
+      and(
+        eq(payrollExceptions.periodId, periodId),
+        eq(payrollExceptions.runNumber, runNumber),
+        eq(payrollExceptions.step, step)
+      )
+    );
+
     for (const exc of result.exceptions) {
       await db.insert(payrollExceptions).values({
         periodId,
