@@ -200,6 +200,12 @@ export class SalarySlipGenerator {
     doc.font(FONT_BOLD).fontSize(infoFontSize + 0.5).fillColor('#1F2937');
     this.t(d.employee.joiningDate || 'N/A', col2, y);
     this.t(d.employee.panNumber || 'N/A', col4, y);
+    y += infoLineH;
+
+    doc.font(FONT_REGULAR).fontSize(infoFontSize).fillColor('#6B7280');
+    this.t('Salary Type', col1, y);
+    doc.font(FONT_BOLD).fontSize(infoFontSize + 0.5).fillColor('#1F2937');
+    this.t(d.period.salaryType === 'daily' ? 'Daily' : 'Monthly', col2, y);
 
     y += infoLineH + 4;
 
