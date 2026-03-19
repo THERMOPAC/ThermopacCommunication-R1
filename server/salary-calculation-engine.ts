@@ -732,7 +732,7 @@ export class SalaryCalculationEngine {
     
     const grossEarnings = grossBasic + houseRentAllowance + conveyanceAllowance + 
                          ltaAllowance + specialAllowance + supplementaryAllowance + 
-                         kgpAllowance + overtimePay + bonus;
+                         kgpAllowance + overtimePay;
     
     const pfBase = Math.min(grossBasic, 15000);
     const employeePF = pfBase * 0.12;
@@ -768,11 +768,9 @@ export class SalaryCalculationEngine {
     const groupInsurance = parseFloat(salaryConfig.groupInsurance || '1500');
     const totalEmployerContributions = employerPF + employerESIC + gratuity + groupInsurance;
     
-    // CTC calculations
-    // CTC Monthly excludes bonus (business requirement)
-    const ctcMonthly = grossEarnings + totalEmployerContributions;
-    // CTC Yearly includes bonus as part of annual cost (business requirement)
-    const ctcYearly = (ctcMonthly * 12) + (bonus * 12);
+    // CTC calculations — bonus is CTC only, not paid monthly
+    const ctcMonthly = grossEarnings + totalEmployerContributions + bonus;
+    const ctcYearly = ctcMonthly * 12;
     
     return {
       // Employee Details

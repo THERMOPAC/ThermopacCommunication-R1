@@ -673,7 +673,7 @@ async function stepSalaryCalculation(
         const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
         overtimePay = hourlyRate * overtimeHours * otRate * otMultiplier;
         bonusAllow = Math.round(proratedBase * 0.0833 * 100) / 100;
-        grossPay = proratedBase + overtimePay + bonusAllow;
+        grossPay = proratedBase + overtimePay;
       } else {
         paidDays = Math.min(rawPaidDays, MONTHLY_DIVISOR);
 
@@ -711,10 +711,10 @@ async function stepSalaryCalculation(
           ? Math.round(configBonus * ratio * 100) / 100
           : Math.round(basicSalary * 0.0833 * ratio * 100) / 100;
 
-        grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow + bonusAllow;
+        grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow;
 
         if (paidDays === MONTHLY_DIVISOR) {
-          const fullMonthGross = basicSalary + configHra + configConv + configLta + configSpec + configSupp + configKgp + (configBonus > 0 ? configBonus : basicSalary * 0.0833);
+          const fullMonthGross = basicSalary + configHra + configConv + configLta + configSpec + configSupp + configKgp;
           if (grossPay > fullMonthGross + 1) {
             exceptions.push({
               userId: emp.id,
@@ -745,8 +745,8 @@ async function stepSalaryCalculation(
       const totalDeductions = employeePF + employeeESIC + professionalTax;
       const netPay = grossPay - totalDeductions;
 
-      const ctcMonthly = grossPay + employerPF + employerESIC + gratuityAmount + groupInsuranceAmount;
-      const ctcYearly = (ctcMonthly * 12) + (bonusAllow * 12);
+      const ctcMonthly = grossPay + employerPF + employerESIC + gratuityAmount + groupInsuranceAmount + bonusAllow;
+      const ctcYearly = ctcMonthly * 12;
 
       const calculationSnapshot = {
         basicSalary,

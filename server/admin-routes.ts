@@ -3603,8 +3603,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
     const grossPay = parseFloat(record.grossPay?.toString() || '0');
     const netPay = parseFloat(record.netPay?.toString() || '0');
-    const ctcMonthly = grossPay + employerPf + employerEsic + gratuity + groupInsuranceVal;
-    const ctcYearly = (ctcMonthly * 12) + (bonus * 12);
+    const ctcMonthly = grossPay + employerPf + employerEsic + gratuity + groupInsuranceVal + bonus;
+    const ctcYearly = ctcMonthly * 12;
 
     const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
     const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;
