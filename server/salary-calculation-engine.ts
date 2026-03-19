@@ -336,21 +336,28 @@ export class SalaryCalculationEngine {
       .orderBy(asc(attendanceRecords.date));
     
     let presentDays = 0;
+    let halfDays = 0;
     let totalWorkingHours = 0;
     let overtimeHours = 0;
     
     attendance.forEach(record => {
-      // Check if employee is present (has check-in time)
-      if (record.checkInTime) {
+      if (record.status === 'present' || record.status === 'late' || record.checkInTime) {
         presentDays++;
+        totalWorkingHours += parseFloat(record.workingHours || '0');
+        overtimeHours += parseFloat(record.overtimeHours || '0');
+      } else if (record.status === 'half_day') {
+        halfDays++;
         totalWorkingHours += parseFloat(record.workingHours || '0');
         overtimeHours += parseFloat(record.overtimeHours || '0');
       }
     });
     
+    const effectivePresentDays = presentDays + (halfDays * 0.5);
+    
     return {
       records: attendance,
-      presentDays,
+      presentDays: effectivePresentDays,
+      halfDays,
       totalWorkingHours,
       overtimeHours
     };
@@ -519,10 +526,9 @@ export class SalaryCalculationEngine {
     const workingDays = workweekPolicy?.workingDays || [1, 2, 3, 4, 5, 6]; // Default: Mon-Sat
     const absentDates: string[] = [];
     
-    // Get dates with attendance (check-in)
     const presentDates = new Set(
       attendanceRecordsList
-        .filter(r => r.checkInTime)
+        .filter(r => r.checkInTime || r.status === 'present' || r.status === 'late' || r.status === 'half_day')
         .map(r => r.date)
     );
     
