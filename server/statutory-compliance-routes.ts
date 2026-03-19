@@ -1325,5 +1325,268 @@ router.get('/tds/gl-config', async (_req: Request, res: Response) => {
   }
 });
 
+const SAP_WT_CODE_MAP: Record<string, { section: string; rate: number; stage: string }> = {
+  'C1': { section: '194C', rate: 1, stage: 'payment' },
+  'C2': { section: '194C', rate: 2, stage: 'payment' },
+  'J1': { section: '194J', rate: 2, stage: 'payment' },
+  'J2': { section: '194J', rate: 10, stage: 'payment' },
+  'H1': { section: '194H', rate: 5, stage: 'payment' },
+  'I1': { section: '194I', rate: 10, stage: 'payment' },
+  'I2': { section: '194I', rate: 2, stage: 'payment' },
+  'Q1': { section: '194Q', rate: 0.1, stage: 'payment' },
+  'IC1': { section: '194C', rate: 1, stage: 'invoice' },
+  'IC2': { section: '194C', rate: 2, stage: 'invoice' },
+  'IJ1': { section: '194J', rate: 2, stage: 'invoice' },
+  'IJ2': { section: '194J', rate: 10, stage: 'invoice' },
+  'IH1': { section: '194H', rate: 5, stage: 'invoice' },
+  'II1': { section: '194I', rate: 10, stage: 'invoice' },
+  'II2': { section: '194I', rate: 2, stage: 'invoice' },
+};
+
+function validatePan(pan: string | null | undefined): { status: string; error?: string } {
+  if (!pan || pan.trim() === '') return { status: 'not_available', error: 'PAN not provided' };
+  const cleaned = pan.trim().toUpperCase();
+  if (cleaned.length !== 10) return { status: 'invalid', error: 'PAN must be 10 characters' };
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+  if (!panRegex.test(cleaned)) return { status: 'invalid', error: 'Invalid PAN format (AAAAA9999A)' };
+  return { status: 'valid' };
+}
+
+async function fetchSapWhtDocuments(sessionId: string, routeId: string | undefined, docType: string, dateFilter: string): Promise<any[]> {
+  const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
+  const results: any[] = [];
+  let skip = 0;
+  const top = 50;
+
+  const entityMap: Record<string, string> = {
+    'PurchaseInvoice': 'PurchaseInvoices',
+    'VendorPayment': 'VendorPayments',
+    'APCreditMemo': 'PurchaseCreditNotes',
+  };
+
+  const entity = entityMap[docType];
+  if (!entity) return [];
+
+  while (true) {
+    const filter = `${dateFilter} and WithholdingTaxDataCollection/any(w: w/WTAmountSC ne 0)`;
+    const path = `/b1s/v1/${entity}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,WithholdingTaxDataCollection`;
+
+    const headers: Record<string, string> = {
+      'Cookie': `B1SESSION=${sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`,
+      'Prefer': 'odata.maxpagesize=50',
+    };
+
+    try {
+      const response = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'GET',
+        url: `${sapUrl}${path}`,
+        headers,
+      });
+
+      if (!response.ok) {
+        console.error(`SAP WHT fetch error for ${docType}: ${response.statusCode} - ${response.body}`);
+        break;
+      }
+
+      const data = JSON.parse(response.body);
+      const items = data.value || [];
+      results.push(...items.map((item: any) => ({ ...item, _docType: docType })));
+
+      if (items.length < top) break;
+      skip += top;
+    } catch (error: any) {
+      console.error(`SAP WHT fetch exception for ${docType}:`, error.message);
+      break;
+    }
+  }
+
+  return results;
+}
+
+router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    if (!currentUser?.id) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { month, year } = req.body;
+    if (!month || !year) return res.status(400).json({ error: 'month and year are required' });
+
+    const m = parseInt(month);
+    const y = parseInt(year);
+    const fy = getFinancialYear(m, y);
+    const qtr = getTdsQuarter(m);
+
+    const session = sapSessionManager.getSession(currentUser.id);
+    if (!session) {
+      return res.status(401).json({ error: 'SAP session required. Please login to SAP B1 first.', code: 'SAP_SESSION_REQUIRED' });
+    }
+
+    const batchId = `WHT-${fy}-${String(m).padStart(2, '0')}-${Date.now()}`;
+
+    await db.insert(sapWhtSyncLog).values({
+      syncBatchId: batchId,
+      financialYear: fy,
+      month: m,
+      year: y,
+      syncStatus: 'in_progress',
+      sapDocTypesQueried: 'PurchaseInvoice,VendorPayment,APCreditMemo',
+      syncedBy: currentUser.id,
+      syncedAt: new Date(),
+    } as any);
+
+    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const endDate = `${y}-${String(m).padStart(2, '0')}-${lastDay}`;
+    const dateFilter = `DocDate ge '${startDate}' and DocDate le '${endDate}'`;
+
+    const docTypes = ['PurchaseInvoice', 'VendorPayment', 'APCreditMemo'];
+    let allDocs: any[] = [];
+
+    for (const docType of docTypes) {
+      const docs = await fetchSapWhtDocuments(session.sessionId, session.routeId, docType, dateFilter);
+      allDocs = allDocs.concat(docs);
+    }
+
+    let fetched = 0;
+    let inserted = 0;
+    let skipped = 0;
+    let updated = 0;
+    const errors: string[] = [];
+
+    for (const doc of allDocs) {
+      const whtLines = doc.WithholdingTaxDataCollection || [];
+      for (let lineIdx = 0; lineIdx < whtLines.length; lineIdx++) {
+        const wht = whtLines[lineIdx];
+        fetched++;
+
+        const wtCode = wht.WTCode || '';
+        const mapping = SAP_WT_CODE_MAP[wtCode];
+
+        if (!mapping) {
+          skipped++;
+          continue;
+        }
+
+        const tdsAmount = parseFloat(wht.WTAmountSC?.toString() || '0');
+        if (tdsAmount === 0) {
+          skipped++;
+          continue;
+        }
+
+        const isCreditMemo = doc._docType === 'APCreditMemo';
+        const finalTdsAmount = isCreditMemo ? -Math.abs(tdsAmount) : Math.abs(tdsAmount);
+
+        const baseAmount = parseFloat(wht.TaxableAmountSC?.toString() || wht.BaseAmountSC?.toString() || '0');
+        const vendorPan = wht.BPTaxNum || doc.FederalTaxID || null;
+        const panResult = validatePan(vendorPan);
+
+        const docDate = doc.DocDate ? new Date(doc.DocDate) : new Date();
+        const docMonth = docDate.getMonth() + 1;
+        const docYear = docDate.getFullYear();
+        const docFy = getFinancialYear(docMonth, docYear);
+        const docQtr = getTdsQuarter(docMonth);
+
+        const existing = await db.select({ id: tdsComplianceRegister.id })
+          .from(tdsComplianceRegister)
+          .where(and(
+            eq(tdsComplianceRegister.sourceCategory, 'sap_wht_non_salary'),
+            eq(tdsComplianceRegister.sapDocEntry, doc.DocEntry),
+            eq(tdsComplianceRegister.sapDocType, doc._docType),
+            eq(tdsComplianceRegister.sapWtCode, wtCode),
+            eq(tdsComplianceRegister.sapLineIndex, lineIdx),
+          ))
+          .limit(1);
+
+        if (existing.length > 0) {
+          await db.update(tdsComplianceRegister)
+            .set({
+              tdsAmount: finalTdsAmount.toFixed(2),
+              baseAmount: Math.abs(baseAmount).toFixed(2),
+              tdsRate: mapping.rate.toFixed(2),
+              deductionDate: docDate,
+              deducteeName: doc.CardName || 'Unknown Vendor',
+              deducteePan: vendorPan?.trim()?.toUpperCase() || null,
+              panStatus: panResult.status,
+              panValidationError: panResult.error || null,
+              syncBatchId: batchId,
+              updatedAt: new Date(),
+            })
+            .where(eq(tdsComplianceRegister.id, existing[0].id));
+          updated++;
+        } else {
+          try {
+            await db.insert(tdsComplianceRegister).values({
+              sourceCategory: 'sap_wht_non_salary',
+              tdsSection: mapping.section,
+              financialYear: docFy,
+              quarter: docQtr,
+              month: docMonth,
+              year: docYear,
+              deducteeName: doc.CardName || 'Unknown Vendor',
+              deducteePan: vendorPan?.trim()?.toUpperCase() || null,
+              panStatus: panResult.status,
+              panValidationError: panResult.error || null,
+              deducteeType: 'vendor',
+              sapVendorCode: doc.CardCode || null,
+              sapDocEntry: doc.DocEntry,
+              sapDocType: doc._docType,
+              sapWtCode: wtCode,
+              sapLineIndex: lineIdx,
+              deductionStage: mapping.stage,
+              baseAmount: Math.abs(baseAmount).toFixed(2),
+              tdsAmount: finalTdsAmount.toFixed(2),
+              tdsRate: mapping.rate.toFixed(2),
+              deductionDate: docDate,
+              challanStatus: 'pending',
+              syncBatchId: batchId,
+            } as any);
+            inserted++;
+          } catch (insertErr: any) {
+            if (insertErr.code === '23505') {
+              skipped++;
+            } else {
+              errors.push(`Doc ${doc.DocEntry}/${wtCode}: ${insertErr.message}`);
+              skipped++;
+            }
+          }
+        }
+      }
+    }
+
+    const syncStatus = errors.length > 0 ? 'completed_with_errors' : 'completed';
+    await db.update(sapWhtSyncLog)
+      .set({
+        recordsFetched: fetched,
+        recordsInserted: inserted,
+        recordsSkipped: skipped,
+        recordsUpdated: updated,
+        syncStatus,
+        errorMessage: errors.length > 0 ? errors.slice(0, 10).join('; ') : null,
+      })
+      .where(eq(sapWhtSyncLog.syncBatchId, batchId));
+
+    res.json({
+      success: true,
+      batchId,
+      summary: {
+        fetched,
+        inserted,
+        updated,
+        skipped,
+        errors: errors.length,
+        documentsProcessed: allDocs.length,
+        docTypes: docTypes.join(', '),
+      },
+    });
+  } catch (error: any) {
+    console.error('SAP WHT sync error:', error);
+    res.status(500).json({ error: error.message || 'SAP WHT sync failed' });
+  }
+});
+
+router.get('/tds/wt-code-mappings', async (_req: Request, res: Response) => {
+  res.json(SAP_WT_CODE_MAP);
+});
+
 export { postJeToSap, getGlCode };
 export default router;

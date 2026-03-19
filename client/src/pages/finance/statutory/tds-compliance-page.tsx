@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertTriangle, CheckCircle, Clock, RefreshCw, Settings, FileSearch, Shield, XCircle, ArrowUpDown } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, RefreshCw, Settings, FileSearch, Shield, XCircle, ArrowUpDown, Download, Loader2, History } from "lucide-react";
 import Layout from "@/components/layout";
 import StatutoryCompliancePage from "./statutory-compliance-page";
 
@@ -94,6 +94,7 @@ export default function TdsCompliancePage() {
 }
 
 function ComplianceRegisterTab() {
+  const { toast } = useToast();
   const currentFY = useMemo(() => {
     const now = new Date();
     const m = now.getMonth();
@@ -106,6 +107,11 @@ function ComplianceRegisterTab() {
   const [filterSource, setFilterSource] = useState('all');
   const [filterStage, setFilterStage] = useState('all');
   const [filterChallanStatus, setFilterChallanStatus] = useState('all');
+  const [showSyncLog, setShowSyncLog] = useState(false);
+
+  const now = new Date();
+  const [syncMonth, setSyncMonth] = useState(String(now.getMonth() + 1));
+  const [syncYear, setSyncYear] = useState(String(now.getFullYear()));
 
   const queryParams = new URLSearchParams({ financialYear: filterFY });
   if (filterSection !== 'all') queryParams.set('tdsSection', filterSection);
@@ -118,17 +124,132 @@ function ComplianceRegisterTab() {
     queryFn: () => fetch(`/api/statutory/tds/compliance-register?${queryParams}`).then(r => r.json()),
   });
 
+  const { data: syncLogs = [] } = useQuery<any[]>({
+    queryKey: ['/api/statutory/tds/sync-log', filterFY],
+    queryFn: () => fetch(`/api/statutory/tds/sync-log?financialYear=${filterFY}`).then(r => r.json()),
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/statutory/tds/sap-wht-sync', { month: parseInt(syncMonth), year: parseInt(syncYear) });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'SAP WHT Sync Complete',
+        description: `Fetched ${data.summary?.fetched || 0} WHT lines — ${data.summary?.inserted || 0} inserted, ${data.summary?.updated || 0} updated, ${data.summary?.skipped || 0} skipped`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/compliance-register'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/sync-log'] });
+    },
+    onError: (error: any) => {
+      const msg = error?.message || 'SAP WHT sync failed';
+      const isSapSession = msg.includes('SAP session') || msg.includes('SAP_SESSION');
+      toast({
+        title: isSapSession ? 'SAP Login Required' : 'Sync Failed',
+        description: isSapSession ? 'Please connect to SAP B1 first (SAP menu → Connect).' : msg,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const summary = useMemo(() => {
     const total = register.length;
     const totalTds = register.reduce((s: number, r: any) => s + parseFloat(r.tdsAmount || '0'), 0);
     const payroll = register.filter((r: any) => r.sourceCategory === 'payroll_192').length;
     const sapWht = register.filter((r: any) => r.sourceCategory === 'sap_wht_non_salary').length;
     const pending = register.filter((r: any) => r.challanStatus === 'pending').length;
-    return { total, totalTds, payroll, sapWht, pending };
+    const invalidPan = register.filter((r: any) => r.panStatus === 'invalid' || r.panStatus === 'not_available').length;
+    return { total, totalTds, payroll, sapWht, pending, invalidPan };
   }, [register]);
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
     <div className="space-y-4">
+      <Card className="border-emerald-200 bg-emerald-50/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Download className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-base">SAP WHT Import</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setShowSyncLog(!showSyncLog)} className="text-xs">
+              <History className="h-3 w-3 mr-1" /> {showSyncLog ? 'Hide' : 'Show'} Sync Log
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Import non-salary withholding tax data from SAP B1 (Purchase Invoices, Vendor Payments, AP Credit Memos)</p>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Select value={syncMonth} onValueChange={setSyncMonth}>
+              <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {monthNames.map((name, i) => (
+                  <SelectItem key={i} value={String(i + 1)}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={syncYear} onValueChange={setSyncYear}>
+              <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => {
+                  const y = new Date().getFullYear() - i;
+                  return <SelectItem key={y} value={String(y)}>{y}</SelectItem>;
+                })}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {syncMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              {syncMutation.isPending ? 'Syncing from SAP...' : 'Sync WHT from SAP'}
+            </Button>
+            {syncMutation.isPending && (
+              <span className="text-xs text-muted-foreground">Querying PurchaseInvoices, VendorPayments, APCreditMemos...</span>
+            )}
+          </div>
+
+          {showSyncLog && syncLogs.length > 0 && (
+            <div className="mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Batch ID</TableHead>
+                    <TableHead className="text-xs">Period</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs text-right">Fetched</TableHead>
+                    <TableHead className="text-xs text-right">Inserted</TableHead>
+                    <TableHead className="text-xs text-right">Updated</TableHead>
+                    <TableHead className="text-xs text-right">Skipped</TableHead>
+                    <TableHead className="text-xs">Synced At</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {syncLogs.slice(0, 10).map((log: any) => (
+                    <TableRow key={log.id} className="text-xs">
+                      <TableCell className="font-mono text-xs">{log.syncBatchId}</TableCell>
+                      <TableCell>{monthNames[(log.month || 1) - 1]} {log.year}</TableCell>
+                      <TableCell>
+                        <Badge className={log.syncStatus === 'completed' ? 'bg-green-100 text-green-800' : log.syncStatus === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}>
+                          {log.syncStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{log.recordsFetched ?? 0}</TableCell>
+                      <TableCell className="text-right">{log.recordsInserted ?? 0}</TableCell>
+                      <TableCell className="text-right">{log.recordsUpdated ?? 0}</TableCell>
+                      <TableCell className="text-right">{log.recordsSkipped ?? 0}</TableCell>
+                      <TableCell>{log.syncedAt ? new Date(log.syncedAt).toLocaleString() : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
@@ -186,6 +307,7 @@ function ComplianceRegisterTab() {
                   <SelectItem value="194J">194J</SelectItem>
                   <SelectItem value="194H">194H</SelectItem>
                   <SelectItem value="194I">194I</SelectItem>
+                  <SelectItem value="194Q">194Q</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterSource} onValueChange={setFilterSource}>
@@ -240,7 +362,7 @@ function ComplianceRegisterTab() {
                 </TableHeader>
                 <TableBody>
                   {register.length === 0 ? (
-                    <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">No entries found. Sync SAP WHT data or generate payroll to populate the register.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={12} className="text-center py-8 text-muted-foreground">No entries found. Use the SAP WHT Import above to sync data, or generate payroll to populate the register.</TableCell></TableRow>
                   ) : register.map((r: any) => (
                     <TableRow key={r.id} className={parseFloat(r.tdsAmount || '0') < 0 ? 'bg-red-50' : ''}>
                       <TableCell className="font-mono font-medium">{r.tdsSection}</TableCell>
