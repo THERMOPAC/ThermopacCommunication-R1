@@ -2287,6 +2287,15 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
     }
 
     const deletableIds = deletableRecords.map(r => r.id);
+
+    const idList = sql.join(deletableIds.map(id => sql`${id}`), sql`, `);
+    await db.execute(sql`DELETE FROM employee_advance_recoveries WHERE payroll_record_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM employee_loan_repayments WHERE payroll_record_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM manual_salary_entries WHERE payroll_record_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM statutory_challan_details WHERE payroll_record_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM tds_compliance_register WHERE payroll_record_id IN (${idList})`);
+    await db.execute(sql`DELETE FROM tds_payroll_sap_reconciliation WHERE payroll_record_id IN (${idList})`);
+
     await db.delete(payrollRecords).where(inArray(payrollRecords.id, deletableIds));
 
     res.json({
