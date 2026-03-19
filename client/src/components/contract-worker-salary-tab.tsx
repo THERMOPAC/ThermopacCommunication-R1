@@ -86,8 +86,16 @@ export function ManualSalaryTab() {
   useEffect(() => {
     if (!formData.userId || editingEntry) return;
     const config = salaryConfigs.find((c: any) => c.userId === parseInt(formData.userId) && c.isActive);
-    if (config && config.hourlyRate) {
-      setFormData(d => ({ ...d, baseRate: parseFloat(config.hourlyRate).toFixed(2) }));
+    if (config) {
+      if (config.hourlyRate) {
+        setFormData(d => ({ ...d, baseRate: parseFloat(config.hourlyRate).toFixed(2) }));
+      } else {
+        const basic = parseFloat(config.basicSalary || '0');
+        const hrs = parseFloat(config.workingHoursPerDay || '8') || 8;
+        const divisor = config.salaryType === 'daily' ? 26 : 30;
+        const rate = (basic * 2.5) / divisor / hrs;
+        setFormData(d => ({ ...d, baseRate: rate.toFixed(2) }));
+      }
     }
   }, [formData.userId, salaryConfigs, editingEntry]);
 
