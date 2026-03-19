@@ -1489,6 +1489,8 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     let skipped = 0;
     let updated = 0;
     const errors: string[] = [];
+    const unmappedCodes: Record<string, number> = {};
+    const zeroAmountCodes: Record<string, number> = {};
 
     for (const doc of allDocs) {
       const whtLines = doc.WithholdingTaxDataCollection || doc.WithholdingTaxDataWTXCollection || [];
@@ -1500,12 +1502,14 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
         const mapping = SAP_WT_CODE_MAP[wtCode];
 
         if (!mapping) {
+          unmappedCodes[wtCode] = (unmappedCodes[wtCode] || 0) + 1;
           skipped++;
           continue;
         }
 
         const tdsAmount = parseFloat(wht.WTAmountSC?.toString() || '0');
         if (tdsAmount === 0) {
+          zeroAmountCodes[wtCode] = (zeroAmountCodes[wtCode] || 0) + 1;
           skipped++;
           continue;
         }
@@ -1589,6 +1593,14 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
         }
       }
     }
+
+    if (Object.keys(unmappedCodes).length > 0) {
+      console.log('SAP WHT Sync - Unmapped WTCodes (skipped):', JSON.stringify(unmappedCodes));
+    }
+    if (Object.keys(zeroAmountCodes).length > 0) {
+      console.log('SAP WHT Sync - Zero amount WTCodes (skipped):', JSON.stringify(zeroAmountCodes));
+    }
+    console.log(`SAP WHT Sync Summary: ${allDocs.length} docs, ${fetched} WHT lines, ${inserted} inserted, ${skipped} skipped, ${updated} updated`);
 
     const syncStatus = errors.length > 0 ? 'completed_with_errors' : 'completed';
     await db.update(sapWhtSyncLog)
