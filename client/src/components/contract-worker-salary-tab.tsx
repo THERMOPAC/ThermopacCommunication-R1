@@ -86,10 +86,8 @@ export function ManualSalaryTab() {
   useEffect(() => {
     if (!formData.userId || editingEntry) return;
     const config = salaryConfigs.find((c: any) => c.userId === parseInt(formData.userId) && c.isActive);
-    if (config) {
-      const basicSalary = parseFloat(config.basicSalary || '0');
-      const autoRate = Math.round(basicSalary * 2.5 * 100) / 100;
-      setFormData(d => ({ ...d, baseRate: autoRate.toString() }));
+    if (config && config.hourlyRate) {
+      setFormData(d => ({ ...d, baseRate: parseFloat(config.hourlyRate).toFixed(2) }));
     }
   }, [formData.userId, salaryConfigs, editingEntry]);
 
