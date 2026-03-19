@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { AlertTriangle, CheckCircle, Clock, RefreshCw, Settings, FileSearch, Shield, XCircle, ArrowUpDown, Download, Loader2, History } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, RefreshCw, Settings, FileSearch, Shield, XCircle, ArrowUpDown, Download, Loader2, History, FileText } from "lucide-react";
 import Layout from "@/components/layout";
 import StatutoryCompliancePage from "./statutory-compliance-page";
 
@@ -108,6 +108,7 @@ function ComplianceRegisterTab() {
   const [filterStage, setFilterStage] = useState('all');
   const [filterChallanStatus, setFilterChallanStatus] = useState('all');
   const [showSyncLog, setShowSyncLog] = useState(false);
+  const [showNonSalaryChallanDialog, setShowNonSalaryChallanDialog] = useState(false);
 
   const now = new Date();
   const [syncMonth, setSyncMonth] = useState(String(now.getMonth() + 1));
@@ -145,6 +146,36 @@ function ComplianceRegisterTab() {
       const msg = error?.message || 'SAP WHT sync failed';
       toast({
         title: 'Sync Failed',
+        description: msg.replace(/^\d+:\s*/, '').replace(/^\{.*"error"\s*:\s*"([^"]+)".*\}$/, '$1'),
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const { data: nonSalaryPeriods = [] } = useQuery<any[]>({
+    queryKey: ['/api/statutory/tds/non-salary-challan-periods', filterFY],
+    queryFn: () => fetch(`/api/statutory/tds/non-salary-challan-periods?financialYear=${filterFY}`).then(r => r.json()),
+    enabled: showNonSalaryChallanDialog,
+  });
+
+  const generateNonSalaryMutation = useMutation({
+    mutationFn: async (data: { tdsSection: string; month: number; year: number }) => {
+      return apiRequest('POST', '/api/statutory/tds/generate-non-salary-challan', data);
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Non-Salary Challan Generated',
+        description: `Section ${data.summary?.section} — ${data.summary?.entryCount} entries, ${data.summary?.deducteeCount} deductees, TDS: ₹${parseFloat(data.summary?.totalTds || '0').toLocaleString('en-IN')}`,
+      });
+      setShowNonSalaryChallanDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/compliance-register'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/non-salary-challan-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
+    },
+    onError: (error: any) => {
+      const msg = error?.message || 'Failed to generate challan';
+      toast({
+        title: 'Error',
         description: msg.replace(/^\d+:\s*/, '').replace(/^\{.*"error"\s*:\s*"([^"]+)".*\}$/, '$1'),
         variant: 'destructive',
       });
@@ -247,6 +278,26 @@ function ComplianceRegisterTab() {
             </div>
           )}
         </CardContent>
+      </Card>
+
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-base">Non-Salary TDS Challan Generation</CardTitle>
+            </div>
+            <Button
+              onClick={() => setShowNonSalaryChallanDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Non-Salary Challan
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Generate TDS challans for SAP WHT entries (194C, 194J, 194I, 194Q) grouped by section and month</p>
+        </CardHeader>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -384,6 +435,81 @@ function ComplianceRegisterTab() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showNonSalaryChallanDialog} onOpenChange={setShowNonSalaryChallanDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Generate Non-Salary TDS Challan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Select a section and month to generate a TDS challan from SAP WHT data. Only pending entries with positive TDS amounts are included.
+            </p>
+
+            {nonSalaryPeriods.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-400" />
+                <p className="font-medium">No pending periods available</p>
+                <p className="text-xs mt-1">All SAP WHT entries already have challans, or no data has been synced yet.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Section</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Quarter</TableHead>
+                    <TableHead className="text-right">Entries</TableHead>
+                    <TableHead className="text-right">Total Base</TableHead>
+                    <TableHead className="text-right">Total TDS</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {nonSalaryPeriods.map((p: any, i: number) => {
+                    const section = p.tds_section || p.tdsSection;
+                    const mon = parseInt(p.month);
+                    const yr = parseInt(p.year);
+                    return (
+                      <TableRow key={i} className={p.hasChallan ? 'opacity-50' : ''}>
+                        <TableCell className="font-mono font-medium">{section}</TableCell>
+                        <TableCell>{monthNames[mon - 1]} {yr}</TableCell>
+                        <TableCell>{p.quarter}</TableCell>
+                        <TableCell className="text-right">{p.entryCount}</TableCell>
+                        <TableCell className="text-right font-mono">{fmt(p.totalBase)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">{fmt(p.totalTds)}</TableCell>
+                        <TableCell>
+                          {p.hasChallan ? (
+                            <Badge className="bg-green-100 text-green-800">Challan Exists</Badge>
+                          ) : (
+                            <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {!p.hasChallan && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => generateNonSalaryMutation.mutate({ tdsSection: section, month: mon, year: yr })}
+                              disabled={generateNonSalaryMutation.isPending}
+                            >
+                              {generateNonSalaryMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Generate'}
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNonSalaryChallanDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

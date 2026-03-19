@@ -9694,7 +9694,7 @@ export const statutoryChallans = pgTable('statutory_challans', {
   companyId: integer('company_id').default(1),
   challanReference: varchar('challan_reference', { length: 50 }).notNull().unique(),
   moduleType: varchar('module_type', { length: 10 }).notNull(),
-  payrollPeriodId: integer('payroll_period_id').notNull().references(() => payrollPeriods.id),
+  payrollPeriodId: integer('payroll_period_id').references(() => payrollPeriods.id),
   month: integer('month').notNull(),
   year: integer('year').notNull(),
   financialYear: varchar('financial_year', { length: 10 }).notNull(),

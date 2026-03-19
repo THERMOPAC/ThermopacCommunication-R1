@@ -1680,5 +1680,150 @@ router.get('/tds/wt-code-mappings', async (_req: Request, res: Response) => {
   res.json(SAP_WT_CODE_MAP);
 });
 
+router.get('/tds/non-salary-challan-periods', async (req: Request, res: Response) => {
+  try {
+    const { financialYear } = req.query;
+    const fy = financialYear as string || getFinancialYear(new Date().getMonth() + 1, new Date().getFullYear());
+
+    const periods = await db.execute(sql`
+      SELECT DISTINCT month, year, tds_section, quarter,
+        COUNT(*) as entry_count,
+        SUM(tds_amount::numeric) as total_tds,
+        SUM(base_amount::numeric) as total_base
+      FROM tds_compliance_register
+      WHERE source_category = 'sap_wht_non_salary'
+        AND financial_year = ${fy}
+        AND challan_status = 'pending'
+        AND tds_amount::numeric > 0
+      GROUP BY month, year, tds_section, quarter
+      ORDER BY tds_section, year, month
+    `);
+
+    const existingChallans = await db.select({
+      tdsSection: statutoryChallans.tdsSection,
+      month: statutoryChallans.month,
+      year: statutoryChallans.year,
+      status: statutoryChallans.status,
+    }).from(statutoryChallans)
+      .where(and(
+        eq(statutoryChallans.moduleType, 'TDS'),
+        eq(statutoryChallans.financialYear, fy),
+        isNull(statutoryChallans.payrollPeriodId),
+      ));
+
+    const challanSet = new Set(
+      existingChallans
+        .filter(c => c.status !== 'reversed')
+        .map(c => `${c.tdsSection}-${c.month}-${c.year}`)
+    );
+
+    const available = (periods.rows || periods).map((p: any) => ({
+      ...p,
+      entryCount: parseInt(p.entry_count || p.entryCount || '0'),
+      totalTds: parseFloat(p.total_tds || p.totalTds || '0'),
+      totalBase: parseFloat(p.total_base || p.totalBase || '0'),
+      hasChallan: challanSet.has(`${p.tds_section || p.tdsSection}-${p.month}-${p.year}`),
+    }));
+
+    res.json(available);
+  } catch (error: any) {
+    console.error('Error fetching non-salary challan periods:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/tds/generate-non-salary-challan', async (req: Request, res: Response) => {
+  try {
+    const { tdsSection, month, year } = req.body;
+    if (!tdsSection || !month || !year) {
+      return res.status(400).json({ error: 'tdsSection, month, and year are required' });
+    }
+
+    const fy = getFinancialYear(month, year);
+    const quarter = getTdsQuarter(month);
+
+    const existing = await db.select().from(statutoryChallans)
+      .where(and(
+        eq(statutoryChallans.moduleType, 'TDS'),
+        eq(statutoryChallans.tdsSection, tdsSection),
+        eq(statutoryChallans.month, month),
+        eq(statutoryChallans.year, year),
+        isNull(statutoryChallans.payrollPeriodId),
+      ));
+    const notReversed = existing.filter(e => e.status !== 'reversed');
+    if (notReversed.length > 0) {
+      return res.status(409).json({ error: `A non-salary TDS challan for Section ${tdsSection}, ${month}/${year} already exists` });
+    }
+
+    const entries = await db.select().from(tdsComplianceRegister)
+      .where(and(
+        eq(tdsComplianceRegister.sourceCategory, 'sap_wht_non_salary'),
+        eq(tdsComplianceRegister.tdsSection, tdsSection),
+        eq(tdsComplianceRegister.month, month),
+        eq(tdsComplianceRegister.year, year),
+        eq(tdsComplianceRegister.challanStatus, 'pending'),
+      ));
+
+    if (entries.length === 0) {
+      return res.status(400).json({ error: 'No pending register entries found for this section/period' });
+    }
+
+    const totalTds = entries.reduce((s, e) => s + parseFloat(e.tdsAmount?.toString() || '0'), 0);
+    const totalBase = entries.reduce((s, e) => s + parseFloat(e.baseAmount?.toString() || '0'), 0);
+
+    if (totalTds <= 0) {
+      return res.status(400).json({ error: 'Net TDS amount must be positive to generate a challan (credit memos may reduce it to zero or negative)' });
+    }
+
+    const deducteeCount = new Set(entries.map(e => e.deducteePan || e.deducteeName)).size;
+    const ref = `TDS-${tdsSection}-${year}-${month.toString().padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+
+    const [challan] = await db.insert(statutoryChallans).values({
+      challanReference: ref,
+      moduleType: 'TDS',
+      payrollPeriodId: null,
+      month,
+      year,
+      financialYear: fy,
+      employeeCount: deducteeCount,
+      totalEmployeeContribution: totalTds.toFixed(2),
+      totalEmployerContribution: '0',
+      totalAmount: totalTds.toFixed(2),
+      tdsSection,
+      tdsQuarter: quarter,
+      status: 'calculated',
+      createdBy: (req as any).user?.id,
+      updatedBy: (req as any).user?.id,
+    }).returning();
+
+    await db.update(tdsComplianceRegister)
+      .set({ challanStatus: 'included', challanId: challan.id, updatedAt: new Date() })
+      .where(and(
+        eq(tdsComplianceRegister.sourceCategory, 'sap_wht_non_salary'),
+        eq(tdsComplianceRegister.tdsSection, tdsSection),
+        eq(tdsComplianceRegister.month, month),
+        eq(tdsComplianceRegister.year, year),
+        eq(tdsComplianceRegister.challanStatus, 'pending'),
+      ));
+
+    res.json({
+      challan,
+      summary: {
+        section: tdsSection,
+        month,
+        year,
+        quarter,
+        entryCount: entries.length,
+        deducteeCount,
+        totalBase: totalBase.toFixed(2),
+        totalTds: totalTds.toFixed(2),
+      },
+    });
+  } catch (error: any) {
+    console.error('Error generating non-salary challan:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export { postJeToSap, getGlCode };
 export default router;
