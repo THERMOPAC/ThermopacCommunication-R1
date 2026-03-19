@@ -62,6 +62,43 @@ router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Respons
   }
 });
 
+router.get('/balance/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const targetUserId = parseInt(req.params.userId);
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+
+    const balances = await db
+      .select({
+        id: leaveBalances.id,
+        leaveTypeId: leaveBalances.leaveTypeId,
+        leaveTypeName: leaveTypes.name,
+        leaveTypeCode: leaveTypes.code,
+        isPaid: leaveTypes.isPaid,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+        carryoverDays: leaveBalances.carryoverDays
+      })
+      .from(leaveBalances)
+      .innerJoin(leaveTypes, eq(leaveBalances.leaveTypeId, leaveTypes.id))
+      .where(and(
+        eq(leaveBalances.userId, targetUserId),
+        eq(leaveBalances.year, year)
+      ));
+
+    const balancesWithAvailable = balances.map(b => ({
+      ...b,
+      availableDays: parseFloat(b.allocatedDays || '0') + parseFloat(b.carryoverDays || '0')
+                     - parseFloat(b.usedDays || '0') - parseFloat(b.pendingDays || '0')
+    }));
+
+    res.json(balancesWithAvailable);
+  } catch (error) {
+    console.error('Error fetching user leave balance:', error);
+    res.status(500).json({ error: 'Failed to fetch leave balance' });
+  }
+});
+
 router.get('/my-requests', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
