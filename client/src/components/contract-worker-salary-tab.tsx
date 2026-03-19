@@ -78,6 +78,17 @@ export function ManualSalaryTab() {
 
   const { data: periods = [] } = useQuery<any[]>({ queryKey: ['/api/payroll/payroll-periods'] });
   const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/admin/users'] });
+  const { data: salaryConfigs = [] } = useQuery<any[]>({ queryKey: ['/api/admin/payroll/salary-setup'] });
+
+  useEffect(() => {
+    if (!formData.userId || editingEntry) return;
+    const config = salaryConfigs.find((c: any) => c.userId === parseInt(formData.userId) && c.isActive);
+    if (config) {
+      const basicSalary = parseFloat(config.basicSalary || '0');
+      const autoRate = Math.round(basicSalary * 2.5 * 100) / 100;
+      setFormData(d => ({ ...d, baseRate: autoRate.toString() }));
+    }
+  }, [formData.userId, salaryConfigs, editingEntry]);
 
   const effectivePeriodId = selectedPeriodId && selectedPeriodId !== 'all' ? selectedPeriodId : '';
 
