@@ -395,12 +395,14 @@ router.get('/challans/:id', async (req: Request, res: Response) => {
     employeeContribution: statutoryChallanDetails.employeeContribution,
     employerContribution: statutoryChallanDetails.employerContribution,
     grossSalary: statutoryChallanDetails.grossSalary,
-    employeeName: users.name,
-    employeeCode: users.employeeId,
+    firstName: users.firstName,
+    lastName: users.lastName,
+    cardName: users.cardName,
+    employeeCode: users.employeeCode,
   }).from(statutoryChallanDetails)
     .leftJoin(users, eq(statutoryChallanDetails.employeeId, users.id))
     .where(eq(statutoryChallanDetails.challanId, challan.id))
-    .orderBy(asc(users.name));
+    .orderBy(asc(users.cardName));
   res.json({ ...challan, details });
 });
 
