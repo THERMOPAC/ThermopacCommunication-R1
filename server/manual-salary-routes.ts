@@ -125,7 +125,7 @@ function getQuarter(month: number): string {
   return 'Q4';
 }
 
-router.post('/preview', async (req: Request, res: Response) => {
+router.post('/preview', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const { entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, periodId } = req.body;
     let periodMonth = new Date().getMonth() + 1;
@@ -366,7 +366,7 @@ router.put('/:id', ensurePayrollAdmin, async (req: Request, res: Response) => {
   }
 });
 
-router.get('/list', async (req: Request, res: Response) => {
+router.get('/list', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const { periodId } = req.query;
     const conditions: any[] = [];
