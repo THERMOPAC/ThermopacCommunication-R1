@@ -1219,7 +1219,7 @@ router.get('/tds/mismatch-exceptions', async (req: Request, res: Response) => {
     const { financialYear, quarter } = req.query;
     const conditions: any[] = [
       sql`${tdsPayrollSapReconciliation.sapPostingStatus} IN ('sap_missing', 'posting_failed')
-          OR ${tdsPayrollSapReconciliation.sapVerificationStatus} = 'mismatched'`,
+          OR ${tdsPayrollSapReconciliation.sapVerificationStatus} IN ('mismatched', 'verification_error')`,
     ];
     if (financialYear) conditions.push(eq(tdsPayrollSapReconciliation.financialYear, financialYear as string));
     if (quarter) conditions.push(eq(tdsPayrollSapReconciliation.quarter, quarter as string));
@@ -1271,6 +1271,179 @@ router.put('/tds/tolerance', async (req: Request, res: Response) => {
 
     res.json({ tolerance: parseFloat(val) });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/tds/deep-je-verify', async (req: Request, res: Response) => {
+  try {
+    const { periodId, financialYear } = req.body;
+    if (!periodId && !financialYear) {
+      return res.status(400).json({ error: 'Either periodId or financialYear is required' });
+    }
+
+    const conditions: any[] = [
+      eq(tdsPayrollSapReconciliation.sapPostingStatus, 'posted'),
+    ];
+    if (periodId) conditions.push(eq(tdsPayrollSapReconciliation.periodId, parseInt(periodId)));
+    if (financialYear) conditions.push(eq(tdsPayrollSapReconciliation.financialYear, financialYear as string));
+
+    const rows = await db.select().from(tdsPayrollSapReconciliation)
+      .where(and(...conditions));
+
+    const postedRows = rows.filter(r => r.sapDocEntry);
+    if (postedRows.length === 0) {
+      return res.json({
+        message: 'No posted records with SAP DocEntry found for verification',
+        verified: 0,
+        matched: 0,
+        withinTolerance: 0,
+        mismatched: 0,
+        verificationErrors: 0,
+      });
+    }
+
+    const tolResult = await db.select().from(payrollSettings)
+      .where(eq(payrollSettings.settingName, 'tds_reconciliation_tolerance'))
+      .limit(1);
+    const tolerance = parseFloat(tolResult.length ? tolResult[0].settingValue || '1.00' : '1.00');
+
+    const currentUser = (req as any).user;
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+
+    if (!sapUser || !sapPass || !sapDb) {
+      return res.status(500).json({ error: 'SAP credentials not configured' });
+    }
+
+    const session = sapSessionManager.getSession(currentUser.id);
+    let sessionId: string;
+    if (session) {
+      sessionId = session.sessionId;
+    } else {
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sapSessionManager.setSession(currentUser.id, {
+        sessionId: loginResult.sessionId, routeId: undefined,
+        userId: currentUser.id, createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 60000),
+      });
+      sessionId = loginResult.sessionId;
+    }
+
+    let matched = 0, withinTolerance = 0, mismatched = 0, verificationErrors = 0;
+    const now = new Date();
+    const results: any[] = [];
+
+    for (const row of postedRows) {
+      try {
+        const jeResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: `/b1s/v1/JournalEntries(${row.sapDocEntry})?$select=JournalEntryLines`,
+        });
+
+        if (!jeResp.ok) {
+          verificationErrors++;
+          results.push({ id: row.id, status: 'error', error: `SAP returned ${jeResp.statusCode}` });
+          await db.update(tdsPayrollSapReconciliation)
+            .set({
+              sapVerificationStatus: 'verification_error',
+              lastVerifiedAt: now,
+              updatedAt: now,
+            })
+            .where(eq(tdsPayrollSapReconciliation.id, row.id));
+          continue;
+        }
+
+        const jeData = JSON.parse(jeResp.body);
+        const lines = jeData.JournalEntryLines || [];
+
+        let sapTdsAmount = 0;
+        for (const line of lines) {
+          const acctCode = line.AccountCode || '';
+          const shortCode = line.ShortName || '';
+          if (
+            acctCode.includes('TDS') || acctCode.includes('tds') ||
+            shortCode.includes('TDS') || shortCode.includes('tds') ||
+            acctCode === '2310001' || acctCode === '2310002'
+          ) {
+            sapTdsAmount += Math.abs(parseFloat(line.Credit || '0') - parseFloat(line.Debit || '0'));
+          }
+        }
+
+        if (sapTdsAmount === 0) {
+          let maxCreditLine = { credit: 0 };
+          for (const line of lines) {
+            const credit = parseFloat(line.Credit || '0');
+            if (credit > maxCreditLine.credit) {
+              maxCreditLine = { credit };
+            }
+          }
+          const totalCredit = lines.reduce((s: number, l: any) => s + parseFloat(l.Credit || '0'), 0);
+          const totalDebit = lines.reduce((s: number, l: any) => s + parseFloat(l.Debit || '0'), 0);
+          sapTdsAmount = Math.min(totalCredit, totalDebit);
+        }
+
+        const payrollAmt = parseFloat(row.payrollTdsAmount?.toString() || '0');
+        const variance = Math.abs(payrollAmt - sapTdsAmount);
+        let verStatus: string;
+
+        if (variance === 0 || (payrollAmt === sapTdsAmount)) {
+          verStatus = 'matched';
+          matched++;
+        } else if (variance <= tolerance) {
+          verStatus = 'within_tolerance';
+          withinTolerance++;
+        } else {
+          verStatus = 'mismatched';
+          mismatched++;
+        }
+
+        await db.update(tdsPayrollSapReconciliation)
+          .set({
+            sapVerifiedTdsAmount: sapTdsAmount.toFixed(2),
+            sapVerificationStatus: verStatus,
+            variance: (payrollAmt - sapTdsAmount).toFixed(2),
+            toleranceApplied: tolerance.toFixed(2),
+            lastVerifiedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(tdsPayrollSapReconciliation.id, row.id));
+
+        results.push({
+          id: row.id,
+          employee: row.employeeName,
+          payrollAmount: payrollAmt,
+          sapAmount: sapTdsAmount,
+          variance: (payrollAmt - sapTdsAmount).toFixed(2),
+          status: verStatus,
+        });
+
+      } catch (err: any) {
+        verificationErrors++;
+        results.push({ id: row.id, status: 'error', error: err.message });
+        await db.update(tdsPayrollSapReconciliation)
+          .set({
+            sapVerificationStatus: 'verification_error',
+            lastVerifiedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(tdsPayrollSapReconciliation.id, row.id));
+      }
+    }
+
+    res.json({
+      message: 'Deep JE verification complete',
+      verified: postedRows.length,
+      matched,
+      withinTolerance,
+      mismatched,
+      verificationErrors,
+      tolerance,
+      results,
+    });
+  } catch (error: any) {
+    console.error('Error in deep JE verification:', error);
     res.status(500).json({ error: error.message });
   }
 });

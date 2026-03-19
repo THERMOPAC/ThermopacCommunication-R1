@@ -25,6 +25,7 @@ const VERIFICATION_STATUS_COLORS: Record<string, string> = {
   matched: 'bg-green-100 text-green-800',
   within_tolerance: 'bg-amber-100 text-amber-800',
   mismatched: 'bg-red-100 text-red-800',
+  verification_error: 'bg-orange-100 text-orange-800',
 };
 
 const PAN_STATUS_COLORS: Record<string, string> = {
@@ -563,13 +564,30 @@ function ReconciliationTab() {
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
+  const deepVerifyMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('POST', '/api/statutory/tds/deep-je-verify', data),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/reconciliation'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/mismatch-exceptions'] });
+      toast({
+        title: 'Deep JE Verification Complete',
+        description: `${data.verified} verified: ${data.matched} matched, ${data.withinTolerance} within tolerance, ${data.mismatched} mismatched, ${data.verificationErrors} errors`,
+      });
+    },
+    onError: (e: any) => toast({ title: 'Verification Error', description: e.message, variant: 'destructive' }),
+  });
+
   const summary = useMemo(() => {
     const total = reconData.length;
     const posted = reconData.filter((r: any) => r.sapPostingStatus === 'posted').length;
     const missing = reconData.filter((r: any) => r.sapPostingStatus === 'sap_missing').length;
     const failed = reconData.filter((r: any) => r.sapPostingStatus === 'posting_failed').length;
     const totalTds = reconData.reduce((s: number, r: any) => s + parseFloat(r.payrollTdsAmount || '0'), 0);
-    return { total, posted, missing, failed, totalTds };
+    const verified = reconData.filter((r: any) => r.sapVerificationStatus !== 'not_verified').length;
+    const jeMatched = reconData.filter((r: any) => r.sapVerificationStatus === 'matched').length;
+    const jeWithinTol = reconData.filter((r: any) => r.sapVerificationStatus === 'within_tolerance').length;
+    const jeMismatched = reconData.filter((r: any) => r.sapVerificationStatus === 'mismatched').length;
+    return { total, posted, missing, failed, totalTds, verified, jeMatched, jeWithinTol, jeMismatched };
   }, [reconData]);
 
   return (
@@ -578,9 +596,9 @@ function ReconciliationTab() {
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Shield className="h-5 w-5 text-blue-600" />
-            Section 192 — Posting Status Reconciliation
+            Section 192 — Payroll-SAP Reconciliation
           </h2>
-          <p className="text-xs text-muted-foreground mt-1">Compares payroll TDS records against SAP JE posting status. Phase 2 (Deep JE Amount Verification) will compare actual SAP amounts.</p>
+          <p className="text-xs text-muted-foreground mt-1">Phase 1: Posting status check. Phase 2: Deep JE amount verification against SAP journal entries.</p>
         </div>
         <div className="flex gap-2 items-center">
           <Button variant="outline" size="sm" onClick={() => {
@@ -624,6 +642,59 @@ function ReconciliationTab() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-purple-200 bg-purple-50/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileSearch className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-base">Deep JE Amount Verification</CardTitle>
+            </div>
+            <Button
+              onClick={() => {
+                if (selectedPeriodId) {
+                  deepVerifyMutation.mutate({ periodId: parseInt(selectedPeriodId) });
+                } else {
+                  deepVerifyMutation.mutate({ financialYear: filterFY });
+                }
+              }}
+              disabled={deepVerifyMutation.isPending || summary.posted === 0}
+              className="bg-purple-600 hover:bg-purple-700"
+              size="sm"
+            >
+              {deepVerifyMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSearch className="h-4 w-4 mr-2" />}
+              {deepVerifyMutation.isPending ? 'Verifying JE Amounts...' : 'Verify JE Amounts'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Queries each SAP Journal Entry to verify the TDS amount matches payroll. 
+            {summary.posted === 0 ? ' No posted records available — post payroll to SAP first.' : ` ${summary.posted} posted record(s) ready for verification.`}
+            {selectedPeriodId ? ' Will verify selected period only.' : ` Will verify all posted records in FY ${filterFY}.`}
+          </p>
+        </CardHeader>
+        {summary.verified > 0 && (
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="bg-white rounded-lg p-3 text-center border">
+                <div className="text-lg font-bold text-purple-600">{summary.verified}</div>
+                <div className="text-xs text-muted-foreground">Verified</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center border">
+                <div className="text-lg font-bold text-green-600">{summary.jeMatched}</div>
+                <div className="text-xs text-muted-foreground">Matched</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center border">
+                <div className="text-lg font-bold text-amber-600">{summary.jeWithinTol}</div>
+                <div className="text-xs text-muted-foreground">Within Tolerance</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center border">
+                <div className="text-lg font-bold text-red-600">{summary.jeMismatched}</div>
+                <div className="text-xs text-muted-foreground">Mismatched</div>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       <Card>
         <CardHeader>
@@ -688,25 +759,43 @@ function ReconciliationTab() {
                     <TableHead>SAP Posting Status</TableHead>
                     <TableHead>JE Number</TableHead>
                     <TableHead>Posting Date</TableHead>
-                    <TableHead>Amount Verification</TableHead>
+                    <TableHead className="text-right">SAP JE Amount</TableHead>
+                    <TableHead className="text-right">Variance</TableHead>
+                    <TableHead>Verification</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {reconData.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No reconciliation data. Select a payroll period and click Refresh.</TableCell></TableRow>
-                  ) : reconData.map((r: any) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium max-w-[180px] truncate">{r.employeeName}</TableCell>
-                      <TableCell className="font-mono text-xs">{r.employeeCode || '—'}</TableCell>
-                      <TableCell>{new Date(r.year, r.month - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</TableCell>
-                      <TableCell>{r.quarter}</TableCell>
-                      <TableCell className="text-right font-mono font-semibold">{fmt(r.payrollTdsAmount)}</TableCell>
-                      <TableCell><Badge className={POSTING_STATUS_COLORS[r.sapPostingStatus] || 'bg-gray-100'}>{r.sapPostingStatus === 'posted' ? 'Posted' : r.sapPostingStatus === 'sap_missing' ? 'SAP Missing' : 'Failed'}</Badge></TableCell>
-                      <TableCell className="font-mono text-xs">{r.sapJeNumber || '—'}</TableCell>
-                      <TableCell className="text-xs">{r.sapPostingDate ? new Date(r.sapPostingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</TableCell>
-                      <TableCell><Badge className={VERIFICATION_STATUS_COLORS[r.sapVerificationStatus] || 'bg-gray-100'}>{r.sapVerificationStatus === 'not_verified' ? 'Not Verified' : r.sapVerificationStatus}</Badge></TableCell>
-                    </TableRow>
-                  ))}
+                    <TableRow><TableCell colSpan={11} className="text-center py-8 text-muted-foreground">No reconciliation data. Select a payroll period and click Refresh.</TableCell></TableRow>
+                  ) : reconData.map((r: any) => {
+                    const variance = parseFloat(r.variance || '0');
+                    return (
+                      <TableRow key={r.id} className={r.sapVerificationStatus === 'mismatched' ? 'bg-red-50/50' : ''}>
+                        <TableCell className="font-medium max-w-[180px] truncate">{r.employeeName}</TableCell>
+                        <TableCell className="font-mono text-xs">{r.employeeCode || '—'}</TableCell>
+                        <TableCell>{new Date(r.year, r.month - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</TableCell>
+                        <TableCell>{r.quarter}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold">{fmt(r.payrollTdsAmount)}</TableCell>
+                        <TableCell><Badge className={POSTING_STATUS_COLORS[r.sapPostingStatus] || 'bg-gray-100'}>{r.sapPostingStatus === 'posted' ? 'Posted' : r.sapPostingStatus === 'sap_missing' ? 'SAP Missing' : 'Failed'}</Badge></TableCell>
+                        <TableCell className="font-mono text-xs">{r.sapJeNumber || '—'}</TableCell>
+                        <TableCell className="text-xs">{r.sapPostingDate ? new Date(r.sapPostingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</TableCell>
+                        <TableCell className="text-right font-mono">{r.sapVerifiedTdsAmount ? fmt(r.sapVerifiedTdsAmount) : '—'}</TableCell>
+                        <TableCell className={`text-right font-mono ${variance !== 0 ? (Math.abs(variance) <= parseFloat(toleranceData?.tolerance || '1') ? 'text-amber-600' : 'text-red-600 font-semibold') : ''}`}>
+                          {r.sapVerifiedTdsAmount ? fmt(r.variance) : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={VERIFICATION_STATUS_COLORS[r.sapVerificationStatus] || 'bg-gray-100'}>
+                            {r.sapVerificationStatus === 'not_verified' ? 'Not Verified' 
+                             : r.sapVerificationStatus === 'matched' ? 'Matched'
+                             : r.sapVerificationStatus === 'within_tolerance' ? 'Within Tol.'
+                             : r.sapVerificationStatus === 'mismatched' ? 'Mismatched'
+                             : r.sapVerificationStatus === 'verification_error' ? 'Error'
+                             : r.sapVerificationStatus}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -808,6 +897,7 @@ function ExceptionsTab() {
                   <TableHead>Period</TableHead>
                   <TableHead>Quarter</TableHead>
                   <TableHead className="text-right">Payroll TDS</TableHead>
+                  <TableHead className="text-right">SAP JE Amt</TableHead>
                   <TableHead>SAP Status</TableHead>
                   <TableHead>Verification</TableHead>
                   <TableHead className="text-right">Variance</TableHead>
@@ -822,8 +912,18 @@ function ExceptionsTab() {
                     <TableCell>{new Date(r.year, r.month - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</TableCell>
                     <TableCell>{r.quarter}</TableCell>
                     <TableCell className="text-right font-mono">{fmt(r.payrollTdsAmount)}</TableCell>
+                    <TableCell className="text-right font-mono">{r.sapVerifiedTdsAmount ? fmt(r.sapVerifiedTdsAmount) : '—'}</TableCell>
                     <TableCell><Badge className={POSTING_STATUS_COLORS[r.sapPostingStatus] || 'bg-gray-100'}>{r.sapPostingStatus === 'sap_missing' ? 'SAP Missing' : r.sapPostingStatus === 'posting_failed' ? 'Failed' : r.sapPostingStatus}</Badge></TableCell>
-                    <TableCell><Badge className={VERIFICATION_STATUS_COLORS[r.sapVerificationStatus] || 'bg-gray-100'}>{r.sapVerificationStatus || 'N/A'}</Badge></TableCell>
+                    <TableCell>
+                      <Badge className={VERIFICATION_STATUS_COLORS[r.sapVerificationStatus] || 'bg-gray-100'}>
+                        {r.sapVerificationStatus === 'not_verified' ? 'Not Verified'
+                         : r.sapVerificationStatus === 'matched' ? 'Matched'
+                         : r.sapVerificationStatus === 'within_tolerance' ? 'Within Tol.'
+                         : r.sapVerificationStatus === 'mismatched' ? 'Mismatched'
+                         : r.sapVerificationStatus === 'verification_error' ? 'Error'
+                         : r.sapVerificationStatus || 'N/A'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right font-mono text-red-600 font-semibold">{r.variance ? fmt(r.variance) : '—'}</TableCell>
                     <TableCell className="font-mono text-xs">{r.sapJeNumber || '—'}</TableCell>
                   </TableRow>
