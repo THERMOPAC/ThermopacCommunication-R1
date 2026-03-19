@@ -459,9 +459,9 @@ router.post('/run/start', async (req, res) => {
 
 router.post('/run/step', async (req, res) => {
   try {
-    const { periodId, runNumber, step } = req.body;
+    const { periodId, runNumber, step, includeNonSystem } = req.body;
     const executedBy = req.user?.id || 1;
-    const result = await executeStep(periodId, runNumber, step, executedBy);
+    const result = await executeStep(periodId, runNumber, step, executedBy, includeNonSystem === true);
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });

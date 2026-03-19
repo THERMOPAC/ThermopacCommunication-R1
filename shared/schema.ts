@@ -217,6 +217,9 @@ export const attendanceRecords = pgTable('attendance_records', {
   adjustmentReason: text('adjustment_reason'),
   adjustmentDate: timestamp('adjustment_date'),
   
+  // Source of attendance data
+  source: varchar('source', { length: 30 }).default('biometric'),
+  
   // Notes and remarks
   employeeNotes: text('employee_notes'),
   adminNotes: text('admin_notes'),
@@ -4786,6 +4789,7 @@ export const manualSalaryEntries = pgTable('manual_salary_entries', {
   totalDeductions: decimal('total_deductions', { precision: 10, scale: 2 }).default('0'),
   netPay: decimal('net_pay', { precision: 12, scale: 2 }).default('0'),
 
+  entryPurpose: varchar('entry_purpose', { length: 30 }).default('full_salary'),
   remarks: text('remarks'),
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),

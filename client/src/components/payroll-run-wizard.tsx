@@ -60,6 +60,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetReason, setResetReason] = useState('');
   const [activeTab, setActiveTab] = useState('pipeline');
+  const [includeNonSystem, setIncludeNonSystem] = useState(true);
 
   const { data: runLog = [], refetch: refetchLog } = useQuery<any[]>({
     queryKey: ['/api/payroll/run/log', period.id, runNumber],
@@ -109,6 +110,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
         periodId: period.id,
         runNumber,
         step,
+        includeNonSystem,
       });
     },
     onSuccess: (data: any, step) => {
@@ -225,6 +227,19 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
         </TabsList>
 
         <TabsContent value="pipeline" className="space-y-3 mt-3">
+          <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <input
+              type="checkbox"
+              id="include-non-system"
+              checked={includeNonSystem}
+              onChange={e => setIncludeNonSystem(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <Label htmlFor="include-non-system" className="text-sm text-blue-800 cursor-pointer">
+              Include Non-System Users (calendar-based attendance)
+            </Label>
+          </div>
+
           <PipelineView
             steps={STEP_CONFIG}
             getStepStatus={getStepStatus}

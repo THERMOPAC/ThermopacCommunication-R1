@@ -73,6 +73,7 @@ export function ManualSalaryTab() {
     baseRate: '',
     overtimeHours: '0',
     overtimeRateMultiplier: '1.5',
+    entryPurpose: 'full_salary',
     remarks: '',
   });
 
@@ -211,23 +212,32 @@ export function ManualSalaryTab() {
   function resetForm() {
     setFormData({
       periodId: lastMonthPeriodId, userId: '', entryType: 'daily', daysWorked: '0', hoursWorked: '0',
-      quantity: '0', baseRate: '', overtimeHours: '0', overtimeRateMultiplier: '1.5', remarks: '',
+      quantity: '0', baseRate: '', overtimeHours: '0', overtimeRateMultiplier: '1.5', entryPurpose: 'full_salary', remarks: '',
     });
   }
 
   function handleSubmit() {
-    if (!formData.periodId || !formData.userId || !formData.baseRate) {
-      toast({ title: 'Please fill in worker, period, and base rate', variant: 'destructive' });
-      return;
+    const isOtOnlySubmit = formData.entryPurpose === 'ot_only';
+    if (isOtOnlySubmit) {
+      if (!formData.periodId || !formData.userId) {
+        toast({ title: 'Please select worker and period', variant: 'destructive' });
+        return;
+      }
+    } else {
+      if (!formData.periodId || !formData.userId || !formData.baseRate) {
+        toast({ title: 'Please fill in worker, period, and base rate', variant: 'destructive' });
+        return;
+      }
     }
     createMutation.mutate({
       periodId: parseInt(formData.periodId),
       userId: parseInt(formData.userId),
       entryType: formData.entryType,
+      entryPurpose: formData.entryPurpose,
       daysWorked: formData.daysWorked,
       hoursWorked: formData.hoursWorked,
       quantity: formData.quantity,
-      baseRate: formData.baseRate,
+      baseRate: formData.baseRate || '0',
       overtimeHours: formData.overtimeHours,
       overtimeRateMultiplier: formData.overtimeRateMultiplier,
       remarks: formData.remarks,
@@ -289,9 +299,30 @@ export function ManualSalaryTab() {
   }, [entries]);
 
   function renderFormFields(isEdit: boolean) {
+    const isOtOnly = formData.entryPurpose === 'ot_only';
     return (
       <div className="space-y-4">
         {!isEdit && (
+          <>
+          <div>
+            <Label>Entry Purpose</Label>
+            <Select value={formData.entryPurpose} onValueChange={v => setFormData(d => ({ ...d, entryPurpose: v }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full_salary">Full Salary Entry</SelectItem>
+                <SelectItem value="ot_only">OT Only (Attendance via Calendar)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {isOtOnly && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+              OT-only mode: Base salary is processed through the Payroll Run Engine using calendar attendance. This entry captures overtime hours only.
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Payroll Period *</Label>
@@ -319,6 +350,7 @@ export function ManualSalaryTab() {
               </Select>
             </div>
           </div>
+          </>
         )}
 
         {formData.userId && leaveBalances.length > 0 && (
@@ -341,51 +373,61 @@ export function ManualSalaryTab() {
           </div>
         )}
 
-        <Separator />
-        <h4 className="font-semibold text-sm">Work Details</h4>
+        {!isOtOnly && (
+          <>
+            <Separator />
+            <h4 className="font-semibold text-sm">Work Details</h4>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <Label>Entry Type</Label>
-            <Select value={formData.entryType} onValueChange={v => setFormData(d => ({ ...d, entryType: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">Daily (Days x Rate)</SelectItem>
-                <SelectItem value="hourly">Hourly (Hrs x Rate)</SelectItem>
-                <SelectItem value="piece">Piece Rate (Qty x Rate)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {formData.entryType === 'daily' && (
-            <div>
-              <Label>Days Worked</Label>
-              <Input type="number" step="0.5" value={formData.daysWorked} onChange={e => setFormData(d => ({ ...d, daysWorked: e.target.value }))} />
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Entry Type</Label>
+                <Select value={formData.entryType} onValueChange={v => setFormData(d => ({ ...d, entryType: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily (Days x Rate)</SelectItem>
+                    <SelectItem value="hourly">Hourly (Hrs x Rate)</SelectItem>
+                    <SelectItem value="piece">Piece Rate (Qty x Rate)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.entryType === 'daily' && (
+                <div>
+                  <Label>Days Worked</Label>
+                  <Input type="number" step="0.5" value={formData.daysWorked} onChange={e => setFormData(d => ({ ...d, daysWorked: e.target.value }))} />
+                </div>
+              )}
+              {formData.entryType === 'hourly' && (
+                <div>
+                  <Label>Hours Worked</Label>
+                  <Input type="number" step="0.5" value={formData.hoursWorked} onChange={e => setFormData(d => ({ ...d, hoursWorked: e.target.value }))} />
+                </div>
+              )}
+              {formData.entryType === 'piece' && (
+                <div>
+                  <Label>Quantity</Label>
+                  <Input type="number" step="1" value={formData.quantity} onChange={e => setFormData(d => ({ ...d, quantity: e.target.value }))} />
+                </div>
+              )}
+              <div>
+                <Label>Base Rate (INR) *</Label>
+                <Input type="number" step="0.01" value={formData.baseRate} onChange={e => setFormData(d => ({ ...d, baseRate: e.target.value }))} placeholder="e.g. 800" />
+              </div>
             </div>
-          )}
-          {formData.entryType === 'hourly' && (
-            <div>
-              <Label>Hours Worked</Label>
-              <Input type="number" step="0.5" value={formData.hoursWorked} onChange={e => setFormData(d => ({ ...d, hoursWorked: e.target.value }))} />
-            </div>
-          )}
-          {formData.entryType === 'piece' && (
-            <div>
-              <Label>Quantity</Label>
-              <Input type="number" step="1" value={formData.quantity} onChange={e => setFormData(d => ({ ...d, quantity: e.target.value }))} />
-            </div>
-          )}
-          <div>
-            <Label>Base Rate (INR) *</Label>
-            <Input type="number" step="0.01" value={formData.baseRate} onChange={e => setFormData(d => ({ ...d, baseRate: e.target.value }))} placeholder="e.g. 800" />
-          </div>
-        </div>
+          </>
+        )}
 
         <Separator />
         <h4 className="font-semibold text-sm">Overtime</h4>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className={`grid ${isOtOnly ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}>
+          {isOtOnly && (
+            <div>
+              <Label>Hourly Rate (INR) *</Label>
+              <Input type="number" step="0.01" value={formData.baseRate} onChange={e => setFormData(d => ({ ...d, baseRate: e.target.value }))} placeholder="e.g. 100" />
+            </div>
+          )}
           <div>
-            <Label>Overtime Hours</Label>
+            <Label>Overtime Hours *</Label>
             <Input type="number" step="0.5" value={formData.overtimeHours} onChange={e => setFormData(d => ({ ...d, overtimeHours: e.target.value }))} />
           </div>
           <div>

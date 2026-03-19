@@ -106,7 +106,8 @@ export async function executeStep(
   periodId: number,
   runNumber: number,
   step: PipelineStep,
-  executedBy: number
+  executedBy: number,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
   const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
   if (!period) throw new Error('Payroll period not found');
@@ -128,22 +129,22 @@ export async function executeStep(
 
     switch (step) {
       case 'attendance_snapshot':
-        result = await stepAttendanceSnapshot(periodId, runNumber, period);
+        result = await stepAttendanceSnapshot(periodId, runNumber, period, includeNonSystem);
         break;
       case 'leave_consolidation':
-        result = await stepLeaveConsolidation(periodId, runNumber, period);
+        result = await stepLeaveConsolidation(periodId, runNumber, period, includeNonSystem);
         break;
       case 'salary_calculation':
-        result = await stepSalaryCalculation(periodId, runNumber, period, executedBy);
+        result = await stepSalaryCalculation(periodId, runNumber, period, executedBy, includeNonSystem);
         break;
       case 'bonus_calculation':
-        result = await stepKpiAdjustment(periodId, runNumber, period);
+        result = await stepKpiAdjustment(periodId, runNumber, period, includeNonSystem);
         break;
       case 'deduction_calculation':
-        result = await stepDeductionCalculation(periodId, runNumber, period, executedBy);
+        result = await stepDeductionCalculation(periodId, runNumber, period, executedBy, includeNonSystem);
         break;
       case 'tds_calculation':
-        result = await stepTdsCalculation(periodId, runNumber, period, executedBy);
+        result = await stepTdsCalculation(periodId, runNumber, period, executedBy, includeNonSystem);
         break;
       default:
         throw new Error(`Unknown step: ${step}`);
@@ -184,11 +185,15 @@ export async function executeStep(
   }
 }
 
-async function getActiveEmployees(): Promise<any[]> {
+async function getActiveEmployees(includeNonSystem: boolean = false): Promise<any[]> {
+  const conditions = [eq(users.isActive, true), ne(users.role, 'superuser')];
+  if (!includeNonSystem) {
+    conditions.push(sql`coalesce(${users.userType}, 'system_user') = 'system_user'`);
+  }
   return db
-    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays })
+    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType })
     .from(users)
-    .where(and(eq(users.isActive, true), ne(users.role, 'superuser'), sql`coalesce(${users.userType}, 'system_user') = 'system_user'`));
+    .where(and(...conditions));
 }
 
 async function getWorkweekPolicyForEmployee(workLocationId?: number, department?: string): Promise<number[]> {
@@ -246,9 +251,10 @@ function countWorkingDays(startDate: string, endDate: string, workingDayNums: nu
 async function stepAttendanceSnapshot(
   periodId: number,
   runNumber: number,
-  period: any
+  period: any,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
-  const employees = await getActiveEmployees();
+  const employees = await getActiveEmployees(includeNonSystem);
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
@@ -359,9 +365,10 @@ async function stepAttendanceSnapshot(
 async function stepLeaveConsolidation(
   periodId: number,
   runNumber: number,
-  period: any
+  period: any,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
-  const employees = await getActiveEmployees();
+  const employees = await getActiveEmployees(includeNonSystem);
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
@@ -460,9 +467,10 @@ async function stepSalaryCalculation(
   periodId: number,
   runNumber: number,
   period: any,
-  executedBy: number
+  executedBy: number,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
-  const employees = await getActiveEmployees();
+  const employees = await getActiveEmployees(includeNonSystem);
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
   let skipped = 0;
@@ -723,7 +731,8 @@ async function stepSalaryCalculation(
 async function stepKpiAdjustment(
   periodId: number,
   runNumber: number,
-  period: any
+  period: any,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
@@ -962,7 +971,8 @@ async function stepDeductionCalculation(
   periodId: number,
   runNumber: number,
   period: any,
-  executedBy: number
+  executedBy: number,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
   const exceptions: StepResult['exceptions'] = [];
   let processed = 0;
@@ -1390,7 +1400,8 @@ async function stepTdsCalculation(
   periodId: number,
   runNumber: number,
   period: any,
-  executedBy: number
+  executedBy: number,
+  includeNonSystem: boolean = false
 ): Promise<StepResult> {
   const exceptions: StepResult['exceptions'] = [];
 

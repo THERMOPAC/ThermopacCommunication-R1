@@ -152,10 +152,17 @@ router.post('/preview', ensurePayrollAdmin, async (req: Request, res: Response) 
 router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const currentUser = req.user as any;
-    const { periodId, userId, entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, remarks } = req.body;
+    const { periodId, userId, entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, entryPurpose, remarks } = req.body;
 
-    if (!periodId || !userId || !baseRate) {
-      return res.status(400).json({ error: 'periodId, userId, and baseRate are required' });
+    const purpose = entryPurpose || 'full_salary';
+    if (purpose === 'ot_only') {
+      if (!periodId || !userId) {
+        return res.status(400).json({ error: 'periodId and userId are required for OT-only entries' });
+      }
+    } else {
+      if (!periodId || !userId || !baseRate) {
+        return res.status(400).json({ error: 'periodId, userId, and baseRate are required' });
+      }
     }
 
     const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
@@ -168,19 +175,39 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
     }
 
     const periodMonth = new Date(period.startDate).getMonth() + 1;
-    const calc = await calculateManualSalary({
-      entryType: entryType || 'daily',
-      daysWorked: parseFloat(daysWorked || '0'),
-      hoursWorked: parseFloat(hoursWorked || '0'),
-      quantity: parseFloat(quantity || '0'),
-      baseRate: parseFloat(baseRate || '0'),
-      overtimeHours: parseFloat(overtimeHours || '0'),
-      overtimeRateMultiplier: parseFloat(overtimeRateMultiplier || '1.5'),
-      periodMonth,
-      employeeRole: (employee as any).role,
-    });
+    let calc: any;
+    if (purpose === 'ot_only') {
+      const otHrs = parseFloat(overtimeHours || '0');
+      const otMult = parseFloat(overtimeRateMultiplier || '1.5');
+      const hourlyRate = parseFloat(baseRate || '0');
+      const otEarned = otHrs * hourlyRate * otMult;
+      calc = {
+        baseEarnings: 0,
+        overtimeEarned: otEarned,
+        grossEarnings: otEarned,
+        pfAmount: 0,
+        esicAmount: 0,
+        ptAmount: 0,
+        tdsAmount: 0,
+        totalDeductions: 0,
+        netPay: otEarned,
+      };
+    } else {
+      calc = await calculateManualSalary({
+        entryType: entryType || 'daily',
+        daysWorked: parseFloat(daysWorked || '0'),
+        hoursWorked: parseFloat(hoursWorked || '0'),
+        quantity: parseFloat(quantity || '0'),
+        baseRate: parseFloat(baseRate || '0'),
+        overtimeHours: parseFloat(overtimeHours || '0'),
+        overtimeRateMultiplier: parseFloat(overtimeRateMultiplier || '1.5'),
+        periodMonth,
+        employeeRole: (employee as any).role,
+      });
+    }
 
-    const initialHistory = [buildStatusTransition('new', 'generated', 'create', 'Manual salary entry created for non-system user', currentUser)];
+    const purposeLabel = purpose === 'ot_only' ? 'OT-only manual salary entry' : 'Manual salary entry created for non-system user';
+    const initialHistory = [buildStatusTransition('new', 'generated', 'create', purposeLabel, currentUser)];
 
     const [payrollRecord] = await db.insert(payrollRecords).values({
       periodId,
@@ -196,7 +223,7 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
       tdsAmount: calc.tdsAmount.toString(),
       totalDeductions: calc.totalDeductions.toString(),
       status: 'generated',
-      salarySource: 'manual_salary',
+      salarySource: purpose === 'ot_only' ? 'manual_ot_only' : 'manual_salary',
       workerType: 'non_system_user',
       statusHistory: initialHistory,
     }).returning();
@@ -206,10 +233,11 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
       userId,
       payrollRecordId: payrollRecord.id,
       entryType: entryType || 'daily',
+      entryPurpose: purpose,
       daysWorked: (daysWorked || '0').toString(),
       hoursWorked: (hoursWorked || '0').toString(),
       quantity: (quantity || '0').toString(),
-      baseRate: baseRate.toString(),
+      baseRate: (baseRate || '0').toString(),
       overtimeHours: (overtimeHours || '0').toString(),
       overtimeRateMultiplier: (overtimeRateMultiplier || '1.5').toString(),
       overtimeEarned: calc.overtimeEarned.toString(),
@@ -227,19 +255,19 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
 
     await db.update(payrollRecords).set({ manualSalaryEntryId: entry.id }).where(eq(payrollRecords.id, payrollRecord.id));
 
-    if (calc.tdsAmount > 0) {
+    if (calc.tdsAmount > 0 && purpose !== 'ot_only') {
       const periodYear = new Date(period.startDate).getFullYear();
       const empName = getUserName(employee);
       await db.insert(tdsComplianceRegister).values({
-        sourceCategory: 'non_salary',
-        tdsSection: '194C',
+        sourceCategory: 'salary',
+        tdsSection: '192',
         financialYear: getFinancialYear(periodMonth, periodYear),
         quarter: getQuarter(periodMonth),
         month: periodMonth,
         year: periodYear,
         deducteeName: empName,
         deducteePan: (employee as any).panNumber || null,
-        deducteeType: 'contractor',
+        deducteeType: 'employee',
         employeeId: userId,
         payrollRecordId: payrollRecord.id,
         baseAmount: calc.grossEarnings.toString(),

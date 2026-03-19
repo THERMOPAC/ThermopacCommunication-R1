@@ -22,6 +22,7 @@ import * as XLSX from 'xlsx';
 import { PayrollRunWizard } from '@/components/payroll-run-wizard';
 import { TdsManagementTab } from '@/components/tds-management';
 import { ManualSalaryTab } from '@/components/contract-worker-salary-tab';
+import { CalendarAttendanceTab } from '@/components/calendar-attendance';
 
 // Schema for salary form
 const salaryFormSchema = z.object({
@@ -1890,10 +1891,11 @@ export default function PayrollManagementNew() {
 
         {/* Tabs for Salary Configurations, Generated Salaries, and Payroll Run */}
         <Tabs defaultValue="configurations" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="configurations">Salary Configurations</TabsTrigger>
             <TabsTrigger value="generated">Generated Salaries</TabsTrigger>
             <TabsTrigger value="payroll-run">Payroll Run Engine</TabsTrigger>
+            <TabsTrigger value="calendar-attendance">Attendance Calendar</TabsTrigger>
             <TabsTrigger value="manual-salary">Manual Salary</TabsTrigger>
             <TabsTrigger value="tds">Income Tax / TDS</TabsTrigger>
           </TabsList>
@@ -2014,6 +2016,10 @@ export default function PayrollManagementNew() {
 
           <TabsContent value="payroll-run">
             <PayrollRunTab />
+          </TabsContent>
+
+          <TabsContent value="calendar-attendance">
+            <CalendarAttendanceTab />
           </TabsContent>
 
           <TabsContent value="manual-salary">
