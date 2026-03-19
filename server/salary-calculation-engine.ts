@@ -652,17 +652,11 @@ export class SalaryCalculationEngine {
   private async performSalaryCalculations(data: any): Promise<SalaryCalculationResult> {
     const { employee, salaryConfig, workweekPolicy, workingDays, attendanceData, leaveData, leaveBalance, input } = data;
     
+    const MONTHLY_DIVISOR = 30;
     const basicSalary = parseFloat(salaryConfig.basicSalary || '0');
     const salaryType = salaryConfig.salaryType || 'monthly';
-    const actualDays = parseFloat(salaryConfig.actualDays || '30');
-    const paidDays = parseFloat(salaryConfig.paidDays || '30');
     
-    // Calculate paid days considering attendance and leaves
-    const adjustedPaidDays = Math.min(
-      paidDays,
-      attendanceData.presentDays + leaveData.paidLeaveDays
-    );
-    
+    let adjustedPaidDays: number;
     let grossBasic = 0;
     let houseRentAllowance = 0;
     let conveyanceAllowance = 0;
@@ -673,77 +667,76 @@ export class SalaryCalculationEngine {
     let overtimePay = 0;
     
     if (salaryType === 'daily') {
-      // Daily worker calculations
+      adjustedPaidDays = attendanceData.presentDays + leaveData.paidLeaveDays;
       grossBasic = basicSalary * adjustedPaidDays;
       
-      // Overtime calculation
       if (input.overtimeHours && input.overtimeHours > 0) {
         const workingHours = parseFloat(salaryConfig.workingHoursPerDay || '8');
-        const hourlyRate = basicSalary / workingHours;
+        const hourlyRate = parseFloat(salaryConfig.hourlyRate || '0') || (basicSalary / workingHours);
         const otRate = input.overtimeRate || parseFloat(salaryConfig.otRate || '1.0');
-        overtimePay = hourlyRate * input.overtimeHours * otRate;
+        const otMultiplier = parseFloat(salaryConfig.otMultiplier || '1.0');
+        overtimePay = hourlyRate * input.overtimeHours * otRate * otMultiplier;
       }
       
-      // Daily workers have 0% allowances
       houseRentAllowance = 0;
       conveyanceAllowance = 0;
       ltaAllowance = 0;
       specialAllowance = 0;
       supplementaryAllowance = 0;
       
-      // KGP Allowance for eligible roles
-      if (['Manager', 'Employee'].includes(employee.role)) {
-        kgpAllowance = grossBasic * 0.15;
-      }
+      const configKgp = parseFloat(salaryConfig.kgpAllowance || '0');
+      kgpAllowance = configKgp > 0 ? configKgp * adjustedPaidDays : 0;
       
     } else {
-      // Monthly worker calculations
-      const proRatedBasic = (basicSalary / actualDays) * adjustedPaidDays;
-      grossBasic = proRatedBasic;
+      const lopDays = leaveData.lopDays || 0;
+      adjustedPaidDays = Math.min(MONTHLY_DIVISOR - lopDays + leaveData.paidLeaveDays, MONTHLY_DIVISOR);
+      adjustedPaidDays = Math.max(adjustedPaidDays, 0);
       
-      // Calculate allowances as percentages
-      houseRentAllowance = grossBasic * 0.4; // 40%
-      conveyanceAllowance = grossBasic * 0.3; // 30%
-      ltaAllowance = grossBasic * 0.2; // 20%
-      specialAllowance = grossBasic * 0.3; // 30%
-      supplementaryAllowance = grossBasic * 0.3; // 30%
+      const ratio = adjustedPaidDays / MONTHLY_DIVISOR;
+      grossBasic = Math.round(basicSalary * ratio * 100) / 100;
       
-      // KGP Allowance for eligible roles
-      if (['Manager', 'Employee'].includes(employee.role)) {
-        kgpAllowance = grossBasic * 0.15;
-      }
+      const configHra = parseFloat(salaryConfig.houseRentAllowance || '0');
+      const configConv = parseFloat(salaryConfig.conveyance || '0');
+      const configLta = parseFloat(salaryConfig.lta || '0');
+      const configSpec = parseFloat(salaryConfig.specialAllowance || '0');
+      const configSupp = parseFloat(salaryConfig.supplementaryAllowance || '0');
+      const configKgp = parseFloat(salaryConfig.kgpAllowance || '0');
+
+      houseRentAllowance = Math.round(configHra * ratio * 100) / 100;
+      conveyanceAllowance = Math.round(configConv * ratio * 100) / 100;
+      ltaAllowance = Math.round(configLta * ratio * 100) / 100;
+      specialAllowance = Math.round(configSpec * ratio * 100) / 100;
+      supplementaryAllowance = Math.round(configSupp * ratio * 100) / 100;
+      kgpAllowance = Math.round(configKgp * ratio * 100) / 100;
     }
     
-    // Bonus calculation (8.33% of basic salary)
-    const bonus = (input.bonusAmount !== undefined) ? input.bonusAmount : (grossBasic * 0.0833);
+    const bonus = (input.bonusAmount !== undefined)
+      ? input.bonusAmount
+      : Math.round(grossBasic * 0.0833 * 100) / 100;
     
-    // Gross earnings (excluding bonus - bonus is calculated but not paid monthly)
     const grossEarnings = grossBasic + houseRentAllowance + conveyanceAllowance + 
                          ltaAllowance + specialAllowance + supplementaryAllowance + 
                          kgpAllowance + overtimePay;
     
-    // PF calculations
     const pfBase = Math.min(grossBasic, 15000);
     const employeePF = pfBase * 0.12;
     const employerPF = pfBase * 0.12;
     
-    // ESIC calculations
     const employeeESIC = grossEarnings <= 21000 ? grossEarnings * 0.0075 : 0;
     const employerESIC = grossEarnings <= 21000 ? grossEarnings * 0.0325 : 0;
     
-    // Professional Tax
     let professionalTax = 0;
     if (employee.role !== 'Superuser') {
-      professionalTax = input.month === 2 ? 300 : 200; // February = 300, others = 200
+      professionalTax = input.month === 2 ? 300 : 200;
     }
     
-    // Other deductions
     const loanDeduction = input.deductions?.loanDeduction || 0;
     const advanceDeduction = input.deductions?.advanceDeduction || 0;
     const otherDeductions = input.deductions?.otherDeductions || 0;
     
-    // Leave without pay deduction
-    const leaveWithoutPayDeduction = leaveData.unpaidLeaveDays * (basicSalary / actualDays);
+    const leaveWithoutPayDeduction = salaryType === 'daily'
+      ? 0
+      : leaveData.unpaidLeaveDays * (basicSalary / MONTHLY_DIVISOR);
     
     // Total deductions
     const totalDeductions = employeePF + employeeESIC + professionalTax + 

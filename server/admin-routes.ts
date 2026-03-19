@@ -3470,8 +3470,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
     const calcSnap = (record as any).calculationSnapshot || {};
     const deductions = calcSnap.deductions || {};
-    const periodStart = new Date(record.startDate);
-    const daysInMonth = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0).getDate();
+    const salaryType = calcSnap.salaryType || 'monthly';
+    const salaryBasis = salaryType === 'daily' ? 'actual_days' : 30;
 
     const employerPf = parseFloat((record as any).employerPf?.toString() || deductions.employerPF?.toString() || '0');
     const employerEsic = parseFloat((record as any).employerEsic?.toString() || deductions.employerESIC?.toString() || '0');
@@ -3520,9 +3520,9 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         year: new Date(record.startDate).getFullYear(),
         workingDays,
         paidDays,
-        daysInMonth,
+        salaryBasis,
+        salaryType,
         holidays: 0,
-        weeklyOffs: daysInMonth - workingDays,
         absentDays,
         presentDays,
         clBalance: 0,

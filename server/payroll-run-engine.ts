@@ -26,6 +26,28 @@ import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between, inArray } from 
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
 
+const MONTHLY_DIVISOR = 30;
+
+async function getEmployeeSalaryType(userId: number, periodEndDate: string): Promise<{ salaryType: string; salaryRecord: any | null }> {
+  const salaryRecords = await db
+    .select()
+    .from(employeeSalaries)
+    .where(
+      and(
+        eq(employeeSalaries.userId, userId),
+        eq(employeeSalaries.isActive, true),
+        lte(employeeSalaries.effectiveDate, periodEndDate)
+      )
+    )
+    .orderBy(desc(employeeSalaries.effectiveDate))
+    .limit(1);
+
+  if (salaryRecords.length === 0) {
+    return { salaryType: 'monthly', salaryRecord: null };
+  }
+  return { salaryType: salaryRecords[0].salaryType || 'monthly', salaryRecord: salaryRecords[0] };
+}
+
 async function getProfessionalTaxConfig(): Promise<{ monthly: number; february: number }> {
   const settings = await db.select().from(payrollSettings).where(
     sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`
@@ -259,13 +281,14 @@ async function stepAttendanceSnapshot(
   let processed = 0;
   let skipped = 0;
   const holidayDates = await getCompanyHolidayDates(period.startDate, period.endDate);
-  const defaultWorkingDayNums = [1, 2, 3, 4, 5];
-  const periodTotalWorkingDays = countWorkingDays(period.startDate, period.endDate, defaultWorkingDayNums, holidayDates);
+
+  const sDate = new Date(period.startDate);
+  const eDate = new Date(period.endDate);
+  const calendarDaysInPeriod = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
 
   for (const emp of employees) {
     try {
-      const workingDayNums = await getWorkweekPolicyForEmployee(emp.workLocationId, emp.department);
-      const totalWorkingDays = countWorkingDays(period.startDate, period.endDate, workingDayNums, holidayDates);
+      const { salaryType } = await getEmployeeSalaryType(emp.id, period.endDate);
 
       const records = await db
         .select()
@@ -279,40 +302,64 @@ async function stepAttendanceSnapshot(
         );
 
       const weeklyOffs = emp.weeklyOffDays || [0, 6];
-      const sDate = new Date(period.startDate);
-      const eDate = new Date(period.endDate);
       let weekOffCount = 0;
       const cur = new Date(sDate);
       while (cur <= eDate) {
         if (weeklyOffs.includes(cur.getDay())) weekOffCount++;
         cur.setDate(cur.getDate() + 1);
       }
-      const daysInPeriod = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
-
-      const workingDayRecords = records.filter(r => {
-        const d = new Date(r.date);
-        const dayOfWeek = d.getDay();
-        return workingDayNums.includes(dayOfWeek) && !holidayDates.has(r.date);
-      });
-      const presentFullOnWorkDays = workingDayRecords.filter(r => r.status === 'present').length;
-      const halfDaysOnWorkDays = workingDayRecords.filter(r => r.status === 'half_day').length;
-      const lateDaysOnWorkDays = workingDayRecords.filter(r => r.status === 'late').length;
-      const presentDaysOnWorkDays = presentFullOnWorkDays + lateDaysOnWorkDays + (halfDaysOnWorkDays * 0.5);
 
       const presentFull = records.filter(r => r.status === 'present').length;
       const halfDays = records.filter(r => r.status === 'half_day').length;
       const lateDays = records.filter(r => r.status === 'late').length;
-      const presentDays = presentFull + lateDays + (halfDays * 0.5);
-
-      const effectivePresentOnWorkDays = presentFullOnWorkDays + lateDaysOnWorkDays + (halfDaysOnWorkDays * 0.5);
-      const absentDays = Math.max(0, totalWorkingDays - effectivePresentOnWorkDays);
+      const absentCount = records.filter(r => r.status === 'absent').length;
 
       const totalOT = records.reduce(
         (sum, r) => sum + parseFloat(r.overtimeHours || '0'),
         0
       );
 
-      const initialPaidDays = Math.min(daysInPeriod - absentDays, daysInPeriod);
+      let lopDays: number;
+      let paidDays: number;
+      let presentDays: number;
+
+      if (salaryType === 'daily') {
+        presentDays = presentFull + lateDays + (halfDays * 0.5);
+        paidDays = presentDays;
+        lopDays = 0;
+      } else {
+        if (records.length < calendarDaysInPeriod) {
+          const missingDays = calendarDaysInPeriod - records.length;
+          exceptions.push({
+            userId: emp.id,
+            type: 'attendance_incomplete',
+            severity: 'error',
+            title: `Attendance incomplete for ${emp.username}`,
+            details: `${records.length} of ${calendarDaysInPeriod} days have attendance records. ${missingDays} day(s) missing. Please mark all days before processing payroll.`,
+          });
+          skipped++;
+          continue;
+        }
+
+        presentDays = presentFull + lateDays + (halfDays * 0.5);
+        lopDays = absentCount + (halfDays * 0.5);
+        paidDays = Math.max(MONTHLY_DIVISOR - lopDays, 0);
+
+        if (paidDays > MONTHLY_DIVISOR) {
+          exceptions.push({
+            userId: emp.id,
+            type: 'calculation_error',
+            severity: 'error',
+            title: `Paid days exceed ${MONTHLY_DIVISOR} for ${emp.username}`,
+            details: `Calculated paid days: ${paidDays}. This should never exceed ${MONTHLY_DIVISOR}. LOP: ${lopDays}.`,
+          });
+          skipped++;
+          continue;
+        }
+      }
+
+      const workingDayNums = await getWorkweekPolicyForEmployee(emp.workLocationId, emp.department);
+      const totalWorkingDays = countWorkingDays(period.startDate, period.endDate, workingDayNums, holidayDates);
 
       await db
         .insert(payrollAttendanceSnapshot)
@@ -322,44 +369,34 @@ async function stepAttendanceSnapshot(
           userId: emp.id,
           totalWorkingDays,
           presentDays: presentDays.toString(),
-          absentDays: Math.max(0, absentDays).toString(),
+          absentDays: absentCount.toString(),
           halfDays: halfDays.toString(),
           lateDays,
           overtimeHours: totalOT.toString(),
-          paidDays: initialPaidDays.toString(),
+          paidDays: paidDays.toString(),
           weeklyOffs: weekOffCount,
           holidays: holidayDates.size,
           companyHolidays: holidayDates.size,
           paidLeaveDays: '0',
           unpaidLeaveDays: '0',
-          lopDays: absentDays.toString(),
+          lopDays: lopDays.toString(),
         })
         .onConflictDoUpdate({
           target: [payrollAttendanceSnapshot.periodId, payrollAttendanceSnapshot.runNumber, payrollAttendanceSnapshot.userId],
           set: {
             totalWorkingDays,
             presentDays: presentDays.toString(),
-            absentDays: Math.max(0, absentDays).toString(),
+            absentDays: absentCount.toString(),
             halfDays: halfDays.toString(),
             lateDays,
             overtimeHours: totalOT.toString(),
-            paidDays: initialPaidDays.toString(),
+            paidDays: paidDays.toString(),
             weeklyOffs: weekOffCount,
             holidays: holidayDates.size,
             companyHolidays: holidayDates.size,
-            lopDays: absentDays.toString(),
+            lopDays: lopDays.toString(),
           },
         });
-
-      if (records.length === 0) {
-        exceptions.push({
-          userId: emp.id,
-          type: 'attendance_gap',
-          severity: 'warning',
-          title: `No attendance records for ${emp.username}`,
-          details: `Employee has no attendance data for the period ${period.startDate} to ${period.endDate}`,
-        });
-      }
 
       processed++;
     } catch (error: any) {
@@ -375,11 +412,11 @@ async function stepAttendanceSnapshot(
   }
 
   return {
-    success: exceptions.filter(e => e.type === 'calculation_error').length === 0,
+    success: exceptions.filter(e => e.severity === 'error').length === 0,
     employeesProcessed: processed,
     employeesSkipped: skipped,
     errorCount: exceptions.filter(e => e.severity === 'error').length,
-    summary: { totalWorkingDays: periodTotalWorkingDays, totalEmployees: employees.length },
+    summary: { calendarDays: calendarDaysInPeriod, totalEmployees: employees.length },
     exceptions,
   };
 }
@@ -400,6 +437,8 @@ async function stepLeaveConsolidation(
 
   for (const emp of employees) {
     try {
+      const { salaryType } = await getEmployeeSalaryType(emp.id, period.endDate);
+
       const leaves = await db
         .select()
         .from(leaveRequests)
@@ -437,32 +476,48 @@ async function stepLeaveConsolidation(
 
       if (snapshot.length > 0) {
         const snap = snapshot[0];
-        const absentDays = parseFloat(snap.absentDays);
-        const coveredByPaidLeave = Math.min(paidLeaveDays, absentDays);
-        const remainingAbsent = absentDays - coveredByPaidLeave;
-        const coveredByUnpaidLeave = Math.min(unpaidLeaveDays, remainingAbsent);
-        const lopDays = Math.max(0, remainingAbsent - coveredByUnpaidLeave);
         const currentPaidDays = parseFloat(snap.paidDays);
-        const periodStart = new Date(period.startDate);
-        const periodEnd = new Date(period.endDate);
-        const daysInPeriod = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
-        const newPaidDays = Math.min(currentPaidDays + coveredByPaidLeave, daysInPeriod);
+        const currentLopDays = parseFloat(snap.lopDays || '0');
 
-        await db
-          .update(payrollAttendanceSnapshot)
-          .set({
-            paidLeaveDays: coveredByPaidLeave.toString(),
-            unpaidLeaveDays: coveredByUnpaidLeave.toString(),
-            lopDays: lopDays.toString(),
-            paidDays: newPaidDays.toString(),
-            autoLeaveApplied: leaves.map(l => ({
-              leaveId: l.id,
-              leaveTypeId: l.leaveTypeId,
-              days: parseFloat(l.totalDays),
-              isPaid: paidTypeIds.has(l.leaveTypeId),
-            })),
-          })
-          .where(eq(payrollAttendanceSnapshot.id, snap.id));
+        if (salaryType === 'daily') {
+          const newPaidDays = currentPaidDays + paidLeaveDays;
+
+          await db
+            .update(payrollAttendanceSnapshot)
+            .set({
+              paidLeaveDays: paidLeaveDays.toString(),
+              unpaidLeaveDays: unpaidLeaveDays.toString(),
+              lopDays: '0',
+              paidDays: newPaidDays.toString(),
+              autoLeaveApplied: leaves.map(l => ({
+                leaveId: l.id,
+                leaveTypeId: l.leaveTypeId,
+                days: parseFloat(l.totalDays),
+                isPaid: paidTypeIds.has(l.leaveTypeId),
+              })),
+            })
+            .where(eq(payrollAttendanceSnapshot.id, snap.id));
+        } else {
+          const coveredByPaidLeave = Math.min(paidLeaveDays, currentLopDays);
+          const newLopDays = Math.max(0, currentLopDays - coveredByPaidLeave);
+          const newPaidDays = Math.min(MONTHLY_DIVISOR - newLopDays, MONTHLY_DIVISOR);
+
+          await db
+            .update(payrollAttendanceSnapshot)
+            .set({
+              paidLeaveDays: coveredByPaidLeave.toString(),
+              unpaidLeaveDays: unpaidLeaveDays.toString(),
+              lopDays: newLopDays.toString(),
+              paidDays: newPaidDays.toString(),
+              autoLeaveApplied: leaves.map(l => ({
+                leaveId: l.id,
+                leaveTypeId: l.leaveTypeId,
+                days: parseFloat(l.totalDays),
+                isPaid: paidTypeIds.has(l.leaveTypeId),
+              })),
+            })
+            .where(eq(payrollAttendanceSnapshot.id, snap.id));
+        }
       }
 
       processed++;
@@ -596,37 +651,74 @@ async function stepSalaryCalculation(
       const groupInsuranceAmount = parseFloat(sal.groupInsurance || '1500');
       const ptConfig = await getProfessionalTaxConfig();
 
-      const startD = new Date(period.startDate);
-      const endD = new Date(period.endDate);
-      const daysInMonth = Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1;
       const rawPaidDays = attSnap.length > 0 ? parseFloat(attSnap[0].paidDays) : 0;
-      const paidDays = Math.min(rawPaidDays, daysInMonth);
 
       let proratedBase: number, overtimePay: number, grossPay: number;
       let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0, bonusAllow = 0;
+      let paidDays: number;
 
       if (salaryType === 'daily') {
+        paidDays = rawPaidDays;
         proratedBase = basicSalary * paidDays;
-        const hourlyRate = basicSalary / workingHoursPerDay;
+        const hourlyRate = parseFloat(sal.hourlyRate || '0') || (basicSalary / workingHoursPerDay);
         const otRate = parseFloat(sal.otRate || '1.0');
-        overtimePay = hourlyRate * overtimeHours * otRate;
-        kgpAllow = parseFloat(sal.kgpAllowance || '0') * (paidDays / totalWorkingDays);
-        bonusAllow = basicSalary * 0.0833;
-        grossPay = proratedBase + overtimePay + kgpAllow;
+        const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
+        overtimePay = hourlyRate * overtimeHours * otRate * otMultiplier;
+        const configKgp = parseFloat(sal.kgpAllowance || '0');
+        kgpAllow = configKgp > 0 ? Math.round(configKgp * paidDays * 100) / 100 : 0;
+        bonusAllow = Math.round(proratedBase * 0.0833 * 100) / 100;
+        grossPay = proratedBase + overtimePay + kgpAllow + bonusAllow;
       } else {
-        const ratio = paidDays / daysInMonth;
+        paidDays = Math.min(rawPaidDays, MONTHLY_DIVISOR);
+
+        if (paidDays > MONTHLY_DIVISOR) {
+          exceptions.push({
+            userId: emp.id,
+            type: 'calculation_error',
+            severity: 'error',
+            title: `Paid days exceed ${MONTHLY_DIVISOR} for ${emp.username}`,
+            details: `Paid days: ${paidDays}. Cannot exceed ${MONTHLY_DIVISOR} for monthly salary.`,
+          });
+          skipped++;
+          continue;
+        }
+
+        const ratio = paidDays / MONTHLY_DIVISOR;
         proratedBase = Math.round(basicSalary * ratio * 100) / 100;
         overtimePay = 0;
-        hra = Math.round(basicSalary * 0.4 * ratio * 100) / 100;
-        conv = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
-        ltaVal = Math.round(basicSalary * 0.2 * ratio * 100) / 100;
-        specAllow = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
-        suppAllow = Math.round(basicSalary * 0.3 * ratio * 100) / 100;
-        const kpiPct = parseFloat(sal.kpiPercent || '0');
-        kgpAllow = Math.round(basicSalary * 0.15 * (kpiPct / 100) * ratio * 100) / 100;
-        bonusAllow = Math.round(basicSalary * 0.0833 * ratio * 100) / 100;
+
+        const configHra = parseFloat(sal.houseRentAllowance || '0');
+        const configConv = parseFloat(sal.conveyance || '0');
+        const configLta = parseFloat(sal.lta || '0');
+        const configSpec = parseFloat(sal.specialAllowance || '0');
+        const configSupp = parseFloat(sal.supplementaryAllowance || '0');
+        const configKgp = parseFloat(sal.kgpAllowance || '0');
+        const configBonus = parseFloat(sal.bonus || '0');
+
+        hra = Math.round(configHra * ratio * 100) / 100;
+        conv = Math.round(configConv * ratio * 100) / 100;
+        ltaVal = Math.round(configLta * ratio * 100) / 100;
+        specAllow = Math.round(configSpec * ratio * 100) / 100;
+        suppAllow = Math.round(configSupp * ratio * 100) / 100;
+        kgpAllow = Math.round(configKgp * ratio * 100) / 100;
+        bonusAllow = configBonus > 0
+          ? Math.round(configBonus * ratio * 100) / 100
+          : Math.round(basicSalary * 0.0833 * ratio * 100) / 100;
 
         grossPay = proratedBase + hra + conv + ltaVal + specAllow + suppAllow + kgpAllow + bonusAllow;
+
+        if (paidDays === MONTHLY_DIVISOR) {
+          const fullMonthGross = basicSalary + configHra + configConv + configLta + configSpec + configSupp + configKgp + (configBonus > 0 ? configBonus : basicSalary * 0.0833);
+          if (grossPay > fullMonthGross + 1) {
+            exceptions.push({
+              userId: emp.id,
+              type: 'salary_overflow',
+              severity: 'warning',
+              title: `Gross pay exceeds full-month configured salary for ${emp.username}`,
+              details: `Calculated gross: ₹${grossPay.toFixed(2)}, Full-month configured: ₹${fullMonthGross.toFixed(2)}.`,
+            });
+          }
+        }
       }
 
       const pfBase = Math.min(proratedBase, 15000);
@@ -653,6 +745,7 @@ async function stepSalaryCalculation(
       const calculationSnapshot = {
         basicSalary,
         salaryType,
+        salaryBasis: salaryType === 'daily' ? 'actual_days' : MONTHLY_DIVISOR,
         totalWorkingDays,
         paidDays,
         lopDays,
