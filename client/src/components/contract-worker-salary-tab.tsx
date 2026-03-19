@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Plus, Trash2, ShieldCheck, Pause, XCircle, Undo2, Send, Loader2,
-  CheckCircle, AlertCircle, Clock, Calculator, HardHat, Users
+  CheckCircle, AlertCircle, Clock, Calculator, HardHat, Users, Pencil, RotateCcw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -33,6 +33,8 @@ function StatusBadge({ status }: { status: string }) {
       return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
     case 'transferred':
       return <Badge className="bg-purple-600 text-white"><Send className="h-3 w-3 mr-1" /> Transferred</Badge>;
+    case 'reversed':
+      return <Badge className="bg-gray-600 text-white"><RotateCcw className="h-3 w-3 mr-1" /> Reversed</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -53,8 +55,10 @@ function SapBadge({ sapPostingStatus, sapJeNumber }: { sapPostingStatus: string 
 
 export function ContractWorkerSalaryTab() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any>(null);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [reasonDialog, setReasonDialog] = useState<{ open: boolean; entryId: number; action: string }>({ open: false, entryId: 0, action: '' });
   const [reasonText, setReasonText] = useState('');
@@ -109,13 +113,26 @@ export function ContractWorkerSalaryTab() {
     return { baseEarnings, overtimeEarned, grossEarnings, pf, esic, pt, tds, totalDed, netPay };
   }, [formData]);
 
+  const invalidateList = () => qc.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest('POST', '/api/manual-salary/create', data),
     onSuccess: () => {
       toast({ title: 'Contract worker salary created' });
-      queryClient.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+      invalidateList();
       setIsCreateOpen(false);
       resetForm();
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => apiRequest('PUT', `/api/manual-salary/${id}`, data),
+    onSuccess: () => {
+      toast({ title: 'Entry updated successfully' });
+      invalidateList();
+      setIsEditOpen(false);
+      setEditingEntry(null);
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -124,19 +141,38 @@ export function ContractWorkerSalaryTab() {
     mutationFn: (id: number) => apiRequest('DELETE', `/api/manual-salary/${id}`),
     onSuccess: () => {
       toast({ title: 'Entry deleted' });
-      queryClient.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+      invalidateList();
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
-  const actionMutation = useMutation({
+  const statusMutation = useMutation({
     mutationFn: ({ id, action, reason }: { id: number; action: string; reason?: string }) =>
-      apiRequest('POST', `/api/manual-salary/${id}/${action}`, reason ? { reason } : {}),
+      apiRequest('POST', `/api/manual-salary/${id}/status`, { action, reason }),
     onSuccess: (_: any, vars: any) => {
-      toast({ title: `Entry ${vars.action === 'post-sap' ? 'posted to SAP' : vars.action + 'ed'} successfully` });
-      queryClient.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+      const labels: Record<string, string> = { verify: 'verified', hold: 'put on hold', reject: 'rejected', reopen: 'reopened' };
+      toast({ title: `Entry ${labels[vars.action] || vars.action} successfully` });
+      invalidateList();
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const sapPostMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('POST', `/api/manual-salary/${id}/post-sap`),
+    onSuccess: () => {
+      toast({ title: 'Posted to SAP successfully' });
+      invalidateList();
+    },
+    onError: (e: any) => toast({ title: 'SAP Posting Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const reverseMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('POST', `/api/manual-salary/${id}/reverse-sap`),
+    onSuccess: () => {
+      toast({ title: 'Reversal JE posted to SAP successfully' });
+      invalidateList();
+    },
+    onError: (e: any) => toast({ title: 'Reversal Error', description: e.message, variant: 'destructive' }),
   });
 
   function resetForm() {
@@ -165,13 +201,47 @@ export function ContractWorkerSalaryTab() {
     });
   }
 
+  function openEdit(entry: any) {
+    setEditingEntry(entry);
+    setFormData({
+      periodId: String(entry.periodId),
+      userId: String(entry.userId),
+      entryType: entry.entryType || 'daily',
+      daysWorked: entry.daysWorked || '0',
+      hoursWorked: entry.hoursWorked || '0',
+      quantity: entry.quantity || '0',
+      baseRate: entry.baseRate || '',
+      overtimeHours: entry.overtimeHours || '0',
+      overtimeRateMultiplier: entry.overtimeRateMultiplier || '1.5',
+      remarks: entry.remarks || '',
+    });
+    setIsEditOpen(true);
+  }
+
+  function handleUpdate() {
+    if (!editingEntry) return;
+    updateMutation.mutate({
+      id: editingEntry.id,
+      data: {
+        entryType: formData.entryType,
+        daysWorked: formData.daysWorked,
+        hoursWorked: formData.hoursWorked,
+        quantity: formData.quantity,
+        baseRate: formData.baseRate,
+        overtimeHours: formData.overtimeHours,
+        overtimeRateMultiplier: formData.overtimeRateMultiplier,
+        remarks: formData.remarks,
+      },
+    });
+  }
+
   function handleActionWithReason(entryId: number, action: string) {
     setReasonDialog({ open: true, entryId, action });
     setReasonText('');
   }
 
   function submitReasonAction() {
-    actionMutation.mutate({ id: reasonDialog.entryId, action: reasonDialog.action, reason: reasonText });
+    statusMutation.mutate({ id: reasonDialog.entryId, action: reasonDialog.action, reason: reasonText });
     setReasonDialog({ open: false, entryId: 0, action: '' });
   }
 
@@ -185,6 +255,124 @@ export function ContractWorkerSalaryTab() {
     return { total, generated, verified, transferred, totalGross, totalNet };
   }, [entries]);
 
+  function renderFormFields(isEdit: boolean) {
+    return (
+      <div className="space-y-4">
+        {!isEdit && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Payroll Period *</Label>
+              <Select value={formData.periodId} onValueChange={v => setFormData(d => ({ ...d, periodId: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
+                <SelectContent>
+                  {periods.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id.toString()}>{p.periodName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Worker *</Label>
+              <Select value={formData.userId} onValueChange={v => setFormData(d => ({ ...d, userId: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select worker" /></SelectTrigger>
+                <SelectContent>
+                  {allUsers.filter((u: any) => u.isActive).map((u: any) => (
+                    <SelectItem key={u.id} value={u.id.toString()}>
+                      {u.cardName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username)}
+                      {u.employeeCode ? ` (${u.employeeCode})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
+        <Separator />
+        <h4 className="font-semibold text-sm">Work Details</h4>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <Label>Entry Type</Label>
+            <Select value={formData.entryType} onValueChange={v => setFormData(d => ({ ...d, entryType: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily (Days x Rate)</SelectItem>
+                <SelectItem value="hourly">Hourly (Hrs x Rate)</SelectItem>
+                <SelectItem value="piece">Piece Rate (Qty x Rate)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {formData.entryType === 'daily' && (
+            <div>
+              <Label>Days Worked</Label>
+              <Input type="number" step="0.5" value={formData.daysWorked} onChange={e => setFormData(d => ({ ...d, daysWorked: e.target.value }))} />
+            </div>
+          )}
+          {formData.entryType === 'hourly' && (
+            <div>
+              <Label>Hours Worked</Label>
+              <Input type="number" step="0.5" value={formData.hoursWorked} onChange={e => setFormData(d => ({ ...d, hoursWorked: e.target.value }))} />
+            </div>
+          )}
+          {formData.entryType === 'piece' && (
+            <div>
+              <Label>Quantity</Label>
+              <Input type="number" step="1" value={formData.quantity} onChange={e => setFormData(d => ({ ...d, quantity: e.target.value }))} />
+            </div>
+          )}
+          <div>
+            <Label>Base Rate (INR) *</Label>
+            <Input type="number" step="0.01" value={formData.baseRate} onChange={e => setFormData(d => ({ ...d, baseRate: e.target.value }))} placeholder="e.g. 800" />
+          </div>
+        </div>
+
+        <Separator />
+        <h4 className="font-semibold text-sm">Overtime</h4>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Overtime Hours</Label>
+            <Input type="number" step="0.5" value={formData.overtimeHours} onChange={e => setFormData(d => ({ ...d, overtimeHours: e.target.value }))} />
+          </div>
+          <div>
+            <Label>OT Rate Multiplier</Label>
+            <Input type="number" step="0.1" value={formData.overtimeRateMultiplier} onChange={e => setFormData(d => ({ ...d, overtimeRateMultiplier: e.target.value }))} />
+          </div>
+        </div>
+
+        <div>
+          <Label>Remarks</Label>
+          <Textarea value={formData.remarks} onChange={e => setFormData(d => ({ ...d, remarks: e.target.value }))} placeholder="Optional notes..." rows={2} />
+        </div>
+
+        {preview && (
+          <>
+            <Separator />
+            <Card className="border-green-200 bg-green-50/50">
+              <CardHeader className="p-3 pb-1">
+                <CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Live Calculation Preview</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
+                  <div className="flex justify-between"><span>Base Earnings:</span><span className="font-mono">{fmt(preview.baseEarnings)}</span></div>
+                  <div className="flex justify-between"><span>Overtime:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Gross:</span><span className="font-mono">{fmt(preview.grossEarnings)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>PF (12%):</span><span className="font-mono">{fmt(preview.pf)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>ESIC (0.75%):</span><span className="font-mono">{fmt(preview.esic)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>PT:</span><span className="font-mono">{fmt(preview.pt)}</span></div>
+                  <div className="flex justify-between text-red-600"><span>TDS (1%):</span><span className="font-mono">{fmt(preview.tds)}</span></div>
+                  <div className="flex justify-between text-red-600 font-semibold"><span>Total Ded:</span><span className="font-mono">{fmt(preview.totalDed)}</span></div>
+                  <div className="flex justify-between text-green-700 font-bold text-base"><span>Net Pay:</span><span className="font-mono">{fmt(preview.netPay)}</span></div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -192,7 +380,7 @@ export function ContractWorkerSalaryTab() {
           <HardHat className="h-6 w-6 text-orange-600" />
           <div>
             <h3 className="text-lg font-semibold">Contract Worker Salary</h3>
-            <p className="text-sm text-muted-foreground">Manual salary processing — separate from payroll run engine</p>
+            <p className="text-sm text-muted-foreground">Manual salary processing with TDS Sec 194C -- separate from payroll run engine</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -207,7 +395,7 @@ export function ContractWorkerSalaryTab() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => setIsCreateOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+          <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} className="bg-orange-600 hover:bg-orange-700">
             <Plus className="h-4 w-4 mr-2" /> New Entry
           </Button>
         </div>
@@ -253,7 +441,7 @@ export function ContractWorkerSalaryTab() {
                 </thead>
                 <tbody>
                   {entries.map((e: any) => {
-                    const workerName = e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.userName;
+                    const workerName = e.cardName || (e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.userName);
                     const daysOrHrs = e.entryType === 'daily' ? `${e.daysWorked}d` : e.entryType === 'hourly' ? `${e.hoursWorked}h` : `${e.quantity}q`;
                     return (
                       <tr key={e.id} className="border-b hover:bg-gray-50/50">
@@ -267,7 +455,7 @@ export function ContractWorkerSalaryTab() {
                         <td className="p-3 text-right font-mono">{daysOrHrs}</td>
                         <td className="p-3 text-right font-mono">{fmt(e.baseRate)}</td>
                         <td className="p-3 text-right font-mono">{fmt(e.baseEarnings)}</td>
-                        <td className="p-3 text-right font-mono">{parseFloat(e.overtimeEarned || '0') > 0 ? fmt(e.overtimeEarned) : '—'}</td>
+                        <td className="p-3 text-right font-mono">{parseFloat(e.overtimeEarned || '0') > 0 ? fmt(e.overtimeEarned) : '--'}</td>
                         <td className="p-3 text-right font-mono font-semibold">{fmt(e.grossEarnings)}</td>
                         <td className="p-3 text-right font-mono text-red-600">{fmt(e.totalDeductions)}</td>
                         <td className="p-3 text-right font-mono font-semibold text-green-700">{fmt(e.netPay)}</td>
@@ -277,7 +465,10 @@ export function ContractWorkerSalaryTab() {
                           <div className="flex items-center justify-end gap-1">
                             {e.payrollStatus === 'generated' && (
                               <>
-                                <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-700" onClick={() => actionMutation.mutate({ id: e.id, action: 'verify' })}>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-blue-700" onClick={() => openEdit(e)} title="Edit">
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-700" onClick={() => statusMutation.mutate({ id: e.id, action: 'verify' })}>
                                   <ShieldCheck className="h-3 w-3 mr-1" /> Verify
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-7 text-xs text-amber-700" onClick={() => handleActionWithReason(e.id, 'hold')}>
@@ -291,14 +482,24 @@ export function ContractWorkerSalaryTab() {
                                 </Button>
                               </>
                             )}
-                            {e.payrollStatus === 'verified' && !e.sapPostingStatus?.includes('posted') && (
-                              <Button size="sm" className="h-7 text-xs bg-purple-600 hover:bg-purple-700" onClick={() => actionMutation.mutate({ id: e.id, action: 'post-sap' })}>
-                                <Send className="h-3 w-3 mr-1" /> Post SAP
+                            {e.payrollStatus === 'verified' && e.sapPostingStatus !== 'posted' && (
+                              <>
+                                <Button size="sm" className="h-7 text-xs bg-purple-600 hover:bg-purple-700" onClick={() => sapPostMutation.mutate(e.id)} disabled={sapPostMutation.isPending}>
+                                  <Send className="h-3 w-3 mr-1" /> Post SAP
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-amber-700" onClick={() => handleActionWithReason(e.id, 'hold')}>
+                                  <Pause className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                            {e.payrollStatus === 'transferred' && e.sapPostingStatus === 'posted' && !e.reversalSapJeNumber && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs text-gray-700" onClick={() => reverseMutation.mutate(e.id)} disabled={reverseMutation.isPending}>
+                                <RotateCcw className="h-3 w-3 mr-1" /> Reverse
                               </Button>
                             )}
                             {(e.payrollStatus === 'held' || e.payrollStatus === 'rejected') && (
-                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => actionMutation.mutate({ id: e.id, action: 'release' })}>
-                                <Undo2 className="h-3 w-3 mr-1" /> Release
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => statusMutation.mutate({ id: e.id, action: 'reopen' })}>
+                                <Undo2 className="h-3 w-3 mr-1" /> Reopen
                               </Button>
                             )}
                           </div>
@@ -320,124 +521,29 @@ export function ContractWorkerSalaryTab() {
               <HardHat className="h-5 w-5 text-orange-600" /> New Contract Worker Salary Entry
             </DialogTitle>
           </DialogHeader>
+          {renderFormFields(false)}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => { setIsCreateOpen(false); resetForm(); }}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending} className="bg-orange-600 hover:bg-orange-700">
+              {createMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Entry</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Payroll Period *</Label>
-                <Select value={formData.periodId} onValueChange={v => setFormData(d => ({ ...d, periodId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
-                  <SelectContent>
-                    {periods.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id.toString()}>{p.periodName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Worker *</Label>
-                <Select value={formData.userId} onValueChange={v => setFormData(d => ({ ...d, userId: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select worker" /></SelectTrigger>
-                  <SelectContent>
-                    {allUsers.filter((u: any) => u.isActive).map((u: any) => (
-                      <SelectItem key={u.id} value={u.id.toString()}>
-                        {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username}
-                        {u.employeeCode ? ` (${u.employeeCode})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Separator />
-            <h4 className="font-semibold text-sm">Work Details</h4>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Entry Type</Label>
-                <Select value={formData.entryType} onValueChange={v => setFormData(d => ({ ...d, entryType: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily (Days × Rate)</SelectItem>
-                    <SelectItem value="hourly">Hourly (Hrs × Rate)</SelectItem>
-                    <SelectItem value="piece">Piece Rate (Qty × Rate)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {formData.entryType === 'daily' && (
-                <div>
-                  <Label>Days Worked</Label>
-                  <Input type="number" step="0.5" value={formData.daysWorked} onChange={e => setFormData(d => ({ ...d, daysWorked: e.target.value }))} />
-                </div>
-              )}
-              {formData.entryType === 'hourly' && (
-                <div>
-                  <Label>Hours Worked</Label>
-                  <Input type="number" step="0.5" value={formData.hoursWorked} onChange={e => setFormData(d => ({ ...d, hoursWorked: e.target.value }))} />
-                </div>
-              )}
-              {formData.entryType === 'piece' && (
-                <div>
-                  <Label>Quantity</Label>
-                  <Input type="number" step="1" value={formData.quantity} onChange={e => setFormData(d => ({ ...d, quantity: e.target.value }))} />
-                </div>
-              )}
-              <div>
-                <Label>Base Rate (₹) *</Label>
-                <Input type="number" step="0.01" value={formData.baseRate} onChange={e => setFormData(d => ({ ...d, baseRate: e.target.value }))} placeholder="e.g. 800" />
-              </div>
-            </div>
-
-            <Separator />
-            <h4 className="font-semibold text-sm">Overtime</h4>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Overtime Hours</Label>
-                <Input type="number" step="0.5" value={formData.overtimeHours} onChange={e => setFormData(d => ({ ...d, overtimeHours: e.target.value }))} />
-              </div>
-              <div>
-                <Label>OT Rate Multiplier</Label>
-                <Input type="number" step="0.1" value={formData.overtimeRateMultiplier} onChange={e => setFormData(d => ({ ...d, overtimeRateMultiplier: e.target.value }))} />
-              </div>
-            </div>
-
-            <div>
-              <Label>Remarks</Label>
-              <Textarea value={formData.remarks} onChange={e => setFormData(d => ({ ...d, remarks: e.target.value }))} placeholder="Optional notes..." rows={2} />
-            </div>
-
-            {preview && (
-              <>
-                <Separator />
-                <Card className="border-green-200 bg-green-50/50">
-                  <CardHeader className="p-3 pb-1">
-                    <CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Live Calculation Preview</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-0">
-                    <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                      <div className="flex justify-between"><span>Base Earnings:</span><span className="font-mono">{fmt(preview.baseEarnings)}</span></div>
-                      <div className="flex justify-between"><span>Overtime:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
-                      <div className="flex justify-between font-semibold"><span>Gross:</span><span className="font-mono">{fmt(preview.grossEarnings)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>PF (12%):</span><span className="font-mono">{fmt(preview.pf)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>ESIC (0.75%):</span><span className="font-mono">{fmt(preview.esic)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>PT:</span><span className="font-mono">{fmt(preview.pt)}</span></div>
-                      <div className="flex justify-between text-red-600"><span>TDS (1%):</span><span className="font-mono">{fmt(preview.tds)}</span></div>
-                      <div className="flex justify-between text-red-600 font-semibold"><span>Total Ded:</span><span className="font-mono">{fmt(preview.totalDed)}</span></div>
-                      <div className="flex justify-between text-green-700 font-bold text-base"><span>Net Pay:</span><span className="font-mono">{fmt(preview.netPay)}</span></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => { setIsCreateOpen(false); resetForm(); }}>Cancel</Button>
-              <Button onClick={handleSubmit} disabled={createMutation.isPending} className="bg-orange-600 hover:bg-orange-700">
-                {createMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Entry</>}
-              </Button>
-            </div>
+      <Dialog open={isEditOpen} onOpenChange={(o) => { setIsEditOpen(o); if (!o) { setEditingEntry(null); resetForm(); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-blue-600" /> Edit Contract Worker Salary Entry
+            </DialogTitle>
+          </DialogHeader>
+          {renderFormFields(true)}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => { setIsEditOpen(false); setEditingEntry(null); resetForm(); }}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={updateMutation.isPending} className="bg-blue-600 hover:bg-blue-700">
+              {updateMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : <><CheckCircle className="h-4 w-4 mr-2" /> Save Changes</>}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -454,7 +560,7 @@ export function ContractWorkerSalaryTab() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setReasonDialog({ open: false, entryId: 0, action: '' })}>Cancel</Button>
-              <Button onClick={submitReasonAction} className={reasonDialog.action === 'hold' ? 'bg-amber-600' : 'bg-red-600'}>
+              <Button onClick={submitReasonAction} disabled={!reasonText.trim()} className={reasonDialog.action === 'hold' ? 'bg-amber-600' : 'bg-red-600'}>
                 {reasonDialog.action === 'hold' ? 'Hold' : 'Reject'}
               </Button>
             </div>

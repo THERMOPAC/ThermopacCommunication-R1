@@ -7,18 +7,18 @@ import {
   users,
   payrollSettings,
   glAccountMappings,
+  tdsComplianceRegister,
 } from '@shared/schema';
-import { eq, and, desc, asc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
-import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
-import { sapSessionManager } from './sap-session-manager';
+import { postJeToSap, getGlCode } from './statutory-compliance-routes';
 
 const router = Router();
 router.use(ensureAuthenticated);
 
-async function getPtConfig(): Promise<{ monthly: number; february: number }> {
+async function getProfessionalTaxConfig(): Promise<{ monthly: number; february: number }> {
   const settings = await db.select().from(payrollSettings).where(
-    eq(payrollSettings.isActive, true)
+    sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`
   );
   let monthly = 200;
   let february = 300;
@@ -29,7 +29,7 @@ async function getPtConfig(): Promise<{ monthly: number; february: number }> {
   return { monthly, february };
 }
 
-function calculateManualSalary(input: {
+async function calculateManualSalary(input: {
   entryType: string;
   daysWorked: number;
   hoursWorked: number;
@@ -60,7 +60,10 @@ function calculateManualSalary(input: {
   const pfBase = Math.min(grossEarnings, 15000);
   const pfAmount = Math.round(pfBase * 0.12 * 100) / 100;
   const esicAmount = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075 * 100) / 100 : 0;
-  const ptAmount = input.periodMonth === 2 ? 300 : 200;
+
+  const ptConfig = await getProfessionalTaxConfig();
+  const ptAmount = input.periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
+
   const tdsAmount = Math.round(grossEarnings * 0.01 * 100) / 100;
 
   const totalDeductions = Math.round((pfAmount + ptAmount + esicAmount + tdsAmount) * 100) / 100;
@@ -79,6 +82,35 @@ function calculateManualSalary(input: {
   };
 }
 
+function getUserName(user: any): string {
+  if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
+  return user.cardName || user.username || 'Unknown';
+}
+
+function buildStatusTransition(fromStatus: string, toStatus: string, action: string, reason: string | null, user: any) {
+  return {
+    from: fromStatus,
+    to: toStatus,
+    action,
+    reason: reason || null,
+    by: getUserName(user),
+    byId: user.id,
+    at: new Date().toISOString(),
+  };
+}
+
+function getFinancialYear(month: number, year: number): string {
+  if (month >= 4) return `${year}-${(year + 1).toString().slice(2)}`;
+  return `${year - 1}-${year.toString().slice(2)}`;
+}
+
+function getQuarter(month: number): string {
+  if (month >= 4 && month <= 6) return 'Q1';
+  if (month >= 7 && month <= 9) return 'Q2';
+  if (month >= 10 && month <= 12) return 'Q3';
+  return 'Q4';
+}
+
 router.post('/preview', async (req: Request, res: Response) => {
   try {
     const { entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, periodId } = req.body;
@@ -87,7 +119,7 @@ router.post('/preview', async (req: Request, res: Response) => {
       const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
       if (period) periodMonth = new Date(period.startDate).getMonth() + 1;
     }
-    const result = calculateManualSalary({
+    const result = await calculateManualSalary({
       entryType: entryType || 'daily',
       daysWorked: parseFloat(daysWorked || '0'),
       hoursWorked: parseFloat(hoursWorked || '0'),
@@ -119,7 +151,7 @@ router.post('/create', async (req: Request, res: Response) => {
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
     const periodMonth = new Date(period.startDate).getMonth() + 1;
-    const calc = calculateManualSalary({
+    const calc = await calculateManualSalary({
       entryType: entryType || 'daily',
       daysWorked: parseFloat(daysWorked || '0'),
       hoursWorked: parseFloat(hoursWorked || '0'),
@@ -129,6 +161,8 @@ router.post('/create', async (req: Request, res: Response) => {
       overtimeRateMultiplier: parseFloat(overtimeRateMultiplier || '1.5'),
       periodMonth,
     });
+
+    const initialHistory = [buildStatusTransition('new', 'generated', 'create', 'Manual salary entry created for contract worker', currentUser)];
 
     const [payrollRecord] = await db.insert(payrollRecords).values({
       periodId,
@@ -146,12 +180,7 @@ router.post('/create', async (req: Request, res: Response) => {
       status: 'generated',
       salarySource: 'manual_salary',
       workerType: 'contract_worker',
-      statusHistory: [{
-        status: 'generated',
-        timestamp: new Date().toISOString(),
-        userId: currentUser?.id,
-        reason: 'Manual salary entry created for contract worker',
-      }],
+      statusHistory: initialHistory,
     }).returning();
 
     const [entry] = await db.insert(manualSalaryEntries).values({
@@ -180,9 +209,141 @@ router.post('/create', async (req: Request, res: Response) => {
 
     await db.update(payrollRecords).set({ manualSalaryEntryId: entry.id }).where(eq(payrollRecords.id, payrollRecord.id));
 
+    if (calc.tdsAmount > 0) {
+      const periodYear = new Date(period.startDate).getFullYear();
+      const empName = getUserName(employee);
+      await db.insert(tdsComplianceRegister).values({
+        sourceCategory: 'non_salary',
+        tdsSection: '194C',
+        financialYear: getFinancialYear(periodMonth, periodYear),
+        quarter: getQuarter(periodMonth),
+        month: periodMonth,
+        year: periodYear,
+        deducteeName: empName,
+        deducteePan: (employee as any).panNumber || null,
+        deducteeType: 'contractor',
+        employeeId: userId,
+        payrollRecordId: payrollRecord.id,
+        baseAmount: calc.grossEarnings.toString(),
+        tdsAmount: calc.tdsAmount.toString(),
+        tdsRate: '1.00',
+        deductionDate: new Date(),
+        challanStatus: 'pending',
+      });
+    }
+
     res.json({ entry, payrollRecord });
   } catch (e: any) {
     console.error('Error creating manual salary:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const currentUser = req.user as any;
+    const { entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, remarks } = req.body;
+
+    const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
+    if (!entry) return res.status(404).json({ error: 'Entry not found' });
+    if (!entry.payrollRecordId) return res.status(400).json({ error: 'No linked payroll record' });
+
+    const [pr] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
+    if (!pr) return res.status(404).json({ error: 'Payroll record not found' });
+
+    if (pr.status !== 'generated') {
+      return res.status(400).json({ error: `Cannot update entry with status '${pr.status}'. Only entries in 'Generated' status can be updated.` });
+    }
+
+    const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, entry.periodId));
+    const periodMonth = period ? new Date(period.startDate).getMonth() + 1 : new Date().getMonth() + 1;
+
+    const calc = await calculateManualSalary({
+      entryType: entryType || entry.entryType || 'daily',
+      daysWorked: parseFloat(daysWorked ?? entry.daysWorked ?? '0'),
+      hoursWorked: parseFloat(hoursWorked ?? entry.hoursWorked ?? '0'),
+      quantity: parseFloat(quantity ?? entry.quantity ?? '0'),
+      baseRate: parseFloat(baseRate ?? entry.baseRate ?? '0'),
+      overtimeHours: parseFloat(overtimeHours ?? entry.overtimeHours ?? '0'),
+      overtimeRateMultiplier: parseFloat(overtimeRateMultiplier ?? entry.overtimeRateMultiplier ?? '1.5'),
+      periodMonth,
+    });
+
+    await db.update(manualSalaryEntries).set({
+      entryType: entryType || entry.entryType,
+      daysWorked: (daysWorked ?? entry.daysWorked ?? '0').toString(),
+      hoursWorked: (hoursWorked ?? entry.hoursWorked ?? '0').toString(),
+      quantity: (quantity ?? entry.quantity ?? '0').toString(),
+      baseRate: (baseRate ?? entry.baseRate ?? '0').toString(),
+      overtimeHours: (overtimeHours ?? entry.overtimeHours ?? '0').toString(),
+      overtimeRateMultiplier: (overtimeRateMultiplier ?? entry.overtimeRateMultiplier ?? '1.5').toString(),
+      overtimeEarned: calc.overtimeEarned.toString(),
+      baseEarnings: calc.baseEarnings.toString(),
+      grossEarnings: calc.grossEarnings.toString(),
+      pfAmount: calc.pfAmount.toString(),
+      ptAmount: calc.ptAmount.toString(),
+      esicAmount: calc.esicAmount.toString(),
+      tdsAmount: calc.tdsAmount.toString(),
+      totalDeductions: calc.totalDeductions.toString(),
+      netPay: calc.netPay.toString(),
+      remarks: remarks ?? entry.remarks,
+      updatedAt: new Date(),
+    }).where(eq(manualSalaryEntries.id, id));
+
+    const history = Array.isArray(pr.statusHistory) ? [...(pr.statusHistory as any[])] : [];
+    history.push(buildStatusTransition('generated', 'generated', 'update', 'Manual salary entry updated', currentUser));
+
+    await db.update(payrollRecords).set({
+      baseSalary: calc.baseEarnings.toString(),
+      grossPay: calc.grossEarnings.toString(),
+      netPay: calc.netPay.toString(),
+      overtimeHours: (overtimeHours ?? entry.overtimeHours ?? '0').toString(),
+      overtimePay: calc.overtimeEarned.toString(),
+      employeePf: calc.pfAmount.toString(),
+      professionalTax: calc.ptAmount.toString(),
+      employeeEsic: calc.esicAmount.toString(),
+      tdsAmount: calc.tdsAmount.toString(),
+      totalDeductions: calc.totalDeductions.toString(),
+      statusHistory: history,
+      updatedAt: new Date(),
+    }).where(eq(payrollRecords.id, entry.payrollRecordId));
+
+    await db.delete(tdsComplianceRegister).where(
+      and(
+        eq(tdsComplianceRegister.payrollRecordId, entry.payrollRecordId),
+        eq(tdsComplianceRegister.tdsSection, '194C'),
+        eq(tdsComplianceRegister.sourceCategory, 'non_salary')
+      )
+    );
+
+    if (calc.tdsAmount > 0 && period) {
+      const periodYear = new Date(period.startDate).getFullYear();
+      const [employee] = await db.select().from(users).where(eq(users.id, entry.userId));
+      const empName = employee ? getUserName(employee) : 'Unknown';
+      await db.insert(tdsComplianceRegister).values({
+        sourceCategory: 'non_salary',
+        tdsSection: '194C',
+        financialYear: getFinancialYear(periodMonth, periodYear),
+        quarter: getQuarter(periodMonth),
+        month: periodMonth,
+        year: periodYear,
+        deducteeName: empName,
+        deducteePan: (employee as any)?.panNumber || null,
+        deducteeType: 'contractor',
+        employeeId: entry.userId,
+        payrollRecordId: entry.payrollRecordId,
+        baseAmount: calc.grossEarnings.toString(),
+        tdsAmount: calc.tdsAmount.toString(),
+        tdsRate: '1.00',
+        deductionDate: new Date(),
+        challanStatus: 'pending',
+      });
+    }
+
+    res.json({ success: true, message: 'Entry updated successfully' });
+  } catch (e: any) {
+    console.error('Error updating manual salary:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -223,6 +384,7 @@ router.get('/list', async (req: Request, res: Response) => {
       employeeCode: users.employeeCode,
       department: users.department,
       cardCode: users.cardCode,
+      cardName: users.cardName,
     }).from(manualSalaryEntries)
       .leftJoin(users, eq(manualSalaryEntries.userId, users.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -233,6 +395,7 @@ router.get('/list', async (req: Request, res: Response) => {
       let payrollStatus = 'generated';
       let sapPostingStatus = null;
       let sapJeNumber = null;
+      let reversalSapJeNumber = null;
       if (entry.payrollRecordId) {
         const [pr] = await db.select({
           status: payrollRecords.status,
@@ -242,11 +405,13 @@ router.get('/list', async (req: Request, res: Response) => {
           verifiedBy: payrollRecords.verifiedBy,
           verifiedAt: payrollRecords.verifiedAt,
           heldReason: payrollRecords.heldReason,
+          reversalSapJeNumber: payrollRecords.reversalSapJeNumber,
         }).from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
         if (pr) {
           payrollStatus = pr.status || 'generated';
           sapPostingStatus = pr.sapPostingStatus;
           sapJeNumber = pr.sapJeNumber;
+          reversalSapJeNumber = pr.reversalSapJeNumber;
         }
       }
       entriesWithStatus.push({
@@ -254,6 +419,7 @@ router.get('/list', async (req: Request, res: Response) => {
         payrollStatus,
         sapPostingStatus,
         sapJeNumber,
+        reversalSapJeNumber,
       });
     }
 
@@ -274,6 +440,13 @@ router.delete('/:id', async (req: Request, res: Response) => {
       if (pr && pr.status !== 'generated') {
         return res.status(400).json({ error: `Cannot delete entry with status: ${pr.status}. Only generated entries can be deleted.` });
       }
+      await db.delete(tdsComplianceRegister).where(
+        and(
+          eq(tdsComplianceRegister.payrollRecordId, entry.payrollRecordId),
+          eq(tdsComplianceRegister.tdsSection, '194C'),
+          eq(tdsComplianceRegister.sourceCategory, 'non_salary')
+        )
+      );
       await db.delete(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
     }
 
@@ -284,137 +457,108 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/:id/verify', async (req: Request, res: Response) => {
+router.post('/:id/status', async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const currentUser = req.user as any;
-    const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
-    if (!entry) return res.status(404).json({ error: 'Entry not found' });
-    if (!entry.payrollRecordId) return res.status(400).json({ error: 'No linked payroll record' });
+    const { action, reason } = req.body;
 
-    const [pr] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
-    if (!pr) return res.status(404).json({ error: 'Payroll record not found' });
-    if (pr.status !== 'generated') return res.status(400).json({ error: `Cannot verify from status: ${pr.status}` });
-
-    const history = Array.isArray(pr.statusHistory) ? [...pr.statusHistory] : [];
-    history.push({
-      status: 'verified',
-      timestamp: new Date().toISOString(),
-      userId: currentUser?.id,
-      reason: 'Manual salary verified',
-    });
-
-    await db.update(payrollRecords).set({
-      status: 'verified',
-      verifiedBy: currentUser?.id,
-      verifiedAt: new Date(),
-      statusHistory: history,
-      updatedAt: new Date(),
-    }).where(eq(payrollRecords.id, entry.payrollRecordId));
-
-    res.json({ success: true, status: 'verified' });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/:id/hold', async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    const currentUser = req.user as any;
-    const { reason } = req.body;
     const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
     if (!entry || !entry.payrollRecordId) return res.status(404).json({ error: 'Entry not found' });
 
-    const [pr] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
-    if (!pr) return res.status(404).json({ error: 'Payroll record not found' });
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
+    if (!record) return res.status(404).json({ error: 'Payroll record not found' });
 
-    const history = Array.isArray(pr.statusHistory) ? [...pr.statusHistory] : [];
-    history.push({
-      status: 'held',
-      timestamp: new Date().toISOString(),
-      userId: currentUser?.id,
-      reason: reason || 'Put on hold',
-    });
-
-    await db.update(payrollRecords).set({
-      status: 'held',
-      heldBy: currentUser?.id,
-      heldAt: new Date(),
-      heldReason: reason || 'Put on hold',
-      statusHistory: history,
-      updatedAt: new Date(),
-    }).where(eq(payrollRecords.id, entry.payrollRecordId));
-
-    res.json({ success: true, status: 'held' });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/:id/reject', async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    const currentUser = req.user as any;
-    const { reason } = req.body;
-    const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
-    if (!entry || !entry.payrollRecordId) return res.status(404).json({ error: 'Entry not found' });
-
-    const [pr] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
-    if (!pr) return res.status(404).json({ error: 'Payroll record not found' });
-
-    const history = Array.isArray(pr.statusHistory) ? [...pr.statusHistory] : [];
-    history.push({
-      status: 'rejected',
-      timestamp: new Date().toISOString(),
-      userId: currentUser?.id,
-      reason: reason || 'Rejected',
-    });
-
-    await db.update(payrollRecords).set({
-      status: 'rejected',
-      statusHistory: history,
-      updatedAt: new Date(),
-    }).where(eq(payrollRecords.id, entry.payrollRecordId));
-
-    res.json({ success: true, status: 'rejected' });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/:id/release', async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    const currentUser = req.user as any;
-    const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
-    if (!entry || !entry.payrollRecordId) return res.status(404).json({ error: 'Entry not found' });
-
-    const [pr] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
-    if (!pr) return res.status(404).json({ error: 'Payroll record not found' });
-    if (pr.status !== 'held' && pr.status !== 'rejected') {
-      return res.status(400).json({ error: `Cannot release from status: ${pr.status}` });
+    if (record.sapPostingStatus === 'posted') {
+      return res.status(400).json({ error: 'This record has been transferred to SAP and is locked.' });
+    }
+    if (record.status === 'reversed' || record.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This record has been reversed and is permanently locked.' });
+    }
+    if (record.status === 'voided') {
+      return res.status(400).json({ error: 'This record has been voided. Voided records cannot be modified.' });
     }
 
-    const history = Array.isArray(pr.statusHistory) ? [...pr.statusHistory] : [];
-    history.push({
-      status: 'generated',
-      timestamp: new Date().toISOString(),
-      userId: currentUser?.id,
-      reason: 'Released back to generated',
+    const currentStatus = record.status || 'generated';
+    const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
+    const now = new Date();
+
+    let newStatus: string;
+    const updateData: any = { updatedAt: now };
+
+    switch (action) {
+      case 'verify':
+        if (currentStatus !== 'generated' && currentStatus !== 'held') {
+          return res.status(400).json({ error: `Cannot verify a record in '${currentStatus}' status. Only 'Generated' or 'Held' records can be verified.` });
+        }
+        newStatus = 'verified';
+        updateData.verifiedBy = currentUser.id;
+        updateData.verifiedAt = now;
+        updateData.heldReason = null;
+        updateData.heldBy = null;
+        updateData.heldAt = null;
+        break;
+
+      case 'hold':
+        if (currentStatus !== 'generated' && currentStatus !== 'verified') {
+          return res.status(400).json({ error: `Cannot hold a record in '${currentStatus}' status.` });
+        }
+        if (!reason || reason.trim() === '') {
+          return res.status(400).json({ error: 'A reason is required when holding a record.' });
+        }
+        newStatus = 'held';
+        updateData.heldReason = reason.trim();
+        updateData.heldBy = currentUser.id;
+        updateData.heldAt = now;
+        updateData.verifiedBy = null;
+        updateData.verifiedAt = null;
+        break;
+
+      case 'reject':
+        if (currentStatus !== 'generated' && currentStatus !== 'verified' && currentStatus !== 'held') {
+          return res.status(400).json({ error: `Cannot reject a record in '${currentStatus}' status.` });
+        }
+        if (!reason || reason.trim() === '') {
+          return res.status(400).json({ error: 'A reason is required when rejecting a record.' });
+        }
+        newStatus = 'rejected';
+        updateData.heldReason = reason.trim();
+        updateData.heldBy = currentUser.id;
+        updateData.heldAt = now;
+        updateData.verifiedBy = null;
+        updateData.verifiedAt = null;
+        break;
+
+      case 'reopen':
+        if (currentStatus !== 'held' && currentStatus !== 'rejected') {
+          return res.status(400).json({ error: `Cannot reopen a record in '${currentStatus}' status.` });
+        }
+        newStatus = 'generated';
+        updateData.heldReason = null;
+        updateData.heldBy = null;
+        updateData.heldAt = null;
+        updateData.verifiedBy = null;
+        updateData.verifiedAt = null;
+        break;
+
+      default:
+        return res.status(400).json({ error: `Unknown action: ${action}` });
+    }
+
+    history.push(buildStatusTransition(currentStatus, newStatus, action, reason || null, currentUser));
+
+    updateData.status = newStatus;
+    updateData.statusHistory = history;
+
+    await db.update(payrollRecords).set(updateData).where(eq(payrollRecords.id, entry.payrollRecordId));
+
+    res.json({
+      success: true,
+      status: newStatus,
+      message: `Record ${action === 'verify' ? 'verified' : action === 'hold' ? 'held' : action === 'reject' ? 'rejected' : 'reopened'} successfully`,
     });
-
-    await db.update(payrollRecords).set({
-      status: 'generated',
-      heldBy: null,
-      heldAt: null,
-      heldReason: null,
-      statusHistory: history,
-      updatedAt: new Date(),
-    }).where(eq(payrollRecords.id, entry.payrollRecordId));
-
-    res.json({ success: true, status: 'generated' });
   } catch (e: any) {
+    console.error('Error updating manual salary status:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -430,10 +574,13 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
     if (!record) return res.status(404).json({ error: 'Payroll record not found' });
 
     if (record.sapPostingStatus === 'posted') {
-      return res.status(400).json({ error: 'Already posted to SAP' });
+      return res.status(400).json({ error: 'Already posted to SAP', sapJeNumber: record.sapJeNumber });
     }
     if (record.status !== 'verified') {
-      return res.status(400).json({ error: 'Only verified records can be posted to SAP' });
+      return res.status(400).json({ error: `Only verified records can be posted to SAP. Current status: ${record.status || 'generated'}.` });
+    }
+    if (record.status === 'reversed' || record.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This record has been reversed and cannot be reposted to SAP.' });
     }
 
     const [employee] = await db.select({
@@ -448,22 +595,20 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
 
     if (!employee) return res.status(400).json({ error: 'Employee not found' });
 
-    const empName = employee.firstName && employee.lastName
-      ? `${employee.firstName} ${employee.lastName}`
-      : employee.username || 'Unknown';
+    const empName = getUserName(employee);
 
     if (!employee.cardCode || employee.cardCode.trim() === '') {
       await db.update(payrollRecords).set({
         sapPostingStatus: 'failed',
-        sapErrorMessage: `Employee ${empName} has no SAP BP code.`,
+        sapErrorMessage: `Employee ${empName} has no SAP BP code linked.`,
         updatedAt: new Date(),
       }).where(eq(payrollRecords.id, record.id));
-      return res.status(400).json({ error: `Employee ${empName} has no SAP BP code.` });
+      return res.status(400).json({ error: `Employee ${empName} has no SAP BP code linked.` });
     }
 
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
-    const glMap = new Map<string, string>();
-    const REQUIRED = [
+
+    const REQUIRED_COMPONENTS = [
       { code: 'BASIC', context: 'expense' },
       { code: 'OVERTIME', context: 'expense' },
       { code: 'PF_EMPLOYEE', context: 'payroll_liability' },
@@ -472,20 +617,20 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
       { code: 'TDS', context: 'payroll_liability' },
       { code: 'NET_PAY', context: 'payroll_liability' },
     ];
-    const missing: string[] = [];
-    for (const comp of REQUIRED) {
-      const mapping = allMappings.find(m => m.componentCode === comp.code && m.postingContext === comp.context && m.glAccountCode && m.glAccountCode.trim() !== '');
-      if (!mapping) missing.push(`${comp.code} (${comp.context})`);
-      else glMap.set(`${comp.code}|${comp.context}`, mapping.glAccountCode!);
+
+    const missingMappings: string[] = [];
+    for (const comp of REQUIRED_COMPONENTS) {
+      const gl = getGlCode(allMappings, comp.code, comp.context);
+      if (!gl) missingMappings.push(`${comp.code} (${comp.context})`);
     }
 
-    if (missing.length > 0) {
+    if (missingMappings.length > 0) {
       await db.update(payrollRecords).set({
         sapPostingStatus: 'failed',
-        sapErrorMessage: `GL mappings missing: ${missing.join(', ')}`,
+        sapErrorMessage: `GL mappings missing for: ${missingMappings.join(', ')}`,
         updatedAt: new Date(),
       }).where(eq(payrollRecords.id, record.id));
-      return res.status(400).json({ error: 'GL mappings incomplete', missing });
+      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings });
     }
 
     const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
@@ -494,55 +639,65 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
 
     const jeLines: any[] = [];
     let lineNum = 0;
-    const baseAmount = parseFloat(entry.baseEarnings || '0');
-    const otAmount = parseFloat(entry.overtimeEarned || '0');
 
-    if (baseAmount > 0) {
-      jeLines.push({
-        Line_ID: lineNum++,
-        AccountCode: glMap.get('BASIC|expense'),
-        Debit: baseAmount,
-        Credit: 0,
-        LineMemo: `Contract Worker BASIC - ${empName} - ${periodLabel}`,
-      });
-    }
-    if (otAmount > 0) {
-      jeLines.push({
-        Line_ID: lineNum++,
-        AccountCode: glMap.get('OVERTIME|expense'),
-        Debit: otAmount,
-        Credit: 0,
-        LineMemo: `Contract Worker OVERTIME - ${empName} - ${periodLabel}`,
-      });
+    const earningComponents = [
+      { code: 'BASIC', value: parseFloat(entry.baseEarnings || '0') },
+      { code: 'OVERTIME', value: parseFloat(entry.overtimeEarned || '0') },
+    ];
+
+    for (const comp of earningComponents) {
+      if (comp.value > 0) {
+        const acctCode = getGlCode(allMappings, comp.code, 'expense');
+        if (acctCode) {
+          jeLines.push({
+            Line_ID: lineNum++,
+            AccountCode: acctCode,
+            Debit: comp.value,
+            Credit: 0,
+            LineMemo: `Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+          });
+        }
+      }
     }
 
-    const deductions = [
+    const deductionComponents = [
       { code: 'PF_EMPLOYEE', value: parseFloat(entry.pfAmount || '0') },
       { code: 'ESIC_EMPLOYEE', value: parseFloat(entry.esicAmount || '0') },
       { code: 'PT', value: parseFloat(entry.ptAmount || '0') },
       { code: 'TDS', value: parseFloat(entry.tdsAmount || '0') },
     ];
-    for (const d of deductions) {
-      if (d.value > 0) {
-        jeLines.push({
-          Line_ID: lineNum++,
-          AccountCode: glMap.get(`${d.code}|payroll_liability`),
-          Debit: 0,
-          Credit: d.value,
-          LineMemo: `Contract Worker ${d.code} - ${empName} - ${periodLabel}`,
-        });
+
+    for (const comp of deductionComponents) {
+      if (comp.value > 0) {
+        const acctCode = getGlCode(allMappings, comp.code, 'payroll_liability');
+        if (acctCode) {
+          jeLines.push({
+            Line_ID: lineNum++,
+            AccountCode: acctCode,
+            Debit: 0,
+            Credit: comp.value,
+            LineMemo: `Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+          });
+        }
       }
     }
 
     const netPayVal = parseFloat(entry.netPay || '0');
     if (netPayVal > 0) {
-      jeLines.push({
-        Line_ID: lineNum++,
-        AccountCode: glMap.get('NET_PAY|payroll_liability'),
-        Debit: 0,
-        Credit: netPayVal,
-        LineMemo: `Contract Worker Net Pay - ${empName} - ${periodLabel}`,
-      });
+      const acctCode = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
+      if (acctCode) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: acctCode,
+          Debit: 0,
+          Credit: netPayVal,
+          LineMemo: `Contract Worker Net Pay - ${empName} - ${periodLabel}`,
+        });
+      }
+    }
+
+    if (jeLines.length === 0) {
+      return res.status(400).json({ error: 'No JE lines could be built. GL mappings may be missing.' });
     }
 
     const postingDate = period?.startDate
@@ -555,6 +710,10 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
       Reference2: employee.cardCode,
       Reference3: '194C',
       U_Employee_Name: empName,
+      U_TDS_Status: 'A',
+      U_PF_Status: 'A',
+      U_ESIC_Status: 'A',
+      U_PT_Status: 'A',
       JournalEntryLines: jeLines,
     };
 
@@ -564,70 +723,180 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
       updatedAt: new Date(),
     }).where(eq(payrollRecords.id, record.id));
 
-    let session = sapSessionManager.getSession(currentUser.id);
-    if (!session) {
-      const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
-      const sapUser = process.env.SAP_USERNAME || '';
-      const sapPass = process.env.SAP_PASSWORD || '';
-      const sapDb = process.env.SAP_COMPANY_DB || '';
-      if (!sapUser || !sapPass || !sapDb) {
-        await db.update(payrollRecords).set({
-          sapPostingStatus: 'failed',
-          sapErrorMessage: 'SAP credentials not configured',
-          updatedAt: new Date(),
-        }).where(eq(payrollRecords.id, record.id));
-        return res.status(500).json({ error: 'SAP credentials not configured' });
-      }
-      const loginResp = await sapHttpsClient.post(`${sapUrl}/b1s/v1/Login`, { UserName: sapUser, Password: sapPass, CompanyDB: sapDb });
-      if (loginResp.error) {
-        await db.update(payrollRecords).set({
-          sapPostingStatus: 'failed',
-          sapErrorMessage: `SAP login failed: ${loginResp.error}`,
-          updatedAt: new Date(),
-        }).where(eq(payrollRecords.id, record.id));
-        return res.status(500).json({ error: `SAP login failed: ${loginResp.error}` });
-      }
-      session = loginResp.data?.SessionId || loginResp.SessionId;
-    }
+    const sapResult = await postJeToSap(currentUser.id, jePayload);
 
-    const sapUrl = process.env.SAP_SERVICE_LAYER_URL || 'https://59.152.52.58:50000';
-    const jeResp = await sapHttpsClient.post(`${sapUrl}/b1s/v1/JournalEntries`, jePayload, {
-      headers: { Cookie: `B1SESSION=${session}` },
-    });
+    if (sapResult.success) {
+      const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
+      history.push(buildStatusTransition(record.status || 'verified', 'transferred', 'post_sap', `Posted to SAP - JE #${sapResult.jeNumber}`, currentUser));
 
-    if (jeResp.error || !jeResp.data) {
       await db.update(payrollRecords).set({
-        sapPostingStatus: 'failed',
-        sapErrorMessage: `SAP JE posting failed: ${jeResp.error || JSON.stringify(jeResp)}`,
+        sapDocEntry: sapResult.docEntry!,
+        sapJeNumber: sapResult.jeNumber!,
+        sapPostedAt: new Date(),
+        sapPostingStatus: 'posted',
+        status: 'transferred',
+        sapErrorMessage: null,
+        statusHistory: history,
         updatedAt: new Date(),
       }).where(eq(payrollRecords.id, record.id));
-      return res.status(500).json({ error: `SAP JE posting failed: ${jeResp.error}` });
+
+      res.json({ success: true, sapDocEntry: sapResult.docEntry, sapJeNumber: sapResult.jeNumber });
+    } else {
+      await db.update(payrollRecords).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: sapResult.error || 'SAP posting failed',
+        updatedAt: new Date(),
+      }).where(eq(payrollRecords.id, record.id));
+
+      res.status(500).json({ error: sapResult.error || 'SAP posting failed' });
     }
-
-    const sapDocEntry = jeResp.data.DocEntry;
-    const sapJeNumber = jeResp.data.Number?.toString() || jeResp.data.DocEntry?.toString();
-
-    const history = Array.isArray(record.statusHistory) ? [...record.statusHistory] : [];
-    history.push({
-      status: 'transferred',
-      timestamp: new Date().toISOString(),
-      userId: currentUser?.id,
-      reason: `Posted to SAP - JE #${sapJeNumber}`,
-    });
-
-    await db.update(payrollRecords).set({
-      sapDocEntry,
-      sapJeNumber,
-      sapPostedAt: new Date(),
-      sapPostingStatus: 'posted',
-      status: 'transferred',
-      statusHistory: history,
-      updatedAt: new Date(),
-    }).where(eq(payrollRecords.id, record.id));
-
-    res.json({ success: true, sapDocEntry, sapJeNumber });
   } catch (e: any) {
     console.error('Error posting contract worker salary to SAP:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/:id/reverse-sap', async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const currentUser = req.user as any;
+    const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
+    if (!entry || !entry.payrollRecordId) return res.status(404).json({ error: 'Entry not found' });
+
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, entry.payrollRecordId));
+    if (!record) return res.status(404).json({ error: 'Payroll record not found' });
+
+    if (record.sapPostingStatus !== 'posted') {
+      return res.status(400).json({ error: 'Only SAP-posted records can be reversed.' });
+    }
+    if (record.reversalSapDocEntry) {
+      return res.status(400).json({ error: 'This record has already been reversed.', reversalJeNumber: record.reversalSapJeNumber });
+    }
+
+    const [employee] = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      username: users.username,
+      cardCode: users.cardCode,
+      cardName: users.cardName,
+      employeeCode: users.employeeCode,
+    }).from(users).where(eq(users.id, record.userId));
+
+    if (!employee) return res.status(400).json({ error: 'Employee not found' });
+    const empName = getUserName(employee);
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+
+    const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
+      .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
+    const periodLabel = period?.periodName || 'Unknown Period';
+
+    const jeLines: any[] = [];
+    let lineNum = 0;
+
+    const earningComponents = [
+      { code: 'BASIC', value: parseFloat(entry.baseEarnings || '0') },
+      { code: 'OVERTIME', value: parseFloat(entry.overtimeEarned || '0') },
+    ];
+
+    for (const comp of earningComponents) {
+      if (comp.value > 0) {
+        const acctCode = getGlCode(allMappings, comp.code, 'expense');
+        if (acctCode) {
+          jeLines.push({
+            Line_ID: lineNum++,
+            AccountCode: acctCode,
+            Debit: 0,
+            Credit: comp.value,
+            LineMemo: `REVERSAL - Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+          });
+        }
+      }
+    }
+
+    const deductionComponents = [
+      { code: 'PF_EMPLOYEE', value: parseFloat(entry.pfAmount || '0') },
+      { code: 'ESIC_EMPLOYEE', value: parseFloat(entry.esicAmount || '0') },
+      { code: 'PT', value: parseFloat(entry.ptAmount || '0') },
+      { code: 'TDS', value: parseFloat(entry.tdsAmount || '0') },
+    ];
+
+    for (const comp of deductionComponents) {
+      if (comp.value > 0) {
+        const acctCode = getGlCode(allMappings, comp.code, 'payroll_liability');
+        if (acctCode) {
+          jeLines.push({
+            Line_ID: lineNum++,
+            AccountCode: acctCode,
+            Debit: comp.value,
+            Credit: 0,
+            LineMemo: `REVERSAL - Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+          });
+        }
+      }
+    }
+
+    const netPayVal = parseFloat(entry.netPay || '0');
+    if (netPayVal > 0) {
+      const acctCode = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
+      if (acctCode) {
+        jeLines.push({
+          Line_ID: lineNum++,
+          AccountCode: acctCode,
+          Debit: netPayVal,
+          Credit: 0,
+          LineMemo: `REVERSAL - Contract Worker Net Pay - ${empName} - ${periodLabel}`,
+        });
+      }
+    }
+
+    if (jeLines.length === 0) {
+      return res.status(400).json({ error: 'No JE lines could be built for reversal. GL mappings may be missing.' });
+    }
+
+    const postingDate = new Date().toISOString().split('T')[0];
+    const originalJeRef = record.sapJeNumber || String(record.sapDocEntry);
+
+    const jePayload = {
+      ReferenceDate: postingDate,
+      Memo: `REVERSAL - Contract Worker Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+      Reference2: employee.cardCode || '',
+      Reference3: `REV-194C-${originalJeRef}`,
+      U_Employee_Name: empName,
+      JournalEntryLines: jeLines,
+    };
+
+    const sapResult = await postJeToSap(currentUser.id, jePayload);
+
+    if (sapResult.success) {
+      const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
+      history.push(buildStatusTransition(record.status || 'transferred', 'reversed', 'reverse', `Reversal JE #${sapResult.jeNumber} posted to SAP`, currentUser));
+
+      await db.update(payrollRecords).set({
+        status: 'reversed',
+        reversalSapDocEntry: sapResult.docEntry!,
+        reversalSapJeNumber: sapResult.jeNumber!,
+        reversalSapPostedAt: new Date(),
+        reversedBy: currentUser.id,
+        reversedAt: new Date(),
+        reversalMemo: `REVERSAL of Contract Worker Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+        statusHistory: history,
+        updatedAt: new Date(),
+      }).where(eq(payrollRecords.id, entry.payrollRecordId));
+
+      return res.json({
+        success: true,
+        message: `Reversal JE posted successfully`,
+        originalJeNumber: record.sapJeNumber,
+        reversalJeNumber: sapResult.jeNumber,
+        reversalDocEntry: sapResult.docEntry,
+      });
+    } else {
+      return res.status(500).json({ error: sapResult.error || 'SAP reversal posting failed' });
+    }
+  } catch (e: any) {
+    console.error('Error reversing contract worker salary in SAP:', e);
     res.status(500).json({ error: e.message });
   }
 });
