@@ -81,8 +81,6 @@ export function ManualSalaryTab() {
   const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/users'] });
   const { data: salaryConfigs = [] } = useQuery<any[]>({ queryKey: ['/api/admin/payroll/salary-setup'] });
 
-  const [leaveBalances, setLeaveBalances] = useState<any[]>([]);
-
   useEffect(() => {
     if (!formData.userId || editingEntry) return;
     const config = salaryConfigs.find((c: any) => c.userId === parseInt(formData.userId) && c.isActive);
@@ -99,13 +97,6 @@ export function ManualSalaryTab() {
     }
   }, [formData.userId, salaryConfigs, editingEntry]);
 
-  useEffect(() => {
-    if (!formData.userId) { setLeaveBalances([]); return; }
-    fetch(`/api/leave/balance/${formData.userId}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setLeaveBalances(data); else setLeaveBalances([]); })
-      .catch(() => setLeaveBalances([]));
-  }, [formData.userId]);
 
   const effectivePeriodId = selectedPeriodId && selectedPeriodId !== 'all' ? selectedPeriodId : '';
 
@@ -344,25 +335,6 @@ export function ManualSalaryTab() {
           </>
         )}
 
-        {formData.userId && leaveBalances.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <Label className="text-xs font-semibold text-blue-700 mb-1 block">Balance Leaves</Label>
-            <div className="flex flex-wrap gap-3">
-              {leaveBalances.map((lb: any) => (
-                <div key={lb.id} className="flex items-center gap-1.5 text-sm">
-                  <span className="text-gray-600">{lb.leaveTypeName}:</span>
-                  <span className="font-semibold text-blue-800">{lb.availableDays}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {formData.userId && leaveBalances.length === 0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-            <Label className="text-xs text-gray-500">No leave allocations found for this user</Label>
-          </div>
-        )}
 
         {!isOtOnly && (
           <>
