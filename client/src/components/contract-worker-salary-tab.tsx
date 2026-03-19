@@ -310,24 +310,9 @@ export function ManualSalaryTab() {
       <div className="space-y-4">
         {!isEdit && (
           <>
-          <div>
-            <Label>Entry Purpose</Label>
-            <Select value={formData.entryPurpose} onValueChange={v => setFormData(d => ({ ...d, entryPurpose: v }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full_salary">Full Salary Entry</SelectItem>
-                <SelectItem value="ot_only">OT Only (Attendance via Calendar)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+            <span className="font-medium">OT Only (Attendance via Calendar)</span> — Base salary is processed through the Payroll Run Engine using calendar attendance. This entry captures overtime hours only.
           </div>
-
-          {isOtOnly && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
-              OT-only mode: Base salary is processed through the Payroll Run Engine using calendar attendance. This entry captures overtime hours only.
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -456,15 +441,8 @@ export function ManualSalaryTab() {
               </CardHeader>
               <CardContent className="p-3 pt-0">
                 <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                  <div className="flex justify-between"><span>Base Earnings:</span><span className="font-mono">{fmt(preview.baseEarnings)}</span></div>
                   <div className="flex justify-between"><span>Overtime:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
-                  <div className="flex justify-between font-semibold"><span>Gross:</span><span className="font-mono">{fmt(preview.grossEarnings)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>PF (12%):</span><span className="font-mono">{fmt(preview.pfAmount)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>ESIC (0.75%):</span><span className="font-mono">{fmt(preview.esicAmount)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>PT:</span><span className="font-mono">{fmt(preview.ptAmount)}</span></div>
-                  <div className="flex justify-between text-red-600"><span>TDS (1%):</span><span className="font-mono">{fmt(preview.tdsAmount)}</span></div>
-                  <div className="flex justify-between text-red-600 font-semibold"><span>Total Ded:</span><span className="font-mono">{fmt(preview.totalDeductions)}</span></div>
-                  <div className="flex justify-between text-green-700 font-bold text-base"><span>Net Pay:</span><span className="font-mono">{fmt(preview.netPay)}</span></div>
+                  <div className="flex justify-between text-green-700 font-bold text-base"><span>OT Amount:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
                 </div>
               </CardContent>
             </Card>
@@ -481,7 +459,7 @@ export function ManualSalaryTab() {
           <HardHat className="h-6 w-6 text-orange-600" />
           <div>
             <h3 className="text-lg font-semibold">Manual Salary Processing</h3>
-            <p className="text-sm text-muted-foreground">Manual salary processing with TDS Sec 194C -- separate from payroll run engine</p>
+            <p className="text-sm text-muted-foreground">Manual overtime entry — separate from payroll run engine</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
