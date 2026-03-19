@@ -437,15 +437,14 @@ function ComplianceRegisterTab() {
       </Card>
 
       <Dialog open={showNonSalaryChallanDialog} onOpenChange={setShowNonSalaryChallanDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Generate Non-Salary TDS Challan</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Select a section and month to generate a TDS challan from SAP WHT data. Only pending entries with positive TDS amounts are included.
             </p>
-
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
             {nonSalaryPeriods.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-400" />
@@ -456,14 +455,13 @@ function ComplianceRegisterTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Section</TableHead>
-                    <TableHead>Period</TableHead>
-                    <TableHead>Quarter</TableHead>
-                    <TableHead className="text-right">Entries</TableHead>
-                    <TableHead className="text-right">Total Base</TableHead>
-                    <TableHead className="text-right">Total TDS</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead></TableHead>
+                    <TableHead className="text-xs">Section</TableHead>
+                    <TableHead className="text-xs">Period</TableHead>
+                    <TableHead className="text-xs">Qtr</TableHead>
+                    <TableHead className="text-xs text-right">Entries</TableHead>
+                    <TableHead className="text-xs text-right">Total TDS</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -473,17 +471,16 @@ function ComplianceRegisterTab() {
                     const yr = parseInt(p.year);
                     return (
                       <TableRow key={i} className={p.hasChallan ? 'opacity-50' : ''}>
-                        <TableCell className="font-mono font-medium">{section}</TableCell>
-                        <TableCell>{monthNames[mon - 1]} {yr}</TableCell>
-                        <TableCell>{p.quarter}</TableCell>
-                        <TableCell className="text-right">{p.entryCount}</TableCell>
-                        <TableCell className="text-right font-mono">{fmt(p.totalBase)}</TableCell>
-                        <TableCell className="text-right font-mono font-semibold">{fmt(p.totalTds)}</TableCell>
+                        <TableCell className="font-mono font-medium text-sm">{section}</TableCell>
+                        <TableCell className="text-sm">{monthNames[mon - 1]} {yr}</TableCell>
+                        <TableCell className="text-sm">{p.quarter}</TableCell>
+                        <TableCell className="text-right text-sm">{p.entryCount}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-sm">{fmt(p.totalTds)}</TableCell>
                         <TableCell>
                           {p.hasChallan ? (
-                            <Badge className="bg-green-100 text-green-800">Challan Exists</Badge>
+                            <Badge className="bg-green-100 text-green-800 text-xs">Done</Badge>
                           ) : (
-                            <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                            <Badge className="bg-yellow-100 text-yellow-800 text-xs">Pending</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -491,6 +488,7 @@ function ComplianceRegisterTab() {
                             <Button
                               size="sm"
                               variant="outline"
+                              className="h-7 text-xs"
                               onClick={() => generateNonSalaryMutation.mutate({ tdsSection: section, month: mon, year: yr })}
                               disabled={generateNonSalaryMutation.isPending}
                             >
