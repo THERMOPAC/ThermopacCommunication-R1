@@ -341,7 +341,7 @@ async function stepAttendanceSnapshot(
           exceptions.push({
             userId: emp.id,
             type: 'attendance_incomplete',
-            severity: 'warning',
+            severity: 'error',
             title: `Attendance incomplete for ${emp.username}`,
             details: `${records.length} of ${calendarDaysInPeriod} days have attendance records. ${missingDays} day(s) missing. Please mark all days before processing payroll.`,
           });
@@ -672,8 +672,8 @@ async function stepSalaryCalculation(
         const otRate = parseFloat(sal.otRate || '1.0');
         const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
         overtimePay = hourlyRate * overtimeHours * otRate * otMultiplier;
-        bonusAllow = 0;
-        grossPay = proratedBase + overtimePay;
+        bonusAllow = Math.round(proratedBase * 0.0833 * 100) / 100;
+        grossPay = proratedBase + overtimePay + bonusAllow;
       } else {
         paidDays = Math.min(rawPaidDays, MONTHLY_DIVISOR);
 
@@ -746,10 +746,7 @@ async function stepSalaryCalculation(
       const netPay = grossPay - totalDeductions;
 
       const ctcMonthly = grossPay + employerPF + employerESIC + gratuityAmount + groupInsuranceAmount;
-      const annualBonus = salaryType === 'daily'
-        ? Math.round(basicSalary * paidDays * 0.0833 * 100) / 100
-        : bonusAllow;
-      const ctcYearly = (ctcMonthly * 12) + (annualBonus * 12);
+      const ctcYearly = (ctcMonthly * 12) + (bonusAllow * 12);
 
       const calculationSnapshot = {
         basicSalary,

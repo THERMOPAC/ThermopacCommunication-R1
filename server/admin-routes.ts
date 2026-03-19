@@ -3604,10 +3604,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const grossPay = parseFloat(record.grossPay?.toString() || '0');
     const netPay = parseFloat(record.netPay?.toString() || '0');
     const ctcMonthly = grossPay + employerPf + employerEsic + gratuity + groupInsuranceVal;
-    const annualBonusForCTC = salaryType === 'daily'
-      ? Math.round(grossPay * 0.0833)
-      : bonus;
-    const ctcYearly = (ctcMonthly * 12) + (annualBonusForCTC * 12);
+    const ctcYearly = (ctcMonthly * 12) + (bonus * 12);
 
     const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
     const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;

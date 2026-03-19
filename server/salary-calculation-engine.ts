@@ -158,36 +158,33 @@ export class SalaryCalculationEngine {
         autoAppliedLeaves
       };
     } else {
-      const absentDates = await this.identifyAbsentDays(
-        input.userId,
-        input.month,
-        input.year,
-        workweekPolicy,
-        attendanceData.records,
-        leaveData.leaves
-      );
+      const absentCount = attendanceData.records.filter((r: any) => r.status === 'absent').length;
+      const halfDayCount = attendanceData.records.filter((r: any) => r.status === 'half_day').length;
+      const lopFromAttendance = absentCount + (halfDayCount * 0.5);
       
-      console.log(`📊 User ${input.userId}: ${absentDates.length} absent days identified for ${input.month}/${input.year}`);
+      console.log(`📊 User ${input.userId}: Monthly worker — LOP from attendance records: ${lopFromAttendance} (${absentCount} absent + ${halfDayCount} half-days)`);
       
-      const updateBalances = input.updateLeaveBalances ?? false;
-      autoAppliedLeaves = await this.autoApplyLeaveForAbsentDays(
-        input.userId,
-        input.year,
-        absentDates.length,
-        updateBalances
-      );
+      const coveredByPaidLeave = Math.min(leaveData.paidLeaveDays, lopFromAttendance);
+      const finalLop = Math.max(0, lopFromAttendance - coveredByPaidLeave);
       
-      if (autoAppliedLeaves.coveredByLeave > 0) {
-        console.log(`📅 Auto-applied ${autoAppliedLeaves.coveredByLeave} days of leave for absent days`);
+      autoAppliedLeaves = {
+        totalAbsentDays: absentCount,
+        coveredByLeave: coveredByPaidLeave,
+        lopDays: finalLop,
+        breakdown: []
+      };
+      
+      if (coveredByPaidLeave > 0) {
+        console.log(`📅 ${coveredByPaidLeave} absent days covered by paid leave`);
       }
-      if (autoAppliedLeaves.lopDays > 0) {
-        console.log(`⚠️ ${autoAppliedLeaves.lopDays} LOP days (no leave balance available)`);
+      if (finalLop > 0) {
+        console.log(`⚠️ ${finalLop} LOP days remaining after leave adjustment`);
       }
       
       enhancedLeaveData = {
         ...leaveData,
-        paidLeaveDays: leaveData.paidLeaveDays + autoAppliedLeaves.coveredByLeave,
-        unpaidLeaveDays: autoAppliedLeaves.lopDays,
+        paidLeaveDays: coveredByPaidLeave,
+        unpaidLeaveDays: finalLop,
         autoAppliedLeaves
       };
     }
@@ -729,15 +726,13 @@ export class SalaryCalculationEngine {
       kgpAllowance = Math.round(configKgp * ratio * 100) / 100;
     }
     
-    const bonus = salaryType === 'daily'
-      ? 0
-      : (input.bonusAmount !== undefined)
-        ? input.bonusAmount
-        : Math.round(grossBasic * 0.0833 * 100) / 100;
+    const bonus = (input.bonusAmount !== undefined)
+      ? input.bonusAmount
+      : Math.round(grossBasic * 0.0833 * 100) / 100;
     
     const grossEarnings = grossBasic + houseRentAllowance + conveyanceAllowance + 
                          ltaAllowance + specialAllowance + supplementaryAllowance + 
-                         kgpAllowance + overtimePay;
+                         kgpAllowance + overtimePay + bonus;
     
     const pfBase = Math.min(grossBasic, 15000);
     const employeePF = pfBase * 0.12;
