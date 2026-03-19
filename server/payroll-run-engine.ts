@@ -333,7 +333,7 @@ async function stepAttendanceSnapshot(
           exceptions.push({
             userId: emp.id,
             type: 'attendance_incomplete',
-            severity: 'error',
+            severity: 'warning',
             title: `Attendance incomplete for ${emp.username}`,
             details: `${records.length} of ${calendarDaysInPeriod} days have attendance records. ${missingDays} day(s) missing. Please mark all days before processing payroll.`,
           });
