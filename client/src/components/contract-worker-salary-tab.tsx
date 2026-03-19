@@ -53,7 +53,7 @@ function SapBadge({ sapPostingStatus, sapJeNumber }: { sapPostingStatus: string 
   return <Badge variant="outline" className="text-gray-400">Not Posted</Badge>;
 }
 
-export function ContractWorkerSalaryTab() {
+export function ManualSalaryTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -277,7 +277,7 @@ export function ContractWorkerSalaryTab() {
               <Select value={formData.userId} onValueChange={v => setFormData(d => ({ ...d, userId: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select worker" /></SelectTrigger>
                 <SelectContent>
-                  {allUsers.filter((u: any) => u.isActive).map((u: any) => (
+                  {allUsers.filter((u: any) => u.isActive && u.userType === 'non_system_user').map((u: any) => (
                     <SelectItem key={u.id} value={u.id.toString()}>
                       {u.cardName || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username)}
                       {u.employeeCode ? ` (${u.employeeCode})` : ''}
@@ -380,7 +380,7 @@ export function ContractWorkerSalaryTab() {
         <div className="flex items-center gap-3">
           <HardHat className="h-6 w-6 text-orange-600" />
           <div>
-            <h3 className="text-lg font-semibold">Contract Worker Salary</h3>
+            <h3 className="text-lg font-semibold">Manual Salary Processing</h3>
             <p className="text-sm text-muted-foreground">Manual salary processing with TDS Sec 194C -- separate from payroll run engine</p>
           </div>
         </div>
@@ -418,7 +418,7 @@ export function ContractWorkerSalaryTab() {
           ) : entries.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-lg font-medium">No contract worker salary entries</p>
+              <p className="text-lg font-medium">No manual salary entries</p>
               <p className="text-sm">Click "New Entry" to create a manual salary record.</p>
             </div>
           ) : (
@@ -519,7 +519,7 @@ export function ContractWorkerSalaryTab() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <HardHat className="h-5 w-5 text-orange-600" /> New Contract Worker Salary Entry
+              <HardHat className="h-5 w-5 text-orange-600" /> New Manual Salary Entry
             </DialogTitle>
           </DialogHeader>
           {renderFormFields(false)}
@@ -536,7 +536,7 @@ export function ContractWorkerSalaryTab() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-5 w-5 text-blue-600" /> Edit Contract Worker Salary Entry
+              <Pencil className="h-5 w-5 text-blue-600" /> Edit Manual Salary Entry
             </DialogTitle>
           </DialogHeader>
           {renderFormFields(true)}

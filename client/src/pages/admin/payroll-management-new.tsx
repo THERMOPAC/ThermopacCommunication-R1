@@ -21,7 +21,7 @@ import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
 import { PayrollRunWizard } from '@/components/payroll-run-wizard';
 import { TdsManagementTab } from '@/components/tds-management';
-import { ContractWorkerSalaryTab } from '@/components/contract-worker-salary-tab';
+import { ManualSalaryTab } from '@/components/contract-worker-salary-tab';
 
 // Schema for salary form
 const salaryFormSchema = z.object({
@@ -764,7 +764,7 @@ function GeneratedSalariesView() {
                     <div className="font-medium text-sm">
                       {record.employeeName}
                       {record.salarySource === 'manual_salary' && (
-                        <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 text-orange-700 border-orange-300 bg-orange-50">Contract</Badge>
+                        <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 text-orange-700 border-orange-300 bg-orange-50">Manual</Badge>
                       )}
                     </div>
                     <div className="text-xs text-gray-500">{record.employeeCode}</div>
@@ -810,7 +810,7 @@ function GeneratedSalariesView() {
                       )}
 
                       {isManualSalary && (
-                        <span className="text-[10px] text-orange-600 italic">Manage via Contract Workers tab</span>
+                        <span className="text-[10px] text-orange-600 italic">Manage via Manual Salary tab</span>
                       )}
 
                       {!isManualSalary && recStatus === 'generated' && (
@@ -1894,7 +1894,7 @@ export default function PayrollManagementNew() {
             <TabsTrigger value="configurations">Salary Configurations</TabsTrigger>
             <TabsTrigger value="generated">Generated Salaries</TabsTrigger>
             <TabsTrigger value="payroll-run">Payroll Run Engine</TabsTrigger>
-            <TabsTrigger value="contract-workers">Contract Workers</TabsTrigger>
+            <TabsTrigger value="manual-salary">Manual Salary</TabsTrigger>
             <TabsTrigger value="tds">Income Tax / TDS</TabsTrigger>
           </TabsList>
 
@@ -2013,8 +2013,8 @@ export default function PayrollManagementNew() {
             <PayrollRunTab />
           </TabsContent>
 
-          <TabsContent value="contract-workers">
-            <ContractWorkerSalaryTab />
+          <TabsContent value="manual-salary">
+            <ManualSalaryTab />
           </TabsContent>
 
           <TabsContent value="tds">

@@ -188,7 +188,7 @@ async function getActiveEmployees(): Promise<any[]> {
   return db
     .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays })
     .from(users)
-    .where(and(eq(users.isActive, true), ne(users.role, 'superuser')));
+    .where(and(eq(users.isActive, true), ne(users.role, 'superuser'), sql`coalesce(${users.userType}, 'system_user') = 'system_user'`));
 }
 
 async function getWorkweekPolicyForEmployee(workLocationId?: number, department?: string): Promise<number[]> {

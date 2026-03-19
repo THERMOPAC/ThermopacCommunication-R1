@@ -21,7 +21,7 @@ function ensurePayrollAdmin(req: Request, res: Response, next: Function) {
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
   const allowedRoles = ['Superuser', 'Admin', 'HR Manager', 'Finance Manager'];
   if (!allowedRoles.includes(user.role)) {
-    return res.status(403).json({ error: 'Access denied. Only Admin, HR, or Finance roles can manage contract worker salaries.' });
+    return res.status(403).json({ error: 'Access denied. Only Admin, HR, or Finance roles can manage manual salaries.' });
   }
   next();
 }
@@ -163,6 +163,9 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
 
     const [employee] = await db.select().from(users).where(eq(users.id, userId));
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
+    if ((employee as any).userType !== 'non_system_user') {
+      return res.status(400).json({ error: 'Manual salary processing is only allowed for Non-System Users. Please change the user type first.' });
+    }
 
     const periodMonth = new Date(period.startDate).getMonth() + 1;
     const calc = await calculateManualSalary({
@@ -177,7 +180,7 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
       employeeRole: (employee as any).role,
     });
 
-    const initialHistory = [buildStatusTransition('new', 'generated', 'create', 'Manual salary entry created for contract worker', currentUser)];
+    const initialHistory = [buildStatusTransition('new', 'generated', 'create', 'Manual salary entry created for non-system user', currentUser)];
 
     const [payrollRecord] = await db.insert(payrollRecords).values({
       periodId,
@@ -194,7 +197,7 @@ router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) =
       totalDeductions: calc.totalDeductions.toString(),
       status: 'generated',
       salarySource: 'manual_salary',
-      workerType: 'contract_worker',
+      workerType: 'non_system_user',
       statusHistory: initialHistory,
     }).returning();
 
@@ -672,7 +675,7 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
             AccountCode: acctCode,
             Debit: comp.value,
             Credit: 0,
-            LineMemo: `Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+            LineMemo: `Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
           });
         }
       }
@@ -694,7 +697,7 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
             AccountCode: acctCode,
             Debit: 0,
             Credit: comp.value,
-            LineMemo: `Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+            LineMemo: `Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
           });
         }
       }
@@ -709,7 +712,7 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
           AccountCode: acctCode,
           Debit: 0,
           Credit: netPayVal,
-          LineMemo: `Contract Worker Net Pay - ${empName} - ${periodLabel}`,
+          LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}`,
         });
       }
     }
@@ -724,7 +727,7 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
 
     const jePayload = {
       ReferenceDate: postingDate,
-      Memo: `Contract Worker Salary JE - ${empName} - ${periodLabel}`,
+      Memo: `Manual Salary Salary JE - ${empName} - ${periodLabel}`,
       Reference2: employee.cardCode,
       Reference3: '194C',
       U_Employee_Name: empName,
@@ -827,7 +830,7 @@ router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Re
             AccountCode: acctCode,
             Debit: 0,
             Credit: comp.value,
-            LineMemo: `REVERSAL - Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+            LineMemo: `REVERSAL - Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
           });
         }
       }
@@ -849,7 +852,7 @@ router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Re
             AccountCode: acctCode,
             Debit: comp.value,
             Credit: 0,
-            LineMemo: `REVERSAL - Contract Worker ${comp.code} - ${empName} - ${periodLabel}`,
+            LineMemo: `REVERSAL - Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
           });
         }
       }
@@ -864,7 +867,7 @@ router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Re
           AccountCode: acctCode,
           Debit: netPayVal,
           Credit: 0,
-          LineMemo: `REVERSAL - Contract Worker Net Pay - ${empName} - ${periodLabel}`,
+          LineMemo: `REVERSAL - Manual Salary Net Pay - ${empName} - ${periodLabel}`,
         });
       }
     }
@@ -878,7 +881,7 @@ router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Re
 
     const jePayload = {
       ReferenceDate: postingDate,
-      Memo: `REVERSAL - Contract Worker Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+      Memo: `REVERSAL - Manual Salary Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
       Reference2: employee.cardCode || '',
       Reference3: `REV-194C-${originalJeRef}`,
       U_Employee_Name: empName,
@@ -898,7 +901,7 @@ router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Re
         reversalSapPostedAt: new Date(),
         reversedBy: currentUser.id,
         reversedAt: new Date(),
-        reversalMemo: `REVERSAL of Contract Worker Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
+        reversalMemo: `REVERSAL of Manual Salary Salary JE #${originalJeRef} - ${empName} - ${periodLabel}`,
         statusHistory: history,
         updatedAt: new Date(),
       }).where(eq(payrollRecords.id, entry.payrollRecordId));

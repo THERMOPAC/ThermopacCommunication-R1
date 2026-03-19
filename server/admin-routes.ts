@@ -111,6 +111,7 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
         dateOfJoining: users.dateOfJoining,
         reportingManagerId: users.reportingManagerId,
         workLocationId: users.workLocationId,
+        userType: users.userType,
         isActive: users.isActive,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
@@ -2330,7 +2331,7 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
     if (!record) return res.status(404).json({ error: 'Payroll record not found' });
 
     if (record.salarySource === 'manual_salary') {
-      return res.status(400).json({ error: 'Manual salary records must be managed through the Contract Workers tab.' });
+      return res.status(400).json({ error: 'Manual salary records must be managed through the Manual Salary tab.' });
     }
 
     if (record.status === 'voided') {
@@ -2553,7 +2554,7 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
     if (!record) return res.status(404).json({ error: 'Payroll record not found' });
 
     if (record.salarySource === 'manual_salary') {
-      return res.status(400).json({ error: 'Manual salary records must be managed through the Contract Workers tab.' });
+      return res.status(400).json({ error: 'Manual salary records must be managed through the Manual Salary tab.' });
     }
 
     if (record.sapPostingStatus === 'posted') {
@@ -2672,7 +2673,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     }
 
     if (record.salarySource === 'manual_salary') {
-      return res.status(400).json({ error: 'Manual salary records must be posted through the Contract Workers tab.' });
+      return res.status(400).json({ error: 'Manual salary records must be posted through the Manual Salary tab.' });
     }
 
     if (record.sapPostingStatus === 'posted') {
@@ -2986,7 +2987,7 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     }
 
     if (record.salarySource === 'manual_salary') {
-      return res.status(400).json({ error: 'Manual salary records must be reversed through the Contract Workers tab.' });
+      return res.status(400).json({ error: 'Manual salary records must be reversed through the Manual Salary tab.' });
     }
 
     if (record.sapPostingStatus !== 'posted') {

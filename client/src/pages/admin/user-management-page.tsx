@@ -1022,6 +1022,7 @@ export default function UserManagementPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>User Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -1050,6 +1051,11 @@ export default function UserManagementPage() {
                       <TableCell>{user.department || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{user.role}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={user.userType === 'non_system_user' ? 'text-orange-700 border-orange-300 bg-orange-50' : 'text-blue-700 border-blue-300 bg-blue-50'}>
+                          {user.userType === 'non_system_user' ? 'Non-System' : 'System'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={user.isActive ? "default" : "secondary"}>

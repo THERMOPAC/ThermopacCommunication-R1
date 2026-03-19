@@ -780,6 +780,7 @@ const userSchema = {
   
   // Weekly Off Days for Payroll (JSON array of day numbers: 0=Sunday, 1=Monday, etc.)
   // Default is Saturday(6) and Sunday(0) off
+  userType: text('user_type').default('system_user'),
   weeklyOffDays: jsonb('weekly_off_days').default('[0,6]'),
   
   // Duty Schedule fields for attendance status calculation

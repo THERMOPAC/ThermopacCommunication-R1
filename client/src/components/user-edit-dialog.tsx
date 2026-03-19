@@ -60,6 +60,7 @@ const editUserSchema = z.object({
   dateOfJoining: z.string().optional(),
   reportingManagerId: z.string().min(1, "Reporting Manager is required"),
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
+  userType: z.enum(['system_user', 'non_system_user']).optional(),
   password: z.string().optional(), // Optional for updates
   // Duty Schedule fields
   dutyTimeIn: z.string().optional(),
@@ -100,6 +101,7 @@ interface User {
   dateOfJoining?: string;
   reportingManagerId?: number;
   workLocationId?: number;
+  userType?: string;
   isActive: boolean;
   // Duty Schedule fields
   dutyTimeIn?: string;
@@ -161,6 +163,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       dateOfJoining: '',
       reportingManagerId: '',
       workLocationId: 'none',
+      userType: 'system_user',
       password: '',
       // Duty Schedule defaults
       dutyTimeIn: '09:00',
@@ -222,6 +225,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         dateOfJoining: (user as any).dateOfJoining || '',
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
+        userType: (user.userType as 'system_user' | 'non_system_user') || 'system_user',
         password: '',
         // Duty Schedule fields
         dutyTimeIn: user.dutyTimeIn || '09:00',
@@ -264,6 +268,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         cardCode: data.cardCode?.trim() || null,
         cardName: data.cardName?.trim() || null,
         dateOfJoining: data.dateOfJoining?.trim() || null,
+        userType: data.userType || 'system_user',
         // Convert string IDs to numbers, handle empty strings and "none" values properly
         reportingManagerId: parseInt(data.reportingManagerId),
         workLocationId: data.workLocationId && data.workLocationId !== '' && data.workLocationId !== 'none'
@@ -448,6 +453,31 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="userType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>User Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || 'system_user'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select user type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="system_user">System User</SelectItem>
+                        <SelectItem value="non_system_user">Non-System User</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="text-xs text-muted-foreground">
+                      System Users use attendance/leave/DWAR and go through the payroll run engine. Non-System Users have their salary processed manually.
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
