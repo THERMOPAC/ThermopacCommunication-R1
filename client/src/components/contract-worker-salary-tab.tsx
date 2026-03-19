@@ -187,9 +187,20 @@ export function ManualSalaryTab() {
     onError: (e: any) => toast({ title: 'Reversal Error', description: e.message, variant: 'destructive' }),
   });
 
+  const lastMonthPeriodId = useMemo(() => {
+    if (!periods.length) return '';
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const match = periods.find((p: any) => {
+      const start = new Date(p.startDate);
+      return start.getFullYear() === lastMonth.getFullYear() && start.getMonth() === lastMonth.getMonth();
+    });
+    return match ? match.id.toString() : '';
+  }, [periods]);
+
   function resetForm() {
     setFormData({
-      periodId: '', userId: '', entryType: 'daily', daysWorked: '0', hoursWorked: '0',
+      periodId: lastMonthPeriodId, userId: '', entryType: 'daily', daysWorked: '0', hoursWorked: '0',
       quantity: '0', baseRate: '', overtimeHours: '0', overtimeRateMultiplier: '1.5', remarks: '',
     });
   }
