@@ -2636,13 +2636,12 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   }, [watchedValues.userId, getEmployeeWorkweekPolicy, users, form, initialData]);
 
   useEffect(() => {
-    if (watchedValues.salaryType === 'daily') {
-      const basic = parseFloat(watchedValues.basicSalary || '0');
-      const minHours = parseFloat(watchedValues.workingHoursPerDay || '8');
-      if (basic > 0 && minHours > 0) {
-        const rate = (basic * 2.5) / 26 / minHours;
-        form.setValue('hourlyRate', rate.toFixed(2));
-      }
+    const basic = parseFloat(watchedValues.basicSalary || '0');
+    const minHours = parseFloat(watchedValues.workingHoursPerDay || '8');
+    if (basic > 0 && minHours > 0) {
+      const divisor = watchedValues.salaryType === 'daily' ? 26 : 30;
+      const rate = (basic * 2.5) / divisor / minHours;
+      form.setValue('hourlyRate', rate.toFixed(2));
     }
   }, [watchedValues.salaryType, watchedValues.basicSalary, watchedValues.workingHoursPerDay, form]);
   
@@ -2754,7 +2753,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="salaryType"
@@ -2796,29 +2795,29 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 )}
               />
 
-              {watchedValues.salaryType === 'daily' && (
-                <FormField
-                  control={form.control}
-                  name="hourlyRate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hourly Rate (Auto)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          key="hourlyRate"
-                          placeholder="0.00" 
-                          autoComplete="off"
-                          readOnly
-                          className="bg-gray-50"
-                          {...field}
-                        />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground">Basic × 2.5 / 26 / Min Daily Hrs</p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+              <FormField
+                control={form.control}
+                name="hourlyRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hourly Rate (Auto)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        key="hourlyRate"
+                        placeholder="0.00" 
+                        autoComplete="off"
+                        readOnly
+                        className="bg-gray-50"
+                        {...field}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Basic × 2.5 / {watchedValues.salaryType === 'daily' ? '26' : '30'} / Min Daily Hrs
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
