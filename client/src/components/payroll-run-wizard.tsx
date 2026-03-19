@@ -61,6 +61,8 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
   const [resetReason, setResetReason] = useState('');
   const [activeTab, setActiveTab] = useState('pipeline');
   const [includeNonSystem, setIncludeNonSystem] = useState(true);
+  const [isRunningAll, setIsRunningAll] = useState(false);
+  const [runAllProgress, setRunAllProgress] = useState('');
 
   const { data: runLog = [], refetch: refetchLog } = useQuery<any[]>({
     queryKey: ['/api/payroll/run/log', period.id, runNumber],
@@ -181,6 +183,54 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
     return STEP_CONFIG.filter(s => getStepStatus(s.key) === 'completed').length;
   };
 
+  const runAllSteps = async () => {
+    if (!runNumber) return;
+    setIsRunningAll(true);
+    try {
+      for (let i = 0; i < STEP_CONFIG.length; i++) {
+        const step = STEP_CONFIG[i];
+        const status = getStepStatus(step.key);
+        if (status === 'completed') continue;
+
+        setRunAllProgress(`Running ${step.label}... (${i + 1}/${STEP_CONFIG.length})`);
+        setCurrentStep(i);
+
+        const result = await apiRequest('POST', '/api/payroll/run/step', {
+          periodId: period.id,
+          runNumber,
+          step: step.key,
+          includeNonSystem,
+        });
+
+        await refetchLog();
+        await refetchExceptions();
+
+        if (result.errorCount > 0 && !result.success) {
+          toast({
+            title: `${step.label} had errors`,
+            description: `${result.employeesProcessed} processed, ${result.errorCount} errors. Pipeline paused.`,
+            variant: 'destructive',
+          });
+          break;
+        }
+
+        toast({
+          title: `${step.label} completed`,
+          description: `${result.employeesProcessed} processed, ${result.errorCount} errors`,
+        });
+      }
+      setRunAllProgress('');
+      refetchLocks();
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+    } catch (err: any) {
+      toast({ title: 'Pipeline error', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsRunningAll(false);
+      setRunAllProgress('');
+    }
+  };
+
   const unresolvedExceptions = exceptions.filter((e: any) => e.resolution === 'unresolved');
   const errorExceptions = unresolvedExceptions.filter((e: any) => e.severity === 'error' || e.severity === 'critical');
   const warningExceptions = unresolvedExceptions.filter((e: any) => e.severity === 'warning');
@@ -208,8 +258,29 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
               {runNumber > 0 ? 'New Run' : 'Start Run'}
             </Button>
           )}
+          {runNumber > 0 && getCompletedStepCount() < STEP_CONFIG.length && period.status !== 'paid' && period.status !== 'locked' && (
+            <Button
+              onClick={runAllSteps}
+              disabled={isRunningAll || executeStepMutation.isPending}
+              size="sm"
+              variant="default"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isRunningAll ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  {runAllProgress || 'Running...'}
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-1" />
+                  Run All Steps
+                </>
+              )}
+            </Button>
+          )}
           {period.status !== 'paid' && period.status !== 'locked' && runNumber > 0 && (
-            <Button variant="outline" size="sm" onClick={() => setShowResetDialog(true)}>
+            <Button variant="outline" size="sm" onClick={() => setShowResetDialog(true)} disabled={isRunningAll}>
               <RotateCcw className="h-4 w-4 mr-1" /> Reset
             </Button>
           )}
@@ -245,7 +316,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
             getStepStatus={getStepStatus}
             currentStep={currentStep}
             onExecuteStep={(step) => executeStepMutation.mutate(step)}
-            isExecuting={executeStepMutation.isPending}
+            isExecuting={executeStepMutation.isPending || isRunningAll}
             runNumber={runNumber}
             periodStatus={period.status || 'draft'}
           />
