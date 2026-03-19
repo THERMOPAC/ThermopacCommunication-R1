@@ -1493,13 +1493,14 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     }
 
     const panCache: Record<string, string | null> = {};
+    let bpSampleLogged = false;
     async function lookupVendorPan(cardCode: string): Promise<string | null> {
       if (!cardCode) return null;
       if (cardCode in panCache) return panCache[cardCode];
       try {
         process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
         const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
-        const bpUrl = `${sapUrl}/BusinessPartners('${encodeURIComponent(cardCode)}')?$select=CardCode,FederalTaxID`;
+        const bpUrl = `${sapUrl}/BusinessPartners('${encodeURIComponent(cardCode)}')`;
         const bpResp = await fetch(bpUrl, {
           headers: {
             'Content-Type': 'application/json',
@@ -1509,7 +1510,18 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
         });
         if (bpResp.ok) {
           const bpData = await bpResp.json() as any;
-          const pan = bpData.FederalTaxID?.trim() || null;
+          if (!bpSampleLogged) {
+            const taxFields = Object.keys(bpData).filter(k => 
+              k.toLowerCase().includes('tax') || k.toLowerCase().includes('pan') || 
+              k.toLowerCase().includes('federal') || k.toLowerCase().includes('tin') ||
+              k.startsWith('U_')
+            );
+            console.log(`SAP BP sample (${cardCode}):`, JSON.stringify(
+              taxFields.reduce((acc: any, k: string) => { acc[k] = bpData[k]; return acc; }, {})
+            ));
+            bpSampleLogged = true;
+          }
+          const pan = bpData.FederalTaxID?.trim() || bpData.U_PAN?.trim() || bpData.U_PANNo?.trim() || null;
           panCache[cardCode] = pan;
           return pan;
         }
