@@ -1386,19 +1386,20 @@ async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType:
   let skip = 0;
   const top = 50;
 
-  const entityMap: Record<string, string> = {
-    'PurchaseInvoice': 'PurchaseInvoices',
-    'VendorPayment': 'VendorPayments',
-    'APCreditMemo': 'PurchaseCreditNotes',
+  const entityMap: Record<string, { endpoint: string; whtProp: string }> = {
+    'PurchaseInvoice': { endpoint: 'PurchaseInvoices', whtProp: 'WithholdingTaxDataCollection' },
+    'VendorPayment': { endpoint: 'VendorPayments', whtProp: 'WithholdingTaxDataWTXCollection' },
+    'APCreditMemo': { endpoint: 'PurchaseCreditNotes', whtProp: 'WithholdingTaxDataCollection' },
   };
 
-  const entity = entityMap[docType];
-  if (!entity) return [];
+  const config = entityMap[docType];
+  if (!config) return [];
+  const { endpoint: entity, whtProp } = config;
 
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 
   while (true) {
-    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,WithholdingTaxDataCollection`;
+    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,${whtProp}`;
 
     try {
       const response = await fetch(url, {
@@ -1419,6 +1420,9 @@ async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType:
 
       const data = await response.json() as any;
       const items = data.value || [];
+      if (items.length > 0 && skip === 0) {
+        console.log(`SAP WHT ${docType}: fetched ${items.length} docs (first batch). Sample keys:`, Object.keys(items[0]).join(', '));
+      }
       results.push(...items.map((item: any) => ({ ...item, _docType: docType })));
 
       if (items.length < top) break;
@@ -1487,7 +1491,7 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     const errors: string[] = [];
 
     for (const doc of allDocs) {
-      const whtLines = doc.WithholdingTaxDataCollection || [];
+      const whtLines = doc.WithholdingTaxDataCollection || doc.WithholdingTaxDataWTXCollection || [];
       for (let lineIdx = 0; lineIdx < whtLines.length; lineIdx++) {
         const wht = whtLines[lineIdx];
         fetched++;
