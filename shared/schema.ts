@@ -785,6 +785,7 @@ const userSchema = {
   // Default is Saturday(6) and Sunday(0) off
   userType: text('user_type').default('system_user'),
   salaryType: varchar('salary_type', { length: 20 }).default('monthly'),
+  otApplicable: varchar('ot_applicable', { length: 10 }).default('no'),
   weeklyOffDays: jsonb('weekly_off_days').default('[0,6]'),
   
   // Duty Schedule fields for attendance status calculation

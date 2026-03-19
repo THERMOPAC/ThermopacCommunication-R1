@@ -45,6 +45,7 @@ const editUserSchema = z.object({
   countryCode: z.string().min(1, 'Country code is required'),
   role: z.enum(roles as [string, ...string[]]),
   salaryType: z.enum(['monthly', 'daily']).optional(),
+  otApplicable: z.enum(['yes', 'no']).optional(),
   jobTitle: z.string().optional(),
   department: z.string().optional(),
   branch: z.string().optional(),
@@ -151,6 +152,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       countryCode: '+91',
       role: 'Employee',
       salaryType: 'monthly',
+      otApplicable: 'no',
       jobTitle: '',
       department: '',
       branch: '',
@@ -215,6 +217,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         countryCode: user.countryCode || '+91',
         role: user.role || 'Employee',
         salaryType: (user as any).salaryType || 'monthly',
+        otApplicable: (user as any).otApplicable || 'no',
         jobTitle: user.jobTitle || '',
         department: user.department || '',
         branch: user.branch || '',
@@ -262,6 +265,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         countryCode: data.countryCode.trim(),
         role: data.role,
         salaryType: data.salaryType || 'monthly',
+        otApplicable: data.otApplicable || 'no',
         jobTitle: data.jobTitle?.trim() || null,
         department: data.department?.trim() || null,
         branch: data.branch?.trim() || null,
@@ -482,6 +486,28 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                       <SelectContent>
                         <SelectItem value="monthly">Monthly</SelectItem>
                         <SelectItem value="daily">Daily</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="otApplicable"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>OT Applicable</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || 'no'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select OT applicable" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
