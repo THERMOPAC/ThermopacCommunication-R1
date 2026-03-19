@@ -692,8 +692,8 @@ export class SalaryCalculationEngine {
       kgpAllowance = 0;
       
     } else {
-      const lopDays = leaveData.lopDays || 0;
-      adjustedPaidDays = Math.min(MONTHLY_DIVISOR - lopDays + leaveData.paidLeaveDays, MONTHLY_DIVISOR);
+      const lopDays = leaveData.unpaidLeaveDays || 0;
+      adjustedPaidDays = Math.min(MONTHLY_DIVISOR - lopDays, MONTHLY_DIVISOR);
       adjustedPaidDays = Math.max(adjustedPaidDays, 0);
       
       const ratio = adjustedPaidDays / MONTHLY_DIVISOR;
@@ -775,7 +775,7 @@ export class SalaryCalculationEngine {
       month: input.month,
       year: input.year,
       workingDays: workingDays.workingDays,
-      actualDays: actualDays,
+      actualDays: workingDays.totalDays,
       paidDays: adjustedPaidDays,
       
       // Attendance Details

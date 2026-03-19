@@ -1771,12 +1771,14 @@ export default function PayrollManagementNew() {
       });
     },
     onSuccess: () => {
-      toast({ title: 'Success', description: 'Salary generated successfully' });
+      toast({ title: 'Success', description: 'Salary generated and saved successfully' });
       setIsConfirmationDialogOpen(false);
       setSelectedEmployeeForSalary(null);
       setSelectedMonth('');
       setSelectedYear('');
       setCalculationPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
     },
     onError: (error: any) => {
       toast({ 

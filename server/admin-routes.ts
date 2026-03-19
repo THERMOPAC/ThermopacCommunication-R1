@@ -3282,7 +3282,6 @@ router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: R
   try {
     const { employeeId, month, year } = req.body;
     
-    // Validate required fields
     if (!employeeId || !month || !year) {
       return res.status(400).json({
         success: false,
@@ -3290,42 +3289,151 @@ router.post('/generate-salary', ensureAuthenticated, async (req: Request, res: R
       });
     }
     
-    // Convert month and year to numbers
     const monthNum = parseInt(month);
     const yearNum = parseInt(year);
     
-    // Validate month and year ranges
     if (monthNum < 1 || monthNum > 12) {
-      return res.status(400).json({
-        success: false,
-        error: 'Month must be between 1 and 12'
-      });
+      return res.status(400).json({ success: false, error: 'Month must be between 1 and 12' });
     }
     
     if (yearNum < 2000 || yearNum > 2100) {
-      return res.status(400).json({
-        success: false,
-        error: 'Year must be between 2000 and 2100'
-      });
+      return res.status(400).json({ success: false, error: 'Year must be between 2000 and 2100' });
     }
     
-    console.log(`💰 Generating salary for employee ${employeeId}, ${month}/${year}`);
+    const userId = parseInt(employeeId);
+    console.log(`💰 Generating salary for employee ${userId}, ${monthNum}/${yearNum}`);
     
-    // Use the salary calculation engine to generate salary
-    // updateLeaveBalances: true will deduct auto-applied leaves from leave balances
-    const salaryInput = {
-      userId: parseInt(employeeId),
+    const result = await salaryCalculationEngine.calculateSalary({
+      userId,
       month: monthNum,
       year: yearNum,
-      updateLeaveBalances: true  // This will update leave balances when generating final salary
-    };
+      updateLeaveBalances: true
+    });
     
-    const result = await salaryCalculationEngine.calculateSalary(salaryInput);
+    const periodName = `${new Date(yearNum, monthNum - 1).toLocaleString('en-US', { month: 'long' })} ${yearNum}`;
+    const [period] = await db
+      .select()
+      .from(payrollPeriods)
+      .where(eq(payrollPeriods.periodName, periodName))
+      .limit(1);
+    
+    if (!period) {
+      return res.status(400).json({
+        success: false,
+        error: `Payroll period "${periodName}" not found. Please create it first.`
+      });
+    }
+
+    const existingRecord = await db
+      .select({ id: payrollRecords.id })
+      .from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.userId, userId),
+        eq(payrollRecords.periodId, period.id)
+      ))
+      .limit(1);
+
+    if (existingRecord.length > 0) {
+      await db
+        .delete(payrollRecords)
+        .where(eq(payrollRecords.id, existingRecord[0].id));
+      console.log(`🔄 Deleted existing payroll record ${existingRecord[0].id} for regeneration`);
+    }
+    
+    const [employee] = await db
+      .select({ salaryType: users.salaryType, userType: users.userType })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    const salaryType = result.salaryType || employee?.salaryType || 'monthly';
+    const workerType = employee?.userType === 'non_system_user' ? 'non_system' : 'system';
+    const lopDays = result.autoAppliedLeaves?.lopDays || 0;
+
+    const snapshot = {
+      salaryType,
+      dailyRate: salaryType === 'daily' ? result.basicSalary : null,
+      presentDays: result.presentDays,
+      paidDays: result.paidDays,
+      lopDays,
+      workingDays: result.workingDays,
+      absentDays: result.absentDays,
+      leaveDays: result.leaveDays,
+      holidayDays: result.holidayDays,
+      autoAppliedLeaves: result.autoAppliedLeaves,
+      earnings: {
+        basicSalary: result.basicSalary,
+        grossBasic: result.grossBasic,
+        hra: result.houseRentAllowance,
+        conveyance: result.conveyanceAllowance,
+        lta: result.ltaAllowance,
+        special: result.specialAllowance,
+        supplementary: result.supplementaryAllowance,
+        kgp: result.kgpAllowance,
+        bonus: result.bonus,
+        overtimePay: result.overtimePay,
+      },
+      deductions: {
+        employeePF: result.employeePF,
+        employeeESIC: result.employeeESIC,
+        professionalTax: result.professionalTax,
+        loanDeduction: result.loanDeduction,
+        advanceDeduction: result.advanceDeduction,
+        otherDeductions: result.otherDeductions,
+        employerPF: result.employerPF,
+        employerESIC: result.employerESIC,
+        gratuity: result.gratuity,
+        groupInsurance: result.totalEmployerContributions - result.employerPF - result.employerESIC - result.gratuity,
+      },
+    };
+
+    const [savedRecord] = await db
+      .insert(payrollRecords)
+      .values({
+        periodId: period.id,
+        userId,
+        baseSalary: String(result.grossBasic),
+        grossPay: String(result.grossEarnings),
+        netPay: String(result.netPay),
+        totalDeductions: String(result.totalDeductions),
+        hra: String(result.houseRentAllowance),
+        conveyanceAllowance: String(result.conveyanceAllowance),
+        ltaAllowance: String(result.ltaAllowance),
+        specialAllowance: String(result.specialAllowance),
+        supplementaryAllowance: String(result.supplementaryAllowance),
+        kgpAllowance: String(result.kgpAllowance),
+        bonus: String(result.bonus),
+        overtimePay: String(result.overtimePay),
+        providentFund: String(result.employeePF),
+        professionalTax: String(result.professionalTax),
+        employeePf: String(result.employeePF),
+        employeeEsic: String(result.employeeESIC),
+        employerPf: String(result.employerPF),
+        employerEsic: String(result.employerESIC),
+        gratuity: String(result.gratuity),
+        esic: String(result.employeeESIC),
+        loanDeductions: String(result.loanDeduction),
+        advanceDeductions: String(result.advanceDeduction),
+        otherDeductions: String(result.otherDeductions),
+        workingDays: result.workingDays,
+        paidDays: String(result.paidDays),
+        lopDays: String(lopDays),
+        presentDays: String(result.presentDays),
+        paidLeaveDays: String(result.leaveDays),
+        unpaidLeaveDays: String(lopDays),
+        calculationSnapshot: snapshot,
+        status: 'generated',
+        salarySource: 'generate_salary',
+        workerType,
+      })
+      .returning({ id: payrollRecords.id });
+    
+    console.log(`✅ Payroll record ${savedRecord.id} saved for ${result.employeeName} (${salaryType})`);
     
     res.json({
       success: true,
-      message: 'Salary generated successfully',
-      data: result
+      message: 'Salary generated and saved successfully',
+      data: { ...result, payrollRecordId: savedRecord.id }
     });
     
   } catch (error: any) {
