@@ -733,7 +733,7 @@ function GeneratedSalariesView() {
           size="sm"
           onClick={() => setShowVoidAllConfirm(true)}
         >
-          <Ban className="h-4 w-4 mr-2" /> Void All Records
+          <Ban className="h-4 w-4 mr-2" /> Clear All Generated Salaries
         </Button>
       </CardHeader>
       <CardContent>
