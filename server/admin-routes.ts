@@ -2165,7 +2165,9 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         reversedAt: payrollRecords.reversedAt,
         reversalMemo: payrollRecords.reversalMemo,
         createdAt: payrollRecords.createdAt,
-        updatedAt: payrollRecords.updatedAt
+        updatedAt: payrollRecords.updatedAt,
+        salarySource: payrollRecords.salarySource,
+        workerType: payrollRecords.workerType,
       })
       .from(payrollRecords)
       .orderBy(desc(payrollRecords.createdAt));
@@ -2242,6 +2244,8 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           reversedBy: record.reversedBy,
           reversedAt: record.reversedAt,
           reversalMemo: record.reversalMemo,
+          salarySource: record.salarySource,
+          workerType: record.workerType,
           createdAt: record.createdAt
         };
       })
@@ -2314,6 +2318,10 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
 
     const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
     if (!record) return res.status(404).json({ error: 'Payroll record not found' });
+
+    if (record.salarySource === 'manual_salary') {
+      return res.status(400).json({ error: 'Manual salary records must be managed through the Contract Workers tab.' });
+    }
 
     if (record.status === 'voided') {
       return res.status(400).json({ error: 'This record is already voided.' });
@@ -2534,6 +2542,10 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
     const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
     if (!record) return res.status(404).json({ error: 'Payroll record not found' });
 
+    if (record.salarySource === 'manual_salary') {
+      return res.status(400).json({ error: 'Manual salary records must be managed through the Contract Workers tab.' });
+    }
+
     if (record.sapPostingStatus === 'posted') {
       return res.status(400).json({ error: 'This record has been transferred to SAP and is locked.' });
     }
@@ -2647,6 +2659,10 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
     if (!record) {
       return res.status(404).json({ error: 'Payroll record not found' });
+    }
+
+    if (record.salarySource === 'manual_salary') {
+      return res.status(400).json({ error: 'Manual salary records must be posted through the Contract Workers tab.' });
     }
 
     if (record.sapPostingStatus === 'posted') {
@@ -2957,6 +2973,10 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
     if (!record) {
       return res.status(404).json({ error: 'Payroll record not found' });
+    }
+
+    if (record.salarySource === 'manual_salary') {
+      return res.status(400).json({ error: 'Manual salary records must be reversed through the Contract Workers tab.' });
     }
 
     if (record.sapPostingStatus !== 'posted') {

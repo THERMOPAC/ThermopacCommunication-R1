@@ -760,7 +760,12 @@ function GeneratedSalariesView() {
                 return (
                 <tr key={record.id} className={`border-b hover:bg-gray-50 ${isTransferred ? 'bg-green-50/30' : isReversed ? 'bg-purple-50/20' : isVoided ? 'bg-gray-50/30' : recStatus === 'rejected' ? 'bg-red-50/20' : recStatus === 'held' ? 'bg-amber-50/20' : ''}`}>
                   <td className="p-3">
-                    <div className="font-medium text-sm">{record.employeeName}</div>
+                    <div className="font-medium text-sm">
+                      {record.employeeName}
+                      {record.salarySource === 'manual_salary' && (
+                        <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 text-orange-700 border-orange-300 bg-orange-50">Contract</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-500">{record.employeeCode}</div>
                   </td>
                   <td className="p-3 text-sm">

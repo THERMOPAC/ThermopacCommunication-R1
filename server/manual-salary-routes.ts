@@ -16,6 +16,16 @@ import { postJeToSap, getGlCode } from './statutory-compliance-routes';
 const router = Router();
 router.use(ensureAuthenticated);
 
+function ensurePayrollAdmin(req: Request, res: Response, next: Function) {
+  const user = req.user as any;
+  if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  const allowedRoles = ['Superuser', 'Admin', 'HR Manager', 'Finance Manager'];
+  if (!allowedRoles.includes(user.role)) {
+    return res.status(403).json({ error: 'Access denied. Only Admin, HR, or Finance roles can manage contract worker salaries.' });
+  }
+  next();
+}
+
 async function getProfessionalTaxConfig(): Promise<{ monthly: number; february: number }> {
   const settings = await db.select().from(payrollSettings).where(
     sql`${payrollSettings.settingName} IN ('professional_tax_monthly', 'professional_tax_february')`
@@ -139,7 +149,7 @@ router.post('/preview', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/create', async (req: Request, res: Response) => {
+router.post('/create', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const currentUser = req.user as any;
     const { periodId, userId, entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, remarks } = req.body;
@@ -244,7 +254,7 @@ router.post('/create', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/:id', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const currentUser = req.user as any;
@@ -437,7 +447,7 @@ router.get('/list', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const [entry] = await db.select().from(manualSalaryEntries).where(eq(manualSalaryEntries.id, id));
@@ -465,7 +475,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/:id/status', async (req: Request, res: Response) => {
+router.post('/:id/status', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const currentUser = req.user as any;
@@ -571,7 +581,7 @@ router.post('/:id/status', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/:id/post-sap', async (req: Request, res: Response) => {
+router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const currentUser = req.user as any;
@@ -764,7 +774,7 @@ router.post('/:id/post-sap', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/:id/reverse-sap', async (req: Request, res: Response) => {
+router.post('/:id/reverse-sap', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     const currentUser = req.user as any;
