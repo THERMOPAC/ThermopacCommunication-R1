@@ -1934,6 +1934,9 @@ export default function PayrollManagementNew() {
                                 ? `${config.firstName} ${config.lastName}`
                                 : config.username
                               }
+                              {config.userType === 'non_system_user' && (
+                                <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 text-orange-700 border-orange-300 bg-orange-50">Non-System</Badge>
+                              )}
                             </div>
                             <div className="text-sm text-gray-500">
                               {config.employeeCode && `${config.employeeCode} • `}
@@ -2708,6 +2711,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                                       : user.username
                                     }
                                     {user.employeeCode && ` - ${user.employeeCode}`}
+                                    {(user as any).userType === 'non_system_user' && ' [Non-System]'}
                                   </SelectItem>
                                 ))}
                               </SelectGroup>

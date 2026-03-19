@@ -388,6 +388,7 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
         department: users.department,
         role: users.role,
         employeeCode: users.employeeCode,
+        userType: users.userType,
         salaryStartDate: employeeSalaries.salaryStartDate,
         basicSalary: employeeSalaries.basicSalary,
         houseRentAllowance: employeeSalaries.houseRentAllowance,
