@@ -1510,18 +1510,10 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
         });
         if (bpResp.ok) {
           const bpData = await bpResp.json() as any;
-          if (!bpSampleLogged) {
-            const taxFields = Object.keys(bpData).filter(k => 
-              k.toLowerCase().includes('tax') || k.toLowerCase().includes('pan') || 
-              k.toLowerCase().includes('federal') || k.toLowerCase().includes('tin') ||
-              k.startsWith('U_')
-            );
-            console.log(`SAP BP sample (${cardCode}):`, JSON.stringify(
-              taxFields.reduce((acc: any, k: string) => { acc[k] = bpData[k]; return acc; }, {})
-            ));
-            bpSampleLogged = true;
+          let pan = bpData.U_PAN_Number?.trim() || bpData.FederalTaxID?.trim() || null;
+          if (!pan && bpData.BPFiscalTaxIDCollection?.length > 0) {
+            pan = bpData.BPFiscalTaxIDCollection[0]?.TaxId0?.trim() || null;
           }
-          const pan = bpData.FederalTaxID?.trim() || bpData.U_PAN?.trim() || bpData.U_PANNo?.trim() || null;
           panCache[cardCode] = pan;
           return pan;
         }
