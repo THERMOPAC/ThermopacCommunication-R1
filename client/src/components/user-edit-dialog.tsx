@@ -36,6 +36,7 @@ import { roles, roleHierarchy, canManage } from '../../../shared/roles';
 
 // Simplified form schema with proper types
 const editUserSchema = z.object({
+  username: z.string().min(2, 'Username must be at least 2 characters'),
   firstName: z.string().optional(),
   middleName: z.string().optional(),
   lastName: z.string().optional(),
@@ -136,6 +137,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
   const form = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
+      username: '',
       firstName: '',
       middleName: '',
       lastName: '',
@@ -196,6 +198,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
   useEffect(() => {
     if (user && open) {
       form.reset({
+        username: user.username || '',
         firstName: user.firstName || '',
         middleName: user.middleName || '',
         lastName: user.lastName || '',
@@ -239,6 +242,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
 
       // Clean and prepare data for API
       const cleanedData: any = {
+        username: data.username.trim(),
         firstName: data.firstName?.trim() || null,
         middleName: data.middleName?.trim() || null,
         lastName: data.lastName?.trim() || null,
@@ -326,6 +330,20 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Basic Information */}
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Username *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="firstName"

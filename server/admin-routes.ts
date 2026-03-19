@@ -266,6 +266,15 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
+    // Check username uniqueness if being changed
+    if (updateData.username) {
+      const existingUser = await db.select({ id: users.id }).from(users)
+        .where(and(eq(users.username, updateData.username), ne(users.id, userId)));
+      if (existingUser.length > 0) {
+        return res.status(400).json({ error: 'Username is already taken by another user' });
+      }
+    }
+
     // If password is being updated, hash it; if empty, remove it from update
     if (updateData.password && updateData.password.trim() !== '') {
       console.log('Hashing password for user update');
