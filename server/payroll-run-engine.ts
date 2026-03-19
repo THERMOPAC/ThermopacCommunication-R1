@@ -278,16 +278,6 @@ async function stepAttendanceSnapshot(
           )
         );
 
-      const presentFull = records.filter(r => r.status === 'present').length;
-      const halfDays = records.filter(r => r.status === 'half_day').length;
-      const lateDays = records.filter(r => r.status === 'late').length;
-      const presentDays = presentFull + lateDays + (halfDays * 0.5);
-      const absentDays = totalWorkingDays - presentFull - halfDays - lateDays;
-      const totalOT = records.reduce(
-        (sum, r) => sum + parseFloat(r.overtimeHours || '0'),
-        0
-      );
-
       const weeklyOffs = emp.weeklyOffDays || [0, 6];
       const sDate = new Date(period.startDate);
       const eDate = new Date(period.endDate);
@@ -297,7 +287,32 @@ async function stepAttendanceSnapshot(
         if (weeklyOffs.includes(cur.getDay())) weekOffCount++;
         cur.setDate(cur.getDate() + 1);
       }
-      const initialPaidDays = presentDays + weekOffCount + holidayDates.size;
+      const daysInPeriod = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
+
+      const workingDayRecords = records.filter(r => {
+        const d = new Date(r.date);
+        const dayOfWeek = d.getDay();
+        return workingDayNums.includes(dayOfWeek) && !holidayDates.has(r.date);
+      });
+      const presentFullOnWorkDays = workingDayRecords.filter(r => r.status === 'present').length;
+      const halfDaysOnWorkDays = workingDayRecords.filter(r => r.status === 'half_day').length;
+      const lateDaysOnWorkDays = workingDayRecords.filter(r => r.status === 'late').length;
+      const presentDaysOnWorkDays = presentFullOnWorkDays + lateDaysOnWorkDays + (halfDaysOnWorkDays * 0.5);
+
+      const presentFull = records.filter(r => r.status === 'present').length;
+      const halfDays = records.filter(r => r.status === 'half_day').length;
+      const lateDays = records.filter(r => r.status === 'late').length;
+      const presentDays = presentFull + lateDays + (halfDays * 0.5);
+
+      const effectivePresentOnWorkDays = presentFullOnWorkDays + lateDaysOnWorkDays + (halfDaysOnWorkDays * 0.5);
+      const absentDays = Math.max(0, totalWorkingDays - effectivePresentOnWorkDays);
+
+      const totalOT = records.reduce(
+        (sum, r) => sum + parseFloat(r.overtimeHours || '0'),
+        0
+      );
+
+      const initialPaidDays = Math.min(daysInPeriod - absentDays, daysInPeriod);
 
       await db
         .insert(payrollAttendanceSnapshot)
@@ -312,9 +327,12 @@ async function stepAttendanceSnapshot(
           lateDays,
           overtimeHours: totalOT.toString(),
           paidDays: initialPaidDays.toString(),
+          weeklyOffs: weekOffCount,
+          holidays: holidayDates.size,
+          companyHolidays: holidayDates.size,
           paidLeaveDays: '0',
           unpaidLeaveDays: '0',
-          lopDays: '0',
+          lopDays: absentDays.toString(),
         })
         .onConflictDoUpdate({
           target: [payrollAttendanceSnapshot.periodId, payrollAttendanceSnapshot.runNumber, payrollAttendanceSnapshot.userId],
@@ -326,6 +344,10 @@ async function stepAttendanceSnapshot(
             lateDays,
             overtimeHours: totalOT.toString(),
             paidDays: initialPaidDays.toString(),
+            weeklyOffs: weekOffCount,
+            holidays: holidayDates.size,
+            companyHolidays: holidayDates.size,
+            lopDays: absentDays.toString(),
           },
         });
 
@@ -421,7 +443,10 @@ async function stepLeaveConsolidation(
         const coveredByUnpaidLeave = Math.min(unpaidLeaveDays, remainingAbsent);
         const lopDays = Math.max(0, remainingAbsent - coveredByUnpaidLeave);
         const currentPaidDays = parseFloat(snap.paidDays);
-        const newPaidDays = currentPaidDays + coveredByPaidLeave;
+        const periodStart = new Date(period.startDate);
+        const periodEnd = new Date(period.endDate);
+        const daysInPeriod = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
+        const newPaidDays = Math.min(currentPaidDays + coveredByPaidLeave, daysInPeriod);
 
         await db
           .update(payrollAttendanceSnapshot)
@@ -561,7 +586,6 @@ async function stepSalaryCalculation(
           )
         );
 
-      const paidDays = attSnap.length > 0 ? parseFloat(attSnap[0].paidDays) : 0;
       const lopDays = attSnap.length > 0 ? parseFloat(attSnap[0].lopDays || '0') : 0;
       const totalWorkingDays = attSnap.length > 0 ? attSnap[0].totalWorkingDays : 26;
       const overtimeHours = attSnap.length > 0 ? parseFloat(attSnap[0].overtimeHours || '0') : 0;
@@ -575,6 +599,8 @@ async function stepSalaryCalculation(
       const startD = new Date(period.startDate);
       const endD = new Date(period.endDate);
       const daysInMonth = Math.round((endD.getTime() - startD.getTime()) / 86400000) + 1;
+      const rawPaidDays = attSnap.length > 0 ? parseFloat(attSnap[0].paidDays) : 0;
+      const paidDays = Math.min(rawPaidDays, daysInMonth);
 
       let proratedBase: number, overtimePay: number, grossPay: number;
       let hra = 0, conv = 0, ltaVal = 0, specAllow = 0, suppAllow = 0, kgpAllow = 0, bonusAllow = 0;
