@@ -68,20 +68,13 @@ async function calculateManualSalary(input: {
   const overtimeEarned = input.overtimeHours * hourlyRateForOT * input.overtimeRateMultiplier;
   const grossEarnings = baseEarnings + overtimeEarned;
 
-  const pfBase = Math.min(baseEarnings, 15000);
-  const pfAmount = Math.round(pfBase * 0.12 * 100) / 100;
-  const esicAmount = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075 * 100) / 100 : 0;
+  const pfAmount = 0;
+  const esicAmount = 0;
+  const ptAmount = 0;
+  const tdsAmount = 0;
 
-  let ptAmount = 0;
-  if (input.employeeRole !== 'Superuser') {
-    const ptConfig = await getProfessionalTaxConfig();
-    ptAmount = input.periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
-  }
-
-  const tdsAmount = Math.round(grossEarnings * 0.01 * 100) / 100;
-
-  const totalDeductions = Math.round((pfAmount + ptAmount + esicAmount + tdsAmount) * 100) / 100;
-  const netPay = Math.round((grossEarnings - totalDeductions) * 100) / 100;
+  const totalDeductions = 0;
+  const netPay = Math.round(grossEarnings * 100) / 100;
 
   return {
     baseEarnings: Math.round(baseEarnings * 100) / 100,
