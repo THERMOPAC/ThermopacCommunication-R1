@@ -1151,7 +1151,7 @@ router.post('/tds/reconciliation/refresh', async (req: Request, res: Response) =
       .innerJoin(users, eq(payrollRecords.userId, users.id))
       .where(and(
         eq(payrollRecords.periodId, periodId),
-        inArray(payrollRecords.status, ['processed', 'approved', 'paid', 'locked', 'verified', 'transferred']),
+        inArray(payrollRecords.status, ['generated', 'processed', 'approved', 'paid', 'locked', 'verified', 'transferred']),
       ));
 
     if (!records.length) return res.json({ message: 'No payroll records found for this period', refreshed: 0 });
@@ -1172,7 +1172,7 @@ router.post('/tds/reconciliation/refresh', async (req: Request, res: Response) =
 
       insertRows.push({
         employeeId: pr.userId,
-        employeeName: u.name || u.username || 'Unknown',
+        employeeName: u.cardName || [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || 'Unknown',
         employeeCode: u.employeeCode || null,
         periodId: periodId,
         month,
