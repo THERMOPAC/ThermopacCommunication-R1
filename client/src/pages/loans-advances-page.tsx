@@ -50,7 +50,7 @@ export default function LoansAdvancesPage() {
     emiAmount: '', tenureMonths: '', disbursementDate: '', startDeductionDate: '', remarks: '',
   });
   const [advanceForm, setAdvanceForm] = useState({
-    employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '',
+    employeeId: '', amount: '', recoveryType: 'lump_sum', recoveryAmount: '',
     recoveryMonths: '', advanceDate: '', startRecoveryDate: '', reason: '',
   });
 
@@ -138,7 +138,7 @@ export default function LoansAdvancesPage() {
     setLoanForm({ employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0', emiAmount: '', tenureMonths: '', disbursementDate: getToday(), startDeductionDate: getFirstOfNextMonth(), remarks: '' });
   }
   function resetAdvanceForm() {
-    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'installment', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '' });
+    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'lump_sum', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '' });
   }
 
   const filteredLoans = employeeFilter === 'all' ? loans : loans.filter((l: any) => String(l.employeeId) === employeeFilter);
