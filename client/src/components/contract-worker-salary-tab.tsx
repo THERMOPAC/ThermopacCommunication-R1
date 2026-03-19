@@ -1,0 +1,466 @@
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Plus, Trash2, ShieldCheck, Pause, XCircle, Undo2, Send, Loader2,
+  CheckCircle, AlertCircle, Clock, Calculator, HardHat, Users
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+
+const fmt = (v: number | string | null | undefined) => {
+  const n = parseFloat(String(v || '0'));
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+};
+
+function StatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'generated':
+      return <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50"><Clock className="h-3 w-3 mr-1" /> Generated</Badge>;
+    case 'verified':
+      return <Badge className="bg-emerald-600 text-white"><ShieldCheck className="h-3 w-3 mr-1" /> Verified</Badge>;
+    case 'held':
+      return <Badge className="bg-amber-600 text-white"><Pause className="h-3 w-3 mr-1" /> Held</Badge>;
+    case 'rejected':
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
+    case 'transferred':
+      return <Badge className="bg-purple-600 text-white"><Send className="h-3 w-3 mr-1" /> Transferred</Badge>;
+    default:
+      return <Badge variant="outline">{status}</Badge>;
+  }
+}
+
+function SapBadge({ sapPostingStatus, sapJeNumber }: { sapPostingStatus: string | null; sapJeNumber: string | null }) {
+  if (sapPostingStatus === 'posted') {
+    return <Badge className="bg-green-600 text-white"><CheckCircle className="h-3 w-3 mr-1" /> JE #{sapJeNumber}</Badge>;
+  }
+  if (sapPostingStatus === 'failed') {
+    return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" /> Failed</Badge>;
+  }
+  if (sapPostingStatus === 'pending') {
+    return <Badge variant="outline" className="text-amber-600"><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Posting...</Badge>;
+  }
+  return <Badge variant="outline" className="text-gray-400">Not Posted</Badge>;
+}
+
+export function ContractWorkerSalaryTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [reasonDialog, setReasonDialog] = useState<{ open: boolean; entryId: number; action: string }>({ open: false, entryId: 0, action: '' });
+  const [reasonText, setReasonText] = useState('');
+
+  const [formData, setFormData] = useState({
+    periodId: '',
+    userId: '',
+    entryType: 'daily',
+    daysWorked: '0',
+    hoursWorked: '0',
+    quantity: '0',
+    baseRate: '',
+    overtimeHours: '0',
+    overtimeRateMultiplier: '1.5',
+    remarks: '',
+  });
+
+  const { data: periods = [] } = useQuery<any[]>({ queryKey: ['/api/payroll/payroll-periods'] });
+  const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/admin/users'] });
+
+  const { data: entries = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/manual-salary/list', selectedPeriodId],
+    queryFn: () => {
+      const url = selectedPeriodId ? `/api/manual-salary/list?periodId=${selectedPeriodId}` : '/api/manual-salary/list';
+      return fetch(url, { credentials: 'include' }).then(r => r.json());
+    },
+  });
+
+  const preview = useMemo(() => {
+    const baseRate = parseFloat(formData.baseRate || '0');
+    if (baseRate <= 0) return null;
+
+    let baseEarnings = 0;
+    if (formData.entryType === 'daily') baseEarnings = parseFloat(formData.daysWorked || '0') * baseRate;
+    else if (formData.entryType === 'hourly') baseEarnings = parseFloat(formData.hoursWorked || '0') * baseRate;
+    else baseEarnings = parseFloat(formData.quantity || '0') * baseRate;
+
+    const hourlyForOT = formData.entryType === 'hourly' ? baseRate : baseRate / 8;
+    const otHours = parseFloat(formData.overtimeHours || '0');
+    const otMult = parseFloat(formData.overtimeRateMultiplier || '1.5');
+    const overtimeEarned = otHours * hourlyForOT * otMult;
+    const grossEarnings = baseEarnings + overtimeEarned;
+
+    const pfBase = Math.min(grossEarnings, 15000);
+    const pf = Math.round(pfBase * 0.12 * 100) / 100;
+    const esic = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075 * 100) / 100 : 0;
+    const pt = 200;
+    const tds = Math.round(grossEarnings * 0.01 * 100) / 100;
+    const totalDed = Math.round((pf + pt + esic + tds) * 100) / 100;
+    const netPay = Math.round((grossEarnings - totalDed) * 100) / 100;
+
+    return { baseEarnings, overtimeEarned, grossEarnings, pf, esic, pt, tds, totalDed, netPay };
+  }, [formData]);
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => apiRequest('POST', '/api/manual-salary/create', data),
+    onSuccess: () => {
+      toast({ title: 'Contract worker salary created' });
+      queryClient.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+      setIsCreateOpen(false);
+      resetForm();
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/manual-salary/${id}`),
+    onSuccess: () => {
+      toast({ title: 'Entry deleted' });
+      queryClient.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const actionMutation = useMutation({
+    mutationFn: ({ id, action, reason }: { id: number; action: string; reason?: string }) =>
+      apiRequest('POST', `/api/manual-salary/${id}/${action}`, reason ? { reason } : {}),
+    onSuccess: (_: any, vars: any) => {
+      toast({ title: `Entry ${vars.action === 'post-sap' ? 'posted to SAP' : vars.action + 'ed'} successfully` });
+      queryClient.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  function resetForm() {
+    setFormData({
+      periodId: '', userId: '', entryType: 'daily', daysWorked: '0', hoursWorked: '0',
+      quantity: '0', baseRate: '', overtimeHours: '0', overtimeRateMultiplier: '1.5', remarks: '',
+    });
+  }
+
+  function handleSubmit() {
+    if (!formData.periodId || !formData.userId || !formData.baseRate) {
+      toast({ title: 'Please fill in worker, period, and base rate', variant: 'destructive' });
+      return;
+    }
+    createMutation.mutate({
+      periodId: parseInt(formData.periodId),
+      userId: parseInt(formData.userId),
+      entryType: formData.entryType,
+      daysWorked: formData.daysWorked,
+      hoursWorked: formData.hoursWorked,
+      quantity: formData.quantity,
+      baseRate: formData.baseRate,
+      overtimeHours: formData.overtimeHours,
+      overtimeRateMultiplier: formData.overtimeRateMultiplier,
+      remarks: formData.remarks,
+    });
+  }
+
+  function handleActionWithReason(entryId: number, action: string) {
+    setReasonDialog({ open: true, entryId, action });
+    setReasonText('');
+  }
+
+  function submitReasonAction() {
+    actionMutation.mutate({ id: reasonDialog.entryId, action: reasonDialog.action, reason: reasonText });
+    setReasonDialog({ open: false, entryId: 0, action: '' });
+  }
+
+  const summaryStats = useMemo(() => {
+    const total = entries.length;
+    const generated = entries.filter((e: any) => e.payrollStatus === 'generated').length;
+    const verified = entries.filter((e: any) => e.payrollStatus === 'verified').length;
+    const transferred = entries.filter((e: any) => e.payrollStatus === 'transferred').length;
+    const totalGross = entries.reduce((s: number, e: any) => s + parseFloat(e.grossEarnings || '0'), 0);
+    const totalNet = entries.reduce((s: number, e: any) => s + parseFloat(e.netPay || '0'), 0);
+    return { total, generated, verified, transferred, totalGross, totalNet };
+  }, [entries]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <HardHat className="h-6 w-6 text-orange-600" />
+          <div>
+            <h3 className="text-lg font-semibold">Contract Worker Salary</h3>
+            <p className="text-sm text-muted-foreground">Manual salary processing — separate from payroll run engine</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={selectedPeriodId} onValueChange={setSelectedPeriodId}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="All Periods" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Periods</SelectItem>
+              {periods.map((p: any) => (
+                <SelectItem key={p.id} value={p.id.toString()}>{p.periodName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => setIsCreateOpen(true)} className="bg-orange-600 hover:bg-orange-700">
+            <Plus className="h-4 w-4 mr-2" /> New Entry
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-6 gap-3">
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-blue-600">{summaryStats.total}</div><div className="text-xs text-muted-foreground">Total</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-slate-600">{summaryStats.generated}</div><div className="text-xs text-muted-foreground">Generated</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-emerald-600">{summaryStats.verified}</div><div className="text-xs text-muted-foreground">Verified</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-purple-600">{summaryStats.transferred}</div><div className="text-xs text-muted-foreground">Transferred</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-orange-600">{fmt(summaryStats.totalGross)}</div><div className="text-xs text-muted-foreground">Total Gross</div></CardContent></Card>
+        <Card><CardContent className="p-3 text-center"><div className="text-xl font-bold text-green-600">{fmt(summaryStats.totalNet)}</div><div className="text-xs text-muted-foreground">Total Net</div></CardContent></Card>
+      </div>
+
+      <Card>
+        <CardContent className="pt-4">
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading entries...</div>
+          ) : entries.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-lg font-medium">No contract worker salary entries</p>
+              <p className="text-sm">Click "New Entry" to create a manual salary record.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50/50">
+                    <th className="text-left p-3 font-medium">Worker</th>
+                    <th className="text-left p-3 font-medium">Type</th>
+                    <th className="text-right p-3 font-medium">Days/Hrs</th>
+                    <th className="text-right p-3 font-medium">Rate</th>
+                    <th className="text-right p-3 font-medium">Base</th>
+                    <th className="text-right p-3 font-medium">OT</th>
+                    <th className="text-right p-3 font-medium">Gross</th>
+                    <th className="text-right p-3 font-medium">Deductions</th>
+                    <th className="text-right p-3 font-medium">Net Pay</th>
+                    <th className="text-center p-3 font-medium">Status</th>
+                    <th className="text-center p-3 font-medium">SAP</th>
+                    <th className="text-right p-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e: any) => {
+                    const workerName = e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.userName;
+                    const daysOrHrs = e.entryType === 'daily' ? `${e.daysWorked}d` : e.entryType === 'hourly' ? `${e.hoursWorked}h` : `${e.quantity}q`;
+                    return (
+                      <tr key={e.id} className="border-b hover:bg-gray-50/50">
+                        <td className="p-3">
+                          <div className="font-medium">{workerName}</div>
+                          <div className="text-xs text-muted-foreground">{e.employeeCode || e.department || ''}</div>
+                        </td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-orange-700 border-orange-300 bg-orange-50">{e.entryType}</Badge>
+                        </td>
+                        <td className="p-3 text-right font-mono">{daysOrHrs}</td>
+                        <td className="p-3 text-right font-mono">{fmt(e.baseRate)}</td>
+                        <td className="p-3 text-right font-mono">{fmt(e.baseEarnings)}</td>
+                        <td className="p-3 text-right font-mono">{parseFloat(e.overtimeEarned || '0') > 0 ? fmt(e.overtimeEarned) : '—'}</td>
+                        <td className="p-3 text-right font-mono font-semibold">{fmt(e.grossEarnings)}</td>
+                        <td className="p-3 text-right font-mono text-red-600">{fmt(e.totalDeductions)}</td>
+                        <td className="p-3 text-right font-mono font-semibold text-green-700">{fmt(e.netPay)}</td>
+                        <td className="p-3 text-center"><StatusBadge status={e.payrollStatus} /></td>
+                        <td className="p-3 text-center"><SapBadge sapPostingStatus={e.sapPostingStatus} sapJeNumber={e.sapJeNumber} /></td>
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {e.payrollStatus === 'generated' && (
+                              <>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-emerald-700" onClick={() => actionMutation.mutate({ id: e.id, action: 'verify' })}>
+                                  <ShieldCheck className="h-3 w-3 mr-1" /> Verify
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-amber-700" onClick={() => handleActionWithReason(e.id, 'hold')}>
+                                  <Pause className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs text-red-700" onClick={() => handleActionWithReason(e.id, 'reject')}>
+                                  <XCircle className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 text-xs text-red-500" onClick={() => deleteMutation.mutate(e.id)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                            {e.payrollStatus === 'verified' && !e.sapPostingStatus?.includes('posted') && (
+                              <Button size="sm" className="h-7 text-xs bg-purple-600 hover:bg-purple-700" onClick={() => actionMutation.mutate({ id: e.id, action: 'post-sap' })}>
+                                <Send className="h-3 w-3 mr-1" /> Post SAP
+                              </Button>
+                            )}
+                            {(e.payrollStatus === 'held' || e.payrollStatus === 'rejected') && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => actionMutation.mutate({ id: e.id, action: 'release' })}>
+                                <Undo2 className="h-3 w-3 mr-1" /> Release
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HardHat className="h-5 w-5 text-orange-600" /> New Contract Worker Salary Entry
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Payroll Period *</Label>
+                <Select value={formData.periodId} onValueChange={v => setFormData(d => ({ ...d, periodId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
+                  <SelectContent>
+                    {periods.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id.toString()}>{p.periodName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Worker *</Label>
+                <Select value={formData.userId} onValueChange={v => setFormData(d => ({ ...d, userId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select worker" /></SelectTrigger>
+                  <SelectContent>
+                    {allUsers.filter((u: any) => u.isActive).map((u: any) => (
+                      <SelectItem key={u.id} value={u.id.toString()}>
+                        {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username}
+                        {u.employeeCode ? ` (${u.employeeCode})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Separator />
+            <h4 className="font-semibold text-sm">Work Details</h4>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Entry Type</Label>
+                <Select value={formData.entryType} onValueChange={v => setFormData(d => ({ ...d, entryType: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily (Days × Rate)</SelectItem>
+                    <SelectItem value="hourly">Hourly (Hrs × Rate)</SelectItem>
+                    <SelectItem value="piece">Piece Rate (Qty × Rate)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.entryType === 'daily' && (
+                <div>
+                  <Label>Days Worked</Label>
+                  <Input type="number" step="0.5" value={formData.daysWorked} onChange={e => setFormData(d => ({ ...d, daysWorked: e.target.value }))} />
+                </div>
+              )}
+              {formData.entryType === 'hourly' && (
+                <div>
+                  <Label>Hours Worked</Label>
+                  <Input type="number" step="0.5" value={formData.hoursWorked} onChange={e => setFormData(d => ({ ...d, hoursWorked: e.target.value }))} />
+                </div>
+              )}
+              {formData.entryType === 'piece' && (
+                <div>
+                  <Label>Quantity</Label>
+                  <Input type="number" step="1" value={formData.quantity} onChange={e => setFormData(d => ({ ...d, quantity: e.target.value }))} />
+                </div>
+              )}
+              <div>
+                <Label>Base Rate (₹) *</Label>
+                <Input type="number" step="0.01" value={formData.baseRate} onChange={e => setFormData(d => ({ ...d, baseRate: e.target.value }))} placeholder="e.g. 800" />
+              </div>
+            </div>
+
+            <Separator />
+            <h4 className="font-semibold text-sm">Overtime</h4>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Overtime Hours</Label>
+                <Input type="number" step="0.5" value={formData.overtimeHours} onChange={e => setFormData(d => ({ ...d, overtimeHours: e.target.value }))} />
+              </div>
+              <div>
+                <Label>OT Rate Multiplier</Label>
+                <Input type="number" step="0.1" value={formData.overtimeRateMultiplier} onChange={e => setFormData(d => ({ ...d, overtimeRateMultiplier: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <Label>Remarks</Label>
+              <Textarea value={formData.remarks} onChange={e => setFormData(d => ({ ...d, remarks: e.target.value }))} placeholder="Optional notes..." rows={2} />
+            </div>
+
+            {preview && (
+              <>
+                <Separator />
+                <Card className="border-green-200 bg-green-50/50">
+                  <CardHeader className="p-3 pb-1">
+                    <CardTitle className="text-sm flex items-center gap-2"><Calculator className="h-4 w-4" /> Live Calculation Preview</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0">
+                    <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
+                      <div className="flex justify-between"><span>Base Earnings:</span><span className="font-mono">{fmt(preview.baseEarnings)}</span></div>
+                      <div className="flex justify-between"><span>Overtime:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
+                      <div className="flex justify-between font-semibold"><span>Gross:</span><span className="font-mono">{fmt(preview.grossEarnings)}</span></div>
+                      <div className="flex justify-between text-red-600"><span>PF (12%):</span><span className="font-mono">{fmt(preview.pf)}</span></div>
+                      <div className="flex justify-between text-red-600"><span>ESIC (0.75%):</span><span className="font-mono">{fmt(preview.esic)}</span></div>
+                      <div className="flex justify-between text-red-600"><span>PT:</span><span className="font-mono">{fmt(preview.pt)}</span></div>
+                      <div className="flex justify-between text-red-600"><span>TDS (1%):</span><span className="font-mono">{fmt(preview.tds)}</span></div>
+                      <div className="flex justify-between text-red-600 font-semibold"><span>Total Ded:</span><span className="font-mono">{fmt(preview.totalDed)}</span></div>
+                      <div className="flex justify-between text-green-700 font-bold text-base"><span>Net Pay:</span><span className="font-mono">{fmt(preview.netPay)}</span></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => { setIsCreateOpen(false); resetForm(); }}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={createMutation.isPending} className="bg-orange-600 hover:bg-orange-700">
+                {createMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Entry</>}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reasonDialog.open} onOpenChange={o => setReasonDialog(d => ({ ...d, open: o }))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{reasonDialog.action === 'hold' ? 'Hold Entry' : 'Reject Entry'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Reason</Label>
+              <Textarea value={reasonText} onChange={e => setReasonText(e.target.value)} placeholder="Enter reason..." rows={3} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setReasonDialog({ open: false, entryId: 0, action: '' })}>Cancel</Button>
+              <Button onClick={submitReasonAction} className={reasonDialog.action === 'hold' ? 'bg-amber-600' : 'bg-red-600'}>
+                {reasonDialog.action === 'hold' ? 'Hold' : 'Reject'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

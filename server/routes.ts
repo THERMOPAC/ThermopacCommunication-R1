@@ -59,6 +59,7 @@ import { default as notificationRoutes } from "./notification-routes";
 import { default as dwarRoutes } from "./dwar-routes";
 import { default as leaveRoutes } from "./leave-routes";
 import { default as payrollRoutes } from "./payroll-routes";
+import { default as manualSalaryRoutes } from "./manual-salary-routes";
 import { default as loanAdvanceRoutes } from "./loan-advance-routes";
 import { default as statutoryComplianceRoutes } from "./statutory-compliance-routes";
 import { default as companyTaxRoutes } from "./company-tax-routes";
@@ -772,6 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up Payroll Management routes
   app.use('/api/payroll', payrollRoutes);
+  app.use('/api/manual-salary', manualSalaryRoutes);
   app.use('/api/loan-advance', loanAdvanceRoutes);
   app.use('/api/statutory', statutoryComplianceRoutes);
   app.use('/api/company-tax', companyTaxRoutes);

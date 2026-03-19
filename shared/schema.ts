@@ -4748,10 +4748,52 @@ export const payrollRecords = pgTable('payroll_records', {
   reversedBy: integer('reversed_by').references(() => users.id),
   reversedAt: timestamp('reversed_at'),
   reversalMemo: text('reversal_memo'),
+
+  salarySource: varchar('salary_source', { length: 20 }).default('payroll_engine'),
+  workerType: varchar('worker_type', { length: 20 }).default('regular'),
+  manualSalaryEntryId: integer('manual_salary_entry_id'),
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// Manual Salary Entries for Contract Workers
+export const manualSalaryEntries = pgTable('manual_salary_entries', {
+  id: serial('id').primaryKey(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  payrollRecordId: integer('payroll_record_id').references(() => payrollRecords.id),
+
+  entryType: varchar('entry_type', { length: 20 }).default('daily'),
+  daysWorked: decimal('days_worked', { precision: 5, scale: 2 }).default('0'),
+  hoursWorked: decimal('hours_worked', { precision: 6, scale: 2 }).default('0'),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).default('0'),
+  baseRate: decimal('base_rate', { precision: 12, scale: 2 }).notNull(),
+
+  overtimeHours: decimal('overtime_hours', { precision: 6, scale: 2 }).default('0'),
+  overtimeRateMultiplier: decimal('overtime_rate_multiplier', { precision: 3, scale: 2 }).default('1.5'),
+  overtimeEarned: decimal('overtime_earned', { precision: 12, scale: 2 }).default('0'),
+
+  baseEarnings: decimal('base_earnings', { precision: 12, scale: 2 }).default('0'),
+  grossEarnings: decimal('gross_earnings', { precision: 12, scale: 2 }).default('0'),
+
+  pfAmount: decimal('pf_amount', { precision: 10, scale: 2 }).default('0'),
+  ptAmount: decimal('pt_amount', { precision: 10, scale: 2 }).default('0'),
+  esicAmount: decimal('esic_amount', { precision: 10, scale: 2 }).default('0'),
+  tdsAmount: decimal('tds_amount', { precision: 10, scale: 2 }).default('0'),
+  tdsSection: varchar('tds_section', { length: 10 }).default('194C'),
+  totalDeductions: decimal('total_deductions', { precision: 10, scale: 2 }).default('0'),
+  netPay: decimal('net_pay', { precision: 12, scale: 2 }).default('0'),
+
+  remarks: text('remarks'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const insertManualSalaryEntrySchema = createInsertSchema(manualSalaryEntries).omit({ id: true, createdAt: true, updatedAt: true });
+export type ManualSalaryEntry = typeof manualSalaryEntries.$inferSelect;
+export type InsertManualSalaryEntry = z.infer<typeof insertManualSalaryEntrySchema>;
 
 // Payroll settings
 export const payrollSettings = pgTable('payroll_settings', {
