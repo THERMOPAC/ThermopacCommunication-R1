@@ -3455,6 +3455,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         department: users.department,
         panNumber: users.panNumber,
         dateOfJoining: users.dateOfJoining,
+        userSalaryType: users.salaryType,
         
         // Period details
         periodName: payrollPeriods.periodName,
@@ -3482,7 +3483,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
     const calcSnap = (record as any).calculationSnapshot || {};
     const deductions = calcSnap.deductions || {};
-    const salaryType = calcSnap.salaryType || 'monthly';
+    const salaryType = calcSnap.salaryType || (record as any).userSalaryType || 'monthly';
     const salaryBasis = salaryType === 'daily' ? 'actual_days' : 30;
 
     const employerPf = parseFloat((record as any).employerPf?.toString() || deductions.employerPF?.toString() || '0');
