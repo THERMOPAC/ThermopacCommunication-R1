@@ -1500,11 +1500,17 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
     const unmappedCodes: Record<string, number> = {};
     const zeroAmountCodes: Record<string, number> = {};
 
+    let sampleLogged = false;
     for (const doc of allDocs) {
       const whtLines = doc.WithholdingTaxDataCollection || doc.WithholdingTaxDataWTXCollection || [];
       for (let lineIdx = 0; lineIdx < whtLines.length; lineIdx++) {
         const wht = whtLines[lineIdx];
         fetched++;
+
+        if (!sampleLogged && wht.WTCode) {
+          console.log(`SAP WHT Sample line (${doc._docType} DocEntry=${doc.DocEntry}):`, JSON.stringify(wht));
+          sampleLogged = true;
+        }
 
         const wtCode = wht.WTCode || '';
         const mapping = SAP_WT_CODE_MAP[wtCode];
