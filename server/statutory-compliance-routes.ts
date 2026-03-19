@@ -1407,7 +1407,7 @@ async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType:
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 
   while (true) {
-    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,FederalTaxID,${whtProp}`;
+    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,${whtProp}`;
 
     try {
       const response = await fetch(url, {
@@ -1492,6 +1492,34 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
       allDocs = allDocs.concat(docs);
     }
 
+    const panCache: Record<string, string | null> = {};
+    async function lookupVendorPan(cardCode: string): Promise<string | null> {
+      if (!cardCode) return null;
+      if (cardCode in panCache) return panCache[cardCode];
+      try {
+        process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+        const sapUrl = 'https://59.152.52.58:50000/b1s/v1';
+        const bpUrl = `${sapUrl}/BusinessPartners('${encodeURIComponent(cardCode)}')?$select=CardCode,FederalTaxID`;
+        const bpResp = await fetch(bpUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cookie': `B1SESSION=${sapSession.sessionId}; ROUTEID=${sapSession.routeId}`,
+          },
+        });
+        if (bpResp.ok) {
+          const bpData = await bpResp.json() as any;
+          const pan = bpData.FederalTaxID?.trim() || null;
+          panCache[cardCode] = pan;
+          return pan;
+        }
+      } catch (e: any) {
+        console.error(`SAP BP PAN lookup failed for ${cardCode}:`, e.message);
+      }
+      panCache[cardCode] = null;
+      return null;
+    }
+
     let fetched = 0;
     let inserted = 0;
     let skipped = 0;
@@ -1526,7 +1554,8 @@ router.post('/tds/sap-wht-sync', async (req: Request, res: Response) => {
         const finalTdsAmount = isCreditMemo ? -Math.abs(tdsAmount) : Math.abs(tdsAmount);
 
         const baseAmount = parseFloat(wht.TaxableAmount?.toString() || wht.TaxableAmountSC?.toString() || wht.TaxableAmountinSys?.toString() || '0');
-        const vendorPan = wht.BPTaxNum || doc.FederalTaxID || null;
+        const bpPan = await lookupVendorPan(doc.CardCode);
+        const vendorPan = bpPan || wht.BPTaxNum || doc.FederalTaxID || null;
         const panResult = validatePan(vendorPan);
 
         const docDate = doc.DocDate ? new Date(doc.DocDate) : new Date();
