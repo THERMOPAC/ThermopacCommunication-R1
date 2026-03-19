@@ -681,7 +681,9 @@ router.get('/payroll/records/:periodId', ensureAuthenticated, async (req: Reques
         netPay: payrollRecords.netPay,
         status: payrollRecords.status,
         paymentReference: payrollRecords.paymentReference,
-        paymentDate: payrollRecords.paymentDate
+        paymentDate: payrollRecords.paymentDate,
+        salarySource: payrollRecords.salarySource,
+        workerType: payrollRecords.workerType,
       })
       .from(payrollRecords)
       .leftJoin(users, eq(payrollRecords.userId, users.id))

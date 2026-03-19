@@ -38,6 +38,7 @@ async function calculateManualSalary(input: {
   overtimeHours: number;
   overtimeRateMultiplier: number;
   periodMonth: number;
+  employeeRole?: string;
 }) {
   let baseEarnings = 0;
   if (input.entryType === 'daily') {
@@ -57,12 +58,15 @@ async function calculateManualSalary(input: {
   const overtimeEarned = input.overtimeHours * hourlyRateForOT * input.overtimeRateMultiplier;
   const grossEarnings = baseEarnings + overtimeEarned;
 
-  const pfBase = Math.min(grossEarnings, 15000);
+  const pfBase = Math.min(baseEarnings, 15000);
   const pfAmount = Math.round(pfBase * 0.12 * 100) / 100;
   const esicAmount = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075 * 100) / 100 : 0;
 
-  const ptConfig = await getProfessionalTaxConfig();
-  const ptAmount = input.periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
+  let ptAmount = 0;
+  if (input.employeeRole !== 'Superuser') {
+    const ptConfig = await getProfessionalTaxConfig();
+    ptAmount = input.periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
+  }
 
   const tdsAmount = Math.round(grossEarnings * 0.01 * 100) / 100;
 
@@ -160,6 +164,7 @@ router.post('/create', async (req: Request, res: Response) => {
       overtimeHours: parseFloat(overtimeHours || '0'),
       overtimeRateMultiplier: parseFloat(overtimeRateMultiplier || '1.5'),
       periodMonth,
+      employeeRole: (employee as any).role,
     });
 
     const initialHistory = [buildStatusTransition('new', 'generated', 'create', 'Manual salary entry created for contract worker', currentUser)];
@@ -259,6 +264,8 @@ router.put('/:id', async (req: Request, res: Response) => {
     const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, entry.periodId));
     const periodMonth = period ? new Date(period.startDate).getMonth() + 1 : new Date().getMonth() + 1;
 
+    const [empForRole] = await db.select({ role: users.role }).from(users).where(eq(users.id, entry.userId));
+
     const calc = await calculateManualSalary({
       entryType: entryType || entry.entryType || 'daily',
       daysWorked: parseFloat(daysWorked ?? entry.daysWorked ?? '0'),
@@ -268,6 +275,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       overtimeHours: parseFloat(overtimeHours ?? entry.overtimeHours ?? '0'),
       overtimeRateMultiplier: parseFloat(overtimeRateMultiplier ?? entry.overtimeRateMultiplier ?? '1.5'),
       periodMonth,
+      employeeRole: empForRole?.role || undefined,
     });
 
     await db.update(manualSalaryEntries).set({

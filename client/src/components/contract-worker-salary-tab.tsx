@@ -79,10 +79,12 @@ export function ContractWorkerSalaryTab() {
   const { data: periods = [] } = useQuery<any[]>({ queryKey: ['/api/payroll/payroll-periods'] });
   const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/admin/users'] });
 
+  const effectivePeriodId = selectedPeriodId && selectedPeriodId !== 'all' ? selectedPeriodId : '';
+
   const { data: entries = [], isLoading } = useQuery<any[]>({
-    queryKey: ['/api/manual-salary/list', selectedPeriodId],
+    queryKey: ['/api/manual-salary/list', effectivePeriodId],
     queryFn: () => {
-      const url = selectedPeriodId ? `/api/manual-salary/list?periodId=${selectedPeriodId}` : '/api/manual-salary/list';
+      const url = effectivePeriodId ? `/api/manual-salary/list?periodId=${effectivePeriodId}` : '/api/manual-salary/list';
       return fetch(url, { credentials: 'include' }).then(r => r.json());
     },
   });
@@ -102,7 +104,7 @@ export function ContractWorkerSalaryTab() {
     const overtimeEarned = otHours * hourlyForOT * otMult;
     const grossEarnings = baseEarnings + overtimeEarned;
 
-    const pfBase = Math.min(grossEarnings, 15000);
+    const pfBase = Math.min(baseEarnings, 15000);
     const pf = Math.round(pfBase * 0.12 * 100) / 100;
     const esic = grossEarnings <= 21000 ? Math.round(grossEarnings * 0.0075 * 100) / 100 : 0;
     const pt = 200;
