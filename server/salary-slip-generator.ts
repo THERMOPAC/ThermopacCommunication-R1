@@ -256,14 +256,19 @@ export class SalarySlipGenerator {
 
     y = tableTop + 14;
 
-    const earnRows = [
-      { label: 'Basic Salary', value: d.earnings.basicSalary },
-      { label: 'HRA', value: d.earnings.hra },
-      { label: 'Conveyance Allowance', value: d.earnings.conveyanceAllowance },
-      { label: 'LTA', value: d.earnings.ltaAllowance },
-      { label: 'Special Allowance', value: d.earnings.specialAllowance },
-      { label: 'Supplementary Allowance', value: d.earnings.supplementaryAllowance },
+    const isDaily = d.period.salaryType === 'daily';
+    const earnRows: { label: string; value: number }[] = [
+      { label: isDaily ? 'Daily Rate × Paid Days' : 'Basic Salary', value: d.earnings.basicSalary },
     ];
+    if (!isDaily) {
+      earnRows.push(
+        { label: 'HRA', value: d.earnings.hra },
+        { label: 'Conveyance Allowance', value: d.earnings.conveyanceAllowance },
+        { label: 'LTA', value: d.earnings.ltaAllowance },
+        { label: 'Special Allowance', value: d.earnings.specialAllowance },
+        { label: 'Supplementary Allowance', value: d.earnings.supplementaryAllowance },
+      );
+    }
     if (d.kgpPercent > 0 || d.earnings.kgpAllowance > 0) {
       earnRows.push({ label: `KGP Allowance (${d.kgpPercent}%)`, value: d.earnings.kgpAllowance });
     }

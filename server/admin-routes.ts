@@ -466,7 +466,14 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
     const salaryData = req.body;
     const currentUser = req.user as any;
     
-
+    const isDaily = salaryData.salaryType === 'daily';
+    if (isDaily) {
+      salaryData.houseRentAllowance = null;
+      salaryData.conveyance = null;
+      salaryData.lta = null;
+      salaryData.specialAllowance = null;
+      salaryData.supplementaryAllowance = null;
+    }
 
     // Calculate CTC values
     const grossSalary = parseFloat(salaryData.basicSalary) + 
@@ -483,10 +490,8 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
                                      parseFloat(salaryData.groupInsurance || 0) + 
                                      parseFloat(salaryData.gratuityCost || 0);
 
-    // CTC Monthly excludes bonus (business requirement)
     const grossSalaryWithoutBonus = grossSalary - parseFloat(salaryData.bonus || 0);
     const ctcMonthly = grossSalaryWithoutBonus + totalEmployerContributions;
-    // CTC Yearly includes bonus as part of annual cost (business requirement)
     const ctcYearly = (ctcMonthly * 12) + (parseFloat(salaryData.bonus || 0) * 12);
 
     const totalDeductions = parseFloat(salaryData.employeePfContribution || 0) + 
@@ -495,7 +500,6 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
 
     const takeHomeSalary = grossSalary - totalDeductions;
 
-    // Check if salary configuration already exists
     const [existingConfig] = await db
       .select()
       .from(employeeSalaries)
@@ -505,10 +509,9 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
       ));
 
     if (existingConfig) {
-      // Update existing configuration - convert string decimals to integers first
       const updateData = {
         ...salaryData,
-        baseSalary: salaryData.basicSalary, // Map basicSalary to baseSalary
+        baseSalary: salaryData.basicSalary,
         ctcMonthly: ctcMonthly.toString(),
         ctcYearly: ctcYearly.toString(),
         takeHomeSalary: takeHomeSalary.toString(),
@@ -572,7 +575,15 @@ router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request
     const salaryData = req.body;
     const currentUser = req.user as any;
     
-    // Calculate CTC values
+    const isDaily = salaryData.salaryType === 'daily';
+    if (isDaily) {
+      salaryData.houseRentAllowance = null;
+      salaryData.conveyance = null;
+      salaryData.lta = null;
+      salaryData.specialAllowance = null;
+      salaryData.supplementaryAllowance = null;
+    }
+
     const grossSalary = parseFloat(salaryData.basicSalary) + 
                        parseFloat(salaryData.houseRentAllowance || 0) + 
                        parseFloat(salaryData.conveyance || 0) + 
@@ -587,10 +598,8 @@ router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request
                                      parseFloat(salaryData.groupInsurance || 0) + 
                                      parseFloat(salaryData.gratuityCost || 0);
 
-    // CTC Monthly excludes bonus (business requirement)
     const grossSalaryWithoutBonus = grossSalary - parseFloat(salaryData.bonus || 0);
     const ctcMonthly = grossSalaryWithoutBonus + totalEmployerContributions;
-    // CTC Yearly includes bonus as part of annual cost (business requirement)
     const ctcYearly = (ctcMonthly * 12) + (parseFloat(salaryData.bonus || 0) * 12);
 
     const totalDeductions = parseFloat(salaryData.employeePfContribution || 0) + 

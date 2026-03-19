@@ -183,12 +183,14 @@ const exportToExcel = (employee: any, month: string, year: string, calculationDa
     ['Paid Days', calculationData?.paidDays || 0, ''],
     ['', '', ''],
     ['EARNINGS', 'Amount (₹)', ''],
-    ['Basic Salary', basicSalary, ''],
-    ['HRA', hra, ''],
-    ['Conveyance Allowance', conveyance, ''],
-    ['LTA', lta, ''],
-    ['Special Allowance', special, ''],
-    ['Supplementary Allowance', supplementary, ''],
+    [calculationData?.salaryType === 'daily' ? 'Daily Rate × Paid Days' : 'Basic Salary', basicSalary, ''],
+    ...(calculationData?.salaryType !== 'daily' ? [
+      ['HRA', hra, ''],
+      ['Conveyance Allowance', conveyance, ''],
+      ['LTA', lta, ''],
+      ['Special Allowance', special, ''],
+      ['Supplementary Allowance', supplementary, ''],
+    ] : []),
     ['KGP Allowance', kgp, ''],
     ['Bonus (Calculated, Not Paid Monthly)', bonus, ''],
     ['Gross Earnings', grossEarnings, ''],
@@ -304,15 +306,10 @@ const useSalaryCalculations = (formData: Partial<SalaryFormValues>, selectedUser
     let houseRent = 0, conveyance = 0, lta = 0, special = 0, supplementary = 0;
 
     if (salaryType === 'daily') {
-      // Daily worker calculations
       grossBasic = basicAmount * paidDays;
       const hourlyRate = basicAmount / workingHours;
       overtimePay = hourlyRate * overtimeHours * otRate;
-      // Bonus excluded from monthly gross earnings - calculated but not paid monthly
       grossEarnings = grossBasic + overtimePay + kgp;
-      
-      // Daily workers have 0% allowances
-      houseRent = conveyance = lta = special = supplementary = 0;
     } else {
       // Monthly worker calculations
       const proRatedBasic = (basicAmount / actualDays) * paidDays;
@@ -1913,7 +1910,7 @@ export default function PayrollManagementNew() {
                     <tr className="border-b">
                       <th className="text-left p-4">Employee</th>
                       <th className="text-left p-4">Type</th>
-                      <th className="text-left p-4">Basic Salary</th>
+                      <th className="text-left p-4">Basic Salary / Daily Rate</th>
                       <th className="text-left p-4">Days</th>
                       <th className="text-left p-4">Start Date</th>
                       <th className="text-left p-4">Actions</th>
@@ -2063,7 +2060,8 @@ export default function PayrollManagementNew() {
                     }
                   </p>
                   <p className="text-sm text-blue-600">
-                    Basic Salary: ₹{parseFloat(selectedEmployeeForSalary.basicSalary).toLocaleString('en-IN')}
+                    {selectedEmployeeForSalary.salaryType === 'daily' ? 'Daily Rate' : 'Basic Salary'}: ₹{parseFloat(selectedEmployeeForSalary.basicSalary).toLocaleString('en-IN')}
+                    {selectedEmployeeForSalary.salaryType === 'daily' && <span className="text-xs"> /day</span>}
                   </p>
                 </div>
 
@@ -2295,29 +2293,33 @@ export default function PayrollManagementNew() {
                     <h3 className="font-medium text-green-900 mb-3">Earnings</h3>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span>Basic Salary:</span>
+                        <span>{calculationPreview.data?.salaryType === 'daily' ? 'Daily Rate × Paid Days:' : 'Basic Salary:'}</span>
                         <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.grossBasic || calculationPreview.data?.basicSalary || 0)).toLocaleString('en-IN')}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>HRA:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.houseRentAllowance || 0)).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Conveyance:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.conveyanceAllowance || 0)).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>LTA:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.ltaAllowance || 0)).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Special Allowance:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.specialAllowance || 0)).toLocaleString('en-IN')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Supplementary:</span>
-                        <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.supplementaryAllowance || 0)).toLocaleString('en-IN')}</span>
-                      </div>
+                      {calculationPreview.data?.salaryType !== 'daily' && (
+                        <>
+                          <div className="flex justify-between">
+                            <span>HRA:</span>
+                            <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.houseRentAllowance || 0)).toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Conveyance:</span>
+                            <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.conveyanceAllowance || 0)).toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>LTA:</span>
+                            <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.ltaAllowance || 0)).toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Special Allowance:</span>
+                            <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.specialAllowance || 0)).toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Supplementary:</span>
+                            <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.supplementaryAllowance || 0)).toLocaleString('en-IN')}</span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between">
                         <span>KGP Allowance:</span>
                         <span className="font-medium">₹{Math.round(parseFloat(calculationPreview.data?.kgpAllowance || 0)).toLocaleString('en-IN')}</span>
@@ -2654,13 +2656,14 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
   }, []);
 
   const handleSubmit = (values: SalaryFormValues) => {
+    const isDaily = values.salaryType === 'daily';
     const submissionValues = {
       ...values,
-      houseRentAllowance: calculations.houseRent.toFixed(2),
-      conveyance: calculations.conveyance.toFixed(2),
-      lta: calculations.lta.toFixed(2),
-      specialAllowance: calculations.special.toFixed(2),
-      supplementaryAllowance: calculations.supplementary.toFixed(2),
+      houseRentAllowance: isDaily ? null : calculations.houseRent.toFixed(2),
+      conveyance: isDaily ? null : calculations.conveyance.toFixed(2),
+      lta: isDaily ? null : calculations.lta.toFixed(2),
+      specialAllowance: isDaily ? null : calculations.special.toFixed(2),
+      supplementaryAllowance: isDaily ? null : calculations.supplementary.toFixed(2),
       bonus: calculations.bonus.toFixed(2),
       kgpAllowance: calculations.kgpAllowance.toFixed(2),
       kpiPercent: values.kpiPercent || '0',
@@ -2781,11 +2784,11 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 name="basicSalary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Basic Salary *</FormLabel>
+                    <FormLabel>{watchedValues.salaryType === 'daily' ? 'Daily Rate *' : 'Basic Salary *'}</FormLabel>
                     <FormControl>
                       <Input 
                         key="basicSalary"
-                        placeholder="Enter basic salary" 
+                        placeholder={watchedValues.salaryType === 'daily' ? 'Enter daily rate' : 'Enter basic salary'} 
                         autoComplete="off"
                         {...field}
                       />
@@ -3002,67 +3005,66 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
           </TabsContent>
 
           <TabsContent value="allowances" className="space-y-4">
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Allowance Information</h4>
-              <p className="text-sm text-blue-700">
-                {watchedValues.salaryType === 'daily' 
-                  ? 'Daily workers have all allowances set to 0% of basic salary.'
-                  : 'Monthly employees have auto-calculated allowances based on basic salary percentages.'
-                }
-              </p>
-            </div>
+            {watchedValues.salaryType === 'daily' ? (
+              <div className="p-6 bg-gray-50 border border-gray-200 rounded-lg text-center">
+                <h4 className="font-medium text-gray-700 mb-2">Not Applicable</h4>
+                <p className="text-sm text-gray-500">
+                  Allowances (HRA, Conveyance, LTA, Special, Supplementary) do not apply to daily rate employees. 
+                  Daily salary structure is: Daily Rate + Overtime only.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">Allowance Information</h4>
+                  <p className="text-sm text-blue-700">
+                    Monthly employees have auto-calculated allowances based on basic salary percentages.
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>House Rent Allowance</Label>
-                <div className="p-3 bg-gray-50 rounded border">
-                  ₹{calculations.houseRent.toLocaleString('en-IN', {maximumFractionDigits: 2})}
-                  <span className="text-xs text-gray-500 ml-2">
-                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(40% of Basic)'}
-                  </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>House Rent Allowance</Label>
+                    <div className="p-3 bg-gray-50 rounded border">
+                      ₹{calculations.houseRent.toLocaleString('en-IN', {maximumFractionDigits: 2})}
+                      <span className="text-xs text-gray-500 ml-2">(40% of Basic)</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Conveyance Allowance</Label>
+                    <div className="p-3 bg-gray-50 rounded border">
+                      ₹{calculations.conveyance.toLocaleString('en-IN', {maximumFractionDigits: 2})}
+                      <span className="text-xs text-gray-500 ml-2">(30% of Basic)</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>LTA</Label>
+                    <div className="p-3 bg-gray-50 rounded border">
+                      ₹{calculations.lta.toLocaleString('en-IN', {maximumFractionDigits: 2})}
+                      <span className="text-xs text-gray-500 ml-2">(20% of Basic)</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Special Allowance</Label>
+                    <div className="p-3 bg-gray-50 rounded border">
+                      ₹{calculations.special.toLocaleString('en-IN', {maximumFractionDigits: 2})}
+                      <span className="text-xs text-gray-500 ml-2">(30% of Basic)</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Supplementary Allowance</Label>
+                    <div className="p-3 bg-gray-50 rounded border">
+                      ₹{calculations.supplementary.toLocaleString('en-IN', {maximumFractionDigits: 2})}
+                      <span className="text-xs text-gray-500 ml-2">(30% of Basic)</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Conveyance Allowance</Label>
-                <div className="p-3 bg-gray-50 rounded border">
-                  ₹{calculations.conveyance.toLocaleString('en-IN', {maximumFractionDigits: 2})}
-                  <span className="text-xs text-gray-500 ml-2">
-                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(30% of Basic)'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>LTA</Label>
-                <div className="p-3 bg-gray-50 rounded border">
-                  ₹{calculations.lta.toLocaleString('en-IN', {maximumFractionDigits: 2})}
-                  <span className="text-xs text-gray-500 ml-2">
-                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(20% of Basic)'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Special Allowance</Label>
-                <div className="p-3 bg-gray-50 rounded border">
-                  ₹{calculations.special.toLocaleString('en-IN', {maximumFractionDigits: 2})}
-                  <span className="text-xs text-gray-500 ml-2">
-                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(30% of Basic)'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Supplementary Allowance</Label>
-                <div className="p-3 bg-gray-50 rounded border">
-                  ₹{calculations.supplementary.toLocaleString('en-IN', {maximumFractionDigits: 2})}
-                  <span className="text-xs text-gray-500 ml-2">
-                    {watchedValues.salaryType === 'daily' ? '(0%)' : '(30% of Basic)'}
-                  </span>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="calculations" className="space-y-4">
@@ -3143,7 +3145,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm">Basic Salary:</span>
+                    <span className="text-sm">{watchedValues.salaryType === 'daily' ? 'Daily Rate × Paid Days:' : 'Basic Salary:'}</span>
                     <span className="font-medium">₹{Math.round(calculations.grossBasic).toLocaleString('en-IN')}</span>
                   </div>
                   {watchedValues.salaryType === 'monthly' && (
