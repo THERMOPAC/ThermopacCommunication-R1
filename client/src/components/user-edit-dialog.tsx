@@ -44,6 +44,7 @@ const editUserSchema = z.object({
   mobileNumber: z.string().min(10, 'Please enter a valid mobile number'),
   countryCode: z.string().min(1, 'Country code is required'),
   role: z.enum(roles as [string, ...string[]]),
+  salaryType: z.enum(['monthly', 'daily']).optional(),
   jobTitle: z.string().optional(),
   department: z.string().optional(),
   branch: z.string().optional(),
@@ -149,6 +150,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       mobileNumber: '',
       countryCode: '+91',
       role: 'Employee',
+      salaryType: 'monthly',
       jobTitle: '',
       department: '',
       branch: '',
@@ -212,6 +214,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         mobileNumber: user.mobileNumber || '',
         countryCode: user.countryCode || '+91',
         role: user.role || 'Employee',
+        salaryType: (user as any).salaryType || 'monthly',
         jobTitle: user.jobTitle || '',
         department: user.department || '',
         branch: user.branch || '',
@@ -258,6 +261,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         mobileNumber: data.mobileNumber.trim(),
         countryCode: data.countryCode.trim(),
         role: data.role,
+        salaryType: data.salaryType || 'monthly',
         jobTitle: data.jobTitle?.trim() || null,
         department: data.department?.trim() || null,
         branch: data.branch?.trim() || null,
@@ -456,6 +460,28 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                             {role}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="salaryType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Salary Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || 'monthly'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select salary type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
