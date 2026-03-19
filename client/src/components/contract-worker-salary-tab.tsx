@@ -73,12 +73,12 @@ export function ManualSalaryTab() {
     baseRate: '',
     overtimeHours: '0',
     overtimeRateMultiplier: '1.5',
-    entryPurpose: 'full_salary',
+    entryPurpose: 'ot_only',
     remarks: '',
   });
 
   const { data: periods = [] } = useQuery<any[]>({ queryKey: ['/api/payroll/payroll-periods'] });
-  const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/admin/users'] });
+  const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/users'] });
   const { data: salaryConfigs = [] } = useQuery<any[]>({ queryKey: ['/api/admin/payroll/salary-setup'] });
 
   const [leaveBalances, setLeaveBalances] = useState<any[]>([]);
@@ -212,7 +212,7 @@ export function ManualSalaryTab() {
   function resetForm() {
     setFormData({
       periodId: lastMonthPeriodId, userId: '', entryType: 'daily', daysWorked: '0', hoursWorked: '0',
-      quantity: '0', baseRate: '', overtimeHours: '0', overtimeRateMultiplier: '1.5', entryPurpose: 'full_salary', remarks: '',
+      quantity: '0', baseRate: '', overtimeHours: '0', overtimeRateMultiplier: '1.5', entryPurpose: 'ot_only', remarks: '',
     });
   }
 
