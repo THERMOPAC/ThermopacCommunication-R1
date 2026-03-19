@@ -62,6 +62,7 @@ router.get('/calendar-data/:userId/:year/:month', ensurePayrollAdmin, async (req
       cardName: users.cardName,
       userType: users.userType,
       dateOfJoining: users.dateOfJoining,
+      weeklyOffDays: users.weeklyOffDays,
     }).from(users).where(eq(users.id, userId));
 
     if (!employee) {
@@ -86,6 +87,16 @@ router.get('/calendar-data/:userId/:year/:month', ensurePayrollAdmin, async (req
       if (policy) {
         workingDaysConfig = (assignment[0].customWorkingDays || policy.workingDays) as number[];
         policyName = policy.name;
+      }
+    } else if (employee.weeklyOffDays) {
+      const offDays = employee.weeklyOffDays as number[];
+      if (offDays.length > 0) {
+        workingDaysConfig = [0, 1, 2, 3, 4, 5, 6].filter(d => !offDays.includes(d));
+        policyName = offDays.length === 1 && offDays[0] === 0 
+          ? 'Sunday Off Only' 
+          : offDays.includes(0) && offDays.includes(6) 
+            ? 'Sat-Sun Off' 
+            : `Custom (Off: ${offDays.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')})`;
       }
     }
 
