@@ -1398,8 +1398,7 @@ async function fetchSapWhtDocuments(sessionId: string, routeId: string, docType:
   process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 
   while (true) {
-    const filter = `${dateFilter} and WithholdingTaxDataCollection/any(w: w/WTAmountSC ne 0)`;
-    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(filter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,WithholdingTaxDataCollection`;
+    const url = `${sapUrl}/${entity}?$filter=${encodeURIComponent(dateFilter)}&$top=${top}&$skip=${skip}&$select=DocEntry,DocNum,DocDate,CardCode,CardName,WithholdingTaxDataCollection`;
 
     try {
       const response = await fetch(url, {
