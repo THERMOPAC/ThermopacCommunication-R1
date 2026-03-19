@@ -1341,6 +1341,14 @@ const SAP_WT_CODE_MAP: Record<string, { section: string; rate: number; stage: st
   'IH1': { section: '194H', rate: 5, stage: 'invoice' },
   'II1': { section: '194I', rate: 10, stage: 'invoice' },
   'II2': { section: '194I', rate: 2, stage: 'invoice' },
+
+  '201I': { section: '194C', rate: 1, stage: 'invoice' },
+  '202I': { section: '194C', rate: 2, stage: 'invoice' },
+  '203I': { section: '194J', rate: 2, stage: 'invoice' },
+  '204I': { section: '194J', rate: 10, stage: 'invoice' },
+  '206I': { section: '194I', rate: 2, stage: 'invoice' },
+  '226I': { section: '194C', rate: 2, stage: 'payment' },
+  '234I': { section: '194Q', rate: 0.1, stage: 'invoice' },
 };
 
 function validatePan(pan: string | null | undefined): { status: string; error?: string } {
