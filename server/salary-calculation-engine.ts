@@ -140,45 +140,60 @@ export class SalaryCalculationEngine {
     // Get leave data (approved leave requests)
     const leaveData = await this.getLeaveData(input.userId, input.month, input.year);
     
-    // Identify absent days (working days without check-in or approved leave)
-    const absentDates = await this.identifyAbsentDays(
-      input.userId,
-      input.month,
-      input.year,
-      workweekPolicy,
-      attendanceData.records,
-      leaveData.leaves
-    );
+    const salaryType = salaryConfig.salaryType || 'monthly';
     
-    console.log(`📊 User ${input.userId}: ${absentDates.length} absent days identified for ${input.month}/${input.year}`);
+    let autoAppliedLeaves = {
+      totalAbsentDays: 0,
+      coveredByLeave: 0,
+      lopDays: 0,
+      breakdown: [] as Array<{ leaveTypeId: number; leaveTypeName: string; daysApplied: number; balanceBefore: number; balanceAfter: number; }>
+    };
+    let enhancedLeaveData: any;
     
-    // Auto-apply leave for absent days (priority: Annual Leave → others)
-    // Only update balances if explicitly requested (during finalization)
-    const updateBalances = input.updateLeaveBalances ?? false;
-    const autoAppliedLeaves = await this.autoApplyLeaveForAbsentDays(
-      input.userId,
-      input.year,
-      absentDates.length,
-      updateBalances
-    );
-    
-    if (autoAppliedLeaves.coveredByLeave > 0) {
-      console.log(`📅 Auto-applied ${autoAppliedLeaves.coveredByLeave} days of leave for absent days`);
-    }
-    if (autoAppliedLeaves.lopDays > 0) {
-      console.log(`⚠️ ${autoAppliedLeaves.lopDays} LOP days (no leave balance available)`);
+    if (salaryType === 'daily') {
+      console.log(`📊 User ${input.userId}: Daily worker — no LOP/auto-apply. Paid days = present days + approved CL only.`);
+      enhancedLeaveData = {
+        ...leaveData,
+        unpaidLeaveDays: 0,
+        autoAppliedLeaves
+      };
+    } else {
+      const absentDates = await this.identifyAbsentDays(
+        input.userId,
+        input.month,
+        input.year,
+        workweekPolicy,
+        attendanceData.records,
+        leaveData.leaves
+      );
+      
+      console.log(`📊 User ${input.userId}: ${absentDates.length} absent days identified for ${input.month}/${input.year}`);
+      
+      const updateBalances = input.updateLeaveBalances ?? false;
+      autoAppliedLeaves = await this.autoApplyLeaveForAbsentDays(
+        input.userId,
+        input.year,
+        absentDates.length,
+        updateBalances
+      );
+      
+      if (autoAppliedLeaves.coveredByLeave > 0) {
+        console.log(`📅 Auto-applied ${autoAppliedLeaves.coveredByLeave} days of leave for absent days`);
+      }
+      if (autoAppliedLeaves.lopDays > 0) {
+        console.log(`⚠️ ${autoAppliedLeaves.lopDays} LOP days (no leave balance available)`);
+      }
+      
+      enhancedLeaveData = {
+        ...leaveData,
+        paidLeaveDays: leaveData.paidLeaveDays + autoAppliedLeaves.coveredByLeave,
+        unpaidLeaveDays: autoAppliedLeaves.lopDays,
+        autoAppliedLeaves
+      };
     }
     
     // Calculate leave balance (after potential auto-deductions)
     const leaveBalance = await this.calculateLeaveBalance(input.userId, input.year);
-    
-    // Update leaveData with auto-applied leaves
-    const enhancedLeaveData = {
-      ...leaveData,
-      paidLeaveDays: leaveData.paidLeaveDays + autoAppliedLeaves.coveredByLeave,
-      unpaidLeaveDays: autoAppliedLeaves.lopDays,
-      autoAppliedLeaves
-    };
     
     // Perform salary calculations
     const result = await this.performSalaryCalculations({
