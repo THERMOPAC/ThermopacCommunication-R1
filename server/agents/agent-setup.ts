@@ -12,6 +12,7 @@ import { PredictiveProjectControlAgent } from './agents/predictive-project-contr
 import { ProductionManagementAgent } from './agents/production-management';
 import { QualityManagementAgent } from './agents/quality-management';
 import { AdministrationControlAgent } from './agents/administration-control';
+import { MasterControlAgent } from './agents/master-control';
 import { scheduleTaskAutoArchive } from './maintenance/task-auto-archive';
 import { schedulePayrollPeriodAutoCreate } from './maintenance/payroll-period-auto-create';
 
@@ -190,6 +191,31 @@ const PHASE_1_AGENTS = [
       statutory_due_date_buffer_days: 5,
     },
   },
+  {
+    agentKey: 'master_control',
+    displayName: 'Master Control Agent',
+    description: 'Governance and control layer above all business agents. Monitors agent run health (M1), missed/skipped runs (M2), cross-agent conflicts and duplications (M3), and task volume/noise/effectiveness (M4). Does not replace specialized agents — operates as oversight. Severity-based routing: Critical→Superuser, High→Superuser+function head, Medium→function head, Low→insight only.',
+    category: 'governance',
+    defaultSchedule: '0 6 * * *',
+    config: {
+      superuser_id: 3,
+      hr_admin_user_id: 3,
+      finance_admin_user_id: 5,
+      run_stuck_threshold_minutes: 30,
+      run_slow_multiplier: 3.0,
+      silence_min_7d_avg: 5,
+      silence_consecutive_zero_days: 2,
+      findings_spike_multiplier: 3.0,
+      missed_run_window_hours: 26,
+      task_noise_completion_threshold: 0.30,
+      task_untouched_days: 7,
+      global_daily_task_ceiling: 100,
+      per_employee_daily_task_ceiling: 5,
+      employee_overload_dominant_agent_pct: 0.60,
+      effectiveness_completion_threshold: 0.30,
+      effectiveness_lookback_days: 7,
+    },
+  },
 ];
 
 const DEFAULT_POLICIES = [
@@ -225,6 +251,8 @@ const DEFAULT_POLICIES = [
   { agentKey: 'administration_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 50 },
   { agentKey: 'administration_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 10 },
   { agentKey: 'administration_control', actionCategory: 'report_generation', actionType: 'generate_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 5 },
+  { agentKey: 'master_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 15 },
+  { agentKey: 'master_control', actionCategory: 'escalation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 5 },
 ];
 
 export async function initializeAgentSystem(): Promise<void> {
@@ -295,6 +323,7 @@ export async function initializeAgentSystem(): Promise<void> {
   orchestrator.registerAgent(new SalesMarketingAgent());
   orchestrator.registerAgent(new QualityManagementAgent());
   orchestrator.registerAgent(new AdministrationControlAgent());
+  orchestrator.registerAgent(new MasterControlAgent());
 
   setTimeout(() => {
     agentScheduler.start().catch(err => {
