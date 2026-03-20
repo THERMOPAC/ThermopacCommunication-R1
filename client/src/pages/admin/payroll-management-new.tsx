@@ -484,7 +484,7 @@ function TestSapJeButton() {
       },
       {
         Line_ID: 8,
-        AccountCode: "<REAL_BP_CONTROL_GL>",
+        AccountCode: "20304020000-ARL",
         ShortName: "V10771",
         Debit: 0.00,
         Credit: 45150.00,
