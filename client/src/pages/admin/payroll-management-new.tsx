@@ -466,27 +466,45 @@ function TestSapJeButton() {
                 Post a simple GL-to-GL test JE (₹100 Debit/Credit) to SAP B1 test database
               </p>
             </div>
-            <Button
-              onClick={() => testMutation.mutate()}
-              disabled={testMutation.isPending}
-              className="bg-orange-600 hover:bg-orange-700"
-            >
-              {testMutation.isPending ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Posting Test JE...</>
-              ) : (
-                <><Send className="h-4 w-4 mr-2" /> Test SAP JE</>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  try {
+                    const data = await apiRequest('GET', '/api/admin/payroll/sap-diagnostic');
+                    setResult(data);
+                    setShowResult(true);
+                  } catch (e: any) {
+                    setResult({ error: e.message });
+                    setShowResult(true);
+                  }
+                }}
+                variant="outline"
+                className="border-orange-400 text-orange-700"
+              >
+                <Search className="h-4 w-4 mr-2" /> SAP Diagnostic
+              </Button>
+              <Button
+                onClick={() => testMutation.mutate()}
+                disabled={testMutation.isPending}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {testMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Posting Test JE...</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" /> Test SAP JE</>
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Dialog open={showResult} onOpenChange={setShowResult}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-4xl max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle>{result?.success ? 'Test JE Posted Successfully' : 'Test JE Result'}</DialogTitle>
+            <DialogTitle>{result?.success ? 'Test JE Posted Successfully' : result?.tests ? 'SAP Diagnostic Results' : 'Test JE Result'}</DialogTitle>
           </DialogHeader>
-          <pre className="bg-muted p-4 rounded text-xs overflow-auto max-h-96 whitespace-pre-wrap">
+          <pre className="bg-muted p-4 rounded text-xs overflow-auto max-h-[70vh] whitespace-pre-wrap">
             {JSON.stringify(result, null, 2)}
           </pre>
         </DialogContent>

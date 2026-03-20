@@ -2617,12 +2617,17 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
   }
 });
 
-router.get('/payroll/sap-coa-sample', ensureAuthenticated, async (req: Request, res: Response) => {
+router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
     if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+
+    const results: any = { companyDb: sapDb, sapUser, tests: {} };
+
+    console.log(`\n========== SAP DIAGNOSTIC START ==========`);
+    console.log(`[SAP Diag] Company DB: ${sapDb}, User: ${sapUser}`);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -2635,34 +2640,129 @@ router.get('/payroll/sap-coa-sample', ensureAuthenticated, async (req: Request, 
         if (match) { routeId = match[1]; break; }
       }
     }
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { 'Prefer': 'odata.maxpagesize=500' };
     if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
+    console.log(`[SAP Diag] Login OK. SessionId=${sessionId}, RouteId=${routeId}`);
 
-    const skip = parseInt(req.query.skip as string || '0');
-    const top = Math.min(parseInt(req.query.top as string || '20'), 100);
-    const typeFilter = req.query.type as string || '';
-    let path = `/b1s/v1/ChartOfAccounts?$select=Code,FormatCode,AcctName,ActiveAccount,AccountType&$top=${top}&$skip=${skip}&$orderby=Code`;
-    if (typeFilter) {
-      path += `&$filter=AccountType eq '${typeFilter}'`;
+    const test1Path = `/b1s/v1/ChartOfAccounts('50207350101-ARL')`;
+    console.log(`[SAP Diag] Test 1: GET ${test1Path}`);
+    try {
+      const r1 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: test1Path, headers });
+      console.log(`[SAP Diag] Test 1 result: ${r1.statusCode} ${r1.body.substring(0, 500)}`);
+      results.tests.directLookup1 = { status: r1.statusCode, ok: r1.ok, body: JSON.parse(r1.body) };
+    } catch (e: any) {
+      console.log(`[SAP Diag] Test 1 error: ${e.message}`);
+      results.tests.directLookup1 = { error: e.message };
     }
 
-    const resp = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path, headers });
-    if (resp.ok) {
-      const data = JSON.parse(resp.body);
-      const accounts = (data.value || []).map((a: any) => ({
-        acctCode: a.Code,
-        formatCode: a.FormatCode,
-        acctName: a.AcctName,
-        active: a.ActiveAccount,
-        accountType: a.AccountType,
-      }));
-      console.log(`[SAP CoA Sample] Got ${accounts.length} accounts from skip=${skip}. First 3:`,
-        accounts.slice(0, 3).map((a: any) => `Code=${a.acctCode} | FormatCode=${a.formatCode} | Name=${a.acctName}`));
-      return res.json({ accounts, total: accounts.length, skip, top, companyDb: sapDb });
-    } else {
-      return res.status(500).json({ error: `SAP query failed: ${resp.statusCode}`, body: resp.body.substring(0, 500) });
+    const test2Path = `/b1s/v1/ChartOfAccounts('20302070300-ARL')`;
+    console.log(`[SAP Diag] Test 2: GET ${test2Path}`);
+    try {
+      const r2 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: test2Path, headers });
+      console.log(`[SAP Diag] Test 2 result: ${r2.statusCode} ${r2.body.substring(0, 500)}`);
+      results.tests.directLookup2 = { status: r2.statusCode, ok: r2.ok, body: JSON.parse(r2.body) };
+    } catch (e: any) {
+      console.log(`[SAP Diag] Test 2 error: ${e.message}`);
+      results.tests.directLookup2 = { error: e.message };
     }
+
+    const test3Path = `/b1s/v1/ChartOfAccounts?$select=Code,AcctName,FormatCode,ActiveAccount,AccountType&$top=20`;
+    console.log(`[SAP Diag] Test 3: GET ${test3Path}`);
+    try {
+      const r3 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: test3Path, headers });
+      console.log(`[SAP Diag] Test 3 result: ${r3.statusCode}`);
+      if (r3.ok) {
+        const d3 = JSON.parse(r3.body);
+        const accts = (d3.value || []).map((a: any) => ({
+          Code: a.Code, FormatCode: a.FormatCode, AcctName: a.AcctName,
+          Active: a.ActiveAccount, Type: a.AccountType
+        }));
+        console.log(`[SAP Diag] Test 3: ${accts.length} accounts returned`);
+        accts.forEach((a: any, i: number) => console.log(`  [${i}] Code="${a.Code}" FormatCode="${a.FormatCode}" Name="${a.AcctName}" Active=${a.Active} Type=${a.Type}`));
+        results.tests.listAccounts = { status: r3.statusCode, count: accts.length, accounts: accts };
+      } else {
+        console.log(`[SAP Diag] Test 3 body: ${r3.body.substring(0, 500)}`);
+        results.tests.listAccounts = { status: r3.statusCode, body: r3.body.substring(0, 500) };
+      }
+    } catch (e: any) {
+      results.tests.listAccounts = { error: e.message };
+    }
+
+    const test4Path = `/b1s/v1/CompanyService_GetCompanyInfo`;
+    console.log(`[SAP Diag] Test 4: POST ${test4Path}`);
+    try {
+      const r4 = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'POST', path: test4Path, headers });
+      console.log(`[SAP Diag] Test 4 result: ${r4.statusCode} ${r4.body.substring(0, 500)}`);
+      if (r4.ok) {
+        const ci = JSON.parse(r4.body);
+        results.tests.companyInfo = {
+          status: r4.statusCode,
+          CompanyName: ci.CompanyName,
+          LocalCurrency: ci.LocalCurrency,
+          SystemCurrency: ci.SystemCurrency,
+          EnableAccountSegmentation: ci.EnableAccountSegmentation,
+          IsMultiBranch: ci.IsMultiBranch,
+        };
+        console.log(`[SAP Diag] Company: "${ci.CompanyName}", Currency: ${ci.LocalCurrency}, Segmentation: ${ci.EnableAccountSegmentation}, MultiBranch: ${ci.IsMultiBranch}`);
+      } else {
+        results.tests.companyInfo = { status: r4.statusCode, body: r4.body.substring(0, 300) };
+      }
+    } catch (e: any) {
+      results.tests.companyInfo = { error: e.message };
+    }
+
+    console.log(`\n[SAP Diag] Test 5: Paginated full CoA fetch...`);
+    let allAccts: any[] = [];
+    let diagNextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
+    while (diagNextLink) {
+      try {
+        const r = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path: diagNextLink, headers });
+        if (r.ok) {
+          const d = JSON.parse(r.body);
+          const batch = d.value || [];
+          allAccts.push(...batch);
+          diagNextLink = d['odata.nextLink'] || null;
+          if (!diagNextLink && batch.length > 0) {
+            const skip = allAccts.length;
+            const nr = await sapHttpsClient.authenticatedRequest(sessionId, {
+              method: 'GET', path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`, headers
+            });
+            if (nr.ok) {
+              const nd = JSON.parse(nr.body);
+              const nb = nd.value || [];
+              if (nb.length > 0) {
+                allAccts.push(...nb);
+                diagNextLink = nd['odata.nextLink'] || `/b1s/v1/ChartOfAccounts?$skip=${allAccts.length}&$top=500`;
+              }
+            }
+          }
+        } else { diagNextLink = null; }
+      } catch { diagNextLink = null; }
+    }
+    console.log(`[SAP Diag] Total accounts: ${allAccts.length}`);
+
+    const salaryAccts = allAccts.filter((a: any) => {
+      const name = (a.AcctName || a.Name || '').toLowerCase();
+      const fc = (a.FormatCode || '').toLowerCase();
+      return name.includes('salary') || name.includes('basic') || fc.includes('50207') || fc.includes('20302') || fc.includes('20304');
+    });
+    console.log(`[SAP Diag] Salary-related accounts found: ${salaryAccts.length}`);
+    salaryAccts.forEach((a: any) => console.log(`  Code="${a.Code}" FormatCode="${a.FormatCode}" Name="${a.AcctName || a.Name}"`));
+
+    results.tests.fullCoA = {
+      totalAccounts: allAccts.length,
+      salaryRelated: salaryAccts.map((a: any) => ({
+        Code: a.Code, FormatCode: a.FormatCode, Name: a.AcctName || a.Name
+      })),
+      first10: allAccts.slice(0, 10).map((a: any) => ({
+        Code: a.Code, FormatCode: a.FormatCode, Name: a.AcctName || a.Name
+      })),
+    };
+
+    console.log(`========== SAP DIAGNOSTIC END ==========\n`);
+    return res.json(results);
   } catch (e: any) {
+    console.error('[SAP Diag] Fatal error:', e);
     return res.status(500).json({ error: e.message });
   }
 });
