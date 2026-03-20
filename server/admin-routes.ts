@@ -2922,36 +2922,66 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
     }
 
-    const glResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET',
-      path: "/b1s/v1/ChartOfAccounts?$select=Code,Name,ActiveAccount&$top=50",
-      headers,
-    });
-    let discoveredAccounts: any[] = [];
-    if (glResponse.ok) {
+    console.log(`[Test SAP JE] Bulk-fetching all SAP Chart of Accounts to build FormatCode→Code map...`);
+    let allSapAccounts: any[] = [];
+    let jeNextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
+    const sapHeaders = { ...headers, 'Prefer': 'odata.maxpagesize=500' };
+    while (jeNextLink) {
       try {
-        const glData = JSON.parse(glResponse.body);
-        const allAccounts = glData.value || [];
-        console.log(`[Test SAP JE] Got ${allAccounts.length} GL accounts from SAP. First 5:`, allAccounts.slice(0, 5).map((a: any) => JSON.stringify(a)));
-        discoveredAccounts = allAccounts.filter((a: any) => a.ActiveAccount === 'tYES');
-        if (discoveredAccounts.length === 0) discoveredAccounts = allAccounts;
-        console.log(`[Test SAP JE] Using ${discoveredAccounts.length} active accounts. First 2:`, discoveredAccounts.slice(0, 2).map((a: any) => `${a.Code} - ${a.Name}`));
-      } catch (_) {}
-    } else {
-      console.log(`[Test SAP JE] GL query failed: ${glResponse.statusCode} ${glResponse.body}`);
-      const glResponse2 = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'GET',
-        path: "/b1s/v1/ChartOfAccounts?$top=5",
-        headers,
-      });
-      console.log(`[Test SAP JE] Fallback GL query: ${glResponse2.statusCode} ${glResponse2.body.substring(0, 500)}`);
-      if (glResponse2.ok) {
-        try {
-          const glData2 = JSON.parse(glResponse2.body);
-          discoveredAccounts = glData2.value || [];
-        } catch (_) {}
+        const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: jeNextLink,
+          headers: sapHeaders,
+        });
+        if (resp.ok) {
+          const data = JSON.parse(resp.body);
+          const batch = data.value || [];
+          allSapAccounts.push(...batch);
+          console.log(`[Test SAP JE] Fetched page, got ${batch.length} accounts (total: ${allSapAccounts.length})`);
+          jeNextLink = data['odata.nextLink'] || null;
+          if (!jeNextLink && batch.length > 0) {
+            const skip = allSapAccounts.length;
+            const testResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+              method: 'GET',
+              path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`,
+              headers: sapHeaders,
+            });
+            if (testResp.ok) {
+              const td = JSON.parse(testResp.body);
+              const tb = td.value || [];
+              if (tb.length > 0) {
+                allSapAccounts.push(...tb);
+                console.log(`[Test SAP JE] Manual skip=${skip} found ${tb.length} more (total: ${allSapAccounts.length})`);
+                jeNextLink = td['odata.nextLink'] || `/b1s/v1/ChartOfAccounts?$skip=${allSapAccounts.length}&$top=500`;
+              }
+            }
+          }
+        } else {
+          console.log(`[Test SAP JE] Batch fetch failed: ${resp.statusCode}`);
+          jeNextLink = null;
+        }
+      } catch (e: any) {
+        console.log(`[Test SAP JE] Batch fetch error: ${e.message}`);
+        jeNextLink = null;
       }
     }
+    console.log(`[Test SAP JE] Total SAP accounts fetched: ${allSapAccounts.length}`);
+
+    const formatCodeToCode = new Map<string, string>();
+    const codeToName = new Map<string, string>();
+    for (const acct of allSapAccounts) {
+      if (acct.FormatCode) {
+        formatCodeToCode.set(acct.FormatCode.trim(), acct.Code);
+      }
+      codeToName.set(acct.Code, acct.AcctName || acct.Name || '');
+    }
+
+    if (allSapAccounts.length > 0) {
+      const samples = allSapAccounts.slice(0, 5);
+      console.log(`[Test SAP JE] Sample accounts: ${samples.map((a: any) => `Code="${a.Code}" FormatCode="${a.FormatCode}" Name="${a.AcctName || a.Name}"`).join(' | ')}`);
+    }
+
+    let discoveredAccounts = allSapAccounts;
 
     let finalPayload = jePayload;
 
@@ -3060,35 +3090,50 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     if (finalPayload.JournalEntryLines) {
       const remapped: string[] = [];
+      const unresolvedLines: any[] = [];
       finalPayload = {
         ...finalPayload,
         JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
           const displayCode = line.AccountCode;
+          if (!displayCode) {
+            unresolvedLines.push(line);
+            return line;
+          }
+
           if (sapCodeLookup[displayCode] && sapCodeLookup[displayCode] !== displayCode) {
-            remapped.push(displayCode + ' -> ' + sapCodeLookup[displayCode]);
+            remapped.push(`${displayCode} -> ${sapCodeLookup[displayCode]} (from DB sapAcctCode)`);
             return { ...line, AccountCode: sapCodeLookup[displayCode] };
           }
+
+          if (formatCodeToCode.has(displayCode)) {
+            const realCode = formatCodeToCode.get(displayCode)!;
+            remapped.push(`${displayCode} -> ${realCode} (FormatCode→Code from SAP)`);
+            return { ...line, AccountCode: realCode };
+          }
+
+          const strippedCode = displayCode.replace(/-[A-Z]+$/, '');
+          if (strippedCode !== displayCode && formatCodeToCode.has(strippedCode)) {
+            const realCode = formatCodeToCode.get(strippedCode)!;
+            remapped.push(`${displayCode} -> ${realCode} (stripped FormatCode→Code from SAP)`);
+            return { ...line, AccountCode: realCode };
+          }
+
+          if (codeToName.has(displayCode)) {
+            console.log(`[Test SAP JE] ${displayCode} is already a valid internal Code`);
+            return line;
+          }
+
+          console.log(`[Test SAP JE] WARNING: ${displayCode} not found in SAP CoA (${allSapAccounts.length} accounts). Posting as-is.`);
           return line;
         }),
       };
       if (remapped.length > 0) {
-        console.log('[Test SAP JE] Remapped ' + remapped.length + ' display codes to SAP AcctCodes:');
+        console.log('[Test SAP JE] Remapped ' + remapped.length + ' codes:');
         remapped.forEach(r => console.log('  ' + r));
       }
     }
 
-    const unmappedLines = (finalPayload.JournalEntryLines || []).filter((line: any) => {
-      const code = line.AccountCode || '';
-      return !code || code.startsWith('_SYS') || code.includes('<') || code === line.ShortName;
-    });
-    if (unmappedLines.length > 0) {
-      return res.status(400).json({
-        error: unmappedLines.length + ' line(s) have invalid or unresolved AccountCode. Run "Validate GL Mapping" on the GL Mapping page first to sync SAP account codes.',
-        unmappedLines: unmappedLines.map((l: any) => ({ Line_ID: l.Line_ID, AccountCode: l.AccountCode, LineMemo: l.LineMemo })),
-      });
-    }
-
-    console.log('[Test SAP JE] All GL codes resolved from stored sapAcctCode mappings.');
+    console.log('[Test SAP JE] All GL codes processed.');
 
     console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 
