@@ -430,15 +430,15 @@ function TestSapJeButton() {
         AccountCode: "_SYS00000000676",
         Debit: 100.00,
         Credit: 0.00,
-        LineMemo: "Test Debit - Salary Expense"
+        LineMemo: "Test Debit - Basic Salary"
       },
       {
         Line_ID: 1,
-        AccountCode: "20304020000-ARL",
+        AccountCode: "_SYS00000000286",
         ShortName: "V10771",
         Debit: 0.00,
         Credit: 100.00,
-        LineMemo: "Test Credit - Salary Payable (BP)"
+        LineMemo: "Test Credit - BP V10771"
       }
     ]
   };
