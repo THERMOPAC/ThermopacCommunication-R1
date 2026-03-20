@@ -3735,11 +3735,13 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     for (const lt of activeLeaveTypes) {
       if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
       const bal = balanceMap.get(lt.id);
-      const allocated = bal ? parseFloat(bal.allocatedDays?.toString() || '0') : parseFloat(lt.maxDaysPerYear?.toString() || '0');
-      const carryover = bal ? parseFloat(bal.carryoverDays?.toString() || '0') : 0;
+      if (!bal) continue;
+      const allocated = parseFloat(bal.allocatedDays?.toString() || '0');
+      const carryover = parseFloat(bal.carryoverDays?.toString() || '0');
       const opening = allocated + carryover;
-      const used = bal ? parseFloat(bal.usedDays?.toString() || '0') : 0;
+      const used = parseFloat(bal.usedDays?.toString() || '0');
       const closing = Math.max(0, opening - used);
+      if (opening === 0 && used === 0) continue;
       salarySlipData.leaveBalances!.push({ leaveType: lt.code, opening, used, closing });
     }
 
