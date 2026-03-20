@@ -13,6 +13,7 @@ import { ProductionManagementAgent } from './agents/production-management';
 import { QualityManagementAgent } from './agents/quality-management';
 import { AdministrationControlAgent } from './agents/administration-control';
 import { MasterControlAgent } from './agents/master-control';
+import { AdvisorAgent } from './agents/advisor-agent';
 import { scheduleTaskAutoArchive } from './maintenance/task-auto-archive';
 import { schedulePayrollPeriodAutoCreate } from './maintenance/payroll-period-auto-create';
 
@@ -216,6 +217,16 @@ const PHASE_1_AGENTS = [
       effectiveness_lookback_days: 7,
     },
   },
+  {
+    agentKey: 'advisor',
+    displayName: 'Advisor Agent',
+    description: 'Executive decision-support briefing agent. Synthesizes data from all 10 agents into a daily 5-question briefing: Is the system working? What is not working? Why? What should we do? Priority today. Produces insights only — no tasks, no notifications. Reports exclusively to Superuser (Prasad).',
+    category: 'intelligence',
+    defaultSchedule: '30 6 * * *',
+    config: {
+      superuser_id: 3,
+    },
+  },
 ];
 
 const DEFAULT_POLICIES = [
@@ -324,6 +335,7 @@ export async function initializeAgentSystem(): Promise<void> {
   orchestrator.registerAgent(new QualityManagementAgent());
   orchestrator.registerAgent(new AdministrationControlAgent());
   orchestrator.registerAgent(new MasterControlAgent());
+  orchestrator.registerAgent(new AdvisorAgent());
 
   setTimeout(() => {
     agentScheduler.start().catch(err => {
