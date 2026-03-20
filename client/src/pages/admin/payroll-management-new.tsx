@@ -422,73 +422,21 @@ function TestSapJeButton() {
 
   const testPayload = {
     ReferenceDate: "2026-02-28",
-    Memo: "Salary JE - Mansi Main - February 2026",
-    Reference2: "V10771",
-    Reference3: "92B",
+    Memo: "Test JE - GL to GL",
     JournalEntryLines: [
       {
         Line_ID: 0,
         AccountCode: "50207350101-ARL",
-        Debit: 18900.00,
-        Credit: 0,
-        LineMemo: "BASIC - Mansi Main - February 2026"
+        Debit: 100.00,
+        Credit: 0.00,
+        LineMemo: "Test Debit"
       },
       {
         Line_ID: 1,
-        AccountCode: "50207350800-ARL",
-        Debit: 7560.00,
-        Credit: 0,
-        LineMemo: "HRA - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 2,
-        AccountCode: "50207351001-ARL",
-        Debit: 5670.00,
-        Credit: 0,
-        LineMemo: "CONVEYANCE - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 3,
-        AccountCode: "50207351000-ARL",
-        Debit: 3780.00,
-        Credit: 0,
-        LineMemo: "LTA - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 4,
-        AccountCode: "50207351300-ARL",
-        Debit: 5670.00,
-        Credit: 0,
-        LineMemo: "SPECIAL_ALLOWANCE - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 5,
-        AccountCode: "50207350503-ARL",
-        Debit: 5670.00,
-        Credit: 0,
-        LineMemo: "SUPPLEMENTARY - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 6,
-        AccountCode: "20302080200-ARL",
-        Debit: 0,
-        Credit: 1800.00,
-        LineMemo: "PF_EMPLOYEE - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 7,
         AccountCode: "20302070300-ARL",
-        Debit: 0,
-        Credit: 300.00,
-        LineMemo: "PT - Mansi Main - February 2026"
-      },
-      {
-        Line_ID: 8,
-        AccountCode: "20304020000-ARL",
-        ShortName: "V10771",
         Debit: 0.00,
-        Credit: 45150.00,
-        LineMemo: "NET PAY - Mansi Main - February 2026"
+        Credit: 100.00,
+        LineMemo: "Test Credit"
       }
     ]
   };
@@ -515,7 +463,7 @@ function TestSapJeButton() {
             <div>
               <h4 className="font-semibold text-orange-800">SAP JE Test Mode</h4>
               <p className="text-sm text-orange-700 mt-1">
-                Post a test Journal Entry for Mansi Main - Feb 2026 (₹47,250 Salary JE) to SAP B1
+                Post a simple GL-to-GL test JE (₹100 Debit/Credit) to SAP B1 test database
               </p>
             </div>
             <Button
