@@ -125,6 +125,7 @@ export default function LeaveManagementPage() {
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const [balancesYear, setBalancesYear] = useState(new Date().getFullYear());
   const [balancesSearch, setBalancesSearch] = useState('');
+  const [balancesEmployee, setBalancesEmployee] = useState('all');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -1375,9 +1376,9 @@ export default function LeaveManagementPage() {
 
           {/* Leave Balances Tab */}
           <TabsContent value="balances" className="space-y-4">
-            {/* Year Selector and Search */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="flex items-center gap-3">
+            {/* Year Selector, Employee Filter, and Search */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
                 <Select value={balancesYear.toString()} onValueChange={(v) => setBalancesYear(parseInt(v))}>
                   <SelectTrigger className="w-[120px]">
                     <SelectValue />
@@ -1385,6 +1386,19 @@ export default function LeaveManagementPage() {
                   <SelectContent>
                     {[2024, 2025, 2026, 2027].map(y => (
                       <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={balancesEmployee} onValueChange={setBalancesEmployee}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="All Employees" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    {(allBalancesData?.employees || []).map((emp: any) => (
+                      <SelectItem key={emp.userId} value={emp.userId.toString()}>
+                        {emp.name} {emp.employeeCode ? `(${emp.employeeCode})` : ''}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1463,6 +1477,7 @@ export default function LeaveManagementPage() {
                   <div className="space-y-3">
                     {allBalancesData.employees
                       .filter((emp: any) => {
+                        if (balancesEmployee !== 'all' && emp.userId.toString() !== balancesEmployee) return false;
                         if (!balancesSearch) return true;
                         const s = balancesSearch.toLowerCase();
                         return emp.name.toLowerCase().includes(s) || (emp.employeeCode || '').toLowerCase().includes(s);
