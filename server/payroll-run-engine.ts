@@ -336,24 +336,39 @@ async function stepAttendanceSnapshot(
         paidDays = presentDays;
         lopDays = 0;
       } else {
-        const requiredDays = calendarDaysInPeriod - weekOffCount;
-        const nonWeekoffRecords = records.filter(r => {
-          const d = new Date(r.date);
-          return !weeklyOffs.includes(d.getDay());
-        });
-        if (nonWeekoffRecords.length < requiredDays) {
-          const missingDays = requiredDays - nonWeekoffRecords.length;
+        const expectedWorkingDates: string[] = [];
+        const iter = new Date(sDate);
+        while (iter <= eDate) {
+          if (!weeklyOffs.includes(iter.getDay())) {
+            expectedWorkingDates.push(iter.toISOString().slice(0, 10));
+          }
+          iter.setDate(iter.getDate() + 1);
+        }
+
+        const attendanceDateSet = new Set(
+          records.map(r => {
+            const d = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString().slice(0, 10);
+            return d.slice(0, 10);
+          })
+        );
+
+        const missingDates = expectedWorkingDates.filter(d => !attendanceDateSet.has(d));
+
+        if (missingDates.length > 0) {
+          const showDates = missingDates.slice(0, 5).join(', ');
+          const moreText = missingDates.length > 5 ? ` and ${missingDates.length - 5} more` : '';
           exceptions.push({
             userId: emp.id,
             type: 'attendance_incomplete',
             severity: 'warning',
             title: `Attendance incomplete for ${emp.username}`,
-            details: `${nonWeekoffRecords.length} of ${requiredDays} working days have attendance records. ${missingDays} day(s) missing.`,
+            details: `${expectedWorkingDates.length - missingDates.length} of ${expectedWorkingDates.length} working days have records. Missing: ${showDates}${moreText}. Missing days treated as absent for LOP.`,
           });
         }
 
+        const missingCount = missingDates.length;
         presentDays = presentFull + lateDays + (halfDays * 0.5);
-        lopDays = absentCount + (halfDays * 0.5);
+        lopDays = absentCount + (halfDays * 0.5) + missingCount;
         paidDays = Math.max(MONTHLY_DIVISOR - lopDays, 0);
 
         if (paidDays > MONTHLY_DIVISOR) {
