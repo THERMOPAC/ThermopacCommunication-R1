@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import {
   Play, CheckCircle2, XCircle, Clock, AlertTriangle, Lock, Unlock,
   RotateCcw, ArrowRight, Shield, ShieldAlert, Eye, Loader2,
-  FileCheck, Users, Calculator, Award, Receipt
+  FileCheck, Users, Calculator, Award, Receipt, ShieldCheck
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -320,6 +320,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
             isExecuting={executeStepMutation.isPending || isRunningAll}
             runNumber={runNumber}
             periodStatus={period.status || 'draft'}
+            periodId={period.id}
           />
 
           {((getCompletedStepCount() === STEP_CONFIG.length && period.status === 'processed') || period.status === 'reviewed' || period.status === 'approved' || period.status === 'paid') && (
@@ -388,6 +389,7 @@ function PipelineView({
   isExecuting,
   runNumber,
   periodStatus,
+  periodId,
 }: {
   steps: typeof STEP_CONFIG;
   getStepStatus: (key: string) => string;
@@ -396,7 +398,38 @@ function PipelineView({
   isExecuting: boolean;
   runNumber: number;
   periodStatus: string;
+  periodId: number;
 }) {
+  const allStepsCompleted = steps.every(s => getStepStatus(s.key) === 'completed');
+
+  const { data: verificationSummary } = useQuery<any>({
+    queryKey: ['/api/payroll/verify', periodId, 'summary'],
+    queryFn: async () => {
+      return await apiRequest('GET', `/api/payroll/verify/${periodId}/summary`);
+    },
+    enabled: allStepsCompleted && runNumber > 0,
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', `/api/payroll/verify/${periodId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/verify'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+    },
+  });
+
+  const getVerifyStatus = () => {
+    if (!allStepsCompleted) return 'pending';
+    if (!verificationSummary) return 'pending';
+    if (verificationSummary.total === 0) return 'pending';
+    if (verificationSummary.failed > 0) return 'failed';
+    return 'completed';
+  };
+
+  const verifyStatus = getVerifyStatus();
+
   if (runNumber === 0) {
     return (
       <Card>
@@ -459,6 +492,52 @@ function PipelineView({
           </div>
         );
       })}
+
+      <div
+        className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+          verifyStatus === 'completed' ? 'bg-green-50 border-green-200' :
+          verifyStatus === 'failed' ? 'bg-amber-50 border-amber-200' :
+          'bg-gray-50 border-gray-100'
+        }`}
+      >
+        <div className={`p-2 rounded-full ${
+          verifyStatus === 'completed' ? 'bg-green-100 text-green-700' :
+          verifyStatus === 'failed' ? 'bg-amber-100 text-amber-700' :
+          'bg-gray-100 text-gray-500'
+        }`}>
+          {verifyStatus === 'completed' ? <CheckCircle2 className="h-5 w-5" /> :
+           verifyStatus === 'failed' ? <AlertTriangle className="h-5 w-5" /> :
+           verifyMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> :
+           <ShieldCheck className="h-5 w-5" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm">Verify All Calculations</div>
+          <div className="text-xs text-muted-foreground">
+            {verifyStatus === 'completed' && verificationSummary
+              ? `All ${verificationSummary.passed} records verified — no errors`
+              : verifyStatus === 'failed' && verificationSummary
+              ? `${verificationSummary.passed} passed, ${verificationSummary.failed} failed of ${verificationSummary.total} records`
+              : 'Independently verify all salary calculations against source data'}
+          </div>
+        </div>
+        {allStepsCompleted && (
+          <Button
+            size="sm"
+            variant={verifyStatus === 'failed' ? 'outline' : 'default'}
+            onClick={() => verifyMutation.mutate()}
+            disabled={verifyMutation.isPending || !allStepsCompleted}
+          >
+            {verifyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            <span className="ml-1">{verifyStatus === 'pending' ? 'Verify All' : 'Re-Verify'}</span>
+          </Button>
+        )}
+        {verifyStatus === 'completed' && (
+          <Badge variant="outline" className="text-green-700 border-green-300">Passed</Badge>
+        )}
+        {verifyStatus === 'failed' && (
+          <Badge variant="outline" className="text-amber-700 border-amber-300">Issues Found</Badge>
+        )}
+      </div>
     </div>
   );
 }
