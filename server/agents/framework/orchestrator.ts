@@ -61,9 +61,10 @@ class Orchestrator {
 
     this.runningAgents.add(agentKey);
     const startTime = Date.now();
+    let runId: number | null = null;
 
     try {
-      const runId = await runManager.startRun({
+      runId = await runManager.startRun({
         agentKey,
         triggerType,
         triggerDetail,
@@ -101,15 +102,22 @@ class Orchestrator {
 
       return { runId, result };
     } catch (error: any) {
-      const runId = 0;
       console.error(`[Orchestrator] Agent ${agentKey} failed:`, error);
+
+      if (runId) {
+        try {
+          await runManager.failRun(runId, error.message || 'Unknown error');
+        } catch (failErr: any) {
+          console.error(`[Orchestrator] Failed to mark run ${runId} as failed:`, failErr.message);
+        }
+      }
 
       await auditLogger.log({
         agentKey,
         eventType: 'run.failed',
         actorType: 'system',
         actorId: 'orchestrator',
-        details: { error: error.message },
+        details: { error: error.message, runId },
       });
 
       return { error: error.message };
