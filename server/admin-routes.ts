@@ -2682,43 +2682,103 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
     }
 
     const uniqueGLs = [...new Set((finalPayload.JournalEntryLines || []).map((l: any) => l.AccountCode).filter(Boolean))];
-    console.log(`[Test SAP JE] Validating ${uniqueGLs.length} GL codes against SAP Chart of Accounts...`);
-    const glValidation: Record<string, { valid: boolean; name?: string; error?: string }> = {};
+    console.log(`[Test SAP JE] Resolving ${uniqueGLs.length} GL codes against SAP Chart of Accounts...`);
+    const glResolution: Record<string, { resolved: boolean; sapAcctCode?: string; sapFormatCode?: string; name?: string; error?: string }> = {};
+
     for (const glCode of uniqueGLs) {
+      let found = false;
+
       try {
-        const glResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+        const directResp = await sapHttpsClient.authenticatedRequest(sessionId, {
           method: 'GET',
           path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(glCode)}')`,
           headers,
         });
-        if (glResp.ok) {
-          const glData = JSON.parse(glResp.body);
-          glValidation[glCode] = { valid: true, name: glData.AcctName || glData.Name };
-          console.log(`  ✓ ${glCode} = ${glData.AcctName || glData.Name}`);
-        } else {
-          glValidation[glCode] = { valid: false, error: `${glResp.statusCode}` };
-          console.log(`  ✗ ${glCode} = NOT FOUND (${glResp.statusCode})`);
+        if (directResp.ok) {
+          const data = JSON.parse(directResp.body);
+          glResolution[glCode] = { resolved: true, sapAcctCode: data.Code, sapFormatCode: data.FormatCode, name: data.AcctName || data.Name };
+          console.log(`  ✓ ${glCode} → direct match: AcctCode=${data.Code}, FormatCode=${data.FormatCode}, Name=${data.AcctName}`);
+          found = true;
         }
-      } catch (glErr: any) {
-        glValidation[glCode] = { valid: false, error: glErr.message };
-        console.log(`  ✗ ${glCode} = ERROR: ${glErr.message}`);
+      } catch (_) {}
+
+      if (!found) {
+        try {
+          const filterResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+            method: 'GET',
+            path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName,ActiveAccount&$top=1`,
+            headers,
+          });
+          if (filterResp.ok) {
+            const result = JSON.parse(filterResp.body);
+            if (result.value && result.value.length > 0) {
+              const acct = result.value[0];
+              glResolution[glCode] = { resolved: true, sapAcctCode: acct.Code, sapFormatCode: acct.FormatCode, name: acct.AcctName };
+              console.log(`  ✓ ${glCode} → FormatCode match: AcctCode=${acct.Code}, FormatCode=${acct.FormatCode}, Name=${acct.AcctName}`);
+              found = true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (!found) {
+        try {
+          const stripped = glCode.replace(/-[A-Z]+$/, '');
+          if (stripped !== glCode) {
+            const strippedResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+              method: 'GET',
+              path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(stripped)}')`,
+              headers,
+            });
+            if (strippedResp.ok) {
+              const data = JSON.parse(strippedResp.body);
+              glResolution[glCode] = { resolved: true, sapAcctCode: data.Code, sapFormatCode: data.FormatCode, name: data.AcctName || data.Name };
+              console.log(`  ✓ ${glCode} → stripped match (${stripped}): AcctCode=${data.Code}, FormatCode=${data.FormatCode}, Name=${data.AcctName}`);
+              found = true;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (!found) {
+        glResolution[glCode] = { resolved: false, error: 'Not found by AcctCode, FormatCode, or stripped code' };
+        console.log(`  ✗ ${glCode} = NOT FOUND in SAP CoA`);
       }
     }
 
-    const invalidGLs = Object.entries(glValidation).filter(([, v]) => !v.valid);
-    if (invalidGLs.length > 0) {
-      const affectedLines = (finalPayload.JournalEntryLines || []).filter((l: any) =>
-        invalidGLs.some(([code]) => code === l.AccountCode)
-      );
+    const unresolved = Object.entries(glResolution).filter(([, v]) => !v.resolved);
+    if (unresolved.length > 0) {
       return res.status(400).json({
-        error: `GL code validation failed. ${invalidGLs.length} account(s) not found in SAP Chart of Accounts: ${invalidGLs.map(([code]) => code).join(', ')}`,
-        invalidGLCodes: Object.fromEntries(invalidGLs),
-        validGLCodes: Object.fromEntries(Object.entries(glValidation).filter(([, v]) => v.valid)),
-        affectedLines: affectedLines.map((l: any) => ({ Line_ID: l.Line_ID, AccountCode: l.AccountCode, LineMemo: l.LineMemo })),
-        hint: 'Check these GL codes in SAP B1 → Administration → Setup → Chart of Accounts. They may not exist in this company database.',
+        error: `${unresolved.length} GL code(s) not found in SAP Chart of Accounts: ${unresolved.map(([code]) => code).join(', ')}`,
+        unresolvedGLCodes: Object.fromEntries(unresolved),
+        resolvedGLCodes: Object.fromEntries(Object.entries(glResolution).filter(([, v]) => v.resolved)),
+        hint: 'These codes do not exist in the SAP Chart of Accounts as AcctCode or FormatCode.',
       });
     }
-    console.log(`[Test SAP JE] All ${uniqueGLs.length} GL codes validated successfully.`);
+
+    const codeMap: Record<string, string> = {};
+    for (const [displayCode, info] of Object.entries(glResolution)) {
+      if (info.sapAcctCode && info.sapAcctCode !== displayCode) {
+        codeMap[displayCode] = info.sapAcctCode;
+      }
+    }
+
+    if (Object.keys(codeMap).length > 0) {
+      console.log(`[Test SAP JE] Remapping ${Object.keys(codeMap).length} display codes to SAP AcctCodes:`);
+      for (const [from, to] of Object.entries(codeMap)) {
+        console.log(`  ${from} → ${to}`);
+      }
+      finalPayload = {
+        ...finalPayload,
+        JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
+          if (codeMap[line.AccountCode]) {
+            return { ...line, AccountCode: codeMap[line.AccountCode] };
+          }
+          return line;
+        }),
+      };
+    }
+    console.log(`[Test SAP JE] All ${uniqueGLs.length} GL codes resolved successfully.`);
 
     console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 
