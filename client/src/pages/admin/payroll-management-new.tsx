@@ -1862,21 +1862,8 @@ export default function PayrollManagementNew() {
           </Dialog>
         </div>
 
-        {/* Search and Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-gray-500" />
-                <Input
-                  placeholder="Search employees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="border-0 p-0 focus-visible:ring-0"
-                />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-blue-600">{salaryConfigs.length}</div>
@@ -1915,8 +1902,17 @@ export default function PayrollManagementNew() {
           <TabsContent value="configurations">
             {/* Salary Configurations Table */}
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <CardTitle>Salary Configurations</CardTitle>
+                <div className="relative w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or department..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </CardHeader>
           <CardContent>
             {isLoading ? (
