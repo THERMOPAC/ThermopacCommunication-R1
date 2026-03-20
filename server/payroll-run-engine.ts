@@ -346,12 +346,10 @@ async function stepAttendanceSnapshot(
           exceptions.push({
             userId: emp.id,
             type: 'attendance_incomplete',
-            severity: 'error',
+            severity: 'warning',
             title: `Attendance incomplete for ${emp.username}`,
-            details: `${nonWeekoffRecords.length} of ${requiredDays} working days have attendance records. ${missingDays} day(s) missing. Please mark all working days before processing payroll.`,
+            details: `${nonWeekoffRecords.length} of ${requiredDays} working days have attendance records. ${missingDays} day(s) missing.`,
           });
-          skipped++;
-          continue;
         }
 
         presentDays = presentFull + lateDays + (halfDays * 0.5);
