@@ -422,24 +422,20 @@ function TestSapJeButton() {
 
   const testPayload = {
     ReferenceDate: "2026-02-28",
-    Memo: "Test JE - Salary Payable to BP",
+    Memo: "Salary JE - Mansi Main - Feb 2026",
     Reference2: "V10771",
+    Reference3: "92B",
+    U_Employee_Name: "Mansi Main",
     JournalEntryLines: [
-      {
-        Line_ID: 0,
-        AccountCode: "_SYS00000000676",
-        Debit: 100.00,
-        Credit: 0.00,
-        LineMemo: "Test Debit - Basic Salary"
-      },
-      {
-        Line_ID: 1,
-        AccountCode: "_SYS00000000286",
-        ShortName: "V10771",
-        Debit: 0.00,
-        Credit: 100.00,
-        LineMemo: "Test Credit - BP V10771"
-      }
+      { Line_ID: 0, AccountCode: "_SYS00000000676", Debit: 18900.00, Credit: 0, LineMemo: "BASIC - Mansi Main - Feb 2026" },
+      { Line_ID: 1, AccountCode: "_SYS00000000681", Debit: 7560.00, Credit: 0, LineMemo: "HRA - Mansi Main - Feb 2026" },
+      { Line_ID: 2, AccountCode: "_SYS00000000684", Debit: 5670.00, Credit: 0, LineMemo: "CONVEYANCE - Mansi Main - Feb 2026" },
+      { Line_ID: 3, AccountCode: "_SYS00000000683", Debit: 3780.00, Credit: 0, LineMemo: "LTA - Mansi Main - Feb 2026" },
+      { Line_ID: 4, AccountCode: "_SYS00000000687", Debit: 5670.00, Credit: 0, LineMemo: "SPECIAL_ALLOWANCE - Mansi Main - Feb 2026" },
+      { Line_ID: 5, AccountCode: "_SYS00000000751", Debit: 5670.00, Credit: 0, LineMemo: "SUPPLEMENTARY - Mansi Main - Feb 2026" },
+      { Line_ID: 6, AccountCode: "_SYS00000000503", Debit: 0, Credit: 1800.00, LineMemo: "PF_EMPLOYEE - Mansi Main - Feb 2026" },
+      { Line_ID: 7, AccountCode: "_SYS00000000501", Debit: 0, Credit: 300.00, LineMemo: "PT - Mansi Main - Feb 2026" },
+      { Line_ID: 8, AccountCode: "_SYS00000000286", ShortName: "V10771", Debit: 0, Credit: 45150.00, LineMemo: "Net Pay - Mansi Main - Feb 2026" },
     ]
   };
 
