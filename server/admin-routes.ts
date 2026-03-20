@@ -2510,6 +2510,220 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
   }
 });
 
+router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const search = (req.query.q as string || '').trim();
+    if (!search || search.length < 2) {
+      return res.status(400).json({ error: 'Search query (q) must be at least 2 characters' });
+    }
+
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+
+    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+    const sessionId = loginResult.sessionId;
+    let routeId = '';
+    const setCookieHeader = loginResult.response.headers['set-cookie'];
+    if (setCookieHeader) {
+      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      for (const cookie of cookieArray) {
+        const match = cookie.match(/ROUTEID=([^;]+)/);
+        if (match) { routeId = match[1]; break; }
+      }
+    }
+    const headers: Record<string, string> = {};
+    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
+
+    const filter = `contains(AcctName,'${search}') or contains(Code,'${search}') or contains(FormatCode,'${search}')`;
+    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      path: `/b1s/v1/ChartOfAccounts?$filter=${encodeURIComponent(filter)}&$select=Code,FormatCode,AcctName,ActiveAccount,AcctCurrency,Balance,AccountType&$top=50`,
+      headers,
+    });
+
+    if (sapResponse.ok) {
+      const data = JSON.parse(sapResponse.body);
+      const accounts = (data.value || []).map((a: any) => ({
+        acctCode: a.Code,
+        formatCode: a.FormatCode,
+        acctName: a.AcctName,
+        active: a.ActiveAccount,
+        currency: a.AcctCurrency,
+        balance: a.Balance,
+        accountType: a.AccountType,
+      }));
+      return res.json({ accounts, total: accounts.length, search, companyDb: sapDb });
+    } else {
+      return res.status(500).json({ error: `SAP query failed: ${sapResponse.statusCode}`, body: sapResponse.body });
+    }
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+
+    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+    const sessionId = loginResult.sessionId;
+    let routeId = '';
+    const setCookieHeader = loginResult.response.headers['set-cookie'];
+    if (setCookieHeader) {
+      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      for (const cookie of cookieArray) {
+        const match = cookie.match(/ROUTEID=([^;]+)/);
+        if (match) { routeId = match[1]; break; }
+      }
+    }
+    const headers: Record<string, string> = {};
+    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
+
+    const mappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const results: any[] = [];
+    let validCount = 0;
+    let invalidCount = 0;
+    let emptyCount = 0;
+
+    for (const mapping of mappings) {
+      const glCode = mapping.glAccountCode?.trim();
+      if (!glCode) {
+        results.push({
+          id: mapping.id,
+          componentCode: mapping.componentCode,
+          componentName: mapping.componentName,
+          category: mapping.category,
+          configuredGL: '',
+          status: 'empty',
+          sapAcctCode: null,
+          sapFormatCode: null,
+          sapAcctName: null,
+        });
+        emptyCount++;
+        continue;
+      }
+
+      let resolved = false;
+      let sapAcctCode = '';
+      let sapFormatCode = '';
+      let sapAcctName = '';
+
+      try {
+        const directResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(glCode)}')`,
+          headers,
+        });
+        if (directResp.ok) {
+          const data = JSON.parse(directResp.body);
+          sapAcctCode = data.Code;
+          sapFormatCode = data.FormatCode;
+          sapAcctName = data.AcctName;
+          resolved = true;
+        }
+      } catch (_) {}
+
+      if (!resolved) {
+        try {
+          const filterResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+            method: 'GET',
+            path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName&$top=5`,
+            headers,
+          });
+          if (filterResp.ok) {
+            const result = JSON.parse(filterResp.body);
+            if (result.value && result.value.length === 1) {
+              sapAcctCode = result.value[0].Code;
+              sapFormatCode = result.value[0].FormatCode;
+              sapAcctName = result.value[0].AcctName;
+              resolved = true;
+            } else if (result.value && result.value.length > 1) {
+              results.push({
+                id: mapping.id,
+                componentCode: mapping.componentCode,
+                componentName: mapping.componentName,
+                category: mapping.category,
+                configuredGL: glCode,
+                status: 'ambiguous',
+                matches: result.value.map((a: any) => ({ acctCode: a.Code, formatCode: a.FormatCode, acctName: a.AcctName })),
+              });
+              invalidCount++;
+              continue;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (resolved) {
+        await db.update(glAccountMappings)
+          .set({ sapAcctCode, sapValidatedAt: new Date() })
+          .where(eq(glAccountMappings.id, mapping.id));
+
+        results.push({
+          id: mapping.id,
+          componentCode: mapping.componentCode,
+          componentName: mapping.componentName,
+          category: mapping.category,
+          configuredGL: glCode,
+          status: 'valid',
+          sapAcctCode,
+          sapFormatCode,
+          sapAcctName,
+          updated: sapAcctCode !== glCode,
+        });
+        validCount++;
+      } else {
+        results.push({
+          id: mapping.id,
+          componentCode: mapping.componentCode,
+          componentName: mapping.componentName,
+          category: mapping.category,
+          configuredGL: glCode,
+          status: 'not_found',
+          sapAcctCode: null,
+        });
+        invalidCount++;
+      }
+    }
+
+    return res.json({
+      companyDb: sapDb,
+      summary: { total: mappings.length, valid: validCount, invalid: invalidCount, empty: emptyCount },
+      results,
+    });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/payroll/gl-mapping/:id/set-sap-code', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const mappingId = parseInt(req.params.id);
+    const { sapAcctCode, sapFormatCode, sapAcctName } = req.body;
+
+    if (!sapAcctCode) return res.status(400).json({ error: 'sapAcctCode is required' });
+
+    await db.update(glAccountMappings)
+      .set({
+        sapAcctCode,
+        glAccountName: sapAcctName || undefined,
+        sapValidatedAt: new Date(),
+        updatedBy: (req.user as any)?.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(glAccountMappings.id, mappingId));
+
+    return res.json({ success: true, mappingId, sapAcctCode, sapFormatCode, sapAcctName });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 /**
  * Test SAP JE posting with custom payload
  */
@@ -2681,121 +2895,45 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       });
     }
 
-    const uniqueGLs = [...new Set((finalPayload.JournalEntryLines || []).map((l: any) => l.AccountCode).filter(Boolean))];
-    console.log(`[Test SAP JE] Resolving ${uniqueGLs.length} GL codes against SAP Chart of Accounts...`);
-    const glResolution: Record<string, { resolved: boolean; sapAcctCode?: string; sapFormatCode?: string; name?: string; error?: string }> = {};
-
-    for (const glCode of uniqueGLs) {
-      let found = false;
-
-      try {
-        const directResp = await sapHttpsClient.authenticatedRequest(sessionId, {
-          method: 'GET',
-          path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(glCode)}')`,
-          headers,
-        });
-        if (directResp.ok) {
-          const data = JSON.parse(directResp.body);
-          glResolution[glCode] = { resolved: true, sapAcctCode: data.Code, sapFormatCode: data.FormatCode, name: data.AcctName || data.Name };
-          console.log(`  ✓ ${glCode} → direct match: AcctCode=${data.Code}, FormatCode=${data.FormatCode}, Name=${data.AcctName}`);
-          found = true;
-        }
-      } catch (_) {}
-
-      if (!found) {
-        try {
-          const filterResp = await sapHttpsClient.authenticatedRequest(sessionId, {
-            method: 'GET',
-            path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName,ActiveAccount&$top=10`,
-            headers,
-          });
-          if (filterResp.ok) {
-            const result = JSON.parse(filterResp.body);
-            if (result.value && result.value.length > 1) {
-              glResolution[glCode] = {
-                resolved: false,
-                error: `Ambiguous: ${result.value.length} SAP accounts match FormatCode '${glCode}': ${result.value.map((a: any) => `${a.Code} (${a.AcctName})`).join(', ')}`,
-              };
-              console.log(`  ✗ ${glCode} = AMBIGUOUS FormatCode match (${result.value.length} accounts): ${result.value.map((a: any) => a.Code).join(', ')}`);
-              found = true;
-            } else if (result.value && result.value.length === 1) {
-              const acct = result.value[0];
-              glResolution[glCode] = { resolved: true, sapAcctCode: acct.Code, sapFormatCode: acct.FormatCode, name: acct.AcctName };
-              console.log(`  ✓ ${glCode} → FormatCode match: AcctCode=${acct.Code}, FormatCode=${acct.FormatCode}, Name=${acct.AcctName}`);
-              found = true;
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (!found) {
-        try {
-          const stripped = glCode.replace(/-[A-Z]+$/, '');
-          if (stripped !== glCode) {
-            const filterResp2 = await sapHttpsClient.authenticatedRequest(sessionId, {
-              method: 'GET',
-              path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${stripped}' or Code eq '${stripped}'&$select=Code,FormatCode,AcctName,ActiveAccount&$top=10`,
-              headers,
-            });
-            if (filterResp2.ok) {
-              const result = JSON.parse(filterResp2.body);
-              if (result.value && result.value.length > 1) {
-                glResolution[glCode] = {
-                  resolved: false,
-                  error: `Ambiguous: ${result.value.length} SAP accounts match stripped code '${stripped}': ${result.value.map((a: any) => `${a.Code} (${a.AcctName})`).join(', ')}`,
-                };
-                console.log(`  ✗ ${glCode} = AMBIGUOUS stripped match (${result.value.length} accounts): ${result.value.map((a: any) => a.Code).join(', ')}`);
-                found = true;
-              } else if (result.value && result.value.length === 1) {
-                const data = result.value[0];
-                glResolution[glCode] = { resolved: true, sapAcctCode: data.Code, sapFormatCode: data.FormatCode, name: data.AcctName };
-                console.log(`  ✓ ${glCode} → stripped match (${stripped}): AcctCode=${data.Code}, FormatCode=${data.FormatCode}, Name=${data.AcctName}`);
-                found = true;
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (!found) {
-        glResolution[glCode] = { resolved: false, error: 'Not found by AcctCode, FormatCode, or stripped code' };
-        console.log(`  ✗ ${glCode} = NOT FOUND in SAP CoA`);
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const sapCodeLookup: Record<string, string> = {};
+    for (const m of allMappings) {
+      if (m.sapAcctCode && m.glAccountCode) {
+        sapCodeLookup[m.glAccountCode] = m.sapAcctCode;
       }
     }
 
-    const unresolved = Object.entries(glResolution).filter(([, v]) => !v.resolved);
-    if (unresolved.length > 0) {
-      return res.status(400).json({
-        error: `${unresolved.length} GL code(s) not found in SAP Chart of Accounts: ${unresolved.map(([code]) => code).join(', ')}`,
-        unresolvedGLCodes: Object.fromEntries(unresolved),
-        resolvedGLCodes: Object.fromEntries(Object.entries(glResolution).filter(([, v]) => v.resolved)),
-        hint: 'These codes do not exist in the SAP Chart of Accounts as AcctCode or FormatCode.',
-      });
-    }
-
-    const codeMap: Record<string, string> = {};
-    for (const [displayCode, info] of Object.entries(glResolution)) {
-      if (info.sapAcctCode && info.sapAcctCode !== displayCode) {
-        codeMap[displayCode] = info.sapAcctCode;
-      }
-    }
-
-    if (Object.keys(codeMap).length > 0) {
-      console.log(`[Test SAP JE] Remapping ${Object.keys(codeMap).length} display codes to SAP AcctCodes:`);
-      for (const [from, to] of Object.entries(codeMap)) {
-        console.log(`  ${from} → ${to}`);
-      }
+    if (finalPayload.JournalEntryLines) {
+      const remapped: string[] = [];
       finalPayload = {
         ...finalPayload,
         JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
-          if (codeMap[line.AccountCode]) {
-            return { ...line, AccountCode: codeMap[line.AccountCode] };
+          const displayCode = line.AccountCode;
+          if (sapCodeLookup[displayCode] && sapCodeLookup[displayCode] !== displayCode) {
+            remapped.push(displayCode + ' -> ' + sapCodeLookup[displayCode]);
+            return { ...line, AccountCode: sapCodeLookup[displayCode] };
           }
           return line;
         }),
       };
+      if (remapped.length > 0) {
+        console.log('[Test SAP JE] Remapped ' + remapped.length + ' display codes to SAP AcctCodes:');
+        remapped.forEach(r => console.log('  ' + r));
+      }
     }
-    console.log(`[Test SAP JE] All ${uniqueGLs.length} GL codes resolved successfully.`);
+
+    const unmappedLines = (finalPayload.JournalEntryLines || []).filter((line: any) => {
+      const code = line.AccountCode || '';
+      return !code || code.startsWith('_SYS') || code.includes('<') || code === line.ShortName;
+    });
+    if (unmappedLines.length > 0) {
+      return res.status(400).json({
+        error: unmappedLines.length + ' line(s) have invalid or unresolved AccountCode. Run "Validate GL Mapping" on the GL Mapping page first to sync SAP account codes.',
+        unmappedLines: unmappedLines.map((l: any) => ({ Line_ID: l.Line_ID, AccountCode: l.AccountCode, LineMemo: l.LineMemo })),
+      });
+    }
+
+    console.log('[Test SAP JE] All GL codes resolved from stored sapAcctCode mappings.');
 
     console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 

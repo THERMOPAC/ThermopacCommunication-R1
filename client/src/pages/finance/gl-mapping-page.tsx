@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, CheckCircle, Pencil, Landmark, Search, Database, Loader2, SeedlingIcon, Sprout, Check, X } from "lucide-react";
+import { AlertTriangle, CheckCircle, Pencil, Landmark, Search, Database, Loader2, SeedlingIcon, Sprout, Check, X, RefreshCw, Link2, Shield } from "lucide-react";
 import Layout from "@/components/layout";
 
 const COMPONENTS = [
@@ -163,6 +163,13 @@ export default function GlMappingPage() {
   const [sapAccounts, setSapAccounts] = useState<any[]>([]);
   const [sapLoading, setSapLoading] = useState(false);
   const [sapSearch, setSapSearch] = useState('');
+  const [showSapSearch, setShowSapSearch] = useState(false);
+  const [sapSearchQuery, setSapSearchQuery] = useState('');
+  const [sapSearchResults, setSapSearchResults] = useState<any[]>([]);
+  const [sapSearchLoading, setSapSearchLoading] = useState(false);
+  const [sapSearchTarget, setSapSearchTarget] = useState<any>(null);
+  const [validationResults, setValidationResults] = useState<any>(null);
+  const [showValidation, setShowValidation] = useState(false);
 
   const { data: user } = useQuery<any>({ queryKey: ['/api/user'] });
   const isAdmin = user?.role === 'Superuser' || user?.role === 'Manager';
@@ -182,6 +189,28 @@ export default function GlMappingPage() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
       toast({ title: 'GL Mappings Seeded', description: data.created > 0 ? `Created ${data.created} new mapping rows.` : 'All mappings already exist — nothing to seed.' });
+    },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const validateMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/admin/payroll/validate-gl-mappings'),
+    onSuccess: (data: any) => {
+      setValidationResults(data);
+      setShowValidation(true);
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
+      const s = data.summary;
+      toast({ title: 'GL Validation Complete', description: `${s.valid} valid, ${s.invalid} invalid, ${s.empty} empty of ${s.total} mappings` });
+    },
+    onError: (e: any) => toast({ title: 'Validation Failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const setSapCodeMutation = useMutation({
+    mutationFn: ({ id, sapAcctCode, sapFormatCode, sapAcctName }: any) =>
+      apiRequest('POST', `/api/admin/payroll/gl-mapping/${id}/set-sap-code`, { sapAcctCode, sapFormatCode, sapAcctName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
+      toast({ title: 'SAP Account Code Linked' });
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -206,6 +235,45 @@ export default function GlMappingPage() {
       setSapAccounts([]);
     } finally {
       setSapLoading(false);
+    }
+  }
+
+  async function searchSapCoA(query: string) {
+    if (query.length < 2) return;
+    setSapSearchLoading(true);
+    try {
+      const data = await apiRequest('GET', `/api/admin/payroll/sap-coa-search?q=${encodeURIComponent(query)}`);
+      setSapSearchResults(data.accounts || []);
+    } catch {
+      setSapSearchResults([]);
+    } finally {
+      setSapSearchLoading(false);
+    }
+  }
+
+  function openSapSearch(targetMapping?: any) {
+    setSapSearchTarget(targetMapping || null);
+    setSapSearchQuery('');
+    setSapSearchResults([]);
+    setShowSapSearch(true);
+  }
+
+  function selectSapAccount(acct: any) {
+    if (sapSearchTarget) {
+      setSapCodeMutation.mutate({
+        id: sapSearchTarget.id,
+        sapAcctCode: acct.acctCode,
+        sapFormatCode: acct.formatCode,
+        sapAcctName: acct.acctName,
+      });
+      updateMutation.mutate({
+        id: sapSearchTarget.id,
+        glAccountCode: acct.formatCode || acct.acctCode,
+        glAccountName: acct.acctName,
+        debitCredit: sapSearchTarget.debitCredit,
+        isActive: true,
+      });
+      setShowSapSearch(false);
     }
   }
 
@@ -301,10 +369,19 @@ export default function GlMappingPage() {
           <p className="text-muted-foreground mt-1">Centralized GL mapping for all payroll and statutory modules</p>
         </div>
         {isAdmin && (
-          <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending} variant={mappings.length === 0 ? 'default' : 'outline'}>
-            {seedAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sprout className="h-4 w-4 mr-2" />}
-            {mappings.length === 0 ? 'Seed All GL Mappings' : 'Seed Missing Mappings'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => openSapSearch()} variant="outline" size="sm">
+              <Search className="h-4 w-4 mr-2" /> Search SAP CoA
+            </Button>
+            <Button onClick={() => validateMutation.mutate()} disabled={validateMutation.isPending} variant="outline" size="sm">
+              {validateMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Shield className="h-4 w-4 mr-2" />}
+              Validate GL Mapping
+            </Button>
+            <Button onClick={() => seedAllMutation.mutate()} disabled={seedAllMutation.isPending} variant={mappings.length === 0 ? 'default' : 'outline'} size="sm">
+              {seedAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sprout className="h-4 w-4 mr-2" />}
+              {mappings.length === 0 ? 'Seed All' : 'Seed Missing'}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -526,10 +603,19 @@ export default function GlMappingPage() {
                           {m.debitCredit === 'debit' ? 'Dr' : 'Cr'}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-xs text-muted-foreground">{m.sapAcctCode && m.sapAcctCode !== m.glAccountCode ? m.sapAcctCode : ''}</span>
+                        {m.sapValidatedAt && <CheckCircle className="h-3 w-3 text-green-500 inline ml-1" />}
+                      </TableCell>
                       <TableCell className="text-right">
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(m)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => openSapSearch(m)} title="Search SAP CoA">
+                            <Search className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(m)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -630,6 +716,122 @@ export default function GlMappingPage() {
                   {updateMutation.isPending ? 'Saving...' : 'Save'}
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSapSearch} onOpenChange={setShowSapSearch}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Search SAP Chart of Accounts</DialogTitle>
+            <DialogDescription>
+              Search by account name, code, or format code. {sapSearchTarget ? `Linking to: ${sapSearchTarget.componentName}` : 'Browse mode — click to link to a GL mapping.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Input
+              value={sapSearchQuery}
+              onChange={e => setSapSearchQuery(e.target.value)}
+              placeholder="e.g. salary, basic, PF, professional tax..."
+              onKeyDown={e => { if (e.key === 'Enter') searchSapCoA(sapSearchQuery); }}
+            />
+            <Button onClick={() => searchSapCoA(sapSearchQuery)} disabled={sapSearchLoading || sapSearchQuery.length < 2}>
+              {sapSearchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
+          {sapSearchResults.length > 0 && (
+            <div className="overflow-auto max-h-[50vh] border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>AcctCode (Internal)</TableHead>
+                    <TableHead>FormatCode (Display)</TableHead>
+                    <TableHead>Account Name</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead>Type</TableHead>
+                    {sapSearchTarget && <TableHead></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sapSearchResults.map((acct: any) => (
+                    <TableRow key={acct.acctCode} className={sapSearchTarget ? 'cursor-pointer hover:bg-muted/70' : ''}>
+                      <TableCell className="font-mono text-xs font-bold">{acct.acctCode}</TableCell>
+                      <TableCell className="font-mono text-xs">{acct.formatCode}</TableCell>
+                      <TableCell className="text-sm">{acct.acctName}</TableCell>
+                      <TableCell>
+                        {acct.active === 'tYES' ? <CheckCircle className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-red-500" />}
+                      </TableCell>
+                      <TableCell className="text-xs">{acct.accountType}</TableCell>
+                      {sapSearchTarget && (
+                        <TableCell>
+                          <Button size="sm" variant="outline" onClick={() => selectSapAccount(acct)}>
+                            <Link2 className="h-3 w-3 mr-1" /> Link
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {sapSearchResults.length === 0 && sapSearchQuery.length >= 2 && !sapSearchLoading && (
+            <p className="text-sm text-muted-foreground text-center py-4">No results found. Try a different search term.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showValidation} onOpenChange={setShowValidation}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>GL Mapping Validation Results</DialogTitle>
+            <DialogDescription>
+              Company DB: {validationResults?.companyDb} | {validationResults?.summary?.valid} valid, {validationResults?.summary?.invalid} invalid, {validationResults?.summary?.empty} empty
+            </DialogDescription>
+          </DialogHeader>
+          {validationResults && (
+            <div className="overflow-auto max-h-[60vh] border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Component</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Configured GL</TableHead>
+                    <TableHead>SAP AcctCode</TableHead>
+                    <TableHead>SAP Account Name</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(validationResults.results || []).map((r: any) => (
+                    <TableRow key={r.id} className={r.status === 'valid' ? '' : r.status === 'empty' ? 'bg-yellow-50' : 'bg-red-50'}>
+                      <TableCell className="font-mono text-xs">{r.componentCode}</TableCell>
+                      <TableCell className="text-xs">{r.category}</TableCell>
+                      <TableCell className="font-mono text-xs">{r.configuredGL || '—'}</TableCell>
+                      <TableCell className="font-mono text-xs font-bold">{r.sapAcctCode || '—'}</TableCell>
+                      <TableCell className="text-xs">{r.sapAcctName || '—'}</TableCell>
+                      <TableCell>
+                        {r.status === 'valid' && <Badge className="bg-green-600">Valid</Badge>}
+                        {r.status === 'not_found' && <Badge variant="destructive">Not Found</Badge>}
+                        {r.status === 'ambiguous' && <Badge className="bg-amber-600">Ambiguous</Badge>}
+                        {r.status === 'empty' && <Badge variant="outline">Empty</Badge>}
+                      </TableCell>
+                      <TableCell>
+                        {(r.status === 'not_found' || r.status === 'empty' || r.status === 'ambiguous') && (
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setShowValidation(false);
+                            openSapSearch({ id: r.id, componentName: r.componentName || r.componentCode, debitCredit: 'credit' });
+                          }}>
+                            <Search className="h-3 w-3 mr-1" /> Fix
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </DialogContent>
