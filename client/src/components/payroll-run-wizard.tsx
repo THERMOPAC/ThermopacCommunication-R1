@@ -321,17 +321,9 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
             periodStatus={period.status || 'draft'}
           />
 
-          {getCompletedStepCount() === STEP_CONFIG.length && period.status === 'processed' && (
+          {((getCompletedStepCount() === STEP_CONFIG.length && period.status === 'processed') || period.status === 'reviewed' || period.status === 'approved' || period.status === 'paid') && (
             <StatusTransitionBar
               currentStatus={period.status || 'draft'}
-              onTransition={(s) => transitionMutation.mutate(s)}
-              isPending={transitionMutation.isPending}
-              hasErrors={errorExceptions.length > 0}
-            />
-          )}
-          {(period.status === 'processed' || period.status === 'reviewed' || period.status === 'approved' || period.status === 'paid') && (
-            <StatusTransitionBar
-              currentStatus={period.status}
               onTransition={(s) => transitionMutation.mutate(s)}
               isPending={transitionMutation.isPending}
               hasErrors={errorExceptions.length > 0}
