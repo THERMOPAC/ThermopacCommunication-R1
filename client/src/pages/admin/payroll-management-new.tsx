@@ -543,6 +543,7 @@ function GeneratedSalariesView() {
   const [voidRecordReason, setVoidRecordReason] = useState('');
   const [postingId, setPostingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [employeeSearch, setEmployeeSearch] = useState('');
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [reasonAction, setReasonAction] = useState<'hold' | 'reject'>('hold');
   const [reasonRecordId, setReasonRecordId] = useState<number | null>(null);
@@ -684,9 +685,18 @@ function GeneratedSalariesView() {
     );
   }
 
+  const searchFilteredRecords = employeeSearch.trim()
+    ? (generatedSalaries as any[]).filter((r: any) => {
+        const name = (r.employeeName || r.username || '').toLowerCase();
+        const empCode = (r.employeeCode || '').toLowerCase();
+        const term = employeeSearch.toLowerCase();
+        return name.includes(term) || empCode.includes(term);
+      })
+    : (generatedSalaries as any[]);
+
   const filteredRecords = statusFilter === 'all'
-    ? generatedSalaries
-    : (generatedSalaries as any[]).filter((r: any) => (r.status || 'generated') === statusFilter);
+    ? searchFilteredRecords
+    : searchFilteredRecords.filter((r: any) => (r.status || 'generated') === statusFilter);
 
   const statusCounts = (generatedSalaries as any[]).reduce((acc: any, r: any) => {
     const s = r.status || 'generated';
@@ -696,7 +706,17 @@ function GeneratedSalariesView() {
 
   return (
     <>
-    <div className="flex flex-wrap gap-2 mb-4">
+    <div className="flex flex-col gap-3 mb-4">
+      <div className="relative w-full max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+        <Input
+          placeholder="Search employee by name or code..."
+          value={employeeSearch}
+          onChange={(e) => setEmployeeSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
       <div className="flex items-center gap-2 mr-4">
         <Filter className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-muted-foreground">Filter:</span>
@@ -721,6 +741,7 @@ function GeneratedSalariesView() {
           {f.label} ({f.count})
         </Button>
       ))}
+      </div>
     </div>
 
     <Card>
