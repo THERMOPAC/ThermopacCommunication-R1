@@ -3492,7 +3492,8 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       if (!mapping) {
         missingMappings.push(`${comp.code} (${comp.context})`);
       } else {
-        glMap.set(`${comp.code}|${comp.context}`, mapping.glAccountCode!);
+        const sapCode = mapping.sapAcctCode && mapping.sapAcctCode.trim() !== '' ? mapping.sapAcctCode.trim() : mapping.glAccountCode!;
+        glMap.set(`${comp.code}|${comp.context}`, sapCode);
       }
     }
 
@@ -3564,6 +3565,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       jeLines.push({
         Line_ID: lineNum++,
         AccountCode: glMap.get('NET_PAY|payroll_liability'),
+        ShortName: employee.cardCode,
         Debit: 0,
         Credit: netPayValue,
         LineMemo: `Net Pay - ${empName} - ${periodLabel}`,
