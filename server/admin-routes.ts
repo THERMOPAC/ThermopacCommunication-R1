@@ -2681,6 +2681,45 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       });
     }
 
+    const uniqueGLs = [...new Set((finalPayload.JournalEntryLines || []).map((l: any) => l.AccountCode).filter(Boolean))];
+    console.log(`[Test SAP JE] Validating ${uniqueGLs.length} GL codes against SAP Chart of Accounts...`);
+    const glValidation: Record<string, { valid: boolean; name?: string; error?: string }> = {};
+    for (const glCode of uniqueGLs) {
+      try {
+        const glResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(glCode)}')`,
+          headers,
+        });
+        if (glResp.ok) {
+          const glData = JSON.parse(glResp.body);
+          glValidation[glCode] = { valid: true, name: glData.AcctName || glData.Name };
+          console.log(`  ✓ ${glCode} = ${glData.AcctName || glData.Name}`);
+        } else {
+          glValidation[glCode] = { valid: false, error: `${glResp.statusCode}` };
+          console.log(`  ✗ ${glCode} = NOT FOUND (${glResp.statusCode})`);
+        }
+      } catch (glErr: any) {
+        glValidation[glCode] = { valid: false, error: glErr.message };
+        console.log(`  ✗ ${glCode} = ERROR: ${glErr.message}`);
+      }
+    }
+
+    const invalidGLs = Object.entries(glValidation).filter(([, v]) => !v.valid);
+    if (invalidGLs.length > 0) {
+      const affectedLines = (finalPayload.JournalEntryLines || []).filter((l: any) =>
+        invalidGLs.some(([code]) => code === l.AccountCode)
+      );
+      return res.status(400).json({
+        error: `GL code validation failed. ${invalidGLs.length} account(s) not found in SAP Chart of Accounts: ${invalidGLs.map(([code]) => code).join(', ')}`,
+        invalidGLCodes: Object.fromEntries(invalidGLs),
+        validGLCodes: Object.fromEntries(Object.entries(glValidation).filter(([, v]) => v.valid)),
+        affectedLines: affectedLines.map((l: any) => ({ Line_ID: l.Line_ID, AccountCode: l.AccountCode, LineMemo: l.LineMemo })),
+        hint: 'Check these GL codes in SAP B1 → Administration → Setup → Chart of Accounts. They may not exist in this company database.',
+      });
+    }
+    console.log(`[Test SAP JE] All ${uniqueGLs.length} GL codes validated successfully.`);
+
     console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 
     const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
