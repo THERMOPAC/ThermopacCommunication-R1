@@ -2584,21 +2584,9 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       }
     }
 
-    let finalPayload = jePayload;
-    if (discoveredAccounts.length >= 2 && jePayload.JournalEntryLines) {
-      const acct1 = discoveredAccounts[0].Code;
-      const acct2 = discoveredAccounts[1].Code;
-      console.log(`[Test SAP JE] Auto-using discovered GL codes: debit=${acct1}, credit=${acct2}`);
-      finalPayload = {
-        ...jePayload,
-        JournalEntryLines: [
-          { ...jePayload.JournalEntryLines[0], AccountCode: acct1 },
-          { ...jePayload.JournalEntryLines[1], AccountCode: acct2 },
-        ],
-      };
-    }
+    const finalPayload = jePayload;
 
-    console.log(`[Test SAP JE] Posting JE:`, JSON.stringify(finalPayload));
+    console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 
     const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
