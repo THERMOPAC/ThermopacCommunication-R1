@@ -2536,27 +2536,121 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     const headers: Record<string, string> = {};
     if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
 
-    const filter = `contains(AcctName,'${search}') or contains(Code,'${search}') or contains(FormatCode,'${search}')`;
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-      method: 'GET',
-      path: `/b1s/v1/ChartOfAccounts?$filter=${encodeURIComponent(filter)}&$select=Code,FormatCode,AcctName,ActiveAccount,AcctCurrency,Balance,AccountType&$top=50`,
-      headers,
-    });
+    const filters = [
+      `contains(AcctName,'${search}') or contains(Code,'${search}') or contains(FormatCode,'${search}')`,
+      `substringof('${search}', AcctName) or substringof('${search}', Code) or substringof('${search}', FormatCode)`,
+      `startswith(Code,'${search}') or startswith(FormatCode,'${search}')`,
+    ];
 
-    if (sapResponse.ok) {
-      const data = JSON.parse(sapResponse.body);
+    let allAccounts: any[] = [];
+    let lastError = '';
+
+    for (const filter of filters) {
+      if (allAccounts.length > 0) break;
+      try {
+        const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: `/b1s/v1/ChartOfAccounts?$filter=${encodeURIComponent(filter)}&$select=Code,FormatCode,AcctName,ActiveAccount,AcctCurrency,Balance,AccountType&$top=50`,
+          headers,
+        });
+        if (sapResponse.ok) {
+          const data = JSON.parse(sapResponse.body);
+          allAccounts = (data.value || []).map((a: any) => ({
+            acctCode: a.Code,
+            formatCode: a.FormatCode,
+            acctName: a.AcctName,
+            active: a.ActiveAccount,
+            currency: a.AcctCurrency,
+            balance: a.Balance,
+            accountType: a.AccountType,
+          }));
+          console.log(`[SAP CoA Search] Filter succeeded with ${allAccounts.length} results: ${filter.substring(0, 80)}`);
+        } else {
+          lastError = `${sapResponse.statusCode}: ${sapResponse.body.substring(0, 200)}`;
+          console.log(`[SAP CoA Search] Filter failed (${sapResponse.statusCode}): ${filter.substring(0, 80)}`);
+        }
+      } catch (e: any) {
+        lastError = e.message;
+      }
+    }
+
+    if (allAccounts.length === 0 && search.match(/^\d/)) {
+      try {
+        const directResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'GET',
+          path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(search)}')`,
+          headers,
+        });
+        if (directResp.ok) {
+          const a = JSON.parse(directResp.body);
+          allAccounts = [{
+            acctCode: a.Code,
+            formatCode: a.FormatCode,
+            acctName: a.AcctName,
+            active: a.ActiveAccount,
+            currency: a.AcctCurrency,
+            balance: a.Balance,
+            accountType: a.AccountType,
+          }];
+          console.log(`[SAP CoA Search] Direct lookup found: ${a.Code} = ${a.AcctName}`);
+        }
+      } catch (_) {}
+    }
+
+    if (allAccounts.length > 0) {
+      return res.json({ accounts: allAccounts, total: allAccounts.length, search, companyDb: sapDb });
+    } else {
+      return res.status(500).json({ error: `SAP query failed: ${lastError}`, search });
+    }
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/payroll/sap-coa-sample', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const sapUser = process.env.SAP_USERNAME || '';
+    const sapPass = process.env.SAP_PASSWORD || '';
+    const sapDb = process.env.SAP_COMPANY_DB || '';
+    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+
+    const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+    const sessionId = loginResult.sessionId;
+    let routeId = '';
+    const setCookieHeader = loginResult.response.headers['set-cookie'];
+    if (setCookieHeader) {
+      const cookieArray = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      for (const cookie of cookieArray) {
+        const match = cookie.match(/ROUTEID=([^;]+)/);
+        if (match) { routeId = match[1]; break; }
+      }
+    }
+    const headers: Record<string, string> = {};
+    if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
+
+    const skip = parseInt(req.query.skip as string || '0');
+    const top = Math.min(parseInt(req.query.top as string || '20'), 100);
+    const typeFilter = req.query.type as string || '';
+    let path = `/b1s/v1/ChartOfAccounts?$select=Code,FormatCode,AcctName,ActiveAccount,AccountType&$top=${top}&$skip=${skip}&$orderby=Code`;
+    if (typeFilter) {
+      path += `&$filter=AccountType eq '${typeFilter}'`;
+    }
+
+    const resp = await sapHttpsClient.authenticatedRequest(sessionId, { method: 'GET', path, headers });
+    if (resp.ok) {
+      const data = JSON.parse(resp.body);
       const accounts = (data.value || []).map((a: any) => ({
         acctCode: a.Code,
         formatCode: a.FormatCode,
         acctName: a.AcctName,
         active: a.ActiveAccount,
-        currency: a.AcctCurrency,
-        balance: a.Balance,
         accountType: a.AccountType,
       }));
-      return res.json({ accounts, total: accounts.length, search, companyDb: sapDb });
+      console.log(`[SAP CoA Sample] Got ${accounts.length} accounts from skip=${skip}. First 3:`,
+        accounts.slice(0, 3).map((a: any) => `Code=${a.acctCode} | FormatCode=${a.formatCode} | Name=${a.acctName}`));
+      return res.json({ accounts, total: accounts.length, skip, top, companyDb: sapDb });
     } else {
-      return res.status(500).json({ error: `SAP query failed: ${sapResponse.statusCode}`, body: sapResponse.body });
+      return res.status(500).json({ error: `SAP query failed: ${resp.statusCode}`, body: resp.body.substring(0, 500) });
     }
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
@@ -2613,50 +2707,62 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
       let sapFormatCode = '';
       let sapAcctName = '';
 
-      try {
-        const directResp = await sapHttpsClient.authenticatedRequest(sessionId, {
-          method: 'GET',
-          path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(glCode)}')`,
-          headers,
-        });
-        if (directResp.ok) {
-          const data = JSON.parse(directResp.body);
-          sapAcctCode = data.Code;
-          sapFormatCode = data.FormatCode;
-          sapAcctName = data.AcctName;
-          resolved = true;
-        }
-      } catch (_) {}
+      const strippedCode = glCode.replace(/-[A-Z]+$/, '');
 
-      if (!resolved) {
+      const lookupStrategies = [
+        { desc: 'direct by Code', path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(glCode)}')` },
+        { desc: 'direct by stripped Code', path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(strippedCode)}')` },
+        { desc: 'filter FormatCode eq', path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName&$top=5` },
+        { desc: 'filter FormatCode eq stripped', path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${strippedCode}'&$select=Code,FormatCode,AcctName&$top=5` },
+        { desc: 'filter Code startswith stripped', path: `/b1s/v1/ChartOfAccounts?$filter=startswith(Code, '${strippedCode}')&$select=Code,FormatCode,AcctName&$top=5` },
+        { desc: 'filter FormatCode startswith stripped', path: `/b1s/v1/ChartOfAccounts?$filter=startswith(FormatCode, '${strippedCode}')&$select=Code,FormatCode,AcctName&$top=5` },
+      ];
+
+      for (const strategy of lookupStrategies) {
+        if (resolved) break;
         try {
-          const filterResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+          const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
             method: 'GET',
-            path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName&$top=5`,
+            path: strategy.path,
             headers,
           });
-          if (filterResp.ok) {
-            const result = JSON.parse(filterResp.body);
-            if (result.value && result.value.length === 1) {
-              sapAcctCode = result.value[0].Code;
-              sapFormatCode = result.value[0].FormatCode;
-              sapAcctName = result.value[0].AcctName;
+          if (resp.ok) {
+            const data = JSON.parse(resp.body);
+            if (data.Code) {
+              sapAcctCode = data.Code;
+              sapFormatCode = data.FormatCode || '';
+              sapAcctName = data.AcctName || '';
               resolved = true;
-            } else if (result.value && result.value.length > 1) {
-              results.push({
-                id: mapping.id,
-                componentCode: mapping.componentCode,
-                componentName: mapping.componentName,
-                category: mapping.category,
-                configuredGL: glCode,
-                status: 'ambiguous',
-                matches: result.value.map((a: any) => ({ acctCode: a.Code, formatCode: a.FormatCode, acctName: a.AcctName })),
-              });
-              invalidCount++;
-              continue;
+              console.log(`[Validate GL] ${glCode} resolved via "${strategy.desc}" → AcctCode=${sapAcctCode}, FormatCode=${sapFormatCode}`);
+            } else if (data.value) {
+              if (data.value.length === 1) {
+                sapAcctCode = data.value[0].Code;
+                sapFormatCode = data.value[0].FormatCode || '';
+                sapAcctName = data.value[0].AcctName || '';
+                resolved = true;
+                console.log(`[Validate GL] ${glCode} resolved via "${strategy.desc}" → AcctCode=${sapAcctCode}, FormatCode=${sapFormatCode}`);
+              } else if (data.value.length > 1) {
+                console.log(`[Validate GL] ${glCode} "${strategy.desc}" returned ${data.value.length} matches (ambiguous)`);
+                results.push({
+                  id: mapping.id,
+                  componentCode: mapping.componentCode,
+                  componentName: mapping.componentName,
+                  category: mapping.category,
+                  configuredGL: glCode,
+                  status: 'ambiguous',
+                  matches: data.value.map((a: any) => ({ acctCode: a.Code, formatCode: a.FormatCode, acctName: a.AcctName })),
+                });
+                invalidCount++;
+                resolved = true;
+                continue;
+              }
             }
+          } else {
+            console.log(`[Validate GL] ${glCode} "${strategy.desc}" → ${resp.statusCode}`);
           }
-        } catch (_) {}
+        } catch (e: any) {
+          console.log(`[Validate GL] ${glCode} "${strategy.desc}" error: ${e.message}`);
+        }
       }
 
       if (resolved) {
