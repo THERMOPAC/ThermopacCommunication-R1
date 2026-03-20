@@ -2586,96 +2586,98 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     let finalPayload = jePayload;
 
-    if (finalPayload.JournalEntryLines) {
-      const bpLines = finalPayload.JournalEntryLines.filter((line: any) => line.ShortName && line.AccountCode === line.ShortName);
-      if (bpLines.length > 0) {
-        const bpCode = bpLines[0].ShortName;
-        console.log(`[Test SAP JE] Fetching BP control GL for ${bpCode}...`);
+    const needsResolve = (finalPayload.JournalEntryLines || []).filter((line: any) =>
+      line.ShortName && (
+        line.AccountCode === line.ShortName ||
+        line.AccountCode === '<REAL_BP_CONTROL_GL>' ||
+        !line.AccountCode ||
+        line.AccountCode.startsWith('_SYS')
+      )
+    );
 
-        const netPayGL = await db.select({ glAccountCode: glAccountMappings.glAccountCode })
-          .from(glAccountMappings)
-          .where(and(
-            eq(glAccountMappings.componentCode, 'NET_PAY'),
-            eq(glAccountMappings.postingContext, 'payroll_liability'),
-            eq(glAccountMappings.isActive, true)
-          ));
+    if (needsResolve.length > 0) {
+      const bpCode = needsResolve[0].ShortName;
+      console.log(`[Test SAP JE] Need to resolve BP control GL for ${bpCode}...`);
 
-        const configuredGL = netPayGL.length > 0 ? netPayGL[0].glAccountCode?.trim() : '';
+      const netPayGL = await db.select({ glAccountCode: glAccountMappings.glAccountCode })
+        .from(glAccountMappings)
+        .where(and(
+          eq(glAccountMappings.componentCode, 'NET_PAY'),
+          eq(glAccountMappings.postingContext, 'payroll_liability'),
+          eq(glAccountMappings.isActive, true)
+        ));
 
-        if (configuredGL && !configuredGL.startsWith('_SYS')) {
-          console.log(`[Test SAP JE] Using NET_PAY GL from config: ${configuredGL}`);
-          finalPayload = {
-            ...finalPayload,
-            JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
-              if (line.ShortName === bpCode && line.AccountCode === bpCode) {
-                return { ...line, AccountCode: configuredGL };
-              }
-              return line;
-            }),
-          };
-        } else {
-          try {
-            const bpResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-              method: 'GET',
-              path: `/b1s/v1/BusinessPartners('${bpCode}')`,
-              headers,
-            });
-            if (bpResponse.ok) {
-              const bpFull = JSON.parse(bpResponse.body);
-              const accountFields = Object.keys(bpFull).filter(k => k.toLowerCase().includes('account'));
-              console.log(`[Test SAP JE] BP ${bpCode} account-related fields:`);
-              for (const field of accountFields) {
-                console.log(`  ${field} = ${bpFull[field]}`);
-              }
-              console.log(`[Test SAP JE] CardType=${bpFull.CardType}, GroupCode=${bpFull.GroupCode}`);
+      const configuredGL = netPayGL.length > 0 ? netPayGL[0].glAccountCode?.trim() : '';
+      let resolvedGL = '';
 
-              const candidates = [
-                bpFull.AccountsPayable,
-                bpFull.CreditAccount,
-                bpFull.DebitorAccount,
-                bpFull.ControlAccount,
-              ].filter(v => v && typeof v === 'string' && !v.startsWith('_SYS'));
-
-              if (candidates.length > 0) {
-                const resolvedGL = candidates[0];
-                console.log(`[Test SAP JE] Resolved BP control GL: ${resolvedGL}`);
-                finalPayload = {
-                  ...finalPayload,
-                  JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
-                    if (line.ShortName === bpCode && line.AccountCode === bpCode) {
-                      return { ...line, AccountCode: resolvedGL };
-                    }
-                    return line;
-                  }),
-                };
-              } else {
-                console.log(`[Test SAP JE] ERROR: No valid control GL found for BP ${bpCode}. All candidates are _SYS or empty.`);
-                console.log(`[Test SAP JE] Please set the NET_PAY GL in GL Mapping page with the actual BP control/payable GL account code.`);
-                return res.status(400).json({
-                  error: `Cannot resolve BP control GL for ${bpCode}. All SAP account fields contain system-generated (_SYS) codes. Please set the NET_PAY GL mapping manually with the correct Accounts Payable control GL code from your SAP Chart of Accounts.`,
-                  bpAccountFields: accountFields.reduce((acc: any, f: string) => { acc[f] = bpFull[f]; return acc; }, {}),
-                  hint: 'Open SAP B1 → Administration → Setup → Chart of Accounts. Find the Sundry Creditors / Accounts Payable GL used for vendor BPs. Enter that code in GL Mapping → NET_PAY.'
-                });
-              }
-            } else {
-              console.log(`[Test SAP JE] BP query failed: ${bpResponse.statusCode} ${bpResponse.body}`);
-              return res.status(400).json({ error: `Cannot fetch BP ${bpCode} from SAP: ${bpResponse.statusCode}` });
+      if (configuredGL && !configuredGL.startsWith('_SYS') && !configuredGL.includes('<')) {
+        resolvedGL = configuredGL;
+        console.log(`[Test SAP JE] Using NET_PAY GL from GL Mapping config: ${resolvedGL}`);
+      } else {
+        console.log(`[Test SAP JE] No valid NET_PAY GL in config (got: "${configuredGL}"). Querying SAP BP for control GL...`);
+        try {
+          const bpResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+            method: 'GET',
+            path: `/b1s/v1/BusinessPartners('${bpCode}')`,
+            headers,
+          });
+          if (bpResponse.ok) {
+            const bpFull = JSON.parse(bpResponse.body);
+            const accountFields = Object.keys(bpFull).filter(k => k.toLowerCase().includes('account'));
+            console.log(`[Test SAP JE] BP ${bpCode} (CardType=${bpFull.CardType}) account fields:`);
+            for (const field of accountFields) {
+              console.log(`  ${field} = ${JSON.stringify(bpFull[field])}`);
             }
-          } catch (bpErr: any) {
-            console.log(`[Test SAP JE] BP query error: ${bpErr.message}`);
-            return res.status(400).json({ error: `BP query failed: ${bpErr.message}` });
+
+            const candidates = [
+              bpFull.AccountsPayable,
+              bpFull.CreditAccount,
+              bpFull.DebitorAccount,
+              bpFull.ControlAccount,
+            ].filter(v => v && typeof v === 'string' && !v.startsWith('_SYS'));
+
+            if (candidates.length > 0) {
+              resolvedGL = candidates[0];
+              console.log(`[Test SAP JE] Resolved BP control GL from SAP: ${resolvedGL}`);
+            } else {
+              console.log(`[Test SAP JE] All SAP BP account fields are _SYS or empty.`);
+              return res.status(400).json({
+                error: `Cannot resolve BP control GL for ${bpCode}. SAP returned only system-generated (_SYS) account codes. Please enter the actual Accounts Payable / Sundry Creditors GL code in GL Mapping → NET_PAY.`,
+                bpAccountFields: accountFields.reduce((acc: any, f: string) => { acc[f] = bpFull[f]; return acc; }, {}),
+                hint: 'In SAP B1, go to a JE screen, type V10771 in ShortName and press Tab. Note the AccountCode SAP auto-fills. Enter that GL code in GL Mapping → NET_PAY.',
+              });
+            }
+          } else {
+            return res.status(400).json({ error: `Cannot fetch BP ${bpCode} from SAP: ${bpResponse.statusCode}` });
           }
+        } catch (bpErr: any) {
+          return res.status(400).json({ error: `BP query failed: ${bpErr.message}` });
         }
       }
+
+      finalPayload = {
+        ...finalPayload,
+        JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
+          if (needsResolve.some((nr: any) => nr.Line_ID === line.Line_ID)) {
+            return { ...line, AccountCode: resolvedGL };
+          }
+          return line;
+        }),
+      };
     }
 
     const invalidLines = (finalPayload.JournalEntryLines || []).filter((line: any) =>
-      line.AccountCode && (line.AccountCode.startsWith('_SYS') || line.AccountCode === line.ShortName)
+      line.AccountCode && (
+        line.AccountCode.startsWith('_SYS') ||
+        line.AccountCode === line.ShortName ||
+        line.AccountCode.includes('<')
+      )
     );
     if (invalidLines.length > 0) {
       return res.status(400).json({
-        error: `Invalid AccountCode on lines: ${invalidLines.map((l: any) => `Line ${l.Line_ID}: ${l.AccountCode}`).join(', ')}. _SYS accounts and BP codes cannot be used as AccountCode.`,
+        error: `Invalid AccountCode on lines: ${invalidLines.map((l: any) => `Line ${l.Line_ID}: "${l.AccountCode}"`).join(', ')}. Cannot post with _SYS codes, BP codes, or placeholders.`,
         invalidLines,
+        hint: 'Set the NET_PAY GL in GL Mapping with the actual Accounts Payable control GL code.',
       });
     }
 

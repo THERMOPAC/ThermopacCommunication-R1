@@ -484,9 +484,9 @@ function TestSapJeButton() {
       },
       {
         Line_ID: 8,
-        AccountCode: "V10771",
+        AccountCode: "<REAL_BP_CONTROL_GL>",
         ShortName: "V10771",
-        Debit: 0,
+        Debit: 0.00,
         Credit: 45150.00,
         LineMemo: "NET PAY - Mansi Main - February 2026"
       }
