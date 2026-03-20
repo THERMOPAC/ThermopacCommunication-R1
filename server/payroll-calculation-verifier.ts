@@ -1343,7 +1343,7 @@ export async function verifyPeriod(
       const result = await verifyEmployee(record, user, period);
       employeeResults.push(result);
 
-      await db.update(payrollRecords).set({
+      const updateData: any = {
         verificationStatus: result.status,
         verificationRunAt: new Date(),
         verificationRunBy: verifiedBy,
@@ -1355,7 +1355,11 @@ export async function verifyPeriod(
           sourceSnapshot: { cutoffTimestamp: new Date().toISOString() },
         },
         updatedAt: new Date(),
-      }).where(eq(payrollRecords.id, record.id));
+      };
+      if (result.status === 'passed' || result.status === 'overridden') {
+        updateData.status = 'verified';
+      }
+      await db.update(payrollRecords).set(updateData).where(eq(payrollRecords.id, record.id));
     } catch (err: any) {
       employeeResults.push({
         userId: record.userId,
