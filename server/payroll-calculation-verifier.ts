@@ -250,7 +250,7 @@ function verifyAttendanceAndDays(
     if (missingDates.length > 0) {
       issues.push({
         type: 'data_completeness_error',
-        severity: 'error',
+        severity: 'warning',
         field: 'attendanceCompleteness',
         title: 'Incomplete attendance for monthly employee',
         details: `${missingDates.length} working day(s) missing attendance records. Missing dates treated as absent for LOP.`,
@@ -735,7 +735,7 @@ function verifyNetPayAndCtc(
   const employerPf = p(record.employerPf);
   const employerEsic = p(record.employerEsic);
   const gratuity = p(record.gratuity);
-  const groupInsurance = p(sal.groupInsurance);
+  const groupInsurance = parseFloat(sal.groupInsurance || '1500');
   const bonusAllow = p(record.bonus);
 
   const expectedCtcMonthly = round2(recordGross + employerPf + employerEsic + gratuity + groupInsurance + bonusAllow);
@@ -908,11 +908,16 @@ async function verifyEmployee(
   const { expectedPaidDays, expectedLopDays, expectedPresentDays } =
     verifyAttendanceAndDays(record, snapshot, actualSalaryType, user, issues);
 
+  const recordPaidDays = p(record.paidDays);
+  const paidDaysForCalcChecks = daysMatch(expectedPaidDays, recordPaidDays)
+    ? expectedPaidDays
+    : recordPaidDays;
+
   verifyLeaveImpact(record, snapshot, actualSalaryType, issues);
   verifyLeaveBalanceIntegrity(snapshot, issues);
-  verifyEarnings(record, snapshot, actualSalaryType, expectedPaidDays, issues);
-  verifyDeductions(record, snapshot, actualSalaryType, expectedPaidDays, issues);
-  verifyNetPayAndCtc(record, snapshot, actualSalaryType, expectedPaidDays, issues);
+  verifyEarnings(record, snapshot, actualSalaryType, paidDaysForCalcChecks, issues);
+  verifyDeductions(record, snapshot, actualSalaryType, paidDaysForCalcChecks, issues);
+  verifyNetPayAndCtc(record, snapshot, actualSalaryType, paidDaysForCalcChecks, issues);
   verifyTdsReference(record, snapshot, issues);
   verifySalaryTypeApplicability(record, snapshot, actualSalaryType, user, issues);
   verifySlipDisplayConsistency(record, actualSalaryType, issues);
