@@ -2584,7 +2584,67 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       }
     }
 
-    const finalPayload = jePayload;
+    let finalPayload = jePayload;
+
+    if (finalPayload.JournalEntryLines) {
+      const bpLines = finalPayload.JournalEntryLines.filter((line: any) => line.ShortName && line.AccountCode === line.ShortName);
+      if (bpLines.length > 0) {
+        const bpCode = bpLines[0].ShortName;
+        console.log(`[Test SAP JE] Fetching BP control GL for ${bpCode}...`);
+        try {
+          const bpResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+            method: 'GET',
+            path: `/b1s/v1/BusinessPartners('${bpCode}')?$select=CardCode,CardName,CardType,DebitorAccount,Properties1`,
+            headers,
+          });
+          if (bpResponse.ok) {
+            const bpData = JSON.parse(bpResponse.body);
+            const controlGL = bpData.DebitorAccount;
+            console.log(`[Test SAP JE] BP ${bpCode} control GL from SAP: ${controlGL}, CardType: ${bpData.CardType}`);
+            if (controlGL) {
+              finalPayload = {
+                ...finalPayload,
+                JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
+                  if (line.ShortName === bpCode && line.AccountCode === bpCode) {
+                    return { ...line, AccountCode: controlGL };
+                  }
+                  return line;
+                }),
+              };
+              console.log(`[Test SAP JE] Replaced AccountCode with BP control GL: ${controlGL}`);
+            } else {
+              console.log(`[Test SAP JE] WARNING: BP ${bpCode} has no DebitorAccount. Trying query for control account...`);
+              const bpResponse2 = await sapHttpsClient.authenticatedRequest(sessionId, {
+                method: 'GET',
+                path: `/b1s/v1/BusinessPartners('${bpCode}')`,
+                headers,
+              });
+              if (bpResponse2.ok) {
+                const bpFull = JSON.parse(bpResponse2.body);
+                const altGL = bpFull.DebitorAccount || bpFull.CreditAccount || bpFull.AccountBalance;
+                console.log(`[Test SAP JE] Full BP data keys: ${Object.keys(bpFull).filter(k => k.toLowerCase().includes('account')).join(', ')}`);
+                console.log(`[Test SAP JE] DebitorAccount=${bpFull.DebitorAccount}, CreditAccount=${bpFull.CreditAccount}`);
+                if (altGL) {
+                  finalPayload = {
+                    ...finalPayload,
+                    JournalEntryLines: finalPayload.JournalEntryLines.map((line: any) => {
+                      if (line.ShortName === bpCode && line.AccountCode === bpCode) {
+                        return { ...line, AccountCode: altGL };
+                      }
+                      return line;
+                    }),
+                  };
+                }
+              }
+            }
+          } else {
+            console.log(`[Test SAP JE] BP query failed: ${bpResponse.statusCode} ${bpResponse.body}`);
+          }
+        } catch (bpErr: any) {
+          console.log(`[Test SAP JE] BP query error: ${bpErr.message}`);
+        }
+      }
+    }
 
     console.log(`[Test SAP JE] Posting JE with ${finalPayload.JournalEntryLines?.length || 0} lines:`, JSON.stringify(finalPayload));
 
