@@ -69,6 +69,7 @@ export interface CreateInsightParams {
   dataSources: string[];
   companyName?: string;
   scopePeriod?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface CreateRecommendationParams {

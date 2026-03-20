@@ -52,7 +52,7 @@ export class InsightManager {
       dataSources: params.dataSources,
       companyName: params.companyName || null,
       scopePeriod: params.scopePeriod || null,
-      metadata: {},
+      metadata: params.metadata || {},
       status: 'active',
     }).returning();
 
