@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import {
   Play, CheckCircle2, AlertTriangle,
   RotateCcw, ArrowRight, Loader2,
-  FileCheck, Users, Calculator, Award, Receipt, ShieldCheck
+  FileCheck, Users, Calculator, Award, Receipt, ShieldCheck, Send, XCircle, RefreshCw, Eye
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -471,7 +471,287 @@ function PipelineView({
           <Badge variant="outline" className="text-amber-700 border-amber-300">Issues Found</Badge>
         )}
       </div>
+
+      <SapTransferStep
+        periodId={periodId}
+        periodStatus={periodStatus}
+        verifyStatus={verifyStatus}
+      />
     </div>
+  );
+}
+
+function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: number; periodStatus: string; verifyStatus: string }) {
+  const { toast } = useToast();
+  const [showPreview, setShowPreview] = useState(false);
+  const [batchResult, setBatchResult] = useState<any>(null);
+  const [showBatchResult, setShowBatchResult] = useState(false);
+
+  const isReady = verifyStatus === 'completed';
+  const isLocked = periodStatus === 'paid' || periodStatus === 'locked';
+
+  const { data: preview, isLoading: previewLoading, refetch: refetchPreview } = useQuery<any>({
+    queryKey: ['/api/payroll/sap-transfer', periodId, 'preview'],
+    queryFn: async () => {
+      return await apiRequest('GET', `/api/payroll/sap-transfer/${periodId}/preview`);
+    },
+    enabled: isReady && showPreview,
+  });
+
+  const batchTransferMutation = useMutation({
+    mutationFn: async (recordIds: number[]) => {
+      const results: any[] = [];
+      for (const id of recordIds) {
+        try {
+          const r = await apiRequest('POST', `/api/admin/payroll/records/${id}/post-sap`);
+          results.push({ recordId: id, success: true, ...r });
+        } catch (e: any) {
+          results.push({ recordId: id, success: false, error: e.message });
+        }
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      const posted = results.filter(r => r.success).length;
+      const failed = results.filter(r => !r.success).length;
+      setBatchResult(results);
+      setShowBatchResult(true);
+      toast({
+        title: 'SAP Transfer Complete',
+        description: `${posted} posted, ${failed} failed of ${results.length} records`,
+        variant: failed > 0 ? 'destructive' : 'default',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/sap-transfer'] });
+      refetchPreview();
+    },
+  });
+
+  const getSapStatus = () => {
+    if (!isReady) return 'pending';
+    if (!preview) return 'pending';
+    if (preview.eligible === 0 && preview.blocked === 0) return 'pending';
+    if (preview.eligible === 0 && preview.totalRecords > 0) {
+      const allPosted = preview.blockedRecords?.every((b: any) => b.blockReasons?.includes('Already posted'));
+      if (allPosted) return 'completed';
+      return 'blocked';
+    }
+    return 'ready';
+  };
+
+  const sapStatus = getSapStatus();
+
+  return (
+    <>
+      <div
+        className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+          sapStatus === 'completed' ? 'bg-green-50 border-green-200' :
+          sapStatus === 'blocked' ? 'bg-red-50 border-red-200' :
+          sapStatus === 'ready' ? 'bg-orange-50 border-orange-200' :
+          'bg-gray-50 border-gray-100'
+        }`}
+      >
+        <div className={`p-2 rounded-full ${
+          sapStatus === 'completed' ? 'bg-green-100 text-green-700' :
+          sapStatus === 'blocked' ? 'bg-red-100 text-red-700' :
+          sapStatus === 'ready' ? 'bg-orange-100 text-orange-700' :
+          'bg-gray-100 text-gray-500'
+        }`}>
+          {sapStatus === 'completed' ? <CheckCircle2 className="h-5 w-5" /> :
+           sapStatus === 'blocked' ? <XCircle className="h-5 w-5" /> :
+           batchTransferMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> :
+           <Send className="h-5 w-5" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm">SAP Transfer</div>
+          <div className="text-xs text-muted-foreground">
+            {sapStatus === 'completed'
+              ? `All ${preview?.totalRecords || 0} records transferred to SAP`
+              : sapStatus === 'ready' && preview
+              ? `${preview.eligible} eligible, ${preview.blocked} blocked of ${preview.totalRecords} records`
+              : sapStatus === 'blocked' && preview
+              ? `All ${preview.totalRecords} records blocked — fix issues before transfer`
+              : 'Post verified salary journal entries to SAP B1'}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {isReady && !isLocked && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setShowPreview(true); refetchPreview(); }}
+              disabled={previewLoading}
+            >
+              {previewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+              <span className="ml-1">Preview</span>
+            </Button>
+          )}
+          {sapStatus === 'ready' && preview?.eligible > 0 && !isLocked && (
+            <Button
+              size="sm"
+              className="bg-orange-600 hover:bg-orange-700"
+              onClick={() => {
+                const ids = preview.eligibleRecords.map((r: any) => r.recordId);
+                batchTransferMutation.mutate(ids);
+              }}
+              disabled={batchTransferMutation.isPending}
+            >
+              {batchTransferMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Posting...</>
+              ) : (
+                <><Send className="h-4 w-4 mr-1" /> Transfer All ({preview.eligible})</>
+              )}
+            </Button>
+          )}
+          {sapStatus === 'completed' && (
+            <Badge variant="outline" className="text-green-700 border-green-300">All Posted</Badge>
+          )}
+        </div>
+      </div>
+
+      <Dialog open={showPreview && !!preview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>SAP Transfer Preview — {preview?.totalRecords || 0} Records</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 overflow-auto max-h-[65vh]">
+            {preview?.eligible > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+                  <CheckCircle2 className="h-4 w-4" /> Eligible ({preview.eligible})
+                </h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-green-50">
+                      <tr>
+                        <th className="text-left p-2">Employee</th>
+                        <th className="text-left p-2">Code</th>
+                        <th className="text-left p-2">BP Code</th>
+                        <th className="text-right p-2">Gross</th>
+                        <th className="text-right p-2">Net Pay</th>
+                        <th className="text-center p-2">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.eligibleRecords?.map((r: any) => (
+                        <tr key={r.recordId} className="border-t">
+                          <td className="p-2">{r.employeeName}</td>
+                          <td className="p-2 text-xs text-muted-foreground">{r.employeeCode}</td>
+                          <td className="p-2 text-xs font-mono">{r.cardCode}</td>
+                          <td className="p-2 text-right">₹{parseFloat(r.grossPay || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-2 text-right font-medium">₹{parseFloat(r.netPay || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-2 text-center"><Badge variant="outline" className="text-green-700 text-xs">Ready</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {preview?.blocked > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                  <XCircle className="h-4 w-4" /> Blocked ({preview.blocked})
+                </h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-red-50">
+                      <tr>
+                        <th className="text-left p-2">Employee</th>
+                        <th className="text-left p-2">Code</th>
+                        <th className="text-right p-2">Net Pay</th>
+                        <th className="text-left p-2">Block Reasons</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.blockedRecords?.map((r: any) => (
+                        <tr key={r.recordId} className="border-t">
+                          <td className="p-2">{r.employeeName}</td>
+                          <td className="p-2 text-xs text-muted-foreground">{r.employeeCode}</td>
+                          <td className="p-2 text-right">₹{parseFloat(r.netPay || 0).toLocaleString('en-IN')}</td>
+                          <td className="p-2">
+                            <div className="flex flex-wrap gap-1">
+                              {r.blockReasons?.map((reason: string, i: number) => (
+                                <Badge key={i} variant="outline" className="text-red-600 text-xs">{reason}</Badge>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreview(false)}>Close</Button>
+            {preview?.eligible > 0 && (
+              <Button
+                className="bg-orange-600 hover:bg-orange-700"
+                onClick={() => {
+                  setShowPreview(false);
+                  const ids = preview.eligibleRecords.map((r: any) => r.recordId);
+                  batchTransferMutation.mutate(ids);
+                }}
+                disabled={batchTransferMutation.isPending}
+              >
+                <Send className="h-4 w-4 mr-1" /> Transfer {preview.eligible} Records
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBatchResult} onOpenChange={setShowBatchResult}>
+        <DialogContent className="max-w-3xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>SAP Batch Transfer Results</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-auto max-h-[65vh]">
+            {batchResult && (
+              <div className="space-y-2">
+                <div className="flex gap-4 mb-3">
+                  <Badge className="bg-green-600">{batchResult.filter((r: any) => r.success).length} Posted</Badge>
+                  <Badge variant="destructive">{batchResult.filter((r: any) => !r.success).length} Failed</Badge>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left p-2">Record</th>
+                        <th className="text-center p-2">Status</th>
+                        <th className="text-left p-2">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchResult.map((r: any) => (
+                        <tr key={r.recordId} className="border-t">
+                          <td className="p-2">#{r.recordId}</td>
+                          <td className="p-2 text-center">
+                            {r.success
+                              ? <Badge className="bg-green-600 text-xs">Posted</Badge>
+                              : <Badge variant="destructive" className="text-xs">Failed</Badge>}
+                          </td>
+                          <td className="p-2 text-xs">
+                            {r.success
+                              ? `JE #${r.sapJeNumber || 'N/A'} (DocEntry: ${r.sapDocEntry || 'N/A'})`
+                              : r.error}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBatchResult(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
