@@ -462,6 +462,17 @@ router.post('/run/step', async (req, res) => {
     const { periodId, runNumber, step, includeNonSystem } = req.body;
     const executedBy = req.user?.id || 1;
     const result = await executeStep(periodId, runNumber, step, executedBy, includeNonSystem === true);
+
+    if (step === 'tds_calculation' && result.success) {
+      try {
+        const verificationResult = await verifyPeriod(periodId, executedBy, false);
+        (result as any).autoVerification = verificationResult;
+      } catch (verifyErr: any) {
+        console.error('Auto-verification after payroll run failed:', verifyErr.message);
+        (result as any).autoVerificationError = verifyErr.message;
+      }
+    }
+
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -858,6 +869,13 @@ router.post('/run/single-user', async (req, res) => {
 
     const daysInMonth = calendarDaysInPeriod;
 
+    let autoVerification = null;
+    try {
+      autoVerification = await verifyPeriod(periodId, executedBy, false);
+    } catch (verifyErr: any) {
+      console.error('Auto-verification after single-user run failed:', verifyErr.message);
+    }
+
     res.json({
       success: true,
       employee: employeeName,
@@ -872,6 +890,7 @@ router.post('/run/single-user', async (req, res) => {
       deductions: { pf: empPf, esic: empEsic, pt, tds, loanDeductions: loanDed, advanceDeductions: advDed },
       employer: { pf: emplrPf, esic: emplrEsic, gratuity, groupInsurance: groupIns, ctcMonthly },
       tds: { regime: tdsResult.regime, projectedAnnualIncome: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTaxLiability: tdsResult.totalTaxLiabilityAnnual, monthlyTds: tds },
+      autoVerification,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

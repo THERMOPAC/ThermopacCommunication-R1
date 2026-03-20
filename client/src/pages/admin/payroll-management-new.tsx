@@ -1526,6 +1526,7 @@ function PayrollRunTab() {
     onSuccess: (data: any) => {
       setSingleUserResult(data);
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/verify'] });
       toast({ title: 'Single User Payroll Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay || 0).toLocaleString('en-IN')}` });
     },
     onError: (err: any) => {
@@ -1858,6 +1859,7 @@ export default function PayrollManagementNew() {
     onSuccess: (data: any) => {
       setTestRunResult(data);
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/verify'] });
       toast({ title: 'Payroll Test Run Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay).toLocaleString()}` });
     },
     onError: (e: any) => toast({ title: 'Test Run Failed', description: e.message, variant: 'destructive' }),

@@ -223,6 +223,7 @@ export function PayrollRunWizard({ period }: { period: PayrollPeriod }) {
       refetchLocks();
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/verify'] });
     } catch (err: any) {
       toast({ title: 'Pipeline error', description: err.message, variant: 'destructive' });
     } finally {
