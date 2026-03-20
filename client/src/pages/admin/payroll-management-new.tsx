@@ -1353,12 +1353,13 @@ function PayrollRunTab() {
                 <div className="bg-gray-50 rounded-lg p-3 space-y-1.5 text-sm">
                   <div className="flex justify-between"><span className="text-gray-500">Days in Month</span><span className="font-medium">{singleUserResult.attendance?.daysInMonth ?? 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Working Days</span><span className="font-medium">{singleUserResult.attendance?.workingDays ?? 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Present</span><span className="font-medium">{singleUserResult.attendance?.presentDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Present Days</span><span className="font-medium">{singleUserResult.attendance?.presentDays ?? 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Half Days</span><span className="font-medium">{singleUserResult.attendance?.halfDays ?? 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Paid Days</span><span className="font-medium">{singleUserResult.attendance?.paidDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Leave Used</span><span className="font-medium text-amber-600">{((singleUserResult.attendance?.paidLeaveDays || 0) + (singleUserResult.attendance?.unpaidLeaveDays || 0)).toFixed(1)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">LOP Days</span><span className="font-medium text-red-600">{singleUserResult.attendance?.lopDays ?? 'N/A'}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">Paid Days</span><span className="font-medium text-green-600">{singleUserResult.attendance?.paidDays ?? 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Weekly Offs</span><span className="font-medium">{singleUserResult.attendance?.weeklyOffs ?? 'N/A'}</span></div>
                   <div className="flex justify-between"><span className="text-gray-500">Holidays</span><span className="font-medium">{singleUserResult.attendance?.holidays ?? 'N/A'}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">Absent</span><span className="font-medium text-red-600">{singleUserResult.attendance?.absentDays ?? 'N/A'}</span></div>
                 </div>
               </div>
 
@@ -2505,11 +2506,12 @@ export default function PayrollManagementNew() {
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div><span className="text-gray-500">Days in Month:</span> <span className="font-medium">{testRunResult.attendance?.daysInMonth ?? 'N/A'}</span></div>
                         <div><span className="text-gray-500">Working Days:</span> <span className="font-medium">{testRunResult.attendance?.workingDays ?? 'N/A'}</span></div>
-                        <div><span className="text-gray-500">Present:</span> <span className="font-medium">{testRunResult.attendance?.presentDays ?? 'N/A'}</span></div>
-                        <div><span className="text-gray-500">Paid Days:</span> <span className="font-medium">{testRunResult.attendance?.paidDays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Present Days:</span> <span className="font-medium">{testRunResult.attendance?.presentDays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Leave Used:</span> <span className="font-medium text-amber-600">{((testRunResult.attendance?.paidLeaveDays || 0) + (testRunResult.attendance?.unpaidLeaveDays || 0)).toFixed(1)}</span></div>
+                        <div><span className="text-gray-500">LOP Days:</span> <span className="font-medium text-red-600">{testRunResult.attendance?.lopDays ?? 'N/A'}</span></div>
+                        <div><span className="text-gray-500">Paid Days:</span> <span className="font-medium text-green-600">{testRunResult.attendance?.paidDays ?? 'N/A'}</span></div>
                         <div><span className="text-gray-500">Weekly Offs:</span> <span className="font-medium">{testRunResult.attendance?.weeklyOffs ?? 'N/A'}</span></div>
                         <div><span className="text-gray-500">Holidays:</span> <span className="font-medium">{testRunResult.attendance?.holidays ?? 'N/A'}</span></div>
-                        <div><span className="text-gray-500">Absent:</span> <span className="font-medium text-red-600">{testRunResult.attendance?.absentDays ?? 'N/A'}</span></div>
                       </div>
                     </div>
 

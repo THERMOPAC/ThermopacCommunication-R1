@@ -624,6 +624,38 @@ router.post('/run/single-user', async (req, res) => {
 
     const totalWorkingDays = calendarDaysInPeriod - weekOffCount - holidayDates.size;
 
+    const { leaveRequests, leaveTypes } = await import('@shared/schema');
+    const allLeaveTypes = await db.select().from(leaveTypes);
+    const paidTypeIds = new Set(allLeaveTypes.filter(lt => lt.isPaid).map(lt => lt.id));
+
+    const leaves = await db.select().from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, userId),
+        eq(leaveRequests.status, 'approved'),
+        lte(leaveRequests.startDate, endDate),
+        gte(leaveRequests.endDate, startDate)
+      ));
+
+    let paidLeaveDays = 0;
+    let unpaidLeaveDays = 0;
+    for (const leave of leaves) {
+      const days = parseFloat(leave.totalDays);
+      if (paidTypeIds.has(leave.leaveTypeId)) {
+        paidLeaveDays += days;
+      } else {
+        unpaidLeaveDays += days;
+      }
+    }
+
+    if (salaryType === 'daily') {
+      paidDays = paidDays + paidLeaveDays;
+    } else {
+      const coveredByPaidLeave = Math.min(paidLeaveDays, lopDays);
+      lopDays = Math.max(0, lopDays - coveredByPaidLeave);
+      paidDays = Math.min(MONTHLY_DIVISOR - lopDays, MONTHLY_DIVISOR);
+      paidLeaveDays = coveredByPaidLeave;
+    }
+
     const sal = salaryConfig;
     const basic = parseFloat(sal.basicSalary || '0');
     const configHra = parseFloat(sal.houseRentAllowance || '0');
@@ -765,6 +797,8 @@ router.post('/run/single-user', async (req, res) => {
       workingDays: totalWorkingDays,
       paidDays: paidDays.toFixed(1),
       presentDays: presentDays.toFixed(1),
+      paidLeaveDays: paidLeaveDays.toFixed(2),
+      unpaidLeaveDays: unpaidLeaveDays.toFixed(2),
       lopDays: lopDays.toFixed(2),
       status: 'generated',
     } as any).returning();
@@ -833,7 +867,7 @@ router.post('/run/single-user', async (req, res) => {
       netPay: finalNet.toFixed(2),
       loanDeductions: loanDed.toFixed(2),
       advanceDeductions: advDed.toFixed(2),
-      attendance: { daysInMonth, workingDays: totalWorkingDays, presentDays: presentFull, halfDays: presentHalf, absentDays: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size, lopDays },
+      attendance: { daysInMonth, workingDays: totalWorkingDays, presentDays, halfDays: presentHalf, absentDays: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size, lopDays, paidLeaveDays, unpaidLeaveDays },
       salary: { basic: earnBasic, hra: earnHra, conveyance: earnConv, lta: earnLta, specialAllowance: earnSpecial, supplementary: earnSupp, kgp: earnKgp, bonus: earnBonus, overtimePay },
       deductions: { pf: empPf, esic: empEsic, pt, tds, loanDeductions: loanDed, advanceDeductions: advDed },
       employer: { pf: emplrPf, esic: emplrEsic, gratuity, groupInsurance: groupIns, ctcMonthly },

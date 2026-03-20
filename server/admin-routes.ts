@@ -3664,7 +3664,14 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         address: 'L 4, 405 The Summit Business Bay, Vile Parle Western Express Highway Vile Parle Mumbai India 400 057'
       },
       period: {
-        month: record.periodName || new Date(record.startDate).toLocaleDateString('en-US', { month: 'long' }),
+        month: (() => {
+          const pn = record.periodName || '';
+          const yr = new Date(record.startDate).getFullYear();
+          if (pn && pn.includes(yr.toString())) {
+            return pn.replace(` ${yr}`, '').replace(`${yr}`, '');
+          }
+          return pn || new Date(record.startDate).toLocaleDateString('en-US', { month: 'long' });
+        })(),
         year: new Date(record.startDate).getFullYear(),
         workingDays,
         paidDays,
@@ -3674,7 +3681,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         weeklyOffs,
         absentDays,
         presentDays,
-        clBalance: 0,
+        paidLeaveDays: attSnap ? parseFloat(attSnap.paidLeaveDays?.toString() || '0') : parseFloat((record as any).paidLeaveDays?.toString() || '0'),
+        unpaidLeaveDays: attSnap ? parseFloat(attSnap.unpaidLeaveDays?.toString() || '0') : parseFloat((record as any).unpaidLeaveDays?.toString() || '0'),
         lopDays,
       },
       earnings: {

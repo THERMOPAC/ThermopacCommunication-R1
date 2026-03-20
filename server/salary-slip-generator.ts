@@ -28,7 +28,8 @@ interface SalarySlipData {
     weeklyOffs: number;
     absentDays: number;
     presentDays: number;
-    clBalance: number;
+    paidLeaveDays: number;
+    unpaidLeaveDays: number;
     lopDays: number;
   };
   earnings: {
@@ -218,20 +219,19 @@ export class SalarySlipGenerator {
     this.t('ATTENDANCE SUMMARY', m + 8, y + 3.5);
     y += 14;
 
+    const totalLeaveUsed = d.period.paidLeaveDays + d.period.unpaidLeaveDays;
     const attData = d.period.salaryType === 'daily'
       ? [
           { label: 'Salary Basis', value: 'Daily' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
+          { label: 'Leave Used', value: totalLeaveUsed.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
-          { label: 'CL Balance', value: d.period.clBalance.toFixed(1) },
         ]
       : [
           { label: 'Salary Basis', value: '30 Days' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
-          { label: 'Weekly Offs', value: d.period.weeklyOffs.toString() },
-          { label: 'Holidays', value: d.period.holidays.toString() },
+          { label: 'Leave Used', value: totalLeaveUsed.toFixed(1) },
           { label: 'LOP Days', value: d.period.lopDays.toFixed(1) },
-          { label: 'Absent Days', value: d.period.absentDays.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
         ];
 
@@ -249,6 +249,37 @@ export class SalarySlipGenerator {
     }
     this.hLine(y + 20, '#D1D5DB', 0.4);
     y += 23;
+
+    if (totalLeaveUsed > 0 || d.period.paidLeaveDays > 0 || d.period.unpaidLeaveDays > 0) {
+      doc.save();
+      doc.rect(m, y, w, 13).fillColor('#FFFBEB').fill();
+      doc.restore();
+      this.hLine(y, '#92400E', 0.6);
+      doc.font(FONT_BOLD).fontSize(6.5).fillColor('#92400E');
+      this.t('LEAVE SUMMARY', m + 8, y + 3.5);
+      y += 14;
+
+      const leaveData = [
+        { label: 'Paid Leave', value: d.period.paidLeaveDays.toFixed(1) },
+        { label: 'Unpaid Leave', value: d.period.unpaidLeaveDays.toFixed(1) },
+        { label: 'Total Leave Used', value: totalLeaveUsed.toFixed(1) },
+      ];
+
+      const leaveColW = w / leaveData.length;
+      doc.save();
+      doc.rect(m, y, w, 20).fillColor('#FFFFFF').fill();
+      doc.restore();
+      for (let i = 0; i < leaveData.length; i++) {
+        const x = m + i * leaveColW;
+        doc.font(FONT_REGULAR).fontSize(5.5).fillColor('#6B7280');
+        this.t(leaveData[i].label, x + 2, y + 1, { width: leaveColW - 4, align: 'center' });
+        doc.font(FONT_BOLD).fontSize(7.5).fillColor('#1F2937');
+        this.t(leaveData[i].value, x + 2, y + 10, { width: leaveColW - 4, align: 'center' });
+        if (i > 0) this.vLine(x, y, y + 20, '#E5E7EB', 0.3);
+      }
+      this.hLine(y + 20, '#D1D5DB', 0.4);
+      y += 23;
+    }
 
     const earningsX = m;
     const deductionsX = midX;
