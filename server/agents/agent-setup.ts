@@ -11,6 +11,7 @@ import { SalesMarketingAgent } from './agents/sales-marketing';
 import { PredictiveProjectControlAgent } from './agents/predictive-project-control';
 import { ProductionManagementAgent } from './agents/production-management';
 import { QualityManagementAgent } from './agents/quality-management';
+import { AdministrationControlAgent } from './agents/administration-control';
 import { scheduleTaskAutoArchive } from './maintenance/task-auto-archive';
 import { schedulePayrollPeriodAutoCreate } from './maintenance/payroll-period-auto-create';
 
@@ -161,6 +162,34 @@ const PHASE_1_AGENTS = [
       material_traceability_min_docs: 1,
     },
   },
+  {
+    agentKey: 'administration_control',
+    displayName: 'Administration Control Agent',
+    description: 'Monitors administration, HR, and compliance controls across 7 groups: A1 Payroll Readiness & Posting, A2 Attendance & Time Compliance, A3 Employee Master & Lifecycle, A4 Leave/Travel/Visa/Legal, A5 Access/Permissions/Security, A6 Statutory & Payroll Compliance, A7 System Exceptions/Integration Health. 35 findings with isBlocking flag, summary mode safety valve, and per-entity/per-type daily caps.',
+    category: 'administration',
+    defaultSchedule: '0 5 * * *',
+    config: {
+      hr_admin_user_id: 3,
+      finance_admin_user_id: 5,
+      superuser_id: 3,
+      salary_setup_missing_days: 7,
+      payroll_cutoff_warning_days: 5,
+      attendance_absence_threshold: 5,
+      leave_pending_max_days: 3,
+      visa_warning_days_high: 30,
+      visa_warning_days_medium: 90,
+      schengen_breach_threshold_days: 75,
+      password_stale_days: 180,
+      password_never_changed_days: 14,
+      inactive_no_attendance_days: 90,
+      max_admin_count: 5,
+      payroll_exception_stale_days: 7,
+      sap_failure_lookback_days: 7,
+      sap_failure_count_threshold: 3,
+      summary_mode_threshold: 50,
+      statutory_due_date_buffer_days: 5,
+    },
+  },
 ];
 
 const DEFAULT_POLICIES = [
@@ -192,6 +221,10 @@ const DEFAULT_POLICIES = [
   { agentKey: 'quality_management', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 50 },
   { agentKey: 'quality_management', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 100 },
   { agentKey: 'quality_management', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 30 },
+  { agentKey: 'administration_control', actionCategory: 'task_creation', actionType: 'create_task', approvalMode: 'auto', cooldownMinutes: 5, maxPerDay: 25 },
+  { agentKey: 'administration_control', actionCategory: 'notification', actionType: 'send_alert', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 50 },
+  { agentKey: 'administration_control', actionCategory: 'escalation', actionType: 'escalate_to_manager', approvalMode: 'auto', cooldownMinutes: 15, maxPerDay: 10 },
+  { agentKey: 'administration_control', actionCategory: 'report_generation', actionType: 'generate_report', approvalMode: 'auto', cooldownMinutes: 60, maxPerDay: 5 },
 ];
 
 export async function initializeAgentSystem(): Promise<void> {
@@ -261,6 +294,7 @@ export async function initializeAgentSystem(): Promise<void> {
   orchestrator.registerAgent(new ExecutiveMISAgent());
   orchestrator.registerAgent(new SalesMarketingAgent());
   orchestrator.registerAgent(new QualityManagementAgent());
+  orchestrator.registerAgent(new AdministrationControlAgent());
 
   setTimeout(() => {
     agentScheduler.start().catch(err => {
