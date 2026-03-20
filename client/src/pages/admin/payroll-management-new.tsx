@@ -426,17 +426,17 @@ function TestSapJeButton() {
     JournalEntryLines: [
       {
         Line_ID: 0,
-        AccountCode: "50207350101-ARL",
+        AccountCode: "_SYS00000000676",
         Debit: 100.00,
         Credit: 0.00,
-        LineMemo: "Test Debit"
+        LineMemo: "Test Debit - Basic Salary"
       },
       {
         Line_ID: 1,
-        AccountCode: "20302070300-ARL",
+        AccountCode: "_SYS00000000501",
         Debit: 0.00,
         Credit: 100.00,
-        LineMemo: "Test Credit"
+        LineMemo: "Test Credit - PT Payable Employee"
       }
     ]
   };
