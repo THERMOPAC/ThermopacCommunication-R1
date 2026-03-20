@@ -191,13 +191,22 @@ router.get('/insights', async (req: Request, res: Response) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
     const agentKey = req.query.agentKey as string;
-    const conditions = agentKey ? eq(agentInsights.agentKey, agentKey) : undefined;
-    const insights = await db.select()
+    const requestingUserId = (req as any).user?.id;
+    const conditions: any[] = [];
+    if (agentKey) conditions.push(eq(agentInsights.agentKey, agentKey));
+    const allInsights = await db.select()
       .from(agentInsights)
-      .where(conditions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(agentInsights.createdAt))
-      .limit(limit);
-    res.json(insights);
+      .limit(limit + 20);
+    const filtered = allInsights.filter(insight => {
+      const meta = insight.metadata as any;
+      if (meta?.audience_scope === 'exclusive' && meta?.audience_user_id) {
+        return Number(meta.audience_user_id) === Number(requestingUserId);
+      }
+      return true;
+    });
+    res.json(filtered.slice(0, limit));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

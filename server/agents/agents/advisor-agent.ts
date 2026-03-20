@@ -75,9 +75,7 @@ interface Action {
   priority: 'critical' | 'high' | 'medium';
 }
 
-function cfg(context: AgentRunContext) {
-  return { superuser_id: 3, ...(context.config || {}) };
-}
+const SUPERUSER_ID = 3;
 
 async function resolveUserName(userId: number): Promise<string> {
   try {
@@ -114,7 +112,6 @@ export class AdvisorAgent implements IAgent {
     const startTime = Date.now();
     let queriesRun = 0;
     let insightsCount = 0;
-    const c = cfg(context);
     const insightManager = new InsightManager(context.runId, this.key);
 
     const agentStatuses: AgentStatus[] = [];
@@ -303,13 +300,13 @@ export class AdvisorAgent implements IAgent {
     });
     const topIssues = issues.slice(0, 5);
 
-    const prasadName = await resolveUserName(c.superuser_id);
+    const prasadName = await resolveUserName(SUPERUSER_ID);
 
     for (const issue of topIssues) {
       if (issue.severity === 'critical') {
         if (issue.agents.some(a => failedAgents.map(f => f.key).includes(a))) {
           actions.push({
-            text: `Ask your tech team to investigate failed agent runs — check server logs for ${issue.agents.map(a => AGENT_NAMES[a]).join(', ')}`,
+            text: `Investigate failed agent runs — check server logs for ${issue.agents.map(a => AGENT_NAMES[a]).join(', ')}`,
             owner: prasadName,
             priority: 'critical',
           });
@@ -322,7 +319,7 @@ export class AdvisorAgent implements IAgent {
               const topFinding = critFindings[0];
               const cleanTitle = topFinding.title.replace(/^[A-Z]\d+\.\d+\s+/, '');
               const domainOwner = await resolveTaskOwner(agentKey, tasksByAgent);
-              const ownerName = domainOwner ? domainOwner.name : AGENT_NAMES[agentKey] + ' team';
+              const ownerName = domainOwner ? domainOwner.name : prasadName;
               actions.push({
                 text: `Ask ${ownerName} to address critical issue: ${cleanTitle}`,
                 owner: ownerName,
@@ -335,7 +332,7 @@ export class AdvisorAgent implements IAgent {
         if (missedAgents.length > 0 && issue.agents.some(a => missedAgents.map(m => m.key).includes(a))) {
           const missedNames = issue.agents.filter(a => missedAgents.map(m => m.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ');
           actions.push({
-            text: `Ask your tech team to check why ${missedNames} did not run — scheduler may need attention`,
+            text: `Check why ${missedNames} did not run — scheduler may need attention`,
             owner: prasadName,
             priority: 'high',
           });
@@ -343,7 +340,7 @@ export class AdvisorAgent implements IAgent {
         if (stuckAgents.length > 0 && issue.agents.some(a => stuckAgents.map(s => s.key).includes(a))) {
           const stuckNames = issue.agents.filter(a => stuckAgents.map(s => s.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ');
           actions.push({
-            text: `Ask your tech team to restart stuck agent(s): ${stuckNames}`,
+            text: `Restart stuck agent(s): ${stuckNames}`,
             owner: prasadName,
             priority: 'high',
           });
@@ -356,7 +353,7 @@ export class AdvisorAgent implements IAgent {
               const topFinding = highFindings[0];
               const cleanTitle = topFinding.title.replace(/^[A-Z]\d+\.\d+\s+/, '');
               const domainOwner = await resolveTaskOwner(agentKey, tasksByAgent);
-              const ownerName = domainOwner ? domainOwner.name : AGENT_NAMES[agentKey] + ' team';
+              const ownerName = domainOwner ? domainOwner.name : prasadName;
               actions.push({
                 text: `Ask ${ownerName} to review: ${cleanTitle}`,
                 owner: ownerName,
@@ -489,7 +486,7 @@ export class AdvisorAgent implements IAgent {
       dataSources: ['agent_runs', 'agent_findings', 'tasks', 'agent_insights'],
       scopePeriod: today,
       metadata: {
-        audience_user_id: c.superuser_id,
+        audience_user_id: SUPERUSER_ID,
         audience_scope: 'exclusive',
         system_status: systemStatus,
         issues_count: topIssues.length,
