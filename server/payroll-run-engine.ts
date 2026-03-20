@@ -831,16 +831,27 @@ async function stepSalaryCalculation(
         status: 'draft',
       };
 
+      const verificationReset = {
+        verificationStatus: 'pending',
+        verificationRunAt: null as any,
+        verificationRunBy: null as any,
+        verificationDetails: null as any,
+        verificationOverrideReason: null as any,
+        verificationOverrideBy: null as any,
+        verificationOverrideAt: null as any,
+      };
+
       if (existingRecord.length > 0) {
         await db
           .update(payrollRecords)
-          .set({ ...payrollData, updatedAt: new Date() })
+          .set({ ...payrollData, ...verificationReset, updatedAt: new Date() })
           .where(eq(payrollRecords.id, existingRecord[0].id));
       } else {
         await db.insert(payrollRecords).values({
           periodId,
           userId: emp.id,
           ...payrollData,
+          ...verificationReset,
         });
       }
 

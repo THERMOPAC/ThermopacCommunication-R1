@@ -1296,4 +1296,88 @@ router.get('/tds/employee/:userId', async (req, res) => {
   }
 });
 
+import {
+  verifyPeriod,
+  getVerificationSummary,
+  getEmployeeVerificationDetails,
+  overrideVerification,
+  canPostToSap,
+  resetVerificationStatus,
+} from './payroll-calculation-verifier';
+
+router.post('/verify/:periodId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const currentUser = req.user as any;
+    if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+    const result = await verifyPeriod(periodId, currentUser.id, false);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/verify/:periodId/failed', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const currentUser = req.user as any;
+    if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+    const result = await verifyPeriod(periodId, currentUser.id, true);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Re-verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/verify/:periodId/summary', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const summary = await getVerificationSummary(periodId);
+    res.json(summary);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/verify/:periodId/:userId', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const userId = parseInt(req.params.userId);
+    const details = await getEmployeeVerificationDetails(periodId, userId);
+    if (!details) return res.status(404).json({ error: 'Record not found' });
+    res.json(details);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/verify/:periodId/:recordId/override', async (req, res) => {
+  try {
+    const recordId = parseInt(req.params.recordId);
+    const currentUser = req.user as any;
+    if (!currentUser) return res.status(401).json({ error: 'Unauthorized' });
+    const { reason } = req.body;
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ error: 'Override reason is required' });
+    }
+    const result = await overrideVerification(recordId, currentUser.id, reason);
+    if (!result.success) return res.status(400).json({ error: result.message });
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/verify/:periodId/can-post-sap', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+    const result = await canPostToSap(periodId);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

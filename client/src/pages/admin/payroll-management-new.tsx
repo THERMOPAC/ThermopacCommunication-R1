@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
@@ -553,6 +553,13 @@ function GeneratedSalariesView() {
   const [showReverseConfirm, setShowReverseConfirm] = useState(false);
   const [reverseRecordId, setReverseRecordId] = useState<number | null>(null);
   const [reversingId, setReversingId] = useState<number | null>(null);
+  const [verificationDrilldown, setVerificationDrilldown] = useState<any>(null);
+  const [showVerificationDrilldown, setShowVerificationDrilldown] = useState(false);
+  const [overrideRecordId, setOverrideRecordId] = useState<number | null>(null);
+  const [overridePeriodId, setOverridePeriodId] = useState<number | null>(null);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [verifyingPeriodId, setVerifyingPeriodId] = useState<number | null>(null);
 
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
@@ -646,6 +653,57 @@ function GeneratedSalariesView() {
     },
   });
 
+  const verifyAllMutation = useMutation({
+    mutationFn: (periodId: number) => {
+      setVerifyingPeriodId(periodId);
+      return apiRequest('POST', `/api/payroll/verify/${periodId}`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setVerifyingPeriodId(null);
+      toast({
+        title: 'Verification Complete',
+        description: `${data?.passed || 0} passed, ${data?.failed || 0} failed out of ${data?.totalRecords || 0} records`,
+      });
+    },
+    onError: (e: any) => {
+      setVerifyingPeriodId(null);
+      toast({ title: 'Verification Error', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  const reVerifyFailedMutation = useMutation({
+    mutationFn: (periodId: number) => {
+      setVerifyingPeriodId(periodId);
+      return apiRequest('POST', `/api/payroll/verify/${periodId}/failed`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setVerifyingPeriodId(null);
+      toast({ title: 'Re-Verification Complete', description: `Re-verified failed records: ${data?.passed || 0} now passed, ${data?.failed || 0} still failing` });
+    },
+    onError: (e: any) => {
+      setVerifyingPeriodId(null);
+      toast({ title: 'Re-Verification Error', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  const overrideMutation = useMutation({
+    mutationFn: ({ recordId, reason, periodId }: { recordId: number; reason: string; periodId: number }) =>
+      apiRequest('POST', `/api/payroll/verify/${periodId}/${recordId}/override`, { reason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setShowOverrideDialog(false);
+      setOverrideRecordId(null);
+      setOverridePeriodId(null);
+      setOverrideReason('');
+      toast({ title: 'Override Applied', description: 'Verification warnings have been overridden' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'Override Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
   const handleDownloadSalarySlip = (payrollRecordId: number) => {
     const url = `/api/admin/salary-slip/${payrollRecordId}`;
     window.open(url, '_blank');
@@ -704,6 +762,41 @@ function GeneratedSalariesView() {
     return acc;
   }, {});
 
+  const periodGroups = useMemo(() => {
+    if (!generatedSalaries) return {};
+    const groups: Record<number, { periodId: number; label: string; records: any[] }> = {};
+    (generatedSalaries as any[]).forEach((r: any) => {
+      const pid = r.periodId;
+      if (!pid) return;
+      if (!groups[pid]) {
+        groups[pid] = { periodId: pid, label: `${r.month}/${r.year}`, records: [] };
+      }
+      groups[pid].records.push(r);
+    });
+    return groups;
+  }, [generatedSalaries]);
+
+  const periodVerificationSummaries = useMemo(() => {
+    return Object.values(periodGroups).map(g => {
+      const total = g.records.length;
+      const passed = g.records.filter((r: any) => r.verificationStatus === 'passed').length;
+      const failed = g.records.filter((r: any) => r.verificationStatus === 'failed').length;
+      const overridden = g.records.filter((r: any) => r.verificationStatus === 'overridden').length;
+      const pending = g.records.filter((r: any) => !r.verificationStatus || r.verificationStatus === 'pending').length;
+      return { ...g, total, passed, failed, overridden, pending };
+    });
+  }, [periodGroups]);
+
+  const handleViewIssues = (record: any) => {
+    const details = record.verificationDetails;
+    setVerificationDrilldown({
+      record,
+      issues: details?.issues || [],
+      summary: details?.summary || {},
+    });
+    setShowVerificationDrilldown(true);
+  };
+
   return (
     <>
     <div className="flex flex-col gap-3 mb-4">
@@ -744,6 +837,77 @@ function GeneratedSalariesView() {
       </div>
     </div>
 
+    {periodVerificationSummaries.length > 0 && (
+      <div className="space-y-3 mb-4">
+        {periodVerificationSummaries.map(ps => (
+          <Card key={ps.periodId} className="border-l-4 border-l-blue-500">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <FileCheck className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <h4 className="text-sm font-semibold">Calculation Verification — Period {ps.label}</h4>
+                    <p className="text-xs text-muted-foreground">{ps.total} records total</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {ps.passed > 0 && (
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">
+                      <CheckCircle className="h-3 w-3 mr-1" /> {ps.passed} Passed
+                    </Badge>
+                  )}
+                  {ps.failed > 0 && (
+                    <Badge className="bg-red-100 text-red-800 border-red-300">
+                      <XCircle className="h-3 w-3 mr-1" /> {ps.failed} Failed
+                    </Badge>
+                  )}
+                  {ps.overridden > 0 && (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300">
+                      <AlertTriangle className="h-3 w-3 mr-1" /> {ps.overridden} Overridden
+                    </Badge>
+                  )}
+                  {ps.pending > 0 && (
+                    <Badge className="bg-gray-100 text-gray-700 border-gray-300">
+                      <Clock className="h-3 w-3 mr-1" /> {ps.pending} Pending
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => verifyAllMutation.mutate(ps.periodId)}
+                    disabled={verifyAllMutation.isPending || reVerifyFailedMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700 h-8 text-xs"
+                  >
+                    {verifyAllMutation.isPending && verifyingPeriodId === ps.periodId ? (
+                      <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Verifying...</>
+                    ) : (
+                      <><Shield className="h-3 w-3 mr-1" /> Verify All</>
+                    )}
+                  </Button>
+                  {ps.failed > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => reVerifyFailedMutation.mutate(ps.periodId)}
+                      disabled={verifyAllMutation.isPending || reVerifyFailedMutation.isPending}
+                      className="text-red-600 hover:text-red-800 border-red-300 h-8 text-xs"
+                    >
+                      {reVerifyFailedMutation.isPending && verifyingPeriodId === ps.periodId ? (
+                        <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Re-verifying...</>
+                      ) : (
+                        <><RefreshCw className="h-3 w-3 mr-1" /> Re-verify Failed</>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )}
+
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Generated Salary Records</CardTitle>
@@ -765,6 +929,7 @@ function GeneratedSalariesView() {
                 <th className="text-right p-3 text-xs font-semibold uppercase text-muted-foreground">Gross</th>
                 <th className="text-right p-3 text-xs font-semibold uppercase text-muted-foreground">Deductions</th>
                 <th className="text-right p-3 text-xs font-semibold uppercase text-muted-foreground">Net Salary</th>
+                <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">Verification</th>
                 <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">Workflow Status</th>
                 <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">SAP Status</th>
                 <th className="text-center p-3 text-xs font-semibold uppercase text-muted-foreground">Actions</th>
@@ -802,6 +967,48 @@ function GeneratedSalariesView() {
                     <span className="font-semibold text-green-600">
                       ₹{parseFloat(record.netSalary || 0).toLocaleString('en-IN')}
                     </span>
+                  </td>
+                  <td className="p-3 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      {(() => {
+                        const vs = record.verificationStatus || 'pending';
+                        const details = record.verificationDetails;
+                        const issueCount = details?.issues?.length || 0;
+                        const errorCount = details?.issues?.filter((i: any) => i.severity === 'error').length || 0;
+                        const warningCount = details?.issues?.filter((i: any) => i.severity === 'warning').length || 0;
+
+                        if (vs === 'passed') return (
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] px-1.5 py-0.5">
+                            <CheckCircle className="h-3 w-3 mr-0.5" /> Passed
+                          </Badge>
+                        );
+                        if (vs === 'failed') return (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px] px-1.5 py-0.5 cursor-pointer" onClick={() => handleViewIssues(record)}>
+                              <XCircle className="h-3 w-3 mr-0.5" /> {errorCount} Error{errorCount !== 1 ? 's' : ''}{warningCount > 0 ? `, ${warningCount} Warn` : ''}
+                            </Badge>
+                            <button onClick={() => handleViewIssues(record)} className="text-[10px] text-blue-600 hover:underline">View Issues</button>
+                          </div>
+                        );
+                        if (vs === 'overridden') return (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] px-1.5 py-0.5">
+                              <AlertTriangle className="h-3 w-3 mr-0.5" /> Overridden
+                            </Badge>
+                            {record.verificationOverrideReason && (
+                              <span className="text-[9px] text-muted-foreground max-w-[120px] truncate" title={record.verificationOverrideReason}>
+                                {record.verificationOverrideReason}
+                              </span>
+                            )}
+                          </div>
+                        );
+                        return (
+                          <Badge className="bg-gray-100 text-gray-600 border-gray-300 text-[10px] px-1.5 py-0.5">
+                            <Clock className="h-3 w-3 mr-0.5" /> Pending
+                          </Badge>
+                        );
+                      })()}
+                    </div>
                   </td>
                   <td className="p-3 text-center">
                     <div className="flex flex-col items-center gap-1">
@@ -869,23 +1076,31 @@ function GeneratedSalariesView() {
                             <Button variant="outline" size="sm" disabled className="text-green-600 h-7 px-2 text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" /> JE #{record.sapJeNumber}
                             </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => postToSapMutation.mutate(record.id)}
-                              disabled={postToSapMutation.isPending && postingId === record.id}
-                              className="text-orange-600 hover:text-orange-800 hover:border-orange-300 h-7 px-2 text-xs"
-                            >
-                              {postToSapMutation.isPending && postingId === record.id ? (
-                                <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Posting...</>
-                              ) : record.sapPostingStatus === 'failed' ? (
-                                <><RefreshCw className="h-3 w-3 mr-1" /> Retry SAP</>
-                              ) : (
-                                <><Send className="h-3 w-3 mr-1" /> Transfer to SAP</>
-                              )}
-                            </Button>
-                          )}
+                          ) : (() => {
+                            const vs = record.verificationStatus || 'pending';
+                            const sapBlocked = vs === 'failed' || vs === 'pending';
+                            return sapBlocked ? (
+                              <Button variant="outline" size="sm" disabled className="text-gray-400 h-7 px-2 text-xs" title={vs === 'failed' ? 'Fix verification errors first' : 'Run verification first'}>
+                                <Shield className="h-3 w-3 mr-1" /> {vs === 'failed' ? 'Fix Errors' : 'Verify First'}
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => postToSapMutation.mutate(record.id)}
+                                disabled={postToSapMutation.isPending && postingId === record.id}
+                                className="text-orange-600 hover:text-orange-800 hover:border-orange-300 h-7 px-2 text-xs"
+                              >
+                                {postToSapMutation.isPending && postingId === record.id ? (
+                                  <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Posting...</>
+                                ) : record.sapPostingStatus === 'failed' ? (
+                                  <><RefreshCw className="h-3 w-3 mr-1" /> Retry SAP</>
+                                ) : (
+                                  <><Send className="h-3 w-3 mr-1" /> Transfer to SAP</>
+                                )}
+                              </Button>
+                            );
+                          })()}
                           <Button
                             variant="outline"
                             size="sm"
@@ -1096,6 +1311,149 @@ function GeneratedSalariesView() {
               disabled={voidAllMutation.isPending}
             >
               {voidAllMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing...</> : 'Yes, Clear All'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showVerificationDrilldown} onOpenChange={setShowVerificationDrilldown}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5 text-blue-600" />
+            Verification Details — {verificationDrilldown?.record?.employeeName}
+          </DialogTitle>
+        </DialogHeader>
+        {verificationDrilldown && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <div className="text-sm">
+                <span className="font-medium">Status:</span>{' '}
+                {verificationDrilldown.record.verificationStatus === 'passed' && <Badge className="bg-emerald-100 text-emerald-800">Passed</Badge>}
+                {verificationDrilldown.record.verificationStatus === 'failed' && <Badge className="bg-red-100 text-red-800">Failed</Badge>}
+                {verificationDrilldown.record.verificationStatus === 'overridden' && <Badge className="bg-amber-100 text-amber-800">Overridden</Badge>}
+                {(!verificationDrilldown.record.verificationStatus || verificationDrilldown.record.verificationStatus === 'pending') && <Badge className="bg-gray-100 text-gray-700">Pending</Badge>}
+              </div>
+              {verificationDrilldown.record.verificationRunAt && (
+                <div className="text-xs text-muted-foreground">
+                  Verified: {new Date(verificationDrilldown.record.verificationRunAt).toLocaleString('en-IN')}
+                </div>
+              )}
+            </div>
+
+            {verificationDrilldown.issues.length === 0 ? (
+              <div className="text-center text-sm text-emerald-600 py-4">
+                <CheckCircle className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
+                All checks passed — no issues found
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">Issues Found ({verificationDrilldown.issues.length})</h4>
+                {verificationDrilldown.issues.map((issue: any, idx: number) => (
+                  <div key={idx} className={`p-3 rounded-lg border text-sm ${
+                    issue.severity === 'error' ? 'bg-red-50 border-red-200' :
+                    issue.severity === 'warning' ? 'bg-amber-50 border-amber-200' :
+                    'bg-blue-50 border-blue-200'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5 flex-shrink-0">
+                        {issue.severity === 'error' && <XCircle className="h-4 w-4 text-red-600" />}
+                        {issue.severity === 'warning' && <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                        {issue.severity === 'info' && <Info className="h-4 w-4 text-blue-600" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{issue.title}</span>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">
+                            {issue.type === 'calculation_error' ? 'Calc Error' :
+                             issue.type === 'data_completeness_error' ? 'Data Error' :
+                             issue.type === 'policy_error' ? 'Policy Error' :
+                             issue.type === 'policy_warning' ? 'Warning' : 'Info'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs mt-1">{issue.details}</p>
+                        {(issue.expected !== undefined || issue.actual !== undefined) && (
+                          <div className="flex gap-4 mt-1.5 text-xs">
+                            {issue.expected !== undefined && (
+                              <span>Expected: <strong>{typeof issue.expected === 'number' ? issue.expected.toFixed(2) : String(issue.expected)}</strong></span>
+                            )}
+                            {issue.actual !== undefined && (
+                              <span>Actual: <strong>{typeof issue.actual === 'number' ? issue.actual.toFixed(2) : String(issue.actual)}</strong></span>
+                            )}
+                            {issue.difference !== undefined && (
+                              <span>Diff: <strong className="text-red-600">{typeof issue.difference === 'number' ? issue.difference.toFixed(2) : String(issue.difference)}</strong></span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {verificationDrilldown.record.verificationStatus === 'failed' && (() => {
+              const hasOnlyWarnings = verificationDrilldown.issues.every((i: any) =>
+                i.type === 'policy_warning' || i.type === 'info' || i.severity === 'warning' || i.severity === 'info'
+              );
+              const hasWarnings = verificationDrilldown.issues.some((i: any) =>
+                i.type === 'policy_warning' || i.severity === 'warning'
+              );
+              return hasWarnings && hasOnlyWarnings ? (
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    This record has only warnings (no calculation/policy errors). You can override and approve it.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-amber-600 border-amber-300"
+                    onClick={() => {
+                      setOverrideRecordId(verificationDrilldown.record.id);
+                      setOverridePeriodId(verificationDrilldown.record.periodId);
+                      setOverrideReason('');
+                      setShowOverrideDialog(true);
+                      setShowVerificationDrilldown(false);
+                    }}
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" /> Override Warnings
+                  </Button>
+                </div>
+              ) : null;
+            })()}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-amber-600">Override Verification Warnings</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This will mark the verification as overridden, allowing the record to proceed to SAP posting despite warnings.
+          </p>
+          <div>
+            <Label htmlFor="override-reason">Reason for Override *</Label>
+            <textarea
+              id="override-reason"
+              className="w-full mt-1 p-2 border rounded text-sm min-h-[60px]"
+              placeholder="e.g., Confirmed with HR that the leave balance adjustment is correct"
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setShowOverrideDialog(false); setOverrideRecordId(null); setOverrideReason(''); }}>Cancel</Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={() => overrideRecordId && overridePeriodId && overrideMutation.mutate({ recordId: overrideRecordId, reason: overrideReason, periodId: overridePeriodId })}
+              disabled={overrideMutation.isPending || !overrideReason.trim()}
+            >
+              {overrideMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Overriding...</> : 'Apply Override'}
             </Button>
           </div>
         </div>

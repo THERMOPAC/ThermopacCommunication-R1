@@ -4759,6 +4759,14 @@ export const payrollRecords = pgTable('payroll_records', {
   salarySource: varchar('salary_source', { length: 20 }).default('payroll_engine'),
   workerType: varchar('worker_type', { length: 20 }).default('regular'),
   manualSalaryEntryId: integer('manual_salary_entry_id'),
+
+  verificationStatus: varchar('verification_status', { length: 20 }).default('pending'),
+  verificationRunAt: timestamp('verification_run_at'),
+  verificationRunBy: integer('verification_run_by').references(() => users.id),
+  verificationDetails: jsonb('verification_details'),
+  verificationOverrideReason: text('verification_override_reason'),
+  verificationOverrideBy: integer('verification_override_by').references(() => users.id),
+  verificationOverrideAt: timestamp('verification_override_at'),
   
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

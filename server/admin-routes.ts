@@ -2193,6 +2193,10 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
         updatedAt: payrollRecords.updatedAt,
         salarySource: payrollRecords.salarySource,
         workerType: payrollRecords.workerType,
+        verificationStatus: payrollRecords.verificationStatus,
+        verificationRunAt: payrollRecords.verificationRunAt,
+        verificationDetails: payrollRecords.verificationDetails,
+        verificationOverrideReason: payrollRecords.verificationOverrideReason,
       })
       .from(payrollRecords)
       .orderBy(desc(payrollRecords.createdAt));
@@ -2272,6 +2276,11 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
           reversalMemo: record.reversalMemo,
           salarySource: record.salarySource,
           workerType: record.workerType,
+          periodId: record.periodId,
+          verificationStatus: record.verificationStatus || 'pending',
+          verificationRunAt: record.verificationRunAt,
+          verificationDetails: record.verificationDetails,
+          verificationOverrideReason: record.verificationOverrideReason,
           createdAt: record.createdAt
         };
       })
@@ -2775,6 +2784,13 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
 
     if (record.status !== 'verified') {
       return res.status(400).json({ error: `Only verified records can be transferred to SAP. Current status: ${record.status || 'generated'}. Please verify the record first.` });
+    }
+
+    if (record.verificationStatus === 'failed') {
+      return res.status(400).json({ error: 'This record has failed calculation verification. Fix and re-verify before posting to SAP.' });
+    }
+    if (record.verificationStatus === 'pending' || !record.verificationStatus) {
+      return res.status(400).json({ error: 'This record has not been verified by the Payroll Calculation Verifier. Run verification before posting to SAP.' });
     }
 
     const [employee] = await db.select({
