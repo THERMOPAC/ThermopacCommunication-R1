@@ -495,7 +495,7 @@ function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: n
     queryFn: async () => {
       return await apiRequest('GET', `/api/payroll/sap-transfer/${periodId}/preview`);
     },
-    enabled: isReady && showPreview,
+    enabled: isReady,
   });
 
   const batchTransferMutation = useMutation({
