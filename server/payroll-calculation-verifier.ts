@@ -674,20 +674,57 @@ function verifyDeductions(
 
   if (recordGross <= 21000) {
     if (recordEsic > 0) {
-      const esicBase = round2(recordEsic / 0.0075);
-      const expectedEmployerEsicFromBase = round2(esicBase * 0.0325);
-      if (!moneyMatch(expectedEmployerEsicFromBase, recordEmployerEsic)) {
-        const altExpected = round2(recordGross * 0.0325);
-        if (!moneyMatch(altExpected, recordEmployerEsic)) {
+      const empEsicBase = round2(recordEsic / 0.0075);
+      if (empEsicBase > 21000 + MONEY_TOLERANCE) {
+        issues.push({
+          type: 'calculation_error',
+          severity: 'error',
+          field: 'employeeEsic',
+          title: 'Employee ESIC base exceeds threshold',
+          details: `Implied ESIC base: ₹${empEsicBase.toFixed(2)} exceeds ₹21,000 threshold`,
+        });
+      }
+    }
+    if (recordEmployerEsic > 0) {
+      const emplrEsicBase = round2(recordEmployerEsic / 0.0325);
+      if (emplrEsicBase > 21000 + MONEY_TOLERANCE) {
+        issues.push({
+          type: 'calculation_error',
+          severity: 'error',
+          field: 'employerEsic',
+          title: 'Employer ESIC base exceeds threshold',
+          details: `Implied ESIC base: ₹${emplrEsicBase.toFixed(2)} exceeds ₹21,000 threshold`,
+        });
+      }
+      const expectedFromGross = round2(recordGross * 0.0325);
+      if (!moneyMatch(expectedFromGross, recordEmployerEsic)) {
+        const calcSnap = record.calculationSnapshot as any;
+        const kpiAdj = calcSnap?.kpiAdjustment;
+        if (kpiAdj) {
+          const preKpiGross = round2(recordGross + (kpiAdj.kgpReduction || 0));
+          const expectedPreKpi = round2(preKpiGross * 0.0325);
+          if (!moneyMatch(expectedPreKpi, recordEmployerEsic)) {
+            issues.push({
+              type: 'calculation_error',
+              severity: 'error',
+              field: 'employerEsic',
+              title: 'Employer ESIC mismatch',
+              details: `Neither current gross (₹${recordGross.toFixed(2)} × 3.25% = ₹${expectedFromGross.toFixed(2)}) nor pre-KPI gross (₹${preKpiGross.toFixed(2)} × 3.25% = ₹${expectedPreKpi.toFixed(2)}) match stored: ₹${recordEmployerEsic.toFixed(2)}`,
+              expected: expectedFromGross,
+              actual: recordEmployerEsic,
+              difference: round2(recordEmployerEsic - expectedFromGross),
+            });
+          }
+        } else {
           issues.push({
             type: 'calculation_error',
             severity: 'error',
             field: 'employerEsic',
             title: 'Employer ESIC mismatch',
-            details: `Employee ESIC base: ₹${esicBase.toFixed(2)}, expected employer ESIC: ₹${expectedEmployerEsicFromBase.toFixed(2)}, stored: ₹${recordEmployerEsic.toFixed(2)}`,
-            expected: expectedEmployerEsicFromBase,
+            details: `Gross: ₹${recordGross.toFixed(2)} × 3.25% = ₹${expectedFromGross.toFixed(2)}, stored: ₹${recordEmployerEsic.toFixed(2)}`,
+            expected: expectedFromGross,
             actual: recordEmployerEsic,
-            difference: round2(recordEmployerEsic - expectedEmployerEsicFromBase),
+            difference: round2(recordEmployerEsic - expectedFromGross),
           });
         }
       }
