@@ -92,6 +92,15 @@ async function resolveUserName(userId: number): Promise<string> {
   }
 }
 
+async function resolveTaskOwner(agentKey: string, tasksByAgent: Map<string, { open: number; overdue: number; assignees: Map<number, number> }>): Promise<{ name: string; id: number } | null> {
+  const entry = tasksByAgent.get(agentKey);
+  if (!entry) return null;
+  const sorted = [...entry.assignees.entries()].sort((a, b) => b[1] - a[1]);
+  if (sorted.length === 0) return null;
+  const [id] = sorted[0];
+  return { name: await resolveUserName(id), id };
+}
+
 export class AdvisorAgent implements IAgent {
   key = AGENT_KEY;
   displayName = 'Advisor Agent';
@@ -112,6 +121,8 @@ export class AdvisorAgent implements IAgent {
     const issues: Issue[] = [];
     const actions: Action[] = [];
     const findingIds: number[] = [];
+    let masterControlHealthScore: number | null = null;
+    let masterControlHealthContent: string | null = null;
 
     try {
       const runsResult = await db.execute(sql`
@@ -171,6 +182,24 @@ export class AdvisorAgent implements IAgent {
         }
       }
 
+      const mcInsightResult = await db.execute(sql`
+        SELECT content FROM agent_insights
+        WHERE agent_key = 'master_control'
+          AND insight_type = 'summary'
+          AND title = 'Agent System Health Score'
+          AND created_at >= NOW() - INTERVAL '26 hours'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      queriesRun++;
+
+      const mcInsightRow = (mcInsightResult.rows as any[])[0];
+      if (mcInsightRow?.content) {
+        masterControlHealthContent = mcInsightRow.content;
+        const scoreMatch = String(mcInsightRow.content).match(/Overall Agent Health:\s*(\d+)/);
+        if (scoreMatch) masterControlHealthScore = parseInt(scoreMatch[1], 10);
+      }
+
       for (const agentKey of ALL_AGENTS) {
         const run = latestRunByAgent.get(agentKey);
         const findings = findingsByAgent.get(agentKey) || [];
@@ -182,7 +211,7 @@ export class AdvisorAgent implements IAgent {
         const lowCount = findings.filter((f: any) => f.severity === 'low').length;
 
         const ran = !!run;
-        const healthy = ran && run.status === 'completed' && critCount === 0;
+        const healthy = ran && run.status === 'completed' && critCount === 0 && highCount === 0;
 
         agentStatuses.push({
           key: agentKey,
@@ -277,12 +306,14 @@ export class AdvisorAgent implements IAgent {
       });
       const topIssues = issues.slice(0, 5);
 
+      const prasadName = await resolveUserName(c.superuser_id);
+
       for (const issue of topIssues) {
         if (issue.severity === 'critical') {
           if (issue.agents.some(a => failedAgents.map(f => f.key).includes(a))) {
             actions.push({
-              text: `Investigate failed agent runs — check server logs for ${issue.agents.map(a => AGENT_NAMES[a]).join(', ')}`,
-              owner: await resolveUserName(c.superuser_id),
+              text: `Ask your tech team to investigate failed agent runs — check server logs for ${issue.agents.map(a => AGENT_NAMES[a]).join(', ')}`,
+              owner: prasadName,
               priority: 'critical',
             });
           }
@@ -293,9 +324,11 @@ export class AdvisorAgent implements IAgent {
               if (critFindings.length > 0) {
                 const topFinding = critFindings[0];
                 const cleanTitle = topFinding.title.replace(/^[A-Z]\d+\.\d+\s+/, '');
+                const domainOwner = await resolveTaskOwner(agentKey, tasksByAgent);
+                const ownerName = domainOwner ? domainOwner.name : AGENT_NAMES[agentKey] + ' team';
                 actions.push({
-                  text: `Review critical: ${cleanTitle}`,
-                  owner: await resolveUserName(c.superuser_id),
+                  text: `Ask ${ownerName} to address critical issue: ${cleanTitle}`,
+                  owner: ownerName,
                   priority: 'critical',
                 });
               }
@@ -303,16 +336,18 @@ export class AdvisorAgent implements IAgent {
           }
         } else if (issue.severity === 'high') {
           if (missedAgents.length > 0 && issue.agents.some(a => missedAgents.map(m => m.key).includes(a))) {
+            const missedNames = issue.agents.filter(a => missedAgents.map(m => m.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ');
             actions.push({
-              text: `Check why ${issue.agents.filter(a => missedAgents.map(m => m.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ')} did not run`,
-              owner: await resolveUserName(c.superuser_id),
+              text: `Ask your tech team to check why ${missedNames} did not run — scheduler may need attention`,
+              owner: prasadName,
               priority: 'high',
             });
           }
           if (stuckAgents.length > 0 && issue.agents.some(a => stuckAgents.map(s => s.key).includes(a))) {
+            const stuckNames = issue.agents.filter(a => stuckAgents.map(s => s.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ');
             actions.push({
-              text: `Check stuck agent(s): ${issue.agents.filter(a => stuckAgents.map(s => s.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ')}`,
-              owner: await resolveUserName(c.superuser_id),
+              text: `Ask your tech team to restart stuck agent(s): ${stuckNames}`,
+              owner: prasadName,
               priority: 'high',
             });
           }
@@ -323,9 +358,11 @@ export class AdvisorAgent implements IAgent {
               if (highFindings.length > 0) {
                 const topFinding = highFindings[0];
                 const cleanTitle = topFinding.title.replace(/^[A-Z]\d+\.\d+\s+/, '');
+                const domainOwner = await resolveTaskOwner(agentKey, tasksByAgent);
+                const ownerName = domainOwner ? domainOwner.name : AGENT_NAMES[agentKey] + ' team';
                 actions.push({
-                  text: `Review: ${cleanTitle}`,
-                  owner: await resolveUserName(c.superuser_id),
+                  text: `Ask ${ownerName} to review: ${cleanTitle}`,
+                  owner: ownerName,
                   priority: 'high',
                 });
               }
@@ -338,7 +375,7 @@ export class AdvisorAgent implements IAgent {
             if (topAssignee) {
               const assigneeName = await resolveUserName(topAssignee[0]);
               actions.push({
-                text: `Review task backlog for ${assigneeName} — ${topAssignee[1]} open tasks from ${topOverdueAgent.name}`,
+                text: `Ask ${assigneeName} to clear task backlog — ${topAssignee[1]} open tasks from ${topOverdueAgent.name}`,
                 owner: assigneeName,
                 priority: 'medium',
               });
@@ -362,13 +399,12 @@ export class AdvisorAgent implements IAgent {
       const healthyAgents = agentStatuses.filter(a => a.healthy).length;
       const totalCritical = agentStatuses.reduce((s, a) => s + a.criticalFindings, 0);
       const totalHigh = agentStatuses.reduce((s, a) => s + a.highFindings, 0);
-      const anyFailed = failedAgents.length > 0;
-      const majorityFailed = failedAgents.length > totalAgents / 2;
+      const allRanSuccessfully = agentStatuses.every(a => a.ran && a.lastRunStatus === 'completed');
 
       let systemStatus: 'YES' | 'PARTIALLY' | 'NO';
-      if (majorityFailed || totalCritical >= 3) {
+      if (totalCritical > 0) {
         systemStatus = 'NO';
-      } else if (anyFailed || totalCritical > 0 || totalHigh >= 5 || missedAgents.length >= 3 || stuckAgents.length > 0) {
+      } else if (!allRanSuccessfully || totalHigh > 0 || stuckAgents.length > 0) {
         systemStatus = 'PARTIALLY';
       } else {
         systemStatus = 'YES';
@@ -381,7 +417,6 @@ export class AdvisorAgent implements IAgent {
       }
 
       const today = new Date().toISOString().slice(0, 10);
-      const prasadName = await resolveUserName(c.superuser_id);
 
       let briefing = '';
       briefing += `DAILY EXECUTIVE BRIEFING — ${today}\n`;
@@ -390,7 +425,11 @@ export class AdvisorAgent implements IAgent {
 
       briefing += `1. IS THE SYSTEM WORKING?\n`;
       briefing += `   ${systemStatus}\n`;
-      briefing += `   (${healthyAgents}/${totalAgents} agents healthy)\n\n`;
+      briefing += `   (${healthyAgents}/${totalAgents} agents healthy`;
+      if (masterControlHealthScore !== null) {
+        briefing += `, Master Control health score: ${masterControlHealthScore}/100`;
+      }
+      briefing += `)\n\n`;
 
       briefing += `2. WHAT IS NOT WORKING?\n`;
       if (topIssues.length === 0) {
@@ -422,13 +461,19 @@ export class AdvisorAgent implements IAgent {
         for (let i = 0; i < topActions.length; i++) {
           const action = topActions[i];
           briefing += `   ${i + 1}. ${action.text}\n`;
-          briefing += `      → ${action.owner} [${action.priority.toUpperCase()}]\n`;
+          briefing += `      → Owner: ${action.owner} [${action.priority.toUpperCase()}]\n`;
         }
         briefing += `\n`;
       }
 
       briefing += `5. PRIORITY TODAY\n`;
       briefing += `   ${priorityToday}\n\n`;
+
+      if (masterControlHealthContent) {
+        briefing += `───────────────────────────────────────────\n`;
+        briefing += `MASTER CONTROL HEALTH REPORT\n`;
+        briefing += `   ${masterControlHealthContent.split('\n').join('\n   ')}\n\n`;
+      }
 
       briefing += `───────────────────────────────────────────\n`;
       briefing += `AGENT STATUS SUMMARY\n`;
@@ -443,13 +488,15 @@ export class AdvisorAgent implements IAgent {
         briefing += `   ${agent.name}: ${status}${taskNote}\n`;
       }
 
+      const insightTitle = `Daily Executive Briefing — ${today} [run:${context.runId}]`;
+
       const insight = await insightManager.createInsight({
         findingIds: findingIds.slice(0, 100),
         insightType: 'briefing',
-        title: `Daily Executive Briefing — ${today}`,
+        title: insightTitle,
         content: briefing,
         logicType: 'rule_based',
-        dataSources: ['agent_runs', 'agent_findings', 'tasks'],
+        dataSources: ['agent_runs', 'agent_findings', 'tasks', 'agent_insights'],
         scopePeriod: today,
       });
       if (!insight.isDuplicate) insightsCount++;
@@ -460,35 +507,18 @@ export class AdvisorAgent implements IAgent {
 
     const elapsed = Date.now() - startTime;
 
-    const executionMetadata = {
-      execution_time_ms: elapsed,
-      queries_run: queriesRun,
-      insights_generated: insightsCount,
-      issues_found: issues.length,
-      actions_recommended: actions.length,
-      system_status: issues.length === 0 ? 'YES' : issues.some(i => i.severity === 'critical') ? 'NO' : 'PARTIALLY',
-    };
-
-    try {
-      await db.execute(sql`
-        UPDATE agent_runs
-        SET execution_metadata = ${JSON.stringify(executionMetadata)}::jsonb
-        WHERE id = ${context.runId}
-      `);
-    } catch (err: any) {
-      console.error(`[Advisor] Failed to update execution_metadata:`, err.message);
-    }
-
     console.log(`[Advisor] Complete: ${insightsCount} insight, ${issues.length} issues, ${actions.length} actions in ${elapsed}ms`);
 
     return {
       findingsCount: 0,
       insightsCount,
       recommendationsCount: 0,
-      autoExecutedActions: 0,
-      queriesRun,
-      executionTimeMs: elapsed,
-      summary: `Advisor Agent: ${insightsCount} briefing insight produced. ${issues.length} issues identified, ${actions.length} actions recommended. Execution: ${elapsed}ms.`,
-    } as any;
+      executionMetadata: {
+        durationMs: elapsed,
+        queriesRun,
+        llmCalls: 0,
+        tokensUsed: 0,
+      },
+    };
   }
 }
