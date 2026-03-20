@@ -57,7 +57,8 @@ import {
   Heart,
   Plane,
   User,
-  Download
+  Download,
+  Search
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -122,6 +123,8 @@ export default function LeaveManagementPage() {
   const [quickAllocYear, setQuickAllocYear] = useState(new Date().getFullYear());
   const [quickAllocValues, setQuickAllocValues] = useState<Record<number, number>>({});
   const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [balancesYear, setBalancesYear] = useState(new Date().getFullYear());
+  const [balancesSearch, setBalancesSearch] = useState('');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -155,6 +158,11 @@ export default function LeaveManagementPage() {
   const { data: allocationsData, isLoading: allocationsLoading } = useQuery({
     queryKey: ['/api/leave/admin/allocations', allocationsYear],
     queryFn: () => apiRequest('GET', `/api/leave/admin/allocations?year=${allocationsYear}`)
+  });
+
+  const { data: allBalancesData, isLoading: balancesLoading } = useQuery({
+    queryKey: ['/api/leave/admin/all-balances', balancesYear],
+    queryFn: () => apiRequest('GET', `/api/leave/admin/all-balances?year=${balancesYear}`)
   });
 
   // Mutations
@@ -1367,214 +1375,173 @@ export default function LeaveManagementPage() {
 
           {/* Leave Balances Tab */}
           <TabsContent value="balances" className="space-y-4">
-            {/* Leave Type Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-l-4 border-l-orange-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Casual Leave (CL)</p>
-                      <p className="text-2xl font-bold">8 days</p>
-                      <p className="text-xs text-muted-foreground">Per employee annually</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-orange-600" />
-                    </div>
-                  </div>
-                  <div className="mt-3 text-xs">
-                    <div className="flex justify-between">
-                      <span>Approval Required:</span>
-                      <span className="font-medium">Yes</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Notice Period:</span>
-                      <span className="font-medium">1 day</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-l-4 border-l-red-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Sick Leave (SL)</p>
-                      <p className="text-2xl font-bold">12 days</p>
-                      <p className="text-xs text-muted-foreground">Per employee annually</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                      <Heart className="h-6 w-6 text-red-600" />
-                    </div>
-                  </div>
-                  <div className="mt-3 text-xs">
-                    <div className="flex justify-between">
-                      <span>Approval Required:</span>
-                      <span className="font-medium">No</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Notice Period:</span>
-                      <span className="font-medium">None</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-l-4 border-l-green-500">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Annual Leave (AL)</p>
-                      <p className="text-2xl font-bold">21 days</p>
-                      <p className="text-xs text-muted-foreground">Per employee annually</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <Plane className="h-6 w-6 text-green-600" />
-                    </div>
-                  </div>
-                  <div className="mt-3 text-xs">
-                    <div className="flex justify-between">
-                      <span>Carryover Allowed:</span>
-                      <span className="font-medium">5 days</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Notice Period:</span>
-                      <span className="font-medium">3 days</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Year Selector and Search */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Select value={balancesYear.toString()} onValueChange={(v) => setBalancesYear(parseInt(v))}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2024, 2025, 2026, 2027].map(y => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  {allBalancesData?.employees?.length || 0} employees
+                </span>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or employee code..."
+                  value={balancesSearch}
+                  onChange={(e) => setBalancesSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
 
-            {/* Employee Leave Balances */}
+            {/* Leave Type Summary Cards from DB */}
+            {allBalancesData?.leaveTypes && (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {allBalancesData.leaveTypes.filter((lt: any) => lt.isPaid !== false).slice(0, 4).map((lt: any) => {
+                  const colorMap: Record<string, string> = {
+                    CL: 'orange', SL: 'red', AL: 'green', EL: 'blue', ML: 'purple', PL: 'indigo', BL: 'pink'
+                  };
+                  const c = colorMap[lt.code] || 'blue';
+                  return (
+                    <Card key={lt.id} className={`border-l-4 border-l-${c}-500`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">{lt.name} ({lt.code})</p>
+                            <p className="text-2xl font-bold">{parseFloat(lt.maxDaysPerYear || '0')} days</p>
+                            <p className="text-xs text-muted-foreground">Per employee annually</p>
+                          </div>
+                          <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${lt.colorCode}20` }}>
+                            <Calendar className="h-5 w-5" style={{ color: lt.colorCode }} />
+                          </div>
+                        </div>
+                        <div className="mt-3 text-xs space-y-1">
+                          <div className="flex justify-between">
+                            <span>Approval Required:</span>
+                            <span className="font-medium">{lt.requiresApproval ? 'Yes' : 'No'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Notice Period:</span>
+                            <span className="font-medium">{lt.noticeDaysRequired > 0 ? `${lt.noticeDaysRequired} day${lt.noticeDaysRequired > 1 ? 's' : ''}` : 'None'}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Employee Leave Balances Table */}
             <Card>
               <CardHeader>
-                <CardTitle>Employee Leave Balances (2025)</CardTitle>
+                <CardTitle>Employee Leave Balances ({balancesYear})</CardTitle>
                 <CardDescription>
-                  Current leave balances for all employees showing CL, SL, and AL allocations
+                  Current leave balances for all employees from database records
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {users.slice(0, 6).map((user: any) => (
-                    <Card key={user.id} className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <User className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium">{user.firstName || user.username}</h4>
-                              <p className="text-sm text-muted-foreground">{user.role}</p>
-                            </div>
-                          </div>
-                          <Badge variant="outline">{user.employeeCode || `EMP-${user.id}`}</Badge>
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-4">
-                          {/* Casual Leave */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-orange-600">Casual Leave</span>
-                              <Badge variant="outline" className="text-orange-600 border-orange-200">CL</Badge>
-                            </div>
-                            <div className="text-xs space-y-1">
-                              <div className="flex justify-between">
-                                <span>Allocated:</span>
-                                <span className="font-medium">8.0 days</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Used:</span>
-                                <span className="font-medium">0.0 days</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Remaining:</span>
-                                <span className="font-medium text-orange-600">8.0 days</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Sick Leave */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-red-600">Sick Leave</span>
-                              <Badge variant="outline" className="text-red-600 border-red-200">SL</Badge>
-                            </div>
-                            <div className="text-xs space-y-1">
-                              <div className="flex justify-between">
-                                <span>Allocated:</span>
-                                <span className="font-medium">12.0 days</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Used:</span>
-                                <span className="font-medium">0.0 days</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Remaining:</span>
-                                <span className="font-medium text-red-600">12.0 days</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Annual Leave */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-green-600">Annual Leave</span>
-                              <Badge variant="outline" className="text-green-600 border-green-200">AL</Badge>
-                            </div>
-                            <div className="text-xs space-y-1">
-                              <div className="flex justify-between">
-                                <span>Allocated:</span>
-                                <span className="font-medium">21.0 days</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Used:</span>
-                                <span className="font-medium">0.0 days</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span>Remaining:</span>
-                                <span className="font-medium text-green-600">21.0 days</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-                
-                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                  <h4 className="font-medium mb-2">Leave Policy Summary</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-orange-600">Casual Leave (CL):</span>
-                      <ul className="text-muted-foreground text-xs mt-1 space-y-1">
-                        <li>• Can be used for personal activities</li>
-                        <li>• Requires 1-day advance notice</li>
-                        <li>• Manager approval needed</li>
-                        <li>• Half-day options available</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <span className="font-medium text-red-600">Sick Leave (SL):</span>
-                      <ul className="text-muted-foreground text-xs mt-1 space-y-1">
-                        <li>• For medical emergencies only</li>
-                        <li>• No advance notice required</li>
-                        <li>• No approval needed</li>
-                        <li>• Medical certificate may be required</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <span className="font-medium text-green-600">Annual Leave (AL):</span>
-                      <ul className="text-muted-foreground text-xs mt-1 space-y-1">
-                        <li>• For vacation and planned breaks</li>
-                        <li>• Requires 3-day advance notice</li>
-                        <li>• Manager approval needed</li>
-                        <li>• Up to 5 days can be carried forward</li>
-                      </ul>
-                    </div>
+                {balancesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                    <span className="ml-3 text-muted-foreground">Loading leave balances...</span>
                   </div>
-                </div>
+                ) : !allBalancesData?.employees?.length ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No leave balance records found for {balancesYear}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {allBalancesData.employees
+                      .filter((emp: any) => {
+                        if (!balancesSearch) return true;
+                        const s = balancesSearch.toLowerCase();
+                        return emp.name.toLowerCase().includes(s) || (emp.employeeCode || '').toLowerCase().includes(s);
+                      })
+                      .map((emp: any) => {
+                        const paidBalances = emp.balances.filter((b: any) => b.isPaid !== false && (b.allocated > 0 || b.used > 0 || b.carryover > 0));
+                        if (paidBalances.length === 0) return null;
+                        
+                        const colorMap: Record<string, { text: string; border: string; bg: string }> = {
+                          CL: { text: 'text-orange-600', border: 'border-orange-200', bg: 'bg-orange-50' },
+                          SL: { text: 'text-red-600', border: 'border-red-200', bg: 'bg-red-50' },
+                          AL: { text: 'text-green-600', border: 'border-green-200', bg: 'bg-green-50' },
+                          EL: { text: 'text-blue-600', border: 'border-blue-200', bg: 'bg-blue-50' },
+                          ML: { text: 'text-purple-600', border: 'border-purple-200', bg: 'bg-purple-50' },
+                          PL: { text: 'text-indigo-600', border: 'border-indigo-200', bg: 'bg-indigo-50' },
+                          BL: { text: 'text-pink-600', border: 'border-pink-200', bg: 'bg-pink-50' },
+                        };
+
+                        return (
+                          <Card key={emp.userId} className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <User className="h-5 w-5 text-primary" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium">{emp.name}</h4>
+                                    <p className="text-sm text-muted-foreground">{emp.department || emp.role || 'Employee'}</p>
+                                  </div>
+                                </div>
+                                <Badge variant="outline">{emp.employeeCode || `TPE-${emp.userId}`}</Badge>
+                              </div>
+                              
+                              <div className={`grid gap-4`} style={{ gridTemplateColumns: `repeat(${Math.min(paidBalances.length, 4)}, minmax(0, 1fr))` }}>
+                                {paidBalances.map((bal: any) => {
+                                  const colors = colorMap[bal.leaveTypeCode] || { text: 'text-blue-600', border: 'border-blue-200', bg: 'bg-blue-50' };
+                                  return (
+                                    <div key={bal.leaveTypeId} className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className={`text-sm font-medium ${colors.text}`}>{bal.leaveTypeName}</span>
+                                        <Badge variant="outline" className={`${colors.text} ${colors.border}`}>{bal.leaveTypeCode}</Badge>
+                                      </div>
+                                      <div className="text-xs space-y-1">
+                                        <div className="flex justify-between">
+                                          <span>Allocated:</span>
+                                          <span className="font-medium">{bal.allocated.toFixed(1)} days</span>
+                                        </div>
+                                        {bal.carryover > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Carryover:</span>
+                                            <span className="font-medium">{bal.carryover.toFixed(1)} days</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between">
+                                          <span>Used:</span>
+                                          <span className="font-medium">{bal.used.toFixed(1)} days</span>
+                                        </div>
+                                        {bal.pending > 0 && (
+                                          <div className="flex justify-between">
+                                            <span>Pending:</span>
+                                            <span className="font-medium text-amber-600">{bal.pending.toFixed(1)} days</span>
+                                          </div>
+                                        )}
+                                        <div className="flex justify-between border-t pt-1">
+                                          <span className="font-medium">Remaining:</span>
+                                          <span className={`font-medium ${colors.text}`}>{bal.remaining.toFixed(1)} days</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      }).filter(Boolean)}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

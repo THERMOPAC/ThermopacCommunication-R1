@@ -99,6 +99,94 @@ router.get('/balance/:userId', ensureAuthenticated, async (req: Request, res: Re
   }
 });
 
+router.get('/admin/all-balances', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const search = (req.query.search as string || '').toLowerCase();
+
+    const allLeaveTypes = await db
+      .select()
+      .from(leaveTypes)
+      .where(eq(leaveTypes.isActive, true))
+      .orderBy(leaveTypes.name);
+
+    const allUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        cardName: users.cardName,
+        employeeCode: users.employeeCode,
+        role: users.role,
+        department: users.department,
+        userType: users.userType,
+      })
+      .from(users)
+      .where(eq(users.isActive, true))
+      .orderBy(users.firstName);
+
+    const allBalances = await db
+      .select({
+        id: leaveBalances.id,
+        userId: leaveBalances.userId,
+        leaveTypeId: leaveBalances.leaveTypeId,
+        allocatedDays: leaveBalances.allocatedDays,
+        usedDays: leaveBalances.usedDays,
+        pendingDays: leaveBalances.pendingDays,
+        carryoverDays: leaveBalances.carryoverDays,
+      })
+      .from(leaveBalances)
+      .where(eq(leaveBalances.year, year));
+
+    const employeesWithBalances = allUsers
+      .filter(user => {
+        if (!search) return true;
+        const name = (user.cardName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username).toLowerCase();
+        const code = (user.employeeCode || '').toLowerCase();
+        return name.includes(search) || code.includes(search);
+      })
+      .map(user => {
+        const userBalances = allBalances.filter(b => b.userId === user.id);
+        const name = user.cardName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username;
+        const balances = allLeaveTypes.map(lt => {
+          const bal = userBalances.find(b => b.leaveTypeId === lt.id);
+          const allocated = parseFloat(bal?.allocatedDays || '0');
+          const used = parseFloat(bal?.usedDays || '0');
+          const pending = parseFloat(bal?.pendingDays || '0');
+          const carryover = parseFloat(bal?.carryoverDays || '0');
+          return {
+            leaveTypeId: lt.id,
+            leaveTypeName: lt.name,
+            leaveTypeCode: lt.code,
+            colorCode: lt.colorCode,
+            isPaid: lt.isPaid,
+            allocated,
+            used,
+            pending,
+            carryover,
+            remaining: allocated + carryover - used - pending,
+          };
+        });
+
+        return {
+          userId: user.id,
+          name,
+          employeeCode: user.employeeCode,
+          role: user.role,
+          department: user.department,
+          userType: user.userType,
+          balances,
+        };
+      });
+
+    res.json({ employees: employeesWithBalances, leaveTypes: allLeaveTypes, year });
+  } catch (error) {
+    console.error('Error fetching all leave balances:', error);
+    res.status(500).json({ error: 'Failed to fetch leave balances' });
+  }
+});
+
 router.get('/my-requests', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
