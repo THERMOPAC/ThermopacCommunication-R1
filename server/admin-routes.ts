@@ -3089,8 +3089,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
       line.ShortName && (
         line.AccountCode === line.ShortName ||
         line.AccountCode === '<REAL_BP_CONTROL_GL>' ||
-        !line.AccountCode ||
-        line.AccountCode.startsWith('_SYS')
+        !line.AccountCode
       )
     );
 
@@ -3167,16 +3166,15 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
 
     const invalidLines = (finalPayload.JournalEntryLines || []).filter((line: any) =>
       line.AccountCode && (
-        line.AccountCode.startsWith('_SYS') ||
         line.AccountCode === line.ShortName ||
         line.AccountCode.includes('<')
       )
     );
     if (invalidLines.length > 0) {
       return res.status(400).json({
-        error: `Invalid AccountCode on lines: ${invalidLines.map((l: any) => `Line ${l.Line_ID}: "${l.AccountCode}"`).join(', ')}. Cannot post with _SYS codes, BP codes, or placeholders.`,
+        error: `Invalid AccountCode on lines: ${invalidLines.map((l: any) => `Line ${l.Line_ID}: "${l.AccountCode}"`).join(', ')}. Cannot post with BP codes or placeholders.`,
         invalidLines,
-        hint: 'Set the NET_PAY GL in GL Mapping with the actual Accounts Payable control GL code.',
+        hint: 'Set the NET_PAY GL in GL Mapping with the actual GL code.',
       });
     }
 
