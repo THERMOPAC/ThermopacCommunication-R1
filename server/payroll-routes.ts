@@ -1444,4 +1444,69 @@ router.get('/verify/:periodId/can-post-sap', async (req, res) => {
   }
 });
 
+router.get('/sap-transfer/:periodId/preview', async (req, res) => {
+  try {
+    const periodId = parseInt(req.params.periodId);
+
+    const records = await db.select().from(payrollRecords)
+      .where(and(
+        eq(payrollRecords.periodId, periodId),
+        eq(payrollRecords.salarySource, 'payroll_engine'),
+      ));
+
+    const eligible: any[] = [];
+    const blocked: any[] = [];
+
+    for (const r of records) {
+      const [emp] = await db.select({
+        id: users.id, firstName: users.firstName, lastName: users.lastName,
+        username: users.username, cardCode: users.cardCode, employeeCode: users.employeeCode,
+      }).from(users).where(eq(users.id, r.userId));
+
+      const empName = emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : emp?.username || 'Unknown';
+      const vs = r.verificationStatus || 'pending';
+      const sapStatus = r.sapPostingStatus || 'not_posted';
+
+      const blockReasons: string[] = [];
+      if (r.status !== 'verified') blockReasons.push(`Status: ${r.status || 'generated'}`);
+      if (vs !== 'passed' && vs !== 'overridden') blockReasons.push(`Verification: ${vs}`);
+      if (sapStatus === 'posted') blockReasons.push('Already posted');
+      if (r.status === 'reversed') blockReasons.push('Reversed');
+      if (r.status === 'held') blockReasons.push('On hold');
+      if (r.status === 'rejected') blockReasons.push('Rejected');
+      if (!emp?.cardCode) blockReasons.push('No SAP BP code');
+
+      const entry = {
+        recordId: r.id,
+        userId: r.userId,
+        employeeName: empName,
+        employeeCode: emp?.employeeCode,
+        cardCode: emp?.cardCode,
+        netPay: r.netPay,
+        grossPay: r.grossPay,
+        status: r.status,
+        verificationStatus: vs,
+        sapPostingStatus: sapStatus,
+      };
+
+      if (blockReasons.length > 0) {
+        blocked.push({ ...entry, blockReasons });
+      } else {
+        eligible.push(entry);
+      }
+    }
+
+    res.json({
+      periodId,
+      totalRecords: records.length,
+      eligible: eligible.length,
+      blocked: blocked.length,
+      eligibleRecords: eligible,
+      blockedRecords: blocked,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

@@ -4748,6 +4748,9 @@ export const payrollRecords = pgTable('payroll_records', {
   sapPostedAt: timestamp('sap_posted_at'),
   sapPostingStatus: varchar('sap_posting_status', { length: 20 }),
   sapErrorMessage: text('sap_error_message'),
+  sapPayloadStatus: varchar('sap_payload_status', { length: 20 }).default('not_ready'),
+  sapRequestLog: jsonb('sap_request_log'),
+  sapResponseLog: jsonb('sap_response_log'),
 
   reversalSapDocEntry: integer('reversal_sap_doc_entry'),
   reversalSapJeNumber: text('reversal_sap_je_number'),

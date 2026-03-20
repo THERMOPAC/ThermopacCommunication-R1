@@ -433,9 +433,10 @@ function TestSapJeButton() {
       { Line_ID: 3, AccountCode: "_SYS00000000683", Debit: 3780.00, Credit: 0, LineMemo: "LTA - Mansi Main - Feb 2026" },
       { Line_ID: 4, AccountCode: "_SYS00000000687", Debit: 5670.00, Credit: 0, LineMemo: "SPECIAL_ALLOWANCE - Mansi Main - Feb 2026" },
       { Line_ID: 5, AccountCode: "_SYS00000000751", Debit: 5670.00, Credit: 0, LineMemo: "SUPPLEMENTARY - Mansi Main - Feb 2026" },
-      { Line_ID: 6, AccountCode: "_SYS00000000503", Debit: 0, Credit: 1800.00, LineMemo: "PF_EMPLOYEE - Mansi Main - Feb 2026" },
-      { Line_ID: 7, AccountCode: "_SYS00000000501", Debit: 0, Credit: 300.00, LineMemo: "PT - Mansi Main - Feb 2026" },
-      { Line_ID: 8, AccountCode: "_SYS00000000286", ShortName: "V10771", Debit: 0, Credit: 45150.00, LineMemo: "Net Pay - Mansi Main - Feb 2026" },
+      { Line_ID: 6, AccountCode: "_SYS00000000676", Debit: 1800.00, Credit: 0, LineMemo: "PF_EMPLOYER - Mansi Main - Feb 2026" },
+      { Line_ID: 7, AccountCode: "_SYS00000000502", Debit: 0, Credit: 3600.00, LineMemo: "PF_PAYABLE (Emp+Er) - Mansi Main - Feb 2026" },
+      { Line_ID: 8, AccountCode: "_SYS00000000501", Debit: 0, Credit: 300.00, LineMemo: "PT - Mansi Main - Feb 2026" },
+      { Line_ID: 9, AccountCode: "_SYS00000000286", ShortName: "V10771", Debit: 0, Credit: 45150.00, LineMemo: "NET_PAY - Mansi Main - Feb 2026" },
     ]
   };
 
@@ -465,6 +466,24 @@ function TestSapJeButton() {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  try {
+                    const data = await apiRequest('POST', '/api/admin/payroll/gl-mapping/auto-resolve');
+                    setResult(data);
+                    setShowResult(true);
+                    toast({ title: 'GL Auto-Resolve Complete', description: `Resolved: ${data.resolved}, Failed: ${data.failed?.length || 0}` });
+                  } catch (e: any) {
+                    setResult({ error: e.message });
+                    setShowResult(true);
+                    toast({ title: 'GL Auto-Resolve Failed', description: e.message, variant: 'destructive' });
+                  }
+                }}
+                variant="outline"
+                className="border-purple-400 text-purple-700"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" /> GL Auto-Resolve
+              </Button>
               <Button
                 onClick={async () => {
                   try {
