@@ -3586,9 +3586,13 @@ function buildSalaryJePayload(
 /**
  * Get a SAP session — reuse existing or create new one
  */
-async function getSapSession(userId: number): Promise<string> {
-  const existing = sapSessionManager.getSession(userId);
-  if (existing) return existing.sessionId;
+async function getSapSession(userId: number, forceNew = false): Promise<string> {
+  if (!forceNew) {
+    const existing = sapSessionManager.getSession(userId);
+    if (existing) return existing.sessionId;
+  } else {
+    sapSessionManager.clearSession(userId);
+  }
 
   const sapUser = process.env.SAP_USERNAME || '';
   const sapPass = process.env.SAP_PASSWORD || '';
@@ -3596,8 +3600,12 @@ async function getSapSession(userId: number): Promise<string> {
   if (!sapUser || !sapPass || !sapDb) throw new Error('SAP credentials not configured');
 
   const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
-  sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+  sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 25 * 60000) });
   return loginResult.sessionId;
+}
+
+function isSapSessionTimeout(error: string): boolean {
+  return error.includes('session') && (error.includes('timeout') || error.includes('invalid') || error.includes('expired'));
 }
 
 /**
@@ -3746,48 +3754,62 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       updatedAt: new Date(),
     }).where(eq(payrollRecords.id, recordId));
 
-    try {
-      const sessionId = await getSapSession(currentUser.id);
-      const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
-        method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload,
-      });
-
-      if (sapResponse.ok) {
-        const responseData = JSON.parse(sapResponse.body);
-        await db.update(payrollRecords).set({
-          sapDocEntry: responseData.DocEntry,
-          sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
-          sapPostedAt: new Date(),
-          sapPostingStatus: 'posted',
-          sapPayloadStatus: 'posted',
-          status: 'transferred',
-          sapErrorMessage: null,
-          sapResponseLog: responseData as any,
-          updatedAt: new Date(),
-        }).where(eq(payrollRecords.id, recordId));
-
-        return res.json({
-          success: true,
-          message: `Salary JE posted to SAP successfully`,
-          sapDocEntry: responseData.DocEntry,
-          sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+    let lastError = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const sessionId = await getSapSession(currentUser.id, attempt > 0);
+        const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+          method: 'POST', path: '/b1s/v1/JournalEntries', body: jePayload,
         });
-      } else {
-        let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
-        try { const errParsed = JSON.parse(sapResponse.body); errorMsg = errParsed?.error?.message?.value || errorMsg; } catch (_) {}
 
-        await db.update(payrollRecords).set({
-          sapPostingStatus: 'failed', sapErrorMessage: errorMsg,
-          sapResponseLog: { statusCode: sapResponse.statusCode, body: sapResponse.body } as any,
-          updatedAt: new Date(),
-        }).where(eq(payrollRecords.id, recordId));
-        return res.status(500).json({ error: errorMsg });
+        if (sapResponse.ok) {
+          const responseData = JSON.parse(sapResponse.body);
+          await db.update(payrollRecords).set({
+            sapDocEntry: responseData.DocEntry,
+            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+            sapPostedAt: new Date(),
+            sapPostingStatus: 'posted',
+            sapPayloadStatus: 'posted',
+            status: 'transferred',
+            sapErrorMessage: null,
+            sapResponseLog: responseData as any,
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+
+          return res.json({
+            success: true,
+            message: `Salary JE posted to SAP successfully`,
+            sapDocEntry: responseData.DocEntry,
+            sapJeNumber: String(responseData.Number || responseData.DocNum || responseData.DocEntry),
+          });
+        } else {
+          let errorMsg = `SAP posting failed (${sapResponse.statusCode})`;
+          try { const errParsed = JSON.parse(sapResponse.body); errorMsg = errParsed?.error?.message?.value || errorMsg; } catch (_) {}
+
+          if (attempt === 0 && isSapSessionTimeout(errorMsg.toLowerCase())) {
+            console.log(`[Salary JE] Session timeout for record #${recordId}, re-authenticating...`);
+            continue;
+          }
+
+          await db.update(payrollRecords).set({
+            sapPostingStatus: 'failed', sapErrorMessage: errorMsg,
+            sapResponseLog: { statusCode: sapResponse.statusCode, body: sapResponse.body } as any,
+            updatedAt: new Date(),
+          }).where(eq(payrollRecords.id, recordId));
+          return res.status(500).json({ error: errorMsg });
+        }
+      } catch (sapErr: any) {
+        lastError = `SAP connection error: ${sapErr.message}`;
+        if (attempt === 0 && isSapSessionTimeout(lastError.toLowerCase())) {
+          console.log(`[Salary JE] Session timeout (exception) for record #${recordId}, re-authenticating...`);
+          continue;
+        }
+        await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+        return res.status(500).json({ error: lastError });
       }
-    } catch (sapErr: any) {
-      const errorMsg = `SAP connection error: ${sapErr.message}`;
-      await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errorMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
-      return res.status(500).json({ error: errorMsg });
     }
+    await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: lastError || 'SAP session retry exhausted', updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
+    return res.status(500).json({ error: lastError || 'SAP session retry exhausted' });
   } catch (error: any) {
     console.error('Error posting salary JE to SAP:', error);
     res.status(500).json({ error: error.message || 'Failed to post salary JE to SAP' });
