@@ -799,24 +799,31 @@ function GeneratedSalariesView() {
       })
     : (generatedSalaries as any[]);
 
-  const filteredRecords = statusFilter === 'all'
-    ? searchFilteredRecords
-    : searchFilteredRecords.filter((r: any) => {
-        const raw = r.status || 'generated';
-        const normalized = raw === 'draft' ? 'generated' : raw;
-        return normalized === statusFilter;
-      });
-
   const normalizeStatus = (s: string | null | undefined) => {
     const raw = s || 'generated';
     return raw === 'draft' ? 'generated' : raw;
   };
 
+  const filteredRecords = statusFilter === 'all'
+    ? searchFilteredRecords
+    : statusFilter === 'verified'
+      ? searchFilteredRecords.filter((r: any) => r.verificationStatus === 'passed')
+      : searchFilteredRecords.filter((r: any) => {
+          const normalized = normalizeStatus(r.status);
+          if (statusFilter === 'generated') {
+            return normalized === 'generated' && r.verificationStatus !== 'passed';
+          }
+          return normalized === statusFilter;
+        });
+
+  const verifiedCount = (generatedSalaries as any[]).filter((r: any) => r.verificationStatus === 'passed').length;
   const statusCounts = (generatedSalaries as any[]).reduce((acc: any, r: any) => {
     const s = normalizeStatus(r.status);
     acc[s] = (acc[s] || 0) + 1;
     return acc;
   }, {});
+  statusCounts['verified'] = verifiedCount;
+  statusCounts['generated'] = (statusCounts['generated'] || 0) - verifiedCount;
 
   const handleViewIssues = (record: any) => {
     const details = record.verificationDetails;
