@@ -69,6 +69,12 @@ interface SalarySlipData {
   };
   kgpPercent: number;
   netPayInWords?: string;
+  leaveBalances?: {
+    leaveType: string;
+    opening: number;
+    used: number;
+    closing: number;
+  }[];
 }
 
 function fmtINR(v: number): string {
@@ -250,36 +256,68 @@ export class SalarySlipGenerator {
     this.hLine(y + 20, '#D1D5DB', 0.4);
     y += 23;
 
-    if (totalLeaveUsed > 0 || d.period.paidLeaveDays > 0 || d.period.unpaidLeaveDays > 0) {
-      doc.save();
-      doc.rect(m, y, w, 13).fillColor('#FFFBEB').fill();
-      doc.restore();
-      this.hLine(y, '#92400E', 0.6);
-      doc.font(FONT_BOLD).fontSize(6.5).fillColor('#92400E');
-      this.t('LEAVE SUMMARY', m + 8, y + 3.5);
-      y += 14;
+    const leaveBals = d.leaveBalances || [];
+    doc.save();
+    doc.rect(m, y, w, 13).fillColor('#FFFBEB').fill();
+    doc.restore();
+    this.hLine(y, '#92400E', 0.6);
+    doc.font(FONT_BOLD).fontSize(6.5).fillColor('#92400E');
+    this.t('LEAVE BALANCE', m + 8, y + 3.5);
+    y += 14;
 
-      const leaveData = [
-        { label: 'Paid Leave', value: d.period.paidLeaveDays.toFixed(1) },
-        { label: 'Unpaid Leave', value: d.period.unpaidLeaveDays.toFixed(1) },
-        { label: 'Total Leave Used', value: totalLeaveUsed.toFixed(1) },
+    if (leaveBals.length > 0) {
+      const lbHeaderH = 11;
+      const lbRowH = 10;
+      const lbCols = leaveBals.length + 1;
+      const lbColW = w / lbCols;
+
+      doc.save();
+      doc.rect(m, y, w, lbHeaderH).fillColor('#FEF9C3').fill();
+      doc.restore();
+      doc.font(FONT_BOLD).fontSize(5.5).fillColor('#92400E');
+      this.t('', m + 2, y + 2.5, { width: lbColW - 4 });
+      for (let i = 0; i < leaveBals.length; i++) {
+        const x = m + (i + 1) * lbColW;
+        this.t(leaveBals[i].leaveType, x + 2, y + 2.5, { width: lbColW - 4, align: 'center' });
+        this.vLine(x, y, y + lbHeaderH, '#E5E7EB', 0.3);
+      }
+      this.hLine(y + lbHeaderH, '#E5E7EB', 0.3);
+      y += lbHeaderH;
+
+      const rows = [
+        { label: 'Opening', getValue: (b: any) => b.opening.toFixed(1) },
+        { label: 'Used', getValue: (b: any) => b.used.toFixed(1) },
+        { label: 'Closing', getValue: (b: any) => b.closing.toFixed(1) },
       ];
 
-      const leaveColW = w / leaveData.length;
-      doc.save();
-      doc.rect(m, y, w, 20).fillColor('#FFFFFF').fill();
-      doc.restore();
-      for (let i = 0; i < leaveData.length; i++) {
-        const x = m + i * leaveColW;
+      for (let r = 0; r < rows.length; r++) {
+        const bgColor = r % 2 === 0 ? '#FFFFFF' : '#FFFDF7';
+        doc.save();
+        doc.rect(m, y, w, lbRowH).fillColor(bgColor).fill();
+        doc.restore();
+
         doc.font(FONT_REGULAR).fontSize(5.5).fillColor('#6B7280');
-        this.t(leaveData[i].label, x + 2, y + 1, { width: leaveColW - 4, align: 'center' });
-        doc.font(FONT_BOLD).fontSize(7.5).fillColor('#1F2937');
-        this.t(leaveData[i].value, x + 2, y + 10, { width: leaveColW - 4, align: 'center' });
-        if (i > 0) this.vLine(x, y, y + 20, '#E5E7EB', 0.3);
+        this.t(rows[r].label, m + 4, y + 2, { width: lbColW - 4 });
+
+        for (let i = 0; i < leaveBals.length; i++) {
+          const x = m + (i + 1) * lbColW;
+          const val = rows[r].getValue(leaveBals[i]);
+          const color = rows[r].label === 'Used' && parseFloat(val) > 0 ? '#DC2626' : '#1F2937';
+          doc.font(FONT_BOLD).fontSize(6).fillColor(color);
+          this.t(val, x + 2, y + 2, { width: lbColW - 4, align: 'center' });
+          this.vLine(x, y, y + lbRowH, '#E5E7EB', 0.3);
+        }
+        this.hLine(y + lbRowH, '#E5E7EB', 0.3);
+        y += lbRowH;
       }
-      this.hLine(y + 20, '#D1D5DB', 0.4);
-      y += 23;
+    } else {
+      doc.font(FONT_REGULAR).fontSize(6).fillColor('#6B7280');
+      this.t('No leave balances allocated for this period.', m + 8, y + 2);
+      y += 14;
     }
+
+    this.hLine(y, '#D1D5DB', 0.4);
+    y += 5;
 
     const earningsX = m;
     const deductionsX = midX;

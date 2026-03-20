@@ -3721,10 +3721,28 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         ctcYearly: Math.round(ctcMonthly) * 12,
       },
       kgpPercent,
-      netPayInWords: numberToWords(Math.round(actualNetPay))
+      netPayInWords: numberToWords(Math.round(actualNetPay)),
+      leaveBalances: [] as { leaveType: string; opening: number; used: number; closing: number }[],
     };
 
-    // Generate and send PDF
+    const periodYear = new Date(record.startDate).getFullYear();
+    const activeLeaveTypes = await db.select().from(leaveTypes).where(eq(leaveTypes.isActive, true));
+    const empLeaveBalances = await db.select().from(leaveBalances)
+      .where(and(eq(leaveBalances.userId, record.userId), eq(leaveBalances.year, periodYear)));
+
+    const balanceMap = new Map(empLeaveBalances.map(b => [b.leaveTypeId, b]));
+
+    for (const lt of activeLeaveTypes) {
+      if (['ML', 'PL', 'BL', 'ST'].includes(lt.code)) continue;
+      const bal = balanceMap.get(lt.id);
+      const allocated = bal ? parseFloat(bal.allocatedDays?.toString() || '0') : parseFloat(lt.maxDaysPerYear?.toString() || '0');
+      const carryover = bal ? parseFloat(bal.carryoverDays?.toString() || '0') : 0;
+      const opening = allocated + carryover;
+      const used = bal ? parseFloat(bal.usedDays?.toString() || '0') : 0;
+      const closing = Math.max(0, opening - used);
+      salarySlipData.leaveBalances!.push({ leaveType: lt.code, opening, used, closing });
+    }
+
     const generator = new SalarySlipGenerator();
     await generator.generateSalarySlip(salarySlipData, res);
 
