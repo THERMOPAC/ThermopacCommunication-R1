@@ -422,21 +422,23 @@ function TestSapJeButton() {
 
   const testPayload = {
     ReferenceDate: "2026-02-28",
-    Memo: "Test JE - GL to GL",
+    Memo: "Test JE - Salary Payable to BP",
+    Reference2: "V10771",
     JournalEntryLines: [
       {
         Line_ID: 0,
         AccountCode: "_SYS00000000676",
         Debit: 100.00,
         Credit: 0.00,
-        LineMemo: "Test Debit - Basic Salary"
+        LineMemo: "Test Debit - Salary Expense"
       },
       {
         Line_ID: 1,
-        AccountCode: "_SYS00000000501",
+        AccountCode: "20304020000-ARL",
+        ShortName: "V10771",
         Debit: 0.00,
         Credit: 100.00,
-        LineMemo: "Test Credit - PT Payable Employee"
+        LineMemo: "Test Credit - Salary Payable (BP)"
       }
     ]
   };
