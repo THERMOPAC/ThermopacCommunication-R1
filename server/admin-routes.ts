@@ -3584,7 +3584,6 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const record = payrollRecord[0];
 
     const workingDays = parseInt((record as any).workingDays?.toString() || '26');
-    const paidDays = parseFloat((record as any).paidDays?.toString() || workingDays.toString());
 
     const employeeFullName = record.firstName && record.lastName 
       ? `${record.firstName} ${record.lastName}` 
@@ -3602,8 +3601,17 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const bonus = parseFloat(record.bonus?.toString() || '0');
     const kgpAllowance = parseFloat(record.kgpAllowance?.toString() || '0');
 
-    const grossPay = parseFloat(record.grossPay?.toString() || '0');
-    const netPay = parseFloat(record.netPay?.toString() || '0');
+    const basicComp = parseFloat(record.baseSalary?.toString() || '0');
+    const hraComp = parseFloat(record.hra?.toString() || '0');
+    const convComp = parseFloat(record.conveyanceAllowance?.toString() || '0');
+    const ltaComp = parseFloat(record.ltaAllowance?.toString() || '0');
+    const specComp = parseFloat(record.specialAllowance?.toString() || '0');
+    const suppComp = parseFloat(record.supplementaryAllowance?.toString() || '0');
+    const kgpComp = parseFloat(record.kgpAllowance?.toString() || '0');
+    const otComp = parseFloat(record.overtimePay?.toString() || '0');
+    const otherAllowComp = parseFloat(record.otherAllowances?.toString() || '0');
+    const grossPay = basicComp + hraComp + convComp + ltaComp + specComp + suppComp + kgpComp + otComp + otherAllowComp;
+
     const ctcMonthly = grossPay + employerPf + employerEsic + gratuity + groupInsuranceVal + bonus;
     const ctcYearly = ctcMonthly * 12;
 
@@ -3623,6 +3631,9 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       .limit(1);
 
     const attSnap = snap[0];
+    const paidDays = attSnap
+      ? parseFloat(attSnap.paidDays?.toString() || '30')
+      : parseFloat((record as any).paidDays?.toString() || '30');
     const presentDays = attSnap ? parseFloat(attSnap.presentDays?.toString() || '0') : parseFloat((record as any).presentDays?.toString() || paidDays.toString());
     const lopDays = attSnap ? parseFloat(attSnap.lopDays?.toString() || '0') : parseFloat((record as any).lopDays?.toString() || '0');
     const absentDays = attSnap ? parseFloat(attSnap.absentDays?.toString() || '0') : lopDays;
