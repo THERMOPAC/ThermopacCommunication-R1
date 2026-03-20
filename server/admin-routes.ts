@@ -28,7 +28,8 @@ import {
   employeeAdvanceRecoveries,
   employeeLoans,
   employeeAdvances,
-  tdsMonthlyRecords
+  tdsMonthlyRecords,
+  payrollAttendanceSnapshot
 } from '../shared/schema';
 import { eq, and, desc, asc, gte, lte, sql, count, isNotNull, ne, inArray } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
@@ -3609,9 +3610,24 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, record.userId)).limit(1);
     const kgpPercent = kgpAllowance > 0 && ['Manager', 'Employee'].includes(empUser?.role || '') ? 15 : 0;
 
-    const presentDays = parseFloat((record as any).presentDays?.toString() || paidDays.toString());
-    const lopDays = parseFloat((record as any).lopDays?.toString() || '0');
-    const absentDays = lopDays;
+    const snap = await db
+      .select()
+      .from(payrollAttendanceSnapshot)
+      .where(
+        and(
+          eq(payrollAttendanceSnapshot.periodId, record.periodId),
+          eq(payrollAttendanceSnapshot.userId, record.userId)
+        )
+      )
+      .orderBy(desc(payrollAttendanceSnapshot.runNumber))
+      .limit(1);
+
+    const attSnap = snap[0];
+    const presentDays = attSnap ? parseFloat(attSnap.presentDays?.toString() || '0') : parseFloat((record as any).presentDays?.toString() || paidDays.toString());
+    const lopDays = attSnap ? parseFloat(attSnap.lopDays?.toString() || '0') : parseFloat((record as any).lopDays?.toString() || '0');
+    const absentDays = attSnap ? parseFloat(attSnap.absentDays?.toString() || '0') : lopDays;
+    const weeklyOffs = attSnap ? (attSnap.weeklyOffs || 0) : 0;
+    const holidays = attSnap ? (attSnap.holidays || 0) : 0;
 
     const employeePfVal = Math.round(parseFloat(record.providentFund?.toString() || '0'));
     const ptVal = Math.round(parseFloat(record.professionalTax?.toString() || '0'));
@@ -3643,7 +3659,8 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         paidDays,
         salaryBasis,
         salaryType,
-        holidays: 0,
+        holidays,
+        weeklyOffs,
         absentDays,
         presentDays,
         clBalance: 0,
@@ -3682,7 +3699,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         totalDeductions: actualTotalDeductions,
         netPay: actualNetPay,
         ctcMonthly: Math.round(ctcMonthly),
-        ctcYearly: Math.round(ctcYearly),
+        ctcYearly: Math.round(ctcMonthly) * 12,
       },
       kgpPercent,
       netPayInWords: numberToWords(Math.round(actualNetPay))

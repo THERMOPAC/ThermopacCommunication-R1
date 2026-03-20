@@ -25,6 +25,7 @@ interface SalarySlipData {
     salaryBasis: number | string;
     salaryType: string;
     holidays: number;
+    weeklyOffs: number;
     absentDays: number;
     presentDays: number;
     clBalance: number;
@@ -217,17 +218,24 @@ export class SalarySlipGenerator {
     this.t('ATTENDANCE SUMMARY', m + 8, y + 3.5);
     y += 14;
 
-    const attData = [
-      { label: 'Salary Basis', value: d.period.salaryBasis === 'actual_days' ? 'Daily' : '30 Days' },
-      { label: 'Holidays', value: d.period.holidays.toString() },
-      { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
-      { label: d.period.salaryType === 'daily' ? 'Leave Days' : 'LOP Days', value: (d.period.salaryType === 'daily' ? '0' : d.period.lopDays.toFixed(1)) },
-      { label: 'Absent Days', value: d.period.absentDays.toFixed(1) },
-      { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
-      { label: 'CL Balance', value: d.period.clBalance.toFixed(1) },
-    ];
+    const attData = d.period.salaryType === 'daily'
+      ? [
+          { label: 'Salary Basis', value: 'Daily' },
+          { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
+          { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
+          { label: 'CL Balance', value: d.period.clBalance.toFixed(1) },
+        ]
+      : [
+          { label: 'Salary Basis', value: '30 Days' },
+          { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
+          { label: 'Weekly Offs', value: d.period.weeklyOffs.toString() },
+          { label: 'Holidays', value: d.period.holidays.toString() },
+          { label: 'LOP Days', value: d.period.lopDays.toFixed(1) },
+          { label: 'Absent Days', value: d.period.absentDays.toFixed(1) },
+          { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
+        ];
 
-    const attColW = w / 7;
+    const attColW = w / attData.length;
     doc.save();
     doc.rect(m, y, w, 20).fillColor('#FFFFFF').fill();
     doc.restore();
