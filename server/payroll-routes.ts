@@ -198,6 +198,51 @@ router.post('/payroll-periods/generate-year', async (req, res) => {
   }
 });
 
+router.post('/payroll-periods/ensure', async (req, res) => {
+  try {
+    const { year, month } = req.body;
+    const y = parseInt(year);
+    const m = parseInt(month);
+    if (!y || !m || m < 1 || m > 12) {
+      return res.status(400).json({ error: 'Invalid year/month' });
+    }
+
+    const lastDay = new Date(y, m, 0).getDate();
+    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    const endDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    const existing = await db.select().from(payrollPeriods)
+      .where(and(
+        eq(payrollPeriods.startDate, startDate),
+        eq(payrollPeriods.endDate, endDate)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return res.json({ period: existing[0], created: false });
+    }
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    const payDate = m === 12
+      ? `${y + 1}-01-01`
+      : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+
+    const [newPeriod] = await db.insert(payrollPeriods).values({
+      periodName: `${monthNames[m - 1]} ${y}`,
+      startDate,
+      endDate,
+      payDate,
+      status: 'draft',
+    }).returning();
+
+    res.json({ period: newPeriod, created: true });
+  } catch (error: any) {
+    console.error('Error ensuring payroll period:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // [DEPRECATED] Legacy payroll generation endpoint — uses flat-rate deductions instead of the 6-step pipeline.
 // Disabled 2026-03-17. Use POST /run/start + POST /run/step pipeline instead.
 // Kept for reference only — do not re-enable without review.

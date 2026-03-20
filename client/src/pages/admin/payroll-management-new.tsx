@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
@@ -1522,23 +1522,49 @@ function GeneratedSalariesView() {
 function PayrollRunTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: periods = [], isLoading } = useQuery<any[]>({
+  const { data: periods = [], isLoading: periodsLoading } = useQuery<any[]>({
     queryKey: ['/api/payroll/payroll-periods'],
   });
   const { data: salaryConfigs = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/payroll/salary-setup'],
   });
 
+  const now = new Date();
+  const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth();
+  const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+  const ensurePeriodMutation = useMutation({
+    mutationFn: async ({ year, month }: { year: number; month: number }) => {
+      return await apiRequest('POST', '/api/payroll/payroll-periods/ensure', { year, month });
+    },
+    onSuccess: (data: any) => {
+      if (data.created) {
+        toast({ title: 'Period auto-created', description: data.period.periodName });
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
+      setSelectedPeriodId(data.period.id);
+    },
+  });
+
   const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
   const [singleUserResult, setSingleUserResult] = useState<any>(null);
-  const [showCreatePeriod, setShowCreatePeriod] = useState(false);
-  const [newPeriod, setNewPeriod] = useState({
-    periodName: '',
-    startDate: '',
-    endDate: '',
-    payDate: '',
-  });
+  const [showPastPeriods, setShowPastPeriods] = useState(false);
+  const [autoEnsured, setAutoEnsured] = useState(false);
+
+  useEffect(() => {
+    if (periodsLoading || autoEnsured) return;
+    setAutoEnsured(true);
+    const match = periods.find((p: any) => {
+      const sd = new Date(p.startDate);
+      return sd.getMonth() + 1 === prevMonth && sd.getFullYear() === prevYear;
+    });
+    if (match) {
+      setSelectedPeriodId(match.id);
+    } else {
+      ensurePeriodMutation.mutate({ year: prevYear, month: prevMonth });
+    }
+  }, [periodsLoading, periods]);
 
   const singleUserRunMutation = useMutation({
     mutationFn: async (data: { periodId: number; userId: number }) => {
@@ -1555,42 +1581,32 @@ function PayrollRunTab() {
     },
   });
 
-  const createPeriodMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/payroll/payroll-periods', newPeriod);
-    },
-    onSuccess: (data: any) => {
-      toast({ title: 'Period created', description: `${newPeriod.periodName} is ready` });
-      setShowCreatePeriod(false);
-      setNewPeriod({ periodName: '', startDate: '', endDate: '', payDate: '' });
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
-      setSelectedPeriodId(data.id);
-    },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    },
-  });
-
-  const generateYearMutation = useMutation({
-    mutationFn: async (year: number) => {
-      return await apiRequest('POST', '/api/payroll/payroll-periods/generate-year', { year });
-    },
-    onSuccess: (data: any) => {
-      toast({ title: 'Year Generated', description: data.message });
-      queryClient.invalidateQueries({ queryKey: ['/api/payroll/payroll-periods'] });
-    },
-    onError: (err: any) => {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    },
-  });
-
   const selectedPeriod = periods.find((p: any) => p.id === selectedPeriodId);
+  const isPosted = selectedPeriod && (selectedPeriod.status === 'paid' || selectedPeriod.status === 'locked');
 
-  if (isLoading) {
+  const statusColors: Record<string, string> = {
+    draft: 'bg-gray-100 text-gray-700',
+    processing: 'bg-blue-100 text-blue-700',
+    processed: 'bg-blue-100 text-blue-700',
+    approved: 'bg-green-100 text-green-700',
+    paid: 'bg-emerald-100 text-emerald-700',
+    locked: 'bg-red-100 text-red-700',
+    completed: 'bg-green-100 text-green-700',
+    closed: 'bg-gray-100 text-gray-700',
+  };
+
+  const pastPeriods = periods
+    .filter((p: any) => p.id !== selectedPeriodId)
+    .sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+
+  if (periodsLoading || ensurePeriodMutation.isPending) {
     return (
       <Card>
         <CardContent className="p-8">
-          <div className="text-center">Loading payroll periods...</div>
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>Loading payroll period...</span>
+          </div>
         </CardContent>
       </Card>
     );
@@ -1599,121 +1615,140 @@ function PayrollRunTab() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Select Payroll Period</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => {
-                const nextYear = new Date().getFullYear() + 1;
-                generateYearMutation.mutate(nextYear);
-              }} disabled={generateYearMutation.isPending}>
-                <Calculator className="h-4 w-4 mr-1" /> Generate {new Date().getFullYear() + 1}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowCreatePeriod(true)}>
-                <Plus className="h-4 w-4 mr-1" /> New Period
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {periods.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">
-              No payroll periods yet. Click "New Period" to create one.
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium mb-1.5 block">Payroll Period</Label>
-                  <Select
-                    value={selectedPeriodId?.toString() || ''}
-                    onValueChange={(val) => { setSelectedPeriodId(parseInt(val)); setSingleUserResult(null); }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a payroll period..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {periods.map((p: any) => (
-                        <SelectItem key={p.id} value={p.id.toString()}>
-                          {p.periodName} ({p.startDate} - {p.endDate}) — {(p.status || 'draft').toUpperCase()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-blue-600" />
+              <div>
+                <div className="text-lg font-semibold">
+                  {selectedPeriod?.periodName || 'No Period Selected'}
                 </div>
-                <div>
-                  <Label className="text-sm font-medium mb-1.5 block">Employee (optional — select for single-user run)</Label>
-                  <Select
-                    value={selectedUserId}
-                    onValueChange={(val) => { setSelectedUserId(val); setSingleUserResult(null); }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Employees (full run)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Employees (full run)</SelectItem>
-                      {(() => {
-                        const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Employee': 4 };
-                        const sorted = [...salaryConfigs].sort((a: any, b: any) => {
-                          const ra = roleOrder[a.role] ?? 5;
-                          const rb = roleOrder[b.role] ?? 5;
-                          if (ra !== rb) return ra - rb;
-                          const na = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
-                          const nb = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
-                          return na.localeCompare(nb);
-                        });
-                        const grouped = sorted.reduce((acc: Record<string, any[]>, sc: any) => {
-                          const role = sc.role || 'Other';
-                          if (!acc[role]) acc[role] = [];
-                          acc[role].push(sc);
-                          return acc;
-                        }, {});
-                        return Object.entries(grouped).map(([role, items]) => (
-                          <SelectGroup key={role}>
-                            <SelectLabel className="text-xs font-semibold text-blue-600">{role}</SelectLabel>
-                            {items.map((sc: any) => {
-                              const name = sc.firstName && sc.lastName ? `${sc.firstName} ${sc.lastName}` : sc.username;
-                              const dept = sc.department ? ` • ${sc.department}` : '';
-                              return (
-                                <SelectItem key={sc.userId} value={sc.userId.toString()}>
-                                  {name}{dept}
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectGroup>
-                        ));
-                      })()}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {selectedPeriod && (
+                  <div className="text-xs text-muted-foreground">
+                    {selectedPeriod.startDate} to {selectedPeriod.endDate}
+                  </div>
+                )}
               </div>
-
-              {selectedPeriodId && selectedUserId !== 'all' && (
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={() => {
-                      singleUserRunMutation.mutate({
-                        periodId: selectedPeriodId,
-                        userId: parseInt(selectedUserId),
-                      });
-                    }}
-                    disabled={singleUserRunMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {singleUserRunMutation.isPending ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Running...</>
-                    ) : (
-                      <><Play className="h-4 w-4 mr-2" /> Run Payroll for Selected Employee</>
-                    )}
-                  </Button>
-                  {singleUserResult && (
-                    <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
-                      Net Pay: ₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}
-                    </Badge>
-                  )}
-                </div>
+              {selectedPeriod && (
+                <Badge className={statusColors[selectedPeriod.status] || 'bg-gray-100 text-gray-700'}>
+                  {(selectedPeriod.status || 'draft').toUpperCase()}
+                </Badge>
               )}
-            </>
+              {isPosted && (
+                <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50">
+                  <Lock className="h-3 w-3 mr-1" /> SAP Posted — Read Only
+                </Badge>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowPastPeriods(!showPastPeriods)}
+            >
+              <History className="h-4 w-4 mr-1" />
+              {showPastPeriods ? 'Hide Past Periods' : 'View Past Periods'}
+            </Button>
+          </div>
+
+          {showPastPeriods && pastPeriods.length > 0 && (
+            <div className="border rounded-lg p-3 mb-4 bg-gray-50 max-h-48 overflow-y-auto">
+              <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Past Periods (read-only)</div>
+              <div className="space-y-1">
+                {pastPeriods.map((p: any) => {
+                  const pStatus = p.status || 'draft';
+                  return (
+                    <button
+                      key={p.id}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between hover:bg-gray-100 transition-colors ${
+                        p.id === selectedPeriodId ? 'bg-blue-50 border border-blue-200' : ''
+                      }`}
+                      onClick={() => { setSelectedPeriodId(p.id); setSingleUserResult(null); setSelectedUserId('all'); }}
+                    >
+                      <span className="font-medium">{p.periodName}</span>
+                      <Badge variant="outline" className={`text-xs ${statusColors[pStatus] || ''}`}>
+                        {pStatus.toUpperCase()}
+                      </Badge>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {selectedPeriod && !isPosted && (
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              <div>
+                <Label className="text-sm font-medium mb-1.5 block">Employee (optional — select for single-user run)</Label>
+                <Select
+                  value={selectedUserId}
+                  onValueChange={(val) => { setSelectedUserId(val); setSingleUserResult(null); }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Employees (full run)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees (full run)</SelectItem>
+                    {(() => {
+                      const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Employee': 4 };
+                      const sorted = [...salaryConfigs].sort((a: any, b: any) => {
+                        const ra = roleOrder[a.role] ?? 5;
+                        const rb = roleOrder[b.role] ?? 5;
+                        if (ra !== rb) return ra - rb;
+                        const na = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+                        const nb = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+                        return na.localeCompare(nb);
+                      });
+                      const grouped = sorted.reduce((acc: Record<string, any[]>, sc: any) => {
+                        const role = sc.role || 'Other';
+                        if (!acc[role]) acc[role] = [];
+                        acc[role].push(sc);
+                        return acc;
+                      }, {});
+                      return Object.entries(grouped).map(([role, items]) => (
+                        <SelectGroup key={role}>
+                          <SelectLabel className="text-xs font-semibold text-blue-600">{role}</SelectLabel>
+                          {items.map((sc: any) => {
+                            const name = sc.firstName && sc.lastName ? `${sc.firstName} ${sc.lastName}` : sc.username;
+                            const dept = sc.department ? ` • ${sc.department}` : '';
+                            return (
+                              <SelectItem key={sc.userId} value={sc.userId.toString()}>
+                                {name}{dept}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectGroup>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {selectedPeriodId && selectedUserId !== 'all' && !isPosted && (
+            <div className="flex items-center gap-3 mt-4">
+              <Button
+                onClick={() => {
+                  singleUserRunMutation.mutate({
+                    periodId: selectedPeriodId,
+                    userId: parseInt(selectedUserId),
+                  });
+                }}
+                disabled={singleUserRunMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {singleUserRunMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Running...</>
+                ) : (
+                  <><Play className="h-4 w-4 mr-2" /> Run Payroll for Selected Employee</>
+                )}
+              </Button>
+              {singleUserResult && (
+                <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
+                  Net Pay: ₹{parseFloat(singleUserResult.netPay || 0).toLocaleString('en-IN')}
+                </Badge>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -1790,59 +1825,6 @@ function PayrollRunTab() {
           </CardContent>
         </Card>
       )}
-
-      <Dialog open={showCreatePeriod} onOpenChange={setShowCreatePeriod}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Payroll Period</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Period Name</Label>
-              <Input
-                value={newPeriod.periodName}
-                onChange={(e) => setNewPeriod({ ...newPeriod, periodName: e.target.value })}
-                placeholder="e.g. March 2026"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={newPeriod.startDate}
-                  onChange={(e) => setNewPeriod({ ...newPeriod, startDate: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={newPeriod.endDate}
-                  onChange={(e) => setNewPeriod({ ...newPeriod, endDate: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Pay Date</Label>
-              <Input
-                type="date"
-                value={newPeriod.payDate}
-                onChange={(e) => setNewPeriod({ ...newPeriod, payDate: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowCreatePeriod(false)}>Cancel</Button>
-            <Button
-              onClick={() => createPeriodMutation.mutate()}
-              disabled={!newPeriod.periodName || !newPeriod.startDate || !newPeriod.endDate || !newPeriod.payDate || createPeriodMutation.isPending}
-            >
-              {createPeriodMutation.isPending ? 'Creating...' : 'Create Period'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
