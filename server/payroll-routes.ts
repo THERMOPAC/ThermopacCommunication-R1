@@ -499,6 +499,8 @@ router.post('/run/single-user', async (req, res) => {
       return res.status(400).json({ error: 'periodId and userId are required' });
     }
 
+    const MONTHLY_DIVISOR = 30;
+
     const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
     if (!period) return res.status(404).json({ error: 'Period not found' });
 
@@ -566,26 +568,10 @@ router.post('/run/single-user', async (req, res) => {
       .where(between(companyHolidays.date, startDate, endDate));
     const holidayDates = new Set(holidays.map(h => String(h.date)));
 
-    let workingDayNums = [1, 2, 3, 4, 5, 6];
-    if (employee.workLocationId) {
-      const [locPolicy] = await db.select().from(workweekPolicies)
-        .where(and(eq(workweekPolicies.policyType, 'location'), eq(workweekPolicies.locationId, employee.workLocationId), eq(workweekPolicies.isActive, true)))
-        .orderBy(desc(workweekPolicies.createdAt)).limit(1);
-      if (locPolicy?.workingDays && Array.isArray(locPolicy.workingDays)) workingDayNums = locPolicy.workingDays as number[];
-    }
-
     const sDate = new Date(startDate);
     const eDate = new Date(endDate);
-    let totalWorkingDays = 0;
-    const cur = new Date(sDate);
-    while (cur <= eDate) {
-      const dayOfWeek = cur.getDay();
-      const dateStr = cur.toISOString().split('T')[0];
-      if (workingDayNums.includes(dayOfWeek) && !holidayDates.has(dateStr)) totalWorkingDays++;
-      cur.setDate(cur.getDate() + 1);
-    }
+    const calendarDaysInPeriod = Math.round((eDate.getTime() - sDate.getTime()) / 86400000) + 1;
 
-    const daysInMonth = Math.round((eDate.getTime() - sDate.getTime()) / (86400000)) + 1;
     const weeklyOffs = (employee.weeklyOffDays || [0, 6]);
     let weekOffCount = 0;
     const cur2 = new Date(sDate);
@@ -599,33 +585,86 @@ router.post('/run/single-user', async (req, res) => {
 
     const presentFull = attRecordsDb.filter(r => r.status === 'present').length;
     const presentHalf = attRecordsDb.filter(r => r.status === 'half_day').length;
-    const absentCount = totalWorkingDays - presentFull - presentHalf;
-    const paidDays = presentFull + (presentHalf * 0.5) + weekOffCount + holidayDates.size;
+    const lateDays = attRecordsDb.filter(r => r.status === 'late').length;
+    const absentCount = attRecordsDb.filter(r => r.status === 'absent').length;
+    const totalOT = attRecordsDb.reduce((sum, r) => sum + parseFloat(r.overtimeHours || '0'), 0);
+
+    const salaryType = salaryConfig.salaryType || 'monthly';
+    let lopDays: number;
+    let paidDays: number;
+    let presentDays: number;
+
+    if (salaryType === 'daily') {
+      presentDays = presentFull + lateDays + (presentHalf * 0.5);
+      paidDays = presentDays;
+      lopDays = 0;
+    } else {
+      const expectedWorkingDates: string[] = [];
+      const iter = new Date(sDate);
+      while (iter <= eDate) {
+        if (!weeklyOffs.includes(iter.getDay())) {
+          expectedWorkingDates.push(iter.toISOString().slice(0, 10));
+        }
+        iter.setDate(iter.getDate() + 1);
+      }
+
+      const attendanceDateSet = new Set(
+        attRecordsDb.map(r => {
+          const d = typeof r.date === 'string' ? r.date : new Date(r.date).toISOString().slice(0, 10);
+          return d.slice(0, 10);
+        })
+      );
+
+      const missingCount = expectedWorkingDates.filter(d => !attendanceDateSet.has(d)).length;
+      presentDays = presentFull + lateDays + (presentHalf * 0.5);
+      lopDays = absentCount + (presentHalf * 0.5) + missingCount;
+      paidDays = Math.max(MONTHLY_DIVISOR - lopDays, 0);
+      if (paidDays > MONTHLY_DIVISOR) paidDays = MONTHLY_DIVISOR;
+    }
+
+    const totalWorkingDays = calendarDaysInPeriod - weekOffCount - holidayDates.size;
 
     const sal = salaryConfig;
     const basic = parseFloat(sal.basicSalary || '0');
-    const hra = parseFloat(sal.houseRentAllowance || '0');
-    const conv = parseFloat(sal.conveyance || '0');
-    const lta = parseFloat(sal.lta || '0');
-    const special = parseFloat(sal.specialAllowance || '0');
-    const supp = parseFloat(sal.supplementaryAllowance || '0');
-    const kgp = parseFloat(sal.kgpAllowance || '0');
-    const bonus = parseFloat(sal.bonus || '0');
-    const ratio = paidDays / daysInMonth;
+    const configHra = parseFloat(sal.houseRentAllowance || '0');
+    const configConv = parseFloat(sal.conveyance || '0');
+    const configLta = parseFloat(sal.lta || '0');
+    const configSpec = parseFloat(sal.specialAllowance || '0');
+    const configSupp = parseFloat(sal.supplementaryAllowance || '0');
+    const configKgp = parseFloat(sal.kgpAllowance || '0');
+    const configBonus = parseFloat(sal.bonus || '0');
 
-    const earnBasic = Math.round(basic * ratio * 100) / 100;
-    const earnHra = Math.round(hra * ratio * 100) / 100;
-    const earnConv = Math.round(conv * ratio * 100) / 100;
-    const earnLta = Math.round(lta * ratio * 100) / 100;
-    const earnSpecial = Math.round(special * ratio * 100) / 100;
-    const earnSupp = Math.round(supp * ratio * 100) / 100;
-    const earnKgp = Math.round(kgp * ratio * 100) / 100;
-    const earnBonus = Math.round(bonus * ratio * 100) / 100;
-    const grossPay = earnBasic + earnHra + earnConv + earnLta + earnSpecial + earnSupp + earnKgp + earnBonus;
+    let earnBasic: number, earnHra: number, earnConv: number, earnLta: number;
+    let earnSpecial: number, earnSupp: number, earnKgp: number, earnBonus: number;
+    let grossPay: number, overtimePay = 0;
+
+    if (salaryType === 'daily') {
+      earnBasic = basic * paidDays;
+      const hourlyRate = parseFloat(sal.hourlyRate || '0') || (basic / (sal.workingHoursPerDay || 8));
+      const otRate = parseFloat(sal.otRate || '1.0');
+      const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
+      overtimePay = hourlyRate * totalOT * otRate * otMultiplier;
+      earnHra = 0; earnConv = 0; earnLta = 0; earnSpecial = 0; earnSupp = 0; earnKgp = 0;
+      earnBonus = Math.round(earnBasic * 0.0833 * 100) / 100;
+      grossPay = earnBasic + overtimePay;
+    } else {
+      const ratio = paidDays / MONTHLY_DIVISOR;
+      earnBasic = Math.round(basic * ratio * 100) / 100;
+      earnHra = Math.round(configHra * ratio * 100) / 100;
+      earnConv = Math.round(configConv * ratio * 100) / 100;
+      earnLta = Math.round(configLta * ratio * 100) / 100;
+      earnSpecial = Math.round(configSpec * ratio * 100) / 100;
+      earnSupp = Math.round(configSupp * ratio * 100) / 100;
+      earnKgp = Math.round(configKgp * ratio * 100) / 100;
+      earnBonus = configBonus > 0
+        ? Math.round(configBonus * ratio * 100) / 100
+        : Math.round(basic * 0.0833 * ratio * 100) / 100;
+      grossPay = earnBasic + earnHra + earnConv + earnLta + earnSpecial + earnSupp + earnKgp;
+    }
 
     const pfBase = Math.min(earnBasic, 15000);
-    const empPf = Math.round(pfBase * 0.12 * 100) / 100;
-    const emplrPf = Math.round(pfBase * 0.12 * 100) / 100;
+    const empPf = pfBase * 0.12;
+    const emplrPf = pfBase * 0.12;
 
     let empEsic = 0, emplrEsic = 0;
     if (grossPay <= 21000) {
@@ -693,9 +732,7 @@ router.post('/run/single-user', async (req, res) => {
     const totalDeductionsPreTds = statutoryDeductions + loanDed + advDed;
     const netPayPreTds = grossPay - totalDeductionsPreTds;
 
-    const ctcMonthly = grossPay + emplrPf + emplrEsic + gratuity + groupIns;
-
-    const lopDays = Math.max(0, totalWorkingDays - presentFull - (presentHalf * 0.5));
+    const ctcMonthly = grossPay + emplrPf + emplrEsic + gratuity + groupIns + earnBonus;
 
     const [record] = await db.insert(payrollRecs).values({
       periodId,
@@ -708,6 +745,7 @@ router.post('/run/single-user', async (req, res) => {
       supplementaryAllowance: earnSupp.toFixed(2),
       kgpAllowance: earnKgp.toFixed(2),
       bonus: earnBonus.toFixed(2),
+      overtimePay: overtimePay.toFixed(2),
       grossPay: grossPay.toFixed(2),
       employeePf: empPf.toFixed(2),
       providentFund: empPf.toFixed(2),
@@ -726,7 +764,7 @@ router.post('/run/single-user', async (req, res) => {
       netPay: netPayPreTds.toFixed(2),
       workingDays: totalWorkingDays,
       paidDays: paidDays.toFixed(1),
-      presentDays: presentFull.toFixed(1),
+      presentDays: presentDays.toFixed(1),
       lopDays: lopDays.toFixed(2),
       status: 'generated',
     } as any).returning();
@@ -784,6 +822,8 @@ router.post('/run/single-user', async (req, res) => {
       ? `${employee.firstName} ${employee.lastName}`
       : employee.username;
 
+    const daysInMonth = calendarDaysInPeriod;
+
     res.json({
       success: true,
       employee: employeeName,
@@ -794,7 +834,7 @@ router.post('/run/single-user', async (req, res) => {
       loanDeductions: loanDed.toFixed(2),
       advanceDeductions: advDed.toFixed(2),
       attendance: { daysInMonth, workingDays: totalWorkingDays, presentDays: presentFull, halfDays: presentHalf, absentDays: absentCount, paidDays, weeklyOffs: weekOffCount, holidays: holidayDates.size, lopDays },
-      salary: { basic: earnBasic, hra: earnHra, conveyance: earnConv, lta: earnLta, specialAllowance: earnSpecial, supplementary: earnSupp, kgp: earnKgp, bonus: earnBonus },
+      salary: { basic: earnBasic, hra: earnHra, conveyance: earnConv, lta: earnLta, specialAllowance: earnSpecial, supplementary: earnSupp, kgp: earnKgp, bonus: earnBonus, overtimePay },
       deductions: { pf: empPf, esic: empEsic, pt, tds, loanDeductions: loanDed, advanceDeductions: advDed },
       employer: { pf: emplrPf, esic: emplrEsic, gratuity, groupInsurance: groupIns, ctcMonthly },
       tds: { regime: tdsResult.regime, projectedAnnualIncome: tdsResult.grossSalaryProjected, taxableIncome: tdsResult.taxableIncomeProjected, annualTaxLiability: tdsResult.totalTaxLiabilityAnnual, monthlyTds: tds },
