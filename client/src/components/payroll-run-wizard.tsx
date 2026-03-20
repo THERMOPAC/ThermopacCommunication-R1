@@ -512,13 +512,12 @@ function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: n
     if (!isReady) return 'pending';
     if (batchTransferMutation.isPending) return 'running';
     if (!preview) return 'pending';
-    if (preview.eligible === 0 && preview.blocked === 0) return 'pending';
-    if (preview.eligible === 0 && preview.totalRecords > 0) {
-      const allPosted = preview.blockedRecords?.every((b: any) => b.blockReasons?.includes('Already posted'));
-      if (allPosted) return 'completed';
-      return 'blocked';
-    }
-    return 'ready';
+    const postedCount = preview.posted || 0;
+    if (postedCount > 0 && postedCount >= preview.totalRecords) return 'completed';
+    if (preview.eligible > 0) return 'ready';
+    if (preview.blocked > 0) return 'blocked';
+    if (postedCount > 0 && preview.eligible === 0) return 'completed';
+    return 'pending';
   };
 
   const sapStatus = getSapStatus();
@@ -557,11 +556,13 @@ function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: n
           <div className="font-medium text-sm">SAP Transfer</div>
           <div className="text-xs text-muted-foreground">
             {sapStatus === 'completed'
-              ? `All ${preview?.totalRecords || 0} records transferred to SAP`
+              ? `${preview?.posted || preview?.totalRecords || 0} of ${preview?.totalRecords || 0} records transferred to SAP`
               : sapStatus === 'running'
               ? transferProgress || 'Posting journal entries to SAP B1...'
               : sapStatus === 'blocked' && preview
-              ? `${preview.blocked} records blocked — fix issues before transfer`
+              ? `${preview.blocked} blocked${preview.posted > 0 ? `, ${preview.posted} already posted` : ''} — fix issues before transfer`
+              : sapStatus === 'ready' && preview
+              ? `${preview.eligible} ready to post${preview.posted > 0 ? `, ${preview.posted} already posted` : ''}`
               : 'Post verified salary journal entries to SAP B1'}
           </div>
         </div>

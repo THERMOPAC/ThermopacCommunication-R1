@@ -1456,6 +1456,7 @@ router.get('/sap-transfer/:periodId/preview', async (req, res) => {
 
     const eligible: any[] = [];
     const blocked: any[] = [];
+    const posted: any[] = [];
 
     for (const r of records) {
       const [emp] = await db.select({
@@ -1466,15 +1467,6 @@ router.get('/sap-transfer/:periodId/preview', async (req, res) => {
       const empName = emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : emp?.username || 'Unknown';
       const vs = r.verificationStatus || 'pending';
       const sapStatus = r.sapPostingStatus || 'not_posted';
-
-      const blockReasons: string[] = [];
-      if (r.status !== 'verified') blockReasons.push(`Status: ${r.status || 'generated'}`);
-      if (vs !== 'passed' && vs !== 'overridden') blockReasons.push(`Verification: ${vs}`);
-      if (sapStatus === 'posted') blockReasons.push('Already posted');
-      if (r.status === 'reversed') blockReasons.push('Reversed');
-      if (r.status === 'held') blockReasons.push('On hold');
-      if (r.status === 'rejected') blockReasons.push('Rejected');
-      if (!emp?.cardCode) blockReasons.push('No SAP BP code');
 
       const entry = {
         recordId: r.id,
@@ -1487,7 +1479,21 @@ router.get('/sap-transfer/:periodId/preview', async (req, res) => {
         status: r.status,
         verificationStatus: vs,
         sapPostingStatus: sapStatus,
+        sapJeNumber: r.sapJeNumber,
       };
+
+      if (sapStatus === 'posted' || r.status === 'transferred') {
+        posted.push(entry);
+        continue;
+      }
+
+      const blockReasons: string[] = [];
+      if (r.status !== 'verified') blockReasons.push(`Status: ${r.status || 'generated'}`);
+      if (vs !== 'passed' && vs !== 'overridden') blockReasons.push(`Verification: ${vs}`);
+      if (r.status === 'reversed') blockReasons.push('Reversed');
+      if (r.status === 'held') blockReasons.push('On hold');
+      if (r.status === 'rejected') blockReasons.push('Rejected');
+      if (!emp?.cardCode) blockReasons.push('No SAP BP code');
 
       if (blockReasons.length > 0) {
         blocked.push({ ...entry, blockReasons });
@@ -1501,8 +1507,10 @@ router.get('/sap-transfer/:periodId/preview', async (req, res) => {
       totalRecords: records.length,
       eligible: eligible.length,
       blocked: blocked.length,
+      posted: posted.length,
       eligibleRecords: eligible,
       blockedRecords: blocked,
+      postedRecords: posted,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
