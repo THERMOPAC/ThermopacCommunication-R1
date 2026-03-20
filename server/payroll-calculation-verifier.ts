@@ -684,10 +684,13 @@ function verifyDeductions(
     });
   }
 
-  const statutoryDeductions = p(record.employeePf) + p(record.employeeEsic) + p(record.professionalTax);
+  const pfDed = p(record.employeePf);
+  const esicDed = p(record.employeeEsic);
+  const ptDed = p(record.professionalTax);
+  const tdsDed = p(record.tdsAmount) || p(record.incomeTax);
   const loanDed = p(record.loanDeductions);
   const advDed = p(record.advanceDeductions);
-  const expectedTotalDed = round2(statutoryDeductions + loanDed + advDed);
+  const expectedTotalDed = round2(pfDed + esicDed + ptDed + tdsDed + loanDed + advDed);
   const recordTotalDed = p(record.totalDeductions);
   if (!moneyMatch(expectedTotalDed, recordTotalDed)) {
     issues.push({
@@ -695,7 +698,7 @@ function verifyDeductions(
       severity: 'error',
       field: 'totalDeductions',
       title: 'Total deductions sum mismatch',
-      details: `PF(${p(record.employeePf)}) + ESIC(${p(record.employeeEsic)}) + PT(${p(record.professionalTax)}) + Loans(${loanDed}) + Advances(${advDed}) = ₹${expectedTotalDed.toFixed(2)}, stored: ₹${recordTotalDed.toFixed(2)}`,
+      details: `PF(${pfDed}) + ESIC(${esicDed}) + PT(${ptDed}) + TDS(${tdsDed}) + Loans(${loanDed}) + Advances(${advDed}) = ₹${expectedTotalDed.toFixed(2)}, stored: ₹${recordTotalDed.toFixed(2)}`,
       expected: expectedTotalDed,
       actual: recordTotalDed,
       difference: round2(recordTotalDed - expectedTotalDed),
@@ -780,7 +783,7 @@ function verifyTdsReference(
   const tdsRecord = snapshot.tdsRecord;
 
   if (tdsRecord) {
-    const approvedTds = p(tdsRecord.monthlyTds);
+    const approvedTds = p(tdsRecord.tdsActualMonthly) || p(tdsRecord.tdsRequiredMonthly);
     if (!moneyMatch(approvedTds, recordTds)) {
       issues.push({
         type: 'calculation_error',
@@ -795,11 +798,11 @@ function verifyTdsReference(
     }
   } else if (recordTds > 0) {
     issues.push({
-      type: 'info',
-      severity: 'info',
+      type: 'data_completeness_error',
+      severity: 'error',
       field: 'tdsAmount',
-      title: 'TDS without reference record',
-      details: `TDS of ₹${recordTds.toFixed(2)} applied but no tds_monthly_records entry found for cross-reference.`,
+      title: 'TDS applied without reference record',
+      details: `TDS of ₹${recordTds.toFixed(2)} applied but no tds_monthly_records entry found for this employee and period. Create the TDS record or verify the amount.`,
     });
   }
 }
