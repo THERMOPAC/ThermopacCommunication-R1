@@ -3467,7 +3467,6 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       { code: 'SPECIAL_ALLOWANCE', context: 'expense' },
       { code: 'SUPPLEMENTARY', context: 'expense' },
       { code: 'KGP', context: 'expense' },
-      { code: 'BONUS', context: 'expense' },
       { code: 'OVERTIME', context: 'expense' },
       { code: 'OTHER_ALLOWANCES', context: 'expense' },
       { code: 'PF_EMPLOYEE', context: 'payroll_liability' },
@@ -3519,7 +3518,6 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       { code: 'SPECIAL_ALLOWANCE', value: parseFloat(record.specialAllowance || '0') },
       { code: 'SUPPLEMENTARY', value: parseFloat(record.supplementaryAllowance || '0') },
       { code: 'KGP', value: parseFloat(record.kgpAllowance || '0') },
-      { code: 'BONUS', value: parseFloat(record.bonus || '0') },
       { code: 'OVERTIME', value: parseFloat(record.overtimePay || '0') },
       { code: 'OTHER_ALLOWANCES', value: parseFloat(record.otherAllowances || '0') },
     ];
@@ -3570,6 +3568,19 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       });
     }
 
+    const totalDebit = jeLines.reduce((sum, l) => sum + (l.Debit || 0), 0);
+    const totalCredit = jeLines.reduce((sum, l) => sum + (l.Credit || 0), 0);
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+      await db.update(payrollRecords).set({
+        sapPostingStatus: 'failed',
+        sapErrorMessage: `JE imbalance: Debit=${totalDebit.toFixed(2)} Credit=${totalCredit.toFixed(2)}. Difference=${(totalDebit - totalCredit).toFixed(2)}`,
+        updatedAt: new Date(),
+      }).where(eq(payrollRecords.id, recordId));
+      return res.status(400).json({ error: `JE imbalance: Debit=${totalDebit.toFixed(2)} Credit=${totalCredit.toFixed(2)}` });
+    }
+
+    console.log(`[Salary JE] ${empName} (${employee.cardCode}): ${jeLines.length} lines, Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)}`);
+
     const postingDate = period?.startDate
       ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
@@ -3580,10 +3591,6 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       Reference2: employee.cardCode,
       Reference3: '92B',
       U_Employee_Name: empName,
-      U_TDS_Status: 'A',
-      U_PF_Status: 'A',
-      U_ESIC_Status: 'A',
-      U_PT_Status: 'A',
       JournalEntryLines: jeLines,
     };
 
@@ -3756,7 +3763,8 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     const glMap = new Map<string, string>();
     for (const m of allMappings) {
       if (m.componentCode && m.postingContext && m.glAccountCode && m.glAccountCode.trim() !== '') {
-        glMap.set(`${m.componentCode}|${m.postingContext}`, m.glAccountCode);
+        const sapCode = m.sapAcctCode && m.sapAcctCode.trim() !== '' ? m.sapAcctCode.trim() : m.glAccountCode;
+        glMap.set(`${m.componentCode}|${m.postingContext}`, sapCode);
       }
     }
 
@@ -3775,7 +3783,6 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
       { code: 'SPECIAL_ALLOWANCE', value: parseFloat(record.specialAllowance || '0') },
       { code: 'SUPPLEMENTARY', value: parseFloat(record.supplementaryAllowance || '0') },
       { code: 'KGP', value: parseFloat(record.kgpAllowance || '0') },
-      { code: 'BONUS', value: parseFloat(record.bonus || '0') },
       { code: 'OVERTIME', value: parseFloat(record.overtimePay || '0') },
       { code: 'OTHER_ALLOWANCES', value: parseFloat(record.otherAllowances || '0') },
     ];
@@ -3827,6 +3834,7 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
         jeLines.push({
           Line_ID: lineNum++,
           AccountCode: acctCode,
+          ShortName: employee.cardCode,
           Debit: netPayValue,
           Credit: 0,
           LineMemo: `REVERSAL - Net Pay - ${empName} - ${periodLabel}`,
