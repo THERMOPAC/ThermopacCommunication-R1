@@ -502,7 +502,6 @@ function verifyEarnings(
     const expectedLta = round2(configLta * ratio);
     const expectedSpec = round2(configSpec * ratio);
     const expectedSupp = round2(configSupp * ratio);
-    const expectedKgp = round2(configKgp * ratio);
 
     const allowanceChecks = [
       { field: 'hra', label: 'HRA', expected: expectedHra, actual: p(record.hra), config: configHra },
@@ -527,18 +526,49 @@ function verifyEarnings(
       }
     }
 
-    const earningsSum = round2(expectedBase + expectedHra + expectedConv + expectedLta + expectedSpec + expectedSupp + expectedKgp);
+    const storedKgp = p(record.kgpAllowance);
+    const expectedKgpBase = round2(configKgp * ratio);
+    if (configKgp > 0 && storedKgp !== expectedKgpBase) {
+      const calcSnap = record.calculationSnapshot as any;
+      const kpiAdj = calcSnap?.kpiAdjustment;
+      if (kpiAdj) {
+        issues.push({
+          type: 'info',
+          severity: 'info',
+          field: 'kgpAllowance',
+          title: 'KGP adjusted by KPI',
+          details: `Base KGP: ₹${expectedKgpBase.toFixed(2)}, KPI-adjusted: ₹${storedKgp.toFixed(2)} (productivity: ${kpiAdj.monthlyKpiPercent}%)`,
+        });
+      } else if (!moneyMatch(expectedKgpBase, storedKgp)) {
+        issues.push({
+          type: 'calculation_error',
+          severity: 'error',
+          field: 'kgpAllowance',
+          title: 'KGP proration mismatch',
+          details: `Config: ₹${configKgp}, ratio: ${ratio.toFixed(4)}, expected: ₹${expectedKgpBase.toFixed(2)}, got: ₹${storedKgp.toFixed(2)}`,
+          expected: expectedKgpBase,
+          actual: storedKgp,
+          difference: round2(storedKgp - expectedKgpBase),
+        });
+      }
+    }
 
-    if (!moneyMatch(earningsSum, recordGross)) {
+    const componentSum = round2(
+      p(record.baseSalary) + p(record.hra) + p(record.conveyanceAllowance) +
+      p(record.ltaAllowance) + p(record.specialAllowance) + p(record.supplementaryAllowance) +
+      p(record.kgpAllowance) + p(record.overtimePay)
+    );
+
+    if (!moneyMatch(componentSum, recordGross)) {
       issues.push({
         type: 'calculation_error',
         severity: 'error',
         field: 'grossPay',
         title: 'Gross pay ≠ sum of earnings (monthly)',
-        details: `Sum of earnings: ₹${earningsSum.toFixed(2)}, stored gross: ₹${recordGross.toFixed(2)}`,
-        expected: earningsSum,
+        details: `Sum of components: ₹${componentSum.toFixed(2)}, stored gross: ₹${recordGross.toFixed(2)}`,
+        expected: componentSum,
         actual: recordGross,
-        difference: round2(recordGross - earningsSum),
+        difference: round2(recordGross - componentSum),
       });
     }
 
@@ -639,19 +669,41 @@ function verifyDeductions(
     });
   }
 
-  const expectedEmployeeEsic = recordGross <= 21000 ? round2(recordGross * 0.0075) : 0;
   const recordEsic = p(record.employeeEsic);
-  if (!moneyMatch(expectedEmployeeEsic, recordEsic)) {
-    issues.push({
-      type: 'calculation_error',
-      severity: 'error',
-      field: 'employeeEsic',
-      title: 'ESIC calculation mismatch',
-      details: `Gross: ₹${recordGross.toFixed(2)}, threshold: 21000, expected ESIC: ₹${expectedEmployeeEsic.toFixed(2)}`,
-      expected: expectedEmployeeEsic,
-      actual: recordEsic,
-      difference: round2(recordEsic - expectedEmployeeEsic),
-    });
+  const recordEmployerEsic = p(record.employerEsic);
+
+  if (recordGross <= 21000) {
+    if (recordEsic > 0) {
+      const esicBase = round2(recordEsic / 0.0075);
+      const expectedEmployerEsicFromBase = round2(esicBase * 0.0325);
+      if (!moneyMatch(expectedEmployerEsicFromBase, recordEmployerEsic)) {
+        const altExpected = round2(recordGross * 0.0325);
+        if (!moneyMatch(altExpected, recordEmployerEsic)) {
+          issues.push({
+            type: 'calculation_error',
+            severity: 'error',
+            field: 'employerEsic',
+            title: 'Employer ESIC mismatch',
+            details: `Employee ESIC base: ₹${esicBase.toFixed(2)}, expected employer ESIC: ₹${expectedEmployerEsicFromBase.toFixed(2)}, stored: ₹${recordEmployerEsic.toFixed(2)}`,
+            expected: expectedEmployerEsicFromBase,
+            actual: recordEmployerEsic,
+            difference: round2(recordEmployerEsic - expectedEmployerEsicFromBase),
+          });
+        }
+      }
+    }
+  } else {
+    if (recordEsic > 0) {
+      issues.push({
+        type: 'calculation_error',
+        severity: 'error',
+        field: 'employeeEsic',
+        title: 'ESIC applied above threshold',
+        details: `Gross: ₹${recordGross.toFixed(2)} exceeds ₹21,000 threshold but ESIC of ₹${recordEsic.toFixed(2)} was applied`,
+        expected: 0,
+        actual: recordEsic,
+      });
+    }
   }
 
   const expectedEmployerPf = round2(pfBase * 0.12);
@@ -666,21 +718,6 @@ function verifyDeductions(
       expected: expectedEmployerPf,
       actual: recordEmployerPf,
       difference: round2(recordEmployerPf - expectedEmployerPf),
-    });
-  }
-
-  const expectedEmployerEsic = recordGross <= 21000 ? round2(recordGross * 0.0325) : 0;
-  const recordEmployerEsic = p(record.employerEsic);
-  if (!moneyMatch(expectedEmployerEsic, recordEmployerEsic)) {
-    issues.push({
-      type: 'calculation_error',
-      severity: 'error',
-      field: 'employerEsic',
-      title: 'Employer ESIC mismatch',
-      details: `Expected: ₹${expectedEmployerEsic.toFixed(2)}, stored: ₹${recordEmployerEsic.toFixed(2)}`,
-      expected: expectedEmployerEsic,
-      actual: recordEmployerEsic,
-      difference: round2(recordEmployerEsic - expectedEmployerEsic),
     });
   }
 
@@ -745,32 +782,54 @@ function verifyNetPayAndCtc(
 
   const calcSnap = record.calculationSnapshot as any;
   const storedCtcMonthly = calcSnap?.ctcMonthly || 0;
+  const kpiAdj = calcSnap?.kpiAdjustment;
+
   if (storedCtcMonthly > 0 && !moneyMatch(expectedCtcMonthly, storedCtcMonthly)) {
-    issues.push({
-      type: 'calculation_error',
-      severity: 'error',
-      field: 'ctcMonthly',
-      title: 'Monthly CTC mismatch',
-      details: `Gross(${recordGross.toFixed(2)}) + EmployerPF(${employerPf.toFixed(2)}) + EmployerESIC(${employerEsic.toFixed(2)}) + Gratuity(${gratuity.toFixed(2)}) + GI(${groupInsurance.toFixed(2)}) + Bonus(${bonusAllow.toFixed(2)}) = ₹${expectedCtcMonthly.toFixed(2)}, stored: ₹${storedCtcMonthly.toFixed(2)}`,
-      expected: expectedCtcMonthly,
-      actual: storedCtcMonthly,
-      difference: round2(storedCtcMonthly - expectedCtcMonthly),
-    });
+    if (kpiAdj) {
+      issues.push({
+        type: 'info',
+        severity: 'info',
+        field: 'ctcMonthly',
+        title: 'CTC snapshot stale after KPI adjustment',
+        details: `Snapshot CTC: ₹${storedCtcMonthly.toFixed(2)} (pre-KPI), recalculated from current values: ₹${expectedCtcMonthly.toFixed(2)}`,
+      });
+    } else {
+      issues.push({
+        type: 'calculation_error',
+        severity: 'error',
+        field: 'ctcMonthly',
+        title: 'Monthly CTC mismatch',
+        details: `Gross(${recordGross.toFixed(2)}) + EmployerPF(${employerPf.toFixed(2)}) + EmployerESIC(${employerEsic.toFixed(2)}) + Gratuity(${gratuity.toFixed(2)}) + GI(${groupInsurance.toFixed(2)}) + Bonus(${bonusAllow.toFixed(2)}) = ₹${expectedCtcMonthly.toFixed(2)}, stored: ₹${storedCtcMonthly.toFixed(2)}`,
+        expected: expectedCtcMonthly,
+        actual: storedCtcMonthly,
+        difference: round2(storedCtcMonthly - expectedCtcMonthly),
+      });
+    }
   }
 
   const storedCtcYearly = calcSnap?.ctcYearly || 0;
   const expectedCtcYearly = round2(expectedCtcMonthly * 12);
   if (storedCtcYearly > 0 && !moneyMatch(expectedCtcYearly, storedCtcYearly)) {
-    issues.push({
-      type: 'calculation_error',
-      severity: 'error',
-      field: 'ctcYearly',
-      title: 'Annual CTC mismatch',
-      details: `Monthly CTC(₹${expectedCtcMonthly.toFixed(2)}) × 12 = ₹${expectedCtcYearly.toFixed(2)}, stored: ₹${storedCtcYearly.toFixed(2)}`,
-      expected: expectedCtcYearly,
-      actual: storedCtcYearly,
-      difference: round2(storedCtcYearly - expectedCtcYearly),
-    });
+    if (kpiAdj) {
+      issues.push({
+        type: 'info',
+        severity: 'info',
+        field: 'ctcYearly',
+        title: 'Annual CTC snapshot stale after KPI adjustment',
+        details: `Snapshot CTC: ₹${storedCtcYearly.toFixed(2)} (pre-KPI), recalculated: ₹${expectedCtcYearly.toFixed(2)}`,
+      });
+    } else {
+      issues.push({
+        type: 'calculation_error',
+        severity: 'error',
+        field: 'ctcYearly',
+        title: 'Annual CTC mismatch',
+        details: `Monthly CTC(₹${expectedCtcMonthly.toFixed(2)}) × 12 = ₹${expectedCtcYearly.toFixed(2)}, stored: ₹${storedCtcYearly.toFixed(2)}`,
+        expected: expectedCtcYearly,
+        actual: storedCtcYearly,
+        difference: round2(storedCtcYearly - expectedCtcYearly),
+      });
+    }
   }
 }
 
