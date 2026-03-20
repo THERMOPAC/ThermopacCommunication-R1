@@ -1078,7 +1078,7 @@ function GeneratedSalariesView() {
                         <span className="text-[10px] text-orange-600 italic">Manage via Manual Salary tab</span>
                       )}
 
-                      {!isManualSalary && recStatus === 'generated' && (
+                      {!isManualSalary && recStatus === 'generated' && record.verificationStatus !== 'passed' && (
                         <>
                           <Button
                             variant="outline"
@@ -1188,17 +1188,6 @@ function GeneratedSalariesView() {
                         <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50 h-7 px-2 text-xs flex items-center">
                           <Lock className="h-3 w-3 mr-1" /> Locked
                         </Badge>
-                      )}
-
-                      {!isManualSalary && !isLocked && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => { setVoidRecordId(record.id); setVoidRecordReason(''); setShowVoidRecordConfirm(true); }}
-                          className="text-gray-600 hover:text-gray-800 hover:border-gray-400 h-7 px-2 text-xs"
-                        >
-                          <Ban className="h-3 w-3 mr-1" /> Void
-                        </Button>
                       )}
 
                       {isVoided && (
