@@ -937,6 +937,7 @@ function verifySalaryTypeApplicability(
 
 function verifySlipDisplayConsistency(
   record: any,
+  snapshot: SourceSnapshot,
   salaryType: string,
   issues: VerificationIssue[]
 ) {
@@ -953,7 +954,6 @@ function verifySlipDisplayConsistency(
   }
 
   if (salaryType === 'monthly') {
-    const presentDays = p(record.presentDays);
     const lopDays = p(record.lopDays);
     const paidDays = p(record.paidDays);
     if (!daysMatch(paidDays, MONTHLY_DIVISOR - lopDays)) {
@@ -965,6 +965,267 @@ function verifySlipDisplayConsistency(
         details: `PaidDays(${paidDays}) should equal 30 - LOP(${lopDays}) = ${MONTHLY_DIVISOR - lopDays}.`,
       });
     }
+
+    const attSnap = record._attendanceSnapshot;
+    if (attSnap) {
+      const snapPresent = p(attSnap.presentDays);
+      const snapWeeklyOffs = parseInt(attSnap.weeklyOffs?.toString() || '0');
+      const snapHolidays = parseInt(attSnap.companyHolidays?.toString() || attSnap.holidays?.toString() || '0');
+      const snapLop = p(attSnap.lopDays);
+      const snapPaidLeave = p(attSnap.paidLeaveDays);
+      const salaryBasis = MONTHLY_DIVISOR;
+      const sumDays = round2(snapPresent + snapWeeklyOffs + snapHolidays + snapLop + snapPaidLeave);
+      const totalCalendarDays = (() => {
+        const sd = new Date(snapshot.period.startDate);
+        const ed = new Date(snapshot.period.endDate);
+        return Math.round((ed.getTime() - sd.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      })();
+      if (Math.abs(sumDays - totalCalendarDays) > 1 && sumDays > 0) {
+        issues.push({
+          type: 'policy_warning',
+          severity: 'warning',
+          field: 'slipAttendanceConsistency',
+          title: 'Attendance summary does not add up to calendar days',
+          details: `Present(${snapPresent}) + WeeklyOffs(${snapWeeklyOffs}) + Holidays(${snapHolidays}) + LOP(${snapLop}) + PaidLeave(${snapPaidLeave}) = ${sumDays}, calendar days = ${totalCalendarDays}.`,
+          expected: totalCalendarDays,
+          actual: sumDays,
+        });
+      }
+    }
+  }
+
+  if (salaryType === 'daily') {
+    const attSnap = record._attendanceSnapshot;
+    if (attSnap) {
+      const snapPresent = p(attSnap.presentDays);
+      const snapPaidLeave = p(attSnap.paidLeaveDays);
+      const snapPaidDays = p(attSnap.paidDays);
+      const expectedPaidDays = round2(snapPresent + snapPaidLeave);
+      if (!daysMatch(expectedPaidDays, snapPaidDays)) {
+        issues.push({
+          type: 'policy_warning',
+          severity: 'warning',
+          field: 'slipDailyPaidDays',
+          title: 'Daily worker paid days inconsistency',
+          details: `Present(${snapPresent}) + PaidLeave(${snapPaidLeave}) = ${expectedPaidDays}, but paidDays = ${snapPaidDays}.`,
+          expected: expectedPaidDays,
+          actual: snapPaidDays,
+        });
+      }
+    }
+  }
+
+  verifyDisplayedGrossDeductionsNet(record, issues);
+  verifyDisplayedCtcConsistency(record, salaryType, issues);
+  verifyLeaveBalanceDisplay(snapshot, issues);
+  verifyBonusNotInDisplayedGross(record, issues);
+  verifyHeaderSanity(record, snapshot, issues);
+}
+
+function verifyDisplayedGrossDeductionsNet(
+  record: any,
+  issues: VerificationIssue[]
+) {
+  const basicComp = p(record.baseSalary);
+  const hraComp = p(record.hra);
+  const convComp = p(record.conveyanceAllowance);
+  const ltaComp = p(record.ltaAllowance);
+  const specComp = p(record.specialAllowance);
+  const suppComp = p(record.supplementaryAllowance);
+  const kgpComp = p(record.kgpAllowance);
+  const otComp = p(record.overtimePay);
+  const displayGross = round2(basicComp + hraComp + convComp + ltaComp + specComp + suppComp + kgpComp + otComp);
+
+  const recordGross = p(record.grossPay);
+  if (!moneyMatch(displayGross, recordGross)) {
+    issues.push({
+      type: 'calculation_error',
+      severity: 'error',
+      field: 'slipDisplayGross',
+      title: 'Displayed gross does not match calculated gross',
+      details: `Sum of displayed earnings components: ₹${displayGross.toFixed(2)}, payroll gross: ₹${recordGross.toFixed(2)}`,
+      expected: recordGross,
+      actual: displayGross,
+      difference: round2(displayGross - recordGross),
+    });
+  }
+
+  const pfDed = p(record.employeePf);
+  const esicDed = p(record.employeeEsic);
+  const ptDed = p(record.professionalTax);
+  const tdsDed = p(record.tdsAmount) || p(record.incomeTax);
+  const loanDed = p(record.loanDeductions);
+  const advDed = p(record.advanceDeductions);
+  const displayDeductions = round2(pfDed + esicDed + ptDed + tdsDed + loanDed + advDed);
+  const recordTotalDed = p(record.totalDeductions);
+
+  if (!moneyMatch(displayDeductions, recordTotalDed)) {
+    issues.push({
+      type: 'calculation_error',
+      severity: 'error',
+      field: 'slipDisplayDeductions',
+      title: 'Displayed deductions do not match calculated total',
+      details: `Sum of displayed deductions: ₹${displayDeductions.toFixed(2)}, payroll total: ₹${recordTotalDed.toFixed(2)}`,
+      expected: recordTotalDed,
+      actual: displayDeductions,
+      difference: round2(displayDeductions - recordTotalDed),
+    });
+  }
+
+  const displayNet = round2(displayGross - displayDeductions);
+  const recordNet = p(record.netPay);
+  if (!moneyMatch(displayNet, recordNet)) {
+    issues.push({
+      type: 'calculation_error',
+      severity: 'error',
+      field: 'slipDisplayNet',
+      title: 'Displayed net pay does not match calculated net',
+      details: `DisplayGross(₹${displayGross.toFixed(2)}) - DisplayDeductions(₹${displayDeductions.toFixed(2)}) = ₹${displayNet.toFixed(2)}, payroll net: ₹${recordNet.toFixed(2)}`,
+      expected: recordNet,
+      actual: displayNet,
+      difference: round2(displayNet - recordNet),
+    });
+  }
+}
+
+function verifyDisplayedCtcConsistency(
+  record: any,
+  salaryType: string,
+  issues: VerificationIssue[]
+) {
+  const recordGross = p(record.grossPay);
+  const employerPf = p(record.employerPf);
+  const employerEsic = p(record.employerEsic);
+  const gratuity = p(record.gratuity);
+  const calcSnap = record.calculationSnapshot as any;
+  const groupInsurance = parseFloat(calcSnap?.groupInsurance?.toString() || '1500');
+  const bonusAllow = p(record.bonus);
+
+  const displayCtcMonthly = round2(recordGross + employerPf + employerEsic + gratuity + groupInsurance + bonusAllow);
+  const displayCtcYearly = round2(displayCtcMonthly * 12);
+
+  if (displayCtcYearly > 0 && !moneyMatch(displayCtcYearly, displayCtcMonthly * 12)) {
+    issues.push({
+      type: 'calculation_error',
+      severity: 'error',
+      field: 'slipCtcAnnual',
+      title: 'Annual CTC not equal to Monthly CTC × 12',
+      details: `Monthly CTC: ₹${displayCtcMonthly.toFixed(2)} × 12 = ₹${(displayCtcMonthly * 12).toFixed(2)}, displayed annual: ₹${displayCtcYearly.toFixed(2)}`,
+      expected: displayCtcMonthly * 12,
+      actual: displayCtcYearly,
+    });
+  }
+}
+
+function verifyLeaveBalanceDisplay(
+  snapshot: SourceSnapshot,
+  issues: VerificationIssue[]
+) {
+  const paidTypeIds = new Set(
+    snapshot.leaveTypes.filter(lt => lt.isPaid).map(lt => lt.id)
+  );
+
+  for (const balance of snapshot.leaveBalancesData) {
+    if (!paidTypeIds.has(balance.leaveTypeId)) continue;
+    const allocated = p(balance.allocatedDays) + p(balance.carryoverDays);
+    const used = p(balance.usedDays);
+    const expectedClosing = Math.max(0, allocated - used);
+    const ltName = snapshot.leaveTypes.find(lt => lt.id === balance.leaveTypeId)?.code || `Type-${balance.leaveTypeId}`;
+
+    if (allocated === 0 && used === 0) continue;
+
+    if (used > allocated + 0.01) {
+      issues.push({
+        type: 'policy_warning',
+        severity: 'warning',
+        field: 'slipLeaveBalance',
+        title: `Leave balance deficit: ${ltName}`,
+        details: `${ltName}: Opening(${allocated}) - Used(${used}) = ${(allocated - used).toFixed(1)}. Used exceeds opening balance.`,
+        expected: allocated,
+        actual: used,
+      });
+    }
+
+    if (used < 0) {
+      issues.push({
+        type: 'calculation_error',
+        severity: 'error',
+        field: 'slipLeaveUsedNegative',
+        title: `Negative leave used: ${ltName}`,
+        details: `${ltName} has negative used days (${used}). This should not appear on payslip.`,
+      });
+    }
+  }
+
+  if (snapshot.leaveBalancesData.length === 0 && snapshot.leaveRequests.length > 0) {
+    issues.push({
+      type: 'data_completeness_error',
+      severity: 'warning',
+      field: 'slipLeaveBalanceMissing',
+      title: 'Leave summary missing',
+      details: 'Employee has leave requests but no leave balance records. Payslip leave section will be empty.',
+    });
+  }
+}
+
+function verifyBonusNotInDisplayedGross(
+  record: any,
+  issues: VerificationIssue[]
+) {
+  const bonusVal = p(record.bonus);
+  if (bonusVal <= 0) return;
+
+  const componentSum = round2(
+    p(record.baseSalary) + p(record.hra) + p(record.conveyanceAllowance) +
+    p(record.ltaAllowance) + p(record.specialAllowance) + p(record.supplementaryAllowance) +
+    p(record.kgpAllowance) + p(record.overtimePay)
+  );
+  const recordGross = p(record.grossPay);
+  const sumWithBonus = round2(componentSum + bonusVal);
+
+  if (moneyMatch(sumWithBonus, recordGross) && !moneyMatch(componentSum, recordGross)) {
+    issues.push({
+      type: 'policy_error',
+      severity: 'error',
+      field: 'slipBonusInGross',
+      title: 'Bonus included in displayed gross',
+      details: `Displayed gross (₹${recordGross.toFixed(2)}) = earnings (₹${componentSum.toFixed(2)}) + bonus (₹${bonusVal.toFixed(2)}). Bonus should be CTC-only, not in gross.`,
+    });
+  }
+}
+
+function verifyHeaderSanity(
+  record: any,
+  snapshot: SourceSnapshot,
+  issues: VerificationIssue[]
+) {
+  const periodName = snapshot.period.periodName || '';
+  const startDate = new Date(snapshot.period.startDate);
+  const endDate = new Date(snapshot.period.endDate);
+
+  const periodMonth = startDate.getMonth();
+  const periodYear = startDate.getFullYear();
+  const endMonth = endDate.getMonth();
+  const endYear = endDate.getFullYear();
+
+  if (periodMonth !== endMonth || periodYear !== endYear) {
+    issues.push({
+      type: 'policy_warning',
+      severity: 'warning',
+      field: 'slipHeaderSpanMonth',
+      title: 'Period spans multiple months',
+      details: `Period "${periodName}" spans from ${startDate.toISOString().slice(0, 10)} to ${endDate.toISOString().slice(0, 10)} across different months.`,
+    });
+  }
+
+  if (!record.userId || record.userId <= 0) {
+    issues.push({
+      type: 'data_completeness_error',
+      severity: 'error',
+      field: 'slipHeaderUserId',
+      title: 'Missing employee reference',
+      details: 'Payroll record has no valid userId. Payslip cannot render employee details.',
+    });
   }
 }
 
@@ -1012,6 +1273,15 @@ async function verifyEmployee(
     ? expectedPaidDays
     : recordPaidDays;
 
+  const attSnapRows = await db.select().from(payrollAttendanceSnapshot)
+    .where(and(
+      eq(payrollAttendanceSnapshot.periodId, record.periodId),
+      eq(payrollAttendanceSnapshot.userId, record.userId)
+    ))
+    .orderBy(desc(payrollAttendanceSnapshot.runNumber))
+    .limit(1);
+  record._attendanceSnapshot = attSnapRows[0] || null;
+
   verifyLeaveImpact(record, snapshot, actualSalaryType, issues);
   verifyLeaveBalanceIntegrity(snapshot, issues);
   verifyEarnings(record, snapshot, actualSalaryType, paidDaysForCalcChecks, issues);
@@ -1019,7 +1289,7 @@ async function verifyEmployee(
   verifyNetPayAndCtc(record, snapshot, actualSalaryType, paidDaysForCalcChecks, issues);
   verifyTdsReference(record, snapshot, issues);
   verifySalaryTypeApplicability(record, snapshot, actualSalaryType, user, issues);
-  verifySlipDisplayConsistency(record, actualSalaryType, issues);
+  verifySlipDisplayConsistency(record, snapshot, actualSalaryType, issues);
   verifyNegativeValues(record, issues);
 
   const errorCount = issues.filter(i => i.severity === 'error').length;
@@ -1273,4 +1543,57 @@ export async function canPostToSap(periodId: number): Promise<{
   }
 
   return { allowed: true, summary };
+}
+
+export async function verifyPayslipRelease(
+  recordId: number
+): Promise<{
+  allowed: boolean;
+  reason?: string;
+  verificationStatus: string | null;
+  recordVersion?: string;
+}> {
+  const [record] = await db.select({
+    id: payrollRecords.id,
+    verificationStatus: payrollRecords.verificationStatus,
+    verificationRunAt: payrollRecords.verificationRunAt,
+    verificationOverrideReason: payrollRecords.verificationOverrideReason,
+    updatedAt: payrollRecords.updatedAt,
+  }).from(payrollRecords).where(eq(payrollRecords.id, recordId));
+
+  if (!record) {
+    return { allowed: false, reason: 'Payroll record not found.', verificationStatus: null };
+  }
+
+  const status = record.verificationStatus;
+  const recordVersion = record.verificationRunAt?.toISOString() || record.updatedAt?.toISOString() || '';
+
+  if (status === 'passed') {
+    return { allowed: true, verificationStatus: status, recordVersion };
+  }
+
+  if (status === 'overridden') {
+    return {
+      allowed: true,
+      verificationStatus: status,
+      reason: `Released with override: ${record.verificationOverrideReason || 'No reason provided'}`,
+      recordVersion,
+    };
+  }
+
+  if (status === 'failed') {
+    return {
+      allowed: false,
+      reason: 'Payroll record has verification errors. Fix issues and re-verify before generating payslip.',
+      verificationStatus: status,
+      recordVersion,
+    };
+  }
+
+  return {
+    allowed: false,
+    reason: 'Payroll record has not been verified yet. Run verification before generating payslip.',
+    verificationStatus: status || 'pending',
+    recordVersion,
+  };
 }

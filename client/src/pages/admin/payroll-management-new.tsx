@@ -704,9 +704,30 @@ function GeneratedSalariesView() {
     },
   });
 
-  const handleDownloadSalarySlip = (payrollRecordId: number) => {
+  const handleDownloadSalarySlip = async (payrollRecordId: number) => {
     const url = `/api/admin/salary-slip/${payrollRecordId}`;
-    window.open(url, '_blank');
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null);
+        if (data?.verificationStatus) {
+          const statusLabel = data.verificationStatus === 'failed' ? 'has errors' : 'is pending';
+          toast({
+            title: 'Payslip Blocked',
+            description: `Verification ${statusLabel}. ${data.reason || 'Verify payroll before generating payslip.'}`,
+            variant: 'destructive',
+          });
+        } else {
+          toast({ title: 'Error', description: data?.error || 'Failed to generate payslip', variant: 'destructive' });
+        }
+        return;
+      }
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to generate payslip', variant: 'destructive' });
+    }
   };
 
   const openReasonDialog = (recordId: number, action: 'hold' | 'reject') => {

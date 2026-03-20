@@ -36,6 +36,7 @@ import bcrypt from 'bcrypt';
 import { ensureAuthenticated } from './auth-middleware';
 import { salaryCalculationEngine } from './salary-calculation-engine';
 import { SalarySlipGenerator, numberToWords } from './salary-slip-generator';
+import { verifyPayslipRelease } from './payroll-calculation-verifier';
 import { glAccountMappings } from '../shared/schema';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
 import { sapSessionManager } from './sap-session-manager';
@@ -3531,7 +3532,15 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
   try {
     const { payrollRecordId } = req.params;
 
-    // Get payroll record with employee details
+    const releaseCheck = await verifyPayslipRelease(parseInt(payrollRecordId));
+    if (!releaseCheck.allowed) {
+      return res.status(403).json({
+        error: 'Payslip generation blocked',
+        reason: releaseCheck.reason,
+        verificationStatus: releaseCheck.verificationStatus,
+      });
+    }
+
     const payrollRecord = await db
       .select({
         id: payrollRecords.id,
