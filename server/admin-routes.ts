@@ -2657,7 +2657,8 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
       return res.status(400).json({ error: 'This record has been voided. Voided records cannot be modified.' });
     }
 
-    const currentStatus = record.status || 'generated';
+    const rawStatus = record.status || 'generated';
+    const currentStatus = rawStatus === 'draft' ? 'generated' : rawStatus;
     const history = Array.isArray(record.statusHistory) ? [...(record.statusHistory as any[])] : [];
     const now = new Date();
     const userName = currentUser.firstName && currentUser.lastName

@@ -492,7 +492,8 @@ function TestSapJeButton() {
 }
 
 function WorkflowStatusBadge({ record }: { record: any }) {
-  const status = record.status || 'generated';
+  const raw = record.status || 'generated';
+  const status = raw === 'draft' ? 'generated' : raw;
   switch (status) {
     case 'generated':
       return <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50"><Clock className="h-3 w-3 mr-1" /> Generated</Badge>;
@@ -800,10 +801,19 @@ function GeneratedSalariesView() {
 
   const filteredRecords = statusFilter === 'all'
     ? searchFilteredRecords
-    : searchFilteredRecords.filter((r: any) => (r.status || 'generated') === statusFilter);
+    : searchFilteredRecords.filter((r: any) => {
+        const raw = r.status || 'generated';
+        const normalized = raw === 'draft' ? 'generated' : raw;
+        return normalized === statusFilter;
+      });
+
+  const normalizeStatus = (s: string | null | undefined) => {
+    const raw = s || 'generated';
+    return raw === 'draft' ? 'generated' : raw;
+  };
 
   const statusCounts = (generatedSalaries as any[]).reduce((acc: any, r: any) => {
-    const s = r.status || 'generated';
+    const s = normalizeStatus(r.status);
     acc[s] = (acc[s] || 0) + 1;
     return acc;
   }, {});
@@ -958,7 +968,7 @@ function GeneratedSalariesView() {
             </thead>
             <tbody>
               {filteredRecords.map((record: any) => {
-                const recStatus = record.status || 'generated';
+                const recStatus = (record.status || 'generated') === 'draft' ? 'generated' : (record.status || 'generated');
                 const isManualSalary = record.salarySource === 'manual_salary';
                 const isTransferred = recStatus === 'transferred' || (record.sapPostingStatus === 'posted' && recStatus !== 'reversed');
                 const isReversed = recStatus === 'reversed';
