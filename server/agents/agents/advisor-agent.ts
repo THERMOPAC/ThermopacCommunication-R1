@@ -306,7 +306,7 @@ export class AdvisorAgent implements IAgent {
       if (issue.severity === 'critical') {
         if (issue.agents.some(a => failedAgents.map(f => f.key).includes(a))) {
           actions.push({
-            text: `Investigate failed agent runs — check server logs for ${issue.agents.map(a => AGENT_NAMES[a]).join(', ')}`,
+            text: `Ask ${prasadName} to investigate failed agent runs — check server logs for ${issue.agents.map(a => AGENT_NAMES[a]).join(', ')}`,
             owner: prasadName,
             priority: 'critical',
           });
@@ -332,7 +332,7 @@ export class AdvisorAgent implements IAgent {
         if (missedAgents.length > 0 && issue.agents.some(a => missedAgents.map(m => m.key).includes(a))) {
           const missedNames = issue.agents.filter(a => missedAgents.map(m => m.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ');
           actions.push({
-            text: `Check why ${missedNames} did not run — scheduler may need attention`,
+            text: `Ask ${prasadName} to check why ${missedNames} did not run — scheduler may need attention`,
             owner: prasadName,
             priority: 'high',
           });
@@ -340,7 +340,7 @@ export class AdvisorAgent implements IAgent {
         if (stuckAgents.length > 0 && issue.agents.some(a => stuckAgents.map(s => s.key).includes(a))) {
           const stuckNames = issue.agents.filter(a => stuckAgents.map(s => s.key).includes(a)).map(a => AGENT_NAMES[a]).join(', ');
           actions.push({
-            text: `Restart stuck agent(s): ${stuckNames}`,
+            text: `Ask ${prasadName} to restart stuck agent(s): ${stuckNames}`,
             owner: prasadName,
             priority: 'high',
           });
