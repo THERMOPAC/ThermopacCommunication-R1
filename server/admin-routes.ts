@@ -2706,12 +2706,19 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
         try {
           const filterResp = await sapHttpsClient.authenticatedRequest(sessionId, {
             method: 'GET',
-            path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName,ActiveAccount&$top=1`,
+            path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${glCode}'&$select=Code,FormatCode,AcctName,ActiveAccount&$top=10`,
             headers,
           });
           if (filterResp.ok) {
             const result = JSON.parse(filterResp.body);
-            if (result.value && result.value.length > 0) {
+            if (result.value && result.value.length > 1) {
+              glResolution[glCode] = {
+                resolved: false,
+                error: `Ambiguous: ${result.value.length} SAP accounts match FormatCode '${glCode}': ${result.value.map((a: any) => `${a.Code} (${a.AcctName})`).join(', ')}`,
+              };
+              console.log(`  ✗ ${glCode} = AMBIGUOUS FormatCode match (${result.value.length} accounts): ${result.value.map((a: any) => a.Code).join(', ')}`);
+              found = true;
+            } else if (result.value && result.value.length === 1) {
               const acct = result.value[0];
               glResolution[glCode] = { resolved: true, sapAcctCode: acct.Code, sapFormatCode: acct.FormatCode, name: acct.AcctName };
               console.log(`  ✓ ${glCode} → FormatCode match: AcctCode=${acct.Code}, FormatCode=${acct.FormatCode}, Name=${acct.AcctName}`);
@@ -2725,16 +2732,26 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
         try {
           const stripped = glCode.replace(/-[A-Z]+$/, '');
           if (stripped !== glCode) {
-            const strippedResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+            const filterResp2 = await sapHttpsClient.authenticatedRequest(sessionId, {
               method: 'GET',
-              path: `/b1s/v1/ChartOfAccounts('${encodeURIComponent(stripped)}')`,
+              path: `/b1s/v1/ChartOfAccounts?$filter=FormatCode eq '${stripped}' or Code eq '${stripped}'&$select=Code,FormatCode,AcctName,ActiveAccount&$top=10`,
               headers,
             });
-            if (strippedResp.ok) {
-              const data = JSON.parse(strippedResp.body);
-              glResolution[glCode] = { resolved: true, sapAcctCode: data.Code, sapFormatCode: data.FormatCode, name: data.AcctName || data.Name };
-              console.log(`  ✓ ${glCode} → stripped match (${stripped}): AcctCode=${data.Code}, FormatCode=${data.FormatCode}, Name=${data.AcctName}`);
-              found = true;
+            if (filterResp2.ok) {
+              const result = JSON.parse(filterResp2.body);
+              if (result.value && result.value.length > 1) {
+                glResolution[glCode] = {
+                  resolved: false,
+                  error: `Ambiguous: ${result.value.length} SAP accounts match stripped code '${stripped}': ${result.value.map((a: any) => `${a.Code} (${a.AcctName})`).join(', ')}`,
+                };
+                console.log(`  ✗ ${glCode} = AMBIGUOUS stripped match (${result.value.length} accounts): ${result.value.map((a: any) => a.Code).join(', ')}`);
+                found = true;
+              } else if (result.value && result.value.length === 1) {
+                const data = result.value[0];
+                glResolution[glCode] = { resolved: true, sapAcctCode: data.Code, sapFormatCode: data.FormatCode, name: data.AcctName };
+                console.log(`  ✓ ${glCode} → stripped match (${stripped}): AcctCode=${data.Code}, FormatCode=${data.FormatCode}, Name=${data.AcctName}`);
+                found = true;
+              }
             }
           }
         } catch (_) {}
