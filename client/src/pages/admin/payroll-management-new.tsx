@@ -721,6 +721,31 @@ function GeneratedSalariesView() {
     statusMutation.mutate({ recordId: reasonRecordId, action: reasonAction, reason: reasonText });
   };
 
+  const periodGroups = useMemo(() => {
+    if (!generatedSalaries) return {};
+    const groups: Record<number, { periodId: number; label: string; records: any[] }> = {};
+    (generatedSalaries as any[]).forEach((r: any) => {
+      const pid = r.periodId;
+      if (!pid) return;
+      if (!groups[pid]) {
+        groups[pid] = { periodId: pid, label: `${r.month}/${r.year}`, records: [] };
+      }
+      groups[pid].records.push(r);
+    });
+    return groups;
+  }, [generatedSalaries]);
+
+  const periodVerificationSummaries = useMemo(() => {
+    return Object.values(periodGroups).map(g => {
+      const total = g.records.length;
+      const passed = g.records.filter((r: any) => r.verificationStatus === 'passed').length;
+      const failed = g.records.filter((r: any) => r.verificationStatus === 'failed').length;
+      const overridden = g.records.filter((r: any) => r.verificationStatus === 'overridden').length;
+      const pending = g.records.filter((r: any) => !r.verificationStatus || r.verificationStatus === 'pending').length;
+      return { ...g, total, passed, failed, overridden, pending };
+    });
+  }, [periodGroups]);
+
   if (isLoadingGenerated) {
     return (
       <Card>
@@ -761,31 +786,6 @@ function GeneratedSalariesView() {
     acc[s] = (acc[s] || 0) + 1;
     return acc;
   }, {});
-
-  const periodGroups = useMemo(() => {
-    if (!generatedSalaries) return {};
-    const groups: Record<number, { periodId: number; label: string; records: any[] }> = {};
-    (generatedSalaries as any[]).forEach((r: any) => {
-      const pid = r.periodId;
-      if (!pid) return;
-      if (!groups[pid]) {
-        groups[pid] = { periodId: pid, label: `${r.month}/${r.year}`, records: [] };
-      }
-      groups[pid].records.push(r);
-    });
-    return groups;
-  }, [generatedSalaries]);
-
-  const periodVerificationSummaries = useMemo(() => {
-    return Object.values(periodGroups).map(g => {
-      const total = g.records.length;
-      const passed = g.records.filter((r: any) => r.verificationStatus === 'passed').length;
-      const failed = g.records.filter((r: any) => r.verificationStatus === 'failed').length;
-      const overridden = g.records.filter((r: any) => r.verificationStatus === 'overridden').length;
-      const pending = g.records.filter((r: any) => !r.verificationStatus || r.verificationStatus === 'pending').length;
-      return { ...g, total, passed, failed, overridden, pending };
-    });
-  }, [periodGroups]);
 
   const handleViewIssues = (record: any) => {
     const details = record.verificationDetails;
