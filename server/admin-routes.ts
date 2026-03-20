@@ -2537,39 +2537,55 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     if (routeId) headers['Cookie'] = `B1SESSION=${sessionId}; ROUTEID=${routeId}`;
 
     let allSapAccounts: any[] = [];
-    let skip = 0;
-    const batchSize = 500;
-    let hasMore = true;
+    let nextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
+    const sapHeaders = { ...headers, 'Prefer': 'odata.maxpagesize=500' };
 
-    console.log(`[SAP CoA Search] Fetching all accounts from SAP (bulk fetch)...`);
-    while (hasMore) {
+    console.log(`[SAP CoA Search] Fetching all accounts from SAP (bulk fetch with pagination)...`);
+    while (nextLink) {
       try {
         const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
           method: 'GET',
-          path: `/b1s/v1/ChartOfAccounts?$top=${batchSize}&$skip=${skip}`,
-          headers,
+          path: nextLink,
+          headers: sapHeaders,
         });
         if (resp.ok) {
           const data = JSON.parse(resp.body);
           const batch = data.value || [];
           allSapAccounts.push(...batch);
-          console.log(`[SAP CoA Search] Fetched batch skip=${skip}, got ${batch.length} accounts (total so far: ${allSapAccounts.length})`);
-          if (batch.length < batchSize || !data['odata.nextLink']) {
-            hasMore = false;
-          } else {
-            skip += batchSize;
+          console.log(`[SAP CoA Search] Fetched page, got ${batch.length} accounts (total so far: ${allSapAccounts.length})`);
+          nextLink = data['odata.nextLink'] || null;
+          if (!nextLink && batch.length > 0) {
+            const currentSkip = allSapAccounts.length;
+            const testResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+              method: 'GET',
+              path: `/b1s/v1/ChartOfAccounts?$skip=${currentSkip}&$top=500`,
+              headers: sapHeaders,
+            });
+            if (testResp.ok) {
+              const testData = JSON.parse(testResp.body);
+              const testBatch = testData.value || [];
+              if (testBatch.length > 0) {
+                allSapAccounts.push(...testBatch);
+                console.log(`[SAP CoA Search] Manual skip=${currentSkip} found ${testBatch.length} more (total: ${allSapAccounts.length})`);
+                nextLink = testData['odata.nextLink'] || `/b1s/v1/ChartOfAccounts?$skip=${allSapAccounts.length}&$top=500`;
+              }
+            }
           }
         } else {
-          console.log(`[SAP CoA Search] Batch fetch failed at skip=${skip}: ${resp.statusCode}`);
-          hasMore = false;
+          console.log(`[SAP CoA Search] Batch fetch failed: ${resp.statusCode} ${resp.body.substring(0, 200)}`);
+          nextLink = null;
         }
       } catch (e: any) {
-        console.log(`[SAP CoA Search] Batch fetch error at skip=${skip}: ${e.message}`);
-        hasMore = false;
+        console.log(`[SAP CoA Search] Batch fetch error: ${e.message}`);
+        nextLink = null;
       }
     }
 
     console.log(`[SAP CoA Search] Total accounts fetched: ${allSapAccounts.length}. Searching for "${search}"...`);
+    if (allSapAccounts.length > 0) {
+      const samples = allSapAccounts.slice(0, 5);
+      console.log(`[SAP CoA Search] First 5 accounts: ${JSON.stringify(samples.map((a: any) => ({ Code: a.Code, FormatCode: a.FormatCode, Name: a.AcctName })))}`);
+    }
 
     const searchLower = search.toLowerCase();
     const matched = allSapAccounts
@@ -2674,24 +2690,40 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
 
     console.log(`[Validate GL] Bulk-fetching SAP Chart of Accounts...`);
     let allSapAccounts: any[] = [];
-    let fetchSkip = 0;
-    const fetchBatch = 500;
-    let fetchMore = true;
-    while (fetchMore) {
+    let valNextLink: string | null = `/b1s/v1/ChartOfAccounts?$top=500`;
+    const sapHeaders = { ...headers, 'Prefer': 'odata.maxpagesize=500' };
+    while (valNextLink) {
       try {
         const resp = await sapHttpsClient.authenticatedRequest(sessionId, {
           method: 'GET',
-          path: `/b1s/v1/ChartOfAccounts?$top=${fetchBatch}&$skip=${fetchSkip}`,
-          headers,
+          path: valNextLink,
+          headers: sapHeaders,
         });
         if (resp.ok) {
           const data = JSON.parse(resp.body);
           const batch = data.value || [];
           allSapAccounts.push(...batch);
-          if (batch.length < fetchBatch || !data['odata.nextLink']) fetchMore = false;
-          else fetchSkip += fetchBatch;
-        } else { fetchMore = false; }
-      } catch { fetchMore = false; }
+          console.log(`[Validate GL] Fetched page, got ${batch.length} (total: ${allSapAccounts.length})`);
+          valNextLink = data['odata.nextLink'] || null;
+          if (!valNextLink && batch.length > 0) {
+            const skip = allSapAccounts.length;
+            const testResp = await sapHttpsClient.authenticatedRequest(sessionId, {
+              method: 'GET',
+              path: `/b1s/v1/ChartOfAccounts?$skip=${skip}&$top=500`,
+              headers: sapHeaders,
+            });
+            if (testResp.ok) {
+              const td = JSON.parse(testResp.body);
+              const tb = td.value || [];
+              if (tb.length > 0) {
+                allSapAccounts.push(...tb);
+                console.log(`[Validate GL] Manual skip=${skip} found ${tb.length} more (total: ${allSapAccounts.length})`);
+                valNextLink = td['odata.nextLink'] || `/b1s/v1/ChartOfAccounts?$skip=${allSapAccounts.length}&$top=500`;
+              }
+            }
+          }
+        } else { valNextLink = null; }
+      } catch { valNextLink = null; }
     }
     console.log(`[Validate GL] Fetched ${allSapAccounts.length} SAP accounts total`);
 
