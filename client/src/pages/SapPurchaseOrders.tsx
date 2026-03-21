@@ -81,6 +81,7 @@ function PurchaseOrdersContent() {
   const [grpoPostingDate, setGrpoPostingDate] = useState(new Date().toISOString().split('T')[0]);
   const [grpoRemarks, setGrpoRemarks] = useState('');
   const [grpoSubmitting, setGrpoSubmitting] = useState(false);
+  const [grpoJsonPreview, setGrpoJsonPreview] = useState<string | null>(null);
   const pageSize = 50;
   const { toast } = useToast();
 
@@ -224,7 +225,29 @@ function PurchaseOrdersContent() {
     setGrpoLines(lines);
     setGrpoPostingDate(new Date().toISOString().split('T')[0]);
     setGrpoRemarks('');
+    setGrpoJsonPreview(null);
     setIsGrpoDialogOpen(true);
+  };
+
+  const buildGrpoSapJson = () => {
+    const selected = grpoLines.filter(l => l.selected && l.quantityToReceive > 0);
+    const docEntry = poDetail?.DocEntry || selectedOrder?.DocEntry;
+    const sapGrpoPayload = {
+      CardCode: poDetail?.CardCode || selectedOrder?.CardCode,
+      DocDate: grpoPostingDate,
+      Comments: grpoRemarks || `Goods Receipt against PO ${poDetail?.DocNum || selectedOrder?.DocNum}`,
+      DocumentLines: selected.map(l => {
+        const line: any = {
+          Quantity: l.quantityToReceive,
+          WarehouseCode: l.warehouseCode,
+          BaseType: 22,
+          BaseEntry: docEntry,
+          BaseLine: l.lineNum,
+        };
+        return line;
+      }),
+    };
+    return sapGrpoPayload;
   };
 
   const handleGrpoSubmit = async () => {
