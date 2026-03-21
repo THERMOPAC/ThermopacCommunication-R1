@@ -740,9 +740,27 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
   }
 });
 
-/**
- * Test SAP B1 connection via Service Layer (GET endpoint as fallback)
- */
+router.get('/company-databases', ensureAuthenticated, async (_req, res) => {
+  try {
+    const defaultDb = process.env.SAP_COMPANY_DB || '';
+    const dbListEnv = process.env.SAP_COMPANY_DATABASES;
+    let databases: Array<{ name: string; description: string; isDefault: boolean }> = [];
+
+    if (dbListEnv) {
+      databases = dbListEnv.split(',').map(entry => {
+        const [name, desc] = entry.split('|').map(s => s.trim());
+        return { name, description: desc || name, isDefault: name === defaultDb };
+      });
+    } else if (defaultDb) {
+      databases = [{ name: defaultDb, description: defaultDb, isDefault: true }];
+    }
+
+    res.json({ success: true, databases, defaultDb });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.get('/connection/test', async (req, res) => {
   console.log('🔥 SAP CONNECTION TEST STARTED - Testing Service Layer');
   
