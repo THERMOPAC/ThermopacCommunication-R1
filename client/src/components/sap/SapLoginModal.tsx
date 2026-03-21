@@ -3,9 +3,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Shield, Database, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useQuery } from '@tanstack/react-query';
+
+interface SapCompanyDb {
+  name: string;
+  description: string;
+  isDefault: boolean;
+}
 
 interface SapLoginModalProps {
   isOpen: boolean;
@@ -14,10 +21,11 @@ interface SapLoginModalProps {
 }
 
 export function SapLoginModal({ isOpen, onClose, onSuccess }: SapLoginModalProps) {
-  const { data: sapConfig } = useQuery<{ companyDb: string }>({
-    queryKey: ['/api/sap/config'],
+  const { data: dbData } = useQuery<{ success: boolean; databases: SapCompanyDb[]; defaultDb: string }>({
+    queryKey: ['/api/sap/b1/company-databases'],
   });
-  const defaultDb = sapConfig?.companyDb || '';
+  const databases = dbData?.databases || [];
+  const defaultDb = dbData?.defaultDb || '';
 
   const [credentials, setCredentials] = useState({
     username: '',
@@ -143,14 +151,39 @@ export function SapLoginModal({ isOpen, onClose, onSuccess }: SapLoginModalProps
 
             <div className="space-y-2">
               <Label htmlFor="companyDb">Company Database</Label>
-              <Input
-                id="companyDb"
-                type="text"
-                value={credentials.companyDb}
-                onChange={(e) => setCredentials(prev => ({ ...prev, companyDb: e.target.value }))}
-                placeholder="Company database name"
-                disabled={isLoading}
-              />
+              {databases.length > 0 ? (
+                <Select
+                  value={credentials.companyDb}
+                  onValueChange={(value) => setCredentials(prev => ({ ...prev, companyDb: value }))}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company database" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {databases.map((db) => (
+                      <SelectItem key={db.name} value={db.name}>
+                        <div className="flex items-center gap-2">
+                          <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{db.description}</span>
+                          {db.isDefault && (
+                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Default</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="companyDb"
+                  type="text"
+                  value={credentials.companyDb}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, companyDb: e.target.value }))}
+                  placeholder="Company database name"
+                  disabled={isLoading}
+                />
+              )}
             </div>
 
             <div className="flex gap-2 pt-4">
