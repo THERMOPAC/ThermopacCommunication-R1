@@ -347,6 +347,24 @@ router.get('/orders', async (req, res) => {
   }
 });
 
+// Single Purchase Order full detail from SAP
+router.get('/orders/:docEntry', async (req, res) => {
+  try {
+    const { docEntry } = req.params;
+    if (!docEntry || isNaN(Number(docEntry))) {
+      return res.status(400).json({ success: false, error: 'Valid DocEntry is required' });
+    }
+    const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders(${docEntry})`);
+    const errorResponse = handleSapResponse(response, res, 'Purchase order detail');
+    if (errorResponse) return;
+    const po = JSON.parse(response.body);
+    res.json({ success: true, data: po });
+  } catch (error) {
+    console.error('SAP PO detail error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load purchase order detail' });
+  }
+});
+
 // Purchase Order Line Items - Real-time from SAP
 router.get('/orders/:docEntry/items', async (req, res) => {
   try {

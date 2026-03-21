@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Table, 
   TableBody, 
@@ -32,7 +33,8 @@ import {
   ChevronRight,
   Eye,
   Download,
-  Edit
+  Edit,
+  Loader2
 } from 'lucide-react';
 import {
   Select,
@@ -66,11 +68,13 @@ function PurchaseOrdersContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedDocEntry, setSelectedDocEntry] = useState<number | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [activeTab, setActiveTab] = useState('contents');
   const pageSize = 20;
   const { toast } = useToast();
 
@@ -123,8 +127,20 @@ function PurchaseOrdersContent() {
       return response.json();
     },
     enabled: true,
-    staleTime: 30000, // 30 seconds
+    staleTime: 30000,
   });
+
+  const { data: poDetailData, isLoading: poDetailLoading } = useQuery<{ success: boolean; data: any }>({
+    queryKey: ['/api/sap/b1/purchase/orders', selectedDocEntry],
+    queryFn: async () => {
+      const resp = await fetch(`/api/sap/b1/purchase/orders/${selectedDocEntry}`, { credentials: 'include' });
+      if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
+      return resp.json();
+    },
+    enabled: selectedDocEntry !== null,
+  });
+
+  const poDetail = poDetailData?.data;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
