@@ -234,13 +234,48 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
   const totalPaid = challans.filter((c: any) => ['paid', 'filed'].includes(c.status)).reduce((s: number, c: any) => s + parseFloat(c.totalAmount || '0'), 0);
   const pendingCount = challans.filter((c: any) => c.status === 'calculated').length;
 
+  function getStatutoryDueDate(challanMonth: number, challanYear: number, modType: string): Date {
+    if (modType === 'TDS') {
+      if (challanMonth === 3) return new Date(challanYear, 3, 30);
+      return new Date(challanYear, challanMonth, 7);
+    }
+    if (modType === 'PF') return new Date(challanYear, challanMonth, 15);
+    if (modType === 'ESIC') return new Date(challanYear, challanMonth, 15);
+    if (modType === 'PT') return new Date(challanYear, challanMonth, 10);
+    return new Date(challanYear, challanMonth, 7);
+  }
+
+  function calcInterest(challan: any, paymentDateStr: string): string {
+    if (!challan || !paymentDateStr) return '0';
+    const dueDate = getStatutoryDueDate(challan.month, challan.year, moduleType);
+    const payDate = new Date(paymentDateStr);
+    if (payDate <= dueDate) return '0';
+
+    const diffMs = payDate.getTime() - dueDate.getTime();
+    const delayDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    const delayMonths = Math.ceil(delayDays / 30);
+
+    const base = parseFloat(challan.totalEmployeeContribution?.toString() || '0')
+               + parseFloat(challan.totalEmployerContribution?.toString() || '0');
+
+    let ratePerMonth = 0;
+    if (moduleType === 'TDS') ratePerMonth = 0.015;
+    else if (moduleType === 'PF') ratePerMonth = 0.01;
+    else if (moduleType === 'ESIC') ratePerMonth = 0.01;
+    else if (moduleType === 'PT') ratePerMonth = 0.0125;
+
+    return Math.round(base * ratePerMonth * delayMonths).toString();
+  }
+
   function openPaymentDialog(challan: any) {
     setSelectedChallan(challan);
+    const today = new Date().toISOString().split('T')[0];
+    const interest = calcInterest(challan, today);
     setPaymentForm({
-      paymentDate: new Date().toISOString().split('T')[0], paymentMode: 'online', paymentReference: '', bankName: '',
+      paymentDate: today, paymentMode: 'online', paymentReference: '', bankName: '',
       challanSerial: '', bsrCode: challan.bsrCode || '', cinNumber: '', trrnNumber: '', grnNumber: '',
       esicEmployerCode: challan.esicEmployerCode || '', establishmentCode: challan.establishmentCode || '',
-      ptrcNumber: challan.ptrcNumber || '', interest: '0', penalty: '0',
+      ptrcNumber: challan.ptrcNumber || '', interest, penalty: '0',
     });
     setShowPaymentDialog(true);
   }
@@ -613,7 +648,11 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium">Payment Date</label>
-                <Input type="date" value={paymentForm.paymentDate} onChange={e => setPaymentForm(f => ({ ...f, paymentDate: e.target.value }))} />
+                <Input type="date" value={paymentForm.paymentDate} onChange={e => {
+                  const newDate = e.target.value;
+                  const newInterest = calcInterest(selectedChallan, newDate);
+                  setPaymentForm(f => ({ ...f, paymentDate: newDate, interest: newInterest }));
+                }} />
               </div>
               <div>
                 <label className="text-sm font-medium">Payment Mode</label>
@@ -679,16 +718,33 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium">Interest (if any)</label>
-                <Input type="number" value={paymentForm.interest} onChange={e => setPaymentForm(f => ({ ...f, interest: e.target.value }))} />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Penalty (if any)</label>
-                <Input type="number" value={paymentForm.penalty} onChange={e => setPaymentForm(f => ({ ...f, penalty: e.target.value }))} />
-              </div>
-            </div>
+            {(() => {
+              const dueDate = selectedChallan ? getStatutoryDueDate(selectedChallan.month, selectedChallan.year, moduleType) : null;
+              const payDate = paymentForm.paymentDate ? new Date(paymentForm.paymentDate) : null;
+              const isLate = dueDate && payDate && payDate > dueDate;
+              const delayDays = isLate ? Math.ceil((payDate!.getTime() - dueDate!.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+              const rateLabel = moduleType === 'TDS' ? '1.5%' : moduleType === 'PT' ? '1.25%' : '1%';
+              return (
+                <>
+                  {dueDate && (
+                    <div className={`text-xs px-3 py-1.5 rounded ${isLate ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                      Due date: {dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {isLate ? ` — Late by ${delayDays} day${delayDays > 1 ? 's' : ''} (${Math.ceil(delayDays / 30)} month${Math.ceil(delayDays / 30) > 1 ? 's' : ''} @ ${rateLabel}/month)` : ' — On time, no interest'}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm font-medium">Interest (auto-calculated)</label>
+                      <Input type="number" value={paymentForm.interest} onChange={e => setPaymentForm(f => ({ ...f, interest: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Penalty (if any)</label>
+                      <Input type="number" value={paymentForm.penalty} onChange={e => setPaymentForm(f => ({ ...f, penalty: e.target.value }))} />
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
               <Button onClick={() => paymentMutation.mutate({ id: selectedChallan?.id, ...paymentForm })} disabled={paymentMutation.isPending}>
