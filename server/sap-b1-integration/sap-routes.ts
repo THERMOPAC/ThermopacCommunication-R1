@@ -742,11 +742,11 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
 
 router.get('/company-databases', ensureAuthenticated, async (_req, res) => {
   try {
-    const defaultDb = 'TPEL_TEST_120326';
+    const defaultDb = 'TPEL_LIVE';
 
     const databases = [
-      { name: 'TPEL_LIVE', description: 'TPEL Live Database', isDefault: false },
-      { name: 'TPEL_TEST_120326', description: 'TPEL Test Database', isDefault: true },
+      { name: 'TPEL_LIVE', description: 'TPEL Live Database', isDefault: true },
+      { name: 'TPEL_TEST_120326', description: 'TPEL Test Database', isDefault: false },
     ];
 
     res.json({ success: true, databases, defaultDb });
