@@ -403,10 +403,45 @@ router.get('/challans/:id', async (req: Request, res: Response) => {
     .leftJoin(users, eq(statutoryChallanDetails.employeeId, users.id))
     .where(eq(statutoryChallanDetails.challanId, challan.id))
     .orderBy(asc(users.cardName));
-  const details = rawDetails.map(d => ({
+  let details = rawDetails.map(d => ({
     ...d,
     employeeName: d.cardName || [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Unknown',
   }));
+
+  if (details.length === 0 && challan.moduleType === 'TDS' && challan.tdsSection !== '192') {
+    const registerEntries = await db.select().from(tdsComplianceRegister)
+      .where(and(
+        eq(tdsComplianceRegister.challanId, challan.id),
+        eq(tdsComplianceRegister.sourceCategory, 'sap_wht_non_salary'),
+      ))
+      .orderBy(asc(tdsComplianceRegister.deducteeName));
+
+    if (registerEntries.length > 0) {
+      const grouped = new Map<string, { name: string, pan: string | null, baseTotal: number, tdsTotal: number, count: number }>();
+      for (const entry of registerEntries) {
+        const key = entry.deducteeName || 'Unknown';
+        const existing = grouped.get(key) || { name: key, pan: entry.deducteePan, baseTotal: 0, tdsTotal: 0, count: 0 };
+        existing.baseTotal += parseFloat(entry.baseAmount?.toString() || '0');
+        existing.tdsTotal += parseFloat(entry.tdsAmount?.toString() || '0');
+        existing.count += 1;
+        grouped.set(key, existing);
+      }
+      details = Array.from(grouped.values()).map((g, i) => ({
+        id: i + 1,
+        employeeId: null,
+        payrollRecordId: null,
+        employeeContribution: g.tdsTotal.toFixed(2),
+        employerContribution: '0.00',
+        grossSalary: g.baseTotal.toFixed(2),
+        firstName: null,
+        lastName: null,
+        cardName: g.name,
+        employeeCode: g.pan || '—',
+        employeeName: g.name,
+      }));
+    }
+  }
+
   res.json({ ...challan, details });
 });
 

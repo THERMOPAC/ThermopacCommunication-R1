@@ -758,33 +758,43 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                 </div>
               </div>
 
-              <h4 className="font-semibold mt-4">Employee-wise Breakdown ({detailQuery.data.details?.length || 0} employees)</h4>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead className="text-right">Gross Salary</TableHead>
-                    <TableHead className="text-right">{config.employeeLabel}</TableHead>
-                    {config.hasEmployer && <TableHead className="text-right">{config.employerLabel}</TableHead>}
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(detailQuery.data.details || []).map((d: any) => (
-                    <TableRow key={d.id}>
-                      <TableCell>{d.employeeName}</TableCell>
-                      <TableCell className="font-mono text-sm">{d.employeeCode || '—'}</TableCell>
-                      <TableCell className="text-right font-mono">{fmt(d.grossSalary)}</TableCell>
-                      <TableCell className="text-right font-mono">{fmt(d.employeeContribution)}</TableCell>
-                      {config.hasEmployer && <TableCell className="text-right font-mono">{fmt(d.employerContribution)}</TableCell>}
-                      <TableCell className="text-right font-mono font-semibold">
-                        {fmt(parseFloat(d.employeeContribution || '0') + parseFloat(d.employerContribution || '0'))}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {(() => {
+                const isNonSalaryTds = moduleType === 'TDS' && selectedChallan?.tdsSection && selectedChallan.tdsSection !== '192';
+                const entityLabel = isNonSalaryTds ? 'Deductee' : 'Employee';
+                const codeLabel = isNonSalaryTds ? 'PAN' : 'Code';
+                const baseLabel = isNonSalaryTds ? 'Base Amount' : 'Gross Salary';
+                return (
+                  <>
+                    <h4 className="font-semibold mt-4">{entityLabel}-wise Breakdown ({detailQuery.data.details?.length || 0} {entityLabel.toLowerCase()}s)</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{entityLabel}</TableHead>
+                          <TableHead>{codeLabel}</TableHead>
+                          <TableHead className="text-right">{baseLabel}</TableHead>
+                          <TableHead className="text-right">{config.employeeLabel}</TableHead>
+                          {config.hasEmployer && <TableHead className="text-right">{config.employerLabel}</TableHead>}
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(detailQuery.data.details || []).map((d: any) => (
+                          <TableRow key={d.id}>
+                            <TableCell>{d.employeeName}</TableCell>
+                            <TableCell className="font-mono text-sm">{d.employeeCode || '—'}</TableCell>
+                            <TableCell className="text-right font-mono">{fmt(d.grossSalary)}</TableCell>
+                            <TableCell className="text-right font-mono">{fmt(d.employeeContribution)}</TableCell>
+                            {config.hasEmployer && <TableCell className="text-right font-mono">{fmt(d.employerContribution)}</TableCell>}
+                            <TableCell className="text-right font-mono font-semibold">
+                              {fmt(parseFloat(d.employeeContribution || '0') + parseFloat(d.employerContribution || '0'))}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </>
+                );
+              })()}
             </div>
           ) : null}
         </DialogContent>
