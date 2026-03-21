@@ -285,7 +285,7 @@ router.get('/quotations', async (req, res) => {
 });
 
 // Purchase Orders - Always live from SAP
-settingsRouter.get('/orders', async (req, res) => {
+router.get('/orders', async (req, res) => {
   try {
     const { page = 1, limit = 20, search, status } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
