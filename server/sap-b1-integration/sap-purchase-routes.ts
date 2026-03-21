@@ -1770,36 +1770,25 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       }
     }
 
-    const poResult = await pool.query(
-      'SELECT doc_entry, doc_num, vendor_code, vendor_name, doc_status, cancelled FROM sap_purchase_orders WHERE doc_entry = $1',
-      [poDocEntry]
-    );
+    try {
+      const poResult = await pool.query(
+        'SELECT doc_entry, doc_num, vendor_code, vendor_name, doc_status, cancelled FROM sap_purchase_orders WHERE doc_entry = $1',
+        [poDocEntry]
+      );
 
-    if (poResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: `Purchase Order ${poDocEntry} not found in local database`, code: 'PO_NOT_FOUND' });
+      if (poResult.rows.length > 0) {
+        const po = poResult.rows[0];
+        if (po.cancelled === 'Y') {
+          return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is cancelled`, code: 'PO_CANCELLED' });
+        }
+        if (po.doc_status === 'bost_Close' || po.doc_status === 'C') {
+          return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is closed`, code: 'PO_CLOSED' });
+        }
+      }
+      console.log(`[GRPO] Layer 1 (local) pre-check done for PO ${poDocEntry}. Proceeding to live SAP validation.`);
+    } catch (localErr: any) {
+      console.log(`[GRPO] Local DB check skipped (${localErr.message}). Proceeding to live SAP validation.`);
     }
-
-    const po = poResult.rows[0];
-    if (po.cancelled === 'Y') {
-      return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is cancelled`, code: 'PO_CANCELLED' });
-    }
-    if (po.doc_status === 'bost_Close' || po.doc_status === 'C') {
-      return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is closed`, code: 'PO_CLOSED' });
-    }
-
-    const lineNums = selectedLines.map((l: any) => l.lineNum);
-    const localLinesResult = await pool.query(
-      'SELECT line_num, item_code, item_description, open_qty, warehouse_code, line_status FROM sap_purchase_order_items WHERE doc_entry = $1 AND line_num = ANY($2)',
-      [poDocEntry, lineNums]
-    );
-
-    if (localLinesResult.rows.length !== lineNums.length) {
-      const found = localLinesResult.rows.map((r: any) => r.line_num);
-      const missing = lineNums.filter((n: number) => !found.includes(n));
-      return res.status(400).json({ success: false, error: `PO lines not found: ${missing.join(', ')}`, code: 'LINE_NOT_FOUND' });
-    }
-
-    console.log(`[GRPO] Layer 1 (local) validation passed for PO ${poDocEntry}. Proceeding to live SAP validation.`);
 
     // === Set lock before SAP calls ===
     grpoLocks.set(poDocEntry, { timestamp: Date.now(), userId });

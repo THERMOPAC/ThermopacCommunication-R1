@@ -76,6 +76,11 @@ function PurchaseOrdersContent() {
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [activeTab, setActiveTab] = useState('contents');
+  const [isGrpoDialogOpen, setIsGrpoDialogOpen] = useState(false);
+  const [grpoLines, setGrpoLines] = useState<Array<{ lineNum: number; itemCode: string; itemDescription: string; quantity: number; openQty: number; quantityToReceive: number; warehouseCode: string; selected: boolean }>>([]);
+  const [grpoPostingDate, setGrpoPostingDate] = useState(new Date().toISOString().split('T')[0]);
+  const [grpoRemarks, setGrpoRemarks] = useState('');
+  const [grpoSubmitting, setGrpoSubmitting] = useState(false);
   const pageSize = 50;
   const { toast } = useToast();
 
