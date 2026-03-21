@@ -284,78 +284,13 @@ router.get('/quotations', async (req, res) => {
   }
 });
 
-// Purchase Orders - Query from local database, fallback to live SAP if empty
+// Purchase Orders - Always live from SAP
 settingsRouter.get('/orders', async (req, res) => {
   try {
     const { page = 1, limit = 20, search, status } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
-    
-    const countCheck = await pool.query('SELECT COUNT(*) as total FROM sap_purchase_orders');
-    const hasLocalData = parseInt(countCheck.rows[0].total) > 0;
-
-    if (hasLocalData) {
-      let whereConditions: string[] = [];
-      let queryParams: any[] = [];
-      let paramIndex = 1;
-
-      if (search && search.toString().trim()) {
-        const searchTerm = `%${search.toString().trim()}%`;
-        whereConditions.push(`(vendor_name ILIKE $${paramIndex} OR doc_num::text ILIKE $${paramIndex + 1})`);
-        queryParams.push(searchTerm, searchTerm);
-        paramIndex += 2;
-      }
-
-      if (status && status !== 'all') {
-        whereConditions.push(`doc_status = $${paramIndex}`);
-        queryParams.push(status);
-        paramIndex++;
-      }
-
-      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-      const countQuery = `SELECT COUNT(*) as total FROM sap_purchase_orders ${whereClause}`;
-      const countResult = await pool.query(countQuery, queryParams);
-      const total = parseInt(countResult.rows[0].total);
-
-      const ordersQuery = `
-        SELECT 
-          doc_entry as "DocEntry",
-          doc_num as "DocNum", 
-          doc_date as "DocDate",
-          doc_due_date as "DocDueDate",
-          vendor_code as "CardCode",
-          vendor_name as "CardName",
-          doc_total as "DocTotal",
-          doc_status as "DocumentStatus",
-          cancelled,
-          comments,
-          doc_currency,
-          vat_sum as "VatSum",
-          contact_person as "ContactPerson",
-          reference_1 as "NumAtCard",
-          project_code as "Project"
-        FROM sap_purchase_orders 
-        ${whereClause}
-        ORDER BY doc_date DESC 
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-      `;
-      
-      queryParams.push(Number(limit), offset);
-      const ordersResult = await pool.query(ordersQuery, queryParams);
-      
-      return res.json({
-        success: true,
-        source: 'local_database',
-        data: {
-          orders: ordersResult.rows,
-          pagination: { page: Number(page), limit: Number(limit), total }
-        }
-      });
-    }
 
     const fyStartDate = getIndianFinancialYearStart();
-    const sapLimit = Number(limit);
-    const sapSkip = offset;
     let filterParts = [`DocDate ge '${fyStartDate}'`];
     if (status && status !== 'all') {
       filterParts.push(`DocumentStatus eq '${status === 'bost_Open' ? 'bost_Open' : 'bost_Close'}'`);
@@ -364,10 +299,10 @@ settingsRouter.get('/orders', async (req, res) => {
       filterParts.push(`(contains(CardName,'${search}') or contains(cast(DocNum,Edm.String),'${search}'))`);
     }
     const filterStr = filterParts.join(' and ');
-    const queryStr = `$top=${sapLimit}&$skip=${sapSkip}&$orderby=DocDate desc&$filter=${filterStr}&$inlinecount=allpages`;
+    const queryStr = `$top=${Number(limit)}&$skip=${offset}&$orderby=DocDate desc&$filter=${filterStr}&$inlinecount=allpages`;
 
     const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders?${queryStr}`);
-    const errResp = handleSapResponse(response, res, 'Purchase orders live query');
+    const errResp = handleSapResponse(response, res, 'Purchase orders query');
     if (errResp) return;
 
     const sapData = JSON.parse(response.body);
