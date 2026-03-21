@@ -251,6 +251,7 @@ function PurchaseOrdersContent() {
           warehouseCode: l.warehouseCode,
         })),
       };
+      console.log('[GRPO] JSON Payload being sent to SAP:', JSON.stringify(payload, null, 2));
       const resp = await fetch('/api/sap/b1/purchase/grpo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
