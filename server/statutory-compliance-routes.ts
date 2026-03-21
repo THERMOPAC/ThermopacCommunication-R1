@@ -742,24 +742,38 @@ router.get('/reconciliation/:moduleType', async (req: Request, res: Response) =>
 
   const result = [];
   for (const ch of challans) {
-    const records = await db.select().from(payrollRecords)
-      .where(eq(payrollRecords.periodId, ch.payrollPeriodId));
+    let sourceTotal = 0;
+    let sourceLabel = 'Payroll Total';
+    const isNonSalaryTds = moduleType === 'TDS' && ch.tdsSection && ch.tdsSection !== '192';
 
-    let payrollTotal = 0;
-    for (const rec of records) {
-      switch (moduleType) {
-        case 'TDS':
-          payrollTotal += parseFloat(rec.tdsAmount?.toString() || rec.incomeTax?.toString() || '0');
-          break;
-        case 'PF':
-          payrollTotal += parseFloat(rec.employeePf?.toString() || '0') + parseFloat(rec.employerPf?.toString() || '0');
-          break;
-        case 'ESIC':
-          payrollTotal += parseFloat(rec.employeeEsic?.toString() || '0') + parseFloat(rec.employerEsic?.toString() || '0');
-          break;
-        case 'PT':
-          payrollTotal += parseFloat(rec.professionalTax?.toString() || '0');
-          break;
+    if (isNonSalaryTds) {
+      sourceLabel = 'Register Total';
+      const regEntries = await db.select().from(tdsComplianceRegister)
+        .where(and(
+          eq(tdsComplianceRegister.challanId, ch.id),
+          eq(tdsComplianceRegister.sourceCategory, 'sap_wht_non_salary'),
+        ));
+      for (const entry of regEntries) {
+        sourceTotal += parseFloat(entry.tdsAmount?.toString() || '0');
+      }
+    } else if (ch.payrollPeriodId) {
+      const records = await db.select().from(payrollRecords)
+        .where(eq(payrollRecords.periodId, ch.payrollPeriodId));
+      for (const rec of records) {
+        switch (moduleType) {
+          case 'TDS':
+            sourceTotal += parseFloat(rec.tdsAmount?.toString() || rec.incomeTax?.toString() || '0');
+            break;
+          case 'PF':
+            sourceTotal += parseFloat(rec.employeePf?.toString() || '0') + parseFloat(rec.employerPf?.toString() || '0');
+            break;
+          case 'ESIC':
+            sourceTotal += parseFloat(rec.employeeEsic?.toString() || '0') + parseFloat(rec.employerEsic?.toString() || '0');
+            break;
+          case 'PT':
+            sourceTotal += parseFloat(rec.professionalTax?.toString() || '0');
+            break;
+        }
       }
     }
 
@@ -770,13 +784,15 @@ router.get('/reconciliation/:moduleType', async (req: Request, res: Response) =>
     result.push({
       month: ch.month,
       year: ch.year,
+      tdsSection: ch.tdsSection || null,
       challanId: ch.id,
       challanReference: ch.challanReference,
       challanStatus: ch.status,
-      payrollTotal: payrollTotal.toFixed(2),
+      payrollTotal: sourceTotal.toFixed(2),
+      sourceLabel,
       challanTotal: challanBase.toFixed(2),
       sapPosted: sapAmount.toFixed(2),
-      variance: (payrollTotal - challanBase).toFixed(2),
+      variance: (sourceTotal - challanBase).toFixed(2),
     });
   }
 

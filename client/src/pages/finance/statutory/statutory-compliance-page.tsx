@@ -515,7 +515,8 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                 <TableHeader>
                   <TableRow>
                     <TableHead>Period</TableHead>
-                    <TableHead className="text-right">Payroll Total</TableHead>
+                    {moduleType === 'TDS' && <TableHead>Section</TableHead>}
+                    <TableHead className="text-right">Source Total</TableHead>
                     <TableHead className="text-right">Challan Total</TableHead>
                     <TableHead className="text-right">SAP Posted</TableHead>
                     <TableHead className="text-right">Variance</TableHead>
@@ -524,13 +525,14 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                 </TableHeader>
                 <TableBody>
                   {reconciliation.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Generate challans to see reconciliation data</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={moduleType === 'TDS' ? 7 : 6} className="text-center py-8 text-muted-foreground">Generate challans to see reconciliation data</TableCell></TableRow>
                   ) : reconciliation.map((r: any, i: number) => {
                     const variance = parseFloat(r.variance || '0');
                     return (
                       <TableRow key={i}>
                         <TableCell>{new Date(r.year, r.month - 1).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</TableCell>
-                        <TableCell className="text-right font-mono">{fmt(r.payrollTotal)}</TableCell>
+                        {moduleType === 'TDS' && <TableCell className="font-mono text-sm">{r.tdsSection || '—'}</TableCell>}
+                        <TableCell className="text-right font-mono" title={r.sourceLabel || 'Payroll Total'}>{fmt(r.payrollTotal)}</TableCell>
                         <TableCell className="text-right font-mono">{fmt(r.challanTotal)}</TableCell>
                         <TableCell className="text-right font-mono">{fmt(r.sapPosted)}</TableCell>
                         <TableCell className={`text-right font-mono font-semibold ${variance !== 0 ? 'text-red-600' : 'text-green-600'}`}>
