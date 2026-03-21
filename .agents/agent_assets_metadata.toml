@@ -18,3 +18,9 @@ id = "yIhC5z4j9DtDwxqSzW6MJ"
 uri = "file://Non-System-User-Payroll-Unification-Plan.md"
 type = "text"
 title = "Non-System User Payroll Unification Plan v2.0 (Expert Reviewed)"
+
+[[outputs]]
+id = "21w9yky5clUsh66hZDHjj"
+uri = "file://attached_assets/GRPO-Implementation-Plan.md"
+type = "text"
+title = "PO to GRPO — Complete Implementation Plan"
