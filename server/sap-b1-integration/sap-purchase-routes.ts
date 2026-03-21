@@ -208,7 +208,19 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
         try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
       }
     } catch (sapErr: any) {
-      console.warn(`[Dashboard] SAP unavailable: ${sapErr.message}. Returning empty stats.`);
+      console.warn(`[Dashboard] SAP unavailable: ${sapErr.message}`);
+    }
+
+    if (!sapAvailable) {
+      console.log(`[Dashboard] SAP unavailable — returning explicit unavailable state`);
+      return res.json({
+        success: true,
+        status: 'sap_unavailable',
+        data: null,
+        warning: 'SAP Service Layer is currently unavailable. Dashboard data cannot be loaded. Please check VPN connectivity and SAP server status.',
+        fyStartDate,
+        syncStatus,
+      });
     }
 
     const dashboard = {
@@ -228,18 +240,17 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
         amount: order.DocTotal
       })),
       alerts: [
-        !sapAvailable ? 'SAP Service Layer is unavailable — dashboard stats may be incomplete' : null,
         totalOrders > 800 ? 'High volume of purchase orders detected' : null,
         openValue > 1000000 ? 'High value open orders require attention' : null
       ].filter(Boolean),
       fyStartDate,
       syncStatus,
-      source: sapAvailable ? 'sap_live' : 'sap_unavailable'
+      source: 'sap_live'
     };
 
-    console.log(`[Dashboard] Source: ${sapAvailable ? 'SAP live' : 'SAP unavailable'}. ${totalOrders} total orders, ${openOrders} open, ₹${totalValue.toLocaleString()} total value`);
+    console.log(`[Dashboard] SAP live. ${totalOrders} total orders, ${openOrders} open, ₹${totalValue.toLocaleString()} total value`);
 
-    res.json({ success: true, data: dashboard });
+    res.json({ success: true, status: 'sap_live', data: dashboard });
 
   } catch (error) {
     console.error('SAP dashboard error:', error);
@@ -1319,12 +1330,16 @@ async function performSyncOperation(req: express.Request, userId: number, syncId
   }
 }
 
-// Dedicated Line Items Sync endpoint (deprecated — lean model: line items fetched live from SAP)
+// Dedicated Line Items Sync endpoint — DEPRECATED (lean model: line items fetched live from SAP)
 settingsRouter.post('/sync/line-items', async (_req, res) => {
-  res.json({
-    success: true,
-    message: 'Line items sync is deprecated. Line items are now fetched live from SAP when viewing PO details. No local storage needed.',
-    data: { lineItemsProcessed: 0, deprecated: true }
+  console.warn('[DEPRECATED] POST /sync/line-items called — this endpoint is deprecated since lean architecture migration. Line items are fetched live from SAP.');
+  res.status(410).json({
+    success: false,
+    deprecated: true,
+    code: 'ENDPOINT_DEPRECATED',
+    message: 'This endpoint is permanently removed. Line items are now fetched live from SAP when viewing PO details. No local sync is needed.',
+    removedIn: 'Phase 1 — Lean Architecture Migration',
+    alternative: 'GET /api/sap/b1/purchase/orders/:docEntry returns live line items from SAP',
   });
 });
 

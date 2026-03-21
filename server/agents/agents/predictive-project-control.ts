@@ -11,6 +11,7 @@ import {
   fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared,
   trendDirection, velocityScore,
 } from './project-control-shared';
+import { fetchOpenPurchaseOrders, fetchGRPOCountByWeek } from './sap-live-queries';
 
 const SOURCE_AGENT = 'predictive_project_controller';
 const AGENT_KEY = 'predictive_project_control';
@@ -490,90 +491,95 @@ export class PredictiveProjectControlAgent implements IAgent {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // SAP LIVE DATA FETCH (shared by PR and PX series)
+    // ════════════════════════════════════════════════════════════════════════
+    const sapPOResult = await fetchOpenPurchaseOrders();
+    queriesRun++;
+    if (!sapPOResult.available) {
+      console.warn(`[${AGENT_KEY}] SAP unavailable — procurement prediction rules (PR1/PR2/PR3, PX) will use empty dataset`);
+    }
+    const livePOs = sapPOResult.data;
+
+    // ════════════════════════════════════════════════════════════════════════
     // PR SERIES: PROCUREMENT DELAY PREDICTIONS
     // Uses procurement cycle lag, vendor delivery patterns, GR receipt rate
     // ════════════════════════════════════════════════════════════════════════
     try {
-      // ── PR1: Procurement Cycle Lag Increasing ──
-      const procCycleRows = await db.execute(sql`
-        SELECT
-          (SELECT AVG(EXTRACT(DAY FROM spo.created_at - spr.created_at))
-            FROM sap_purchase_orders spo
-            JOIN sap_purchase_requisitions spr ON spo.comments LIKE '%' || spr.doc_num::text || '%'
-            WHERE spo.created_at >= NOW() - INTERVAL '60 days'
-              AND spo.created_at < NOW() - INTERVAL '30 days') as prev_cycle_days,
-          (SELECT AVG(EXTRACT(DAY FROM spo.created_at - spr.created_at))
-            FROM sap_purchase_orders spo
-            JOIN sap_purchase_requisitions spr ON spo.comments LIKE '%' || spr.doc_num::text || '%'
-            WHERE spo.created_at >= NOW() - INTERVAL '30 days') as curr_cycle_days,
-          (SELECT COUNT(*) FROM sap_purchase_requisitions WHERE doc_status = 'bost_Open')::int as open_prs
+
+      // ── PR1: Procurement Cycle Lag — uses open PRs count (PR-to-PO cycle requires SAP PR data not available live) ──
+      const openPRRows = await db.execute(sql`
+        SELECT COUNT(*) FROM sap_purchase_requisitions WHERE doc_status = 'bost_Open'
       `);
       queriesRun++;
+      const openPRs = Number((openPRRows.rows as any[])[0]?.count || 0);
 
-      const pc = (procCycleRows.rows as any[])[0] || {};
-      const prevCycle = Number(pc.prev_cycle_days || 0);
-      const currCycle = Number(pc.curr_cycle_days || 0);
-      const openPRs = Number(pc.open_prs || 0);
+      if (openPRs > 5 && livePOs.length > 0) {
+        const overduePOs = livePOs.filter(po => po.daysOverdue > 14);
+        if (overduePOs.length >= 5) {
+          const avgOverdue = Math.round(overduePOs.reduce((s, po) => s + po.daysOverdue, 0) / overduePOs.length);
+          const confidence = Math.min(70, 30 + overduePOs.length * 3);
+          const fingerprint = fpPred('pr1_cycle_lag', null, 'procurement', 'global');
+          const severity = predSev('PR1');
 
-      if (prevCycle > 0 && currCycle > prevCycle * 1.3 && openPRs > 0) {
-        const increasePct = Math.round(((currCycle - prevCycle) / prevCycle) * 100);
-        const confidence = Math.min(80, 40 + increasePct / 2);
-        const fingerprint = fpPred('pr1_cycle_lag', null, 'procurement', 'global');
-        const severity = predSev('PR1');
-
-        const finding = await findingManager.createFinding({
-          findingType: 'prediction',
-          severity: 'high',
-          title: `PR1 Procurement Cycle Lag Increasing: ${currCycle.toFixed(1)}d avg vs ${prevCycle.toFixed(1)}d prior`,
-          description: `Procurement cycle time (PR to PO) increased ${increasePct}%.\nCurrent: ${currCycle.toFixed(1)} days avg | Previous: ${prevCycle.toFixed(1)} days avg\nOpen PRs: ${openPRs}\nPrediction: Procurement delays will cascade to project timelines\nConfidence: ${confidenceLabel(confidence)} (${confidence}%)`,
-          logicType: 'predictive',
-          dataSnapshot: { currCycle: Math.round(currCycle * 10) / 10, prevCycle: Math.round(prevCycle * 10) / 10, increasePct, openPRs, confidence },
-          relatedEntityType: 'procurement',
-          relatedEntityId: 'global',
-        });
-        if (!finding.isDuplicate) findingsCount++;
-
-        if (!await hasOpenTask(fingerprint)) {
-          const purchaseHead = await resolveDepartmentHead('Purchase');
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] Predictive Control – Procurement Cycle Lag Increasing`,
-            actionType: 'create_task',
-            description: `PR-to-PO cycle increased ${increasePct}%.`,
-            actionPayload: {
-              title: `[Agent] Predictive Control – Procurement Cycle Lag Increasing (${increasePct}% slower)`,
-              description: `Procurement cycle time (PR to PO conversion) has increased.\nCurrent: ${currCycle.toFixed(1)}d avg | Previous: ${prevCycle.toFixed(1)}d avg\nOpen PRs: ${openPRs}\nagent_severity: ${severity}\n\nReview procurement process bottlenecks.`,
-              assignedTo: await resolveEscalation('L2', purchaseHead),
-              priority: 'High',
-              category: `Prediction ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: 'high',
-            confidence: confidence / 100,
+          const finding = await findingManager.createFinding({
+            findingType: 'prediction',
+            severity: 'high',
+            title: `PR1 Procurement Backlog: ${overduePOs.length} overdue POs (avg ${avgOverdue}d), ${openPRs} open PRs`,
+            description: `${overduePOs.length} open POs are overdue (avg ${avgOverdue} days) while ${openPRs} purchase requisitions await conversion.\nPrediction: Procurement delays will cascade to project timelines\nConfidence: ${confidenceLabel(confidence)} (${confidence}%)`,
+            logicType: 'predictive',
+            dataSnapshot: { overduePOCount: overduePOs.length, avgOverdue, openPRs, confidence },
+            relatedEntityType: 'procurement',
+            relatedEntityId: 'global',
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (!finding.isDuplicate) findingsCount++;
+
+          if (!await hasOpenTask(fingerprint)) {
+            const purchaseHead = await resolveDepartmentHead('Purchase');
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Predictive Control – Procurement Backlog Increasing`,
+              actionType: 'create_task',
+              description: `${overduePOs.length} overdue POs, ${openPRs} open PRs.`,
+              actionPayload: {
+                title: `[Agent] Predictive Control – Procurement Backlog: ${overduePOs.length} overdue POs, ${openPRs} open PRs`,
+                description: `${overduePOs.length} open POs are overdue (avg ${avgOverdue}d) with ${openPRs} open PRs.\nagent_severity: ${severity}\n\nReview procurement process bottlenecks.`,
+                assignedTo: await resolveEscalation('L2', purchaseHead),
+                priority: 'High',
+                category: `Prediction ${fingerprint}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'high',
+              confidence: confidence / 100,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
 
-      // ── PR2: Vendor Delivery Pattern Deteriorating ──
-      const vendorDeliveryRows = await db.execute(sql`
-        SELECT spo.vendor_name, spo.vendor_code,
-          COUNT(*)::int as total_open,
-          AVG(CASE WHEN spo.doc_due_date < CURRENT_DATE THEN (CURRENT_DATE - spo.doc_due_date) ELSE 0 END)::int as avg_days_late,
-          COUNT(CASE WHEN spo.doc_due_date < CURRENT_DATE THEN 1 END)::int as overdue_count
-        FROM sap_purchase_orders spo
-        WHERE spo.doc_status = 'bost_Open' AND spo.cancelled = 'tNO'
-        GROUP BY spo.vendor_name, spo.vendor_code
-        HAVING COUNT(CASE WHEN spo.doc_due_date < CURRENT_DATE THEN 1 END) >= 3
-        ORDER BY avg_days_late DESC
-        LIMIT 10
-      `);
-      queriesRun++;
+      // ── PR2: Vendor Delivery Pattern Deteriorating — Live SAP ──
+      const vendorMap = new Map<string, { name: string; code: string; totalOpen: number; overdue: number[]; }>();
+      for (const po of livePOs) {
+        const key = po.CardCode;
+        if (!vendorMap.has(key)) vendorMap.set(key, { name: po.CardName, code: po.CardCode, totalOpen: 0, overdue: [] });
+        const v = vendorMap.get(key)!;
+        v.totalOpen++;
+        if (po.daysOverdue > 0) v.overdue.push(po.daysOverdue);
+      }
 
-      for (const vendor of (vendorDeliveryRows.rows || []) as any[]) {
-        const avgDaysLate = Number(vendor.avg_days_late || 0);
-        const overdueCount = Number(vendor.overdue_count || 0);
+      const vendorDelivery = Array.from(vendorMap.values())
+        .filter(v => v.overdue.length >= 3)
+        .map(v => ({
+          vendor_name: v.name, vendor_code: v.code, total_open: v.totalOpen,
+          overdue_count: v.overdue.length,
+          avg_days_late: Math.round(v.overdue.reduce((s, d) => s + d, 0) / v.overdue.length),
+        }))
+        .sort((a, b) => b.avg_days_late - a.avg_days_late)
+        .slice(0, 10);
+
+      for (const vendor of vendorDelivery) {
+        const avgDaysLate = vendor.avg_days_late;
+        const overdueCount = vendor.overdue_count;
         if (avgDaysLate < 14) continue;
 
         const confidence = Math.min(85, 50 + Math.min(avgDaysLate, 60));
@@ -615,26 +621,12 @@ export class PredictiveProjectControlAgent implements IAgent {
         }
       }
 
-      // ── PR3: GR Receipt Rate Declining ──
-      const grRateRows = await db.execute(sql`
-        SELECT
-          (SELECT COUNT(*) FROM sap_goods_receipt_po gr
-            WHERE gr.cancelled = 'tNO'
-              AND gr.created_at >= NOW() - INTERVAL '14 days'
-              AND gr.created_at < NOW() - INTERVAL '7 days')::int as prev_week_gr,
-          (SELECT COUNT(*) FROM sap_goods_receipt_po gr
-            WHERE gr.cancelled = 'tNO'
-              AND gr.created_at >= NOW() - INTERVAL '7 days')::int as curr_week_gr,
-          (SELECT COUNT(*) FROM sap_purchase_orders spo
-            WHERE spo.doc_status = 'bost_Open' AND spo.cancelled = 'tNO'
-              AND spo.doc_due_date < CURRENT_DATE)::int as overdue_po_count
-      `);
+      // ── PR3: GR Receipt Rate Declining — Live SAP ──
+      const grCountResult = await fetchGRPOCountByWeek();
       queriesRun++;
-
-      const gr = (grRateRows.rows as any[])[0] || {};
-      const prevGR = Number(gr.prev_week_gr || 0);
-      const currGR = Number(gr.curr_week_gr || 0);
-      const overduePOCount = Number(gr.overdue_po_count || 0);
+      const prevGR = grCountResult.data.prevWeek;
+      const currGR = grCountResult.data.currWeek;
+      const overduePOCount = livePOs.filter(po => po.daysOverdue > 0).length;
 
       if (prevGR >= 2 && currGR < prevGR && overduePOCount > 3) {
         const declinePct = Math.round(((prevGR - currGR) / prevGR) * 100);
@@ -689,6 +681,13 @@ export class PredictiveProjectControlAgent implements IAgent {
     // Combined velocity signals across project, design, and procurement
     // ════════════════════════════════════════════════════════════════════════
     try {
+      const overduePOsByProject = new Map<string, number>();
+      for (const po of livePOs) {
+        if (po.Project && po.daysOverdue > 0) {
+          overduePOsByProject.set(po.Project, (overduePOsByProject.get(po.Project) || 0) + 1);
+        }
+      }
+
       const crossModuleRows = await db.execute(sql`
         SELECT p.id, p.name, p.target_end_date, p.manager_id, p.code,
           (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id AND wo.status NOT IN ('completed','cancelled'))::int as open_wos,
@@ -701,9 +700,6 @@ export class PredictiveProjectControlAgent implements IAgent {
             JOIN design_projects dp ON dd.design_project_id = dp.id
             WHERE dp.project_id = p.id AND dd.status IN ('Approved','Issued')
             AND dd.updated_at >= NOW() - INTERVAL '7 days')::int as drawings_released_this_week,
-          (SELECT COUNT(*) FROM sap_purchase_orders spo
-            WHERE spo.project_code = p.code AND spo.doc_status = 'bost_Open' AND spo.cancelled = 'tNO'
-            AND spo.doc_due_date < CURRENT_DATE)::int as overdue_pos,
           (SELECT COUNT(*) FROM project_phases pp
             WHERE pp.project_id = p.id AND pp.status != 'completed'
             AND pp.target_end_date IS NOT NULL AND pp.target_end_date < CURRENT_DATE)::int as overdue_phases
@@ -723,7 +719,7 @@ export class PredictiveProjectControlAgent implements IAgent {
         const wosClosedWeek = Number(proj.wos_closed_this_week || 0);
         const openDrawings = Number(proj.open_drawings || 0);
         const drawingsReleasedWeek = Number(proj.drawings_released_this_week || 0);
-        const overduePOs = Number(proj.overdue_pos || 0);
+        const overduePOs = overduePOsByProject.get(proj.code) || 0;
         const overduePhases = Number(proj.overdue_phases || 0);
 
         if (openWOs + openDrawings < 3) continue;

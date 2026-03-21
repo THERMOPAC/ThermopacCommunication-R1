@@ -10,6 +10,7 @@ import {
   severityFromLevel, priorityFromLevel,
   fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared,
 } from './project-control-shared';
+import { fetchOpenPurchaseOrders, fetchRecentGRPOs, buildGRPOLookupByBasePO } from './sap-live-queries';
 
 const SOURCE_AGENT = 'project_controller';
 const AGENT_KEY = 'project_control';
@@ -106,9 +107,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
 
     const poMatch = cat.match(/\[fp:pc_(?:r8_delivery_missed|r6_vendor_submit|r7_mfg_delay):p\w+:sap_po:(\d+)\]/);
     if (poMatch) {
-      const check = await db.execute(sql`SELECT doc_status, cancelled FROM sap_purchase_orders WHERE id = ${parseInt(poMatch[1])}`);
-      const po = (check.rows as any[])[0];
-      if (po && (po.doc_status === 'bost_Close' || po.cancelled === 'tYES')) shouldClose = true;
+      shouldClose = false;
     }
 
     const drawingMatch = cat.match(/\[fp:pc_d1_drawing_overdue:p\d+:drawing:(\d+)\]/);
@@ -1331,18 +1330,12 @@ export class ProjectControlAgent implements IAgent {
     try {
       const purchaseDeptHead = await resolveDepartmentHead('Purchase');
 
-      const sapPORows = await db.execute(sql`
-        SELECT spo.id, spo.doc_num, spo.vendor_name, spo.vendor_code, spo.doc_date,
-          spo.doc_due_date, spo.doc_total, spo.doc_currency, spo.project_code,
-          spo.doc_status, spo.cancelled, spo.comments, spo.created_by,
-          (CURRENT_DATE - spo.doc_due_date) as days_overdue,
-          EXTRACT(DAY FROM NOW() - spo.created_at)::int as days_since_created
-        FROM sap_purchase_orders spo
-        WHERE spo.doc_status = 'bost_Open' AND spo.cancelled = 'tNO'
-        ORDER BY spo.doc_due_date ASC NULLS LAST
-      `);
+      const sapPOResult = await fetchOpenPurchaseOrders();
       queriesRun++;
-      const sapPOs = (sapPORows.rows || []) as any[];
+      if (!sapPOResult.available) {
+        console.warn(`[${AGENT_KEY}] SAP unavailable — skipping SAP PO rules (R6/R7/R8). Error: ${sapPOResult.error}`);
+      }
+      const sapPOs = sapPOResult.data;
 
       const sapPRRows = await db.execute(sql`
         SELECT spr.id, spr.doc_num, spr.doc_date, spr.due_date, spr.requester_name,
@@ -1381,17 +1374,16 @@ export class ProjectControlAgent implements IAgent {
       queriesRun++;
       const pendingInspections = (inspectionRows.rows || []) as any[];
 
-      const goodsReceiptRows = await db.execute(sql`
-        SELECT gr.id, gr.doc_num, gr.vendor_name, gr.base_doc_entry, gr.base_doc_num, gr.doc_date
-        FROM sap_goods_receipt_po gr
-        WHERE gr.cancelled = 'tNO'
-        ORDER BY gr.doc_date DESC
-      `);
+      const grpoResult = await fetchRecentGRPOs(90);
       queriesRun++;
       const grByBasePO: Record<string, any[]> = {};
-      for (const gr of (goodsReceiptRows.rows || []) as any[]) {
-        const key = String(gr.base_doc_entry || gr.base_doc_num || '');
-        if (key) { if (!grByBasePO[key]) grByBasePO[key] = []; grByBasePO[key].push(gr); }
+      if (grpoResult.available) {
+        const grLookup = buildGRPOLookupByBasePO(grpoResult.data);
+        for (const [entry, grs] of Object.entries(grLookup)) {
+          grByBasePO[entry] = grs;
+        }
+      } else {
+        console.warn(`[${AGENT_KEY}] SAP GRPO data unavailable — GR-based checks (R6/R7) may over-report`);
       }
 
       // ── R1: PR Pending Conversion ──
@@ -1564,34 +1556,34 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── R6: Vendor Submission Overdue (30-59d, no GR) ──
+      // ── R6: Vendor Submission Overdue (30-59d, no GR) — Live SAP ──
       for (const po of sapPOs) {
-        if (!po.doc_due_date) continue;
-        const daysOverdue = Number(po.days_overdue || 0);
+        if (!po.DocDueDate) continue;
+        const daysOverdue = po.daysOverdue;
         if (daysOverdue < THRESHOLDS.r6_vendor_submission_days || daysOverdue >= THRESHOLDS.r7_manufacturing_delay_days) continue;
-        const hasGR = grByBasePO[String(po.doc_entry)]?.length > 0 || grByBasePO[String(po.doc_num)]?.length > 0;
+        const hasGR = grByBasePO[String(po.DocEntry)]?.length > 0;
         if (hasGR) continue;
 
-        const fingerprint = fpWithProject('r6_vendor_submit', po.project_code, 'sap_po', po.id);
+        const fingerprint = fpWithProject('r6_vendor_submit', po.Project, 'sap_po', po.DocEntry);
         const severity = agentSev('R6');
         const finding = await findingManager.createFinding({
           findingType: 'overdue', severity: 'medium',
-          title: `R6 Vendor Submission Overdue: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue} days past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nProject: ${po.project_code || 'N/A'}`,
+          title: `R6 Vendor Submission Overdue: PO#${po.DocNum} — ${po.CardName} (${daysOverdue}d)`,
+          description: `SAP PO #${po.DocNum} from "${po.CardName}" is ${daysOverdue} days past due with no goods receipt.\nValue: ${po.DocCurrency} ${po.DocTotal.toLocaleString()}\nProject: ${po.Project || 'N/A'}`,
           logicType: 'proxy',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name, projectCode: po.project_code },
-          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
+          dataSnapshot: { docEntry: po.DocEntry, docNum: po.DocNum, daysOverdue, vendorName: po.CardName, projectCode: po.Project },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.DocEntry),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num}`,
+            title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.DocNum}`,
             actionType: 'create_task', description: `No vendor submission ${daysOverdue} days past due.`,
             actionPayload: {
-              title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d past due with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nContact vendor for submission status.`,
+              title: `[Agent] Project Control – Vendor Submission Overdue: PO#${po.DocNum} — ${po.CardName} (${daysOverdue}d)`,
+              description: `PO #${po.DocNum} from "${po.CardName}" is ${daysOverdue}d past due with no goods receipt.\nValue: ${po.DocCurrency} ${po.DocTotal.toLocaleString()}\nagent_severity: ${severity}\n\nContact vendor for submission status.`,
               assignedTo: await resolveEscalation('L1', purchaseDeptHead), priority: 'Medium', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.8,
@@ -1600,23 +1592,23 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── R7: Manufacturing Delay (60+d, no GR) ──
+      // ── R7: Manufacturing Delay (60+d, no GR) — Live SAP ──
       for (const po of sapPOs) {
-        if (!po.doc_due_date) continue;
-        const daysOverdue = Number(po.days_overdue || 0);
+        if (!po.DocDueDate) continue;
+        const daysOverdue = po.daysOverdue;
         if (daysOverdue < THRESHOLDS.r7_manufacturing_delay_days) continue;
-        const hasGR = grByBasePO[String(po.doc_entry)]?.length > 0 || grByBasePO[String(po.doc_num)]?.length > 0;
+        const hasGR = grByBasePO[String(po.DocEntry)]?.length > 0;
         if (hasGR) continue;
 
-        const fingerprint = fpWithProject('r7_mfg_delay', po.project_code, 'sap_po', po.id);
+        const fingerprint = fpWithProject('r7_mfg_delay', po.Project, 'sap_po', po.DocEntry);
         const severity = agentSev('R7');
         const finding = await findingManager.createFinding({
           findingType: 'overdue', severity: 'high',
-          title: `R7 Manufacturing Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue)`,
-          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue} days overdue with no goods receipt — likely vendor manufacturing delay.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nProject: ${po.project_code || 'N/A'}`,
+          title: `R7 Manufacturing Delay: PO#${po.DocNum} — ${po.CardName} (${daysOverdue}d overdue)`,
+          description: `SAP PO #${po.DocNum} from "${po.CardName}" is ${daysOverdue} days overdue with no goods receipt — likely vendor manufacturing delay.\nValue: ${po.DocCurrency} ${po.DocTotal.toLocaleString()}\nProject: ${po.Project || 'N/A'}`,
           logicType: 'proxy',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name, projectCode: po.project_code },
-          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
+          dataSnapshot: { docEntry: po.DocEntry, docNum: po.DocNum, daysOverdue, vendorName: po.CardName, projectCode: po.Project },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.DocEntry),
         });
         if (!finding.isDuplicate) findingsCount++;
 
@@ -1624,11 +1616,11 @@ export class ProjectControlAgent implements IAgent {
           const mgr = purchaseDeptHead ? await resolveReportingManager(purchaseDeptHead) : null;
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num}`,
+            title: `[Agent] Project Control – Manufacturing Delay: PO#${po.DocNum}`,
             actionType: 'create_task', description: `Vendor manufacturing likely delayed — ${daysOverdue}d overdue.`,
             actionPayload: {
-              title: `[Agent] Project Control – Manufacturing Delay: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" is ${daysOverdue}d overdue with no goods receipt.\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nEscalate vendor manufacturing status.`,
+              title: `[Agent] Project Control – Manufacturing Delay: PO#${po.DocNum} — ${po.CardName} (${daysOverdue}d)`,
+              description: `PO #${po.DocNum} from "${po.CardName}" is ${daysOverdue}d overdue with no goods receipt.\nValue: ${po.DocCurrency} ${po.DocTotal.toLocaleString()}\nagent_severity: ${severity}\n\nEscalate vendor manufacturing status.`,
               assignedTo: await resolveEscalation('L2', mgr), priority: 'High', category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.8,
@@ -1637,34 +1629,34 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── R8: Delivery Date Missed (7-29d overdue) ──
+      // ── R8: Delivery Date Missed (7-29d overdue) — Live SAP ──
       for (const po of sapPOs) {
-        if (!po.doc_due_date) continue;
-        const daysOverdue = Number(po.days_overdue || 0);
+        if (!po.DocDueDate) continue;
+        const daysOverdue = po.daysOverdue;
         if (daysOverdue < THRESHOLDS.r8_delivery_missed_days || daysOverdue >= THRESHOLDS.r6_vendor_submission_days) continue;
 
         const level: 'L1' | 'L2' | 'L3' = daysOverdue >= 90 ? 'L3' : daysOverdue >= 30 ? 'L2' : 'L1';
-        const fingerprint = fpWithProject('r8_delivery_missed', po.project_code, 'sap_po', po.id);
+        const fingerprint = fpWithProject('r8_delivery_missed', po.Project, 'sap_po', po.DocEntry);
         const severity = agentSev('R8', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue', severity: severityFromLevel(level) as any,
-          title: `R8 Delivery Missed: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d)`,
-          description: `SAP PO #${po.doc_num} from "${po.vendor_name}" delivery date missed by ${daysOverdue} days.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nProject: ${po.project_code || 'N/A'}`,
+          title: `R8 Delivery Missed: PO#${po.DocNum} — ${po.CardName} (${daysOverdue}d)`,
+          description: `SAP PO #${po.DocNum} from "${po.CardName}" delivery date missed by ${daysOverdue} days.\nDue: ${po.DocDueDate}\nValue: ${po.DocCurrency} ${po.DocTotal.toLocaleString()}\nProject: ${po.Project || 'N/A'}`,
           logicType: 'rule_based',
-          dataSnapshot: { poId: po.id, docNum: po.doc_num, daysOverdue, vendorName: po.vendor_name, projectCode: po.project_code },
-          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.id),
+          dataSnapshot: { docEntry: po.DocEntry, docNum: po.DocNum, daysOverdue, vendorName: po.CardName, projectCode: po.Project },
+          relatedEntityType: 'sap_purchase_order', relatedEntityId: String(po.DocEntry),
         });
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num}`,
+            title: `[Agent] Project Control – Delivery Missed: PO#${po.DocNum}`,
             actionType: 'create_task', description: `Delivery date missed by ${daysOverdue} days.`,
             actionPayload: {
-              title: `[Agent] Project Control – Delivery Missed: PO#${po.doc_num} — ${po.vendor_name} (${daysOverdue}d overdue)`,
-              description: `PO #${po.doc_num} from "${po.vendor_name}" delivery missed by ${daysOverdue}d.\nDue: ${po.doc_due_date}\nValue: ${po.doc_currency} ${Number(po.doc_total || 0).toLocaleString()}\nagent_severity: ${severity}\n\nFollow up on delivery status.`,
+              title: `[Agent] Project Control – Delivery Missed: PO#${po.DocNum} — ${po.CardName} (${daysOverdue}d overdue)`,
+              description: `PO #${po.DocNum} from "${po.CardName}" delivery missed by ${daysOverdue}d.\nDue: ${po.DocDueDate}\nValue: ${po.DocCurrency} ${po.DocTotal.toLocaleString()}\nagent_severity: ${severity}\n\nFollow up on delivery status.`,
               assignedTo: await resolveEscalation('L1', purchaseDeptHead), priority: priorityFromLevel(level), category: `Procurement ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: severityFromLevel(level) as any, confidence: 0.9,
