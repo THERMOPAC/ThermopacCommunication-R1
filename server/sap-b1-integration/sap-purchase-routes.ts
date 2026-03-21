@@ -77,13 +77,12 @@ function handleSapResponse(response: any, res: express.Response, operation: stri
   return null; // Success - no error response needed
 }
 
-// Dashboard - Query local database for accurate stats (no SAP session needed)
-settingsRouter.get('/dashboard', async (req, res) => {
+// Dashboard - Live SAP stats (lean model: SAP = source of truth)
+settingsRouter.get('/dashboard', async (req: any, res) => {
   try {
     const userId = req.user!.id;
-    
-    // Get FY start date from settings
-    let fyStartDate = '2025-04-01'; // Default
+
+    let fyStartDate = '2025-04-01';
     try {
       const settingsResult = await pool.query(
         'SELECT fy_start_date FROM sap_sync_settings WHERE user_id = $1',
@@ -97,73 +96,6 @@ settingsRouter.get('/dashboard', async (req, res) => {
       console.warn('Failed to get FY settings, using default:', err);
     }
 
-    // Query local database for accurate purchase order statistics
-    const [
-      totalOrdersResult,
-      openOrdersResult,
-      closedOrdersResult,
-      totalValueResult,
-      openValueResult,
-      vendorCountResult,
-      recentOrdersResult
-    ] = await Promise.all([
-      // Total orders count from FY start date
-      pool.query(
-        'SELECT COUNT(*) as total FROM sap_purchase_orders WHERE doc_date >= $1',
-        [fyStartDate]
-      ),
-      // Open orders count and recent open orders
-      pool.query(
-        'SELECT COUNT(*) as total FROM sap_purchase_orders WHERE doc_status = $1 AND doc_date >= $2',
-        ['bost_Open', fyStartDate]
-      ),
-      // Closed orders count
-      pool.query(
-        'SELECT COUNT(*) as total FROM sap_purchase_orders WHERE doc_status = $1 AND doc_date >= $2',
-        ['bost_Close', fyStartDate]
-      ),
-      // Total value from FY start date
-      pool.query(
-        'SELECT COALESCE(SUM(doc_total), 0) as total_value FROM sap_purchase_orders WHERE doc_date >= $1',
-        [fyStartDate]
-      ),
-      // Open orders value
-      pool.query(
-        'SELECT COALESCE(SUM(doc_total), 0) as total_value FROM sap_purchase_orders WHERE doc_status = $1 AND doc_date >= $2',
-        ['bost_Open', fyStartDate]
-      ),
-      // Unique vendor count
-      pool.query(
-        'SELECT COUNT(DISTINCT vendor_code) as unique_vendors FROM sap_purchase_orders WHERE doc_date >= $1',
-        [fyStartDate]
-      ),
-      // Recent 5 orders for display
-      pool.query(
-        `SELECT 
-          doc_entry as "DocEntry",
-          doc_num as "DocNum",
-          doc_date as "DocDate",
-          vendor_name as "CardName",
-          doc_total as "DocTotal",
-          doc_status as "DocumentStatus"
-         FROM sap_purchase_orders 
-         WHERE doc_date >= $1 
-         ORDER BY doc_date DESC 
-         LIMIT 5`,
-        [fyStartDate]
-      )
-    ]);
-
-    // Calculate statistics from database results
-    const totalOrders = parseInt(totalOrdersResult.rows[0].total) || 0;
-    const openOrders = parseInt(openOrdersResult.rows[0].total) || 0;
-    const closedOrders = parseInt(closedOrdersResult.rows[0].total) || 0;
-    const totalValue = parseFloat(totalValueResult.rows[0].total_value) || 0;
-    const openValue = parseFloat(openValueResult.rows[0].total_value) || 0;
-    const uniqueVendors = parseInt(vendorCountResult.rows[0].unique_vendors) || 0;
-    const recentOrders = recentOrdersResult.rows;
-
-    // Get sync status
     let syncStatus = null;
     try {
       const syncResult = await pool.query(
@@ -182,7 +114,103 @@ settingsRouter.get('/dashboard', async (req, res) => {
       console.warn('Failed to get sync status:', err);
     }
 
-    // Build comprehensive dashboard data
+    let totalOrders = 0, openOrders = 0, closedOrders = 0, totalValue = 0, openValue = 0;
+    let uniqueVendors = 0;
+    let recentOrders: any[] = [];
+    let sapAvailable = false;
+
+    try {
+      const sapClient = new SapHttpsClient();
+      const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+      const loginResponse = await sapClient.request({
+        method: 'POST', url: `${sapServiceUrl}/Login`,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+        timeout: 15000
+      });
+
+      if (loginResponse.statusCode === 200) {
+        sapAvailable = true;
+        const requestHeaders = {
+          'Content-Type': 'application/json',
+          'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
+        };
+
+        const [allPOResp, openPOResp, recentPOResp] = await Promise.all([
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocEntry,DocTotal,DocumentStatus,CardCode&$inlinecount=allpages&$top=1`,
+            headers: requestHeaders, timeout: 30000
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'&$select=DocEntry,DocTotal&$inlinecount=allpages&$top=1`,
+            headers: requestHeaders, timeout: 30000
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocEntry,DocNum,DocDate,CardName,DocTotal,DocumentStatus&$orderby=DocDate desc&$top=5`,
+            headers: requestHeaders, timeout: 30000
+          })
+        ]);
+
+        if (allPOResp.statusCode === 200) {
+          const allData = JSON.parse(allPOResp.body);
+          totalOrders = parseInt(allData['odata.count'] || '0');
+          const allOrders = allData.value || [];
+          totalValue = allOrders.reduce((sum: number, o: any) => sum + (parseFloat(o.DocTotal) || 0), 0);
+          const vendorSet = new Set(allOrders.map((o: any) => o.CardCode));
+          uniqueVendors = vendorSet.size;
+        }
+
+        if (openPOResp.statusCode === 200) {
+          const openData = JSON.parse(openPOResp.body);
+          openOrders = parseInt(openData['odata.count'] || '0');
+          openValue = (openData.value || []).reduce((sum: number, o: any) => sum + (parseFloat(o.DocTotal) || 0), 0);
+        }
+
+        closedOrders = totalOrders - openOrders;
+
+        if (totalOrders > 1) {
+          try {
+            const fullCountResp = await sapClient.request({
+              method: 'GET',
+              url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}'`,
+              headers: requestHeaders, timeout: 15000
+            });
+            if (fullCountResp.statusCode === 200) {
+              const cnt = parseInt(fullCountResp.body);
+              if (!isNaN(cnt)) totalOrders = cnt;
+            }
+          } catch {}
+
+          try {
+            const openCountResp = await sapClient.request({
+              method: 'GET',
+              url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
+              headers: requestHeaders, timeout: 15000
+            });
+            if (openCountResp.statusCode === 200) {
+              const cnt = parseInt(openCountResp.body);
+              if (!isNaN(cnt)) { openOrders = cnt; closedOrders = totalOrders - openOrders; }
+            }
+          } catch {}
+        }
+
+        if (recentPOResp.statusCode === 200) {
+          const recentData = JSON.parse(recentPOResp.body);
+          recentOrders = (recentData.value || []).map((po: any) => ({
+            DocEntry: po.DocEntry, DocNum: po.DocNum, DocDate: po.DocDate,
+            CardName: po.CardName, DocTotal: po.DocTotal, DocumentStatus: po.DocumentStatus
+          }));
+        }
+
+        try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
+      }
+    } catch (sapErr: any) {
+      console.warn(`[Dashboard] SAP unavailable: ${sapErr.message}. Returning empty stats.`);
+    }
+
     const dashboard = {
       purchaseOrders: {
         total: totalOrders,
@@ -190,21 +218,9 @@ settingsRouter.get('/dashboard', async (req, res) => {
         approved: closedOrders,
         totalValue: Math.round(totalValue)
       },
-      purchaseInvoices: {
-        total: 0, // Can be added later if invoice data is synced
-        pending: 0,
-        paid: 0,
-        totalValue: 0
-      },
-      vendors: {
-        total: uniqueVendors,
-        active: uniqueVendors
-      },
-      goodsReceipt: {
-        total: 0, // Can be added later if receipt data is synced
-        pending: 0,
-        completed: 0
-      },
+      purchaseInvoices: { total: 0, pending: 0, paid: 0, totalValue: 0 },
+      vendors: { total: uniqueVendors, active: uniqueVendors },
+      goodsReceipt: { total: 0, pending: 0, completed: 0 },
       recentActivity: recentOrders.map(order => ({
         type: 'Purchase Order',
         description: `PO-${order.DocNum} - ${order.CardName}`,
@@ -212,27 +228,22 @@ settingsRouter.get('/dashboard', async (req, res) => {
         amount: order.DocTotal
       })),
       alerts: [
+        !sapAvailable ? 'SAP Service Layer is unavailable — dashboard stats may be incomplete' : null,
         totalOrders > 800 ? 'High volume of purchase orders detected' : null,
         openValue > 1000000 ? 'High value open orders require attention' : null
       ].filter(Boolean),
       fyStartDate,
-      syncStatus
+      syncStatus,
+      source: sapAvailable ? 'sap_live' : 'sap_unavailable'
     };
 
-    console.log(`Dashboard stats from database: ${totalOrders} total orders, ${openOrders} open, ₹${totalValue.toLocaleString()} total value`);
+    console.log(`[Dashboard] Source: ${sapAvailable ? 'SAP live' : 'SAP unavailable'}. ${totalOrders} total orders, ${openOrders} open, ₹${totalValue.toLocaleString()} total value`);
 
-    res.json({
-      success: true,
-      data: dashboard
-    });
+    res.json({ success: true, data: dashboard });
 
   } catch (error) {
     console.error('SAP dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load dashboard data',
-      code: 'SAP_DASHBOARD_ERROR'
-    });
+    res.status(500).json({ success: false, error: 'Failed to load dashboard data', code: 'SAP_DASHBOARD_ERROR' });
   }
 });
 
@@ -847,119 +858,11 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
               totalOrdersProcessed++;
               
               try {
-                // Store in document cache
-                await pool.query(
-                  `INSERT INTO sap_document_cache (
-                    doc_entry, doc_type, doc_num, doc_date, doc_total, 
-                    document_status, vendor_code, vendor_name, 
-                    is_cancelled, is_closed, raw_data, last_synced_at, user_id
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) 
-                  ON CONFLICT (doc_entry, doc_type) DO UPDATE SET 
-                    doc_num = $3, doc_date = $4, doc_total = $5, 
-                    document_status = $6, vendor_code = $7, vendor_name = $8,
-                    is_cancelled = $9, is_closed = $10, raw_data = $11, last_synced_at = NOW()`,
-                  [
-                    order.DocEntry, 'PurchaseOrder', order.DocNum, order.DocDate, order.DocTotal,
-                    order.DocumentStatus, order.CardCode, order.CardName,
-                    order.Cancelled === 'Y', order.DocStatus === 'C', JSON.stringify(order), userId
-                  ]
-                );
-
-                // Store in structured sap_purchase_orders table
-                await pool.query(
-                  `INSERT INTO sap_purchase_orders (
-                    doc_entry, doc_num, doc_date, doc_due_date, tax_date,
-                    vendor_code, vendor_name, contact_person,
-                    doc_total, vat_sum, doc_total_fc, doc_currency, doc_rate,
-                    doc_status, cancelled, comments, reference_1, reference_2, project_code,
-                    sap_synced_at, sap_last_modified, sap_sync_status, created_by, updated_by
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, 'synced', $21, $21)
-                  ON CONFLICT (doc_entry) DO UPDATE SET
-                    doc_num = $2, doc_date = $3, doc_due_date = $4, tax_date = $5,
-                    vendor_code = $6, vendor_name = $7, contact_person = $8,
-                    doc_total = $9, vat_sum = $10, doc_total_fc = $11, doc_currency = $12, doc_rate = $13,
-                    doc_status = $14, cancelled = $15, comments = $16, reference_1 = $17, reference_2 = $18,
-                    project_code = $19, sap_synced_at = NOW(), sap_last_modified = $20, 
-                    sap_sync_status = 'synced', updated_by = $21, updated_at = NOW()`,
-                  [
-                    order.DocEntry,
-                    order.DocNum,
-                    order.DocDate,
-                    order.DocDueDate,
-                    order.TaxDate,
-                    order.CardCode,
-                    order.CardName,
-                    order.ContactPerson || null,
-                    order.DocTotal || 0,
-                    order.VatSum || 0,
-                    order.DocTotalFc || 0,
-                    order.DocCurrency || 'INR',
-                    order.DocRate || 1,
-                    order.DocumentStatus || 'O',
-                    order.Cancelled || 'N',
-                    order.Comments || null,
-                    order.NumAtCard || null,
-                    order.Reference1 || null,
-                    order.Project || null,
-                    order.UpdateDate || order.DocDate,
-                    userId
-                  ]
-                );
-                
-                // NEW: Sync line items for this purchase order
-                try {
-                  console.log(`Fetching line items for PO ${order.DocEntry}`);
-                  const lineItemsResponse = await sapClient.request({
-                    method: 'GET',
-                    url: `${sapServiceUrl}/PurchaseOrders(${order.DocEntry})/DocumentLines`,
-                    headers: requestHeaders,
-                    timeout: 30000 // 30 seconds timeout for line items
-                  });
-
-                  if (lineItemsResponse.statusCode === 200) {
-                    const lineItemsData = JSON.parse(lineItemsResponse.body);
-                    const lineItems = lineItemsData.value || [];
-                    
-                    console.log(`Found ${lineItems.length} line items for PO ${order.DocEntry}`);
-                    
-                    for (const item of lineItems) {
-                      await pool.query(
-                        `INSERT INTO sap_purchase_order_items (
-                          doc_entry, line_num, item_code, item_description, quantity, open_qty, 
-                          unit_price, price_after_vat, line_total, tax_code, tax_rate, tax_sum, 
-                          warehouse_code, uom, uom_code, cost_center, project_code, ship_date, 
-                          delivery_date, line_status, sap_synced_at, sap_sync_status, created_at, updated_at
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), $21, NOW(), NOW())
-                        ON CONFLICT (doc_entry, line_num) DO UPDATE SET
-                          item_code = $3, item_description = $4, quantity = $5, open_qty = $6,
-                          unit_price = $7, price_after_vat = $8, line_total = $9, tax_code = $10,
-                          tax_rate = $11, tax_sum = $12, warehouse_code = $13, uom = $14, uom_code = $15,
-                          cost_center = $16, project_code = $17, ship_date = $18, delivery_date = $19,
-                          line_status = $20, sap_synced_at = NOW(), sap_sync_status = $21, updated_at = NOW()`,
-                        [
-                          order.DocEntry, item.LineNum, item.ItemCode, item.ItemDescription || item.Description, 
-                          item.Quantity || 0, item.OpenQuantity || 0, item.UnitPrice || 0, item.PriceAfterVAT || 0,
-                          item.LineTotal || 0, item.TaxCode, item.VatPrcnt || 0, item.VatSum || 0,
-                          item.WarehouseCode || item.WhsCode, item.UoMCode, item.UoMEntry, item.CostingCode,
-                          item.ProjectCode, item.ShipDate, item.RequiredDate, item.LineStatus || 'bost_Open', 'synced'
-                        ]
-                      );
-                    }
-                    
-                    console.log(`✅ Synced ${lineItems.length} line items for PO ${order.DocEntry}`);
-                  } else {
-                    console.warn(`Failed to fetch line items for PO ${order.DocEntry}: ${lineItemsResponse.statusCode}`);
-                  }
-                } catch (lineItemError) {
-                  console.error(`Error syncing line items for PO ${order.DocEntry}:`, lineItemError);
-                  // Don't throw - continue with other orders
-                }
-                
-                // Log progress every 100 records
+                // Lean model: No local mirror table writes (sap_purchase_orders, sap_purchase_order_items, sap_document_cache removed)
+                // Sync now only counts documents from SAP for sync_history tracking
                 if (totalOrdersProcessed % 100 === 0) {
                   console.log(`Processed ${totalOrdersProcessed} orders so far`);
                 }
-                
               } catch (error) {
                 console.error(`Error processing order ${order.DocEntry}:`, error);
                 throw error;
@@ -1003,26 +906,7 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
       if (invoicesResponse.statusCode === 200) {
         const invoicesData = JSON.parse(invoicesResponse.body);
         documentsProcessed += invoicesData.value?.length || 0;
-        
-        // Cache the data
-        for (const invoice of invoicesData.value || []) {
-          await pool.query(
-            `INSERT INTO sap_document_cache (
-              doc_entry, doc_type, doc_num, doc_date, doc_total, 
-              document_status, vendor_code, vendor_name, 
-              is_cancelled, is_closed, raw_data, last_synced_at, user_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) 
-            ON CONFLICT (doc_entry, doc_type) DO UPDATE SET 
-              doc_num = $3, doc_date = $4, doc_total = $5, 
-              document_status = $6, vendor_code = $7, vendor_name = $8,
-              is_cancelled = $9, is_closed = $10, raw_data = $11, last_synced_at = NOW()`,
-            [
-              invoice.DocEntry, 'PurchaseInvoice', invoice.DocNum, invoice.DocDate, invoice.DocTotal,
-              invoice.DocumentStatus, invoice.CardCode, invoice.CardName,
-              invoice.Cancelled === 'Y', invoice.DocStatus === 'C', JSON.stringify(invoice), userId
-            ]
-          );
-        }
+        // Lean model: No local cache writes. Invoice count tracked for sync_history only.
       }
 
       // Logout from SAP session
@@ -1377,49 +1261,10 @@ async function performSyncOperation(req: express.Request, userId: number, syncId
         const data = JSON.parse(response.body);
         const documents = data.value || [];
         
-        // DocEntry-based upsert for cache consistency
+        // Lean model: No local cache writes. Count documents for sync_history only.
         for (const doc of documents) {
-          try {
-            const isCancelled = doc.Cancelled === 'tYES';
-            const isClosed = doc.DocumentStatus === 'bost_Close';
-            
-            await db.query(
-              `INSERT INTO sap_document_cache 
-                (doc_entry, doc_type, doc_num, doc_date, doc_total, document_status, vendor_code, vendor_name, is_cancelled, is_closed, raw_data, last_synced_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
-               ON CONFLICT (doc_entry, doc_type) 
-               DO UPDATE SET 
-                 doc_num = EXCLUDED.doc_num,
-                 doc_date = EXCLUDED.doc_date,
-                 doc_total = EXCLUDED.doc_total,
-                 document_status = EXCLUDED.document_status,
-                 vendor_code = EXCLUDED.vendor_code,
-                 vendor_name = EXCLUDED.vendor_name,
-                 is_cancelled = EXCLUDED.is_cancelled,
-                 is_closed = EXCLUDED.is_closed,
-                 raw_data = EXCLUDED.raw_data,
-                 last_synced_at = EXCLUDED.last_synced_at`,
-              [
-                doc.DocEntry,
-                docType.type,
-                doc.DocNum,
-                doc.DocDate,
-                doc.DocTotal,
-                doc.DocumentStatus,
-                doc.CardCode,
-                doc.CardName,
-                isCancelled,
-                isClosed,
-                JSON.stringify(doc)
-              ]
-            );
-            
-            docEntriesProcessed.push(doc.DocEntry);
-            documentsProcessed++;
-            
-          } catch (docError) {
-            console.error(`Error processing document ${doc.DocEntry}:`, docError);
-          }
+          docEntriesProcessed.push(doc.DocEntry);
+          documentsProcessed++;
         }
         
         console.log(`Synced ${documents.length} ${docType.type} documents`);
@@ -1474,190 +1319,13 @@ async function performSyncOperation(req: express.Request, userId: number, syncId
   }
 }
 
-// Dedicated Line Items Sync endpoint
-settingsRouter.post('/sync/line-items', async (req, res) => {
-  try {
-    const userId = req.user!.id;
-    console.log('🔄 Starting dedicated line items sync...');
-
-    // Get all purchase orders from database
-    const ordersResult = await pool.query(
-      'SELECT doc_entry, doc_num FROM sap_purchase_orders ORDER BY doc_entry'
-    );
-    
-    const totalOrders = ordersResult.rows.length;
-    console.log(`Found ${totalOrders} purchase orders to sync line items for`);
-    
-    if (totalOrders === 0) {
-      return res.json({
-        success: true,
-        message: 'No purchase orders found - please run main sync first',
-        data: { lineItemsProcessed: 0 }
-      });
-    }
-
-    // Create SAP client
-    const sapClient = new SapHttpsClient();
-    const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-    
-    // Login to SAP
-    console.log('Logging into SAP for line items sync...');
-    const loginResponse = await sapClient.request({
-      method: 'POST',
-      url: `${sapServiceUrl}/Login`,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        CompanyDB: process.env.SAP_COMPANY_DB,
-        UserName: process.env.SAP_USERNAME,
-        Password: process.env.SAP_PASSWORD
-      }),
-      timeout: 30000
-    });
-
-    if (loginResponse.statusCode !== 200) {
-      throw new Error(`SAP login failed: ${loginResponse.statusCode}`);
-    }
-
-    const requestHeaders = {
-      'Content-Type': 'application/json',
-      'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
-    };
-
-    let totalLineItems = 0;
-    let processedOrders = 0;
-    
-    // Process orders in batches of 50
-    for (let i = 0; i < ordersResult.rows.length; i += 50) {
-      const batch = ordersResult.rows.slice(i, i + 50);
-      console.log(`Processing batch ${Math.floor(i/50) + 1}: orders ${i + 1}-${Math.min(i + 50, totalOrders)}`);
-      
-      for (const order of batch) {
-        try {
-          // Try two different approaches: first with /DocumentLines, then with full PO data
-          let lineItemsResponse = await sapClient.request({
-            method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders(${order.doc_entry})/DocumentLines`,
-            headers: requestHeaders,
-            timeout: 30000
-          });
-          
-          // If that fails, try getting the full PO with DocumentLines
-          if (lineItemsResponse.statusCode !== 200) {
-            lineItemsResponse = await sapClient.request({
-              method: 'GET',
-              url: `${sapServiceUrl}/PurchaseOrders(${order.doc_entry})?$expand=DocumentLines`,
-              headers: requestHeaders,
-              timeout: 30000
-            });
-          }
-
-          if (lineItemsResponse.statusCode === 200) {
-            const lineItemsData = JSON.parse(lineItemsResponse.body);
-            
-            // Handle both response formats: direct DocumentLines or expanded PO
-            let lineItems = [];
-            if (lineItemsData.value) {
-              // Direct DocumentLines response
-              lineItems = lineItemsData.value;
-            } else if (lineItemsData.DocumentLines) {
-              // Expanded PO response
-              lineItems = lineItemsData.DocumentLines;
-            }
-            
-            // Debug logging for first few orders
-            if (processedOrders < 5) {
-              console.log(`🔍 Debug - PO ${order.doc_entry} response structure:`, Object.keys(lineItemsData));
-              console.log(`🔍 Debug - Found ${lineItems.length} line items`);
-              if (lineItems.length > 0) {
-                console.log(`🔍 Debug - First line item:`, JSON.stringify(lineItems[0], null, 2));
-              }
-            }
-            
-            for (const item of lineItems) {
-              await pool.query(
-                `INSERT INTO sap_purchase_order_items (
-                  doc_entry, line_num, item_code, item_description, quantity, open_qty, 
-                  unit_price, price_after_vat, line_total, tax_code, tax_rate, tax_sum, 
-                  warehouse_code, uom, uom_code, cost_center, project_code, ship_date, 
-                  delivery_date, sap_synced_at, sap_sync_status, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, NOW(), NOW())
-                ON CONFLICT (doc_entry, line_num) DO UPDATE SET
-                  item_code = $3, item_description = $4, quantity = $5, open_qty = $6,
-                  unit_price = $7, price_after_vat = $8, line_total = $9, tax_code = $10,
-                  tax_rate = $11, tax_sum = $12, warehouse_code = $13, uom = $14, uom_code = $15,
-                  cost_center = $16, project_code = $17, ship_date = $18, delivery_date = $19,
-                  sap_synced_at = NOW(), sap_sync_status = $20, updated_at = NOW()`,
-                [
-                  order.doc_entry, item.LineNum, item.ItemCode, item.ItemDescription || item.Description, 
-                  item.Quantity || 0, item.OpenQuantity || 0, item.UnitPrice || 0, item.PriceAfterVAT || 0,
-                  item.LineTotal || 0, item.TaxCode, item.VatPrcnt || 0, item.VatSum || 0,
-                  item.WarehouseCode || item.WhsCode, item.UoMCode, item.UoMEntry, item.CostingCode,
-                  item.ProjectCode, item.ShipDate, item.RequiredDate, 'synced'
-                ]
-              );
-            }
-            
-            totalLineItems += lineItems.length;
-            if (lineItems.length > 0) {
-              console.log(`✅ Synced ${lineItems.length} line items for PO ${order.doc_entry}`);
-            }
-          } else {
-            console.warn(`Failed to fetch line items for PO ${order.doc_entry}: ${lineItemsResponse.statusCode}`);
-            if (processedOrders < 5) {
-              console.log(`🔍 Debug - Failed response for PO ${order.doc_entry}:`, lineItemsResponse.body?.substring(0, 200));
-            }
-          }
-          
-          processedOrders++;
-          
-          // Progress logging every 100 orders
-          if (processedOrders % 100 === 0) {
-            console.log(`Progress: ${processedOrders}/${totalOrders} orders processed, ${totalLineItems} line items synced`);
-          }
-          
-        } catch (orderError) {
-          console.error(`Error processing line items for PO ${order.doc_entry}:`, orderError);
-          processedOrders++;
-          continue;
-        }
-      }
-      
-      // Small delay between batches
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    // Logout from SAP
-    try {
-      await sapClient.request({
-        method: 'POST',
-        url: `${sapServiceUrl}/Logout`,
-        headers: requestHeaders
-      });
-    } catch (logoutError) {
-      console.warn('SAP logout warning:', logoutError);
-    }
-
-    console.log(`🎉 Line items sync completed! Processed ${processedOrders} orders, synced ${totalLineItems} line items`);
-
-    res.json({
-      success: true,
-      message: `✅ Line items sync completed! Synced ${totalLineItems} line items from ${processedOrders} purchase orders.`,
-      data: {
-        ordersProcessed: processedOrders,
-        lineItemsProcessed: totalLineItems,
-        completedAt: new Date().toISOString()
-      }
-    });
-
-  } catch (error) {
-    console.error('Line items sync error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to sync line items',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      code: 'LINE_ITEMS_SYNC_ERROR'
-    });
-  }
+// Dedicated Line Items Sync endpoint (deprecated — lean model: line items fetched live from SAP)
+settingsRouter.post('/sync/line-items', async (_req, res) => {
+  res.json({
+    success: true,
+    message: 'Line items sync is deprecated. Line items are now fetched live from SAP when viewing PO details. No local storage needed.',
+    data: { lineItemsProcessed: 0, deprecated: true }
+  });
 });
 
 // ============================================================
@@ -1780,27 +1448,8 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       }
     }
 
-    try {
-      const poResult = await pool.query(
-        'SELECT doc_entry, doc_num, vendor_code, vendor_name, doc_status, cancelled FROM sap_purchase_orders WHERE doc_entry = $1',
-        [poDocEntry]
-      );
-
-      if (poResult.rows.length > 0) {
-        const po = poResult.rows[0];
-        if (po.cancelled === 'Y') {
-          return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is cancelled`, code: 'PO_CANCELLED' });
-        }
-        if (po.doc_status === 'bost_Close' || po.doc_status === 'C') {
-          return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is closed`, code: 'PO_CLOSED' });
-        }
-      }
-      console.log(`[GRPO] Layer 1 (local) pre-check done for PO ${poDocEntry}. Proceeding to live SAP validation.`);
-    } catch (localErr: any) {
-      console.log(`[GRPO] Local DB check skipped (${localErr.message}). Proceeding to live SAP validation.`);
-    }
-
     // === Set lock before SAP calls ===
+    // Layer 1 (local DB pre-check) removed — lean model: SAP is sole source of truth
     grpoLocks.set(poDocEntry, { timestamp: Date.now(), userId });
 
     // === SAP Login ===
@@ -2045,45 +1694,9 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     console.log(`[GRPO] SUCCESS — DocEntry: ${grpoResult.DocEntry}, DocNum: ${grpoResult.DocNum}, Duration: ${duration}ms`);
 
-    // === STEP 5: Post-GRPO actions ===
-
-    // Re-sync the source PO to update open quantities and line statuses
-    try {
-      const refreshResponse = await sapClient.request({
-        method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
-        headers: requestHeaders, timeout: 30000
-      });
-
-      if (refreshResponse.statusCode === 200) {
-        const refreshedPO = JSON.parse(refreshResponse.body);
-        await pool.query(
-          `UPDATE sap_purchase_orders SET doc_status = $1, cancelled = $2, sap_synced_at = NOW() WHERE doc_entry = $3`,
-          [refreshedPO.DocumentStatus, refreshedPO.Cancelled === 'tYES' ? 'Y' : 'N', poDocEntry]
-        );
-
-        for (const line of refreshedPO.DocumentLines || []) {
-          await pool.query(
-            `UPDATE sap_purchase_order_items SET open_qty = $1, line_status = $2, sap_synced_at = NOW(), updated_at = NOW() WHERE doc_entry = $3 AND line_num = $4`,
-            [line.OpenQuantity || 0, line.LineStatus || 'bost_Open', poDocEntry, line.LineNum]
-          );
-        }
-        console.log(`[GRPO] Post-GRPO PO re-sync completed for PO ${poDocEntry}`);
-      }
-    } catch (resyncErr: any) {
-      console.warn(`[GRPO] Post-GRPO PO re-sync warning:`, resyncErr.message);
-    }
-
-    // Cache GRPO in sap_document_cache
-    try {
-      await pool.query(
-        `INSERT INTO sap_document_cache (doc_entry, doc_type, doc_num, doc_date, doc_total, document_status, vendor_code, vendor_name, is_cancelled, is_closed, raw_data, last_synced_at, user_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
-         ON CONFLICT (doc_entry, doc_type) DO UPDATE SET doc_num = $3, doc_date = $4, doc_total = $5, document_status = $6, raw_data = $11, last_synced_at = NOW()`,
-        [grpoResult.DocEntry, 'GoodsReceiptPO', grpoResult.DocNum, postingDate, grpoResult.DocTotal || 0, 'bost_Open', livePo.CardCode, livePo.CardName, false, false, JSON.stringify(grpoResult), userId]
-      );
-    } catch (cacheErr: any) {
-      console.warn(`[GRPO] Cache write warning:`, cacheErr.message);
-    }
+    // === STEP 5: Post-GRPO audit (lean model — no local mirror table updates) ===
+    // Local PO/GRPO mirror table writes removed. SAP is source of truth.
+    // Only grpo_audit_log is persisted for traceability.
 
     await persistGrpoAudit({ poDocEntry, fingerprint: requestFingerprint, status: 'SUCCESS', grpoDocEntry: grpoResult.DocEntry, grpoDocNum: grpoResult.DocNum, attachmentEntry, attachmentFiles: attachmentFileNames, durationMs: duration, createdBy: userId });
 
