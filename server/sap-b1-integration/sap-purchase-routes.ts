@@ -284,16 +284,41 @@ router.get('/quotations', async (req, res) => {
   }
 });
 
+// Purchase Order Series from SAP
+router.get('/orders/series', async (req, res) => {
+  try {
+    const response = await makeSapRequest(req, `/b1s/v1/SeriesService_GetDocumentSeries`, 'POST', {
+      DocumentTypeParams: { Document: '22' }
+    });
+    const errResp = handleSapResponse(response, res, 'PO series query');
+    if (errResp) return;
+    const data = JSON.parse(response.body);
+    const series = (data.value || []).map((s: any) => ({
+      Series: s.Series,
+      SeriesName: s.Name,
+      InitialNumber: s.InitialNumber,
+      NextNumber: s.NextNumber
+    }));
+    res.json({ success: true, data: series });
+  } catch (error) {
+    console.error('PO series error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load PO series' });
+  }
+});
+
 // Purchase Orders - Always live from SAP
 router.get('/orders', async (req, res) => {
   try {
-    const { page = 1, limit = 20, search, status } = req.query;
+    const { page = 1, limit = 20, search, status, series } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
     const fyStartDate = getIndianFinancialYearStart();
     let filterParts = [`DocDate ge '${fyStartDate}'`];
     if (status && status !== 'all') {
       filterParts.push(`DocumentStatus eq '${status === 'bost_Open' ? 'bost_Open' : 'bost_Close'}'`);
+    }
+    if (series && series !== 'all') {
+      filterParts.push(`Series eq ${Number(series)}`);
     }
     if (search && search.toString().trim()) {
       const searchVal = search.toString().trim().replace(/'/g, "''");
@@ -327,7 +352,8 @@ router.get('/orders', async (req, res) => {
       VatSum: po.VatSum,
       ContactPerson: po.ContactPersonCode,
       NumAtCard: po.NumAtCard,
-      Project: po.Project
+      Project: po.Project,
+      Series: po.Series
     }));
 
     res.json({
