@@ -13,6 +13,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Search, 
@@ -22,7 +23,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  Download
+  Download,
+  Loader2,
+  Package,
+  X
 } from 'lucide-react';
 import {
   Select,
@@ -31,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseInvoice {
   DocNum: string;
@@ -50,11 +55,40 @@ interface PurchaseInvoicesData {
   };
 }
 
+interface InvoiceLine {
+  LineNum: number;
+  ItemCode: string;
+  ItemDescription: string;
+  Quantity: number;
+  UnitPrice: number;
+  LineTotal: number;
+  WarehouseCode?: string;
+  TaxCode?: string;
+}
+
+interface InvoiceDetail {
+  DocEntry: number;
+  DocNum: number;
+  DocDate: string;
+  DocDueDate: string;
+  CardCode: string;
+  CardName: string;
+  DocTotal: number;
+  DocCurrency: string;
+  DocumentStatus: string;
+  Comments?: string;
+  NumAtCard?: string;
+  DocumentLines: InvoiceLine[];
+}
+
 function PurchaseInvoicesContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedDocEntry, setSelectedDocEntry] = useState<number | null>(null);
+  const [isDownloading, setIsDownloading] = useState<number | null>(null);
   const pageSize = 20;
+  const { toast } = useToast();
 
   const { data, isLoading, error } = useQuery<{ success: boolean; data: PurchaseInvoicesData }>({
     queryKey: ['/api/sap/b1/purchase/invoices', { 
@@ -64,6 +98,11 @@ function PurchaseInvoicesContent() {
       status: statusFilter 
     }],
     enabled: true,
+  });
+
+  const { data: detailData, isLoading: detailLoading } = useQuery<{ success: boolean; data: InvoiceDetail }>({
+    queryKey: ['/api/sap/b1/purchase/invoices', selectedDocEntry],
+    enabled: selectedDocEntry !== null,
   });
 
   const formatCurrency = (amount: number) => {
@@ -106,6 +145,40 @@ function PurchaseInvoicesContent() {
     setCurrentPage(1);
   };
 
+  const handleDownload = async (invoice: PurchaseInvoice) => {
+    setIsDownloading(invoice.DocEntry);
+    try {
+      const resp = await fetch(`/api/sap/b1/purchase/invoices/${invoice.DocEntry}`, { credentials: 'include' });
+      const result = await resp.json();
+      if (!result.success) throw new Error(result.error || 'Failed to fetch');
+
+      const inv: InvoiceDetail = result.data;
+      const lines = inv.DocumentLines || [];
+
+      let csv = 'Invoice Number,Date,Due Date,Vendor Code,Vendor Name,Status,Vendor Ref\n';
+      csv += `INV-${inv.DocNum},${inv.DocDate},${inv.DocDueDate || ''},${inv.CardCode},${inv.CardName},${inv.DocumentStatus},${inv.NumAtCard || ''}\n\n`;
+      csv += 'Line,Item Code,Description,Qty,Unit Price,Line Total,Warehouse,Tax Code\n';
+      lines.forEach((l: InvoiceLine) => {
+        csv += `${l.LineNum},"${l.ItemCode || ''}","${l.ItemDescription || ''}",${l.Quantity},${l.UnitPrice},${l.LineTotal},${l.WarehouseCode || ''},${l.TaxCode || ''}\n`;
+      });
+      csv += `\n,,,,Total:,${inv.DocTotal},,\n`;
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_INV-${invoice.DocNum}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast({ title: 'Downloaded', description: `Invoice INV-${invoice.DocNum} exported as CSV` });
+    } catch (err: any) {
+      toast({ title: 'Download Failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsDownloading(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -144,10 +217,10 @@ function PurchaseInvoicesContent() {
 
   const invoicesData = data.data;
   const totalPages = Math.ceil(invoicesData.pagination.total / pageSize);
+  const invoiceDetail = detailData?.data;
 
   return (
     <div className="space-y-6">
-      {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -172,7 +245,6 @@ function PurchaseInvoicesContent() {
         </Select>
       </div>
 
-      {/* Purchase Invoices Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -214,11 +286,26 @@ function PurchaseInvoicesContent() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="View invoice details"
+                        onClick={() => setSelectedDocEntry(invoice.DocEntry)}
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Download as CSV"
+                        onClick={() => handleDownload(invoice)}
+                        disabled={isDownloading === invoice.DocEntry}
+                      >
+                        {isDownloading === invoice.DocEntry ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>
@@ -242,7 +329,6 @@ function PurchaseInvoicesContent() {
         </CardContent>
       </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-600">
@@ -273,6 +359,110 @@ function PurchaseInvoicesContent() {
           </div>
         </div>
       )}
+
+      <Dialog open={selectedDocEntry !== null} onOpenChange={() => setSelectedDocEntry(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              {invoiceDetail ? `Invoice INV-${invoiceDetail.DocNum}` : 'Invoice Details'}
+            </DialogTitle>
+          </DialogHeader>
+
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-3 text-gray-600">Loading invoice from SAP...</span>
+            </div>
+          ) : invoiceDetail ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Invoice No.</p>
+                  <p className="font-semibold">INV-{invoiceDetail.DocNum}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Date</p>
+                  <p className="font-medium">{formatDate(invoiceDetail.DocDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Due Date</p>
+                  <p className="font-medium">{invoiceDetail.DocDueDate ? formatDate(invoiceDetail.DocDueDate) : '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Status</p>
+                  {getStatusBadge(invoiceDetail.DocumentStatus)}
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-500 uppercase">Vendor</p>
+                  <p className="font-medium">{invoiceDetail.CardName}</p>
+                  <p className="text-xs text-gray-500">{invoiceDetail.CardCode}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Vendor Ref</p>
+                  <p className="font-medium">{invoiceDetail.NumAtCard || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Total</p>
+                  <p className="font-bold text-lg">{formatCurrency(invoiceDetail.DocTotal)}</p>
+                </div>
+              </div>
+
+              {invoiceDetail.Comments && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Remarks</p>
+                  <p className="text-sm text-gray-700">{invoiceDetail.Comments}</p>
+                </div>
+              )}
+
+              <div>
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Line Items ({invoiceDetail.DocumentLines?.length || 0})
+                </h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Item Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Line Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(invoiceDetail.DocumentLines || []).map((line: InvoiceLine) => (
+                        <TableRow key={line.LineNum}>
+                          <TableCell className="text-gray-500">{line.LineNum}</TableCell>
+                          <TableCell className="font-mono text-xs">{line.ItemCode}</TableCell>
+                          <TableCell>
+                            <div className="max-w-64 truncate" title={line.ItemDescription}>
+                              {line.ItemDescription}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">{line.Quantity}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(line.UnitPrice)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(line.LineTotal)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <div className="bg-gray-50 px-4 py-2 rounded-lg">
+                    <span className="text-sm text-gray-600 mr-3">Invoice Total:</span>
+                    <span className="font-bold text-lg">{formatCurrency(invoiceDetail.DocTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">Failed to load invoice details</div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

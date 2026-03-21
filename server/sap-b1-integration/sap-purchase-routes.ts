@@ -502,6 +502,21 @@ router.get('/invoices', async (req, res) => {
   }
 });
 
+router.get('/invoices/:docEntry', async (req, res) => {
+  try {
+    const { docEntry } = req.params;
+    const response = await makeSapRequest(req, `/b1s/v1/PurchaseInvoices(${docEntry})`);
+    const errorResponse = handleSapResponse(response, res, 'Purchase invoice detail');
+    if (errorResponse) return;
+
+    const invoice = JSON.parse(response.body);
+    res.json({ success: true, data: invoice });
+  } catch (error) {
+    console.error('SAP invoice detail error:', error);
+    res.status(500).json({ success: false, error: 'Failed to load invoice detail' });
+  }
+});
+
 // Sync Management Routes
 
 // Get sync status and settings
