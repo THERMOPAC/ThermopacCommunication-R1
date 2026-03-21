@@ -742,17 +742,29 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
 
 router.get('/company-databases', ensureAuthenticated, async (_req, res) => {
   try {
-    const defaultDb = process.env.SAP_COMPANY_DB || '';
+    const defaultDb = process.env.SAP_COMPANY_DB || 'TRL_TEST_120326';
+
+    const knownDatabases = [
+      { name: 'SBODemoIN', description: 'SBO Demo India' },
+      { name: 'ProductIN', description: 'Product India' },
+      { name: 'TRL_LIVE', description: 'Thermopac Boiler Pvt (Live)' },
+      { name: 'TRL_TEST_120326', description: 'Test DB (120326)' },
+      { name: 'TRL_TEST_240325', description: 'Test DB (240325)' },
+    ];
+
     const dbListEnv = process.env.SAP_COMPANY_DATABASES;
-    let databases: Array<{ name: string; description: string; isDefault: boolean }> = [];
+    let databases: Array<{ name: string; description: string; isDefault: boolean }>;
 
     if (dbListEnv) {
       databases = dbListEnv.split(',').map(entry => {
         const [name, desc] = entry.split('|').map(s => s.trim());
         return { name, description: desc || name, isDefault: name === defaultDb };
       });
-    } else if (defaultDb) {
-      databases = [{ name: defaultDb, description: defaultDb, isDefault: true }];
+    } else {
+      databases = knownDatabases.map(db => ({
+        ...db,
+        isDefault: db.name === defaultDb,
+      }));
     }
 
     res.json({ success: true, databases, defaultDb });

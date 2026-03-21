@@ -222,37 +222,27 @@ export function SapCredentialsDialog() {
           {/* Company Database Field */}
           <div className="space-y-2">
             <Label htmlFor="sapCompanyDb">Company Database</Label>
-            {databases.length > 0 ? (
-              <Select
-                value={credentials.companyDb}
-                onValueChange={(value) => setCredentials(prev => ({ ...prev, companyDb: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select company database" />
-                </SelectTrigger>
-                <SelectContent>
-                  {databases.map((db) => (
-                    <SelectItem key={db.name} value={db.name}>
-                      <div className="flex items-center gap-2">
-                        <Database className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{db.description}</span>
-                        {db.isDefault && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Default</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                id="sapCompanyDb"
-                type="text"
-                placeholder="e.g., Company Database"
-                value={credentials.companyDb}
-                onChange={(e) => setCredentials(prev => ({ ...prev, companyDb: e.target.value }))}
-              />
-            )}
+            <Select
+              value={credentials.companyDb}
+              onValueChange={(value) => setCredentials(prev => ({ ...prev, companyDb: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select company database" />
+              </SelectTrigger>
+              <SelectContent>
+                {databases.map((db) => (
+                  <SelectItem key={db.name} value={db.name}>
+                    <div className="flex items-center gap-2">
+                      <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{db.description}</span>
+                      {db.isDefault && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Default</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Action Buttons */}
