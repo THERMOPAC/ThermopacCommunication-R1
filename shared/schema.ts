@@ -3861,6 +3861,9 @@ export const sapPurchaseOrderItems = pgTable('sap_purchase_order_items', {
   shipDate: date('ship_date'),
   deliveryDate: date('delivery_date'),
   
+  // Line Status (from SAP — bost_Open or bost_Close)
+  lineStatus: varchar('line_status', { length: 10 }).default('bost_Open'),
+  
   // Sync Information
   sapSyncedAt: timestamp('sap_synced_at'),
   sapLastModified: timestamp('sap_last_modified'),

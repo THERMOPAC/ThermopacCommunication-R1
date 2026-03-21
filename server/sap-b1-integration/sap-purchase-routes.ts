@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { requireSapAccess, requireSapSession } from '../middleware/sap-auth-middleware';
 import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
@@ -869,20 +870,20 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
                           doc_entry, line_num, item_code, item_description, quantity, open_qty, 
                           unit_price, price_after_vat, line_total, tax_code, tax_rate, tax_sum, 
                           warehouse_code, uom, uom_code, cost_center, project_code, ship_date, 
-                          delivery_date, sap_synced_at, sap_sync_status, created_at, updated_at
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), $20, NOW(), NOW())
+                          delivery_date, line_status, sap_synced_at, sap_sync_status, created_at, updated_at
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW(), $21, NOW(), NOW())
                         ON CONFLICT (doc_entry, line_num) DO UPDATE SET
                           item_code = $3, item_description = $4, quantity = $5, open_qty = $6,
                           unit_price = $7, price_after_vat = $8, line_total = $9, tax_code = $10,
                           tax_rate = $11, tax_sum = $12, warehouse_code = $13, uom = $14, uom_code = $15,
                           cost_center = $16, project_code = $17, ship_date = $18, delivery_date = $19,
-                          sap_synced_at = NOW(), sap_sync_status = $20, updated_at = NOW()`,
+                          line_status = $20, sap_synced_at = NOW(), sap_sync_status = $21, updated_at = NOW()`,
                         [
                           order.DocEntry, item.LineNum, item.ItemCode, item.ItemDescription || item.Description, 
                           item.Quantity || 0, item.OpenQuantity || 0, item.UnitPrice || 0, item.PriceAfterVAT || 0,
                           item.LineTotal || 0, item.TaxCode, item.VatPrcnt || 0, item.VatSum || 0,
                           item.WarehouseCode || item.WhsCode, item.UoMCode, item.UoMEntry, item.CostingCode,
-                          item.ProjectCode, item.ShipDate, item.RequiredDate, 'synced'
+                          item.ProjectCode, item.ShipDate, item.RequiredDate, item.LineStatus || 'bost_Open', 'synced'
                         ]
                       );
                     }
@@ -1598,6 +1599,412 @@ settingsRouter.post('/sync/line-items', async (req, res) => {
       message: error instanceof Error ? error.message : 'Unknown error',
       code: 'LINE_ITEMS_SYNC_ERROR'
     });
+  }
+});
+
+// ============================================================
+// GRPO (Goods Receipt PO) Creation from Purchase Order
+// ============================================================
+
+const grpoLocks = new Map<number, { timestamp: number; userId: number }>();
+const GRPO_LOCK_TIMEOUT_MS = 120000;
+
+function cleanExpiredLocks() {
+  const now = Date.now();
+  for (const [key, lock] of grpoLocks.entries()) {
+    if (now - lock.timestamp > GRPO_LOCK_TIMEOUT_MS) grpoLocks.delete(key);
+  }
+}
+
+const grpoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 5 },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.xlsx', '.docx', '.doc', '.xls'];
+    const ext = '.' + file.originalname.split('.').pop()?.toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error(`File type ${ext} not allowed. Allowed: ${allowed.join(', ')}`));
+  }
+});
+
+router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) => {
+  const startTime = Date.now();
+  let requestFingerprint: any = {};
+  let sapSessionId: string | null = null;
+  const sapClient = new SapHttpsClient();
+  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+
+  try {
+    cleanExpiredLocks();
+
+    const rawPayload = req.body.payload ? JSON.parse(req.body.payload) : req.body;
+    const { poDocEntry, postingDate, remarks, selectedLines, headerUdfs } = rawPayload;
+    const userId = req.user!.id;
+    const files: any[] = req.files || [];
+
+    requestFingerprint = {
+      poDocEntry, postingDate,
+      selectedLines: (selectedLines || []).map((l: any) => ({ lineNum: l.lineNum, qty: l.quantityToReceive })),
+      userId, timestamp: new Date().toISOString(), fileCount: files.length
+    };
+
+    console.log(`[GRPO] Creation attempt:`, JSON.stringify(requestFingerprint));
+
+    // === LAYER 1: Local DB Validation (fast pre-flight) ===
+
+    if (!poDocEntry || !postingDate || !selectedLines || !Array.isArray(selectedLines) || selectedLines.length === 0) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: poDocEntry, postingDate, selectedLines', code: 'INVALID_REQUEST' });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(postingDate) || isNaN(new Date(postingDate).getTime())) {
+      return res.status(400).json({ success: false, error: 'Invalid posting date format. Use YYYY-MM-DD', code: 'INVALID_DATE' });
+    }
+
+    for (const line of selectedLines) {
+      if (line.quantityToReceive === undefined || line.quantityToReceive <= 0) {
+        return res.status(400).json({ success: false, error: `Quantity must be greater than 0 for line ${line.lineNum}`, code: 'INVALID_QUANTITY' });
+      }
+    }
+
+    if (grpoLocks.has(poDocEntry)) {
+      const lock = grpoLocks.get(poDocEntry)!;
+      if (Date.now() - lock.timestamp < GRPO_LOCK_TIMEOUT_MS) {
+        console.log(`[GRPO] Duplicate submission blocked for PO ${poDocEntry}`);
+        return res.status(409).json({ success: false, error: 'GRPO creation already in progress for this PO', code: 'DUPLICATE_SUBMISSION' });
+      }
+    }
+
+    const poResult = await pool.query(
+      'SELECT doc_entry, doc_num, vendor_code, vendor_name, doc_status, cancelled FROM sap_purchase_orders WHERE doc_entry = $1',
+      [poDocEntry]
+    );
+
+    if (poResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: `Purchase Order ${poDocEntry} not found in local database`, code: 'PO_NOT_FOUND' });
+    }
+
+    const po = poResult.rows[0];
+    if (po.cancelled === 'Y') {
+      return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is cancelled`, code: 'PO_CANCELLED' });
+    }
+    if (po.doc_status === 'bost_Close' || po.doc_status === 'C') {
+      return res.status(400).json({ success: false, error: `Purchase Order ${poDocEntry} is closed`, code: 'PO_CLOSED' });
+    }
+
+    const lineNums = selectedLines.map((l: any) => l.lineNum);
+    const localLinesResult = await pool.query(
+      'SELECT line_num, item_code, item_description, open_qty, warehouse_code, line_status FROM sap_purchase_order_items WHERE doc_entry = $1 AND line_num = ANY($2)',
+      [poDocEntry, lineNums]
+    );
+
+    if (localLinesResult.rows.length !== lineNums.length) {
+      const found = localLinesResult.rows.map((r: any) => r.line_num);
+      const missing = lineNums.filter((n: number) => !found.includes(n));
+      return res.status(400).json({ success: false, error: `PO lines not found: ${missing.join(', ')}`, code: 'LINE_NOT_FOUND' });
+    }
+
+    console.log(`[GRPO] Layer 1 (local) validation passed for PO ${poDocEntry}. Proceeding to live SAP validation.`);
+
+    // === Set lock before SAP calls ===
+    grpoLocks.set(poDocEntry, { timestamp: Date.now(), userId });
+
+    // === SAP Login ===
+    let loginResponse;
+    try {
+      loginResponse = await sapClient.request({
+        method: 'POST', url: `${sapServiceUrl}/Login`,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+        timeout: 60000
+      });
+    } catch (connErr: any) {
+      grpoLocks.delete(poDocEntry);
+      console.error(`[GRPO] SAP connection failed:`, connErr.message);
+      return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
+    }
+
+    if (loginResponse.statusCode !== 200) {
+      grpoLocks.delete(poDocEntry);
+      return res.status(502).json({ success: false, error: `SAP login failed: ${loginResponse.statusCode}`, code: 'SAP_LOGIN_FAILED' });
+    }
+
+    const loginCookies = loginResponse.headers['set-cookie'];
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Cookie': Array.isArray(loginCookies) ? loginCookies.join('; ') : (loginCookies || '')
+    };
+    const sessionMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
+    sapSessionId = sessionMatch ? sessionMatch[1] : null;
+
+    // === LAYER 2: Live SAP Validation (MANDATORY) ===
+    console.log(`[GRPO] Layer 2: Fetching live PO ${poDocEntry} from SAP`);
+
+    let livePo: any;
+    try {
+      const livePOResponse = await sapClient.request({
+        method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
+        headers: requestHeaders, timeout: 60000
+      });
+
+      if (livePOResponse.statusCode !== 200) {
+        grpoLocks.delete(poDocEntry);
+        return res.status(400).json({ success: false, error: `PO ${poDocEntry} not found in SAP (status ${livePOResponse.statusCode})`, code: 'SAP_PO_NOT_FOUND' });
+      }
+
+      livePo = JSON.parse(livePOResponse.body);
+    } catch (liveErr: any) {
+      grpoLocks.delete(poDocEntry);
+      console.error(`[GRPO] Live SAP validation failed:`, liveErr.message);
+      return res.status(503).json({ success: false, error: 'Cannot validate PO status — SAP Service Layer is unreachable', code: 'SAP_UNREACHABLE' });
+    }
+
+    if (livePo.Cancelled === 'tYES' || livePo.Cancelled === 'Y') {
+      grpoLocks.delete(poDocEntry);
+      return res.status(400).json({ success: false, error: `PO ${poDocEntry} is cancelled (confirmed by live SAP check)`, code: 'PO_CANCELLED' });
+    }
+    if (livePo.DocumentStatus === 'bost_Close') {
+      grpoLocks.delete(poDocEntry);
+      return res.status(400).json({ success: false, error: `PO ${poDocEntry} is closed (confirmed by live SAP check)`, code: 'PO_CLOSED' });
+    }
+
+    const liveLines = livePo.DocumentLines || [];
+    const validationErrors: any[] = [];
+    const grpoDocumentLines: any[] = [];
+
+    for (const sel of selectedLines) {
+      const liveLine = liveLines.find((l: any) => l.LineNum === sel.lineNum);
+      if (!liveLine) {
+        validationErrors.push({ lineNum: sel.lineNum, error: 'LINE_NOT_FOUND', message: `PO line ${sel.lineNum} not found in SAP` });
+        continue;
+      }
+
+      if (liveLine.LineStatus === 'bost_Close') {
+        validationErrors.push({ lineNum: sel.lineNum, error: 'LINE_CLOSED', message: `PO line ${sel.lineNum} is closed (confirmed by live SAP check)` });
+        continue;
+      }
+
+      const liveOpenQty = parseFloat(liveLine.OpenQuantity || liveLine.RemainingOpenQuantity || 0);
+      if (sel.quantityToReceive > liveOpenQty) {
+        validationErrors.push({ lineNum: sel.lineNum, error: 'EXCEEDS_OPEN_QTY', message: `Quantity ${sel.quantityToReceive} exceeds live open quantity ${liveOpenQty} for line ${sel.lineNum}` });
+        continue;
+      }
+
+      const warehouseCode = sel.warehouseCode || liveLine.WarehouseCode || liveLine.WhsCode;
+      const grpoLine: any = {
+        Quantity: sel.quantityToReceive,
+        WarehouseCode: warehouseCode,
+        BaseType: 22,
+        BaseEntry: poDocEntry,
+        BaseLine: sel.lineNum
+      };
+
+      if (sel.lineUdfs && typeof sel.lineUdfs === 'object') {
+        for (const [key, value] of Object.entries(sel.lineUdfs)) {
+          if (key.startsWith('U_')) grpoLine[key] = value;
+        }
+      }
+
+      grpoDocumentLines.push(grpoLine);
+    }
+
+    if (validationErrors.length > 0) {
+      grpoLocks.delete(poDocEntry);
+      console.log(`[GRPO] Layer 2 validation failed:`, JSON.stringify(validationErrors));
+      return res.status(400).json({ success: false, error: 'Validation failed', code: 'VALIDATION_FAILED', details: validationErrors });
+    }
+
+    console.log(`[GRPO] Layer 2 (live SAP) validation passed. ${grpoDocumentLines.length} lines validated.`);
+
+    // === STEP 3: Upload Attachments (if any) ===
+    let attachmentEntry: number | null = null;
+    const attachmentFileNames: string[] = [];
+
+    if (files.length > 0) {
+      console.log(`[GRPO] Uploading ${files.length} attachment(s) to SAP`);
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const fileName = file.originalname.replace(/\.[^.]+$/, '');
+          const fileExt = file.originalname.split('.').pop() || '';
+          attachmentFileNames.push(file.originalname);
+
+          if (attachmentEntry === null) {
+            const attachPayload = {
+              Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }]
+            };
+            const attachResponse = await sapClient.request({
+              method: 'POST', url: `${sapServiceUrl}/Attachments2`,
+              headers: requestHeaders, body: JSON.stringify(attachPayload), timeout: 120000
+            });
+
+            if (attachResponse.statusCode === 200 || attachResponse.statusCode === 201) {
+              const attachData = JSON.parse(attachResponse.body);
+              attachmentEntry = attachData.AbsoluteEntry;
+              console.log(`[GRPO] Attachment entry created: ${attachmentEntry}`);
+            } else {
+              console.warn(`[GRPO] Attachment upload returned ${attachResponse.statusCode}: ${attachResponse.body}`);
+              console.log(`[GRPO] Proceeding without attachments — will create GRPO without AttachmentEntry`);
+            }
+          } else {
+            const patchPayload = {
+              Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }]
+            };
+            await sapClient.request({
+              method: 'PATCH' as any, url: `${sapServiceUrl}/Attachments2(${attachmentEntry})`,
+              headers: requestHeaders, body: JSON.stringify(patchPayload), timeout: 60000
+            }).catch((e: any) => console.warn(`[GRPO] Additional attachment upload warning:`, e.message));
+          }
+        }
+      } catch (attachErr: any) {
+        console.warn(`[GRPO] Attachment upload failed:`, attachErr.message);
+        console.log(`[GRPO] Proceeding without attachments`);
+        attachmentEntry = null;
+      }
+    }
+
+    // === STEP 4: Create GRPO Document ===
+    const grpoPayload: any = {
+      CardCode: livePo.CardCode,
+      DocDate: postingDate,
+      Comments: remarks || `Goods Receipt against PO ${po.doc_num}`,
+      DocumentLines: grpoDocumentLines
+    };
+
+    if (attachmentEntry !== null) {
+      grpoPayload.AttachmentEntry = attachmentEntry;
+    }
+
+    if (headerUdfs && typeof headerUdfs === 'object') {
+      for (const [key, value] of Object.entries(headerUdfs)) {
+        if (key.startsWith('U_')) grpoPayload[key] = value;
+      }
+    }
+
+    console.log(`[GRPO] Posting GRPO to SAP:`, JSON.stringify({ cardCode: grpoPayload.CardCode, lines: grpoPayload.DocumentLines.length, hasAttachment: !!attachmentEntry }));
+
+    let grpoResponse: any;
+    try {
+      grpoResponse = await sapClient.request({
+        method: 'POST', url: `${sapServiceUrl}/PurchaseDeliveryNotes`,
+        headers: requestHeaders, body: JSON.stringify(grpoPayload), timeout: 300000
+      });
+    } catch (postErr: any) {
+      grpoLocks.delete(poDocEntry);
+      console.error(`[GRPO] TIMEOUT/ERROR during GRPO POST:`, postErr.message);
+      console.error(`[GRPO] UNCERTAIN POSTING STATE — Manual SAP check required. Fingerprint:`, JSON.stringify(requestFingerprint));
+      return res.status(504).json({
+        success: false,
+        error: 'SAP did not respond in time. The GRPO may or may not have been created in SAP. Please verify in SAP B1 before retrying.',
+        code: 'SAP_TIMEOUT_UNCERTAIN',
+        requestFingerprint
+      });
+    }
+
+    grpoLocks.delete(poDocEntry);
+
+    if (grpoResponse.statusCode !== 200 && grpoResponse.statusCode !== 201) {
+      let sapErrorMsg = grpoResponse.body;
+      try {
+        const errObj = JSON.parse(grpoResponse.body);
+        sapErrorMsg = errObj.error?.message?.value || errObj.message || grpoResponse.body;
+      } catch {}
+
+      console.error(`[GRPO] SAP posting failed (${grpoResponse.statusCode}):`, sapErrorMsg);
+      return res.status(400).json({
+        success: false, error: 'SAP posting failed', code: 'SAP_POSTING_FAILED',
+        sapError: { code: grpoResponse.statusCode, message: sapErrorMsg }
+      });
+    }
+
+    const grpoResult = JSON.parse(grpoResponse.body);
+    const duration = Date.now() - startTime;
+
+    console.log(`[GRPO] SUCCESS — DocEntry: ${grpoResult.DocEntry}, DocNum: ${grpoResult.DocNum}, Duration: ${duration}ms`);
+
+    // === STEP 5: Post-GRPO actions ===
+
+    // Re-sync the source PO to update open quantities and line statuses
+    try {
+      const refreshResponse = await sapClient.request({
+        method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
+        headers: requestHeaders, timeout: 30000
+      });
+
+      if (refreshResponse.statusCode === 200) {
+        const refreshedPO = JSON.parse(refreshResponse.body);
+        await pool.query(
+          `UPDATE sap_purchase_orders SET doc_status = $1, cancelled = $2, sap_synced_at = NOW() WHERE doc_entry = $3`,
+          [refreshedPO.DocumentStatus, refreshedPO.Cancelled === 'tYES' ? 'Y' : 'N', poDocEntry]
+        );
+
+        for (const line of refreshedPO.DocumentLines || []) {
+          await pool.query(
+            `UPDATE sap_purchase_order_items SET open_qty = $1, line_status = $2, sap_synced_at = NOW(), updated_at = NOW() WHERE doc_entry = $3 AND line_num = $4`,
+            [line.OpenQuantity || 0, line.LineStatus || 'bost_Open', poDocEntry, line.LineNum]
+          );
+        }
+        console.log(`[GRPO] Post-GRPO PO re-sync completed for PO ${poDocEntry}`);
+      }
+    } catch (resyncErr: any) {
+      console.warn(`[GRPO] Post-GRPO PO re-sync warning:`, resyncErr.message);
+    }
+
+    // Cache GRPO in sap_document_cache
+    try {
+      await pool.query(
+        `INSERT INTO sap_document_cache (doc_entry, doc_type, doc_num, doc_date, doc_total, document_status, vendor_code, vendor_name, is_cancelled, is_closed, raw_data, last_synced_at, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12)
+         ON CONFLICT (doc_entry, doc_type) DO UPDATE SET doc_num = $3, doc_date = $4, doc_total = $5, document_status = $6, raw_data = $11, last_synced_at = NOW()`,
+        [grpoResult.DocEntry, 'GoodsReceiptPO', grpoResult.DocNum, postingDate, grpoResult.DocTotal || 0, 'bost_Open', livePo.CardCode, livePo.CardName, false, false, JSON.stringify(grpoResult), userId]
+      );
+    } catch (cacheErr: any) {
+      console.warn(`[GRPO] Cache write warning:`, cacheErr.message);
+    }
+
+    // Structured audit log
+    console.log(`[GRPO_AUDIT] ${JSON.stringify({
+      event: 'GRPO_CREATION_SUCCESS', requestFingerprint,
+      result: { grpoDocEntry: grpoResult.DocEntry, grpoDocNum: grpoResult.DocNum, docTotal: grpoResult.DocTotal, duration_ms: duration },
+      attachmentEntry, attachmentFiles: attachmentFileNames
+    })}`);
+
+    // SAP Logout
+    try {
+      await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders });
+    } catch {}
+
+    const linesPosted = grpoDocumentLines.map((l: any) => {
+      const liveLine = liveLines.find((ll: any) => ll.LineNum === l.BaseLine);
+      return { lineNum: l.BaseLine, itemCode: liveLine?.ItemCode || '', quantityReceived: l.Quantity, warehouseCode: l.WarehouseCode };
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'GRPO created successfully',
+      data: {
+        grpoDocEntry: grpoResult.DocEntry,
+        grpoDocNum: grpoResult.DocNum,
+        poDocEntry, poDocNum: po.doc_num,
+        cardCode: livePo.CardCode, cardName: livePo.CardName,
+        postingDate,
+        docTotal: grpoResult.DocTotal || 0,
+        linesPosted,
+        attachmentEntry,
+        attachmentFiles: attachmentFileNames
+      }
+    });
+
+  } catch (error: any) {
+    grpoLocks.delete(requestFingerprint.poDocEntry);
+    console.error(`[GRPO] Unexpected error:`, error);
+    console.error(`[GRPO_AUDIT] ${JSON.stringify({ event: 'GRPO_CREATION_ERROR', requestFingerprint, error: error.message, duration_ms: Date.now() - startTime })}`);
+
+    if (sapSessionId) {
+      try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: { Cookie: `B1SESSION=${sapSessionId}` } }); } catch {}
+    }
+
+    res.status(500).json({ success: false, error: 'GRPO creation failed unexpectedly', code: 'GRPO_UNEXPECTED_ERROR', message: error.message });
   }
 });
 
