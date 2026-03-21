@@ -1,12 +1,13 @@
 import https from 'https';
 
 interface SapRequestOptions {
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   url: string;
   path?: string;
   body?: any;
   headers?: Record<string, string>;
   timeout?: number;
+  rawBody?: Buffer;
 }
 
 interface SapResponse {
@@ -57,7 +58,9 @@ export class SapHttpsClient {
         }
       };
 
-      if (options.body && typeof options.body === 'object') {
+      if (options.rawBody) {
+        requestOptions.headers!['Content-Length'] = options.rawBody.length;
+      } else if (options.body && typeof options.body === 'object') {
         const bodyStr = JSON.stringify(options.body);
         requestOptions.headers!['Content-Length'] = Buffer.byteLength(bodyStr);
       }
@@ -89,8 +92,9 @@ export class SapHttpsClient {
         reject(new Error('Request timeout'));
       });
 
-      // Write body if provided
-      if (options.body) {
+      if (options.rawBody) {
+        req.write(options.rawBody);
+      } else if (options.body) {
         if (typeof options.body === 'string') {
           req.write(options.body);
         } else {

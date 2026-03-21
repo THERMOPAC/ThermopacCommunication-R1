@@ -1616,6 +1616,44 @@ function cleanExpiredLocks() {
   }
 }
 
+async function persistGrpoAudit(data: {
+  poDocEntry: number;
+  fingerprint: any;
+  status: string;
+  grpoDocEntry?: number;
+  grpoDocNum?: number;
+  sapError?: string;
+  attachmentEntry?: number | null;
+  attachmentFiles?: string[];
+  durationMs?: number;
+  createdBy?: number;
+}) {
+  try {
+    await pool.query(
+      `INSERT INTO grpo_audit_log (po_doc_entry, request_fingerprint, status, grpo_doc_entry, grpo_doc_num, sap_error, attachment_entry, attachment_files, duration_ms, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [data.poDocEntry, JSON.stringify(data.fingerprint), data.status, data.grpoDocEntry || null, data.grpoDocNum || null,
+       data.sapError || null, data.attachmentEntry || null, data.attachmentFiles || null, data.durationMs || null, data.createdBy || null]
+    );
+  } catch (e: any) {
+    console.error(`[GRPO_AUDIT] Failed to persist audit log:`, e.message);
+  }
+}
+
+function buildMultipartBody(files: Array<{ buffer: Buffer; originalname: string }>, boundary: string): Buffer {
+  const parts: Buffer[] = [];
+  for (const file of files) {
+    const ext = file.originalname.split('.').pop() || '';
+    const nameWithoutExt = file.originalname.replace(/\.[^.]+$/, '');
+    const header = `--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${file.originalname}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+    parts.push(Buffer.from(header, 'utf-8'));
+    parts.push(file.buffer);
+    parts.push(Buffer.from('\r\n', 'utf-8'));
+  }
+  parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
+  return Buffer.concat(parts);
+}
+
 const grpoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 5 },
@@ -1821,45 +1859,59 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     console.log(`[GRPO] Layer 2 (live SAP) validation passed. ${grpoDocumentLines.length} lines validated.`);
 
-    // === STEP 3: Upload Attachments (if any) ===
+    // === STEP 3: Upload Attachments via binary multipart (if any) ===
     let attachmentEntry: number | null = null;
     const attachmentFileNames: string[] = [];
 
     if (files.length > 0) {
-      console.log(`[GRPO] Uploading ${files.length} attachment(s) to SAP`);
+      console.log(`[GRPO] Uploading ${files.length} attachment(s) to SAP via binary multipart`);
 
       try {
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          const fileName = file.originalname.replace(/\.[^.]+$/, '');
-          const fileExt = file.originalname.split('.').pop() || '';
-          attachmentFileNames.push(file.originalname);
+        const boundary = `----SAPAttachment${Date.now()}`;
+        const multipartBody = buildMultipartBody(files, boundary);
+        files.forEach((f: any) => attachmentFileNames.push(f.originalname));
 
-          if (attachmentEntry === null) {
-            const attachPayload = {
-              Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }]
-            };
-            const attachResponse = await sapClient.request({
-              method: 'POST', url: `${sapServiceUrl}/Attachments2`,
-              headers: requestHeaders, body: JSON.stringify(attachPayload), timeout: 120000
-            });
+        const attachHeaders: Record<string, string> = {
+          ...requestHeaders,
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        };
+        delete attachHeaders['Content-Type'];
+        attachHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
 
-            if (attachResponse.statusCode === 200 || attachResponse.statusCode === 201) {
-              const attachData = JSON.parse(attachResponse.body);
-              attachmentEntry = attachData.AbsoluteEntry;
-              console.log(`[GRPO] Attachment entry created: ${attachmentEntry}`);
-            } else {
-              console.warn(`[GRPO] Attachment upload returned ${attachResponse.statusCode}: ${attachResponse.body}`);
-              console.log(`[GRPO] Proceeding without attachments — will create GRPO without AttachmentEntry`);
+        const attachResponse = await sapClient.request({
+          method: 'POST',
+          url: `${sapServiceUrl}/Attachments2`,
+          headers: attachHeaders,
+          rawBody: multipartBody,
+          timeout: 120000
+        });
+
+        if (attachResponse.statusCode === 200 || attachResponse.statusCode === 201) {
+          const attachData = JSON.parse(attachResponse.body);
+          attachmentEntry = attachData.AbsoluteEntry;
+          console.log(`[GRPO] Attachment entry created via binary upload: ${attachmentEntry}`);
+        } else {
+          console.warn(`[GRPO] Binary attachment upload returned ${attachResponse.statusCode}: ${attachResponse.body}`);
+
+          console.log(`[GRPO] Falling back to JSON metadata attachment method`);
+          for (const file of files) {
+            const fileName = file.originalname.replace(/\.[^.]+$/, '');
+            const fileExt = file.originalname.split('.').pop() || '';
+            if (attachmentEntry === null) {
+              const fallbackResponse = await sapClient.request({
+                method: 'POST', url: `${sapServiceUrl}/Attachments2`,
+                headers: requestHeaders,
+                body: JSON.stringify({ Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }] }),
+                timeout: 60000
+              });
+              if (fallbackResponse.statusCode === 200 || fallbackResponse.statusCode === 201) {
+                const fallbackData = JSON.parse(fallbackResponse.body);
+                attachmentEntry = fallbackData.AbsoluteEntry;
+                console.log(`[GRPO] Attachment entry created via JSON fallback: ${attachmentEntry}`);
+              } else {
+                console.warn(`[GRPO] JSON fallback also failed (${fallbackResponse.statusCode}). Proceeding without attachments.`);
+              }
             }
-          } else {
-            const patchPayload = {
-              Attachments2_Lines: [{ SourcePath: '', FileName: fileName, FileExtension: fileExt, Override: 'tYES' }]
-            };
-            await sapClient.request({
-              method: 'PATCH' as any, url: `${sapServiceUrl}/Attachments2(${attachmentEntry})`,
-              headers: requestHeaders, body: JSON.stringify(patchPayload), timeout: 60000
-            }).catch((e: any) => console.warn(`[GRPO] Additional attachment upload warning:`, e.message));
           }
         }
       } catch (attachErr: any) {
@@ -1904,7 +1956,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     } catch (postErr: any) {
       grpoLocks.delete(poDocEntry);
       console.error(`[GRPO] TIMEOUT/ERROR during GRPO POST:`, postErr.message);
-      console.error(`[GRPO] UNCERTAIN POSTING STATE — Manual SAP check required. Fingerprint:`, JSON.stringify(requestFingerprint));
+      await persistGrpoAudit({ poDocEntry, fingerprint: requestFingerprint, status: 'TIMEOUT_UNCERTAIN', sapError: postErr.message, attachmentEntry, attachmentFiles: attachmentFileNames, durationMs: Date.now() - startTime, createdBy: userId });
       return res.status(504).json({
         success: false,
         error: 'SAP did not respond in time. The GRPO may or may not have been created in SAP. Please verify in SAP B1 before retrying.',
@@ -1923,6 +1975,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       } catch {}
 
       console.error(`[GRPO] SAP posting failed (${grpoResponse.statusCode}):`, sapErrorMsg);
+      await persistGrpoAudit({ poDocEntry, fingerprint: requestFingerprint, status: 'SAP_FAILED', sapError: sapErrorMsg, attachmentEntry, attachmentFiles: attachmentFileNames, durationMs: Date.now() - startTime, createdBy: userId });
       return res.status(400).json({
         success: false, error: 'SAP posting failed', code: 'SAP_POSTING_FAILED',
         sapError: { code: grpoResponse.statusCode, message: sapErrorMsg }
@@ -1974,7 +2027,8 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       console.warn(`[GRPO] Cache write warning:`, cacheErr.message);
     }
 
-    // Structured audit log
+    await persistGrpoAudit({ poDocEntry, fingerprint: requestFingerprint, status: 'SUCCESS', grpoDocEntry: grpoResult.DocEntry, grpoDocNum: grpoResult.DocNum, attachmentEntry, attachmentFiles: attachmentFileNames, durationMs: duration, createdBy: userId });
+
     console.log(`[GRPO_AUDIT] ${JSON.stringify({
       event: 'GRPO_CREATION_SUCCESS', requestFingerprint,
       result: { grpoDocEntry: grpoResult.DocEntry, grpoDocNum: grpoResult.DocNum, docTotal: grpoResult.DocTotal, duration_ms: duration },
@@ -2010,7 +2064,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
   } catch (error: any) {
     grpoLocks.delete(requestFingerprint.poDocEntry);
     console.error(`[GRPO] Unexpected error:`, error);
-    console.error(`[GRPO_AUDIT] ${JSON.stringify({ event: 'GRPO_CREATION_ERROR', requestFingerprint, error: error.message, duration_ms: Date.now() - startTime })}`);
+    await persistGrpoAudit({ poDocEntry: requestFingerprint.poDocEntry, fingerprint: requestFingerprint, status: 'ERROR', sapError: error.message, durationMs: Date.now() - startTime, createdBy: requestFingerprint.userId });
 
     if (sapSessionId) {
       try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: { Cookie: `B1SESSION=${sapSessionId}` } }); } catch {}
