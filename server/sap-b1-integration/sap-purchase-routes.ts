@@ -1798,6 +1798,12 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
         BaseLine: sel.lineNum
       };
 
+      for (const [key, value] of Object.entries(liveLine)) {
+        if (key.startsWith('U_') && value !== null && value !== undefined) {
+          grpoLine[key] = value;
+        }
+      }
+
       if (sel.lineUdfs && typeof sel.lineUdfs === 'object') {
         for (const [key, value] of Object.entries(sel.lineUdfs)) {
           if (key.startsWith('U_')) grpoLine[key] = value;
@@ -1873,6 +1879,12 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     if (attachmentEntry !== null) {
       grpoPayload.AttachmentEntry = attachmentEntry;
+    }
+
+    for (const [key, value] of Object.entries(livePo)) {
+      if (key.startsWith('U_') && value !== null && value !== undefined) {
+        grpoPayload[key] = value;
+      }
     }
 
     if (headerUdfs && typeof headerUdfs === 'object') {
