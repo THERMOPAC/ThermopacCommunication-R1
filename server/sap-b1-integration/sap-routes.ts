@@ -746,7 +746,7 @@ router.get('/company-databases', ensureAuthenticated, async (_req, res) => {
 
     const knownDatabases = [
       { name: 'TPEL_LIVE', description: 'TPEL Live Database' },
-      { name: 'TPBL_TEST_120326', description: 'TPBL Test Database' },
+      { name: 'TPEL_TEST_120326', description: 'TPEL Test Database' },
     ];
 
     const dbListEnv = process.env.SAP_COMPANY_DATABASES;
