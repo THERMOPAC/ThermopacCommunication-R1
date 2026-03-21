@@ -1039,15 +1039,20 @@ export default function AgentDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {(summary?.recentInsights || []).length === 0 ? (
-                  <p className="text-muted-foreground text-sm text-center py-8">No insights generated yet.</p>
-                ) : (
-                  <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-                    {(summary?.recentInsights || []).map(insight => (
-                      <InsightCard key={insight.id} insight={insight} />
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const filteredInsights = (summary?.recentInsights || []).filter(insight =>
+                    findingAgentFilter === "all" || insight.agentKey === findingAgentFilter
+                  );
+                  return filteredInsights.length === 0 ? (
+                    <p className="text-muted-foreground text-sm text-center py-8">No insights generated yet.</p>
+                  ) : (
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                      {filteredInsights.map(insight => (
+                        <InsightCard key={insight.id} insight={insight} />
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
