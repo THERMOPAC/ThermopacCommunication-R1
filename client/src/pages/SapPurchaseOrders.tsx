@@ -34,7 +34,8 @@ import {
   Eye,
   Download,
   Edit,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 import {
   Select,
@@ -139,7 +140,11 @@ function PurchaseOrdersContent() {
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.code === 'SAP_SERVICE_UNAVAILABLE' || response.status === 502) {
+          return { success: false, sapUnavailable: true, error: errorData.error || 'SAP Service Layer is currently unavailable' };
+        }
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       
       return response.json();
@@ -335,16 +340,26 @@ function PurchaseOrdersContent() {
   }
 
   if (error || !data?.success) {
+    const isSapUnavailable = (data as any)?.sapUnavailable || 
+      (error instanceof Error && (error.message.includes('502') || error.message.includes('unavailable')));
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center space-y-4">
-          <AlertTriangle className="h-12 w-12 text-red-600 mx-auto" />
+          <AlertTriangle className={`h-12 w-12 mx-auto ${isSapUnavailable ? 'text-amber-500' : 'text-red-600'}`} />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Failed to Load Purchase Orders</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {isSapUnavailable ? 'SAP Service Layer Unavailable' : 'Failed to Load Purchase Orders'}
+            </h3>
             <p className="text-sm text-gray-600">
-              {error instanceof Error ? error.message : 'Unable to fetch purchase orders'}
+              {isSapUnavailable 
+                ? 'Cannot connect to SAP B1 Service Layer. The service may be temporarily down or unreachable.'
+                : (error instanceof Error ? error.message : 'Unable to fetch purchase orders')}
             </p>
           </div>
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
         </div>
       </div>
     );
