@@ -7,6 +7,12 @@ import { pool } from '../db';
 
 const router = express.Router();
 
+function getIndianFinancialYearStart(): string {
+  const now = new Date();
+  const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  return `${year}-04-01`;
+}
+
 // Settings-only routes that don't need SAP session
 const settingsRouter = express.Router();
 settingsRouter.use(ensureAuthenticated);
@@ -236,10 +242,12 @@ router.get('/quotations', async (req, res) => {
     const { page = 1, limit = 20, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
-    let filter = '';
+    const fyStart = getIndianFinancialYearStart();
+    const filters = [`DocDate ge '${fyStart}'`];
     if (search) {
-      filter = `$filter=contains(CardName,'${search}') or contains(DocNum,'${search}')`;
+      filters.push(`(contains(CardName,'${search}') or contains(DocNum,'${search}'))`);
     }
+    const filter = `$filter=${filters.join(' and ')}`;
     
     const queryParams = [
       `$top=${limit}`,
@@ -400,10 +408,12 @@ router.get('/receipts', async (req, res) => {
     const { page = 1, limit = 20, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
-    let filter = '';
+    const fyStart = getIndianFinancialYearStart();
+    const filters = [`DocDate ge '${fyStart}'`];
     if (search) {
-      filter = `$filter=contains(CardName,'${search}') or contains(DocNum,'${search}')`;
+      filters.push(`(contains(CardName,'${search}') or contains(DocNum,'${search}'))`);
     }
+    const filter = `$filter=${filters.join(' and ')}`;
     
     const queryParams = [
       `$top=${limit}`,
@@ -446,7 +456,8 @@ router.get('/invoices', async (req, res) => {
     const { page = 1, limit = 20, search, status } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
-    let filters = [];
+    const fyStart = getIndianFinancialYearStart();
+    let filters = [`DocDate ge '${fyStart}'`];
     if (search) {
       filters.push(`(contains(CardName,'${search}') or contains(DocNum,'${search}'))`);
     }
@@ -454,7 +465,7 @@ router.get('/invoices', async (req, res) => {
       filters.push(`DocumentStatus eq '${status}'`);
     }
     
-    const filterString = filters.length > 0 ? `$filter=${filters.join(' and ')}` : '';
+    const filterString = `$filter=${filters.join(' and ')}`;
     
     const queryParams = [
       `$top=${limit}`,

@@ -13,6 +13,12 @@ import { eq, desc, and, gte, lte, ilike, or } from 'drizzle-orm';
 
 const router = express.Router();
 
+function getIndianFinancialYearStart(): string {
+  const now = new Date();
+  const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  return `${year}-04-01`;
+}
+
 // Helper function to get SAP Service Layer login credentials
 function getSapCredentials() {
   return {
@@ -82,7 +88,11 @@ router.get('/purchase-orders', async (req, res) => {
     const filters_array = [];
     if (vendorCode) filters_array.push(`CardCode eq '${vendorCode}'`);
     if (status) filters_array.push(`DocumentStatus eq '${status}'`);
-    if (dateFrom) filters_array.push(`DocDate ge '${dateFrom}'`);
+    if (dateFrom) {
+      filters_array.push(`DocDate ge '${dateFrom}'`);
+    } else {
+      filters_array.push(`DocDate ge '${getIndianFinancialYearStart()}'`);
+    }
     if (dateTo) filters_array.push(`DocDate le '${dateTo}'`);
     
     if (filters_array.length > 0) {
