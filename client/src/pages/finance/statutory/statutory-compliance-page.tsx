@@ -202,6 +202,17 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
     onError: (e: any) => toast({ title: 'SAP Reversal Error', description: e.message, variant: 'destructive' }),
   });
 
+  const deleteChallanMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest('DELETE', `/api/statutory/challans/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/compliance-register'] });
+      toast({ title: 'Challan deleted successfully' });
+    },
+    onError: (e: any) => toast({ title: 'Delete Error', description: e.message, variant: 'destructive' }),
+  });
+
   const createFilingMutation = useMutation({
     mutationFn: (data: any) => apiRequest('POST', '/api/statutory/filing-status', data),
     onSuccess: () => {
@@ -409,7 +420,17 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           <Button size="sm" variant="ghost" onClick={() => openDetail(c)}>View</Button>
-                          {c.status === 'calculated' && <Button size="sm" variant="outline" onClick={() => openPaymentDialog(c)}><CreditCard className="h-3 w-3 mr-1" />Pay</Button>}
+                          {c.status === 'calculated' && (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => openPaymentDialog(c)}><CreditCard className="h-3 w-3 mr-1" />Pay</Button>
+                              <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => {
+                                  if (confirm(`Delete challan ${c.challanReference}? This will remove the challan and its employee details.`)) {
+                                    deleteChallanMutation.mutate(c.id);
+                                  }
+                                }}>Delete</Button>
+                            </>
+                          )}
                           {c.status === 'paid' && (!c.sapPostingStatus || c.sapPostingStatus === 'not_posted' || c.sapPostingStatus === 'failed') && (
                             <>
                               <Button size="sm" variant="outline" onClick={() => filingMutation.mutate({ id: c.id })}><FileText className="h-3 w-3 mr-1" />File</Button>

@@ -388,7 +388,7 @@ router.get('/challans', async (req: Request, res: Response) => {
 router.get('/challans/:id', async (req: Request, res: Response) => {
   const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, parseInt(req.params.id)));
   if (!challan) return res.status(404).json({ error: 'Challan not found' });
-  const details = await db.select({
+  const rawDetails = await db.select({
     id: statutoryChallanDetails.id,
     employeeId: statutoryChallanDetails.employeeId,
     payrollRecordId: statutoryChallanDetails.payrollRecordId,
@@ -403,6 +403,10 @@ router.get('/challans/:id', async (req: Request, res: Response) => {
     .leftJoin(users, eq(statutoryChallanDetails.employeeId, users.id))
     .where(eq(statutoryChallanDetails.challanId, challan.id))
     .orderBy(asc(users.cardName));
+  const details = rawDetails.map(d => ({
+    ...d,
+    employeeName: d.cardName || [d.firstName, d.lastName].filter(Boolean).join(' ') || 'Unknown',
+  }));
   res.json({ ...challan, details });
 });
 
@@ -466,11 +470,11 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
         break;
     }
 
-    if ((empAmt > 0 || emprAmt > 0) && rec.employeeId) {
+    if ((empAmt > 0 || emprAmt > 0) && rec.userId) {
       totalEmp += empAmt;
       totalEmpr += emprAmt;
       detailRows.push({
-        employeeId: rec.employeeId,
+        employeeId: rec.userId,
         payrollRecordId: rec.id,
         employeeContribution: empAmt.toFixed(2),
         employerContribution: emprAmt.toFixed(2),
@@ -505,6 +509,54 @@ router.post('/challans/generate', async (req: Request, res: Response) => {
     await db.insert(statutoryChallanDetails).values(
       detailRows.map(d => ({ ...d, challanId: challan.id }))
     );
+  }
+
+  if (moduleType === 'TDS' && detailRows.length > 0) {
+    const quarter = getTdsQuarter(month);
+    const employeeIds = detailRows.map(d => d.employeeId);
+    const employees = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      cardName: users.cardName,
+      panNumber: users.panNumber,
+    }).from(users).where(inArray(users.id, employeeIds));
+    const empMap = new Map(employees.map(e => [e.id, e]));
+
+    for (const d of detailRows) {
+      const emp = empMap.get(d.employeeId);
+      if (!emp) continue;
+      const empName = emp.cardName || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || 'Unknown';
+      const existing = await db.select().from(tdsComplianceRegister)
+        .where(and(
+          eq(tdsComplianceRegister.sourceCategory, 'payroll_192'),
+          eq(tdsComplianceRegister.tdsSection, '192'),
+          eq(tdsComplianceRegister.month, month),
+          eq(tdsComplianceRegister.year, year),
+          sql`${tdsComplianceRegister.deducteeName} = ${empName}`,
+        ));
+      if (existing.length === 0) {
+        await db.insert(tdsComplianceRegister).values({
+          sourceCategory: 'payroll_192',
+          tdsSection: '192',
+          financialYear: fy,
+          quarter,
+          month,
+          year,
+          deducteeName: empName,
+          deducteePan: emp.panNumber || null,
+          deducteeType: 'employee',
+          employeeId: d.employeeId,
+          payrollRecordId: d.payrollRecordId,
+          baseAmount: d.grossSalary,
+          tdsAmount: d.employeeContribution,
+          tdsRate: null,
+          panStatus: emp.panNumber ? 'valid' : 'not_available',
+          challanId: challan.id,
+          challanStatus: 'included',
+        });
+      }
+    }
   }
 
   res.json(challan);
@@ -1996,6 +2048,68 @@ router.post('/tds/generate-non-salary-challan', async (req: Request, res: Respon
     console.error('Error generating non-salary challan:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+router.delete('/challans/:id', async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  const [challan] = await db.select().from(statutoryChallans).where(eq(statutoryChallans.id, id));
+  if (!challan) return res.status(404).json({ error: 'Challan not found' });
+  if (challan.status !== 'calculated' && challan.status !== 'draft') {
+    return res.status(400).json({ error: 'Only draft or calculated challans can be deleted' });
+  }
+
+  await db.delete(statutoryChallanDetails).where(eq(statutoryChallanDetails.challanId, id));
+
+  if (challan.moduleType === 'TDS' && challan.tdsSection === '192' && challan.payrollPeriodId) {
+    const startDate = new Date(challan.year, (challan.month || 1) - 1);
+    await db.update(tdsComplianceRegister).set({
+      challanId: null,
+      challanStatus: 'pending',
+    }).where(and(
+      eq(tdsComplianceRegister.sourceCategory, 'payroll_192'),
+      eq(tdsComplianceRegister.month, challan.month || 0),
+      eq(tdsComplianceRegister.year, challan.year || 0),
+    ));
+  }
+
+  if (challan.moduleType === 'TDS' && challan.tdsSection !== '192' && !challan.payrollPeriodId) {
+    await db.update(tdsComplianceRegister).set({
+      challanId: null,
+      challanStatus: 'pending',
+    }).where(and(
+      eq(tdsComplianceRegister.sourceCategory, 'sap_wht_non_salary'),
+      eq(tdsComplianceRegister.tdsSection, challan.tdsSection || ''),
+      eq(tdsComplianceRegister.month, challan.month || 0),
+      eq(tdsComplianceRegister.year, challan.year || 0),
+    ));
+  }
+
+  await db.delete(statutoryChallans).where(eq(statutoryChallans.id, id));
+  res.json({ success: true, message: 'Challan deleted successfully' });
+});
+
+router.post('/pt/seed-maharashtra', async (_req: Request, res: Response) => {
+  const existing = await db.select().from(ptStateConfig).where(eq(ptStateConfig.state, 'Maharashtra'));
+  if (existing.length > 0) {
+    return res.json({ message: 'Maharashtra PT config already exists', config: existing[0] });
+  }
+
+  const [config] = await db.insert(ptStateConfig).values({
+    state: 'Maharashtra',
+    ptrcNumber: '',
+    filingFrequency: 'monthly',
+    paymentDueDay: 10,
+    isActive: true,
+    slabConfig: JSON.stringify([
+      { minSalary: 0, maxSalary: 7500, amount: 0, gender: 'all' },
+      { minSalary: 7501, maxSalary: 10000, amount: 175, gender: 'all' },
+      { minSalary: 10001, maxSalary: 999999999, amount: 200, gender: 'male' },
+      { minSalary: 10001, maxSalary: 999999999, amount: 200, gender: 'female' },
+      { minSalary: 10001, maxSalary: 999999999, amount: 300, gender: 'male', monthOverride: 'february' },
+    ]),
+  }).returning();
+
+  res.json({ message: 'Maharashtra PT config seeded', config });
 });
 
 export { postJeToSap, getGlCode };
