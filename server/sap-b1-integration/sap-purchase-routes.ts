@@ -298,10 +298,10 @@ router.get('/orders', async (req, res) => {
     if (search && search.toString().trim()) {
       const searchVal = search.toString().trim().replace(/'/g, "''");
       const searchNum = parseInt(searchVal);
-      if (!isNaN(searchNum)) {
-        filterParts.push(`(contains(CardName,'${searchVal}') or DocNum eq ${searchNum} or contains(CardCode,'${searchVal}') or contains(NumAtCard,'${searchVal}'))`);
+      if (!isNaN(searchNum) && searchVal === String(searchNum)) {
+        filterParts.push(`DocNum eq ${searchNum}`);
       } else {
-        filterParts.push(`(contains(CardName,'${searchVal}') or contains(CardCode,'${searchVal}') or contains(NumAtCard,'${searchVal}'))`);
+        filterParts.push(`(contains(CardName,'${searchVal}') or contains(CardCode,'${searchVal}'))`);
       }
     }
     const filterStr = filterParts.join(' and ');
