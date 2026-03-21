@@ -1756,8 +1756,18 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       return res.status(400).json({ success: false, error: 'Invalid posting date format. Use YYYY-MM-DD', code: 'INVALID_DATE' });
     }
 
-    for (const line of selectedLines) {
-      if (line.quantityToReceive === undefined || line.quantityToReceive <= 0) {
+    const cleanedLines = selectedLines.filter((l: any) => l.quantityToReceive > 0);
+    if (cleanedLines.length === 0) {
+      return res.status(400).json({ success: false, error: 'All selected lines have zero quantity', code: 'INVALID_QUANTITY' });
+    }
+
+    const seenBaseLines = new Set<number>();
+    for (const line of cleanedLines) {
+      if (seenBaseLines.has(line.lineNum)) {
+        return res.status(400).json({ success: false, error: `Duplicate BaseLine ${line.lineNum} in selectedLines`, code: 'DUPLICATE_BASELINE' });
+      }
+      seenBaseLines.add(line.lineNum);
+      if (line.quantityToReceive <= 0) {
         return res.status(400).json({ success: false, error: `Quantity must be greater than 0 for line ${line.lineNum}`, code: 'INVALID_QUANTITY' });
       }
     }
