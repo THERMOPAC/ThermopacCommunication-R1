@@ -75,7 +75,7 @@ function PurchaseOrdersContent() {
   const [lineItems, setLineItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [activeTab, setActiveTab] = useState('contents');
-  const pageSize = 20;
+  const pageSize = 50;
   const { toast } = useToast();
 
   // Debounce search to prevent too many API calls
