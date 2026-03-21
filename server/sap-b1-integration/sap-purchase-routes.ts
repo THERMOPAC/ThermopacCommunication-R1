@@ -1866,7 +1866,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     const validationErrors: any[] = [];
     const grpoDocumentLines: any[] = [];
 
-    for (const sel of selectedLines) {
+    for (const sel of cleanedLines) {
       const liveLine = liveLines.find((l: any) => l.LineNum === sel.lineNum);
       if (!liveLine) {
         validationErrors.push({ lineNum: sel.lineNum, error: 'LINE_NOT_FOUND', message: `PO line ${sel.lineNum} not found in SAP` });
@@ -1982,7 +1982,8 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     const grpoPayload: any = {
       CardCode: livePo.CardCode,
       DocDate: postingDate,
-      Comments: remarks || `Goods Receipt against PO ${po.doc_num}`,
+      DocDueDate: postingDate,
+      Comments: remarks || `Goods Receipt against PO ${livePo.DocNum}`,
       DocumentLines: grpoDocumentLines
     };
 
@@ -2108,7 +2109,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       data: {
         grpoDocEntry: grpoResult.DocEntry,
         grpoDocNum: grpoResult.DocNum,
-        poDocEntry, poDocNum: po.doc_num,
+        poDocEntry, poDocNum: livePo.DocNum,
         cardCode: livePo.CardCode, cardName: livePo.CardName,
         postingDate,
         docTotal: grpoResult.DocTotal || 0,
@@ -2128,6 +2129,235 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     }
 
     res.status(500).json({ success: false, error: 'GRPO creation failed unexpectedly', code: 'GRPO_UNEXPECTED_ERROR', message: error.message });
+  }
+});
+
+// === Direct GRPO endpoint — accepts SAP-native JSON format ===
+router.post('/grpo/direct', async (req: any, res) => {
+  const startTime = Date.now();
+  const sapClient = new SapHttpsClient();
+  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+  const userId = req.user!.id;
+
+  try {
+    const payload = req.body;
+
+    if (!payload.CardCode || !payload.DocumentLines || !Array.isArray(payload.DocumentLines) || payload.DocumentLines.length === 0) {
+      return res.status(400).json({ success: false, error: 'Invalid payload: CardCode and DocumentLines are required', code: 'INVALID_REQUEST' });
+    }
+
+    const docLines = payload.DocumentLines.filter((l: any) => l.Quantity > 0);
+    if (docLines.length === 0) {
+      return res.status(400).json({ success: false, error: 'All lines have zero quantity', code: 'INVALID_QUANTITY' });
+    }
+
+    const baseEntries = new Set(docLines.map((l: any) => l.BaseEntry));
+    if (baseEntries.size !== 1) {
+      return res.status(400).json({ success: false, error: 'All lines must reference the same PO (BaseEntry)', code: 'INCONSISTENT_BASE_ENTRY' });
+    }
+
+    const seenBaseLines = new Set<number>();
+    for (const line of docLines) {
+      if (line.BaseType !== 22) {
+        return res.status(400).json({ success: false, error: `Line BaseLine ${line.BaseLine} has invalid BaseType ${line.BaseType}, must be 22`, code: 'INVALID_BASE_TYPE' });
+      }
+      if (seenBaseLines.has(line.BaseLine)) {
+        return res.status(400).json({ success: false, error: `Duplicate BaseLine ${line.BaseLine}`, code: 'DUPLICATE_BASELINE' });
+      }
+      seenBaseLines.add(line.BaseLine);
+    }
+
+    const poDocEntry = docLines[0].BaseEntry;
+
+    console.log(`[GRPO-DIRECT] Validation+Post attempt for PO DocEntry ${poDocEntry}, ${docLines.length} lines, user ${userId}`);
+
+    let loginResponse;
+    try {
+      loginResponse = await sapClient.request({
+        method: 'POST', url: `${sapServiceUrl}/Login`,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+        timeout: 60000
+      });
+    } catch (connErr: any) {
+      return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
+    }
+
+    if (loginResponse.statusCode !== 200) {
+      return res.status(502).json({ success: false, error: `SAP login failed: ${loginResponse.statusCode}`, code: 'SAP_LOGIN_FAILED' });
+    }
+
+    const loginCookies = loginResponse.headers['set-cookie'];
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Cookie': Array.isArray(loginCookies) ? loginCookies.join('; ') : (loginCookies || '')
+    };
+
+    // === STEP 1: Fetch live PO ===
+    console.log(`[GRPO-DIRECT] Fetching live PO ${poDocEntry} from SAP`);
+    let livePo: any;
+    try {
+      const livePOResponse = await sapClient.request({
+        method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
+        headers: requestHeaders, timeout: 60000
+      });
+      if (livePOResponse.statusCode !== 200) {
+        return res.status(400).json({ success: false, error: `PO ${poDocEntry} not found in SAP (HTTP ${livePOResponse.statusCode})`, code: 'SAP_PO_NOT_FOUND' });
+      }
+      livePo = JSON.parse(livePOResponse.body);
+    } catch (liveErr: any) {
+      return res.status(503).json({ success: false, error: 'Cannot fetch PO from SAP', code: 'SAP_UNREACHABLE' });
+    }
+
+    // === STEP 2: Validate header ===
+    if (livePo.Cancelled === 'tYES' || livePo.Cancelled === 'Y') {
+      return res.status(400).json({ success: false, error: `PO ${poDocEntry} is cancelled`, code: 'PO_CANCELLED' });
+    }
+    if (livePo.DocumentStatus === 'bost_Close') {
+      return res.status(400).json({ success: false, error: `PO ${poDocEntry} is closed`, code: 'PO_CLOSED' });
+    }
+    if (payload.CardCode !== livePo.CardCode) {
+      return res.status(400).json({ success: false, error: `CardCode mismatch: payload has ${payload.CardCode}, PO has ${livePo.CardCode}`, code: 'CARDCODE_MISMATCH' });
+    }
+
+    // === STEP 3: Validate each line ===
+    const liveLines = livePo.DocumentLines || [];
+    const validationErrors: any[] = [];
+    const validatedLines: any[] = [];
+
+    for (const dl of docLines) {
+      const liveLine = liveLines.find((l: any) => l.LineNum === dl.BaseLine);
+      if (!liveLine) {
+        validationErrors.push({ baseLine: dl.BaseLine, error: 'LINE_NOT_FOUND', message: `PO line ${dl.BaseLine} does not exist in SAP` });
+        continue;
+      }
+      if (liveLine.LineStatus === 'bost_Close') {
+        validationErrors.push({ baseLine: dl.BaseLine, itemCode: liveLine.ItemCode, error: 'LINE_CLOSED', message: `PO line ${dl.BaseLine} (${liveLine.ItemCode}) is closed` });
+        continue;
+      }
+      const openQty = parseFloat(liveLine.OpenQuantity || liveLine.RemainingOpenQuantity || 0);
+      if (dl.Quantity > openQty) {
+        validationErrors.push({ baseLine: dl.BaseLine, itemCode: liveLine.ItemCode, error: 'EXCEEDS_OPEN_QTY', message: `Qty ${dl.Quantity} exceeds open qty ${openQty} for line ${dl.BaseLine} (${liveLine.ItemCode})`, requestedQty: dl.Quantity, openQty });
+        continue;
+      }
+
+      const validLine: any = {
+        Quantity: dl.Quantity,
+        WarehouseCode: dl.WarehouseCode || liveLine.WarehouseCode || liveLine.WhsCode,
+        BaseType: 22,
+        BaseEntry: poDocEntry,
+        BaseLine: dl.BaseLine
+      };
+
+      for (const [key, value] of Object.entries(liveLine)) {
+        if (key.startsWith('U_') && value !== null && value !== undefined) {
+          validLine[key] = value;
+        }
+      }
+
+      validatedLines.push(validLine);
+    }
+
+    if (validationErrors.length > 0) {
+      console.log(`[GRPO-DIRECT] Validation FAILED: ${validationErrors.length} errors`, JSON.stringify(validationErrors));
+      try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
+      return res.status(400).json({
+        success: false,
+        error: 'Pre-validation failed — GRPO NOT posted',
+        code: 'VALIDATION_FAILED',
+        validationResult: { passed: false, totalLines: docLines.length, failedLines: validationErrors.length, errors: validationErrors },
+        poStatus: { docEntry: livePo.DocEntry, docNum: livePo.DocNum, status: livePo.DocumentStatus, cancelled: livePo.Cancelled, cardCode: livePo.CardCode, cardName: livePo.CardName }
+      });
+    }
+
+    console.log(`[GRPO-DIRECT] All ${validatedLines.length} lines validated OK. Posting to SAP...`);
+
+    // === STEP 4: Build final SAP payload ===
+    const sapGrpoPayload: any = {
+      CardCode: livePo.CardCode,
+      DocDate: payload.DocDate || new Date().toISOString().split('T')[0],
+      DocDueDate: payload.DocDate || new Date().toISOString().split('T')[0],
+      Comments: payload.Comments || `Goods Receipt against PO ${livePo.DocNum}`,
+      DocumentLines: validatedLines
+    };
+
+    for (const [key, value] of Object.entries(livePo)) {
+      if (key.startsWith('U_') && value !== null && value !== undefined) {
+        sapGrpoPayload[key] = value;
+      }
+    }
+
+    console.log(`[GRPO-DIRECT] Final SAP payload:`, JSON.stringify(sapGrpoPayload, null, 2));
+
+    // === STEP 5: POST to SAP ===
+    let grpoResponse: any;
+    try {
+      grpoResponse = await sapClient.request({
+        method: 'POST', url: `${sapServiceUrl}/PurchaseDeliveryNotes`,
+        headers: requestHeaders, body: JSON.stringify(sapGrpoPayload), timeout: 300000
+      });
+    } catch (postErr: any) {
+      console.error(`[GRPO-DIRECT] TIMEOUT/ERROR:`, postErr.message);
+      return res.status(504).json({
+        success: false, error: 'SAP did not respond in time. GRPO may or may not have been created.',
+        code: 'SAP_TIMEOUT_UNCERTAIN',
+        requestFingerprint: { poDocEntry, lineCount: validatedLines.length, quantities: validatedLines.map((l: any) => ({ baseLine: l.BaseLine, qty: l.Quantity })), timestamp: new Date().toISOString() }
+      });
+    }
+
+    // === STEP 6: Handle response ===
+    if (grpoResponse.statusCode !== 200 && grpoResponse.statusCode !== 201) {
+      let sapErrorMsg = grpoResponse.body;
+      let sapErrorDetail: any = {};
+      try {
+        const errObj = JSON.parse(grpoResponse.body);
+        sapErrorMsg = errObj.error?.message?.value || errObj.message || grpoResponse.body;
+        sapErrorDetail = errObj.error || errObj;
+      } catch {}
+
+      console.error(`[GRPO-DIRECT] SAP rejected (${grpoResponse.statusCode}):`, sapErrorMsg);
+      try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
+      return res.status(400).json({
+        success: false, error: 'SAP rejected the GRPO', code: 'SAP_POSTING_FAILED',
+        sapError: { httpStatus: grpoResponse.statusCode, message: sapErrorMsg, detail: sapErrorDetail },
+        payloadSent: sapGrpoPayload
+      });
+    }
+
+    const grpoResult = JSON.parse(grpoResponse.body);
+    const duration = Date.now() - startTime;
+
+    console.log(`[GRPO-DIRECT] SUCCESS — DocEntry: ${grpoResult.DocEntry}, DocNum: ${grpoResult.DocNum}, Duration: ${duration}ms`);
+
+    try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
+
+    const linesPosted = validatedLines.map((l: any) => {
+      const liveLine = liveLines.find((ll: any) => ll.LineNum === l.BaseLine);
+      return { baseLine: l.BaseLine, itemCode: liveLine?.ItemCode || '', itemDescription: liveLine?.ItemDescription || '', quantityReceived: l.Quantity, warehouseCode: l.WarehouseCode };
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'GRPO created successfully in SAP',
+      data: {
+        grpoDocEntry: grpoResult.DocEntry,
+        grpoDocNum: grpoResult.DocNum,
+        poDocEntry, poDocNum: livePo.DocNum,
+        cardCode: livePo.CardCode, cardName: livePo.CardName,
+        docDate: sapGrpoPayload.DocDate,
+        docTotal: grpoResult.DocTotal || 0,
+        linesPosted,
+        totalLinesPosted: linesPosted.length,
+        totalQuantityReceived: linesPosted.reduce((sum: number, l: any) => sum + l.quantityReceived, 0)
+      },
+      validationResult: { passed: true, totalLines: docLines.length, allLinesValid: true },
+      payloadSent: sapGrpoPayload,
+      timing: { durationMs: duration }
+    });
+
+  } catch (error: any) {
+    console.error(`[GRPO-DIRECT] Unexpected error:`, error);
+    res.status(500).json({ success: false, error: 'Unexpected error', code: 'GRPO_UNEXPECTED_ERROR', message: error.message });
   }
 });
 

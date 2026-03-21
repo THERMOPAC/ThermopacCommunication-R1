@@ -235,17 +235,15 @@ function PurchaseOrdersContent() {
     const sapGrpoPayload = {
       CardCode: poDetail?.CardCode || selectedOrder?.CardCode,
       DocDate: grpoPostingDate,
+      DocDueDate: grpoPostingDate,
       Comments: grpoRemarks || `Goods Receipt against PO ${poDetail?.DocNum || selectedOrder?.DocNum}`,
-      DocumentLines: selected.map(l => {
-        const line: any = {
-          Quantity: l.quantityToReceive,
-          WarehouseCode: l.warehouseCode,
-          BaseType: 22,
-          BaseEntry: docEntry,
-          BaseLine: l.lineNum,
-        };
-        return line;
-      }),
+      DocumentLines: selected.map(l => ({
+        Quantity: l.quantityToReceive,
+        WarehouseCode: l.warehouseCode,
+        BaseType: 22,
+        BaseEntry: docEntry,
+        BaseLine: l.lineNum,
+      })),
     };
     return sapGrpoPayload;
   };
