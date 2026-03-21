@@ -284,83 +284,130 @@ router.get('/quotations', async (req, res) => {
   }
 });
 
-// Purchase Orders - Query from local database for better performance (no SAP session needed)
+// Purchase Orders - Query from local database, fallback to live SAP if empty
 settingsRouter.get('/orders', async (req, res) => {
   try {
     const { page = 1, limit = 20, search, status } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
     
-    let whereConditions = [];
-    let queryParams = [];
-    let paramIndex = 1;
+    const countCheck = await pool.query('SELECT COUNT(*) as total FROM sap_purchase_orders');
+    const hasLocalData = parseInt(countCheck.rows[0].total) > 0;
 
-    // Add search filter
-    if (search && search.toString().trim()) {
-      const searchTerm = `%${search.toString().trim()}%`;
-      whereConditions.push(`(vendor_name ILIKE $${paramIndex} OR doc_num::text ILIKE $${paramIndex + 1})`);
-      queryParams.push(searchTerm, searchTerm);
-      paramIndex += 2;
+    if (hasLocalData) {
+      let whereConditions: string[] = [];
+      let queryParams: any[] = [];
+      let paramIndex = 1;
+
+      if (search && search.toString().trim()) {
+        const searchTerm = `%${search.toString().trim()}%`;
+        whereConditions.push(`(vendor_name ILIKE $${paramIndex} OR doc_num::text ILIKE $${paramIndex + 1})`);
+        queryParams.push(searchTerm, searchTerm);
+        paramIndex += 2;
+      }
+
+      if (status && status !== 'all') {
+        whereConditions.push(`doc_status = $${paramIndex}`);
+        queryParams.push(status);
+        paramIndex++;
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      const countQuery = `SELECT COUNT(*) as total FROM sap_purchase_orders ${whereClause}`;
+      const countResult = await pool.query(countQuery, queryParams);
+      const total = parseInt(countResult.rows[0].total);
+
+      const ordersQuery = `
+        SELECT 
+          doc_entry as "DocEntry",
+          doc_num as "DocNum", 
+          doc_date as "DocDate",
+          doc_due_date as "DocDueDate",
+          vendor_code as "CardCode",
+          vendor_name as "CardName",
+          doc_total as "DocTotal",
+          doc_status as "DocumentStatus",
+          cancelled,
+          comments,
+          doc_currency,
+          vat_sum as "VatSum",
+          contact_person as "ContactPerson",
+          reference_1 as "NumAtCard",
+          project_code as "Project"
+        FROM sap_purchase_orders 
+        ${whereClause}
+        ORDER BY doc_date DESC 
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `;
+      
+      queryParams.push(Number(limit), offset);
+      const ordersResult = await pool.query(ordersQuery, queryParams);
+      
+      return res.json({
+        success: true,
+        source: 'local_database',
+        data: {
+          orders: ordersResult.rows,
+          pagination: { page: Number(page), limit: Number(limit), total }
+        }
+      });
     }
 
-    // Add status filter
+    const fyStartDate = getIndianFinancialYearStart();
+    const sapLimit = Number(limit);
+    const sapSkip = offset;
+    let filterParts = [`DocDate ge '${fyStartDate}'`];
     if (status && status !== 'all') {
-      whereConditions.push(`doc_status = $${paramIndex}`);
-      queryParams.push(status);
-      paramIndex++;
+      filterParts.push(`DocumentStatus eq '${status === 'bost_Open' ? 'bost_Open' : 'bost_Close'}'`);
     }
+    if (search && search.toString().trim()) {
+      filterParts.push(`(contains(CardName,'${search}') or contains(cast(DocNum,Edm.String),'${search}'))`);
+    }
+    const filterStr = filterParts.join(' and ');
+    const queryStr = `$top=${sapLimit}&$skip=${sapSkip}&$orderby=DocDate desc&$filter=${filterStr}&$inlinecount=allpages`;
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+    const response = await makeSapRequest(req, `/b1s/v1/PurchaseOrders?${queryStr}`);
+    const errResp = handleSapResponse(response, res, 'Purchase orders live query');
+    if (errResp) return;
 
-    // Get total count for pagination
-    const countQuery = `SELECT COUNT(*) as total FROM sap_purchase_orders ${whereClause}`;
-    const countResult = await pool.query(countQuery, queryParams);
-    const total = parseInt(countResult.rows[0].total);
+    const sapData = JSON.parse(response.body);
+    const orders = (sapData.value || []).map((po: any) => ({
+      DocEntry: po.DocEntry,
+      DocNum: po.DocNum,
+      DocDate: po.DocDate,
+      DocDueDate: po.DocDueDate,
+      CardCode: po.CardCode,
+      CardName: po.CardName,
+      DocTotal: po.DocTotal,
+      DocumentStatus: po.DocumentStatus,
+      cancelled: po.Cancelled === 'tYES' ? 'Y' : 'N',
+      comments: po.Comments,
+      doc_currency: po.DocCurrency,
+      VatSum: po.VatSum,
+      ContactPerson: po.ContactPersonCode,
+      NumAtCard: po.NumAtCard,
+      Project: po.Project
+    }));
 
-    // Get paginated orders
-    const ordersQuery = `
-      SELECT 
-        doc_entry as "DocEntry",
-        doc_num as "DocNum", 
-        doc_date as "DocDate",
-        doc_due_date as "DocDueDate",
-        vendor_code as "CardCode",
-        vendor_name as "CardName",
-        doc_total as "DocTotal",
-        doc_status as "DocumentStatus",
-        cancelled,
-        comments,
-        doc_currency,
-        vat_sum as "VatSum",
-        contact_person as "ContactPerson",
-        reference_1 as "NumAtCard",
-        project_code as "Project"
-      FROM sap_purchase_orders 
-      ${whereClause}
-      ORDER BY doc_date DESC 
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-    
-    queryParams.push(Number(limit), offset);
-    const ordersResult = await pool.query(ordersQuery, queryParams);
-    
     res.json({
       success: true,
+      source: 'sap_live',
       data: {
-        orders: ordersResult.rows,
+        orders,
         pagination: {
           page: Number(page),
           limit: Number(limit),
-          total: total
+          total: sapData['odata.count'] ? parseInt(sapData['odata.count']) : orders.length
         }
       }
     });
 
   } catch (error) {
-    console.error('Purchase orders database error:', error);
+    console.error('Purchase orders error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to load purchase orders from database',
-      code: 'DATABASE_ORDERS_ERROR'
+      error: 'Failed to load purchase orders',
+      code: 'ORDERS_ERROR'
     });
   }
 });
