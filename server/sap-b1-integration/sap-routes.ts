@@ -745,11 +745,8 @@ router.get('/company-databases', ensureAuthenticated, async (_req, res) => {
     const defaultDb = process.env.SAP_COMPANY_DB || 'TRL_TEST_120326';
 
     const knownDatabases = [
-      { name: 'SBODemoIN', description: 'SBO Demo India' },
-      { name: 'ProductIN', description: 'Product India' },
-      { name: 'TRL_LIVE', description: 'Thermopac Boiler Pvt (Live)' },
-      { name: 'TRL_TEST_120326', description: 'Test DB (120326)' },
-      { name: 'TRL_TEST_240325', description: 'Test DB (240325)' },
+      { name: 'TPEL_LIVE', description: 'TPEL Live Database' },
+      { name: 'TPBL_TEST_120326', description: 'TPBL Test Database' },
     ];
 
     const dbListEnv = process.env.SAP_COMPANY_DATABASES;
