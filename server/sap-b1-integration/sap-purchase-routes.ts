@@ -296,7 +296,13 @@ router.get('/orders', async (req, res) => {
       filterParts.push(`DocumentStatus eq '${status === 'bost_Open' ? 'bost_Open' : 'bost_Close'}'`);
     }
     if (search && search.toString().trim()) {
-      filterParts.push(`(contains(CardName,'${search}') or contains(cast(DocNum,Edm.String),'${search}'))`);
+      const searchVal = search.toString().trim().replace(/'/g, "''");
+      const searchNum = parseInt(searchVal);
+      if (!isNaN(searchNum)) {
+        filterParts.push(`(contains(CardName,'${searchVal}') or DocNum eq ${searchNum} or contains(CardCode,'${searchVal}') or contains(NumAtCard,'${searchVal}'))`);
+      } else {
+        filterParts.push(`(contains(CardName,'${searchVal}') or contains(CardCode,'${searchVal}') or contains(NumAtCard,'${searchVal}'))`);
+      }
     }
     const filterStr = filterParts.join(' and ');
     const queryStr = `$top=${Number(limit)}&$skip=${offset}&$orderby=DocDate desc&$filter=${filterStr}&$inlinecount=allpages`;
