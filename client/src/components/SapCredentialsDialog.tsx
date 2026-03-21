@@ -25,7 +25,7 @@ interface SapConnectionStatus {
 export function SapCredentialsDialog() {
   const [isOpen, setIsOpen] = useState(false);
   const { data: dbData } = useQuery<{ success: boolean; databases: Array<{ name: string; description: string; isDefault: boolean }>; defaultDb: string }>({
-    queryKey: ['/api/sap/b1/company-databases'],
+    queryKey: ['/api/sap/company-databases'],
   });
   const databases = dbData?.databases || [];
   const defaultDb = dbData?.defaultDb || '';

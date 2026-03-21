@@ -22,7 +22,7 @@ interface SapLoginModalProps {
 
 export function SapLoginModal({ isOpen, onClose, onSuccess }: SapLoginModalProps) {
   const { data: dbData } = useQuery<{ success: boolean; databases: SapCompanyDb[]; defaultDb: string }>({
-    queryKey: ['/api/sap/b1/company-databases'],
+    queryKey: ['/api/sap/company-databases'],
   });
   const databases = dbData?.databases || [];
   const defaultDb = dbData?.defaultDb || '';
