@@ -742,27 +742,12 @@ router.get('/connection/config', ensureAuthenticated, async (req, res) => {
 
 router.get('/company-databases', ensureAuthenticated, async (_req, res) => {
   try {
-    const defaultDb = process.env.SAP_COMPANY_DB || 'TRL_TEST_120326';
+    const defaultDb = 'TPEL_TEST_120326';
 
-    const knownDatabases = [
-      { name: 'TPEL_LIVE', description: 'TPEL Live Database' },
-      { name: 'TPEL_TEST_120326', description: 'TPEL Test Database' },
+    const databases = [
+      { name: 'TPEL_LIVE', description: 'TPEL Live Database', isDefault: false },
+      { name: 'TPEL_TEST_120326', description: 'TPEL Test Database', isDefault: true },
     ];
-
-    const dbListEnv = process.env.SAP_COMPANY_DATABASES;
-    let databases: Array<{ name: string; description: string; isDefault: boolean }>;
-
-    if (dbListEnv) {
-      databases = dbListEnv.split(',').map(entry => {
-        const [name, desc] = entry.split('|').map(s => s.trim());
-        return { name, description: desc || name, isDefault: name === defaultDb };
-      });
-    } else {
-      databases = knownDatabases.map(db => ({
-        ...db,
-        isDefault: db.name === defaultDb,
-      }));
-    }
 
     res.json({ success: true, databases, defaultDb });
   } catch (error: any) {
