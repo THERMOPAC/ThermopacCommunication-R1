@@ -1131,4 +1131,440 @@ router.post('/:id/reopen', ensureAuthenticated, async (req: Request, res: Respon
   }
 });
 
+// ==========================================
+// PHASE 5: HELPER — Resolve L1/L2/L3 Hierarchy
+// ==========================================
+
+async function resolveHierarchy(employee: any): Promise<{ l1: any; l2Id: number; l2Name: string; l3Id: number; l3Name: string; skipReason?: string }> {
+  if (!employee.reportingManagerId) return { l1: null, l2Id: 0, l2Name: '', l3Id: 0, l3Name: '', skipReason: 'no_manager' };
+  const [l1] = await db.select().from(users).where(eq(users.id, employee.reportingManagerId));
+  if (!l1) return { l1: null, l2Id: 0, l2Name: '', l3Id: 0, l3Name: '', skipReason: 'l1_not_found' };
+
+  let l2Id: number = 0, l2Name = '';
+  if (l1.reportingManagerId) {
+    const [l2User] = await db.select().from(users).where(eq(users.id, l1.reportingManagerId));
+    if (l2User) { l2Id = l2User.id; l2Name = getUserDisplayName(l2User); }
+    else return { l1, l2Id: 0, l2Name: '', l3Id: 0, l3Name: '', skipReason: 'l2_not_found' };
+  } else {
+    return { l1, l2Id: 0, l2Name: '', l3Id: 0, l3Name: '', skipReason: 'l1_no_manager_for_l2' };
+  }
+
+  let l3Id: number = 0, l3Name = '';
+  const [l2User] = await db.select().from(users).where(eq(users.id, l2Id));
+  if (l2User && l2User.reportingManagerId) {
+    const [l3User] = await db.select().from(users).where(eq(users.id, l2User.reportingManagerId));
+    if (l3User) { l3Id = l3User.id; l3Name = getUserDisplayName(l3User); }
+    else {
+      const [fallback] = await db.select().from(users).where(eq(users.role, 'Superuser'));
+      if (fallback) { l3Id = fallback.id; l3Name = getUserDisplayName(fallback); }
+      else return { l1, l2Id, l2Name, l3Id: 0, l3Name: '', skipReason: 'no_l3_or_superuser' };
+    }
+  } else {
+    const [fallback] = await db.select().from(users).where(eq(users.role, 'Superuser'));
+    if (fallback) { l3Id = fallback.id; l3Name = getUserDisplayName(fallback); }
+    else return { l1, l2Id, l2Name, l3Id: 0, l3Name: '', skipReason: 'no_l3_or_superuser' };
+  }
+
+  return { l1, l2Id, l2Name, l3Id, l3Name };
+}
+
+// ==========================================
+// PHASE 5: CYCLE GENERATOR JOB (5 AM daily)
+// ==========================================
+
+function computeFinancialYear(triggerMonth: number, triggerDay: number, referenceDate: Date): string {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth() + 1;
+  if (triggerMonth >= 4) {
+    return `${year}-${(year + 1).toString().slice(2)}`;
+  } else {
+    return `${year - 1}-${year.toString().slice(2)}`;
+  }
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+async function runCycleGeneratorJob(dryRun: boolean = false): Promise<{ created: any[]; skipped: any[]; errors: any[] }> {
+  const today = new Date();
+  const currentMonth = today.getMonth() + 1;
+  const currentDay = today.getDate();
+  const created: any[] = [];
+  const skipped: any[] = [];
+  const errors: any[] = [];
+
+  const templates = await db.select().from(appraisalCycleTemplates)
+    .where(and(eq(appraisalCycleTemplates.isActive, true), eq(appraisalCycleTemplates.autoCreate, true)));
+
+  for (const tmpl of templates) {
+    if (tmpl.triggerMonth !== currentMonth || tmpl.triggerDay !== currentDay) {
+      skipped.push({ templateId: tmpl.id, name: tmpl.name, reason: 'not_trigger_date', triggerDate: `${tmpl.triggerMonth}/${tmpl.triggerDay}`, today: `${currentMonth}/${currentDay}` });
+      continue;
+    }
+
+    const fy = computeFinancialYear(tmpl.triggerMonth, tmpl.triggerDay, today);
+    const cycleName = tmpl.cycleType === 'annual'
+      ? `Annual Appraisal FY ${fy}`
+      : `Mid-Year Review FY ${fy}`;
+
+    const existingCycles = await db.select().from(appraisalCycles)
+      .where(and(eq(appraisalCycles.templateId, tmpl.id), eq(appraisalCycles.financialYear, fy)));
+    if (existingCycles.length > 0) {
+      skipped.push({ templateId: tmpl.id, name: tmpl.name, reason: 'cycle_already_exists', financialYear: fy, existingCycleId: existingCycles[0].id });
+      continue;
+    }
+
+    const startDate = `${today.getFullYear()}-${String(currentMonth).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+    const selfDeadline = addDays(startDate, tmpl.selfDeadlineDays);
+    const managerDeadline = addDays(startDate, tmpl.managerDeadlineDays);
+    const l2Deadline = addDays(startDate, tmpl.l2DeadlineDays);
+    const approvalDeadline = addDays(startDate, tmpl.approvalDeadlineDays);
+    const closureDate = addDays(startDate, tmpl.approvalDeadlineDays + tmpl.closureBufferDays);
+
+    const cycleData = {
+      templateId: tmpl.id, name: cycleName, cycleType: tmpl.cycleType,
+      financialYear: fy, status: 'draft' as const,
+      startDate, selfAssessmentDeadline: selfDeadline, managerReviewDeadline: managerDeadline,
+      l2ReviewDeadline: l2Deadline, approvalDeadline, closureDate,
+      isAutoGenerated: true, createdBy: null as any,
+    };
+
+    if (dryRun) {
+      created.push({ action: 'would_create_cycle', template: tmpl.name, ...cycleData });
+      continue;
+    }
+
+    try {
+      const [cycle] = await db.insert(appraisalCycles).values(cycleData).returning();
+      await logAudit('cycle', cycle.id, 'cycle_auto_generated', null, 'System', true, { templateId: tmpl.id, financialYear: fy });
+      created.push({ cycleId: cycle.id, name: cycleName, financialYear: fy, templateId: tmpl.id });
+    } catch (err: any) {
+      errors.push({ templateId: tmpl.id, name: tmpl.name, error: err.message });
+    }
+  }
+
+  return { created, skipped, errors };
+}
+
+// ==========================================
+// PHASE 5: ACTIVATION JOB (5:30 AM daily)
+// ==========================================
+
+async function runActivationJob(dryRun: boolean = false): Promise<{ activatedCycles: any[]; createdAppraisals: any[]; skippedEmployees: any[]; errors: any[] }> {
+  const activatedCycles: any[] = [];
+  const createdAppraisals: any[] = [];
+  const skippedEmployees: any[] = [];
+  const errors: any[] = [];
+
+  const today = new Date().toISOString().split('T')[0];
+  const draftCycles = await db.select().from(appraisalCycles).where(eq(appraisalCycles.status, 'draft'));
+  const cyclesToActivate = draftCycles.filter(c => c.startDate <= today);
+
+  for (const cycle of cyclesToActivate) {
+    let templateMinServiceDays = 90;
+    if (cycle.templateId) {
+      const [tmpl] = await db.select().from(appraisalCycleTemplates).where(eq(appraisalCycleTemplates.id, cycle.templateId));
+      if (tmpl) templateMinServiceDays = tmpl.minServiceDays;
+    }
+
+    const allActiveUsers = await db.select().from(users).where(eq(users.isActive, true));
+    const existingAppraisals = await db.select({ employeeId: employeeAppraisals.employeeId })
+      .from(employeeAppraisals).where(eq(employeeAppraisals.cycleId, cycle.id));
+    const existingEmployeeIds = new Set(existingAppraisals.map(a => a.employeeId));
+
+    let appraisalCount = 0;
+    for (const emp of allActiveUsers) {
+      const empName = getUserDisplayName(emp);
+
+      if (existingEmployeeIds.has(emp.id)) {
+        skippedEmployees.push({ cycleId: cycle.id, employeeId: emp.id, name: empName, reason: 'already_exists' });
+        continue;
+      }
+
+      if (emp.dateOfJoining) {
+        const joinDate = new Date(emp.dateOfJoining);
+        const cycleStartDate = new Date(cycle.startDate);
+        const daysSinceJoining = Math.floor((cycleStartDate.getTime() - joinDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceJoining < templateMinServiceDays) {
+          skippedEmployees.push({ cycleId: cycle.id, employeeId: emp.id, name: empName, reason: 'insufficient_service', daysSinceJoining, minRequired: templateMinServiceDays });
+          continue;
+        }
+      }
+
+      const hierarchy = await resolveHierarchy(emp);
+      if (hierarchy.skipReason) {
+        skippedEmployees.push({ cycleId: cycle.id, employeeId: emp.id, name: empName, reason: hierarchy.skipReason });
+        continue;
+      }
+
+      if (dryRun) {
+        createdAppraisals.push({ action: 'would_create', cycleId: cycle.id, employeeId: emp.id, name: empName, l1: getUserDisplayName(hierarchy.l1), l2: hierarchy.l2Name, l3: hierarchy.l3Name });
+        appraisalCount++;
+        continue;
+      }
+
+      try {
+        const [appraisal] = await db.insert(employeeAppraisals).values({
+          cycleId: cycle.id,
+          employeeId: emp.id,
+          employeeName: empName,
+          employeeCode: emp.employeeCode || undefined,
+          department: emp.department || undefined,
+          designation: emp.jobTitle || undefined,
+          dateOfJoining: emp.dateOfJoining || undefined,
+          l1ReviewerId: hierarchy.l1.id,
+          l1ReviewerName: getUserDisplayName(hierarchy.l1),
+          l2ReviewerId: hierarchy.l2Id,
+          l2ReviewerName: hierarchy.l2Name,
+          l3ApproverId: hierarchy.l3Id,
+          l3ApproverName: hierarchy.l3Name,
+          status: 'open',
+        }).returning();
+        createdAppraisals.push({ appraisalId: appraisal.id, employeeId: emp.id, name: empName });
+        appraisalCount++;
+        await logAudit('appraisal', appraisal.id, 'appraisal_auto_created', null, 'System', true, { cycleId: cycle.id, employeeId: emp.id });
+      } catch (err: any) {
+        errors.push({ cycleId: cycle.id, employeeId: emp.id, name: empName, error: err.message });
+      }
+    }
+
+    if (!dryRun) {
+      await db.update(appraisalCycles).set({
+        status: 'active', totalAppraisals: appraisalCount + existingAppraisals.length, updatedAt: new Date(),
+      }).where(eq(appraisalCycles.id, cycle.id));
+      await logAudit('cycle', cycle.id, 'cycle_auto_activated', null, 'System', true, { totalAppraisals: appraisalCount + existingAppraisals.length });
+    }
+
+    activatedCycles.push({ cycleId: cycle.id, name: cycle.name, appraisalsCreated: appraisalCount, dryRun });
+  }
+
+  return { activatedCycles, createdAppraisals, skippedEmployees, errors };
+}
+
+// ==========================================
+// PHASE 5: CRON SCHEDULING
+// ==========================================
+
+function scheduleDailyJob(hour: number, minute: number, jobName: string, jobFn: () => Promise<any>) {
+  const runCheck = () => {
+    const now = new Date();
+    if (now.getHours() === hour && now.getMinutes() === minute) {
+      console.log(`[AppraisalJobs] Running ${jobName} at ${now.toISOString()}`);
+      jobFn().then(result => {
+        console.log(`[AppraisalJobs] ${jobName} completed:`, JSON.stringify(result, null, 2));
+      }).catch(err => {
+        console.error(`[AppraisalJobs] ${jobName} failed:`, err);
+      });
+    }
+  };
+  setInterval(runCheck, 60 * 1000);
+  console.log(`[AppraisalJobs] Scheduled ${jobName} at ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} daily`);
+}
+
+scheduleDailyJob(5, 0, 'CycleGeneratorJob', () => runCycleGeneratorJob(false));
+scheduleDailyJob(5, 30, 'ActivationJob', () => runActivationJob(false));
+
+// ==========================================
+// PHASE 5: DRY-RUN & MANUAL TRIGGER API
+// ==========================================
+
+router.post('/jobs/cycle-generator/dry-run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runCycleGeneratorJob(true);
+    res.json({ dryRun: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Dry run failed' });
+  }
+});
+
+router.post('/jobs/cycle-generator/run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runCycleGeneratorJob(false);
+    await logAudit('system', 0, 'manual_cycle_generator_run', user.id, getUserDisplayName(user), false, result);
+    res.json({ dryRun: false, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Manual run failed' });
+  }
+});
+
+router.post('/jobs/activation/dry-run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runActivationJob(true);
+    res.json({ dryRun: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Dry run failed' });
+  }
+});
+
+router.post('/jobs/activation/run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runActivationJob(false);
+    await logAudit('system', 0, 'manual_activation_run', user.id, getUserDisplayName(user), false, result);
+    res.json({ dryRun: false, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Manual run failed' });
+  }
+});
+
+router.post('/cycles/:cycleId/activate', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+
+    const cycleId = parseInt(req.params.cycleId);
+    const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
+    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (cycle.status !== 'draft') return res.status(400).json({ error: 'Only draft cycles can be activated' });
+
+    let templateMinServiceDays = 90;
+    if (cycle.templateId) {
+      const [tmpl] = await db.select().from(appraisalCycleTemplates).where(eq(appraisalCycleTemplates.id, cycle.templateId));
+      if (tmpl) templateMinServiceDays = tmpl.minServiceDays;
+    }
+
+    const allActiveUsers = await db.select().from(users).where(eq(users.isActive, true));
+    const existingAppraisals = await db.select({ employeeId: employeeAppraisals.employeeId })
+      .from(employeeAppraisals).where(eq(employeeAppraisals.cycleId, cycleId));
+    const existingEmployeeIds = new Set(existingAppraisals.map(a => a.employeeId));
+
+    let createdCount = 0;
+    const created: any[] = [];
+    const skipped: any[] = [];
+    const errors: any[] = [];
+
+    for (const emp of allActiveUsers) {
+      const empName = getUserDisplayName(emp);
+      if (existingEmployeeIds.has(emp.id)) { skipped.push({ id: emp.id, name: empName, reason: 'already_exists' }); continue; }
+
+      if (emp.dateOfJoining) {
+        const daysSinceJoining = Math.floor((new Date(cycle.startDate).getTime() - new Date(emp.dateOfJoining).getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceJoining < templateMinServiceDays) { skipped.push({ id: emp.id, name: empName, reason: 'insufficient_service' }); continue; }
+      }
+
+      const hierarchy = await resolveHierarchy(emp);
+      if (hierarchy.skipReason) { skipped.push({ id: emp.id, name: empName, reason: hierarchy.skipReason }); continue; }
+
+      try {
+        const [appraisal] = await db.insert(employeeAppraisals).values({
+          cycleId, employeeId: emp.id, employeeName: empName,
+          employeeCode: emp.employeeCode || undefined, department: emp.department || undefined,
+          designation: emp.jobTitle || undefined, dateOfJoining: emp.dateOfJoining || undefined,
+          l1ReviewerId: hierarchy.l1.id, l1ReviewerName: getUserDisplayName(hierarchy.l1),
+          l2ReviewerId: hierarchy.l2Id, l2ReviewerName: hierarchy.l2Name,
+          l3ApproverId: hierarchy.l3Id, l3ApproverName: hierarchy.l3Name,
+          status: 'open',
+        }).returning();
+        created.push({ appraisalId: appraisal.id, employeeId: emp.id, name: empName });
+        createdCount++;
+        await logAudit('appraisal', appraisal.id, 'appraisal_created_on_activation', user.id, getUserDisplayName(user), false, { cycleId, employeeId: emp.id });
+      } catch (err: any) {
+        errors.push({ employeeId: emp.id, name: empName, error: err.message });
+      }
+    }
+
+    await db.update(appraisalCycles).set({
+      status: 'active', totalAppraisals: createdCount + existingAppraisals.length, updatedAt: new Date(),
+    }).where(eq(appraisalCycles.id, cycleId));
+    await logAudit('cycle', cycleId, 'cycle_manually_activated', user.id, getUserDisplayName(user), false, { totalAppraisals: createdCount + existingAppraisals.length });
+
+    res.json({ cycleId, status: 'active', created, skipped, errors, totalAppraisals: createdCount + existingAppraisals.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to activate cycle' });
+  }
+});
+
+router.post('/cycles/:cycleId/pause', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const cycleId = parseInt(req.params.cycleId);
+    const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
+    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (cycle.status === 'paused') return res.status(400).json({ error: 'Cycle is already paused' });
+    if (!['active', 'draft'].includes(cycle.status)) return res.status(400).json({ error: 'Only active or draft cycles can be paused' });
+
+    const { pauseReason } = req.body;
+    if (!pauseReason) return res.status(400).json({ error: 'Pause reason is required' });
+
+    const [updated] = await db.update(appraisalCycles).set({
+      previousStatusBeforePause: cycle.status, status: 'paused',
+      pausedAt: new Date(), pausedBy: user.id, pauseReason, updatedAt: new Date(),
+    }).where(eq(appraisalCycles.id, cycleId)).returning();
+
+    await logAudit('cycle', cycleId, 'cycle_paused', user.id, getUserDisplayName(user), false, { previousStatus: cycle.status, pauseReason });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to pause cycle' });
+  }
+});
+
+router.post('/cycles/:cycleId/resume', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const cycleId = parseInt(req.params.cycleId);
+    const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
+    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (cycle.status !== 'paused') return res.status(400).json({ error: 'Only paused cycles can be resumed' });
+
+    const resumeStatus = cycle.previousStatusBeforePause || 'active';
+    const [updated] = await db.update(appraisalCycles).set({
+      status: resumeStatus, pausedAt: null, pausedBy: null, pauseReason: null,
+      previousStatusBeforePause: null, updatedAt: new Date(),
+    }).where(eq(appraisalCycles.id, cycleId)).returning();
+
+    await logAudit('cycle', cycleId, 'cycle_resumed', user.id, getUserDisplayName(user), false, { resumedTo: resumeStatus });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to resume cycle' });
+  }
+});
+
+router.get('/jobs/status', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+
+    const recentAuditLogs = await db.select().from(appraisalAuditLog)
+      .where(or(
+        eq(appraisalAuditLog.action, 'cycle_auto_generated'),
+        eq(appraisalAuditLog.action, 'cycle_auto_activated'),
+        eq(appraisalAuditLog.action, 'manual_cycle_generator_run'),
+        eq(appraisalAuditLog.action, 'manual_activation_run'),
+      ))
+      .orderBy(desc(appraisalAuditLog.createdAt))
+      .limit(20);
+
+    const templates = await db.select().from(appraisalCycleTemplates)
+      .where(and(eq(appraisalCycleTemplates.isActive, true), eq(appraisalCycleTemplates.autoCreate, true)));
+
+    const activeCycles = await db.select().from(appraisalCycles).where(eq(appraisalCycles.status, 'active'));
+    const draftCycles = await db.select().from(appraisalCycles).where(eq(appraisalCycles.status, 'draft'));
+
+    res.json({
+      scheduledJobs: [
+        { name: 'CycleGeneratorJob', schedule: '05:00 AM daily', description: 'Creates cycles from templates on trigger dates' },
+        { name: 'ActivationJob', schedule: '05:30 AM daily', description: 'Activates draft cycles whose start date has arrived, creates appraisals' },
+      ],
+      activeTemplates: templates.length,
+      activeCycles: activeCycles.length,
+      draftCycles: draftCycles.length,
+      recentJobRuns: recentAuditLogs,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch job status' });
+  }
+});
+
 export default router;
