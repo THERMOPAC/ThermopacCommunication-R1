@@ -4,6 +4,7 @@ import { ensureAuthenticated } from '../middleware/auth-middleware';
 import { requireSapAccess, requireSapSession } from '../middleware/sap-auth-middleware';
 import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
 import { pool } from '../db';
+import { getGrpoQcChecklistConfig, validateGrpoQcPayload } from '@shared/grpo-qc-config';
 
 const router = express.Router();
 
@@ -1989,7 +1990,15 @@ router.post('/grpo/direct', async (req: any, res) => {
   }
 });
 
-// Export both routers combined
+router.get('/grpo/qc-config', (_req: any, res) => {
+  res.json({ success: true, config: getGrpoQcChecklistConfig() });
+});
+
+router.post('/grpo/qc-validate', (req: any, res) => {
+  const result = validateGrpoQcPayload(req.body || {});
+  res.json({ success: true, ...result });
+});
+
 const combinedRouter = express.Router();
 combinedRouter.use('/', settingsRouter);
 combinedRouter.use('/', router);
