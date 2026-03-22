@@ -48,8 +48,8 @@ router.post('/connect',
         }
       }
 
-      // Store session server-side only
-      sapSessionManager.setSession(userId, sessionId, routeId);
+      // Store session server-side only (include companyDb for fallback logins)
+      sapSessionManager.setSession(userId, sessionId, routeId, companyDb);
       sapSessionManager.incrementLoginSuccesses();
 
       // Test API access with a simple call

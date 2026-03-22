@@ -20,6 +20,18 @@ function parseSapCookies(setCookieHeaders: string | string[] | undefined): strin
   return cookies.join('; ');
 }
 
+function getSapCompanyDb(req?: express.Request): string {
+  return req?.sapSession?.companyDb || process.env.SAP_COMPANY_DB || 'TPEL_LIVE';
+}
+
+function getSapLoginBody(req?: express.Request): string {
+  return JSON.stringify({
+    CompanyDB: getSapCompanyDb(req),
+    UserName: process.env.SAP_USERNAME,
+    Password: process.env.SAP_PASSWORD
+  });
+}
+
 function getIndianFinancialYearStart(): string {
   const now = new Date();
   const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
@@ -42,6 +54,7 @@ router.use((req: express.Request, _res: express.Response, next: express.NextFunc
       req.sapSession = {
         sessionId: session.sessionId,
         routeId: session.routeId,
+        companyDb: session.companyDb,
         userId: session.userId
       };
     }
@@ -167,7 +180,7 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
       const loginResponse = await sapClient.request({
         method: 'POST', url: `${sapServiceUrl}/Login`,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+        body: getSapLoginBody(req),
         timeout: 15000
       });
 
@@ -175,7 +188,7 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
         sapAvailable = true;
         const requestHeaders = {
           'Content-Type': 'application/json',
-          'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
+          'Cookie': parseSapCookies(loginResponse.headers['set-cookie'])
         };
 
         const [allPOResp, openPOResp, recentPOResp, invoiceResp, openInvoiceResp, grpoResp, openGrpoResp, vendorResp] = await Promise.all([
@@ -840,12 +853,8 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
             method: 'POST',
             url: `${sapServiceUrl}/Login`,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              CompanyDB: process.env.SAP_COMPANY_DB,
-              UserName: process.env.SAP_USERNAME,
-              Password: process.env.SAP_PASSWORD
-            }),
-            timeout: 300000 // 5 minutes timeout
+            body: getSapLoginBody(req),
+            timeout: 300000
           });
           
           if (loginResponse.statusCode === 200) {
@@ -868,14 +877,9 @@ settingsRouter.post('/sync/trigger', async (req, res) => {
         throw new Error(`SAP login failed: ${loginResponse.statusCode}`);
       }
 
-      // Extract session cookies for subsequent requests
-      const sessionCookie = loginResponse.headers['set-cookie']?.find(cookie => 
-        cookie.startsWith('B1SESSION=') || cookie.startsWith('ROUTEID=')
-      );
-      
       const requestHeaders = {
         'Content-Type': 'application/json',
-        'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
+        'Cookie': parseSapCookies(loginResponse.headers['set-cookie'])
       };
 
       // Get sync date filter from settings
@@ -1550,7 +1554,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
         loginResponse = await sapClient.request({
           method: 'POST', url: `${sapServiceUrl}/Login`,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+          body: getSapLoginBody(req),
           timeout: 60000
         });
       } catch (connErr: any) {
@@ -1572,7 +1576,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     }
 
     // === LAYER 2: Live SAP Validation (MANDATORY) ===
-    console.log(`[GRPO] Layer 2: Fetching live PO ${poDocEntry} from SAP`);
+    console.log(`[GRPO] Layer 2: Fetching live PO by DocEntry=${poDocEntry} from SAP (company: ${getSapCompanyDb(req)})`);
 
     let livePo: any;
     try {
@@ -1582,12 +1586,12 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       });
 
       if (livePOResponse.statusCode === 401) {
-        console.warn(`[GRPO] User SAP session expired (401). Retrying with fresh login...`);
+        console.warn(`[GRPO] User SAP session expired (401). Retrying with fresh login to ${getSapCompanyDb(req)}...`);
         try {
           const retryLogin = await sapClient.request({
             method: 'POST', url: `${sapServiceUrl}/Login`,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+            body: getSapLoginBody(req),
             timeout: 60000
           });
           if (retryLogin.statusCode === 200) {
@@ -1619,15 +1623,16 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       return res.status(503).json({ success: false, error: 'Cannot validate PO status — SAP Service Layer is unreachable', code: 'SAP_UNREACHABLE' });
     }
 
-    console.log(`[GRPO] PO ${poDocEntry} fetched: DocumentStatus=${livePo.DocumentStatus}, Cancelled=${livePo.Cancelled}, Lines=${(livePo.DocumentLines || []).length}`);
+    const poDocNum = livePo.DocNum;
+    console.log(`[GRPO] PO fetched: DocEntry=${poDocEntry}, DocNum=${poDocNum}, Status=${livePo.DocumentStatus}, Cancelled=${livePo.Cancelled}, Lines=${(livePo.DocumentLines || []).length}`);
 
     if (livePo.Cancelled === 'tYES' || livePo.Cancelled === 'Y') {
       grpoLocks.delete(poDocEntry);
-      return res.status(400).json({ success: false, error: `PO ${poDocEntry} is cancelled (confirmed by live SAP check)`, code: 'PO_CANCELLED' });
+      return res.status(400).json({ success: false, error: `PO-${poDocNum} (DocEntry ${poDocEntry}) is cancelled`, code: 'PO_CANCELLED' });
     }
     if (livePo.DocumentStatus === 'bost_Close' || livePo.DocumentStatus === 'C') {
       grpoLocks.delete(poDocEntry);
-      return res.status(400).json({ success: false, error: `PO ${poDocEntry} is closed (confirmed by live SAP check)`, code: 'PO_CLOSED' });
+      return res.status(400).json({ success: false, error: `PO-${poDocNum} (DocEntry ${poDocEntry}) is closed`, code: 'PO_CLOSED' });
     }
 
     const liveLines = livePo.DocumentLines || [];
@@ -1818,7 +1823,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     const grpoResult = JSON.parse(grpoResponse.body);
     const duration = Date.now() - startTime;
 
-    console.log(`[GRPO] SUCCESS — DocEntry: ${grpoResult.DocEntry}, DocNum: ${grpoResult.DocNum}, Duration: ${duration}ms`);
+    console.log(`[GRPO] SUCCESS — GRPO DocEntry: ${grpoResult.DocEntry}, GRPO DocNum: ${grpoResult.DocNum}, PO DocEntry: ${poDocEntry}, PO DocNum: ${poDocNum}, Duration: ${duration}ms`);
 
     // === STEP 5: Post-GRPO audit (lean model — no local mirror table updates) ===
     // Local PO/GRPO mirror table writes removed. SAP is source of truth.
@@ -1915,7 +1920,7 @@ router.post('/grpo/direct', async (req: any, res) => {
       loginResponse = await sapClient.request({
         method: 'POST', url: `${sapServiceUrl}/Login`,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+        body: getSapLoginBody(req),
         timeout: 60000
       });
     } catch (connErr: any) {
@@ -2122,10 +2127,12 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
   const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
 
   async function doFreshLogin(): Promise<Record<string, string>> {
+    const companyDb = getSapCompanyDb(req);
+    console.log(`[ATTACHMENT] Fresh login to company: ${companyDb}`);
     const loginResp = await sapClient.request({
       method: 'POST', url: `${sapServiceUrl}/Login`,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+      body: getSapLoginBody(req),
       timeout: 60000
     });
     if (loginResp.statusCode !== 200) throw new Error(`SAP login failed (${loginResp.statusCode})`);

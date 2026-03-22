@@ -36,20 +36,21 @@ class SapSessionManager {
     }, 5 * 60 * 1000);
   }
 
-  setSession(userId: number, sessionId: string, routeId?: string): void {
+  setSession(userId: number, sessionId: string, routeId?: string, companyDb?: string): void {
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + this.TTL_SECONDS);
     
     this.sessions.set(userId, {
       sessionId,
       routeId,
+      companyDb: companyDb || process.env.SAP_COMPANY_DB || 'TPEL_LIVE',
       userId,
       expiresAt,
       createdAt: new Date()
     });
     
     this.updateMetrics();
-    console.log(`SAP session created for user ${userId}, expires at ${expiresAt.toISOString()}`);
+    console.log(`SAP session created for user ${userId} on ${companyDb || 'default'}, expires at ${expiresAt.toISOString()}`);
   }
 
   getSession(userId: number): SapSession | null {

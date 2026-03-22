@@ -8,6 +8,7 @@ declare global {
       sapSession?: {
         sessionId: string;
         routeId?: string;
+        companyDb: string;
         userId: number;
       };
     }
@@ -37,10 +38,10 @@ export const requireSapSession = (req: Request, res: Response, next: NextFunctio
       });
     }
 
-    // Add SAP session info to request
     req.sapSession = {
       sessionId: session.sessionId,
       routeId: session.routeId,
+      companyDb: session.companyDb,
       userId: session.userId
     };
 
