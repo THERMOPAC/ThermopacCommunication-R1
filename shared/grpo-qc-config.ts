@@ -40,8 +40,8 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
     fieldType: "dropdown",
     groupName: "supply",
     values: [
-      { dataValue: "Y", displayValue: "Complete Supply", sapValue: "C" },
-      { dataValue: "F", displayValue: "Short Supply", sapValue: "S" },
+      { dataValue: "Y", displayValue: "Complete Supply", sapValue: "F" },
+      { dataValue: "F", displayValue: "Short Supply", sapValue: "Y" },
     ],
     isMandatory: true,
     defaultDataValue: "F",
