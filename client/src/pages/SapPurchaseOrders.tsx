@@ -228,11 +228,12 @@ function PurchaseOrdersContent() {
     if (!poDetail) return;
     const poIsOpen = poDetail.DocumentStatus === 'bost_Open' || poDetail.DocumentStatus === 'O';
     console.log('GRPO Debug - PO Status:', poDetail.DocumentStatus, 'poIsOpen:', poIsOpen);
-    console.log('GRPO Debug - All lines:', (poDetail.DocumentLines || []).map((l: any) => ({
+    console.log('GRPO Debug - All lines:', JSON.stringify((poDetail.DocumentLines || []).map((l: any) => ({
       LineNum: l.LineNum, LineStatus: l.LineStatus, LineType: l.LineType, ItemType: l.ItemType,
       ItemCode: l.ItemCode, RemainingOpenQuantity: l.RemainingOpenQuantity, OpenQuantity: l.OpenQuantity,
-      Quantity: l.Quantity, OpenQty: l.OpenQty
-    })));
+      Quantity: l.Quantity, OpenQty: l.OpenQty, LineTotal: l.LineTotal, Price: l.Price, UnitPrice: l.UnitPrice,
+      PriceAfterVAT: l.PriceAfterVAT, ItemDescription: l.ItemDescription, FreeTxt: l.FreeTxt, Dscription: l.Dscription
+    }))));
     const lines = (poDetail.DocumentLines || [])
       .filter((l: any) => {
         if (l.LineStatus !== 'bost_Close' && l.LineStatus !== 'C') return true;
@@ -242,7 +243,9 @@ function PurchaseOrdersContent() {
       .map((l: any) => {
         const rawOpen = parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0);
         const qty = parseFloat(l.Quantity || 0);
-        const openQty = rawOpen > 0 ? rawOpen : qty;
+        const lineTotal = parseFloat(l.LineTotal || l.Price || l.UnitPrice || 0);
+        const isServiceLine = qty === 0 && lineTotal > 0;
+        const openQty = rawOpen > 0 ? rawOpen : (qty > 0 ? qty : (isServiceLine ? 1 : 0));
         return {
           lineNum: l.LineNum,
           itemCode: l.ItemCode || l.ItemNo || '',
