@@ -290,22 +290,49 @@ function DashboardContent() {
   }
 
   if (!data?.data) {
+    const responseAny = data as any;
+    const isSapUnavailable = responseAny?.status === 'sap_unavailable';
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-[100px]" />
-                <Skeleton className="h-4 w-4" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-[120px] mb-2" />
-                <Skeleton className="h-3 w-[80px]" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {isSapUnavailable && (
+          <div className="flex items-center justify-center min-h-[300px]">
+            <div className="text-center space-y-4">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-7 w-7 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">SAP Service Layer Unavailable</h3>
+                <p className="text-sm text-gray-600 max-w-md mt-1">
+                  {responseAny?.warning || 'Unable to connect to SAP B1. Please check VPN connectivity and SAP server status.'}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/dashboard'] })}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
+        {!isSapUnavailable && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-[100px]" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-[120px] mb-2" />
+                  <Skeleton className="h-3 w-[80px]" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
