@@ -57,6 +57,7 @@ import { default as llmRoutes } from "./llm-routes";
 import { default as attendanceRoutes } from "./attendance-routes";
 import { default as notificationRoutes } from "./notification-routes";
 import { default as dwarRoutes } from "./dwar-routes";
+import { default as appraisalRoutes } from "./appraisal-routes";
 import { default as leaveRoutes } from "./leave-routes";
 import { default as payrollRoutes } from "./payroll-routes";
 import { default as manualSalaryRoutes } from "./manual-salary-routes";
@@ -767,6 +768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up DWAR (Daily Work Activity Report) routes
   app.use('/api/dwar', dwarRoutes);
   console.log('DWAR routes registered at /api/dwar');
+  app.use('/api/appraisals', appraisalRoutes);
+  console.log('Employee Appraisal routes registered at /api/appraisals');
   
   // Set up Leave Management routes for users
   app.use('/api/leave', leaveRoutes);
