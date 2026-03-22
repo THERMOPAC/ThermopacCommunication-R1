@@ -1552,6 +1552,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
       if (livePOResponse.statusCode !== 200) {
         grpoLocks.delete(poDocEntry);
+        console.error(`[GRPO] SAP PO fetch failed: status=${livePOResponse.statusCode}, body=${livePOResponse.body?.substring(0, 500)}`);
         return res.status(400).json({ success: false, error: `PO ${poDocEntry} not found in SAP (status ${livePOResponse.statusCode})`, code: 'SAP_PO_NOT_FOUND' });
       }
 
@@ -1562,11 +1563,13 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       return res.status(503).json({ success: false, error: 'Cannot validate PO status — SAP Service Layer is unreachable', code: 'SAP_UNREACHABLE' });
     }
 
+    console.log(`[GRPO] PO ${poDocEntry} fetched: DocumentStatus=${livePo.DocumentStatus}, Cancelled=${livePo.Cancelled}, Lines=${(livePo.DocumentLines || []).length}`);
+
     if (livePo.Cancelled === 'tYES' || livePo.Cancelled === 'Y') {
       grpoLocks.delete(poDocEntry);
       return res.status(400).json({ success: false, error: `PO ${poDocEntry} is cancelled (confirmed by live SAP check)`, code: 'PO_CANCELLED' });
     }
-    if (livePo.DocumentStatus === 'bost_Close') {
+    if (livePo.DocumentStatus === 'bost_Close' || livePo.DocumentStatus === 'C') {
       grpoLocks.delete(poDocEntry);
       return res.status(400).json({ success: false, error: `PO ${poDocEntry} is closed (confirmed by live SAP check)`, code: 'PO_CLOSED' });
     }
@@ -1582,7 +1585,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
         continue;
       }
 
-      if (liveLine.LineStatus === 'bost_Close') {
+      if (liveLine.LineStatus === 'bost_Close' || liveLine.LineStatus === 'C') {
         validationErrors.push({ lineNum: sel.lineNum, error: 'LINE_CLOSED', message: `PO line ${sel.lineNum} is closed (confirmed by live SAP check)` });
         continue;
       }
