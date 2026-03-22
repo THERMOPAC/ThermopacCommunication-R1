@@ -1514,36 +1514,42 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     }
 
     // === Set lock before SAP calls ===
-    // Layer 1 (local DB pre-check) removed — lean model: SAP is sole source of truth
     grpoLocks.set(poDocEntry, { timestamp: Date.now(), userId });
 
-    // === SAP Login ===
-    let loginResponse;
-    try {
-      loginResponse = await sapClient.request({
-        method: 'POST', url: `${sapServiceUrl}/Login`,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
-        timeout: 60000
-      });
-    } catch (connErr: any) {
-      grpoLocks.delete(poDocEntry);
-      console.error(`[GRPO] SAP connection failed:`, connErr.message);
-      return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
-    }
+    // === SAP Session: Use user's authenticated session first, fallback to fresh login ===
+    let requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    if (loginResponse.statusCode !== 200) {
-      grpoLocks.delete(poDocEntry);
-      return res.status(502).json({ success: false, error: `SAP login failed: ${loginResponse.statusCode}`, code: 'SAP_LOGIN_FAILED' });
-    }
+    if (req.sapSession?.sessionId) {
+      sapSessionId = req.sapSession.sessionId;
+      const routeId = req.sapSession.routeId;
+      requestHeaders['Cookie'] = `B1SESSION=${sapSessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`;
+      console.log(`[GRPO] Using user's existing SAP session`);
+    } else {
+      let loginResponse;
+      try {
+        loginResponse = await sapClient.request({
+          method: 'POST', url: `${sapServiceUrl}/Login`,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+          timeout: 60000
+        });
+      } catch (connErr: any) {
+        grpoLocks.delete(poDocEntry);
+        console.error(`[GRPO] SAP connection failed:`, connErr.message);
+        return res.status(503).json({ success: false, error: 'Cannot connect to SAP Service Layer', code: 'SAP_UNREACHABLE' });
+      }
 
-    const loginCookies = loginResponse.headers['set-cookie'];
-    const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Cookie': Array.isArray(loginCookies) ? loginCookies.join('; ') : (loginCookies || '')
-    };
-    const sessionMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
-    sapSessionId = sessionMatch ? sessionMatch[1] : null;
+      if (loginResponse.statusCode !== 200) {
+        grpoLocks.delete(poDocEntry);
+        return res.status(502).json({ success: false, error: `SAP login failed: ${loginResponse.statusCode}`, code: 'SAP_LOGIN_FAILED' });
+      }
+
+      const loginCookies = loginResponse.headers['set-cookie'];
+      requestHeaders['Cookie'] = Array.isArray(loginCookies) ? loginCookies.join('; ') : (loginCookies || '');
+      const sessionMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
+      sapSessionId = sessionMatch ? sessionMatch[1] : null;
+      console.log(`[GRPO] Using fresh SAP login session`);
+    }
 
     // === LAYER 2: Live SAP Validation (MANDATORY) ===
     console.log(`[GRPO] Layer 2: Fetching live PO ${poDocEntry} from SAP`);
