@@ -137,6 +137,7 @@ import AttendancePage from "@/pages/attendance-page";
 import AttendanceRegularizationPage from "@/pages/attendance-regularization-page";
 import DwarPage from "@/pages/dwar-page";
 import LeaveRequestPage from "@/pages/leave-request-page";
+import EmployeeAppraisalsPage from "@/pages/employee-appraisals-page";
 
 // SAP B1 Integration pages
 import PurchaseModule from "@/pages/PurchaseModule";
@@ -373,6 +374,7 @@ function Router() {
       <ProtectedRoute path="/attendance/regularization" component={() => <Layout><AttendanceRegularizationPage /></Layout>} />
       <ProtectedRoute path="/dwar" component={() => <Layout><DwarPage /></Layout>} />
       <ProtectedRoute path="/leave-request" component={() => <Layout><LeaveRequestPage /></Layout>} />
+      <ProtectedRoute path="/appraisals" component={() => <Layout><EmployeeAppraisalsPage /></Layout>} />
 
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
       <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
