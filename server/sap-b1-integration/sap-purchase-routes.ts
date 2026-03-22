@@ -9,6 +9,17 @@ import { getGrpoQcChecklistConfig, validateGrpoQcPayload } from '@shared/grpo-qc
 
 const router = express.Router();
 
+function parseSapCookies(setCookieHeaders: string | string[] | undefined): string {
+  if (!setCookieHeaders) return '';
+  const headers = Array.isArray(setCookieHeaders) ? setCookieHeaders : [setCookieHeaders];
+  const cookies: string[] = [];
+  for (const header of headers) {
+    const nameValue = header.split(';')[0].trim();
+    if (nameValue) cookies.push(nameValue);
+  }
+  return cookies.join('; ');
+}
+
 function getIndianFinancialYearStart(): string {
   const now = new Date();
   const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
@@ -1554,10 +1565,10 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       }
 
       const loginCookies = loginResponse.headers['set-cookie'];
-      requestHeaders['Cookie'] = Array.isArray(loginCookies) ? loginCookies.join('; ') : (loginCookies || '');
+      requestHeaders['Cookie'] = parseSapCookies(loginCookies);
       const sessionMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
       sapSessionId = sessionMatch ? sessionMatch[1] : null;
-      console.log(`[GRPO] Using fresh SAP login session`);
+      console.log(`[GRPO] Using fresh SAP login session, Cookie: ${requestHeaders.Cookie}`);
     }
 
     // === LAYER 2: Live SAP Validation (MANDATORY) ===
@@ -1581,10 +1592,10 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
           });
           if (retryLogin.statusCode === 200) {
             const retryCookies = retryLogin.headers['set-cookie'];
-            requestHeaders['Cookie'] = Array.isArray(retryCookies) ? retryCookies.join('; ') : (retryCookies || '');
+            requestHeaders['Cookie'] = parseSapCookies(retryCookies);
             const retryMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
             sapSessionId = retryMatch ? retryMatch[1] : null;
-            console.log(`[GRPO] Fresh login successful, retrying PO fetch`);
+            console.log(`[GRPO] Fresh login successful, retrying PO fetch, Cookie: ${requestHeaders.Cookie}`);
             livePOResponse = await sapClient.request({
               method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
               headers: requestHeaders, timeout: 60000
@@ -1918,7 +1929,7 @@ router.post('/grpo/direct', async (req: any, res) => {
     const loginCookies = loginResponse.headers['set-cookie'];
     const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Cookie': Array.isArray(loginCookies) ? loginCookies.join('; ') : (loginCookies || '')
+      'Cookie': parseSapCookies(loginCookies)
     };
 
     // === STEP 1: Fetch live PO ===
@@ -2119,7 +2130,7 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
     });
     if (loginResp.statusCode !== 200) throw new Error(`SAP login failed (${loginResp.statusCode})`);
     const cookies = loginResp.headers['set-cookie'];
-    return { Cookie: Array.isArray(cookies) ? cookies.join('; ') : (cookies || '') };
+    return { Cookie: parseSapCookies(cookies) };
   }
 
   try {
