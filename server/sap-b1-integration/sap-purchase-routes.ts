@@ -1426,12 +1426,18 @@ async function persistGrpoAudit(data: {
   }
 }
 
-function buildMultipartBody(files: Array<{ buffer: Buffer; originalname: string }>, boundary: string): Buffer {
+function makeUniqueFilename(originalname: string): string {
+  const ext = originalname.split('.').pop() || '';
+  const nameWithoutExt = originalname.replace(/\.[^.]+$/, '');
+  const ts = Date.now();
+  return ext ? `${nameWithoutExt}_${ts}.${ext}` : `${nameWithoutExt}_${ts}`;
+}
+
+function buildMultipartBody(files: Array<{ buffer: Buffer; originalname: string; uniqueName?: string }>, boundary: string): Buffer {
   const parts: Buffer[] = [];
   for (const file of files) {
-    const ext = file.originalname.split('.').pop() || '';
-    const nameWithoutExt = file.originalname.replace(/\.[^.]+$/, '');
-    const header = `--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${file.originalname}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+    const filename = file.uniqueName || makeUniqueFilename(file.originalname);
+    const header = `--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
     parts.push(Buffer.from(header, 'utf-8'));
     parts.push(file.buffer);
     parts.push(Buffer.from('\r\n', 'utf-8'));
@@ -1676,8 +1682,9 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
           console.log(`[GRPO] Falling back to JSON metadata attachment method`);
           for (const file of files) {
-            const fileName = file.originalname.replace(/\.[^.]+$/, '');
-            const fileExt = file.originalname.split('.').pop() || '';
+            const uniqueName = makeUniqueFilename(file.originalname);
+            const fileName = uniqueName.replace(/\.[^.]+$/, '');
+            const fileExt = uniqueName.split('.').pop() || '';
             if (attachmentEntry === null) {
               const fallbackResponse = await sapClient.request({
                 method: 'POST', url: `${sapServiceUrl}/Attachments2`,
@@ -2079,13 +2086,19 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
       return res.status(400).json({ success: false, error: 'No files provided' });
     }
 
-    const { sessionId: sapSessionId } = await sapClient.login(
-      process.env.SAP_USERNAME!,
-      process.env.SAP_PASSWORD!,
-      process.env.SAP_COMPANY_DB!
-    );
+    let requestHeaders: Record<string, string> = {};
+    if (req.sapSession?.sessionId) {
+      const routeId = req.sapSession.routeId;
+      requestHeaders = { Cookie: `B1SESSION=${req.sapSession.sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}` };
+    } else {
+      const { sessionId: sapSessionId } = await sapClient.login(
+        process.env.SAP_USERNAME!,
+        process.env.SAP_PASSWORD!,
+        process.env.SAP_COMPANY_DB!
+      );
+      requestHeaders = { Cookie: `B1SESSION=${sapSessionId}` };
+    }
 
-    const requestHeaders: Record<string, string> = { Cookie: `B1SESSION=${sapSessionId}` };
     const boundary = `----SAPBoundary${Date.now()}`;
     const multipartBody = buildMultipartBody(files, boundary);
 
