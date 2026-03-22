@@ -245,15 +245,18 @@ function PurchaseOrdersContent() {
         const qty = parseFloat(l.Quantity || 0);
         const lineTotal = parseFloat(l.LineTotal || l.Price || l.UnitPrice || 0);
         const isServiceLine = qty === 0 && lineTotal > 0;
-        const openQty = rawOpen > 0 ? rawOpen : (qty > 0 ? qty : (isServiceLine ? 1 : 0));
+        const effectiveQty = isServiceLine ? 1 : qty;
+        const openQty = rawOpen > 0 ? rawOpen : (effectiveQty > 0 ? effectiveQty : 0);
+        console.log('GRPO line debug:', { lineNum: l.LineNum, rawOpen, qty, lineTotal, isServiceLine, effectiveQty, openQty });
         return {
           lineNum: l.LineNum,
           itemCode: l.ItemCode || l.ItemNo || '',
           itemDescription: l.ItemDescription || l.Dscription || l.FreeTxt || '',
-          quantity: qty,
+          quantity: effectiveQty,
           openQty,
           quantityToReceive: openQty,
           warehouseCode: l.WarehouseCode || l.WhsCode || '',
+          unitPrice: lineTotal,
           selected: openQty > 0,
         };
       })
