@@ -16,7 +16,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -82,6 +82,7 @@ interface PurchaseOrdersData {
 }
 
 function PurchaseOrdersContent() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -407,6 +408,9 @@ function PurchaseOrdersContent() {
         toast({ title: 'GRPO Created', description: `GRPO Doc# ${result.grpoDocNum || result.docNum || ''} created successfully.` });
         setIsGrpoDialogOpen(false);
         setIsViewModalOpen(false);
+        setSelectedDocEntry(null);
+        setSelectedOrder(null);
+        queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/orders'] });
       } else {
         const sapMsg = result.sapError?.message || result.error || 'Failed to create GRPO';
         console.error('[GRPO] SAP rejection details:', JSON.stringify(result, null, 2));
