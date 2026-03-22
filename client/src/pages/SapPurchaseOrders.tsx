@@ -226,8 +226,14 @@ function PurchaseOrdersContent() {
 
   const openGrpoDialog = () => {
     if (!poDetail) return;
+    const poIsOpen = poDetail.DocumentStatus === 'bost_Open' || poDetail.DocumentStatus === 'O';
     const lines = (poDetail.DocumentLines || [])
-      .filter((l: any) => l.LineStatus !== 'bost_Close')
+      .filter((l: any) => {
+        if (l.LineStatus !== 'bost_Close' && l.LineStatus !== 'C') return true;
+        const isService = l.LineType === 'lt_Service' || l.ItemType === 'it_Services' || (!l.ItemCode && !l.ItemNo);
+        if (isService && poIsOpen) return true;
+        return false;
+      })
       .map((l: any) => {
         const rawOpen = parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0);
         const qty = parseFloat(l.Quantity || 0);
