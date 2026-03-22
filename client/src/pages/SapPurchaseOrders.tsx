@@ -227,49 +227,82 @@ function PurchaseOrdersContent() {
     setCurrentPage(1); // Reset to first page when filtering
   };
 
-  const openGrpoDialog = () => {
-    if (!poDetail) return;
-    const poIsOpen = poDetail.DocumentStatus === 'bost_Open' || poDetail.DocumentStatus === 'O';
-    const lines = (poDetail.DocumentLines || [])
-      .filter((l: any) => {
-        if (l.LineStatus !== 'bost_Close' && l.LineStatus !== 'C') return true;
-        if (poIsOpen) return true;
-        return false;
-      })
-      .map((l: any) => {
-        const rawOpen = parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0);
-        const qty = parseFloat(l.Quantity || 0);
-        const lineTotal = parseFloat(l.LineTotal || l.Price || l.UnitPrice || 0);
-        const isServiceLine = qty === 0 && lineTotal > 0;
-        const effectiveQty = isServiceLine ? 1 : qty;
-        const openQty = rawOpen > 0 ? rawOpen : (effectiveQty > 0 ? effectiveQty : 0);
-        return {
-          lineNum: l.LineNum,
-          itemCode: l.ItemCode || l.ItemNo || '',
-          itemDescription: l.ItemDescription || l.Dscription || l.FreeTxt || '',
-          quantity: effectiveQty,
-          openQty,
-          quantityToReceive: openQty,
-          warehouseCode: l.WarehouseCode || l.WhsCode || '',
-          unitPrice: lineTotal,
-          selected: openQty > 0,
-        };
-      })
-      .filter((l: any) => l.openQty > 0);
+  const [grpoLoading, setGrpoLoading] = useState(false);
 
-    if (lines.length === 0) {
-      toast({ title: 'No open lines', description: 'All lines in this PO are fully received or closed.', variant: 'destructive' });
-      return;
+  const openGrpoDialog = async () => {
+    if (!poDetail) return;
+    const docEntry = poDetail.DocEntry || selectedOrder?.DocEntry;
+    if (!docEntry) return;
+
+    setGrpoLoading(true);
+    try {
+      const resp = await fetch(`/api/sap/b1/purchase-orders/${docEntry}`);
+      const result = await resp.json();
+      if (!resp.ok || !result.success) {
+        toast({ title: 'Failed to fetch PO', description: result.error || 'Unable to fetch latest PO data from SAP.', variant: 'destructive' });
+        setGrpoLoading(false);
+        return;
+      }
+      const livePO = result.data;
+      const allLines = livePO.DocumentLines || [];
+      const totalLines = allLines.length;
+
+      const openLines = allLines.filter((l: any) => l.LineStatus !== 'bost_Close' && l.LineStatus !== 'C');
+      const closedCount = totalLines - openLines.length;
+
+      if (openLines.length === 0) {
+        toast({ title: 'PO Fully Closed', description: 'This PO is fully closed in SAP. GRPO cannot be created.', variant: 'destructive' });
+        setGrpoLoading(false);
+        return;
+      }
+
+      const lines = openLines
+        .map((l: any) => {
+          const rawOpen = parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0);
+          const qty = parseFloat(l.Quantity || 0);
+          const lineTotal = parseFloat(l.LineTotal || l.Price || l.UnitPrice || 0);
+          const isServiceLine = qty === 0 && lineTotal > 0;
+          const effectiveQty = isServiceLine ? 1 : qty;
+          const openQty = rawOpen > 0 ? rawOpen : (effectiveQty > 0 ? effectiveQty : 0);
+          return {
+            lineNum: l.LineNum,
+            itemCode: l.ItemCode || l.ItemNo || '',
+            itemDescription: l.ItemDescription || l.Dscription || l.FreeTxt || '',
+            quantity: effectiveQty,
+            openQty,
+            quantityToReceive: openQty,
+            warehouseCode: l.WarehouseCode || l.WhsCode || '',
+            unitPrice: lineTotal,
+            selected: openQty > 0,
+            lineStatus: l.LineStatus || '',
+          };
+        })
+        .filter((l: any) => l.openQty > 0);
+
+      if (lines.length === 0) {
+        toast({ title: 'No open quantities', description: 'All open lines have zero remaining quantity. GRPO cannot be created.', variant: 'destructive' });
+        setGrpoLoading(false);
+        return;
+      }
+
+      if (closedCount > 0) {
+        toast({ title: 'Some lines excluded', description: `${closedCount} line(s) are closed in SAP and have been excluded.` });
+      }
+
+      setGrpoLines(lines);
+      setGrpoPostingDate(new Date().toISOString().split('T')[0]);
+      setGrpoRemarks('');
+      setGrpoJsonPreview(null);
+      setGrpoActiveTab('lines');
+      setQcValues(getDefaultQcPayload());
+      setQcErrors({});
+      setGrpoAttachments([]);
+      setIsGrpoDialogOpen(true);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to validate PO lines from SAP.', variant: 'destructive' });
+    } finally {
+      setGrpoLoading(false);
     }
-    setGrpoLines(lines);
-    setGrpoPostingDate(new Date().toISOString().split('T')[0]);
-    setGrpoRemarks('');
-    setGrpoJsonPreview(null);
-    setGrpoActiveTab('lines');
-    setQcValues(getDefaultQcPayload());
-    setQcErrors({});
-    setGrpoAttachments([]);
-    setIsGrpoDialogOpen(true);
   };
 
   const buildGrpoSapJson = () => {
@@ -1039,10 +1072,20 @@ Generated by: THERMOPAC Purchase Order System
                 <div className="px-4 py-2 border-t border-gray-200 flex justify-end shrink-0">
                   <Button
                     onClick={openGrpoDialog}
+                    disabled={grpoLoading}
                     className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6"
                   >
-                    <Download className="h-4 w-4 mr-2" />
-                    PO to GRPO
+                    {grpoLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Validating PO Lines...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        PO to GRPO
+                      </>
+                    )}
                   </Button>
                 </div>
               )}
