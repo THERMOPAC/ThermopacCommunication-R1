@@ -1660,12 +1660,19 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
       const warehouseCode = sel.warehouseCode || liveLine.WarehouseCode || liveLine.WhsCode;
       const grpoLine: any = {
-        Quantity: sel.quantityToReceive,
-        WarehouseCode: warehouseCode,
         BaseType: 22,
         BaseEntry: poDocEntry,
-        BaseLine: sel.lineNum
+        BaseLine: sel.lineNum,
+        Quantity: sel.quantityToReceive,
       };
+
+      if (liveLine.ItemCode) {
+        grpoLine.ItemCode = liveLine.ItemCode;
+      }
+
+      if (warehouseCode) {
+        grpoLine.WarehouseCode = warehouseCode;
+      }
 
       for (const [key, value] of Object.entries(liveLine)) {
         if (key.startsWith('U_') && value !== null && value !== undefined) {
@@ -1783,7 +1790,10 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       }
     }
 
-    console.log(`[GRPO] Posting GRPO to SAP:`, JSON.stringify({ cardCode: grpoPayload.CardCode, lines: grpoPayload.DocumentLines.length, hasAttachment: !!attachmentEntry }));
+    const linesSummary = grpoPayload.DocumentLines.map((l: any) => ({
+      ItemCode: l.ItemCode, BaseLine: l.BaseLine, Qty: l.Quantity, Whs: l.WarehouseCode
+    }));
+    console.log(`[GRPO] Posting GRPO to SAP: CardCode=${grpoPayload.CardCode}, PO DocEntry=${poDocEntry}, DocNum=${poDocNum}, Lines:`, JSON.stringify(linesSummary));
 
     let grpoResponse: any;
     try {
@@ -1986,13 +1996,15 @@ router.post('/grpo/direct', async (req: any, res) => {
         continue;
       }
 
+      const whs = dl.WarehouseCode || liveLine.WarehouseCode || liveLine.WhsCode;
       const validLine: any = {
-        Quantity: dl.Quantity,
-        WarehouseCode: dl.WarehouseCode || liveLine.WarehouseCode || liveLine.WhsCode,
         BaseType: 22,
         BaseEntry: poDocEntry,
-        BaseLine: dl.BaseLine
+        BaseLine: dl.BaseLine,
+        Quantity: dl.Quantity,
       };
+      if (liveLine.ItemCode) validLine.ItemCode = liveLine.ItemCode;
+      if (whs) validLine.WarehouseCode = whs;
 
       for (const [key, value] of Object.entries(liveLine)) {
         if (key.startsWith('U_') && value !== null && value !== undefined) {
