@@ -378,81 +378,22 @@ function DashboardContent() {
               )}
             </div>
 
-            {/* Sync Status and Controls */}
-            <div className="flex items-center gap-3">
-              {syncStatusData?.data && (
-                <>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {syncStatusData.data.isRunning ? (
-                      <>
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span>Syncing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          Last sync: {syncStatusData.data.settings.lastSyncAt 
-                            ? format(new Date(syncStatusData.data.settings.lastSyncAt), 'MMM dd, HH:mm')
-                            : 'Never'
-                          }
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  
-                  <Separator orientation="vertical" className="h-4" />
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => triggerSyncMutation.mutate()}
-                      disabled={triggerSyncMutation.isPending || syncStatusData.data.isRunning}
-                      className="text-xs"
-                    >
-                      {triggerSyncMutation.isPending || syncStatusData.data.isRunning ? (
-                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      ) : (
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                      )}
-                      Sync Now
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => triggerLineItemsSyncMutation.mutate()}
-                      disabled={triggerLineItemsSyncMutation.isPending || syncStatusData.data.isRunning}
-                      className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                    >
-                      {triggerLineItemsSyncMutation.isPending ? (
-                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      ) : (
-                        <RefreshCw className="h-3 w-3 mr-1" />
-                      )}
-                      Sync Line Items
-                    </Button>
-                    
-                    {syncStatusData.data.isRunning && (
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => stopSyncMutation.mutate()}
-                        disabled={stopSyncMutation.isPending}
-                        className="text-xs"
-                      >
-                        {stopSyncMutation.isPending ? (
-                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                        ) : (
-                          <Square className="h-3 w-3 mr-1" />
-                        )}
-                        Stop Sync
-                      </Button>
-                    )}
-                  </div>
-                </>
-              )}
+            {/* Refresh */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/sap/b1/purchase/dashboard'] })}
+                disabled={isLoading}
+                className="text-xs"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Refresh
+              </Button>
             </div>
           </div>
           

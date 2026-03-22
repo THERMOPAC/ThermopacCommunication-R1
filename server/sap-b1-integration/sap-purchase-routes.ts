@@ -117,6 +117,8 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
 
     let totalOrders = 0, openOrders = 0, closedOrders = 0, totalValue = 0, openValue = 0;
     let uniqueVendors = 0;
+    let totalInvoices = 0, pendingInvoices = 0, paidInvoices = 0, invoiceTotalValue = 0;
+    let totalGrpo = 0, pendingGrpo = 0, completedGrpo = 0;
     let recentOrders: any[] = [];
     let sapAvailable = false;
 
@@ -137,66 +139,59 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
           'Cookie': loginResponse.headers['set-cookie']?.join('; ') || ''
         };
 
-        const [allPOResp, openPOResp, recentPOResp] = await Promise.all([
+        const [allPOResp, openPOResp, recentPOResp, invoiceResp, openInvoiceResp, grpoResp, openGrpoResp, vendorResp] = await Promise.all([
           sapClient.request({
             method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocEntry,DocTotal,DocumentStatus,CardCode&$inlinecount=allpages&$top=1`,
+            url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}'`,
             headers: requestHeaders, timeout: 30000
           }),
           sapClient.request({
             method: 'GET',
-            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'&$select=DocEntry,DocTotal&$inlinecount=allpages&$top=1`,
+            url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
             headers: requestHeaders, timeout: 30000
           }),
           sapClient.request({
             method: 'GET',
             url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocEntry,DocNum,DocDate,CardName,DocTotal,DocumentStatus&$orderby=DocDate desc&$top=5`,
             headers: requestHeaders, timeout: 30000
-          })
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseInvoices/$count?$filter=DocDate ge '${fyStartDate}'`,
+            headers: requestHeaders, timeout: 30000
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseInvoices/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
+            headers: requestHeaders, timeout: 30000
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseDeliveryNotes/$count?$filter=DocDate ge '${fyStartDate}'`,
+            headers: requestHeaders, timeout: 30000
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseDeliveryNotes/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
+            headers: requestHeaders, timeout: 30000
+          }),
+          sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/BusinessPartners/$count?$filter=CardType eq 'cSupplier' and Valid eq 'tYES'`,
+            headers: requestHeaders, timeout: 30000
+          }),
         ]);
 
         if (allPOResp.statusCode === 200) {
-          const allData = JSON.parse(allPOResp.body);
-          totalOrders = parseInt(allData['odata.count'] || '0');
-          const allOrders = allData.value || [];
-          totalValue = allOrders.reduce((sum: number, o: any) => sum + (parseFloat(o.DocTotal) || 0), 0);
-          const vendorSet = new Set(allOrders.map((o: any) => o.CardCode));
-          uniqueVendors = vendorSet.size;
+          const cnt = parseInt(allPOResp.body);
+          if (!isNaN(cnt)) totalOrders = cnt;
         }
 
         if (openPOResp.statusCode === 200) {
-          const openData = JSON.parse(openPOResp.body);
-          openOrders = parseInt(openData['odata.count'] || '0');
-          openValue = (openData.value || []).reduce((sum: number, o: any) => sum + (parseFloat(o.DocTotal) || 0), 0);
+          const cnt = parseInt(openPOResp.body);
+          if (!isNaN(cnt)) openOrders = cnt;
         }
-
         closedOrders = totalOrders - openOrders;
-
-        if (totalOrders > 1) {
-          try {
-            const fullCountResp = await sapClient.request({
-              method: 'GET',
-              url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}'`,
-              headers: requestHeaders, timeout: 15000
-            });
-            if (fullCountResp.statusCode === 200) {
-              const cnt = parseInt(fullCountResp.body);
-              if (!isNaN(cnt)) totalOrders = cnt;
-            }
-          } catch {}
-
-          try {
-            const openCountResp = await sapClient.request({
-              method: 'GET',
-              url: `${sapServiceUrl}/PurchaseOrders/$count?$filter=DocDate ge '${fyStartDate}' and DocumentStatus eq 'bost_Open'`,
-              headers: requestHeaders, timeout: 15000
-            });
-            if (openCountResp.statusCode === 200) {
-              const cnt = parseInt(openCountResp.body);
-              if (!isNaN(cnt)) { openOrders = cnt; closedOrders = totalOrders - openOrders; }
-            }
-          } catch {}
-        }
 
         if (recentPOResp.statusCode === 200) {
           const recentData = JSON.parse(recentPOResp.body);
@@ -205,6 +200,55 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
             CardName: po.CardName, DocTotal: po.DocTotal, DocumentStatus: po.DocumentStatus
           }));
         }
+
+        if (invoiceResp.statusCode === 200) {
+          const cnt = parseInt(invoiceResp.body);
+          if (!isNaN(cnt)) totalInvoices = cnt;
+        }
+        if (openInvoiceResp.statusCode === 200) {
+          const cnt = parseInt(openInvoiceResp.body);
+          if (!isNaN(cnt)) pendingInvoices = cnt;
+        }
+        paidInvoices = totalInvoices - pendingInvoices;
+
+        if (grpoResp.statusCode === 200) {
+          const cnt = parseInt(grpoResp.body);
+          if (!isNaN(cnt)) totalGrpo = cnt;
+        }
+        if (openGrpoResp.statusCode === 200) {
+          const cnt = parseInt(openGrpoResp.body);
+          if (!isNaN(cnt)) pendingGrpo = cnt;
+        }
+        completedGrpo = totalGrpo - pendingGrpo;
+
+        if (vendorResp.statusCode === 200) {
+          const cnt = parseInt(vendorResp.body);
+          if (!isNaN(cnt)) uniqueVendors = cnt;
+        }
+
+        try {
+          const poValueResp = await sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseOrders?$filter=DocDate ge '${fyStartDate}'&$select=DocTotal&$top=1&$inlinecount=allpages`,
+            headers: requestHeaders, timeout: 15000
+          });
+          if (poValueResp.statusCode === 200) {
+            const valData = JSON.parse(poValueResp.body);
+            totalValue = (valData.value || []).reduce((s: number, o: any) => s + (parseFloat(o.DocTotal) || 0), 0);
+          }
+        } catch {}
+
+        try {
+          const invValueResp = await sapClient.request({
+            method: 'GET',
+            url: `${sapServiceUrl}/PurchaseInvoices?$filter=DocDate ge '${fyStartDate}'&$select=DocTotal&$top=1&$inlinecount=allpages`,
+            headers: requestHeaders, timeout: 15000
+          });
+          if (invValueResp.statusCode === 200) {
+            const valData = JSON.parse(invValueResp.body);
+            invoiceTotalValue = (valData.value || []).reduce((s: number, o: any) => s + (parseFloat(o.DocTotal) || 0), 0);
+          }
+        } catch {}
 
         try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
       }
@@ -231,9 +275,9 @@ settingsRouter.get('/dashboard', async (req: any, res) => {
         approved: closedOrders,
         totalValue: Math.round(totalValue)
       },
-      purchaseInvoices: { total: 0, pending: 0, paid: 0, totalValue: 0 },
+      purchaseInvoices: { total: totalInvoices, pending: pendingInvoices, paid: paidInvoices, totalValue: Math.round(invoiceTotalValue) },
       vendors: { total: uniqueVendors, active: uniqueVendors },
-      goodsReceipt: { total: 0, pending: 0, completed: 0 },
+      goodsReceipt: { total: totalGrpo, pending: pendingGrpo, completed: completedGrpo },
       recentActivity: recentOrders.map(order => ({
         type: 'Purchase Order',
         description: `PO-${order.DocNum} - ${order.CardName}`,
