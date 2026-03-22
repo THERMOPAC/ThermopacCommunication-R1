@@ -306,7 +306,28 @@ function PurchaseOrdersContent() {
     }
     setGrpoSubmitting(true);
     try {
-      const payload = {
+      let attachmentEntry: number | undefined;
+
+      if (grpoAttachments.length > 0) {
+        const formData = new FormData();
+        grpoAttachments.forEach(file => formData.append('files', file));
+        const attachResp = await fetch('/api/sap/b1/purchase/attachments/upload', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        });
+        const attachResult = await attachResp.json();
+        if (attachResp.ok && attachResult.success) {
+          attachmentEntry = attachResult.attachmentEntry;
+          console.log(`[GRPO] Attachments uploaded — AbsoluteEntry: ${attachmentEntry}`);
+        } else {
+          toast({ title: 'Attachment Upload Failed', description: attachResult.error || 'Failed to upload attachments to SAP', variant: 'destructive' });
+          setGrpoSubmitting(false);
+          return;
+        }
+      }
+
+      const payload: any = {
         poDocEntry: poDetail?.DocEntry || selectedOrder?.DocEntry,
         postingDate: grpoPostingDate,
         remarks: grpoRemarks,
@@ -317,6 +338,9 @@ function PurchaseOrdersContent() {
           warehouseCode: l.warehouseCode,
         })),
       };
+      if (attachmentEntry !== undefined) {
+        payload.AttachmentEntry = attachmentEntry;
+      }
       console.log('[GRPO] JSON Payload being sent to SAP:', JSON.stringify(payload, null, 2));
       const resp = await fetch('/api/sap/b1/purchase/grpo', {
         method: 'POST',

@@ -1654,6 +1654,9 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     if (attachmentEntry !== null) {
       grpoPayload.AttachmentEntry = attachmentEntry;
+    } else if (rawPayload.AttachmentEntry) {
+      grpoPayload.AttachmentEntry = rawPayload.AttachmentEntry;
+      console.log(`[GRPO] Using pre-uploaded AttachmentEntry: ${rawPayload.AttachmentEntry}`);
     }
 
     for (const [key, value] of Object.entries(livePo)) {
@@ -1910,6 +1913,11 @@ router.post('/grpo/direct', async (req: any, res) => {
       DocumentLines: validatedLines
     };
 
+    if (payload.AttachmentEntry) {
+      sapGrpoPayload.AttachmentEntry = payload.AttachmentEntry;
+      console.log(`[GRPO-DIRECT] AttachmentEntry included: ${payload.AttachmentEntry}`);
+    }
+
     for (const [key, value] of Object.entries(livePo)) {
       if (key.startsWith('U_') && value !== null && value !== undefined) {
         sapGrpoPayload[key] = value;
@@ -1987,6 +1995,76 @@ router.post('/grpo/direct', async (req: any, res) => {
   } catch (error: any) {
     console.error(`[GRPO-DIRECT] Unexpected error:`, error);
     res.status(500).json({ success: false, error: 'Unexpected error', code: 'GRPO_UNEXPECTED_ERROR', message: error.message });
+  }
+});
+
+const attachmentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.xlsx', '.xls', '.docx', '.doc'];
+    const ext = '.' + file.originalname.split('.').pop()?.toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error(`File type ${ext} not allowed. Allowed: ${allowed.join(', ')}`));
+  }
+});
+
+router.post('/attachments/upload', attachmentUpload.array('files', 10), async (req: any, res) => {
+  const sapClient = new SapHttpsClient();
+  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+
+  try {
+    const files: any[] = req.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({ success: false, error: 'No files provided' });
+    }
+
+    const { sessionId: sapSessionId } = await sapClient.login(
+      process.env.SAP_USERNAME!,
+      process.env.SAP_PASSWORD!,
+      process.env.SAP_COMPANY_DB!
+    );
+
+    const requestHeaders: Record<string, string> = { Cookie: `B1SESSION=${sapSessionId}` };
+    const boundary = `----SAPBoundary${Date.now()}`;
+    const multipartBody = buildMultipartBody(files, boundary);
+
+    const attachHeaders: Record<string, string> = {
+      ...requestHeaders,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      'Content-Length': String(multipartBody.length)
+    };
+
+    const attachResponse = await sapClient.request({
+      method: 'POST',
+      url: `${sapServiceUrl}/Attachments2`,
+      headers: attachHeaders,
+      rawBody: multipartBody,
+      timeout: 120000
+    });
+
+    try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
+
+    if (attachResponse.statusCode === 200 || attachResponse.statusCode === 201) {
+      const attachData = JSON.parse(attachResponse.body);
+      console.log(`[ATTACHMENT] Upload success — AbsoluteEntry: ${attachData.AbsoluteEntry}, Files: ${files.map((f: any) => f.originalname).join(', ')}`);
+      return res.json({
+        success: true,
+        attachmentEntry: attachData.AbsoluteEntry,
+        fileCount: files.length,
+        fileNames: files.map((f: any) => f.originalname)
+      });
+    } else {
+      console.error(`[ATTACHMENT] SAP rejected (${attachResponse.statusCode}):`, attachResponse.body);
+      return res.status(400).json({
+        success: false,
+        error: `SAP attachment upload failed (${attachResponse.statusCode})`,
+        sapError: attachResponse.body
+      });
+    }
+  } catch (error: any) {
+    console.error('[ATTACHMENT] Upload error:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
