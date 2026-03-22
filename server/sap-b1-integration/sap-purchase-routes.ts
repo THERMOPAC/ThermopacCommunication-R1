@@ -1,8 +1,9 @@
 import express from 'express';
 import multer from 'multer';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
-import { requireSapAccess, requireSapSession } from '../middleware/sap-auth-middleware';
+import { requireSapAccess } from '../middleware/sap-auth-middleware';
 import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
+import { sapSessionManager } from '../sap-session-manager';
 import { pool } from '../db';
 import { getGrpoQcChecklistConfig, validateGrpoQcPayload } from '@shared/grpo-qc-config';
 
@@ -22,11 +23,30 @@ settingsRouter.use(requireSapAccess);
 // Apply full middleware to SAP data routes
 router.use(ensureAuthenticated);
 router.use(requireSapAccess);
-router.use(requireSapSession);
+router.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
+  const userId = req.user?.id;
+  if (userId) {
+    const session = sapSessionManager.getSession(userId);
+    if (session) {
+      req.sapSession = {
+        sessionId: session.sessionId,
+        routeId: session.routeId,
+        userId: session.userId
+      };
+    }
+  }
+  next();
+});
 
 // Helper function to make authenticated SAP requests with ROUTEID stickiness
 async function makeSapRequest(req: express.Request, path: string, options: any = {}) {
-  const { sessionId, routeId } = req.sapSession!;
+  if (!req.sapSession) {
+    const err: any = new Error('SAP session expired. Please login again.');
+    err.code = 'SAP_SESSION_EXPIRED';
+    err.statusCode = 401;
+    throw err;
+  }
+  const { sessionId, routeId } = req.sapSession;
   
   const headers = {
     'Cookie': `B1SESSION=${sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}`,
@@ -38,6 +58,14 @@ async function makeSapRequest(req: express.Request, path: string, options: any =
     path,
     headers
   });
+}
+
+function handleSapError(error: any, res: express.Response, fallbackMessage: string) {
+  if (error?.code === 'SAP_SESSION_EXPIRED') {
+    return res.status(401).json({ success: false, error: error.message, code: 'SAP_SESSION_EXPIRED' });
+  }
+  console.error(fallbackMessage, error?.message || error);
+  return res.status(500).json({ success: false, error: fallbackMessage, code: 'SAP_ERROR' });
 }
 
 // Helper function to handle SAP API responses
@@ -342,12 +370,7 @@ router.get('/quotations', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('SAP quotations error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load quotations',
-      code: 'SAP_QUOTATIONS_ERROR'
-    });
+    handleSapError(error, res, 'Failed to load quotations');
   }
 });
 
@@ -368,8 +391,7 @@ router.get('/orders/series', async (req, res) => {
     }));
     res.json({ success: true, data: series });
   } catch (error) {
-    console.error('PO series error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load PO series' });
+    handleSapError(error, res, 'Failed to load PO series');
   }
 });
 
@@ -437,12 +459,7 @@ router.get('/orders', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Purchase orders error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load purchase orders',
-      code: 'ORDERS_ERROR'
-    });
+    handleSapError(error, res, 'Failed to load purchase orders');
   }
 });
 
@@ -459,8 +476,7 @@ router.get('/orders/:docEntry', async (req, res) => {
     const po = JSON.parse(response.body);
     res.json({ success: true, data: po });
   } catch (error) {
-    console.error('SAP PO detail error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load purchase order detail' });
+    handleSapError(error, res, 'Failed to load purchase order detail');
   }
 });
 
@@ -492,12 +508,7 @@ router.get('/orders/:docEntry/items', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Purchase order items error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load purchase order items',
-      code: 'SAP_PO_ITEMS_ERROR'
-    });
+    handleSapError(error, res, 'Failed to load purchase order items');
   }
 });
 
@@ -540,12 +551,7 @@ router.get('/receipts', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('SAP goods receipts error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load goods receipts',
-      code: 'SAP_RECEIPTS_ERROR'
-    });
+    handleSapError(error, res, 'Failed to load goods receipts');
   }
 });
 
@@ -592,12 +598,7 @@ router.get('/invoices', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('SAP purchase invoices error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load purchase invoices',
-      code: 'SAP_INVOICES_ERROR'
-    });
+    handleSapError(error, res, 'Failed to load purchase invoices');
   }
 });
 
@@ -611,8 +612,7 @@ router.get('/invoices/:docEntry', async (req, res) => {
     const invoice = JSON.parse(response.body);
     res.json({ success: true, data: invoice });
   } catch (error) {
-    console.error('SAP invoice detail error:', error);
-    res.status(500).json({ success: false, error: 'Failed to load invoice detail' });
+    handleSapError(error, res, 'Failed to load invoice detail');
   }
 });
 
