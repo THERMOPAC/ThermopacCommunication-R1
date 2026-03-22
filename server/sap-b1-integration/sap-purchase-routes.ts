@@ -1543,14 +1543,8 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
         continue;
       }
 
-      const isServiceLine = liveLine.LineType === 'lt_Text' || liveLine.ItemType === 'itService' || (!liveLine.ItemCode && !liveLine.ItemNo);
-      let liveOpenQty: number;
-      if (isServiceLine) {
-        const rawOpen = parseFloat(liveLine.OpenQuantity ?? liveLine.RemainingOpenQuantity ?? -1);
-        liveOpenQty = (rawOpen > 0) ? rawOpen : parseFloat(liveLine.Quantity || 0);
-      } else {
-        liveOpenQty = parseFloat(liveLine.OpenQuantity || liveLine.RemainingOpenQuantity || 0);
-      }
+      const rawOpenQty = parseFloat(liveLine.OpenQuantity ?? liveLine.RemainingOpenQuantity ?? 0);
+      const liveOpenQty = rawOpenQty > 0 ? rawOpenQty : parseFloat(liveLine.Quantity || 0);
       if (sel.quantityToReceive > liveOpenQty) {
         validationErrors.push({ lineNum: sel.lineNum, error: 'EXCEEDS_OPEN_QTY', message: `Quantity ${sel.quantityToReceive} exceeds live open quantity ${liveOpenQty} for line ${sel.lineNum}` });
         continue;
@@ -1874,14 +1868,8 @@ router.post('/grpo/direct', async (req: any, res) => {
         validationErrors.push({ baseLine: dl.BaseLine, itemCode: liveLine.ItemCode, error: 'LINE_CLOSED', message: `PO line ${dl.BaseLine} (${liveLine.ItemCode}) is closed` });
         continue;
       }
-      const isServiceLine = liveLine.LineType === 'lt_Text' || liveLine.ItemType === 'itService' || (!liveLine.ItemCode && !liveLine.ItemNo);
-      let openQty: number;
-      if (isServiceLine) {
-        const rawOpen = parseFloat(liveLine.OpenQuantity ?? liveLine.RemainingOpenQuantity ?? -1);
-        openQty = (rawOpen > 0) ? rawOpen : parseFloat(liveLine.Quantity || 0);
-      } else {
-        openQty = parseFloat(liveLine.OpenQuantity || liveLine.RemainingOpenQuantity || 0);
-      }
+      const rawOpenQty2 = parseFloat(liveLine.OpenQuantity ?? liveLine.RemainingOpenQuantity ?? 0);
+      const openQty = rawOpenQty2 > 0 ? rawOpenQty2 : parseFloat(liveLine.Quantity || 0);
       if (dl.Quantity > openQty) {
         validationErrors.push({ baseLine: dl.BaseLine, itemCode: liveLine.ItemCode, error: 'EXCEEDS_OPEN_QTY', message: `Qty ${dl.Quantity} exceeds open qty ${openQty} for line ${dl.BaseLine} (${liveLine.ItemCode})`, requestedQty: dl.Quantity, openQty });
         continue;
