@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
+import { SapLoginModal } from '@/components/sap/SapLoginModal';
+import { LogIn } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,6 +96,7 @@ function PurchaseOrdersContent() {
   const [loadingItems, setLoadingItems] = useState(false);
   const [activeTab, setActiveTab] = useState('contents');
   const [isGrpoDialogOpen, setIsGrpoDialogOpen] = useState(false);
+  const [showSapLoginModal, setShowSapLoginModal] = useState(false);
   const [grpoLines, setGrpoLines] = useState<Array<{ lineNum: number; itemCode: string; itemDescription: string; quantity: number; openQty: number; quantityToReceive: number; warehouseCode: string; selected: boolean }>>([]);
   const [grpoPostingDate, setGrpoPostingDate] = useState(new Date().toISOString().split('T')[0]);
   const [grpoRemarks, setGrpoRemarks] = useState('');
@@ -426,6 +429,8 @@ function PurchaseOrdersContent() {
   if (error || !data?.success) {
     const isSapUnavailable = (data as any)?.sapUnavailable || 
       (error instanceof Error && (error.message.includes('502') || error.message.includes('unavailable')));
+    const errorMsg = error instanceof Error ? error.message : ((data as any)?.error || 'Unable to fetch purchase orders');
+    const isSessionExpired = errorMsg.toLowerCase().includes('session') || errorMsg.toLowerCase().includes('expired') || errorMsg.toLowerCase().includes('login') || errorMsg.toLowerCase().includes('401') || errorMsg.toLowerCase().includes('authenticate');
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center space-y-4">
@@ -437,14 +442,28 @@ function PurchaseOrdersContent() {
             <p className="text-sm text-gray-600">
               {isSapUnavailable 
                 ? 'Cannot connect to SAP B1 Service Layer. The service may be temporarily down or unreachable.'
-                : (error instanceof Error ? error.message : 'Unable to fetch purchase orders')}
+                : isSessionExpired ? 'SAP session expired. Please login again.' : errorMsg}
             </p>
           </div>
-          <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => setShowSapLoginModal(true)}>
+              <LogIn className="h-4 w-4 mr-2" />
+              Login to SAP
+            </Button>
+            <Button variant="outline" onClick={() => refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
         </div>
+        <SapLoginModal
+          isOpen={showSapLoginModal}
+          onClose={() => setShowSapLoginModal(false)}
+          onSuccess={() => {
+            setShowSapLoginModal(false);
+            refetch();
+          }}
+        />
       </div>
     );
   }
