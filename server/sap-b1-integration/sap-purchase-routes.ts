@@ -1565,10 +1565,35 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     let livePo: any;
     try {
-      const livePOResponse = await sapClient.request({
+      let livePOResponse = await sapClient.request({
         method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
         headers: requestHeaders, timeout: 60000
       });
+
+      if (livePOResponse.statusCode === 401) {
+        console.warn(`[GRPO] User SAP session expired (401). Retrying with fresh login...`);
+        try {
+          const retryLogin = await sapClient.request({
+            method: 'POST', url: `${sapServiceUrl}/Login`,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+            timeout: 60000
+          });
+          if (retryLogin.statusCode === 200) {
+            const retryCookies = retryLogin.headers['set-cookie'];
+            requestHeaders['Cookie'] = Array.isArray(retryCookies) ? retryCookies.join('; ') : (retryCookies || '');
+            const retryMatch = requestHeaders.Cookie.match(/B1SESSION=([^;]+)/);
+            sapSessionId = retryMatch ? retryMatch[1] : null;
+            console.log(`[GRPO] Fresh login successful, retrying PO fetch`);
+            livePOResponse = await sapClient.request({
+              method: 'GET', url: `${sapServiceUrl}/PurchaseOrders(${poDocEntry})`,
+              headers: requestHeaders, timeout: 60000
+            });
+          }
+        } catch (retryErr: any) {
+          console.error(`[GRPO] Fresh login retry failed:`, retryErr.message);
+        }
+      }
 
       if (livePOResponse.statusCode !== 200) {
         grpoLocks.delete(poDocEntry);
