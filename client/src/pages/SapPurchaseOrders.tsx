@@ -206,11 +206,23 @@ function PurchaseOrdersContent() {
     });
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, order?: any) => {
+    const sapHeader = order?.SapHeaderStatus;
+    const lineStats = order?.lineStats;
+    const isDerivedClosed = sapHeader && (sapHeader === 'bost_Open' || sapHeader === 'O') && (status === 'bost_Close' || status === 'C');
+
     switch (status) {
       case 'bost_Open':
         return <Badge variant="default">Open</Badge>;
       case 'bost_Close':
+        if (isDerivedClosed) {
+          return (
+            <span className="flex flex-col items-start gap-0.5">
+              <Badge className="bg-orange-100 text-orange-800 border-orange-300">No Open Lines</Badge>
+              {lineStats && <span className="text-[10px] text-gray-500">{lineStats.closed}/{lineStats.total} lines closed</span>}
+            </span>
+          );
+        }
         return <Badge variant="secondary">Closed</Badge>;
       case 'bost_Cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
@@ -640,7 +652,7 @@ function PurchaseOrdersContent() {
                     {formatCurrency(order.DocTotal)}
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(order.DocumentStatus)}
+                    {getStatusBadge(order.DocumentStatus, order)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">

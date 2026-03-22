@@ -450,24 +450,62 @@ router.get('/orders', async (req, res) => {
     if (errResp) return;
 
     const sapData = JSON.parse(response.body);
-    const orders = (sapData.value || []).map((po: any) => ({
-      DocEntry: po.DocEntry,
-      DocNum: po.DocNum,
-      DocDate: po.DocDate,
-      DocDueDate: po.DocDueDate,
-      CardCode: po.CardCode,
-      CardName: po.CardName,
-      DocTotal: po.DocTotal,
-      DocumentStatus: po.DocumentStatus,
-      cancelled: po.Cancelled === 'tYES' ? 'Y' : 'N',
-      comments: po.Comments,
-      doc_currency: po.DocCurrency,
-      VatSum: po.VatSum,
-      ContactPerson: po.ContactPersonCode,
-      NumAtCard: po.NumAtCard,
-      Project: po.Project,
-      Series: po.Series
-    }));
+
+    // Diagnostic: log first PO's keys to verify if DocumentLines are included in list query
+    if (sapData.value && sapData.value.length > 0) {
+      const sample = sapData.value[0];
+      const hasLines = Array.isArray(sample.DocumentLines);
+      const lineCount = hasLines ? sample.DocumentLines.length : 0;
+      console.log(`[PO_LIST_DIAG] Sample PO DocNum=${sample.DocNum}, hasDocumentLines=${hasLines}, lineCount=${lineCount}, headerStatus=${sample.DocumentStatus}`);
+      // Specifically log PO-1728 if present
+      const po1728 = sapData.value.find((p: any) => p.DocNum === 1728);
+      if (po1728) {
+        const lines1728 = po1728.DocumentLines || [];
+        console.log(`[PO_LIST_DIAG] === PO-1728 LIVE DATA ===`);
+        console.log(`[PO_LIST_DIAG] Header DocumentStatus: ${po1728.DocumentStatus}`);
+        console.log(`[PO_LIST_DIAG] Cancelled: ${po1728.Cancelled}`);
+        console.log(`[PO_LIST_DIAG] DocumentLines count: ${lines1728.length}`);
+        lines1728.forEach((l: any, i: number) => {
+          console.log(`[PO_LIST_DIAG]   Line[${i}] LineNum=${l.LineNum}, LineStatus=${l.LineStatus}, RemainingOpenQty=${l.RemainingOpenQuantity}, Qty=${l.Quantity}, ItemCode=${l.ItemCode}`);
+        });
+        console.log(`[PO_LIST_DIAG] === END PO-1728 ===`);
+      }
+    }
+
+    const orders = (sapData.value || []).map((po: any) => {
+      const lines = po.DocumentLines || [];
+      const totalLines = lines.length;
+      const closedLines = lines.filter((l: any) => l.LineStatus === 'bost_Close' || l.LineStatus === 'C').length;
+      const totalOpenQty = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0)), 0);
+
+      let derivedStatus = po.DocumentStatus;
+      if ((po.DocumentStatus === 'bost_Open' || po.DocumentStatus === 'O') && totalLines > 0) {
+        if (closedLines === totalLines || totalOpenQty === 0) {
+          derivedStatus = 'bost_Close';
+        }
+      }
+
+      return {
+        DocEntry: po.DocEntry,
+        DocNum: po.DocNum,
+        DocDate: po.DocDate,
+        DocDueDate: po.DocDueDate,
+        CardCode: po.CardCode,
+        CardName: po.CardName,
+        DocTotal: po.DocTotal,
+        DocumentStatus: derivedStatus,
+        SapHeaderStatus: po.DocumentStatus,
+        cancelled: po.Cancelled === 'tYES' ? 'Y' : 'N',
+        comments: po.Comments,
+        doc_currency: po.DocCurrency,
+        VatSum: po.VatSum,
+        ContactPerson: po.ContactPersonCode,
+        NumAtCard: po.NumAtCard,
+        Project: po.Project,
+        Series: po.Series,
+        lineStats: { total: totalLines, closed: closedLines, openQty: totalOpenQty }
+      };
+    });
 
     res.json({
       success: true,
