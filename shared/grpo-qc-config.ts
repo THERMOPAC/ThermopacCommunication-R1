@@ -26,6 +26,8 @@ export interface QcValidationError {
 
 export interface QcValidationResult {
   isValid: boolean;
+  errorType?: string;
+  message?: string;
   errors: QcValidationError[];
 }
 
@@ -40,7 +42,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "F", displayValue: "Short Supply" },
     ],
     allowNull: false,
-    defaultDataValue: "Y",
+    defaultDataValue: "F",
     sortOrder: 1,
     isActive: true,
   },
@@ -54,7 +56,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "F", displayValue: "Delayed Delivery" },
     ],
     allowNull: false,
-    defaultDataValue: "Y",
+    defaultDataValue: "F",
     sortOrder: 2,
     isActive: true,
   },
@@ -68,7 +70,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "F", displayValue: "No" },
     ],
     allowNull: false,
-    defaultDataValue: "Y",
+    defaultDataValue: "F",
     sortOrder: 3,
     isActive: true,
   },
@@ -83,7 +85,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Required" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 4,
     isActive: true,
   },
@@ -98,7 +100,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Required" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 5,
     isActive: true,
   },
@@ -113,7 +115,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Applicable" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 6,
     isActive: true,
   },
@@ -128,7 +130,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Applicable" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 7,
     isActive: true,
   },
@@ -143,7 +145,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Applicable" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 8,
     isActive: true,
   },
@@ -158,7 +160,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Applicable" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 9,
     isActive: true,
   },
@@ -173,7 +175,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Applicable" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 10,
     isActive: true,
   },
@@ -188,7 +190,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "N", displayValue: "Not Applicable" },
     ],
     allowNull: false,
-    defaultDataValue: "N",
+    defaultDataValue: "F",
     sortOrder: 11,
     isActive: true,
   },
@@ -202,7 +204,7 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
       { dataValue: "F", displayValue: "No" },
     ],
     allowNull: false,
-    defaultDataValue: "Y",
+    defaultDataValue: "F",
     sortOrder: 12,
     isActive: true,
   },
@@ -246,12 +248,10 @@ export function validateGrpoQcPayload(payload: Record<string, unknown>): QcValid
     const value = payload[field.udfName];
 
     if (value === undefined || value === null || value === "") {
-      if (!field.allowNull) {
-        errors.push({
-          field: field.udfName,
-          message: `${field.label} is required.`,
-        });
-      }
+      errors.push({
+        field: field.udfName,
+        message: `${field.label} is required.`,
+      });
       continue;
     }
 
@@ -261,10 +261,31 @@ export function validateGrpoQcPayload(payload: Record<string, unknown>): QcValid
         field: field.udfName,
         message: `Invalid value '${value}'. Allowed values are: ${allowedValues.join(", ")}.`,
       });
+      continue;
+    }
+
+    if (value === "F") {
+      const displayLabel = field.values.find(v => v.dataValue === "F")?.displayValue || "Rejected";
+      errors.push({
+        field: field.udfName,
+        message: `Default value '${displayLabel}' not allowed. Please confirm QC result.`,
+      });
     }
   }
 
-  return { isValid: errors.length === 0, errors };
+  if (errors.length > 0) {
+    return {
+      isValid: false,
+      errorType: "QC_VALIDATION_FAILED",
+      errors,
+    };
+  }
+
+  return {
+    isValid: true,
+    message: "QC Checklist fully completed",
+    errors: [],
+  };
 }
 
 export function getFieldsByGroup(groupName: QcGroupName): QcFieldConfig[] {
