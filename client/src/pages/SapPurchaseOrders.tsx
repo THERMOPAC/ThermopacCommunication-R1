@@ -227,11 +227,16 @@ function PurchaseOrdersContent() {
   const openGrpoDialog = () => {
     if (!poDetail) return;
     const poIsOpen = poDetail.DocumentStatus === 'bost_Open' || poDetail.DocumentStatus === 'O';
+    console.log('GRPO Debug - PO Status:', poDetail.DocumentStatus, 'poIsOpen:', poIsOpen);
+    console.log('GRPO Debug - All lines:', (poDetail.DocumentLines || []).map((l: any) => ({
+      LineNum: l.LineNum, LineStatus: l.LineStatus, LineType: l.LineType, ItemType: l.ItemType,
+      ItemCode: l.ItemCode, RemainingOpenQuantity: l.RemainingOpenQuantity, OpenQuantity: l.OpenQuantity,
+      Quantity: l.Quantity, OpenQty: l.OpenQty
+    })));
     const lines = (poDetail.DocumentLines || [])
       .filter((l: any) => {
         if (l.LineStatus !== 'bost_Close' && l.LineStatus !== 'C') return true;
-        const isService = l.LineType === 'lt_Service' || l.ItemType === 'it_Services' || (!l.ItemCode && !l.ItemNo);
-        if (isService && poIsOpen) return true;
+        if (poIsOpen) return true;
         return false;
       })
       .map((l: any) => {
