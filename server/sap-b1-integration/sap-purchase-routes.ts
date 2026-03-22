@@ -461,13 +461,27 @@ router.get('/orders', async (req, res) => {
       const po1728 = sapData.value.find((p: any) => p.DocNum === 1728);
       if (po1728) {
         const lines1728 = po1728.DocumentLines || [];
+        const total1728 = lines1728.length;
+        const closed1728 = lines1728.filter((l: any) => l.LineStatus === 'bost_Close' || l.LineStatus === 'C').length;
+        const openQty1728 = lines1728.reduce((s: number, l: any) => s + (parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0)), 0);
+        const cancelled1728 = po1728.Cancelled === 'tYES' || po1728.Cancelled === 'Y';
+        const docType1728 = po1728.DocType || '';
+        const svcPO1728 = docType1728 === 'dDocument_Service' || (docType1728 !== 'dDocument_Items' && total1728 > 0 && lines1728.every((l: any) => !l.ItemCode && parseFloat(l.Quantity || 0) === 0 && parseFloat(l.LineTotal || 0) > 0));
+        let derived1728 = po1728.DocumentStatus;
+        if ((derived1728 === 'bost_Open' || derived1728 === 'O') && total1728 > 0 && (closed1728 === total1728 || openQty1728 === 0)) derived1728 = 'bost_Close';
+        const can1728 = !cancelled1728 && !svcPO1728 && derived1728 !== 'bost_Close' && derived1728 !== 'C' && openQty1728 > 0 && closed1728 < total1728;
+
         console.log(`[PO_LIST_DIAG] === PO-1728 LIVE DATA ===`);
-        console.log(`[PO_LIST_DIAG] Header DocumentStatus: ${po1728.DocumentStatus}`);
+        console.log(`[PO_LIST_DIAG] SapHeaderStatus: ${po1728.DocumentStatus}`);
+        console.log(`[PO_LIST_DIAG] DerivedStatus: ${derived1728}`);
         console.log(`[PO_LIST_DIAG] Cancelled: ${po1728.Cancelled}`);
-        console.log(`[PO_LIST_DIAG] DocumentLines count: ${lines1728.length}`);
+        console.log(`[PO_LIST_DIAG] DocType: ${docType1728}`);
+        console.log(`[PO_LIST_DIAG] DocumentLines count: ${total1728}`);
         lines1728.forEach((l: any, i: number) => {
           console.log(`[PO_LIST_DIAG]   Line[${i}] LineNum=${l.LineNum}, LineStatus=${l.LineStatus}, RemainingOpenQty=${l.RemainingOpenQuantity}, Qty=${l.Quantity}, ItemCode=${l.ItemCode}`);
         });
+        console.log(`[PO_LIST_DIAG] Total remaining open qty: ${openQty1728}`);
+        console.log(`[PO_LIST_DIAG] canCreateGRPO: ${can1728}`);
         console.log(`[PO_LIST_DIAG] === END PO-1728 ===`);
       }
     }
@@ -486,8 +500,9 @@ router.get('/orders', async (req, res) => {
       }
 
       const isCancelled = po.Cancelled === 'tYES' || po.Cancelled === 'Y';
-      const isServicePO = totalLines > 0 && lines.every((l: any) => !l.ItemCode && parseFloat(l.Quantity || 0) === 0 && parseFloat(l.LineTotal || 0) > 0);
-      const canCreateGRPO = !isCancelled && !isServicePO && derivedStatus !== 'bost_Close' && (derivedStatus !== 'C') && totalOpenQty > 0 && closedLines < totalLines;
+      const sapDocType = po.DocType || '';
+      const isServicePO = sapDocType === 'dDocument_Service' || (sapDocType !== 'dDocument_Items' && totalLines > 0 && lines.every((l: any) => !l.ItemCode && parseFloat(l.Quantity || 0) === 0 && parseFloat(l.LineTotal || 0) > 0));
+      const canCreateGRPO = !isCancelled && !isServicePO && derivedStatus !== 'bost_Close' && derivedStatus !== 'C' && totalOpenQty > 0 && closedLines < totalLines;
 
       return {
         DocEntry: po.DocEntry,
@@ -541,6 +556,28 @@ router.get('/orders/:docEntry', async (req, res) => {
     const errorResponse = handleSapResponse(response, res, 'Purchase order detail');
     if (errorResponse) return;
     const po = JSON.parse(response.body);
+
+    const lines = po.DocumentLines || [];
+    const totalLines = lines.length;
+    const closedLines = lines.filter((l: any) => l.LineStatus === 'bost_Close' || l.LineStatus === 'C').length;
+    const totalOpenQty = lines.reduce((sum: number, l: any) => sum + (parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0)), 0);
+    const isCancelled = po.Cancelled === 'tYES' || po.Cancelled === 'Y';
+    const sapDocType = po.DocType || '';
+    const isServicePO = sapDocType === 'dDocument_Service' || (sapDocType !== 'dDocument_Items' && totalLines > 0 && lines.every((l: any) => !l.ItemCode && parseFloat(l.Quantity || 0) === 0 && parseFloat(l.LineTotal || 0) > 0));
+
+    let derivedStatus = po.DocumentStatus;
+    if ((po.DocumentStatus === 'bost_Open' || po.DocumentStatus === 'O') && totalLines > 0) {
+      if (closedLines === totalLines || totalOpenQty === 0) {
+        derivedStatus = 'bost_Close';
+      }
+    }
+    const canCreateGRPO = !isCancelled && !isServicePO && derivedStatus !== 'bost_Close' && derivedStatus !== 'C' && totalOpenQty > 0 && closedLines < totalLines;
+
+    po.SapHeaderStatus = po.DocumentStatus;
+    po.DocumentStatus = derivedStatus;
+    po.canCreateGRPO = canCreateGRPO;
+    po.lineStats = { total: totalLines, closed: closedLines, openQty: totalOpenQty };
+
     res.json({ success: true, data: po });
   } catch (error) {
     handleSapError(error, res, 'Failed to load purchase order detail');
@@ -1681,6 +1718,13 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     const liveLines = livePo.DocumentLines || [];
     const poDocType = livePo.DocType || 'dDocument_Items';
     const isItemPO = poDocType === 'dDocument_Items';
+
+    const allLinesClosed = liveLines.length > 0 && liveLines.every((l: any) => l.LineStatus === 'bost_Close' || l.LineStatus === 'C');
+    const totalRemainingOpenQty = liveLines.reduce((s: number, l: any) => s + (parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? 0)), 0);
+    if (allLinesClosed || totalRemainingOpenQty === 0) {
+      grpoLocks.delete(poDocEntry);
+      return res.status(400).json({ success: false, error: `PO-${poDocNum} has no open lines remaining (${liveLines.length} lines all closed, open qty: ${totalRemainingOpenQty})`, code: 'PO_NO_OPEN_LINES' });
+    }
     const validationErrors: any[] = [];
     const grpoDocumentLines: any[] = [];
     const sourceLineDebug: any[] = [];
