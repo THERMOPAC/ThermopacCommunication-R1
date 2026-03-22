@@ -3,6 +3,7 @@ import { Request } from 'express';
 interface SapSession {
   sessionId: string;
   routeId?: string;
+  companyDb: string;
   userId: number;
   expiresAt: Date;
   createdAt: Date;
