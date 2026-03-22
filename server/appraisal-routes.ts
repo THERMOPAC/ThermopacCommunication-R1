@@ -4,11 +4,11 @@ import {
   appraisalCycleTemplates, appraisalCycles, employeeAppraisals,
   employeeAppraisalKpis, employeeAppraisalCompetencies,
   appraisalComments, appraisalApprovals, appraisalAuditLog,
-  users,
+  users, notifications,
   InsertAppraisalCycleTemplate, InsertAppraisalCycle, InsertEmployeeAppraisal,
   insertAppraisalCycleTemplateSchema, insertAppraisalCycleSchema, insertEmployeeAppraisalSchema
 } from '@shared/schema';
-import { eq, and, or, desc, sql, count } from 'drizzle-orm';
+import { eq, and, or, desc, sql, count, lte, inArray, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
 const router = Router();
@@ -1542,6 +1542,10 @@ router.get('/jobs/status', ensureAuthenticated, async (req: Request, res: Respon
         eq(appraisalAuditLog.action, 'cycle_auto_activated'),
         eq(appraisalAuditLog.action, 'manual_cycle_generator_run'),
         eq(appraisalAuditLog.action, 'manual_activation_run'),
+        eq(appraisalAuditLog.action, 'reminder_job_run'),
+        eq(appraisalAuditLog.action, 'closure_job_run'),
+        eq(appraisalAuditLog.action, 'manual_reminder_run'),
+        eq(appraisalAuditLog.action, 'manual_closure_run'),
       ))
       .orderBy(desc(appraisalAuditLog.createdAt))
       .limit(20);
@@ -1556,6 +1560,8 @@ router.get('/jobs/status', ensureAuthenticated, async (req: Request, res: Respon
       scheduledJobs: [
         { name: 'CycleGeneratorJob', schedule: '05:00 AM daily', description: 'Creates cycles from templates on trigger dates' },
         { name: 'ActivationJob', schedule: '05:30 AM daily', description: 'Activates draft cycles whose start date has arrived, creates appraisals' },
+        { name: 'ReminderJob', schedule: '06:00 AM daily', description: 'Sends deadline reminders and overdue escalations' },
+        { name: 'ClosureJob', schedule: '06:30 AM daily', description: 'Closes approved appraisals and expired cycles' },
       ],
       activeTemplates: templates.length,
       activeCycles: activeCycles.length,
@@ -1564,6 +1570,290 @@ router.get('/jobs/status', ensureAuthenticated, async (req: Request, res: Respon
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch job status' });
+  }
+});
+
+// ==========================================
+// PHASE 6: NOTIFICATION HELPER
+// ==========================================
+
+async function createAppraisalNotification(userId: number, title: string, message: string, priority: string, appraisalId: number, category: string = 'appraisal') {
+  try {
+    await db.insert(notifications).values({
+      userId, type: 'appraisal', title, message, priority, category,
+      link: `/appraisals/${appraisalId}`, sourceType: 'appraisal', sourceId: appraisalId,
+    });
+  } catch (err: any) {
+    console.error(`[AppraisalNotify] Failed to create notification for user ${userId}:`, err.message);
+  }
+}
+
+// ==========================================
+// PHASE 6: REMINDER JOB (6 AM daily)
+// ==========================================
+
+async function runReminderJob(dryRun: boolean = false): Promise<{ reminders: any[]; escalations: any[]; errors: any[] }> {
+  const reminders: any[] = [];
+  const escalations: any[] = [];
+  const errors: any[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  const activeCycles = await db.select().from(appraisalCycles).where(eq(appraisalCycles.status, 'active'));
+
+  for (const cycle of activeCycles) {
+    const selfDeadline = cycle.selfAssessmentDeadline;
+    const managerDeadline = cycle.managerReviewDeadline;
+    const l2Deadline = cycle.l2ReviewDeadline;
+    const approvalDeadline = cycle.approvalDeadline;
+
+    const daysUntilSelf = Math.ceil((new Date(selfDeadline).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilManager = Math.ceil((new Date(managerDeadline).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilL2 = Math.ceil((new Date(l2Deadline).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilApproval = Math.ceil((new Date(approvalDeadline).getTime() - new Date(today).getTime()) / (1000 * 60 * 60 * 24));
+
+    const cycleAppraisals = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.cycleId, cycle.id));
+
+    for (const appraisal of cycleAppraisals) {
+      try {
+        if (appraisal.status === 'open' && daysUntilSelf <= 7 && daysUntilSelf > 0) {
+          const msg = `Your self-assessment for "${cycle.name}" is due in ${daysUntilSelf} day(s) (${selfDeadline}). Please complete it soon.`;
+          reminders.push({ type: 'self_reminder', appraisalId: appraisal.id, employeeId: appraisal.employeeId, name: appraisal.employeeName, daysLeft: daysUntilSelf });
+          if (!dryRun) await createAppraisalNotification(appraisal.employeeId, 'Appraisal Self-Assessment Reminder', msg, daysUntilSelf <= 3 ? 'high' : 'medium', appraisal.id);
+        }
+
+        if (appraisal.status === 'open' && daysUntilSelf <= 0) {
+          const msg = `Self-assessment for ${appraisal.employeeName} in "${cycle.name}" is overdue (deadline was ${selfDeadline}).`;
+          escalations.push({ type: 'self_overdue', appraisalId: appraisal.id, employeeId: appraisal.employeeId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilSelf) });
+          if (!dryRun) {
+            await createAppraisalNotification(appraisal.employeeId, 'Appraisal Self-Assessment OVERDUE', msg, 'critical', appraisal.id);
+            await createAppraisalNotification(appraisal.l1ReviewerId, 'Team Member Self-Assessment Overdue', `${appraisal.employeeName}'s self-assessment is overdue.`, 'high', appraisal.id);
+          }
+        }
+
+        if (appraisal.status === 'self_submitted' && daysUntilManager <= 7 && daysUntilManager > 0) {
+          const msg = `L1 review for ${appraisal.employeeName} in "${cycle.name}" is due in ${daysUntilManager} day(s).`;
+          reminders.push({ type: 'l1_reminder', appraisalId: appraisal.id, l1ReviewerId: appraisal.l1ReviewerId, name: appraisal.employeeName, daysLeft: daysUntilManager });
+          if (!dryRun) await createAppraisalNotification(appraisal.l1ReviewerId, 'L1 Review Reminder', msg, daysUntilManager <= 3 ? 'high' : 'medium', appraisal.id);
+        }
+
+        if (appraisal.status === 'self_submitted' && daysUntilManager <= 0) {
+          const msg = `L1 review for ${appraisal.employeeName} in "${cycle.name}" is overdue (deadline was ${managerDeadline}).`;
+          escalations.push({ type: 'l1_overdue', appraisalId: appraisal.id, l1ReviewerId: appraisal.l1ReviewerId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilManager) });
+          if (!dryRun) {
+            await createAppraisalNotification(appraisal.l1ReviewerId, 'L1 Review OVERDUE', msg, 'critical', appraisal.id);
+            await createAppraisalNotification(appraisal.l2ReviewerId, 'L1 Review Overdue — Escalation', `L1 review for ${appraisal.employeeName} is overdue. Please follow up with ${appraisal.l1ReviewerName}.`, 'high', appraisal.id);
+          }
+        }
+
+        if (appraisal.status === 'l1_reviewed' && daysUntilL2 <= 7 && daysUntilL2 > 0) {
+          const msg = `L2 review for ${appraisal.employeeName} in "${cycle.name}" is due in ${daysUntilL2} day(s).`;
+          reminders.push({ type: 'l2_reminder', appraisalId: appraisal.id, l2ReviewerId: appraisal.l2ReviewerId, name: appraisal.employeeName, daysLeft: daysUntilL2 });
+          if (!dryRun) await createAppraisalNotification(appraisal.l2ReviewerId, 'L2 Review Reminder', msg, daysUntilL2 <= 3 ? 'high' : 'medium', appraisal.id);
+        }
+
+        if (appraisal.status === 'l1_reviewed' && daysUntilL2 <= 0) {
+          escalations.push({ type: 'l2_overdue', appraisalId: appraisal.id, l2ReviewerId: appraisal.l2ReviewerId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilL2) });
+          if (!dryRun) {
+            await createAppraisalNotification(appraisal.l2ReviewerId, 'L2 Review OVERDUE', `L2 review for ${appraisal.employeeName} is overdue.`, 'critical', appraisal.id);
+            await createAppraisalNotification(appraisal.l3ApproverId, 'L2 Review Overdue — Escalation', `L2 review for ${appraisal.employeeName} by ${appraisal.l2ReviewerName} is overdue.`, 'high', appraisal.id);
+          }
+        }
+
+        if (appraisal.status === 'l2_reviewed' && daysUntilApproval <= 7 && daysUntilApproval > 0) {
+          reminders.push({ type: 'l3_reminder', appraisalId: appraisal.id, l3ApproverId: appraisal.l3ApproverId, name: appraisal.employeeName, daysLeft: daysUntilApproval });
+          if (!dryRun) await createAppraisalNotification(appraisal.l3ApproverId, 'L3 Approval Reminder', `Final approval for ${appraisal.employeeName} is due in ${daysUntilApproval} day(s).`, daysUntilApproval <= 3 ? 'high' : 'medium', appraisal.id);
+        }
+
+        if (appraisal.status === 'l2_reviewed' && daysUntilApproval <= 0) {
+          escalations.push({ type: 'l3_overdue', appraisalId: appraisal.id, l3ApproverId: appraisal.l3ApproverId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilApproval) });
+          if (!dryRun) {
+            await createAppraisalNotification(appraisal.l3ApproverId, 'L3 Approval OVERDUE', `Final approval for ${appraisal.employeeName} is overdue.`, 'critical', appraisal.id);
+            const hrUsers = await db.select().from(users).where(and(eq(users.role, 'HR'), eq(users.isActive, true)));
+            for (const hr of hrUsers) {
+              await createAppraisalNotification(hr.id, 'Appraisal Approval Overdue', `L3 approval for ${appraisal.employeeName} is overdue. Escalated to HR.`, 'high', appraisal.id);
+            }
+          }
+        }
+      } catch (err: any) {
+        errors.push({ appraisalId: appraisal.id, error: err.message });
+      }
+    }
+  }
+
+  if (!dryRun) {
+    await logAudit('system', 0, 'reminder_job_run', null, 'System', true, { reminders: reminders.length, escalations: escalations.length, errors: errors.length });
+  }
+
+  return { reminders, escalations, errors };
+}
+
+// ==========================================
+// PHASE 6: CLOSURE JOB (6:30 AM daily)
+// ==========================================
+
+async function runClosureJob(dryRun: boolean = false): Promise<{ closedCycles: any[]; closedAppraisals: any[]; errors: any[] }> {
+  const closedCycles: any[] = [];
+  const closedAppraisals: any[] = [];
+  const errors: any[] = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  const activeCycles = await db.select().from(appraisalCycles).where(eq(appraisalCycles.status, 'active'));
+
+  for (const cycle of activeCycles) {
+    if (cycle.closureDate > today) continue;
+
+    const cycleAppraisals = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.cycleId, cycle.id));
+
+    const approvedAppraisals = cycleAppraisals.filter(a => a.status === 'approved');
+    const pendingAppraisals = cycleAppraisals.filter(a => !['approved', 'closed'].includes(a.status));
+
+    for (const appraisal of approvedAppraisals) {
+      if (dryRun) {
+        closedAppraisals.push({ action: 'would_close', appraisalId: appraisal.id, employeeName: appraisal.employeeName });
+        continue;
+      }
+      try {
+        await db.update(employeeAppraisals).set({
+          status: 'closed', isLocked: true, updatedAt: new Date(),
+        }).where(eq(employeeAppraisals.id, appraisal.id));
+        closedAppraisals.push({ appraisalId: appraisal.id, employeeName: appraisal.employeeName, status: 'closed' });
+        await logAudit('appraisal', appraisal.id, 'auto_closed', null, 'System', true, { cycleId: cycle.id });
+      } catch (err: any) {
+        errors.push({ appraisalId: appraisal.id, error: err.message });
+      }
+    }
+
+    const allClosedOrApproved = pendingAppraisals.length === 0;
+    if (allClosedOrApproved || cycle.closureDate <= addDays(today, -15)) {
+      if (dryRun) {
+        closedCycles.push({ action: 'would_close', cycleId: cycle.id, name: cycle.name, pendingCount: pendingAppraisals.length });
+        continue;
+      }
+      try {
+        await db.update(appraisalCycles).set({
+          status: 'closed', updatedAt: new Date(),
+        }).where(eq(appraisalCycles.id, cycle.id));
+        closedCycles.push({ cycleId: cycle.id, name: cycle.name, status: 'closed', pendingCount: pendingAppraisals.length, forceClosed: pendingAppraisals.length > 0 });
+        await logAudit('cycle', cycle.id, 'cycle_auto_closed', null, 'System', true, { pendingCount: pendingAppraisals.length });
+
+        if (pendingAppraisals.length > 0) {
+          const hrUsers = await db.select().from(users).where(and(eq(users.role, 'HR'), eq(users.isActive, true)));
+          const superUsers = await db.select().from(users).where(and(eq(users.role, 'Superuser'), eq(users.isActive, true)));
+          const notifyUsers = [...hrUsers, ...superUsers];
+          for (const u of notifyUsers) {
+            await createAppraisalNotification(u.id, 'Appraisal Cycle Closed with Pending Items',
+              `Cycle "${cycle.name}" has been auto-closed with ${pendingAppraisals.length} appraisal(s) still pending.`, 'high', 0, 'appraisal_closure');
+          }
+        }
+      } catch (err: any) {
+        errors.push({ cycleId: cycle.id, error: err.message });
+      }
+    }
+  }
+
+  if (!dryRun) {
+    await logAudit('system', 0, 'closure_job_run', null, 'System', true, { closedCycles: closedCycles.length, closedAppraisals: closedAppraisals.length, errors: errors.length });
+  }
+
+  return { closedCycles, closedAppraisals, errors };
+}
+
+// Schedule Phase 6 jobs
+scheduleDailyJob(6, 0, 'ReminderJob', () => runReminderJob(false));
+scheduleDailyJob(6, 30, 'ClosureJob', () => runClosureJob(false));
+
+// ==========================================
+// PHASE 6: REMINDER & CLOSURE API ENDPOINTS
+// ==========================================
+
+router.post('/jobs/reminder/dry-run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runReminderJob(true);
+    res.json({ dryRun: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Dry run failed' });
+  }
+});
+
+router.post('/jobs/reminder/run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runReminderJob(false);
+    await logAudit('system', 0, 'manual_reminder_run', user.id, getUserDisplayName(user), false, result);
+    res.json({ dryRun: false, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Manual run failed' });
+  }
+});
+
+router.post('/jobs/closure/dry-run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runClosureJob(true);
+    res.json({ dryRun: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Dry run failed' });
+  }
+});
+
+router.post('/jobs/closure/run', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
+    const result = await runClosureJob(false);
+    await logAudit('system', 0, 'manual_closure_run', user.id, getUserDisplayName(user), false, result);
+    res.json({ dryRun: false, ...result });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Manual run failed' });
+  }
+});
+
+router.get('/cycles/:cycleId/progress', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const cycleId = parseInt(req.params.cycleId);
+    const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
+    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+
+    const cycleAppraisals = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.cycleId, cycleId));
+
+    const statusCounts: Record<string, number> = {};
+    for (const a of cycleAppraisals) {
+      statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const overdueBreakdown = {
+      selfAssessmentOverdue: cycle.selfAssessmentDeadline < today ? (statusCounts['open'] || 0) + (statusCounts['draft'] || 0) : 0,
+      managerReviewOverdue: cycle.managerReviewDeadline < today ? (statusCounts['self_submitted'] || 0) : 0,
+      l2ReviewOverdue: cycle.l2ReviewDeadline < today ? (statusCounts['l1_reviewed'] || 0) : 0,
+      approvalOverdue: cycle.approvalDeadline < today ? (statusCounts['l2_reviewed'] || 0) : 0,
+    };
+
+    const completionRate = cycleAppraisals.length > 0
+      ? Math.round(((statusCounts['approved'] || 0) + (statusCounts['closed'] || 0)) / cycleAppraisals.length * 100)
+      : 0;
+
+    res.json({
+      cycle: { id: cycle.id, name: cycle.name, status: cycle.status },
+      totalAppraisals: cycleAppraisals.length,
+      statusCounts,
+      overdueBreakdown,
+      completionRate,
+      deadlines: {
+        selfAssessment: cycle.selfAssessmentDeadline,
+        managerReview: cycle.managerReviewDeadline,
+        l2Review: cycle.l2ReviewDeadline,
+        approval: cycle.approvalDeadline,
+        closure: cycle.closureDate,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch cycle progress' });
   }
 });
 
