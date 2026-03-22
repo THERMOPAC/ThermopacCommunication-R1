@@ -236,7 +236,7 @@ function PurchaseOrdersContent() {
 
     setGrpoLoading(true);
     try {
-      const resp = await fetch(`/api/sap/b1/purchase-orders/${docEntry}`);
+      const resp = await fetch(`/api/sap/b1/purchase/orders/${docEntry}`);
       const result = await resp.json();
       if (!resp.ok || !result.success) {
         toast({ title: 'Failed to fetch PO', description: result.error || 'Unable to fetch latest PO data from SAP.', variant: 'destructive' });
