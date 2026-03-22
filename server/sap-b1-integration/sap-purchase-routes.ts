@@ -2110,6 +2110,18 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
   const sapClient = new SapHttpsClient();
   const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
 
+  async function doFreshLogin(): Promise<Record<string, string>> {
+    const loginResp = await sapClient.request({
+      method: 'POST', url: `${sapServiceUrl}/Login`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ CompanyDB: process.env.SAP_COMPANY_DB, UserName: process.env.SAP_USERNAME, Password: process.env.SAP_PASSWORD }),
+      timeout: 60000
+    });
+    if (loginResp.statusCode !== 200) throw new Error(`SAP login failed (${loginResp.statusCode})`);
+    const cookies = loginResp.headers['set-cookie'];
+    return { Cookie: Array.isArray(cookies) ? cookies.join('; ') : (cookies || '') };
+  }
+
   try {
     const files: any[] = req.files || [];
     if (files.length === 0) {
@@ -2117,16 +2129,13 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
     }
 
     let requestHeaders: Record<string, string> = {};
+    let usedUserSession = false;
     if (req.sapSession?.sessionId) {
       const routeId = req.sapSession.routeId;
       requestHeaders = { Cookie: `B1SESSION=${req.sapSession.sessionId}${routeId ? `; ROUTEID=${routeId}` : ''}` };
+      usedUserSession = true;
     } else {
-      const { sessionId: sapSessionId } = await sapClient.login(
-        process.env.SAP_USERNAME!,
-        process.env.SAP_PASSWORD!,
-        process.env.SAP_COMPANY_DB!
-      );
-      requestHeaders = { Cookie: `B1SESSION=${sapSessionId}` };
+      requestHeaders = await doFreshLogin();
     }
 
     const poDocEntry = req.body?.poDocEntry;
@@ -2139,13 +2148,37 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
       'Content-Length': String(multipartBody.length)
     };
 
-    const attachResponse = await sapClient.request({
+    let attachResponse = await sapClient.request({
       method: 'POST',
       url: `${sapServiceUrl}/Attachments2`,
       headers: attachHeaders,
       rawBody: multipartBody,
       timeout: 120000
     });
+
+    if (attachResponse.statusCode === 401 && usedUserSession) {
+      console.warn(`[ATTACHMENT] User SAP session expired (401). Retrying with fresh login...`);
+      try {
+        requestHeaders = await doFreshLogin();
+        const retryBoundary = `----SAPBoundary${Date.now()}`;
+        const retryBody = buildMultipartBody(files, retryBoundary, poDocEntry);
+        const retryHeaders: Record<string, string> = {
+          ...requestHeaders,
+          'Content-Type': `multipart/form-data; boundary=${retryBoundary}`,
+          'Content-Length': String(retryBody.length)
+        };
+        attachResponse = await sapClient.request({
+          method: 'POST',
+          url: `${sapServiceUrl}/Attachments2`,
+          headers: retryHeaders,
+          rawBody: retryBody,
+          timeout: 120000
+        });
+        console.log(`[ATTACHMENT] Retry result: ${attachResponse.statusCode}`);
+      } catch (retryErr: any) {
+        console.error(`[ATTACHMENT] Fresh login retry failed:`, retryErr.message);
+      }
+    }
 
     try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch {}
 
