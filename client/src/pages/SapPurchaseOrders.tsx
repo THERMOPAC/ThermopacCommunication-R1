@@ -229,7 +229,14 @@ function PurchaseOrdersContent() {
     const lines = (poDetail.DocumentLines || [])
       .filter((l: any) => l.LineStatus !== 'bost_Close')
       .map((l: any) => {
-        const openQty = parseFloat(l.RemainingOpenQuantity || l.OpenQuantity || l.Quantity || 0);
+        const isServiceLine = l.LineType === 'lt_Text' || l.ItemType === 'itService' || (!l.ItemCode && !l.ItemNo);
+        let openQty: number;
+        if (isServiceLine) {
+          const rawOpen = parseFloat(l.RemainingOpenQuantity ?? l.OpenQuantity ?? -1);
+          openQty = (rawOpen > 0) ? rawOpen : parseFloat(l.Quantity || 0);
+        } else {
+          openQty = parseFloat(l.RemainingOpenQuantity || l.OpenQuantity || l.Quantity || 0);
+        }
         return {
           lineNum: l.LineNum,
           itemCode: l.ItemCode || l.ItemNo || '',
