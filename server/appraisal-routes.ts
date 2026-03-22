@@ -423,4 +423,712 @@ router.get('/cycles/:cycleId/eligible-employees', ensureAuthenticated, async (re
   }
 });
 
+// ==========================================
+// PHASE 3: KPI CRUD
+// ==========================================
+
+router.get('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    const kpis = await db.select().from(employeeAppraisalKpis)
+      .where(eq(employeeAppraisalKpis.appraisalId, appraisalId))
+      .orderBy(employeeAppraisalKpis.sortOrder);
+    res.json(kpis);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch KPIs' });
+  }
+});
+
+router.post('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const canAdd = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
+      || ['Superuser', 'HR'].includes(user.role);
+    if (!canAdd) return res.status(403).json({ error: 'Cannot add KPI at this stage' });
+
+    const { kpiTitle, kpiDescription, weightage, targetValue, selfScore, selfComments, sortOrder } = req.body;
+    const [kpi] = await db.insert(employeeAppraisalKpis).values({
+      appraisalId, kpiTitle, kpiDescription, weightage: weightage?.toString(),
+      targetValue, selfScore: selfScore?.toString(), selfComments, sortOrder: sortOrder || 0,
+    }).returning();
+
+    await logAudit('kpi', kpi.id, 'kpi_created', user.id, getUserDisplayName(user), false, { appraisalId, kpiTitle });
+    res.status(201).json(kpi);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to create KPI' });
+  }
+});
+
+router.put('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const kpiId = parseInt(req.params.kpiId);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const updateFields: any = { updatedAt: new Date() };
+
+    if (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status)) {
+      if (req.body.kpiTitle !== undefined) updateFields.kpiTitle = req.body.kpiTitle;
+      if (req.body.kpiDescription !== undefined) updateFields.kpiDescription = req.body.kpiDescription;
+      if (req.body.weightage !== undefined) updateFields.weightage = req.body.weightage.toString();
+      if (req.body.targetValue !== undefined) updateFields.targetValue = req.body.targetValue;
+      if (req.body.achievedValue !== undefined) updateFields.achievedValue = req.body.achievedValue;
+      if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
+      if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
+      if (req.body.sortOrder !== undefined) updateFields.sortOrder = req.body.sortOrder;
+    } else if (appraisal.l1ReviewerId === user.id && appraisal.status === 'self_submitted') {
+      if (req.body.managerScore !== undefined) updateFields.managerScore = req.body.managerScore.toString();
+      if (req.body.managerComments !== undefined) updateFields.managerComments = req.body.managerComments;
+    } else if (appraisal.l2ReviewerId === user.id && appraisal.status === 'l1_reviewed') {
+      if (req.body.l2Score !== undefined) updateFields.l2Score = req.body.l2Score.toString();
+      if (req.body.l2Comments !== undefined) updateFields.l2Comments = req.body.l2Comments;
+    } else if (['Superuser', 'HR'].includes(user.role)) {
+      Object.assign(updateFields, req.body);
+      if (updateFields.weightage) updateFields.weightage = updateFields.weightage.toString();
+      if (updateFields.selfScore) updateFields.selfScore = updateFields.selfScore.toString();
+      if (updateFields.managerScore) updateFields.managerScore = updateFields.managerScore.toString();
+      if (updateFields.l2Score) updateFields.l2Score = updateFields.l2Score.toString();
+    } else {
+      return res.status(403).json({ error: 'Not authorized to update KPI at this stage' });
+    }
+
+    const [updated] = await db.update(employeeAppraisalKpis).set(updateFields)
+      .where(and(eq(employeeAppraisalKpis.id, kpiId), eq(employeeAppraisalKpis.appraisalId, appraisalId)))
+      .returning();
+    if (!updated) return res.status(404).json({ error: 'KPI not found' });
+
+    await logAudit('kpi', kpiId, 'kpi_updated', user.id, getUserDisplayName(user), false, updateFields);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update KPI' });
+  }
+});
+
+router.delete('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const kpiId = parseInt(req.params.kpiId);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const canDelete = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
+      || ['Superuser', 'HR'].includes(user.role);
+    if (!canDelete) return res.status(403).json({ error: 'Cannot delete KPI at this stage' });
+
+    await db.delete(employeeAppraisalKpis)
+      .where(and(eq(employeeAppraisalKpis.id, kpiId), eq(employeeAppraisalKpis.appraisalId, appraisalId)));
+
+    await logAudit('kpi', kpiId, 'kpi_deleted', user.id, getUserDisplayName(user), false, { appraisalId });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to delete KPI' });
+  }
+});
+
+// ==========================================
+// PHASE 3: COMPETENCY CRUD
+// ==========================================
+
+router.get('/:id/competencies', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    const competencies = await db.select().from(employeeAppraisalCompetencies)
+      .where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId))
+      .orderBy(employeeAppraisalCompetencies.sortOrder);
+    res.json(competencies);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch competencies' });
+  }
+});
+
+router.post('/:id/competencies', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const canAdd = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
+      || ['Superuser', 'HR'].includes(user.role);
+    if (!canAdd) return res.status(403).json({ error: 'Cannot add competency at this stage' });
+
+    const { competencyName, competencyDescription, selfScore, selfComments, sortOrder } = req.body;
+    const [comp] = await db.insert(employeeAppraisalCompetencies).values({
+      appraisalId, competencyName, competencyDescription,
+      selfScore: selfScore?.toString(), selfComments, sortOrder: sortOrder || 0,
+    }).returning();
+
+    await logAudit('competency', comp.id, 'competency_created', user.id, getUserDisplayName(user), false, { appraisalId, competencyName });
+    res.status(201).json(comp);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to create competency' });
+  }
+});
+
+router.put('/:id/competencies/:compId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const compId = parseInt(req.params.compId);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const updateFields: any = { updatedAt: new Date() };
+
+    if (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status)) {
+      if (req.body.competencyName !== undefined) updateFields.competencyName = req.body.competencyName;
+      if (req.body.competencyDescription !== undefined) updateFields.competencyDescription = req.body.competencyDescription;
+      if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
+      if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
+      if (req.body.sortOrder !== undefined) updateFields.sortOrder = req.body.sortOrder;
+    } else if (appraisal.l1ReviewerId === user.id && appraisal.status === 'self_submitted') {
+      if (req.body.managerScore !== undefined) updateFields.managerScore = req.body.managerScore.toString();
+      if (req.body.managerComments !== undefined) updateFields.managerComments = req.body.managerComments;
+    } else if (appraisal.l2ReviewerId === user.id && appraisal.status === 'l1_reviewed') {
+      if (req.body.l2Score !== undefined) updateFields.l2Score = req.body.l2Score.toString();
+      if (req.body.l2Comments !== undefined) updateFields.l2Comments = req.body.l2Comments;
+    } else if (['Superuser', 'HR'].includes(user.role)) {
+      Object.assign(updateFields, req.body);
+      if (updateFields.selfScore) updateFields.selfScore = updateFields.selfScore.toString();
+      if (updateFields.managerScore) updateFields.managerScore = updateFields.managerScore.toString();
+      if (updateFields.l2Score) updateFields.l2Score = updateFields.l2Score.toString();
+    } else {
+      return res.status(403).json({ error: 'Not authorized to update competency at this stage' });
+    }
+
+    const [updated] = await db.update(employeeAppraisalCompetencies).set(updateFields)
+      .where(and(eq(employeeAppraisalCompetencies.id, compId), eq(employeeAppraisalCompetencies.appraisalId, appraisalId)))
+      .returning();
+    if (!updated) return res.status(404).json({ error: 'Competency not found' });
+
+    await logAudit('competency', compId, 'competency_updated', user.id, getUserDisplayName(user), false, updateFields);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update competency' });
+  }
+});
+
+router.delete('/:id/competencies/:compId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const compId = parseInt(req.params.compId);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const canDelete = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
+      || ['Superuser', 'HR'].includes(user.role);
+    if (!canDelete) return res.status(403).json({ error: 'Cannot delete competency at this stage' });
+
+    await db.delete(employeeAppraisalCompetencies)
+      .where(and(eq(employeeAppraisalCompetencies.id, compId), eq(employeeAppraisalCompetencies.appraisalId, appraisalId)));
+
+    await logAudit('competency', compId, 'competency_deleted', user.id, getUserDisplayName(user), false, { appraisalId });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to delete competency' });
+  }
+});
+
+// ==========================================
+// PHASE 3: COMMENTS CRUD
+// ==========================================
+
+router.get('/:id/comments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    const comments = await db.select().from(appraisalComments)
+      .where(eq(appraisalComments.appraisalId, appraisalId))
+      .orderBy(appraisalComments.createdAt);
+    res.json(comments);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
+router.post('/:id/comments', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    let commentByRole = 'employee';
+    if (appraisal.l1ReviewerId === user.id) commentByRole = 'l1_reviewer';
+    else if (appraisal.l2ReviewerId === user.id) commentByRole = 'l2_reviewer';
+    else if (appraisal.l3ApproverId === user.id) commentByRole = 'l3_approver';
+    else if (['Superuser', 'HR', 'Admin'].includes(user.role)) commentByRole = user.role.toLowerCase();
+
+    const { section, comment } = req.body;
+    if (!section || !comment) return res.status(400).json({ error: 'Section and comment are required' });
+
+    const [newComment] = await db.insert(appraisalComments).values({
+      appraisalId, section, commentBy: user.id,
+      commentByName: getUserDisplayName(user), commentByRole, comment,
+    }).returning();
+
+    res.status(201).json(newComment);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to create comment' });
+  }
+});
+
+// ==========================================
+// PHASE 3: SELF-ASSESSMENT NARRATIVE
+// ==========================================
+
+router.put('/:id/self-assessment', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    if (appraisal.employeeId !== user.id) {
+      return res.status(403).json({ error: 'Only the employee can edit self-assessment' });
+    }
+    if (!['open', 'draft'].includes(appraisal.status)) {
+      return res.status(400).json({ error: 'Self-assessment can only be edited when status is Open or Draft' });
+    }
+
+    const { selfAssessmentNarrative } = req.body;
+    const [updated] = await db.update(employeeAppraisals)
+      .set({ selfAssessmentNarrative, updatedAt: new Date() })
+      .where(eq(employeeAppraisals.id, appraisalId))
+      .returning();
+
+    await logAudit('appraisal', appraisalId, 'self_assessment_updated', user.id, getUserDisplayName(user), false, { length: selfAssessmentNarrative?.length });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update self-assessment' });
+  }
+});
+
+// ==========================================
+// PHASE 3: SCORE CALCULATION
+// ==========================================
+
+router.get('/:id/score', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    const kpis = await db.select().from(employeeAppraisalKpis)
+      .where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+    const competencies = await db.select().from(employeeAppraisalCompetencies)
+      .where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId));
+
+    let kpiWeightedScore = 0;
+    let totalWeight = 0;
+    for (const kpi of kpis) {
+      const score = kpi.managerScore ? parseFloat(kpi.managerScore) : (kpi.selfScore ? parseFloat(kpi.selfScore) : 0);
+      const weight = parseFloat(kpi.weightage) || 0;
+      kpiWeightedScore += score * weight;
+      totalWeight += weight;
+    }
+    kpiWeightedScore = totalWeight > 0 ? kpiWeightedScore / totalWeight : 0;
+
+    let competencyAvgScore = 0;
+    let compCount = 0;
+    for (const comp of competencies) {
+      const score = comp.managerScore ? parseFloat(comp.managerScore) : (comp.selfScore ? parseFloat(comp.selfScore) : 0);
+      if (score > 0) {
+        competencyAvgScore += score;
+        compCount++;
+      }
+    }
+    competencyAvgScore = compCount > 0 ? competencyAvgScore / compCount : 0;
+
+    const overallCalculatedScore = (kpiWeightedScore * 0.70) + (competencyAvgScore * 0.30);
+
+    const l2Override = appraisal.l2Score ? parseFloat(appraisal.l2Score) : null;
+    const effectiveScore = l2Override !== null ? l2Override : overallCalculatedScore;
+    const ratingBand = getRatingBand(effectiveScore);
+
+    const kpiSelfWeightedScore = kpis.reduce((sum, kpi) => {
+      const score = kpi.selfScore ? parseFloat(kpi.selfScore) : 0;
+      const weight = parseFloat(kpi.weightage) || 0;
+      return sum + (score * weight);
+    }, 0) / (totalWeight || 1);
+
+    const compSelfAvg = competencies.reduce((sum, c) => sum + (c.selfScore ? parseFloat(c.selfScore) : 0), 0)
+      / (competencies.filter(c => c.selfScore).length || 1);
+
+    res.json({
+      kpiWeightedScore: Math.round(kpiWeightedScore * 100) / 100,
+      competencyAvgScore: Math.round(competencyAvgScore * 100) / 100,
+      overallCalculatedScore: Math.round(overallCalculatedScore * 100) / 100,
+      l2OverrideScore: l2Override,
+      l2OverrideReason: appraisal.l2OverrideReason,
+      effectiveScore: Math.round(effectiveScore * 100) / 100,
+      ratingBand,
+      selfAssessment: {
+        kpiSelfWeightedScore: Math.round(kpiSelfWeightedScore * 100) / 100,
+        competencySelfAvgScore: Math.round(compSelfAvg * 100) / 100,
+        overallSelfScore: Math.round((kpiSelfWeightedScore * 0.70 + compSelfAvg * 0.30) * 100) / 100,
+      },
+      totalKpis: kpis.length,
+      totalCompetencies: competencies.length,
+      totalKpiWeight: totalWeight,
+      weightageValid: Math.abs(totalWeight - 100) < 0.01,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to calculate score' });
+  }
+});
+
+// ==========================================
+// PHASE 3: APPROVAL HISTORY
+// ==========================================
+
+router.get('/:id/approvals', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    const approvals = await db.select().from(appraisalApprovals)
+      .where(eq(appraisalApprovals.appraisalId, appraisalId))
+      .orderBy(appraisalApprovals.createdAt);
+    res.json(approvals);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch approval history' });
+  }
+});
+
+// ==========================================
+// PHASE 3: AUDIT LOG
+// ==========================================
+
+router.get('/:id/audit', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) {
+      return res.status(403).json({ error: 'Only HR/Superuser can view audit logs' });
+    }
+    const appraisalId = parseInt(req.params.id);
+    const logs = await db.select().from(appraisalAuditLog)
+      .where(and(eq(appraisalAuditLog.entityType, 'appraisal'), eq(appraisalAuditLog.entityId, appraisalId)))
+      .orderBy(desc(appraisalAuditLog.createdAt));
+    res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch audit log' });
+  }
+});
+
+// ==========================================
+// PHASE 4: STATUS TRANSITIONS — WORKFLOW
+// ==========================================
+
+async function recalcAndSaveScore(appraisalId: number) {
+  const kpis = await db.select().from(employeeAppraisalKpis)
+    .where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+  const competencies = await db.select().from(employeeAppraisalCompetencies)
+    .where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId));
+
+  let kpiWeightedScore = 0;
+  let totalWeight = 0;
+  for (const kpi of kpis) {
+    const score = kpi.managerScore ? parseFloat(kpi.managerScore) : (kpi.selfScore ? parseFloat(kpi.selfScore) : 0);
+    const weight = parseFloat(kpi.weightage) || 0;
+    kpiWeightedScore += score * weight;
+    totalWeight += weight;
+  }
+  kpiWeightedScore = totalWeight > 0 ? kpiWeightedScore / totalWeight : 0;
+
+  let competencyAvgScore = 0;
+  let compCount = 0;
+  for (const comp of competencies) {
+    const score = comp.managerScore ? parseFloat(comp.managerScore) : (comp.selfScore ? parseFloat(comp.selfScore) : 0);
+    if (score > 0) { competencyAvgScore += score; compCount++; }
+  }
+  competencyAvgScore = compCount > 0 ? competencyAvgScore / compCount : 0;
+
+  const overallCalculatedScore = (kpiWeightedScore * 0.70) + (competencyAvgScore * 0.30);
+
+  await db.update(employeeAppraisals).set({
+    kpiWeightedScore: (Math.round(kpiWeightedScore * 100) / 100).toString(),
+    competencyAvgScore: (Math.round(competencyAvgScore * 100) / 100).toString(),
+    overallCalculatedScore: (Math.round(overallCalculatedScore * 100) / 100).toString(),
+    updatedAt: new Date(),
+  }).where(eq(employeeAppraisals.id, appraisalId));
+
+  return { kpiWeightedScore, competencyAvgScore, overallCalculatedScore };
+}
+
+router.post('/:id/self-submit', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    if (appraisal.employeeId !== user.id) return res.status(403).json({ error: 'Only the employee can self-submit' });
+    if (appraisal.status !== 'open') return res.status(400).json({ error: 'Appraisal must be in Open status to self-submit' });
+
+    const kpis = await db.select().from(employeeAppraisalKpis).where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+    if (kpis.length === 0) return res.status(400).json({ error: 'At least one KPI is required' });
+
+    const totalWeight = kpis.reduce((sum, k) => sum + (parseFloat(k.weightage) || 0), 0);
+    if (Math.abs(totalWeight - 100) > 0.01) return res.status(400).json({ error: `KPI weightages must sum to 100 (current: ${totalWeight})` });
+
+    if (!appraisal.selfAssessmentNarrative || appraisal.selfAssessmentNarrative.trim().length === 0) {
+      return res.status(400).json({ error: 'Self-assessment narrative is required' });
+    }
+
+    await recalcAndSaveScore(appraisalId);
+
+    const [updated] = await db.update(employeeAppraisals).set({
+      status: 'self_submitted', selfSubmittedAt: new Date(), updatedAt: new Date(),
+    }).where(eq(employeeAppraisals.id, appraisalId)).returning();
+
+    await db.insert(appraisalApprovals).values({
+      appraisalId, previousStatus: 'open', newStatus: 'self_submitted',
+      performedBy: user.id, performedByName: getUserDisplayName(user), remarks: req.body.remarks || 'Self-assessment submitted',
+    });
+    await logAudit('appraisal', appraisalId, 'self_submitted', user.id, getUserDisplayName(user), false, { kpiCount: kpis.length });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to self-submit' });
+  }
+});
+
+router.post('/:id/l1-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    if (appraisal.l1ReviewerId !== user.id) return res.status(403).json({ error: 'Only L1 Reviewer can perform L1 review' });
+    if (appraisal.status !== 'self_submitted') return res.status(400).json({ error: 'Appraisal must be in Self Submitted status for L1 review' });
+
+    const kpis = await db.select().from(employeeAppraisalKpis).where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+    const missingManagerScore = kpis.filter(k => !k.managerScore);
+    if (missingManagerScore.length > 0) return res.status(400).json({ error: `All KPIs must have manager score (${missingManagerScore.length} missing)` });
+
+    const competencies = await db.select().from(employeeAppraisalCompetencies).where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId));
+    const missingCompScore = competencies.filter(c => !c.managerScore);
+    if (missingCompScore.length > 0) return res.status(400).json({ error: `All competencies must have manager score (${missingCompScore.length} missing)` });
+
+    const { l1Comments, l1IncrementRecommendation, l1PromotionRecommendation, l1TrainingRecommendation } = req.body;
+    if (!l1Comments || l1Comments.trim().length === 0) return res.status(400).json({ error: 'L1 comments are required' });
+
+    const scores = await recalcAndSaveScore(appraisalId);
+
+    const [updated] = await db.update(employeeAppraisals).set({
+      status: 'l1_reviewed', l1ReviewedAt: new Date(),
+      l1Score: (Math.round(scores.overallCalculatedScore * 100) / 100).toString(),
+      l1Comments, l1IncrementRecommendation, l1PromotionRecommendation, l1TrainingRecommendation,
+      updatedAt: new Date(),
+    }).where(eq(employeeAppraisals.id, appraisalId)).returning();
+
+    await db.insert(appraisalApprovals).values({
+      appraisalId, previousStatus: 'self_submitted', newStatus: 'l1_reviewed',
+      performedBy: user.id, performedByName: getUserDisplayName(user), remarks: req.body.remarks || 'L1 review completed',
+    });
+    await logAudit('appraisal', appraisalId, 'l1_reviewed', user.id, getUserDisplayName(user), false, { l1Score: scores.overallCalculatedScore });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to complete L1 review' });
+  }
+});
+
+router.post('/:id/l2-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    if (appraisal.l2ReviewerId !== user.id) return res.status(403).json({ error: 'Only L2 Reviewer can perform L2 review' });
+    if (appraisal.status !== 'l1_reviewed') return res.status(400).json({ error: 'Appraisal must be in L1 Reviewed status for L2 review' });
+
+    const { l2Comments, l2Score, l2OverrideReason, l2IncrementRecommendation, l2PromotionRecommendation, l2TrainingRecommendation } = req.body;
+    if (!l2Comments || l2Comments.trim().length === 0) return res.status(400).json({ error: 'L2 comments are required' });
+
+    if (l2Score !== undefined && l2Score !== null) {
+      if (!l2OverrideReason || l2OverrideReason.trim().length === 0) {
+        return res.status(400).json({ error: 'Override reason is required when providing L2 score' });
+      }
+    }
+
+    const updateSet: any = {
+      status: 'l2_reviewed', l2ReviewedAt: new Date(), l2Comments,
+      l2IncrementRecommendation, l2PromotionRecommendation, l2TrainingRecommendation,
+      updatedAt: new Date(),
+    };
+    if (l2Score !== undefined && l2Score !== null) {
+      updateSet.l2Score = l2Score.toString();
+      updateSet.l2OverrideReason = l2OverrideReason;
+    }
+
+    const [updated] = await db.update(employeeAppraisals).set(updateSet)
+      .where(eq(employeeAppraisals.id, appraisalId)).returning();
+
+    await db.insert(appraisalApprovals).values({
+      appraisalId, previousStatus: 'l1_reviewed', newStatus: 'l2_reviewed',
+      performedBy: user.id, performedByName: getUserDisplayName(user), remarks: req.body.remarks || 'L2 review completed',
+    });
+    await logAudit('appraisal', appraisalId, 'l2_reviewed', user.id, getUserDisplayName(user), false, { l2Score: l2Score || 'no override', l2OverrideReason });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to complete L2 review' });
+  }
+});
+
+router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    if (appraisal.l3ApproverId !== user.id) return res.status(403).json({ error: 'Only L3 Approver can give final approval' });
+    if (appraisal.status !== 'l2_reviewed') return res.status(400).json({ error: 'Appraisal must be in L2 Reviewed status for final approval' });
+
+    const effectiveScore = appraisal.l2Score ? parseFloat(appraisal.l2Score) : (appraisal.overallCalculatedScore ? parseFloat(appraisal.overallCalculatedScore) : 0);
+    const finalRating = getRatingBand(effectiveScore);
+
+    const finalRecommendations = {
+      increment: appraisal.l2IncrementRecommendation || appraisal.l1IncrementRecommendation,
+      promotion: appraisal.l2PromotionRecommendation || appraisal.l1PromotionRecommendation,
+      training: appraisal.l2TrainingRecommendation || appraisal.l1TrainingRecommendation,
+    };
+
+    const [updated] = await db.update(employeeAppraisals).set({
+      status: 'approved', l3ApprovedAt: new Date(), l3Comments: req.body.l3Comments || null,
+      finalScore: (Math.round(effectiveScore * 100) / 100).toString(),
+      finalRating, finalRecommendations,
+      isLocked: true, updatedAt: new Date(),
+    }).where(eq(employeeAppraisals.id, appraisalId)).returning();
+
+    await db.insert(appraisalApprovals).values({
+      appraisalId, previousStatus: 'l2_reviewed', newStatus: 'approved',
+      performedBy: user.id, performedByName: getUserDisplayName(user), remarks: req.body.remarks || 'Final approval granted',
+    });
+    await logAudit('appraisal', appraisalId, 'l3_approved', user.id, getUserDisplayName(user), false, { finalScore: effectiveScore, finalRating });
+
+    await db.update(appraisalCycles).set({
+      completedAppraisals: sql`completed_appraisals + 1`, updatedAt: new Date(),
+    }).where(eq(appraisalCycles.id, appraisal.cycleId));
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to approve' });
+  }
+});
+
+router.post('/:id/reopen', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) {
+      return res.status(403).json({ error: 'Only HR/Superuser can reopen appraisals' });
+    }
+
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    if (!['approved', 'closed'].includes(appraisal.status)) {
+      return res.status(400).json({ error: 'Only Approved or Closed appraisals can be reopened' });
+    }
+
+    const { reopenReason, reopenTargetStage } = req.body;
+    if (!reopenReason) return res.status(400).json({ error: 'Reopen reason is required' });
+
+    const validTargets = ['open', 'self_submitted', 'l1_reviewed'];
+    const targetStage = reopenTargetStage || 'open';
+    if (!validTargets.includes(targetStage)) {
+      return res.status(400).json({ error: `Invalid target stage. Must be one of: ${validTargets.join(', ')}` });
+    }
+
+    const previousStatus = appraisal.status;
+    const [updated] = await db.update(employeeAppraisals).set({
+      status: targetStage, isLocked: false,
+      reopenedAt: new Date(), reopenedBy: user.id,
+      reopenReason, reopenTargetStage: targetStage, updatedAt: new Date(),
+    }).where(eq(employeeAppraisals.id, appraisalId)).returning();
+
+    if (previousStatus === 'approved') {
+      await db.update(appraisalCycles).set({
+        completedAppraisals: sql`GREATEST(completed_appraisals - 1, 0)`, updatedAt: new Date(),
+      }).where(eq(appraisalCycles.id, appraisal.cycleId));
+    }
+
+    await db.insert(appraisalApprovals).values({
+      appraisalId, previousStatus, newStatus: targetStage,
+      performedBy: user.id, performedByName: getUserDisplayName(user), remarks: `Reopened: ${reopenReason}`,
+    });
+    await logAudit('appraisal', appraisalId, 'reopened', user.id, getUserDisplayName(user), false, { previousStatus, targetStage, reopenReason });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to reopen' });
+  }
+});
+
 export default router;
