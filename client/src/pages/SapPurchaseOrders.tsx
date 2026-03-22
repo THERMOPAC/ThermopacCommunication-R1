@@ -327,6 +327,8 @@ function PurchaseOrdersContent() {
       if (grpoAttachments.length > 0) {
         const formData = new FormData();
         grpoAttachments.forEach(file => formData.append('files', file));
+        const poDocEntry = poDetail?.DocEntry || selectedOrder?.DocEntry;
+        if (poDocEntry) formData.append('poDocEntry', String(poDocEntry));
         const attachResp = await fetch('/api/sap/b1/purchase/attachments/upload', {
           method: 'POST',
           credentials: 'include',

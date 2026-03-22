@@ -1426,17 +1426,17 @@ async function persistGrpoAudit(data: {
   }
 }
 
-function makeUniqueFilename(originalname: string): string {
+function makeGrpoFilename(originalname: string, poDocEntry?: string | number): string {
   const ext = originalname.split('.').pop() || '';
-  const nameWithoutExt = originalname.replace(/\.[^.]+$/, '');
   const ts = Date.now();
-  return ext ? `${nameWithoutExt}_${ts}.${ext}` : `${nameWithoutExt}_${ts}`;
+  const poRef = poDocEntry ? `PO${poDocEntry}` : 'PO0';
+  return ext ? `GRPO_${poRef}_${ts}.${ext}` : `GRPO_${poRef}_${ts}`;
 }
 
-function buildMultipartBody(files: Array<{ buffer: Buffer; originalname: string; uniqueName?: string }>, boundary: string): Buffer {
+function buildMultipartBody(files: Array<{ buffer: Buffer; originalname: string; sapFilename?: string }>, boundary: string, poDocEntry?: string | number): Buffer {
   const parts: Buffer[] = [];
   for (const file of files) {
-    const filename = file.uniqueName || makeUniqueFilename(file.originalname);
+    const filename = file.sapFilename || makeGrpoFilename(file.originalname, poDocEntry);
     const header = `--${boundary}\r\nContent-Disposition: form-data; name="files"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
     parts.push(Buffer.from(header, 'utf-8'));
     parts.push(file.buffer);
@@ -1655,7 +1655,7 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
       try {
         const boundary = `----SAPAttachment${Date.now()}`;
-        const multipartBody = buildMultipartBody(files, boundary);
+        const multipartBody = buildMultipartBody(files, boundary, poDocEntry);
         files.forEach((f: any) => attachmentFileNames.push(f.originalname));
 
         const attachHeaders: Record<string, string> = {
@@ -1682,9 +1682,9 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
           console.log(`[GRPO] Falling back to JSON metadata attachment method`);
           for (const file of files) {
-            const uniqueName = makeUniqueFilename(file.originalname);
-            const fileName = uniqueName.replace(/\.[^.]+$/, '');
-            const fileExt = uniqueName.split('.').pop() || '';
+            const sapName = makeGrpoFilename(file.originalname, poDocEntry);
+            const fileName = sapName.replace(/\.[^.]+$/, '');
+            const fileExt = sapName.split('.').pop() || '';
             if (attachmentEntry === null) {
               const fallbackResponse = await sapClient.request({
                 method: 'POST', url: `${sapServiceUrl}/Attachments2`,
@@ -2099,8 +2099,9 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
       requestHeaders = { Cookie: `B1SESSION=${sapSessionId}` };
     }
 
+    const poDocEntry = req.body?.poDocEntry;
     const boundary = `----SAPBoundary${Date.now()}`;
-    const multipartBody = buildMultipartBody(files, boundary);
+    const multipartBody = buildMultipartBody(files, boundary, poDocEntry);
 
     const attachHeaders: Record<string, string> = {
       ...requestHeaders,
@@ -2120,7 +2121,8 @@ router.post('/attachments/upload', attachmentUpload.array('files', 10), async (r
 
     if (attachResponse.statusCode === 200 || attachResponse.statusCode === 201) {
       const attachData = JSON.parse(attachResponse.body);
-      console.log(`[ATTACHMENT] Upload success — AbsoluteEntry: ${attachData.AbsoluteEntry}, Files: ${files.map((f: any) => f.originalname).join(', ')}`);
+      const sapFileNames = files.map((f: any) => makeGrpoFilename(f.originalname, poDocEntry));
+      console.log(`[ATTACHMENT] Upload success — AbsoluteEntry: ${attachData.AbsoluteEntry}, Original: ${files.map((f: any) => f.originalname).join(', ')}, SAP: ${sapFileNames.join(', ')}`);
       return res.json({
         success: true,
         attachmentEntry: attachData.AbsoluteEntry,
