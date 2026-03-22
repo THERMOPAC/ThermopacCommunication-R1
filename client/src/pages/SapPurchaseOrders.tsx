@@ -372,7 +372,9 @@ function PurchaseOrdersContent() {
         setIsGrpoDialogOpen(false);
         setIsDetailModalOpen(false);
       } else {
-        toast({ title: 'GRPO Failed', description: result.error || 'Failed to create GRPO', variant: 'destructive' });
+        const sapMsg = result.sapError?.message || result.error || 'Failed to create GRPO';
+        console.error('[GRPO] SAP rejection details:', JSON.stringify(result, null, 2));
+        toast({ title: 'GRPO Failed', description: sapMsg, variant: 'destructive' });
       }
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Network error creating GRPO', variant: 'destructive' });

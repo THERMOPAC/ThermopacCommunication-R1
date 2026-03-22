@@ -5,7 +5,7 @@ import { requireSapAccess } from '../middleware/sap-auth-middleware';
 import { sapHttpsClient, SapHttpsClient } from './sap-https-client';
 import { sapSessionManager } from '../sap-session-manager';
 import { pool } from '../db';
-import { getGrpoQcChecklistConfig, validateGrpoQcPayload } from '@shared/grpo-qc-config';
+import { getGrpoQcChecklistConfig, validateGrpoQcPayload, toSapPayload } from '@shared/grpo-qc-config';
 
 const router = express.Router();
 
@@ -1636,8 +1636,11 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     }
 
     const liveLines = livePo.DocumentLines || [];
+    const poDocType = livePo.DocType || 'dDocument_Items';
+    const isItemPO = poDocType === 'dDocument_Items';
     const validationErrors: any[] = [];
     const grpoDocumentLines: any[] = [];
+    const sourceLineDebug: any[] = [];
 
     for (const sel of cleanedLines) {
       const liveLine = liveLines.find((l: any) => l.LineNum === sel.lineNum);
@@ -1645,6 +1648,20 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
         validationErrors.push({ lineNum: sel.lineNum, error: 'LINE_NOT_FOUND', message: `PO line ${sel.lineNum} not found in SAP` });
         continue;
       }
+
+      const sourceInfo = {
+        LineNum: liveLine.LineNum,
+        ItemCode: liveLine.ItemCode || null,
+        OpenQuantity: liveLine.OpenQuantity,
+        RemainingOpenQuantity: liveLine.RemainingOpenQuantity,
+        Quantity: liveLine.Quantity,
+        WarehouseCode: liveLine.WarehouseCode || liveLine.WhsCode || null,
+        LineStatus: liveLine.LineStatus,
+        requestedQty: sel.quantityToReceive,
+        requestedWhs: sel.warehouseCode || null,
+      };
+      sourceLineDebug.push(sourceInfo);
+      console.log(`[GRPO] Source line ${liveLine.LineNum}:`, JSON.stringify(sourceInfo));
 
       if (liveLine.LineStatus === 'bost_Close' || liveLine.LineStatus === 'C') {
         validationErrors.push({ lineNum: sel.lineNum, error: 'LINE_CLOSED', message: `PO line ${sel.lineNum} is closed (confirmed by live SAP check)` });
@@ -1654,11 +1671,21 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       const rawOpenQty = parseFloat(liveLine.OpenQuantity ?? liveLine.RemainingOpenQuantity ?? 0);
       const liveOpenQty = rawOpenQty > 0 ? rawOpenQty : parseFloat(liveLine.Quantity || 0);
       if (sel.quantityToReceive > liveOpenQty) {
-        validationErrors.push({ lineNum: sel.lineNum, error: 'EXCEEDS_OPEN_QTY', message: `Quantity ${sel.quantityToReceive} exceeds live open quantity ${liveOpenQty} for line ${sel.lineNum}` });
+        validationErrors.push({ lineNum: sel.lineNum, error: 'EXCEEDS_OPEN_QTY', message: `Quantity ${sel.quantityToReceive} exceeds open qty ${liveOpenQty} for line ${sel.lineNum} (${liveLine.ItemCode || 'no-item'})` });
+        continue;
+      }
+
+      if (isItemPO && !liveLine.ItemCode) {
+        validationErrors.push({ lineNum: sel.lineNum, error: 'MISSING_ITEM_CODE', message: `Item PO line ${sel.lineNum} has no ItemCode — SAP will reject` });
         continue;
       }
 
       const warehouseCode = sel.warehouseCode || liveLine.WarehouseCode || liveLine.WhsCode;
+      if (isItemPO && !warehouseCode) {
+        validationErrors.push({ lineNum: sel.lineNum, error: 'MISSING_WAREHOUSE', message: `Item PO line ${sel.lineNum} (${liveLine.ItemCode}) has no WarehouseCode — SAP will reject` });
+        continue;
+      }
+
       const grpoLine: any = {
         BaseType: 22,
         BaseEntry: poDocEntry,
@@ -1691,11 +1718,18 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     if (validationErrors.length > 0) {
       grpoLocks.delete(poDocEntry);
-      console.log(`[GRPO] Layer 2 validation failed:`, JSON.stringify(validationErrors));
-      return res.status(400).json({ success: false, error: 'Validation failed', code: 'VALIDATION_FAILED', details: validationErrors });
+      console.log(`[GRPO] Pre-post validation FAILED:`, JSON.stringify(validationErrors));
+      console.log(`[GRPO_DEBUG_BLOCK]`, JSON.stringify({
+        poDocEntry, poDocNum, poDocType, isItemPO,
+        selectedLines: sourceLineDebug,
+        validationErrors,
+        sapError: null,
+        outboundGrpoPayload: null,
+      }, null, 2));
+      return res.status(400).json({ success: false, error: validationErrors.map(e => e.message).join('; '), code: 'VALIDATION_FAILED', details: validationErrors });
     }
 
-    console.log(`[GRPO] Layer 2 (live SAP) validation passed. ${grpoDocumentLines.length} lines validated.`);
+    console.log(`[GRPO] Pre-post validation passed. ${grpoDocumentLines.length} lines for PO DocEntry=${poDocEntry}, DocNum=${poDocNum}, DocType=${poDocType}`);
 
     // === STEP 3: Upload Attachments via binary multipart (if any) ===
     let attachmentEntry: number | null = null;
@@ -1785,15 +1819,16 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     }
 
     if (headerUdfs && typeof headerUdfs === 'object') {
-      for (const [key, value] of Object.entries(headerUdfs)) {
+      const sapMappedUdfs = toSapPayload(headerUdfs as Record<string, string>);
+      console.log(`[GRPO] Header UDF mapping: raw=${JSON.stringify(headerUdfs)} → sap=${JSON.stringify(sapMappedUdfs)}`);
+      for (const [key, value] of Object.entries(sapMappedUdfs)) {
         if (key.startsWith('U_')) grpoPayload[key] = value;
       }
     }
 
-    const linesSummary = grpoPayload.DocumentLines.map((l: any) => ({
-      ItemCode: l.ItemCode, BaseLine: l.BaseLine, Qty: l.Quantity, Whs: l.WarehouseCode
-    }));
-    console.log(`[GRPO] Posting GRPO to SAP: CardCode=${grpoPayload.CardCode}, PO DocEntry=${poDocEntry}, DocNum=${poDocNum}, Lines:`, JSON.stringify(linesSummary));
+    console.log(`[GRPO] === FULL OUTBOUND GRPO PAYLOAD ===`);
+    console.log(JSON.stringify(grpoPayload, null, 2));
+    console.log(`[GRPO] === END PAYLOAD ===`);
 
     let grpoResponse: any;
     try {
@@ -1804,6 +1839,13 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
     } catch (postErr: any) {
       grpoLocks.delete(poDocEntry);
       console.error(`[GRPO] TIMEOUT/ERROR during GRPO POST:`, postErr.message);
+      const debugBlock = {
+        poDocEntry, poDocNum, poDocType, isItemPO,
+        selectedLines: sourceLineDebug,
+        outboundGrpoPayload: grpoPayload,
+        sapError: { type: 'TIMEOUT', message: postErr.message },
+      };
+      console.error(`[GRPO_DEBUG_BLOCK]`, JSON.stringify(debugBlock, null, 2));
       await persistGrpoAudit({ poDocEntry, fingerprint: requestFingerprint, status: 'TIMEOUT_UNCERTAIN', sapError: postErr.message, attachmentEntry, attachmentFiles: attachmentFileNames, durationMs: Date.now() - startTime, createdBy: userId });
       return res.status(504).json({
         success: false,
@@ -1817,16 +1859,36 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
 
     if (grpoResponse.statusCode !== 200 && grpoResponse.statusCode !== 201) {
       let sapErrorMsg = grpoResponse.body;
+      let sapErrorObj: any = null;
       try {
-        const errObj = JSON.parse(grpoResponse.body);
-        sapErrorMsg = errObj.error?.message?.value || errObj.message || grpoResponse.body;
+        const errParsed = JSON.parse(grpoResponse.body);
+        sapErrorObj = errParsed;
+        sapErrorMsg = errParsed?.error?.message?.value || errParsed?.error?.message || errParsed?.message || grpoResponse.body;
       } catch {}
 
-      console.error(`[GRPO] SAP posting failed (${grpoResponse.statusCode}):`, sapErrorMsg);
+      console.error(`[GRPO] === SAP REJECTION ===`);
+      console.error(`[GRPO] Status: ${grpoResponse.statusCode}`);
+      console.error(`[GRPO] Error message: ${sapErrorMsg}`);
+      console.error(`[GRPO] Full SAP response body: ${grpoResponse.body}`);
+      const debugBlock = {
+        poDocEntry, poDocNum, poDocType, isItemPO,
+        selectedLines: sourceLineDebug,
+        outboundGrpoPayload: grpoPayload,
+        sapError: {
+          statusCode: grpoResponse.statusCode,
+          message: sapErrorMsg,
+          fullBody: sapErrorObj || grpoResponse.body,
+        },
+      };
+      console.error(`[GRPO_DEBUG_BLOCK]`, JSON.stringify(debugBlock, null, 2));
+      console.error(`[GRPO] === END SAP REJECTION ===`);
+
       await persistGrpoAudit({ poDocEntry, fingerprint: requestFingerprint, status: 'SAP_FAILED', sapError: sapErrorMsg, attachmentEntry, attachmentFiles: attachmentFileNames, durationMs: Date.now() - startTime, createdBy: userId });
       return res.status(400).json({
-        success: false, error: 'SAP posting failed', code: 'SAP_POSTING_FAILED',
-        sapError: { code: grpoResponse.statusCode, message: sapErrorMsg }
+        success: false,
+        error: `SAP rejected GRPO: ${sapErrorMsg}`,
+        code: 'SAP_POSTING_FAILED',
+        sapError: { code: grpoResponse.statusCode, message: sapErrorMsg },
       });
     }
 

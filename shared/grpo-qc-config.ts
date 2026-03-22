@@ -5,6 +5,7 @@ export type QcGroupName = "supply" | "logistics" | "qc";
 export interface QcDropdownOption {
   dataValue: QcDataValue;
   displayValue: string;
+  sapValue?: string;
 }
 
 export interface QcFieldConfig {
@@ -39,8 +40,8 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
     fieldType: "dropdown",
     groupName: "supply",
     values: [
-      { dataValue: "Y", displayValue: "Complete Supply" },
-      { dataValue: "F", displayValue: "Short Supply" },
+      { dataValue: "Y", displayValue: "Complete Supply", sapValue: "C" },
+      { dataValue: "F", displayValue: "Short Supply", sapValue: "S" },
     ],
     isMandatory: true,
     defaultDataValue: "F",
@@ -53,8 +54,8 @@ const GRPO_QC_CHECKLIST_CONFIG: QcFieldConfig[] = [
     fieldType: "dropdown",
     groupName: "logistics",
     values: [
-      { dataValue: "Y", displayValue: "On Time" },
-      { dataValue: "F", displayValue: "Delayed Delivery" },
+      { dataValue: "Y", displayValue: "On Time", sapValue: "O" },
+      { dataValue: "F", displayValue: "Delayed Delivery", sapValue: "D" },
     ],
     isMandatory: true,
     defaultDataValue: "F",
@@ -298,6 +299,20 @@ export function validateGrpoQcPayload(payload: Record<string, unknown>): QcValid
     warnings,
     errors: [],
   };
+}
+
+export function toSapPayload(internalPayload: Record<string, string>): Record<string, string> {
+  const sapPayload: Record<string, string> = {};
+  for (const [udfName, dataValue] of Object.entries(internalPayload)) {
+    const field = GRPO_QC_CHECKLIST_CONFIG.find(f => f.udfName === udfName);
+    if (field) {
+      const option = field.values.find(v => v.dataValue === dataValue);
+      sapPayload[udfName] = option?.sapValue ?? dataValue;
+    } else {
+      sapPayload[udfName] = dataValue;
+    }
+  }
+  return sapPayload;
 }
 
 export function getFieldsByGroup(groupName: QcGroupName): QcFieldConfig[] {
