@@ -1876,6 +1876,7 @@ function PayrollRunTab() {
 
 export default function PayrollManagementNew() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
   const [selectedEmployeeForSalary, setSelectedEmployeeForSalary] = useState<SalaryConfig | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -1887,6 +1888,13 @@ export default function PayrollManagementNew() {
   const [calculationPreview, setCalculationPreview] = useState<any>(null);
   const [isTestRunDialogOpen, setIsTestRunDialogOpen] = useState(false);
   const [testRunConfig, setTestRunConfig] = useState<SalaryConfig | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [testRunResult, setTestRunResult] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -2077,9 +2085,10 @@ export default function PayrollManagementNew() {
 
   // Filter configurations based on search
   const filteredConfigs = salaryConfigs.filter(config =>
-    config.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${config.firstName} ${config.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    config.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    !debouncedSearch ||
+    config.username.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    `${config.firstName} ${config.lastName}`.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    config.department?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // Save mutation
@@ -2316,7 +2325,7 @@ export default function PayrollManagementNew() {
                 <div className="relative w-72">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search by name or department..."
+                    placeholder="Search by name or department (min 3 chars)..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9"

@@ -282,13 +282,21 @@ const generateAllTimeOptions = () => {
 export default function MeetingsManagement() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [showOnlyMyCommitments, setShowOnlyMyCommitments] = useState(true);
-  const [showPendingCommitments, setShowPendingCommitments] = useState(true); // Default to Pending
+  const [showPendingCommitments, setShowPendingCommitments] = useState(true);
   const [isCreateMeetingOpen, setIsCreateMeetingOpen] = useState(false);
   const [isCreateCommitmentOpen, setIsCreateCommitmentOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null);
   const [selectedMeetingForAI, setSelectedMeetingForAI] = useState<Meeting | null>(null);
@@ -1096,9 +1104,9 @@ export default function MeetingsManagement() {
     if (!meetingsData?.meetings) return [];
     
     return meetingsData.meetings.filter((meeting) => {
-      const matchesSearch = !searchTerm || 
-        meeting.meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        meeting.meeting.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !debouncedSearch || 
+        meeting.meeting.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        meeting.meeting.description?.toLowerCase().includes(debouncedSearch.toLowerCase());
       
       const matchesStatus = !statusFilter || statusFilter === 'all' || meeting.meeting.status === statusFilter;
       const matchesType = !typeFilter || typeFilter === 'all' || meeting.meeting.meetingType === typeFilter;
@@ -1106,16 +1114,16 @@ export default function MeetingsManagement() {
       
       return matchesSearch && matchesStatus && matchesType && matchesPriority;
     });
-  }, [meetingsData, searchTerm, statusFilter, typeFilter, priorityFilter]);
+  }, [meetingsData, debouncedSearch, statusFilter, typeFilter, priorityFilter]);
 
   // Filter commitments based on search and filters
   const filteredCommitments = useMemo(() => {
     if (!commitmentsData?.commitments) return [];
     
     const filtered = commitmentsData.commitments.filter((commitment) => {
-      const matchesSearch = !searchTerm || 
-        commitment.commitment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        commitment.commitment.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !debouncedSearch || 
+        commitment.commitment.title.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        commitment.commitment.description?.toLowerCase().includes(debouncedSearch.toLowerCase());
       
       const matchesStatus = !statusFilter || statusFilter === 'all' || commitment.commitment.status === statusFilter;
       const matchesPriority = !priorityFilter || priorityFilter === 'all' || commitment.commitment.priority === priorityFilter;
@@ -1133,7 +1141,7 @@ export default function MeetingsManagement() {
     });
 
     return filtered;
-  }, [commitmentsData, searchTerm, statusFilter, priorityFilter, showOnlyMyCommitments, showPendingCommitments, user]);
+  }, [commitmentsData, debouncedSearch, statusFilter, priorityFilter, showOnlyMyCommitments, showPendingCommitments, user]);
 
   // Forms
   const meetingForm = useForm<MeetingFormData>({
@@ -1738,7 +1746,7 @@ export default function MeetingsManagement() {
                 <div className="relative flex-1 max-w-md">
                   <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search meetings..."
+                    placeholder="Search meetings (min 3 chars)..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -2346,7 +2354,7 @@ export default function MeetingsManagement() {
                 <div className="relative flex-1 max-w-md">
                   <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Search commitments..."
+                    placeholder="Search commitments (min 3 chars)..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"

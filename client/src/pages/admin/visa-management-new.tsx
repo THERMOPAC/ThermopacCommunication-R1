@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -529,6 +529,7 @@ function EU180DayTracker() {
 // Main Visa Records Component
 function VisaRecordsTab() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [countryFilter, setCountryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [visaTypeFilter, setVisaTypeFilter] = useState('all');
@@ -540,6 +541,13 @@ function VisaRecordsTab() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const queryClient = useQueryClient();
 
   // File upload handler
@@ -854,10 +862,10 @@ function VisaRecordsTab() {
 
   // Filter records based on search and filters
   const filteredRecords = visaRecords.filter((record: VisaRecord) => {
-    const matchesSearch = searchTerm === '' || 
-      record.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.visaNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.country?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = !debouncedSearch || 
+      record.employeeName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      record.visaNumber?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      record.country?.toLowerCase().includes(debouncedSearch.toLowerCase());
     
     const matchesCountry = countryFilter === 'all' || record.country === countryFilter;
     const matchesStatus = statusFilter === 'all' || record.status === statusFilter;
@@ -969,7 +977,7 @@ function VisaRecordsTab() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by employee name, visa number, or country..."
+                  placeholder="Search by employee name, visa number, or country (min 3 chars)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"

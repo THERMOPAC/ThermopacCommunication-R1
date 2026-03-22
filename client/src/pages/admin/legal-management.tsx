@@ -230,7 +230,15 @@ const LegalManagementPage: React.FC = () => {
   const [location] = useLocation();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [filterType, setFilterType] = useState("");
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");

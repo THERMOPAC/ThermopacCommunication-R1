@@ -209,9 +209,17 @@ interface SalaryCalculationResult {
 
 export default function PayrollManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<SalaryConfig | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   
   // Salary Generation State
   const [isSalaryGenDialogOpen, setIsSalaryGenDialogOpen] = useState(false);
@@ -266,9 +274,10 @@ export default function PayrollManagementPage() {
 
   // Filter salary configurations based on search term
   const filteredConfigs = salaryConfigs.filter(config =>
-    config.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${config.firstName} ${config.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    config.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    !debouncedSearch ||
+    config.username.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    `${config.firstName} ${config.lastName}`.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    config.department?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // Save salary configuration mutation
@@ -1562,7 +1571,7 @@ export default function PayrollManagementPage() {
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4" />
               <Input
-                placeholder="Search employees by name, username, or department..."
+                placeholder="Search employees by name, username, or department (min 3 chars)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm"

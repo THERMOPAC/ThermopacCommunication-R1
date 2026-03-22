@@ -1175,6 +1175,7 @@ const TripRequestForm = ({ onSuccess }: { onSuccess?: () => void }) => {
 // Trip dashboard component with comprehensive search and filter
 const TripDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [destinationFilter, setDestinationFilter] = useState('all');
@@ -1182,6 +1183,13 @@ const TripDashboard = () => {
   const [toDateFilter, setToDateFilter] = useState('');
   const [viewingTrip, setViewingTrip] = useState<any>(null);
   const [editingTrip, setEditingTrip] = useState<any>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.length >= 3 ? searchQuery : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data: dashboard } = useQuery({
     queryKey: ['/api/trips/dashboard'],
@@ -1301,11 +1309,11 @@ const TripDashboard = () => {
 
   // Filter trips based on all criteria
   const filteredTrips = trips?.filter((trip: any) => {
-    const matchesSearch = !searchQuery || 
-      trip.tripTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.destination?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trip.purpose?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !debouncedSearch || 
+      trip.tripTitle?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      trip.destination?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      trip.employeeName?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      trip.purpose?.toLowerCase().includes(debouncedSearch.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' || trip.status === statusFilter;
     const matchesEmployee = employeeFilter === 'all' || trip.employeeName === employeeFilter;
@@ -1980,11 +1988,19 @@ const TripList = () => {
   
   // Filter and search states
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch2, setDebouncedSearch2] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [destinationFilter, setDestinationFilter] = useState('all');
   const [fromDateFilter, setFromDateFilter] = useState('');
   const [toDateFilter, setToDateFilter] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch2(searchQuery.length >= 3 ? searchQuery : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   const { data: trips, isLoading } = useQuery({
     queryKey: ['/api/trips/all'],
@@ -2003,8 +2019,8 @@ const TripList = () => {
     
     return trips.filter((trip: any) => {
       // Search query filter (searches in title, destination, employee name)
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = !searchQuery || 
+      const searchLower = debouncedSearch2.toLowerCase();
+      const matchesSearch = !debouncedSearch2 || 
         trip.tripTitle?.toLowerCase().includes(searchLower) ||
         trip.destination?.toLowerCase().includes(searchLower) ||
         trip.employeeName?.toLowerCase().includes(searchLower) ||

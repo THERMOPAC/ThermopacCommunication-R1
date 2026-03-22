@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Helmet } from "react-helmet";
 import { UserEditDialog } from "@/components/user-edit-dialog";
@@ -157,12 +157,20 @@ interface User {
 
 export default function UserManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Fetch users
   const { data: users = [], isLoading } = useQuery<User[]>({
@@ -171,10 +179,11 @@ export default function UserManagementPage() {
 
   // Filter users based on search term
   const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    !debouncedSearch ||
+    user.username.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    user.email.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    `${user.firstName} ${user.lastName}`.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+    user.department?.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
   // Add user mutation
@@ -996,7 +1005,7 @@ export default function UserManagementPage() {
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4" />
               <Input
-                placeholder="Search users by name, email, or department..."
+                placeholder="Search users by name, email, or department (min 3 chars)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm"
