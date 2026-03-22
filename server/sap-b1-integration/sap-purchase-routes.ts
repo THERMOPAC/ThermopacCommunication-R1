@@ -1484,6 +1484,11 @@ router.post('/grpo', grpoUpload.array('attachments', 5), async (req: any, res) =
       return res.status(400).json({ success: false, error: 'Invalid posting date format. Use YYYY-MM-DD', code: 'INVALID_DATE' });
     }
 
+    const hasAttachment = files.length > 0 || !!rawPayload.AttachmentEntry;
+    if (!hasAttachment) {
+      return res.status(400).json({ isValid: false, errorType: 'ATTACHMENT_REQUIRED', message: 'At least one attachment is mandatory before GRPO.', success: false, error: 'At least one attachment is mandatory before creating GRPO.', code: 'ATTACHMENT_REQUIRED' });
+    }
+
     const cleanedLines = selectedLines.filter((l: any) => l.quantityToReceive > 0);
     if (cleanedLines.length === 0) {
       return res.status(400).json({ success: false, error: 'All selected lines have zero quantity', code: 'INVALID_QUANTITY' });
