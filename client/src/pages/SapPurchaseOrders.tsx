@@ -370,7 +370,7 @@ function PurchaseOrdersContent() {
       if (resp.ok && result.success) {
         toast({ title: 'GRPO Created', description: `GRPO Doc# ${result.grpoDocNum || result.docNum || ''} created successfully.` });
         setIsGrpoDialogOpen(false);
-        setIsDetailModalOpen(false);
+        setIsViewModalOpen(false);
       } else {
         const sapMsg = result.sapError?.message || result.error || 'Failed to create GRPO';
         console.error('[GRPO] SAP rejection details:', JSON.stringify(result, null, 2));
