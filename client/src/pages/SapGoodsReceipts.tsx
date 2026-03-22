@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SapAuthGuard } from '@/components/sap/SapAuthGuard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,7 @@ interface GoodsReceiptsData {
 
 function GoodsReceiptsContent() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -70,11 +71,18 @@ function GoodsReceiptsContent() {
   const pageSize = 20;
   const { toast } = useToast();
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const { data, isLoading, error } = useQuery<{ success: boolean; data: GoodsReceiptsData }>({
     queryKey: ['/api/sap/b1/purchase/receipts', { 
       page: currentPage, 
       limit: pageSize, 
-      search: searchTerm
+      ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
     }],
     enabled: true,
   });
@@ -157,7 +165,7 @@ function GoodsReceiptsContent() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by receipt number or vendor name..."
+            placeholder="Search by receipt number or vendor name (min 3 chars)..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"

@@ -123,9 +123,9 @@ function PurchaseOrdersContent() {
   // Debounce search to prevent too many API calls
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
+      setDebouncedSearch(searchTerm.length >= 3 ? searchTerm : '');
       setCurrentPage(1);
-    }, 300);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -535,7 +535,7 @@ function PurchaseOrdersContent() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by PO number or vendor name..."
+            placeholder="Search by PO number or vendor name (min 3 chars)..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-10"
