@@ -485,6 +485,10 @@ router.get('/orders', async (req, res) => {
         }
       }
 
+      const isCancelled = po.Cancelled === 'tYES' || po.Cancelled === 'Y';
+      const isServicePO = totalLines > 0 && lines.every((l: any) => !l.ItemCode && parseFloat(l.Quantity || 0) === 0 && parseFloat(l.LineTotal || 0) > 0);
+      const canCreateGRPO = !isCancelled && !isServicePO && derivedStatus !== 'bost_Close' && (derivedStatus !== 'C') && totalOpenQty > 0 && closedLines < totalLines;
+
       return {
         DocEntry: po.DocEntry,
         DocNum: po.DocNum,
@@ -495,7 +499,7 @@ router.get('/orders', async (req, res) => {
         DocTotal: po.DocTotal,
         DocumentStatus: derivedStatus,
         SapHeaderStatus: po.DocumentStatus,
-        cancelled: po.Cancelled === 'tYES' ? 'Y' : 'N',
+        cancelled: isCancelled ? 'Y' : 'N',
         comments: po.Comments,
         doc_currency: po.DocCurrency,
         VatSum: po.VatSum,
@@ -503,6 +507,7 @@ router.get('/orders', async (req, res) => {
         NumAtCard: po.NumAtCard,
         Project: po.Project,
         Series: po.Series,
+        canCreateGRPO,
         lineStats: { total: totalLines, closed: closedLines, openQty: totalOpenQty }
       };
     });
