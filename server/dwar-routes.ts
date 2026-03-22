@@ -187,6 +187,179 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
   }
 });
 
+function calculatePlanFollowThrough(
+  yesterdayPlans: string | null | undefined,
+  yesterdayPriorityTasks: any[] | null | undefined,
+  todayActivities: any[] | null | undefined
+): { score: number; details: any } {
+  const result = {
+    score: 0,
+    details: {
+      yesterdayPlannedItems: [] as { text: string; matched: boolean; matchedActivity?: string }[],
+      todayUnplannedItems: [] as string[],
+      matchRate: 0,
+      plannedCount: 0,
+      matchedCount: 0,
+      hasYesterdayPlans: false
+    }
+  };
+
+  const plannedItems: string[] = [];
+
+  if (yesterdayPriorityTasks && Array.isArray(yesterdayPriorityTasks) && yesterdayPriorityTasks.length > 0) {
+    for (const pt of yesterdayPriorityTasks) {
+      if (pt.task && pt.task.trim()) {
+        plannedItems.push(pt.task.trim());
+      }
+    }
+  }
+
+  if (yesterdayPlans && yesterdayPlans.trim()) {
+    const lines = yesterdayPlans.split(/[\n,;•\-]+/).map(l => l.trim()).filter(l => l.length > 3);
+    for (const line of lines) {
+      if (!plannedItems.some(p => p.toLowerCase() === line.toLowerCase())) {
+        plannedItems.push(line);
+      }
+    }
+  }
+
+  if (plannedItems.length === 0) {
+    return { score: 0, details: { ...result.details, hasYesterdayPlans: false } };
+  }
+
+  result.details.hasYesterdayPlans = true;
+  result.details.plannedCount = plannedItems.length;
+
+  const activities = (todayActivities && Array.isArray(todayActivities)) ? todayActivities : [];
+  const activityDescriptions = activities.map((a: any) => (a.description || '').toLowerCase());
+
+  function extractKeywords(text: string): string[] {
+    const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'and', 'but', 'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each', 'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'because', 'as', 'if', 'when', 'where', 'how', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'work', 'complete', 'finish', 'start', 'continue', 'need', 'plan', 'today', 'tomorrow']);
+    return text.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+  }
+
+  let matchedCount = 0;
+  for (const planned of plannedItems) {
+    const plannedKeywords = extractKeywords(planned);
+    let bestMatch = '';
+    let bestMatchScore = 0;
+
+    for (let i = 0; i < activityDescriptions.length; i++) {
+      const activityKeywords = extractKeywords(activityDescriptions[i]);
+      if (plannedKeywords.length === 0 || activityKeywords.length === 0) continue;
+
+      let matchingWords = 0;
+      for (const pk of plannedKeywords) {
+        if (activityKeywords.some(ak => ak.includes(pk) || pk.includes(ak))) {
+          matchingWords++;
+        }
+      }
+
+      const matchScore = matchingWords / plannedKeywords.length;
+      if (matchScore > bestMatchScore) {
+        bestMatchScore = matchScore;
+        bestMatch = activities[i]?.description || '';
+      }
+    }
+
+    const isMatched = bestMatchScore >= 0.4;
+    if (isMatched) matchedCount++;
+
+    result.details.yesterdayPlannedItems.push({
+      text: planned,
+      matched: isMatched,
+      matchedActivity: isMatched ? bestMatch : undefined
+    });
+  }
+
+  const matchedActivities = new Set(
+    result.details.yesterdayPlannedItems
+      .filter(p => p.matched && p.matchedActivity)
+      .map(p => p.matchedActivity!.toLowerCase())
+  );
+
+  for (const act of activities) {
+    const desc = (act.description || '').toLowerCase();
+    if (!matchedActivities.has(desc) && desc.length > 3) {
+      result.details.todayUnplannedItems.push(act.description);
+    }
+  }
+
+  result.details.matchedCount = matchedCount;
+  result.details.matchRate = plannedItems.length > 0 ? Math.round((matchedCount / plannedItems.length) * 100) : 0;
+  result.score = Math.min(result.details.matchRate, 100);
+
+  return result;
+}
+
+router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (yesterday.getDay() === 0) yesterday.setDate(yesterday.getDate() - 1);
+    if (yesterday.getDay() === 6) yesterday.setDate(yesterday.getDate() - 1);
+
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split('T')[0];
+
+    const [yesterdayReport] = await db
+      .select()
+      .from(dailyWorkReports)
+      .where(and(
+        eq(dailyWorkReports.userId, userId),
+        eq(dailyWorkReports.reportDate, yesterdayStr)
+      ));
+
+    const [todayReport] = await db
+      .select()
+      .from(dailyWorkReports)
+      .where(and(
+        eq(dailyWorkReports.userId, userId),
+        eq(dailyWorkReports.reportDate, todayStr)
+      ));
+
+    if (!yesterdayReport) {
+      return res.json({
+        score: 0,
+        details: {
+          hasYesterdayPlans: false,
+          message: 'No DWAR found for previous working day',
+          yesterdayDate: yesterdayStr
+        }
+      });
+    }
+
+    const todayActivities = todayReport ? (Array.isArray(todayReport.activities) ? todayReport.activities : []) : [];
+    const result = calculatePlanFollowThrough(
+      yesterdayReport.tomorrowPlans,
+      yesterdayReport.priorityTasks as any[],
+      todayActivities
+    );
+
+    if (todayReport && result.details.hasYesterdayPlans) {
+      await db.update(dailyWorkReports)
+        .set({
+          planFollowThroughScore: result.score.toString(),
+          planFollowThroughDetails: result.details,
+          updatedAt: new Date()
+        })
+        .where(eq(dailyWorkReports.id, todayReport.id));
+    }
+
+    res.json({
+      ...result,
+      yesterdayDate: yesterdayStr,
+      todayDate: todayStr
+    });
+  } catch (error) {
+    console.error('Error calculating plan follow-through:', error);
+    res.status(500).json({ error: 'Failed to calculate plan follow-through' });
+  }
+});
+
 // Get or create today's DWAR for current user
 router.get('/today', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
@@ -598,7 +771,11 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
   
   const avgCollaborationScore = approvedReports.length > 0 ? 
     approvedReports.reduce((sum, r) => sum + parseFloat(r.collaborationScore?.toString() || '0'), 0) / approvedReports.length : 0;
-  
+
+  const reportsWithFollowThrough = approvedReports.filter(r => parseFloat(r.planFollowThroughScore?.toString() || '0') > 0);
+  const avgPlanFollowThrough = reportsWithFollowThrough.length > 0 ?
+    reportsWithFollowThrough.reduce((sum, r) => sum + parseFloat(r.planFollowThroughScore?.toString() || '0'), 0) / reportsWithFollowThrough.length : 0;
+
   const avgManagerRating = approvedReports.filter(r => r.managerRating).length > 0 ?
     approvedReports.filter(r => r.managerRating).reduce((sum, r) => sum + (r.managerRating || 0), 0) / approvedReports.filter(r => r.managerRating).length : 0;
 

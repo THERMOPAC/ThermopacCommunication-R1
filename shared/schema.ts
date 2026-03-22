@@ -312,6 +312,8 @@ export const dailyWorkReports = pgTable('daily_work_reports', {
   qualityScore: decimal('quality_score', { precision: 5, scale: 2 }).default('0'),
   efficiencyRating: decimal('efficiency_rating', { precision: 5, scale: 2 }).default('0'),
   collaborationScore: decimal('collaboration_score', { precision: 5, scale: 2 }).default('0'),
+  planFollowThroughScore: decimal('plan_follow_through_score', { precision: 5, scale: 2 }).default('0'),
+  planFollowThroughDetails: jsonb('plan_follow_through_details').default(null),
   
   // Status and approvals
   status: varchar('status', { length: 20 }).notNull().default('draft'), // draft, submitted, approved, rejected

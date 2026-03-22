@@ -75,6 +75,8 @@ interface DailyWorkReport {
   qualityScore: number;
   efficiencyRating: number;
   collaborationScore: number;
+  planFollowThroughScore?: number;
+  planFollowThroughDetails?: any;
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
   managerFeedback?: string;
   managerRating?: number;
@@ -156,6 +158,24 @@ export default function DwarPage() {
   // Get today's completed tasks
   const { data: todaysCompletedTasks = [] } = useQuery<AvailableTask[]>({
     queryKey: ["/api/dwar/todays-completed-tasks"],
+  });
+
+  const { data: followThrough } = useQuery<{
+    score: number;
+    details: {
+      hasYesterdayPlans: boolean;
+      yesterdayPlannedItems?: { text: string; matched: boolean; matchedActivity?: string }[];
+      todayUnplannedItems?: string[];
+      matchRate: number;
+      plannedCount: number;
+      matchedCount: number;
+      message?: string;
+    };
+    yesterdayDate?: string;
+    todayDate?: string;
+  }>({
+    queryKey: ["/api/dwar/plan-follow-through"],
+    refetchInterval: 120000,
   });
 
   // Update DWAR mutation
@@ -804,6 +824,96 @@ export default function DwarPage() {
         </Card>
       </div>
 
+      {/* Plan Follow-Through Analysis */}
+      {followThrough && followThrough.details?.hasYesterdayPlans && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Plan Follow-Through
+              <Badge variant={followThrough.score >= 75 ? "default" : followThrough.score >= 50 ? "secondary" : "destructive"}>
+                {followThrough.score}%
+              </Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Comparing yesterday's plans ({followThrough.yesterdayDate}) with today's activities
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-xl font-bold text-blue-700">{followThrough.details.plannedCount}</div>
+                <div className="text-xs text-blue-600">Planned Items</div>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-xl font-bold text-green-700">{followThrough.details.matchedCount}</div>
+                <div className="text-xs text-green-600">Followed Through</div>
+              </div>
+              <div className="text-center p-3 bg-amber-50 rounded-lg">
+                <div className="text-xl font-bold text-amber-700">{(followThrough.details.todayUnplannedItems || []).length}</div>
+                <div className="text-xs text-amber-600">Unplanned Tasks</div>
+              </div>
+            </div>
+
+            {followThrough.details.yesterdayPlannedItems && followThrough.details.yesterdayPlannedItems.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-muted-foreground">Yesterday's Plans vs Today's Work</h4>
+                {followThrough.details.yesterdayPlannedItems.map((item, idx) => (
+                  <div key={idx} className={`flex items-start gap-2 p-2 rounded-lg text-sm ${item.matched ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                    <span className="mt-0.5">
+                      {item.matched ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-red-500" />
+                      )}
+                    </span>
+                    <div className="flex-1">
+                      <div className={item.matched ? 'text-green-800' : 'text-red-800'}>{item.text}</div>
+                      {item.matched && item.matchedActivity && (
+                        <div className="text-xs text-green-600 mt-0.5">Matched: {item.matchedActivity}</div>
+                      )}
+                      {!item.matched && (
+                        <div className="text-xs text-red-500 mt-0.5">Not found in today's activities</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {followThrough.details.todayUnplannedItems && followThrough.details.todayUnplannedItems.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <h4 className="text-sm font-medium text-muted-foreground">Unplanned Activities (not in yesterday's plans)</h4>
+                {followThrough.details.todayUnplannedItems.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                    <PlusCircle className="h-4 w-4 text-amber-600" />
+                    <span className="text-amber-800">{item}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {followThrough && !followThrough.details?.hasYesterdayPlans && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Plan Follow-Through
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-4 text-muted-foreground">
+              <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">{followThrough.details?.message || "No plans were recorded in yesterday's DWAR."}</p>
+              <p className="text-xs mt-1">Fill in Tomorrow's Plans in your daily report to enable follow-through tracking.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI Display */}
       {todayReport && (
         <Card>
@@ -814,7 +924,7 @@ export default function DwarPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{Number(todayReport.productivityScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Productivity</div>
@@ -830,6 +940,10 @@ export default function DwarPage() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">{Number(todayReport.collaborationScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Collaboration</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-teal-600">{Number(todayReport.planFollowThroughScore || 0).toFixed(1)}</div>
+                <div className="text-sm text-muted-foreground">Follow-Through</div>
               </div>
             </div>
             
