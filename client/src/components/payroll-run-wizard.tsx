@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -462,7 +462,6 @@ function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: n
   const { toast } = useToast();
   const [batchResult, setBatchResult] = useState<any>(null);
   const [showBatchResult, setShowBatchResult] = useState(false);
-  const hasAutoTriggered = useRef(false);
   const [transferProgress, setTransferProgress] = useState('');
 
   const isReady = verifyStatus === 'completed';
@@ -522,14 +521,12 @@ function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: n
 
   const sapStatus = getSapStatus();
 
-  useEffect(() => {
-    if (sapStatus === 'ready' && !hasAutoTriggered.current && !batchTransferMutation.isPending && preview?.eligible > 0 && !isLocked) {
-      hasAutoTriggered.current = true;
+  const handleManualTransfer = () => {
+    if (preview?.eligibleRecords?.length > 0) {
       const ids = preview.eligibleRecords.map((r: any) => r.recordId);
-      const timer = setTimeout(() => batchTransferMutation.mutate(ids), 500);
-      return () => clearTimeout(timer);
+      batchTransferMutation.mutate(ids);
     }
-  }, [sapStatus, preview, isLocked]);
+  };
 
   return (
     <>
@@ -570,13 +567,22 @@ function SapTransferStep({ periodId, periodStatus, verifyStatus }: { periodId: n
           {sapStatus === 'completed' && (
             <Badge variant="outline" className="text-green-700 border-green-300">Done</Badge>
           )}
+          {sapStatus === 'ready' && !isLocked && (
+            <Button
+              size="sm"
+              onClick={handleManualTransfer}
+              disabled={batchTransferMutation.isPending}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <Send className="h-4 w-4 mr-1" /> Transfer to SAP
+            </Button>
+          )}
           {sapStatus === 'blocked' && !isLocked && (
             <Button
               size="sm"
               variant="outline"
               className="text-orange-600"
               onClick={() => {
-                hasAutoTriggered.current = false;
                 refetchPreview();
               }}
             >
