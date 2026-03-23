@@ -240,28 +240,42 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
     mutationFn: async ({ taskId, completed }: { taskId: number; completed: boolean }) => {
       try {
         const status = completed ? "completed" : "pending";
-        // Use our enhanced apiRequest that handles empty responses better
         return await apiRequest("PATCH", `/api/tasks/${taskId}`, { status });
       } catch (error) {
         console.error("Task completion error:", error);
         throw error;
       }
     },
-    onSuccess: (response) => {
+    onMutate: async ({ taskId, completed }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tasks"] });
+      const previousTasks = queryClient.getQueryData<Task[]>(["/api/tasks"]);
+      queryClient.setQueryData<Task[]>(["/api/tasks"], (old) =>
+        old?.map((t) =>
+          t.id === taskId
+            ? { ...t, status: completed ? "completed" : "pending", completedAt: completed ? new Date().toISOString() : null }
+            : t
+        )
+      );
+      return { previousTasks };
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "Success",
         description: "Task status updated",
       });
-      setTaskToComplete(null);  // Reset the task completion state
+      setTaskToComplete(null);
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["/api/tasks"], context.previousTasks);
+      }
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
-      setTaskToComplete(null);  // Reset on error too
+      setTaskToComplete(null);
     },
   });
 
