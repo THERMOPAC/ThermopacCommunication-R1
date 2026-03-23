@@ -6,7 +6,7 @@ import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import {
-  resolveProjectManager,
+  resolveProjectManager, resolveAssignment,
   resolveDepartmentHead, resolveReportingManager,
   fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared,
   trendDirection, velocityScore,
@@ -599,7 +599,7 @@ export class PredictiveProjectControlAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const purchaseHead = await resolveDepartmentHead('Purchase');
+          const assignTo = await resolveAssignment(null, null, 'Purchase');
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] Predictive Control – Vendor Delivery Risk: ${vendor.vendor_name}`,
@@ -608,7 +608,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             actionPayload: {
               title: `[Agent] Predictive Control – Vendor Delivery Pattern Deteriorating: ${vendor.vendor_name}`,
               description: `Vendor "${vendor.vendor_name}" delivery pattern is deteriorating.\nOverdue POs: ${overdueCount} | Avg late: ${avgDaysLate}d\nTotal open: ${vendor.total_open}\nagent_severity: ${severity}\n\nReview vendor performance and consider alternate sourcing.`,
-              assignedTo: await resolveEscalation('L2', purchaseHead),
+              assignedTo: assignTo,
               priority: avgDaysLate >= 30 ? 'High' : 'Medium',
               category: `Prediction ${fingerprint}`,
             },
