@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -600,6 +600,9 @@ function GeneratedSalariesView() {
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   const [verifyingPeriodId, setVerifyingPeriodId] = useState<number | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState<any>({});
 
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
@@ -743,6 +746,50 @@ function GeneratedSalariesView() {
       toast({ title: 'Override Failed', description: e.message, variant: 'destructive' });
     },
   });
+
+  const editRecordMutation = useMutation({
+    mutationFn: ({ recordId, data }: { recordId: number; data: any }) =>
+      apiRequest('PATCH', `/api/admin/payroll/records/${recordId}/edit`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
+      setShowEditDialog(false);
+      setEditRecord(null);
+      toast({ title: 'Record Updated', description: 'Salary record has been updated successfully.' });
+    },
+    onError: (e: any) => {
+      toast({ title: 'Update Failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  const handleEditRecord = (record: any) => {
+    setEditRecord(record);
+    setEditFormData({
+      baseSalary: record.baseSalary || '0',
+      hra: record.hra || '0',
+      conveyanceAllowance: record.conveyanceAllowance || '0',
+      ltaAllowance: record.ltaAllowance || '0',
+      specialAllowance: record.specialAllowance || '0',
+      supplementaryAllowance: record.supplementaryAllowance || '0',
+      kgpAllowance: record.kgpAllowance || '0',
+      bonus: record.bonus || '0',
+      overtimePay: record.overtimePay || '0',
+      otherAllowances: record.otherAllowances || '0',
+      incomeTax: record.incomeTax || '0',
+      professionalTax: record.professionalTax || '0',
+      providentFund: record.providentFund || '0',
+      employeePf: record.employeePf || '0',
+      employerPf: record.employerPf || '0',
+      esiDeduction: record.esiDeduction || '0',
+      employeeEsic: record.employeeEsic || '0',
+      employerEsic: record.employerEsic || '0',
+      tdsAmount: record.tdsAmount || '0',
+      loanDeductions: record.loanDeductions || '0',
+      advanceDeductions: record.advanceDeductions || '0',
+      reimbursements: record.reimbursements || '0',
+      otherDeductions: record.otherDeductions || '0',
+    });
+    setShowEditDialog(true);
+  };
 
   const handleDownloadSalarySlip = async (payrollRecordId: number) => {
     const url = `/api/admin/salary-slip/${payrollRecordId}`;
@@ -1115,6 +1162,17 @@ function GeneratedSalariesView() {
 
                       {isManualSalary && (
                         <span className="text-[10px] text-orange-600 italic">Manage via Manual Salary tab</span>
+                      )}
+
+                      {!isManualSalary && recStatus === 'generated' && !isLocked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditRecord(record)}
+                          className="text-blue-600 hover:text-blue-800 hover:border-blue-300 h-7 px-2 text-xs"
+                        >
+                          <Edit className="h-3 w-3 mr-1" /> Edit
+                        </Button>
                       )}
 
                       {!isManualSalary && recStatus === 'generated' && record.verificationStatus !== 'passed' && (
@@ -1555,6 +1613,112 @@ function GeneratedSalariesView() {
               disabled={voidRecordMutation.isPending || !voidRecordReason.trim()}
             >
               {voidRecordMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Voiding...</> : 'Yes, Void Record'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Salary Record — {editRecord?.employeeName}</DialogTitle>
+          <DialogDescription>
+            {editRecord?.month}/{editRecord?.year} | Employee Code: {editRecord?.employeeCode}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-blue-700 mb-2">Earnings</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { key: 'baseSalary', label: 'Basic Salary' },
+                { key: 'hra', label: 'HRA' },
+                { key: 'conveyanceAllowance', label: 'Conveyance' },
+                { key: 'ltaAllowance', label: 'LTA' },
+                { key: 'specialAllowance', label: 'Special Allowance' },
+                { key: 'supplementaryAllowance', label: 'Supplementary' },
+                { key: 'kgpAllowance', label: 'KGP Allowance' },
+                { key: 'bonus', label: 'Bonus' },
+                { key: 'overtimePay', label: 'Overtime Pay' },
+                { key: 'otherAllowances', label: 'Other Allowances' },
+                { key: 'reimbursements', label: 'Reimbursements' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-medium text-gray-600">{f.label}</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editFormData[f.key] || '0'}
+                    onChange={(e) => setEditFormData((prev: any) => ({ ...prev, [f.key]: e.target.value }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-red-700 mb-2">Deductions</h4>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { key: 'employeePf', label: 'Employee PF' },
+                { key: 'employerPf', label: 'Employer PF' },
+                { key: 'employeeEsic', label: 'Employee ESIC' },
+                { key: 'employerEsic', label: 'Employer ESIC' },
+                { key: 'professionalTax', label: 'Professional Tax' },
+                { key: 'incomeTax', label: 'Income Tax (TDS)' },
+                { key: 'tdsAmount', label: 'TDS Amount' },
+                { key: 'loanDeductions', label: 'Loan Deductions' },
+                { key: 'advanceDeductions', label: 'Advance Deductions' },
+                { key: 'otherDeductions', label: 'Other Deductions' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-medium text-gray-600">{f.label}</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editFormData[f.key] || '0'}
+                    onChange={(e) => setEditFormData((prev: any) => ({ ...prev, [f.key]: e.target.value }))}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {(() => {
+            const gross = ['baseSalary','hra','conveyanceAllowance','ltaAllowance','specialAllowance','supplementaryAllowance','kgpAllowance','bonus','overtimePay','otherAllowances','reimbursements']
+              .reduce((s, k) => s + parseFloat(editFormData[k] || '0'), 0);
+            const deductions = ['employeePf','professionalTax','incomeTax','tdsAmount','esiDeduction','employeeEsic','loanDeductions','advanceDeductions','otherDeductions']
+              .reduce((s, k) => s + parseFloat(editFormData[k] || '0'), 0);
+            const net = gross - deductions;
+            return (
+              <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                <div className="text-sm">
+                  <span className="text-gray-600">Gross: </span>
+                  <span className="font-semibold text-blue-700">₹{gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-600">Deductions: </span>
+                  <span className="font-semibold text-red-600">₹{deductions.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-gray-600">Net Pay: </span>
+                  <span className="font-bold text-green-700 text-base">₹{net.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setShowEditDialog(false); setEditRecord(null); }}>Cancel</Button>
+            <Button
+              onClick={() => editRecord && editRecordMutation.mutate({ recordId: editRecord.id, data: editFormData })}
+              disabled={editRecordMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {editRecordMutation.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</> : <><Save className="h-4 w-4 mr-2" /> Save Changes</>}
             </Button>
           </div>
         </div>

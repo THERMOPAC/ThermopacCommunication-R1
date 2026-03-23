@@ -3272,6 +3272,60 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
   }
 });
 
+router.patch('/payroll/records/:id/edit', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.id);
+    const updates = req.body;
+
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
+    if (!record) return res.status(404).json({ error: 'Record not found' });
+
+    const status = (record.status || 'generated') === 'draft' ? 'generated' : record.status;
+    if (status !== 'generated') {
+      return res.status(400).json({ error: `Cannot edit a record in "${status}" status. Only "generated" records can be edited.` });
+    }
+
+    const allowedFields = [
+      'baseSalary', 'hra', 'conveyanceAllowance', 'ltaAllowance', 'specialAllowance',
+      'supplementaryAllowance', 'kgpAllowance', 'bonus', 'overtimePay', 'otherAllowances',
+      'reimbursements', 'incomeTax', 'professionalTax', 'providentFund', 'employeePf',
+      'employerPf', 'esiDeduction', 'employeeEsic', 'employerEsic', 'tdsAmount',
+      'loanDeductions', 'advanceDeductions', 'otherDeductions'
+    ];
+
+    const setData: any = { updatedAt: new Date() };
+    for (const field of allowedFields) {
+      if (updates[field] !== undefined) {
+        setData[field] = String(parseFloat(updates[field]) || 0);
+      }
+    }
+
+    const grossFields = ['baseSalary','hra','conveyanceAllowance','ltaAllowance','specialAllowance','supplementaryAllowance','kgpAllowance','bonus','overtimePay','otherAllowances'];
+    const gross = grossFields.reduce((s, k) => s + parseFloat(setData[k] || record[k as keyof typeof record] || '0'), 0);
+    setData.grossPay = String(gross);
+
+    const deductionFields = ['employeePf','professionalTax','incomeTax','tdsAmount','employeeEsic','otherDeductions'];
+    const totalDeductions = deductionFields.reduce((s, k) => s + parseFloat(setData[k] || record[k as keyof typeof record] || '0'), 0);
+    setData.totalDeductions = String(totalDeductions);
+
+    const loanDed = parseFloat(setData.loanDeductions || record.loanDeductions || '0');
+    const advDed = parseFloat(setData.advanceDeductions || record.advanceDeductions || '0');
+    const reimb = parseFloat(setData.reimbursements || record.reimbursements || '0');
+    const netPay = gross - totalDeductions - loanDed - advDed + reimb;
+    setData.netPay = String(netPay);
+
+    setData.verificationStatus = null;
+    setData.verificationDetails = null;
+
+    const [updated] = await db.update(payrollRecords).set(setData).where(eq(payrollRecords.id, recordId)).returning();
+
+    res.json({ message: 'Salary record updated successfully', record: updated });
+  } catch (error: any) {
+    console.error('Error editing payroll record:', error);
+    res.status(500).json({ error: error.message || 'Failed to edit payroll record' });
+  }
+});
+
 router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const recordId = parseInt(req.params.id);
