@@ -347,7 +347,10 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_OVERDUE_TASKS_PER_TIER = 5;
+        let overdueTaskCount = 0;
         for (const inv of tier) {
+          if (overdueTaskCount >= MAX_OVERDUE_TASKS_PER_TIER) break;
           const fp = makeFingerprint(`overdue_inv_${code.toLowerCase()}`, `inv:${inv.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, cooldown)) continue;
@@ -371,7 +374,7 @@ export class FinanceControlAgent implements IAgent {
             confidence: 0.95,
             priority: severity === 'critical' ? 'urgent' : 'normal',
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; overdueTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -414,7 +417,10 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_DUPE_TASKS = 5;
+        let dupeTaskCount = 0;
         for (const d of dupeRows) {
+          if (dupeTaskCount >= MAX_DUPE_TASKS) break;
           const fp = makeFingerprint('dup_inv', `inv:${d.id1}:${d.id2}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 30)) continue;
@@ -438,7 +444,7 @@ export class FinanceControlAgent implements IAgent {
             confidence: 0.8,
             priority: 'normal',
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; dupeTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -473,7 +479,10 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_UNALLOC_TASKS = 5;
+        let unallocTaskCount = 0;
         for (const p of items) {
+          if (unallocTaskCount >= MAX_UNALLOC_TASKS) break;
           const fp = makeFingerprint(`unalloc_${code.toLowerCase()}`, `pay:${p.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, cooldown)) continue;
@@ -497,7 +506,7 @@ export class FinanceControlAgent implements IAgent {
             confidence: 0.9,
             priority: 'normal',
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; unallocTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -538,7 +547,10 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_ADV_TASKS = 5;
+        let advTaskCount = 0;
         for (const p of advRows) {
+          if (advTaskCount >= MAX_ADV_TASKS) break;
           const fp = makeFingerprint('adv_aging', `pay:${p.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
@@ -562,7 +574,7 @@ export class FinanceControlAgent implements IAgent {
             confidence: 0.85,
             priority: 'normal',
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; advTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
