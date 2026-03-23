@@ -604,9 +604,10 @@ function GeneratedSalariesView() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
 
-  const { data: glMappings } = useQuery<Record<string, string>>({
-    queryKey: ['/api/admin/payroll/gl-mappings'],
-    enabled: showEditDialog,
+  const { data: jePreviewData, isLoading: jePreviewLoading } = useQuery<any>({
+    queryKey: ['/api/admin/payroll/records', editRecord?.id, 'je-preview'],
+    queryFn: () => apiRequest('GET', `/api/admin/payroll/records/${editRecord?.id}/je-preview`),
+    enabled: showEditDialog && !!editRecord?.id,
   });
 
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
@@ -1700,79 +1701,6 @@ function GeneratedSalariesView() {
               .reduce((s, k) => s + parseFloat(editFormData[k] || '0'), 0);
             const net = gross - deductions + reimb;
 
-            const empName = editRecord?.employeeName || 'Employee';
-            const periodLabel = `${editRecord?.month}/${editRecord?.year}`;
-            const cardCode = editRecord?.cardCode || editRecord?.employeeCode || '';
-            const postingDate = editRecord?.year && editRecord?.month
-              ? `${editRecord.year}-${String(editRecord.month).padStart(2, '0')}-${new Date(editRecord.year, editRecord.month, 0).getDate()}`
-              : new Date().toISOString().slice(0, 10);
-
-            const gl = glMappings || {};
-            const glCode = (comp: string, ctx: string) => gl[`${comp}|${ctx}`] || `<${comp}|${ctx}>`;
-
-            const earningComponents = [
-              { key: 'baseSalary', code: 'BASIC' },
-              { key: 'hra', code: 'HRA' },
-              { key: 'conveyanceAllowance', code: 'CONVEYANCE' },
-              { key: 'ltaAllowance', code: 'LTA' },
-              { key: 'specialAllowance', code: 'SPECIAL_ALLOWANCE' },
-              { key: 'supplementaryAllowance', code: 'SUPPLEMENTARY' },
-              { key: 'kgpAllowance', code: 'KGP' },
-              { key: 'bonus', code: 'BONUS' },
-              { key: 'overtimePay', code: 'OVERTIME' },
-              { key: 'otherAllowances', code: 'OTHER_ALLOWANCES' },
-            ];
-            const jeLines: any[] = [];
-            let lineNum = 0;
-
-            for (const comp of earningComponents) {
-              const val = parseFloat(editFormData[comp.key] || '0');
-              if (val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode(comp.code, 'expense'), Debit: val, Credit: 0, LineMemo: `${comp.code} - ${empName} - ${periodLabel}` });
-            }
-
-            const employerPf = parseFloat(editFormData.employerPf || '0');
-            const employerEsic = parseFloat(editFormData.employerEsic || '0');
-            if (employerPf > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode('PF_EMPLOYER', 'expense'), Debit: employerPf, Credit: 0, LineMemo: `PF_EMPLOYER - ${empName} - ${periodLabel}` });
-            if (employerEsic > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode('ESIC_EMPLOYER', 'expense'), Debit: employerEsic, Credit: 0, LineMemo: `ESIC_EMPLOYER - ${empName} - ${periodLabel}` });
-
-            const employeePf = parseFloat(editFormData.employeePf || '0');
-            const combinedPf = employeePf + employerPf;
-            if (combinedPf > 0) {
-              const pfLiability = gl['PF_EMPLOYER|payroll_liability'] || gl['PF_EMPLOYEE|payroll_liability'] || glCode('PF_EMPLOYER', 'payroll_liability');
-              jeLines.push({ Line_ID: lineNum++, AccountCode: pfLiability, Debit: 0, Credit: combinedPf, LineMemo: `PF_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
-            }
-
-            const employeeEsic = parseFloat(editFormData.employeeEsic || '0');
-            const combinedEsic = employeeEsic + employerEsic;
-            if (combinedEsic > 0) {
-              const esicLiability = gl['ESIC_EMPLOYER|payroll_liability'] || gl['ESIC_EMPLOYEE|payroll_liability'] || glCode('ESIC_EMPLOYER', 'payroll_liability');
-              jeLines.push({ Line_ID: lineNum++, AccountCode: esicLiability, Debit: 0, Credit: combinedEsic, LineMemo: `ESIC_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
-            }
-
-            const otherDed = [
-              { code: 'PT', val: parseFloat(editFormData.professionalTax || '0') },
-              { code: 'TDS', val: parseFloat(editFormData.tdsAmount || editFormData.incomeTax || '0') },
-              { code: 'LOAN_DEDUCTION', val: parseFloat(editFormData.loanDeductions || '0') },
-              { code: 'ADVANCE_DEDUCTION', val: parseFloat(editFormData.advanceDeductions || '0') },
-            ];
-            for (const d of otherDed) {
-              if (d.val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode(d.code, 'payroll_liability'), Debit: 0, Credit: d.val, LineMemo: `${d.code} - ${empName} - ${periodLabel}` });
-            }
-
-            if (net > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode('NET_PAY', 'payroll_liability'), ShortName: cardCode, Debit: 0, Credit: net, LineMemo: `NET_PAY - ${empName} - ${periodLabel}` });
-
-            const totalDebit = Math.round(jeLines.reduce((s, l) => s + (l.Debit || 0), 0) * 100) / 100;
-            const totalCredit = Math.round(jeLines.reduce((s, l) => s + (l.Credit || 0), 0) * 100) / 100;
-
-            const jePayload = {
-              ReferenceDate: postingDate,
-              Memo: `Salary JE - ${empName} - ${periodLabel}`,
-              Reference2: cardCode,
-              Reference3: '92B',
-              U_Employee_Name: empName,
-              JournalEntryLines: jeLines,
-            };
-
             return (
               <>
                 <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
@@ -1793,16 +1721,28 @@ function GeneratedSalariesView() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-sm font-semibold text-purple-700">SAP JE JSON Preview</h4>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className={totalDebit === totalCredit ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                        Dr: ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })} | Cr: ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        {totalDebit === totalCredit ? ' ✓ Balanced' : ' ✗ Unbalanced'}
-                      </span>
-                    </div>
+                    {jePreviewData && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className={jePreviewData.balanced ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                          Dr: ₹{(jePreviewData.totalDebit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} | Cr: ₹{(jePreviewData.totalCredit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          {jePreviewData.balanced ? ' ✓ Balanced' : ' ✗ Unbalanced'}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <pre className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-[250px] font-mono">
-                    {JSON.stringify(jePayload, null, 2)}
-                  </pre>
+                  {jePreviewLoading ? (
+                    <div className="bg-gray-900 text-gray-400 p-4 rounded text-xs text-center">
+                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading SAP JE preview...
+                    </div>
+                  ) : jePreviewData?.payload ? (
+                    <pre className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-[250px] font-mono">
+                      {JSON.stringify(jePreviewData.payload, null, 2)}
+                    </pre>
+                  ) : (
+                    <div className="bg-gray-900 text-red-400 p-3 rounded text-xs">
+                      Could not generate JE preview. Check GL mappings.
+                    </div>
+                  )}
                 </div>
               </>
             );

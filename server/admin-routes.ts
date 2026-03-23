@@ -3573,6 +3573,47 @@ async function resolveGlMappingsFromSap(sessionId: string): Promise<{ resolved: 
   return { resolved, failed, alreadyResolved: 0 };
 }
 
+router.get('/payroll/records/:id/je-preview', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const recordId = parseInt(req.params.id);
+    const [record] = await db.select().from(payrollRecords).where(eq(payrollRecords.id, recordId));
+    if (!record) return res.status(404).json({ error: 'Payroll record not found' });
+
+    const [employee] = await db.select({
+      id: users.id, firstName: users.firstName, lastName: users.lastName,
+      username: users.username, cardCode: users.cardCode, cardName: users.cardName, employeeCode: users.employeeCode,
+    }).from(users).where(eq(users.id, record.userId));
+    if (!employee) return res.status(400).json({ error: 'Employee not found' });
+
+    const empName = employee.firstName && employee.lastName ? `${employee.firstName} ${employee.lastName}` : employee.username || 'Unknown';
+
+    const period = await db.select({ startDate: payrollPeriods.startDate }).from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId)).limit(1);
+    let periodLabel = 'Unknown';
+    let postingDate = new Date().toISOString().slice(0, 10);
+    if (period[0]?.startDate) {
+      const sd = new Date(period[0].startDate);
+      const m = sd.getMonth() + 1;
+      const y = sd.getFullYear();
+      periodLabel = `${m}/${y}`;
+      postingDate = `${y}-${String(m).padStart(2, '0')}-${new Date(y, m, 0).getDate()}`;
+    }
+
+    const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const glMap = new Map<string, string>();
+    for (const m of allMappings) {
+      const code = m.sapAcctCode || m.glAccountCode;
+      if (code) glMap.set(`${m.componentCode}|${m.postingContext}`, code);
+    }
+
+    const { payload, totalDebit, totalCredit } = buildSalaryJePayload(record, employee, empName, periodLabel, postingDate, glMap);
+
+    res.json({ payload, totalDebit, totalCredit, balanced: Math.abs(totalDebit - totalCredit) < 0.01 });
+  } catch (error: any) {
+    console.error('Error generating JE preview:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate JE preview' });
+  }
+});
+
 router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
