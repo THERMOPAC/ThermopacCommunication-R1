@@ -907,38 +907,28 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
   );
 }
 
+const SCORE_OPTIONS = [
+  { value: "1", label: "1 - Poor" },
+  { value: "2", label: "2 - Fair" },
+  { value: "3", label: "3 - Good" },
+  { value: "4", label: "4 - Very Good" },
+  { value: "5", label: "5 - Excellent" },
+];
+
 function CompetencySection({ appraisalId, appraisal, competencies, isEmployee, isL1, isL2, isAdmin }: any) {
   const { toast } = useToast();
-  const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({ competencyName: "", competencyDescription: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" });
+  const [form, setForm] = useState({ selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" });
 
-  const canAdd = (isEmployee && ["open", "draft"].includes(appraisal.status)) || isAdmin;
   const canEditSelf = isEmployee && ["open", "draft"].includes(appraisal.status);
   const canEditL1 = isL1 && appraisal.status === "self_submitted";
   const canEditL2 = isL2 && appraisal.status === "l1_reviewed";
-
-  const addMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", `/api/appraisals/${appraisalId}/competencies`, {
-        competencyName: form.competencyName, competencyDescription: form.competencyDescription,
-        selfScore: form.selfScore ? parseFloat(form.selfScore) : undefined, selfComments: form.selfComments,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "competencies"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "score"] });
-      setShowAdd(false);
-      setForm({ competencyName: "", competencyDescription: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" });
-      toast({ title: "Competency added" });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
+  const equalWeight = competencies.length > 0 ? (100 / competencies.length).toFixed(1) : "20.0";
 
   const updateMutation = useMutation({
     mutationFn: async (compId: number) => {
       const body: any = {};
-      if (canEditSelf) { body.competencyName = form.competencyName; body.competencyDescription = form.competencyDescription; body.selfScore = form.selfScore ? parseFloat(form.selfScore) : undefined; body.selfComments = form.selfComments; }
+      if (canEditSelf) { body.selfScore = form.selfScore ? parseFloat(form.selfScore) : undefined; body.selfComments = form.selfComments; }
       if (canEditL1) { body.managerScore = form.managerScore ? parseFloat(form.managerScore) : undefined; body.managerComments = form.managerComments; }
       if (canEditL2) { body.l2Score = form.l2Score ? parseFloat(form.l2Score) : undefined; body.l2Comments = form.l2Comments; }
       return await apiRequest("PUT", `/api/appraisals/${appraisalId}/competencies/${compId}`, body);
@@ -947,110 +937,142 @@ function CompetencySection({ appraisalId, appraisal, competencies, isEmployee, i
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "competencies"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "score"] });
       setEditId(null);
-      toast({ title: "Competency updated" });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (compId: number) => { await apiRequest("DELETE", `/api/appraisals/${appraisalId}/competencies/${compId}`); },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "competencies"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "score"] });
-      toast({ title: "Competency deleted" });
+      toast({ title: "Competency score saved" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const startEdit = (comp: any) => {
-    setForm({ competencyName: comp.competencyName || "", competencyDescription: comp.competencyDescription || "", selfScore: comp.selfScore || "", selfComments: comp.selfComments || "", managerScore: comp.managerScore || "", managerComments: comp.managerComments || "", l2Score: comp.l2Score || "", l2Comments: comp.l2Comments || "" });
+    setForm({ selfScore: comp.selfScore || "", selfComments: comp.selfComments || "", managerScore: comp.managerScore || "", managerComments: comp.managerComments || "", l2Score: comp.l2Score || "", l2Comments: comp.l2Comments || "" });
     setEditId(comp.id);
   };
 
+  const editingComp = competencies.find((c: any) => c.id === editId);
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Competencies</CardTitle>
-        {canAdd && !appraisal.isLocked && (
-          <Button size="sm" onClick={() => { setShowAdd(true); setForm({ competencyName: "", competencyDescription: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" }); }}>
-            <Plus className="h-4 w-4 mr-1" /> Add Competency
-          </Button>
-        )}
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Company Competencies</CardTitle>
+            <CardDescription className="text-xs mt-1">5 fixed competencies evaluated equally ({equalWeight}% each). These are the same across all departments.</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-xs">Equal Weight: {equalWeight}% each</Badge>
+        </div>
       </CardHeader>
       <CardContent>
         {competencies.length === 0 ? (
-          <p className="text-center py-4 text-muted-foreground">No competencies added yet.</p>
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+            <span className="text-muted-foreground text-sm">Loading competencies...</span>
+          </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Competency</TableHead>
-                <TableHead className="w-20">Self</TableHead>
-                <TableHead className="w-20">L1</TableHead>
-                <TableHead className="w-20">L2</TableHead>
-                <TableHead className="w-24">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {competencies.map((c: any) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <p className="font-medium text-sm">{c.competencyName}</p>
-                    {c.competencyDescription && <p className="text-xs text-muted-foreground">{c.competencyDescription}</p>}
-                  </TableCell>
-                  <TableCell>{c.selfScore || "-"}</TableCell>
-                  <TableCell>{c.managerScore || "-"}</TableCell>
-                  <TableCell>{c.l2Score || "-"}</TableCell>
-                  <TableCell>
+          <div className="space-y-3">
+            {competencies.map((c: any, idx: number) => (
+              <div key={c.id} className="border rounded-lg p-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-muted-foreground w-5">{idx + 1}.</span>
+                      <span className="font-medium text-sm">{c.competencyName}</span>
+                      <Badge variant="outline" className="text-[10px]">{equalWeight}%</Badge>
+                    </div>
+                    {c.competencyDescription && <p className="text-xs text-muted-foreground ml-7 mt-0.5">{c.competencyDescription}</p>}
+                  </div>
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="text-center">
+                      <p className="text-muted-foreground mb-0.5">Self</p>
+                      <Badge className={c.selfScore ? "bg-blue-100 text-blue-800 border-0" : "bg-gray-100 text-gray-500 border-0"}>
+                        {c.selfScore || "-"}
+                      </Badge>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-muted-foreground mb-0.5">L1</p>
+                      <Badge className={c.managerScore ? "bg-orange-100 text-orange-800 border-0" : "bg-gray-100 text-gray-500 border-0"}>
+                        {c.managerScore || "-"}
+                      </Badge>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-muted-foreground mb-0.5">L2</p>
+                      <Badge className={c.l2Score ? "bg-purple-100 text-purple-800 border-0" : "bg-gray-100 text-gray-500 border-0"}>
+                        {c.l2Score || "-"}
+                      </Badge>
+                    </div>
                     {(canEditSelf || canEditL1 || canEditL2) && !appraisal.isLocked && (
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => startEdit(c)}><Edit className="h-3.5 w-3.5" /></Button>
-                        {canAdd && <Button variant="ghost" size="sm" onClick={() => deleteMutation.mutate(c.id)}><Trash2 className="h-3.5 w-3.5 text-red-500" /></Button>}
-                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(c)} className="ml-1">
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
                     )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                </div>
+                {c.selfComments && <div className="ml-7 mt-2 text-xs bg-blue-50 p-2 rounded"><span className="font-medium text-blue-700">Self:</span> {c.selfComments}</div>}
+                {c.managerComments && <div className="ml-7 mt-1 text-xs bg-orange-50 p-2 rounded"><span className="font-medium text-orange-700">L1:</span> {c.managerComments}</div>}
+                {c.l2Comments && <div className="ml-7 mt-1 text-xs bg-purple-50 p-2 rounded"><span className="font-medium text-purple-700">L2:</span> {c.l2Comments}</div>}
+              </div>
+            ))}
+          </div>
         )}
 
-        <Dialog open={showAdd || editId !== null} onOpenChange={() => { setShowAdd(false); setEditId(null); }}>
+        <Dialog open={editId !== null} onOpenChange={() => setEditId(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editId ? "Edit Competency" : "Add Competency"}</DialogTitle>
-              <DialogDescription>Fill in the competency details below.</DialogDescription>
+              <DialogTitle>Score: {editingComp?.competencyName}</DialogTitle>
+              <DialogDescription>{editingComp?.competencyDescription}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
-              {(canEditSelf || showAdd) && (
-                <>
-                  <div><Label>Competency Name</Label><Input value={form.competencyName} onChange={e => setForm({ ...form, competencyName: e.target.value })} /></div>
-                  <div><Label>Description</Label><Textarea value={form.competencyDescription} onChange={e => setForm({ ...form, competencyDescription: e.target.value })} rows={2} /></div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><Label>Self Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={form.selfScore} onChange={e => setForm({ ...form, selfScore: e.target.value })} /></div>
+              {canEditSelf && (
+                <div className="space-y-2 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs font-medium text-blue-700">Self Assessment</p>
+                  <div>
+                    <Label>Self Score (1-5)</Label>
+                    <Select value={form.selfScore} onValueChange={v => setForm({ ...form, selfScore: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select score" /></SelectTrigger>
+                      <SelectContent>
+                        {SCORE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div><Label>Self Comments</Label><Textarea value={form.selfComments} onChange={e => setForm({ ...form, selfComments: e.target.value })} rows={2} /></div>
-                </>
-              )}
-              {canEditL1 && editId && (
-                <div className="space-y-2 p-3 bg-orange-50 rounded-lg">
-                  <p className="text-xs font-medium text-orange-700">L1 Manager Scoring</p>
-                  <div><Label>Manager Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={form.managerScore} onChange={e => setForm({ ...form, managerScore: e.target.value })} /></div>
-                  <div><Label>Manager Comments</Label><Textarea value={form.managerComments} onChange={e => setForm({ ...form, managerComments: e.target.value })} rows={2} /></div>
+                  <div><Label>Self Comments</Label><Textarea value={form.selfComments} onChange={e => setForm({ ...form, selfComments: e.target.value })} rows={2} placeholder="Optional comments..." /></div>
                 </div>
               )}
-              {canEditL2 && editId && (
+              {canEditL1 && (
+                <div className="space-y-2 p-3 bg-orange-50 rounded-lg">
+                  <p className="text-xs font-medium text-orange-700">L1 Manager Scoring</p>
+                  {editingComp?.selfScore && <p className="text-xs text-muted-foreground">Employee self-score: {editingComp.selfScore}</p>}
+                  <div>
+                    <Label>Manager Score (1-5)</Label>
+                    <Select value={form.managerScore} onValueChange={v => setForm({ ...form, managerScore: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select score" /></SelectTrigger>
+                      <SelectContent>
+                        {SCORE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Manager Comments</Label><Textarea value={form.managerComments} onChange={e => setForm({ ...form, managerComments: e.target.value })} rows={2} placeholder="Optional comments..." /></div>
+                </div>
+              )}
+              {canEditL2 && (
                 <div className="space-y-2 p-3 bg-purple-50 rounded-lg">
                   <p className="text-xs font-medium text-purple-700">L2 Scoring</p>
-                  <div><Label>L2 Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={form.l2Score} onChange={e => setForm({ ...form, l2Score: e.target.value })} /></div>
-                  <div><Label>L2 Comments</Label><Textarea value={form.l2Comments} onChange={e => setForm({ ...form, l2Comments: e.target.value })} rows={2} /></div>
+                  {editingComp?.managerScore && <p className="text-xs text-muted-foreground">L1 Manager score: {editingComp.managerScore}</p>}
+                  <div>
+                    <Label>L2 Score (1-5)</Label>
+                    <Select value={form.l2Score} onValueChange={v => setForm({ ...form, l2Score: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select score" /></SelectTrigger>
+                      <SelectContent>
+                        {SCORE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>L2 Comments</Label><Textarea value={form.l2Comments} onChange={e => setForm({ ...form, l2Comments: e.target.value })} rows={2} placeholder="Optional comments..." /></div>
                 </div>
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setShowAdd(false); setEditId(null); }}>Cancel</Button>
-              <Button onClick={() => editId ? updateMutation.mutate(editId) : addMutation.mutate()} disabled={addMutation.isPending || updateMutation.isPending}>
-                {editId ? "Update" : "Add"}
+              <Button variant="outline" onClick={() => setEditId(null)}>Cancel</Button>
+              <Button onClick={() => editId && updateMutation.mutate(editId)} disabled={updateMutation.isPending}>
+                {updateMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Save Score
               </Button>
             </DialogFooter>
           </DialogContent>

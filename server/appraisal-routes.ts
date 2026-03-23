@@ -554,6 +554,41 @@ router.delete('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res:
 // PHASE 3: COMPETENCY CRUD
 // ==========================================
 
+const COMPANY_COMPETENCIES = [
+  { name: 'Communication', description: 'Ability to convey information clearly, listen actively, and communicate effectively across written and verbal channels.', sortOrder: 1 },
+  { name: 'Problem Solving', description: 'Capacity to identify issues, analyze root causes, and develop practical solutions in a timely manner.', sortOrder: 2 },
+  { name: 'Ownership & Accountability', description: 'Taking responsibility for tasks, deliverables and outcomes; following through on commitments without needing supervision.', sortOrder: 3 },
+  { name: 'Teamwork & Collaboration', description: 'Working cooperatively with colleagues, sharing knowledge, supporting team goals, and building positive working relationships.', sortOrder: 4 },
+  { name: 'Time Management & Discipline', description: 'Planning and prioritizing work effectively, meeting deadlines, and maintaining consistent productivity and punctuality.', sortOrder: 5 },
+];
+
+async function ensureCompetenciesForAppraisal(appraisalId: number): Promise<void> {
+  const existing = await db.select().from(employeeAppraisalCompetencies)
+    .where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId));
+  if (existing.length >= COMPANY_COMPETENCIES.length) return;
+
+  const existingNames = new Set(existing.map(c => c.competencyName));
+  for (const comp of COMPANY_COMPETENCIES) {
+    if (!existingNames.has(comp.name)) {
+      await db.insert(employeeAppraisalCompetencies).values({
+        appraisalId,
+        competencyName: comp.name,
+        competencyDescription: comp.description,
+        sortOrder: comp.sortOrder,
+      });
+    }
+  }
+}
+
+router.get('/company-competencies', ensureAuthenticated, async (_req: Request, res: Response) => {
+  res.json(COMPANY_COMPETENCIES.map((c, i) => ({
+    name: c.name,
+    description: c.description,
+    sortOrder: c.sortOrder,
+    weight: (100 / COMPANY_COMPETENCIES.length).toFixed(1),
+  })));
+});
+
 router.get('/:id/competencies', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
@@ -565,6 +600,8 @@ router.get('/:id/competencies', ensureAuthenticated, async (req: Request, res: R
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
     if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    await ensureCompetenciesForAppraisal(appraisalId);
 
     const competencies = await db.select().from(employeeAppraisalCompetencies)
       .where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId))
@@ -612,11 +649,8 @@ router.put('/:id/competencies/:compId', ensureAuthenticated, async (req: Request
     const updateFields: any = { updatedAt: new Date() };
 
     if (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status)) {
-      if (req.body.competencyName !== undefined) updateFields.competencyName = req.body.competencyName;
-      if (req.body.competencyDescription !== undefined) updateFields.competencyDescription = req.body.competencyDescription;
       if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
       if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
-      if (req.body.sortOrder !== undefined) updateFields.sortOrder = req.body.sortOrder;
     } else if (appraisal.l1ReviewerId === user.id && appraisal.status === 'self_submitted') {
       if (req.body.managerScore !== undefined) updateFields.managerScore = req.body.managerScore.toString();
       if (req.body.managerComments !== undefined) updateFields.managerComments = req.body.managerComments;
@@ -940,6 +974,10 @@ router.post('/:id/self-submit', ensureAuthenticated, async (req: Request, res: R
 
     const missingSelfScore = kpis.filter(k => !k.selfScore || parseFloat(k.selfScore) <= 0);
     if (missingSelfScore.length > 0) return res.status(400).json({ error: `All KPIs must have a self score before submission (${missingSelfScore.length} missing)` });
+
+    const competencies = await db.select().from(employeeAppraisalCompetencies).where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId));
+    const missingCompSelfScore = competencies.filter(c => !c.selfScore || parseFloat(c.selfScore) <= 0);
+    if (missingCompSelfScore.length > 0) return res.status(400).json({ error: `All competencies must have a self score before submission (${missingCompSelfScore.length} missing)` });
 
     if (!appraisal.selfAssessmentNarrative || appraisal.selfAssessmentNarrative.trim().length === 0) {
       return res.status(400).json({ error: 'Self-assessment narrative is required' });
@@ -1362,6 +1400,12 @@ async function runActivationJob(dryRun: boolean = false): Promise<{ activatedCyc
           }
         } catch (kpiErr: any) {
           // KPI auto-pop is best-effort; don't block appraisal creation
+        }
+
+        try {
+          await ensureCompetenciesForAppraisal(appraisal.id);
+        } catch (compErr: any) {
+          // Competency auto-pop is best-effort
         }
 
         await logAudit('appraisal', appraisal.id, 'appraisal_auto_created', null, 'System', true, { cycleId: cycle.id, employeeId: emp.id });
