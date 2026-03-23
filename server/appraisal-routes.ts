@@ -460,10 +460,10 @@ router.post('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response
       || ['Superuser', 'HR'].includes(user.role);
     if (!canAdd) return res.status(403).json({ error: 'Cannot add KPI at this stage' });
 
-    const { kpiTitle, kpiDescription, weightage, targetValue, selfScore, selfComments, sortOrder } = req.body;
+    const { kpiTitle, kpiDescription, weightage, targetValue, achievedValue, selfScore, selfComments, sortOrder } = req.body;
     const [kpi] = await db.insert(employeeAppraisalKpis).values({
       appraisalId, kpiTitle, kpiDescription, weightage: weightage?.toString(),
-      targetValue, selfScore: selfScore?.toString(), selfComments, sortOrder: sortOrder || 0,
+      targetValue, achievedValue, selfScore: selfScore?.toString(), selfComments, sortOrder: sortOrder || 0,
     }).returning();
 
     await logAudit('kpi', kpi.id, 'kpi_created', user.id, getUserDisplayName(user), false, { appraisalId, kpiTitle });

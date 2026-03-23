@@ -645,18 +645,28 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState({ kpiTitle: "", kpiDescription: "", weightage: "", targetValue: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" });
+  const emptyForm = { kpiTitle: "", kpiDescription: "", weightage: "", targetValue: "", achievedValue: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" };
+  const [form, setForm] = useState(emptyForm);
 
   const canAddKpi = (isEmployee && ["open", "draft"].includes(appraisal.status)) || isAdmin;
   const canEditSelf = isEmployee && ["open", "draft"].includes(appraisal.status);
   const canEditL1 = isL1 && appraisal.status === "self_submitted";
   const canEditL2 = isL2 && appraisal.status === "l1_reviewed";
 
+  const existingWeight = kpis.reduce((s: number, k: any) => s + (parseFloat(k.weightage) || 0), 0);
+  const editingKpiWeight = editId ? (parseFloat(kpis.find((k: any) => k.id === editId)?.weightage) || 0) : 0;
+  const otherWeight = existingWeight - editingKpiWeight;
+  const currentFormWeight = parseFloat(form.weightage) || 0;
+  const liveTotal = otherWeight + currentFormWeight;
+  const weightExceeds = liveTotal > 100.01;
+
   const addMutation = useMutation({
     mutationFn: async () => {
+      if (weightExceeds) throw new Error(`Total weight would be ${liveTotal.toFixed(1)}% — cannot exceed 100%`);
       return await apiRequest("POST", `/api/appraisals/${appraisalId}/kpis`, {
         kpiTitle: form.kpiTitle, kpiDescription: form.kpiDescription,
         weightage: parseFloat(form.weightage), targetValue: form.targetValue,
+        achievedValue: form.achievedValue || undefined,
         selfScore: form.selfScore ? parseFloat(form.selfScore) : undefined,
         selfComments: form.selfComments,
       });
@@ -665,7 +675,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "kpis"] });
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "score"] });
       setShowAdd(false);
-      setForm({ kpiTitle: "", kpiDescription: "", weightage: "", targetValue: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" });
+      setForm(emptyForm);
       toast({ title: "KPI added" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -673,9 +683,10 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
 
   const updateMutation = useMutation({
     mutationFn: async (kpiId: number) => {
+      if (canEditSelf && weightExceeds) throw new Error(`Total weight would be ${liveTotal.toFixed(1)}% — cannot exceed 100%`);
       const body: any = {};
-      if (canEditSelf) { body.kpiTitle = form.kpiTitle; body.kpiDescription = form.kpiDescription; body.weightage = parseFloat(form.weightage); body.targetValue = form.targetValue; body.selfScore = form.selfScore ? parseFloat(form.selfScore) : undefined; body.selfComments = form.selfComments; }
-      if (canEditL1) { body.managerScore = form.managerScore ? parseFloat(form.managerScore) : undefined; body.managerComments = form.managerComments; }
+      if (canEditSelf) { body.kpiTitle = form.kpiTitle; body.kpiDescription = form.kpiDescription; body.weightage = parseFloat(form.weightage); body.targetValue = form.targetValue; body.achievedValue = form.achievedValue || undefined; body.selfScore = form.selfScore ? parseFloat(form.selfScore) : undefined; body.selfComments = form.selfComments; }
+      if (canEditL1) { body.managerScore = form.managerScore ? parseFloat(form.managerScore) : undefined; body.managerComments = form.managerComments; body.achievedValue = form.achievedValue || undefined; }
       if (canEditL2) { body.l2Score = form.l2Score ? parseFloat(form.l2Score) : undefined; body.l2Comments = form.l2Comments; }
       return await apiRequest("PUT", `/api/appraisals/${appraisalId}/kpis/${kpiId}`, body);
     },
@@ -701,21 +712,28 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
   });
 
   const startEdit = (kpi: any) => {
-    setForm({ kpiTitle: kpi.kpiTitle || "", kpiDescription: kpi.kpiDescription || "", weightage: kpi.weightage || "", targetValue: kpi.targetValue || "", selfScore: kpi.selfScore || "", selfComments: kpi.selfComments || "", managerScore: kpi.managerScore || "", managerComments: kpi.managerComments || "", l2Score: kpi.l2Score || "", l2Comments: kpi.l2Comments || "" });
+    setForm({ kpiTitle: kpi.kpiTitle || "", kpiDescription: kpi.kpiDescription || "", weightage: kpi.weightage || "", targetValue: kpi.targetValue || "", achievedValue: kpi.achievedValue || "", selfScore: kpi.selfScore || "", selfComments: kpi.selfComments || "", managerScore: kpi.managerScore || "", managerComments: kpi.managerComments || "", l2Score: kpi.l2Score || "", l2Comments: kpi.l2Comments || "" });
     setEditId(kpi.id);
   };
 
-  const totalWeight = kpis.reduce((s: number, k: any) => s + (parseFloat(k.weightage) || 0), 0);
+  const weightValid = Math.abs(existingWeight - 100) < 0.01;
+  const remainingWeight = Math.max(0, 100 - otherWeight);
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-base">Key Performance Indicators</CardTitle>
-          <CardDescription>Total weight: {totalWeight}% {Math.abs(totalWeight - 100) < 0.01 ? "(Valid)" : "(Must equal 100%)"}</CardDescription>
+          <div className="flex items-center gap-3 mt-1">
+            <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${weightValid ? "bg-green-100 text-green-700" : existingWeight > 100 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+              <span>Total Weight: {existingWeight.toFixed(1)}%</span>
+              {weightValid ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
+            </div>
+            {!weightValid && <span className="text-xs text-muted-foreground">{existingWeight < 100 ? `${(100 - existingWeight).toFixed(1)}% remaining` : "Exceeds 100%"}</span>}
+          </div>
         </div>
         {canAddKpi && !appraisal.isLocked && (
-          <Button size="sm" onClick={() => { setShowAdd(true); setForm({ kpiTitle: "", kpiDescription: "", weightage: "", targetValue: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" }); }}>
+          <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); }} disabled={existingWeight >= 100}>
             <Plus className="h-4 w-4 mr-1" /> Add KPI
           </Button>
         )}
@@ -730,9 +748,10 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
                 <TableHead>KPI</TableHead>
                 <TableHead className="w-20">Weight</TableHead>
                 <TableHead className="w-20">Target</TableHead>
+                <TableHead className="w-20">Actual</TableHead>
                 <TableHead className="w-20">Self</TableHead>
-                <TableHead className="w-20">L1</TableHead>
-                <TableHead className="w-20">L2</TableHead>
+                {["self_submitted", "l1_reviewed", "l2_reviewed", "approved", "closed"].includes(appraisal.status) && <TableHead className="w-20">L1</TableHead>}
+                {["l1_reviewed", "l2_reviewed", "approved", "closed"].includes(appraisal.status) && <TableHead className="w-20">L2</TableHead>}
                 <TableHead className="w-24">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -743,11 +762,22 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
                     <p className="font-medium text-sm">{kpi.kpiTitle}</p>
                     {kpi.kpiDescription && <p className="text-xs text-muted-foreground">{kpi.kpiDescription}</p>}
                   </TableCell>
-                  <TableCell>{kpi.weightage}%</TableCell>
+                  <TableCell><span className="font-medium">{kpi.weightage}%</span></TableCell>
                   <TableCell>{kpi.targetValue || "-"}</TableCell>
-                  <TableCell>{kpi.selfScore || "-"}</TableCell>
-                  <TableCell>{kpi.managerScore || "-"}</TableCell>
-                  <TableCell>{kpi.l2Score || "-"}</TableCell>
+                  <TableCell>{kpi.achievedValue || "-"}</TableCell>
+                  <TableCell>
+                    {kpi.selfScore ? <Badge variant="outline" className="bg-blue-50">{kpi.selfScore}</Badge> : "-"}
+                  </TableCell>
+                  {["self_submitted", "l1_reviewed", "l2_reviewed", "approved", "closed"].includes(appraisal.status) && (
+                    <TableCell>
+                      {kpi.managerScore ? <Badge variant="outline" className="bg-orange-50">{kpi.managerScore}</Badge> : "-"}
+                    </TableCell>
+                  )}
+                  {["l1_reviewed", "l2_reviewed", "approved", "closed"].includes(appraisal.status) && (
+                    <TableCell>
+                      {kpi.l2Score ? <Badge variant="outline" className="bg-purple-50">{kpi.l2Score}</Badge> : "-"}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {(canEditSelf || canEditL1 || canEditL2) && !appraisal.isLocked && (
                       <div className="flex gap-1">
@@ -769,38 +799,91 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
               <DialogDescription>Fill in the KPI details below.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
+              {(showAdd || editId) && (showAdd || canEditSelf) && (
+                <div className={`p-2 rounded-lg text-xs font-medium flex items-center justify-between ${weightExceeds ? "bg-red-100 text-red-700" : liveTotal > 99.99 && liveTotal < 100.01 ? "bg-green-100 text-green-700" : "bg-blue-50 text-blue-700"}`}>
+                  <span>Weight Budget: {liveTotal.toFixed(1)}% / 100%</span>
+                  <span>{weightExceeds ? "Exceeds limit!" : `${Math.max(0, 100 - liveTotal).toFixed(1)}% remaining`}</span>
+                </div>
+              )}
               {(canEditSelf || showAdd) && (
                 <>
                   <div><Label>KPI Title</Label><Input value={form.kpiTitle} onChange={e => setForm({ ...form, kpiTitle: e.target.value })} /></div>
                   <div><Label>Description</Label><Textarea value={form.kpiDescription} onChange={e => setForm({ ...form, kpiDescription: e.target.value })} rows={2} /></div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div><Label>Weight (%)</Label><Input type="number" value={form.weightage} onChange={e => setForm({ ...form, weightage: e.target.value })} /></div>
-                    <div><Label>Target</Label><Input value={form.targetValue} onChange={e => setForm({ ...form, targetValue: e.target.value })} /></div>
-                    <div><Label>Self Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={form.selfScore} onChange={e => setForm({ ...form, selfScore: e.target.value })} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Weight (%)</Label>
+                      <Input type="number" min="1" max={remainingWeight + (editId ? editingKpiWeight : 0)} value={form.weightage} onChange={e => setForm({ ...form, weightage: e.target.value })} className={weightExceeds ? "border-red-400" : ""} />
+                    </div>
+                    <div>
+                      <Label>Target</Label>
+                      <Input value={form.targetValue} onChange={e => setForm({ ...form, targetValue: e.target.value })} placeholder="e.g. 95%, 10 units" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label>Actual (Achieved)</Label>
+                      <Input value={form.achievedValue} onChange={e => setForm({ ...form, achievedValue: e.target.value })} placeholder="e.g. 92%, 8 units" />
+                    </div>
+                    <div>
+                      <Label>Self Score</Label>
+                      <Select value={form.selfScore} onValueChange={v => setForm({ ...form, selfScore: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select 1-5" /></SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <SelectItem key={n} value={String(n)}>{n} — {["Poor", "Fair", "Good", "Very Good", "Excellent"][n - 1]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div><Label>Self Comments</Label><Textarea value={form.selfComments} onChange={e => setForm({ ...form, selfComments: e.target.value })} rows={2} /></div>
                 </>
               )}
               {canEditL1 && editId && (
-                <div className="space-y-2 p-3 bg-orange-50 rounded-lg">
-                  <p className="text-xs font-medium text-orange-700">L1 Manager Scoring</p>
+                <div className="space-y-2 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <p className="text-sm font-semibold text-orange-800">L1 Manager Review</p>
+                  {form.targetValue && <p className="text-xs text-orange-600">Target: {form.targetValue} | Actual: {form.achievedValue || "Not entered"} | Self Score: {form.selfScore || "-"}</p>}
                   <div className="grid grid-cols-2 gap-2">
-                    <div><Label>Manager Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={form.managerScore} onChange={e => setForm({ ...form, managerScore: e.target.value })} /></div>
+                    <div>
+                      <Label>Actual (Achieved)</Label>
+                      <Input value={form.achievedValue} onChange={e => setForm({ ...form, achievedValue: e.target.value })} placeholder="Update if needed" />
+                    </div>
+                    <div>
+                      <Label>Manager Score</Label>
+                      <Select value={form.managerScore} onValueChange={v => setForm({ ...form, managerScore: v })}>
+                        <SelectTrigger><SelectValue placeholder="Select 1-5" /></SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <SelectItem key={n} value={String(n)}>{n} — {["Poor", "Fair", "Good", "Very Good", "Excellent"][n - 1]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div><Label>Manager Comments</Label><Textarea value={form.managerComments} onChange={e => setForm({ ...form, managerComments: e.target.value })} rows={2} /></div>
                 </div>
               )}
               {canEditL2 && editId && (
-                <div className="space-y-2 p-3 bg-purple-50 rounded-lg">
-                  <p className="text-xs font-medium text-purple-700">L2 Scoring (Optional Override)</p>
-                  <div><Label>L2 Score (1-5)</Label><Input type="number" min="1" max="5" step="0.1" value={form.l2Score} onChange={e => setForm({ ...form, l2Score: e.target.value })} /></div>
+                <div className="space-y-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <p className="text-sm font-semibold text-purple-800">L2 Scoring (Optional Override)</p>
+                  <div>
+                    <Label>L2 Score</Label>
+                    <Select value={form.l2Score} onValueChange={v => setForm({ ...form, l2Score: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select 1-5" /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <SelectItem key={n} value={String(n)}>{n} — {["Poor", "Fair", "Good", "Very Good", "Excellent"][n - 1]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div><Label>L2 Comments</Label><Textarea value={form.l2Comments} onChange={e => setForm({ ...form, l2Comments: e.target.value })} rows={2} /></div>
                 </div>
               )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setShowAdd(false); setEditId(null); }}>Cancel</Button>
-              <Button onClick={() => editId ? updateMutation.mutate(editId) : addMutation.mutate()} disabled={addMutation.isPending || updateMutation.isPending}>
+              <Button onClick={() => editId ? updateMutation.mutate(editId) : addMutation.mutate()} disabled={addMutation.isPending || updateMutation.isPending || (canEditSelf && weightExceeds)}>
                 {(addMutation.isPending || updateMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                 {editId ? "Update" : "Add"}
               </Button>
