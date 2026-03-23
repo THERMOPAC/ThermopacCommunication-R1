@@ -3723,8 +3723,11 @@ function buildSalaryJePayload(
     if (comp.value > 0) {
       const acctCode = glMap.get(`${comp.code}|payroll_liability`);
       if (!acctCode) continue;
-      const line: any = { Line_ID: lineNum++, AccountCode: acctCode, Debit: 0, Credit: comp.value, LineMemo: `${comp.code} - ${empName} - ${periodLabel}` };
+      const line: any = { Line_ID: lineNum++, AccountCode: acctCode };
       if (loanCardCode) line.ShortName = loanCardCode;
+      line.Debit = 0;
+      line.Credit = comp.value;
+      line.LineMemo = `${comp.code} - ${empName} - ${periodLabel}`;
       jeLines.push(line);
     }
   }
