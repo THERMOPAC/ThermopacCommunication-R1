@@ -494,6 +494,11 @@ router.put('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res: Re
       if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
       if (req.body.sortOrder !== undefined) updateFields.sortOrder = req.body.sortOrder;
     } else if (appraisal.l1ReviewerId === user.id && appraisal.status === 'self_submitted') {
+      if (req.body.kpiTitle !== undefined) updateFields.kpiTitle = req.body.kpiTitle;
+      if (req.body.kpiDescription !== undefined) updateFields.kpiDescription = req.body.kpiDescription;
+      if (req.body.weightage !== undefined) updateFields.weightage = req.body.weightage.toString();
+      if (req.body.targetValue !== undefined) updateFields.targetValue = req.body.targetValue;
+      if (req.body.achievedValue !== undefined) updateFields.achievedValue = req.body.achievedValue;
       if (req.body.managerScore !== undefined) updateFields.managerScore = req.body.managerScore.toString();
       if (req.body.managerComments !== undefined) updateFields.managerComments = req.body.managerComments;
     } else if (appraisal.l2ReviewerId === user.id && appraisal.status === 'l1_reviewed') {
@@ -931,6 +936,9 @@ router.post('/:id/self-submit', ensureAuthenticated, async (req: Request, res: R
 
     const totalWeight = kpis.reduce((sum, k) => sum + (parseFloat(k.weightage) || 0), 0);
     if (Math.abs(totalWeight - 100) > 0.01) return res.status(400).json({ error: `KPI weightages must sum to 100 (current: ${totalWeight})` });
+
+    const missingSelfScore = kpis.filter(k => !k.selfScore || parseFloat(k.selfScore) <= 0);
+    if (missingSelfScore.length > 0) return res.status(400).json({ error: `All KPIs must have a self score before submission (${missingSelfScore.length} missing)` });
 
     if (!appraisal.selfAssessmentNarrative || appraisal.selfAssessmentNarrative.trim().length === 0) {
       return res.status(400).json({ error: 'Self-assessment narrative is required' });
