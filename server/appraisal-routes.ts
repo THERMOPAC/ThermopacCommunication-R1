@@ -428,6 +428,44 @@ router.get('/cycles/:cycleId/eligible-employees', ensureAuthenticated, async (re
 // PHASE 3: KPI CRUD
 // ==========================================
 
+async function ensureKpisForAppraisal(appraisalId: number): Promise<void> {
+  const existing = await db.select().from(employeeAppraisalKpis)
+    .where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+  if (existing.length > 0) return;
+
+  const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+  if (!appraisal) return;
+  if (!['open', 'draft'].includes(appraisal.status)) return;
+
+  const empDept = appraisal.department;
+  if (!empDept) return;
+
+  const empLevel = await getHierarchyLevel(appraisal.employeeId);
+
+  const [activeTemplate] = await db.select().from(appraisalKpiTemplates)
+    .where(and(
+      eq(appraisalKpiTemplates.department, empDept),
+      eq(appraisalKpiTemplates.hierarchyLevel, empLevel),
+      eq(appraisalKpiTemplates.status, 'active')
+    ));
+  if (!activeTemplate) return;
+
+  const templateItems = await db.select().from(appraisalKpiTemplateItems)
+    .where(eq(appraisalKpiTemplateItems.templateId, activeTemplate.id))
+    .orderBy(appraisalKpiTemplateItems.sortOrder);
+
+  for (const item of templateItems) {
+    await db.insert(employeeAppraisalKpis).values({
+      appraisalId,
+      kpiTitle: item.kpiTitle,
+      kpiDescription: item.kpiDescription || undefined,
+      weightage: item.defaultWeightage,
+      targetValue: item.targetGuidance || undefined,
+      sortOrder: item.sortOrder || 0,
+    });
+  }
+}
+
 router.get('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
@@ -439,6 +477,8 @@ router.get('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
     if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+
+    try { await ensureKpisForAppraisal(appraisalId); } catch (e) {}
 
     const kpis = await db.select().from(employeeAppraisalKpis)
       .where(eq(employeeAppraisalKpis.appraisalId, appraisalId))
