@@ -1164,7 +1164,7 @@ function GeneratedSalariesView() {
                         <span className="text-[10px] text-orange-600 italic">Manage via Manual Salary tab</span>
                       )}
 
-                      {!isManualSalary && recStatus === 'generated' && !isLocked && (
+                      {!isManualSalary && (recStatus === 'generated' || recStatus === 'verified') && !isLocked && (
                         <Button
                           variant="outline"
                           size="sm"

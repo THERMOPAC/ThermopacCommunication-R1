@@ -3281,8 +3281,8 @@ router.patch('/payroll/records/:id/edit', ensureAuthenticated, async (req: Reque
     if (!record) return res.status(404).json({ error: 'Record not found' });
 
     const status = (record.status || 'generated') === 'draft' ? 'generated' : record.status;
-    if (status !== 'generated') {
-      return res.status(400).json({ error: `Cannot edit a record in "${status}" status. Only "generated" records can be edited.` });
+    if (status !== 'generated' && status !== 'verified') {
+      return res.status(400).json({ error: `Cannot edit a record in "${status}" status. Only "generated" or "verified" records can be edited.` });
     }
 
     const allowedFields = [
@@ -3316,6 +3316,12 @@ router.patch('/payroll/records/:id/edit', ensureAuthenticated, async (req: Reque
 
     setData.verificationStatus = null;
     setData.verificationDetails = null;
+
+    if (status === 'verified') {
+      setData.status = 'generated';
+      setData.verifiedBy = null;
+      setData.verifiedAt = null;
+    }
 
     const [updated] = await db.update(payrollRecords).set(setData).where(eq(payrollRecords.id, recordId)).returning();
 
