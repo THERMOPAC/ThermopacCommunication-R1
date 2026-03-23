@@ -337,65 +337,233 @@ function ScoreCard({ label, value, highlight }: { label: string; value: number; 
   );
 }
 
+const NARRATIVE_MIN_LENGTH = 150;
+const NARRATIVE_PLACEHOLDER = `Please cover the following areas in your self-assessment:
+
+1. KEY ACHIEVEMENTS
+   What were your most significant accomplishments during this period?
+
+2. CHALLENGES FACED
+   What challenges did you encounter and how did you handle them?
+
+3. SKILL IMPROVEMENTS
+   What new skills did you develop or improve?
+
+4. CONTRIBUTIONS TO TEAM / PROJECT
+   How did you contribute to your team's or project's success?
+
+5. GOALS FOR NEXT PERIOD
+   What are your professional goals and development plans going forward?`;
+
+const NARRATIVE_SECTIONS = [
+  { title: "Key Achievements", hint: "Describe your most significant accomplishments" },
+  { title: "Challenges Faced", hint: "What obstacles did you face and how did you handle them?" },
+  { title: "Skill Improvements", hint: "New skills learned or existing skills enhanced" },
+  { title: "Team / Project Contributions", hint: "How did you contribute to team or project success?" },
+  { title: "Goals for Next Period", hint: "Your professional goals and development plans" },
+];
+
 function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: any; isEmployee: boolean; appraisalId: number }) {
   const { toast } = useToast();
   const [narrative, setNarrative] = useState(appraisal.selfAssessmentNarrative || "");
-  const canEdit = isEmployee && ["open", "draft"].includes(appraisal.status) && !appraisal.isLocked;
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const canEdit = isEmployee && appraisal.status === "open" && !appraisal.isLocked;
+  const charCount = narrative.trim().length;
+  const isValid = charCount >= NARRATIVE_MIN_LENGTH;
+  const wasReopened = !!appraisal.reopenedAt;
 
-  const saveMutation = useMutation({
+  const saveDraftMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("PUT", `/api/appraisals/${appraisalId}/self-assessment`, { selfAssessmentNarrative: narrative });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId] });
-      toast({ title: "Saved", description: "Self-assessment narrative updated." });
+      toast({ title: "Draft Saved", description: "Your self-assessment narrative has been saved as a draft." });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PUT", `/api/appraisals/${appraisalId}/self-assessment`, { selfAssessmentNarrative: narrative });
+      const res = await apiRequest("POST", `/api/appraisals/${appraisalId}/self-submit`, { remarks: "Self-assessment submitted" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "approvals"] });
+      setShowSubmitConfirm(false);
+      toast({ title: "Submitted", description: "Your self-assessment has been submitted for L1 review." });
+    },
+    onError: (e: any) => { setShowSubmitConfirm(false); toast({ title: "Submission Failed", description: e.message, variant: "destructive" }); },
+  });
+
   return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">Self-Assessment Narrative</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        {canEdit ? (
-          <>
-            <Textarea value={narrative} onChange={e => setNarrative(e.target.value)} rows={6} placeholder="Describe your achievements, challenges, and goals..." />
-            <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null} Save Narrative
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-blue-600" /> Self-Assessment Narrative
+              </CardTitle>
+              <CardDescription>
+                {canEdit
+                  ? "Write a comprehensive self-assessment covering the areas below. Minimum 150 characters required."
+                  : appraisal.status === "open" ? "Only the employee can edit this section." : "Submitted — read-only view."}
+              </CardDescription>
+            </div>
+            {canEdit && (
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-medium px-2 py-1 rounded ${isValid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  {charCount} / {NARRATIVE_MIN_LENGTH} min chars
+                </span>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {wasReopened && appraisal.reopenReason && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-amber-700">This appraisal was reopened</p>
+                <p className="text-xs text-amber-600">Reason: {appraisal.reopenReason}</p>
+                <p className="text-xs text-amber-500 mt-1">Your previous narrative has been preserved below. Please review and update as needed.</p>
+              </div>
+            </div>
+          )}
+
+          {canEdit ? (
+            <>
+              <div className="grid md:grid-cols-5 gap-2 mb-2">
+                {NARRATIVE_SECTIONS.map((section, i) => (
+                  <div key={i} className="p-2 bg-blue-50 rounded-lg border border-blue-100">
+                    <p className="text-xs font-semibold text-blue-800">{i + 1}. {section.title}</p>
+                    <p className="text-xs text-blue-600 mt-0.5">{section.hint}</p>
+                  </div>
+                ))}
+              </div>
+
+              <Textarea
+                value={narrative}
+                onChange={e => setNarrative(e.target.value)}
+                rows={12}
+                placeholder={NARRATIVE_PLACEHOLDER}
+                className={`font-mono text-sm ${!isValid && charCount > 0 ? "border-red-300 focus-visible:ring-red-400" : ""}`}
+              />
+
+              {!isValid && charCount > 0 && (
+                <p className="text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Minimum {NARRATIVE_MIN_LENGTH} characters required. You need {NARRATIVE_MIN_LENGTH - charCount} more.
+                </p>
+              )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => saveDraftMutation.mutate()}
+                  disabled={saveDraftMutation.isPending || !narrative.trim()}
+                >
+                  {saveDraftMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                  <Edit className="h-4 w-4 mr-1" /> Save Draft
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowSubmitConfirm(true)}
+                  disabled={!isValid || submitMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Send className="h-4 w-4 mr-1" /> Submit Self-Assessment
+                </Button>
+                {!isValid && (
+                  <span className="text-xs text-muted-foreground">Complete the narrative to enable submission</span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              {appraisal.selfAssessmentNarrative ? (
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{appraisal.selfAssessmentNarrative}</p>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">No self-assessment narrative provided yet.</p>
+                </div>
+              )}
+              {appraisal.selfSubmittedAt && (
+                <p className="text-xs text-muted-foreground">Submitted on: {new Date(appraisal.selfSubmittedAt).toLocaleString()}</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {(appraisal.l1Comments || appraisal.l2Comments || appraisal.l3Comments || appraisal.l2Score) && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Reviewer Remarks</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {appraisal.l1Comments && (
+              <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <p className="text-xs font-medium text-orange-700 mb-1 flex items-center gap-1"><UserCheck className="h-3.5 w-3.5" /> L1 Manager Comments</p>
+                <p className="text-sm">{appraisal.l1Comments}</p>
+                {appraisal.l1ReviewedAt && <p className="text-xs text-orange-400 mt-1">Reviewed: {new Date(appraisal.l1ReviewedAt).toLocaleString()}</p>}
+              </div>
+            )}
+            {appraisal.l2Comments && (
+              <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <p className="text-xs font-medium text-purple-700 mb-1 flex items-center gap-1"><Shield className="h-3.5 w-3.5" /> L2 Reviewer Comments</p>
+                <p className="text-sm">{appraisal.l2Comments}</p>
+                {appraisal.l2ReviewedAt && <p className="text-xs text-purple-400 mt-1">Reviewed: {new Date(appraisal.l2ReviewedAt).toLocaleString()}</p>}
+              </div>
+            )}
+            {appraisal.l2Score && (
+              <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <p className="text-xs font-medium text-yellow-700 mb-1 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> L2 Score Override: {appraisal.l2Score}</p>
+                <p className="text-sm text-yellow-600">Reason: {appraisal.l2OverrideReason}</p>
+              </div>
+            )}
+            {appraisal.l3Comments && (
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-xs font-medium text-green-700 mb-1 flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> L3 Approver Comments</p>
+                <p className="text-sm">{appraisal.l3Comments}</p>
+                {appraisal.l3ApprovedAt && <p className="text-xs text-green-400 mt-1">Approved: {new Date(appraisal.l3ApprovedAt).toLocaleString()}</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit Self-Assessment?</DialogTitle>
+            <DialogDescription>
+              Once submitted, your self-assessment narrative and KPI/competency self-scores will be locked for editing.
+              Your L1 manager ({appraisal.l1ReviewerName}) will be notified to begin their review.
+              This action cannot be undone unless an admin reopens the appraisal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-xs font-medium text-blue-700 mb-1">Narrative Preview ({charCount} characters)</p>
+            <p className="text-xs text-blue-600 line-clamp-4">{narrative}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSubmitConfirm(false)}>Cancel</Button>
+            <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending} className="bg-green-600 hover:bg-green-700">
+              {submitMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Confirm & Submit
             </Button>
-          </>
-        ) : (
-          <p className="whitespace-pre-wrap text-sm">{appraisal.selfAssessmentNarrative || "No self-assessment narrative provided."}</p>
-        )}
-
-        {appraisal.l1Comments && (
-          <div className="mt-4 p-3 bg-orange-50 rounded-lg">
-            <p className="text-xs font-medium text-orange-700 mb-1">L1 Comments</p>
-            <p className="text-sm">{appraisal.l1Comments}</p>
-          </div>
-        )}
-        {appraisal.l2Comments && (
-          <div className="mt-2 p-3 bg-purple-50 rounded-lg">
-            <p className="text-xs font-medium text-purple-700 mb-1">L2 Comments</p>
-            <p className="text-sm">{appraisal.l2Comments}</p>
-          </div>
-        )}
-        {appraisal.l3Comments && (
-          <div className="mt-2 p-3 bg-green-50 rounded-lg">
-            <p className="text-xs font-medium text-green-700 mb-1">L3 Comments</p>
-            <p className="text-sm">{appraisal.l3Comments}</p>
-          </div>
-        )}
-
-        {appraisal.l2Score && (
-          <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-            <p className="text-xs font-medium text-yellow-700 mb-1">L2 Override Score: {appraisal.l2Score}</p>
-            <p className="text-sm text-yellow-600">Reason: {appraisal.l2OverrideReason}</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
