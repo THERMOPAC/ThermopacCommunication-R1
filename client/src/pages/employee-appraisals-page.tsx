@@ -411,8 +411,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
 
   const saveDraftMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("PUT", `/api/appraisals/${appraisalId}/self-assessment`, { selfAssessmentNarrative: narrative });
-      return res.json();
+      return await apiRequest("PUT", `/api/appraisals/${appraisalId}/self-assessment`, { selfAssessmentNarrative: narrative });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId] });
@@ -424,8 +423,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
   const submitMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("PUT", `/api/appraisals/${appraisalId}/self-assessment`, { selfAssessmentNarrative: narrative });
-      const res = await apiRequest("POST", `/api/appraisals/${appraisalId}/self-submit`, { remarks: "Self-assessment submitted" });
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/${appraisalId}/self-submit`, { remarks: "Self-assessment submitted" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals"] });
@@ -656,13 +654,12 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/appraisals/${appraisalId}/kpis`, {
+      return await apiRequest("POST", `/api/appraisals/${appraisalId}/kpis`, {
         kpiTitle: form.kpiTitle, kpiDescription: form.kpiDescription,
         weightage: parseFloat(form.weightage), targetValue: form.targetValue,
         selfScore: form.selfScore ? parseFloat(form.selfScore) : undefined,
         selfComments: form.selfComments,
       });
-      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "kpis"] });
@@ -680,8 +677,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
       if (canEditSelf) { body.kpiTitle = form.kpiTitle; body.kpiDescription = form.kpiDescription; body.weightage = parseFloat(form.weightage); body.targetValue = form.targetValue; body.selfScore = form.selfScore ? parseFloat(form.selfScore) : undefined; body.selfComments = form.selfComments; }
       if (canEditL1) { body.managerScore = form.managerScore ? parseFloat(form.managerScore) : undefined; body.managerComments = form.managerComments; }
       if (canEditL2) { body.l2Score = form.l2Score ? parseFloat(form.l2Score) : undefined; body.l2Comments = form.l2Comments; }
-      const res = await apiRequest("PUT", `/api/appraisals/${appraisalId}/kpis/${kpiId}`, body);
-      return res.json();
+      return await apiRequest("PUT", `/api/appraisals/${appraisalId}/kpis/${kpiId}`, body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "kpis"] });
@@ -829,11 +825,10 @@ function CompetencySection({ appraisalId, appraisal, competencies, isEmployee, i
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/appraisals/${appraisalId}/competencies`, {
+      return await apiRequest("POST", `/api/appraisals/${appraisalId}/competencies`, {
         competencyName: form.competencyName, competencyDescription: form.competencyDescription,
         selfScore: form.selfScore ? parseFloat(form.selfScore) : undefined, selfComments: form.selfComments,
       });
-      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "competencies"] });
@@ -851,8 +846,7 @@ function CompetencySection({ appraisalId, appraisal, competencies, isEmployee, i
       if (canEditSelf) { body.competencyName = form.competencyName; body.competencyDescription = form.competencyDescription; body.selfScore = form.selfScore ? parseFloat(form.selfScore) : undefined; body.selfComments = form.selfComments; }
       if (canEditL1) { body.managerScore = form.managerScore ? parseFloat(form.managerScore) : undefined; body.managerComments = form.managerComments; }
       if (canEditL2) { body.l2Score = form.l2Score ? parseFloat(form.l2Score) : undefined; body.l2Comments = form.l2Comments; }
-      const res = await apiRequest("PUT", `/api/appraisals/${appraisalId}/competencies/${compId}`, body);
-      return res.json();
+      return await apiRequest("PUT", `/api/appraisals/${appraisalId}/competencies/${compId}`, body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "competencies"] });
@@ -978,8 +972,7 @@ function CommentsSection({ appraisalId, comments, appraisal }: { appraisalId: nu
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/appraisals/${appraisalId}/comments`, { section, comment: newComment });
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/${appraisalId}/comments`, { section, comment: newComment });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "comments"] });
@@ -1071,8 +1064,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
 
   const actionMutation = useMutation({
     mutationFn: async ({ action, body }: { action: string; body: any }) => {
-      const res = await apiRequest("POST", `/api/appraisals/${appraisalId}/${action}`, body);
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/${appraisalId}/${action}`, body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals"] });
@@ -1241,8 +1233,7 @@ function CyclesTab() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/appraisals/cycles", createForm);
-      return res.json();
+      return await apiRequest("POST", "/api/appraisals/cycles", createForm);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
@@ -1254,8 +1245,7 @@ function CyclesTab() {
 
   const activateMutation = useMutation({
     mutationFn: async (cycleId: number) => {
-      const res = await apiRequest("POST", `/api/appraisals/cycles/${cycleId}/activate`, {});
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/cycles/${cycleId}/activate`, {});
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
@@ -1266,8 +1256,7 @@ function CyclesTab() {
 
   const pauseMutation = useMutation({
     mutationFn: async (cycleId: number) => {
-      const res = await apiRequest("POST", `/api/appraisals/cycles/${cycleId}/pause`, { pauseReason: "Paused by administrator" });
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/cycles/${cycleId}/pause`, { pauseReason: "Paused by administrator" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
@@ -1278,8 +1267,7 @@ function CyclesTab() {
 
   const resumeMutation = useMutation({
     mutationFn: async (cycleId: number) => {
-      const res = await apiRequest("POST", `/api/appraisals/cycles/${cycleId}/resume`, {});
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/cycles/${cycleId}/resume`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
@@ -1481,8 +1469,7 @@ function JobsTab() {
 
   const runJobMutation = useMutation({
     mutationFn: async (endpoint: string) => {
-      const res = await apiRequest("POST", `/api/appraisals/jobs/${endpoint}`, {});
-      return res.json();
+      return await apiRequest("POST", `/api/appraisals/jobs/${endpoint}`, {});
     },
     onSuccess: (data: any, endpoint: string) => {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/jobs/status"] });
