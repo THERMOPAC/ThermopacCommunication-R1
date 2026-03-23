@@ -798,12 +798,12 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
         )}
 
         <Dialog open={showAdd || editId !== null} onOpenChange={() => { setShowAdd(false); setEditId(null); }}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editId ? "Edit KPI" : "Add KPI"}</DialogTitle>
               <DialogDescription>{canEditL1 && editId ? "Review and adjust the KPI definition, then provide your manager score." : "Define the KPI with a clear, measurable target."}</DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
               {canEditDefinition && (
                 <div className={`p-2 rounded-lg text-xs font-medium flex items-center justify-between ${weightExceeds ? "bg-red-100 text-red-700" : liveTotal > 99.99 && liveTotal < 100.01 ? "bg-green-100 text-green-700" : "bg-blue-50 text-blue-700"}`}>
                   <span>Weight Budget: {liveTotal.toFixed(1)}% / 100%</span>
