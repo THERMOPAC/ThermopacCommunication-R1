@@ -3801,6 +3801,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     const [employee] = await db.select({
       id: users.id, firstName: users.firstName, lastName: users.lastName,
       username: users.username, cardCode: users.cardCode, cardName: users.cardName, employeeCode: users.employeeCode,
+      loanCardCode: users.loanCardCode,
     }).from(users).where(eq(users.id, record.userId));
     if (!employee) return res.status(400).json({ error: 'Employee not found' });
 
@@ -3999,6 +4000,7 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     const [employee] = await db.select({
       id: users.id, firstName: users.firstName, lastName: users.lastName,
       username: users.username, cardCode: users.cardCode, employeeCode: users.employeeCode,
+      loanCardCode: users.loanCardCode,
     }).from(users).where(eq(users.id, record.userId));
     if (!employee) return res.status(400).json({ error: 'Employee not found' });
 

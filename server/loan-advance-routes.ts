@@ -281,6 +281,7 @@ async function postDisbursementJE(
     username: users.username,
     cardCode: users.cardCode,
     cardName: users.cardName,
+    loanCardCode: users.loanCardCode,
   }).from(users).where(eq(users.id, employeeId));
 
   if (!employee) return { success: false, error: 'Employee not found' };
@@ -329,19 +330,23 @@ async function postDisbursementJE(
   const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
   const postingDate = disbursementDate || new Date().toISOString().split('T')[0];
 
+  const loanCardCode = employee.loanCardCode || null;
+  const debitLine: any = {
+    Line_ID: 0,
+    AccountCode: debitMapping!.glAccountCode,
+    Debit: disbAmount,
+    Credit: 0,
+    LineMemo: `${typeLabel} Disbursement - ${empName} - ${reference}`,
+  };
+  if (loanCardCode) debitLine.ShortName = loanCardCode;
+
   const jePayload = {
     ReferenceDate: postingDate,
     Memo: `${typeLabel} Disbursement - ${empName} - ${reference}`,
     Reference2: employee.cardCode,
     Reference3: reference,
     JournalEntryLines: [
-      {
-        Line_ID: 0,
-        AccountCode: debitMapping!.glAccountCode,
-        Debit: disbAmount,
-        Credit: 0,
-        LineMemo: `${typeLabel} Disbursement - ${empName} - ${reference}`,
-      },
+      debitLine,
       {
         Line_ID: 1,
         AccountCode: creditMapping!.glAccountCode,
@@ -513,6 +518,7 @@ export async function postReversalJE(
     lastName: users.lastName,
     username: users.username,
     cardCode: users.cardCode,
+    loanCardCode: users.loanCardCode,
   }).from(users).where(eq(users.id, employeeId));
 
   const empName = employee?.firstName && employee?.lastName
@@ -537,6 +543,16 @@ export async function postReversalJE(
 
   const typeLabel = type === 'loan' ? 'Loan' : 'Advance';
   const postingDate = new Date().toISOString().split('T')[0];
+  const revLoanCardCode = employee?.loanCardCode || null;
+
+  const creditLine: any = {
+    Line_ID: 1,
+    AccountCode: debitMapping.glAccountCode,
+    Debit: 0,
+    Credit: amount,
+    LineMemo: `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`,
+  };
+  if (revLoanCardCode) creditLine.ShortName = revLoanCardCode;
 
   const jePayload = {
     ReferenceDate: postingDate,
@@ -551,13 +567,7 @@ export async function postReversalJE(
         Credit: 0,
         LineMemo: `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`,
       },
-      {
-        Line_ID: 1,
-        AccountCode: debitMapping.glAccountCode,
-        Debit: 0,
-        Credit: amount,
-        LineMemo: `REVERSAL - ${typeLabel} Disbursement - ${empName} - ${reference}`,
-      },
+      creditLine,
     ],
   };
 
