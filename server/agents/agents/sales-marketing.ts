@@ -380,7 +380,8 @@ export class SalesMarketingAgent implements IAgent {
 
     const escalatedLeads = leadRows.filter(l =>
       l.status_id !== 6 && l.status_id !== 7 &&
-      Number(l.days_since_contact) >= settings.stale_lead_escalation_days
+      Number(l.days_since_contact) >= settings.stale_lead_escalation_days &&
+      Number(l.days_since_contact) <= 180
     );
 
     if (escalatedLeads.length > 0) {
@@ -399,7 +400,10 @@ export class SalesMarketingAgent implements IAgent {
       if (finding) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_ESCALATION_TASKS = 5;
+        let escalationTaskCount = 0;
         for (const lead of escalatedLeads) {
+          if (escalationTaskCount >= MAX_ESCALATION_TASKS) break;
           const fp = makeFingerprint('stale_lead_s2', `lead:${lead.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
@@ -422,7 +426,7 @@ export class SalesMarketingAgent implements IAgent {
             description: "Auto-generated task from Sales & Marketing Agent",
             assignTo: L2,
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; escalationTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -433,7 +437,8 @@ export class SalesMarketingAgent implements IAgent {
 
     const stuckLeads = leadRows.filter(l =>
       l.status_id !== 6 && l.status_id !== 7 &&
-      Number(l.days_since_update) >= settings.lead_stuck_days
+      Number(l.days_since_update) >= settings.lead_stuck_days &&
+      Number(l.days_since_update) <= 180
     );
 
     if (stuckLeads.length > 0) {
@@ -452,7 +457,10 @@ export class SalesMarketingAgent implements IAgent {
       if (finding) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_STUCK_TASKS = 5;
+        let stuckTaskCount = 0;
         for (const lead of stuckLeads) {
+          if (stuckTaskCount >= MAX_STUCK_TASKS) break;
           const fp = makeFingerprint('lead_stuck_s3', `lead:${lead.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 30)) continue;
@@ -475,7 +483,7 @@ export class SalesMarketingAgent implements IAgent {
             description: "Auto-generated task from Sales & Marketing Agent",
             assignTo: L1,
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; stuckTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -506,7 +514,10 @@ export class SalesMarketingAgent implements IAgent {
       if (finding) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_HV_TASKS = 5;
+        let hvTaskCount = 0;
         for (const lead of highValueNeglected) {
+          if (hvTaskCount >= MAX_HV_TASKS) break;
           const fp = makeFingerprint('high_value_lead', `lead:${lead.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
@@ -529,7 +540,7 @@ export class SalesMarketingAgent implements IAgent {
             description: "Auto-generated task from Sales & Marketing Agent",
             assignTo: L2,
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; hvTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -559,7 +570,10 @@ export class SalesMarketingAgent implements IAgent {
       if (finding) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_CLOSE_TASKS = 5;
+        let closeTaskCount = 0;
         for (const lead of pastCloseDate) {
+          if (closeTaskCount >= MAX_CLOSE_TASKS) break;
           const fp = makeFingerprint('past_close', `lead:${lead.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
@@ -582,7 +596,7 @@ export class SalesMarketingAgent implements IAgent {
             description: "Auto-generated task from Sales & Marketing Agent",
             assignTo: L1,
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; closeTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
