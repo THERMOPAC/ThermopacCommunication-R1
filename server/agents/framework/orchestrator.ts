@@ -12,6 +12,7 @@ import type { IAgent, AgentRunContext, TriggerType } from './types';
 class Orchestrator {
   private agents: Map<string, IAgent> = new Map();
   private runningAgents: Set<string> = new Set();
+  private triggerLocks: Set<string> = new Set();
   private schedulerIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   registerAgent(agent: IAgent): void {
@@ -35,6 +36,26 @@ class Orchestrator {
     companyScope: string = 'ALL',
     locationScope: string = 'ALL'
   ): Promise<{ runId: number; result: any } | { error: string }> {
+    if (this.triggerLocks.has(agentKey)) {
+      console.log(`[Orchestrator] Skipping duplicate trigger for ${agentKey} — trigger already in progress.`);
+      return { error: `Agent ${agentKey} trigger already in progress` };
+    }
+    this.triggerLocks.add(agentKey);
+
+    try {
+      return await this._executeTrigger(agentKey, triggerType, triggerDetail, companyScope, locationScope);
+    } finally {
+      this.triggerLocks.delete(agentKey);
+    }
+  }
+
+  private async _executeTrigger(
+    agentKey: string,
+    triggerType: TriggerType,
+    triggerDetail: string,
+    companyScope: string,
+    locationScope: string
+  ): Promise<{ runId: number; result: any } | { error: string }> {
     const agent = this.agents.get(agentKey);
     if (!agent) {
       return { error: `Agent ${agentKey} not registered` };
@@ -56,6 +77,7 @@ class Orchestrator {
     }
 
     if (this.runningAgents.has(agentKey)) {
+      console.log(`[Orchestrator] Skipping ${agentKey} — already running.`);
       return { error: `Agent ${agentKey} is already running (conflict control)` };
     }
 
