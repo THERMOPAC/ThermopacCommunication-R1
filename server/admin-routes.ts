@@ -125,7 +125,10 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
         // Work Time Policy fields
         workTimePolicy: users.workTimePolicy,
         minimumDailyHours: users.minimumDailyHours,
-        halfDayMinimumHours: users.halfDayMinimumHours
+        halfDayMinimumHours: users.halfDayMinimumHours,
+        weeklyOffDays: users.weeklyOffDays,
+        salaryType: users.salaryType,
+        otApplicable: users.otApplicable
       })
       .from(users)
       .orderBy(asc(users.firstName));
