@@ -363,14 +363,51 @@ const NARRATIVE_SECTIONS = [
   { title: "Goals for Next Period", hint: "Your professional goals and development plans" },
 ];
 
+function parseSections(text: string): Record<string, string> {
+  const sections: Record<string, string> = { achievements: "", challenges: "", skills: "", contributions: "", goals: "" };
+  if (!text) return sections;
+  const keys = Object.keys(sections);
+  const markers = ["KEY ACHIEVEMENTS", "CHALLENGES FACED", "SKILL IMPROVEMENTS", "TEAM / PROJECT CONTRIBUTIONS", "GOALS FOR NEXT PERIOD"];
+  let currentKey = "";
+  for (const line of text.split("\n")) {
+    const upperLine = line.trim().toUpperCase();
+    const markerIdx = markers.findIndex(m => upperLine.includes(m));
+    if (markerIdx >= 0) { currentKey = keys[markerIdx]; continue; }
+    if (currentKey) sections[currentKey] += (sections[currentKey] ? "\n" : "") + line;
+    else sections.achievements += (sections.achievements ? "\n" : "") + line;
+  }
+  for (const k of keys) sections[k] = sections[k].trim();
+  return sections;
+}
+
+function combineSections(s: Record<string, string>): string {
+  const parts: string[] = [];
+  if (s.achievements) parts.push(`KEY ACHIEVEMENTS\n${s.achievements}`);
+  if (s.challenges) parts.push(`CHALLENGES FACED\n${s.challenges}`);
+  if (s.skills) parts.push(`SKILL IMPROVEMENTS\n${s.skills}`);
+  if (s.contributions) parts.push(`TEAM / PROJECT CONTRIBUTIONS\n${s.contributions}`);
+  if (s.goals) parts.push(`GOALS FOR NEXT PERIOD\n${s.goals}`);
+  return parts.join("\n\n");
+}
+
 function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: any; isEmployee: boolean; appraisalId: number }) {
   const { toast } = useToast();
-  const [narrative, setNarrative] = useState(appraisal.selfAssessmentNarrative || "");
+  const initialSections = parseSections(appraisal.selfAssessmentNarrative || "");
+  const [sections, setSections] = useState(initialSections);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const canEdit = isEmployee && appraisal.status === "open" && !appraisal.isLocked;
+  const narrative = combineSections(sections);
   const charCount = narrative.trim().length;
   const isValid = charCount >= NARRATIVE_MIN_LENGTH;
+  const filledCount = NARRATIVE_SECTIONS.filter((_, i) => {
+    const keys = ["achievements", "challenges", "skills", "contributions", "goals"];
+    return sections[keys[i]]?.trim().length > 0;
+  }).length;
   const wasReopened = !!appraisal.reopenedAt;
+
+  const updateSection = (key: string, value: string) => {
+    setSections(prev => ({ ...prev, [key]: value }));
+  };
 
   const saveDraftMutation = useMutation({
     mutationFn: async () => {
@@ -400,6 +437,8 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
     onError: (e: any) => { setShowSubmitConfirm(false); toast({ title: "Submission Failed", description: e.message, variant: "destructive" }); },
   });
 
+  const sectionKeys = ["achievements", "challenges", "skills", "contributions", "goals"];
+
   return (
     <div className="space-y-4">
       <Card>
@@ -411,12 +450,13 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
               </CardTitle>
               <CardDescription>
                 {canEdit
-                  ? "Write a comprehensive self-assessment covering the areas below. Minimum 150 characters required."
+                  ? "Fill in each section below with your self-assessment. Minimum 150 characters total required."
                   : appraisal.status === "open" ? "Only the employee can edit this section." : "Submitted — read-only view."}
               </CardDescription>
             </div>
             {canEdit && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">{filledCount}/5 sections</span>
                 <span className={`text-xs font-medium px-2 py-1 rounded ${isValid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                   {charCount} / {NARRATIVE_MIN_LENGTH} min chars
                 </span>
@@ -438,31 +478,41 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
 
           {canEdit ? (
             <>
-              <div className="grid md:grid-cols-5 gap-2 mb-2">
-                {NARRATIVE_SECTIONS.map((section, i) => (
-                  <div key={i} className="p-2 bg-blue-50 rounded-lg border border-blue-100">
-                    <p className="text-xs font-semibold text-blue-800">{i + 1}. {section.title}</p>
-                    <p className="text-xs text-blue-600 mt-0.5">{section.hint}</p>
+              {NARRATIVE_SECTIONS.map((section, i) => {
+                const key = sectionKeys[i];
+                const hasContent = sections[key]?.trim().length > 0;
+                return (
+                  <div key={i} className="border rounded-lg overflow-hidden">
+                    <div className={`flex items-center gap-2 px-4 py-2.5 ${hasContent ? "bg-green-50 border-b border-green-100" : "bg-gray-50 border-b"}`}>
+                      <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${hasContent ? "bg-green-600 text-white" : "bg-gray-300 text-white"}`}>
+                        {hasContent ? <CheckCircle className="h-3.5 w-3.5" /> : i + 1}
+                      </span>
+                      <span className="font-medium text-sm">{section.title}</span>
+                      {hasContent && <span className="text-xs text-green-600 ml-auto">{sections[key].trim().length} chars</span>}
+                    </div>
+                    <div className="p-3">
+                      <Textarea
+                        value={sections[key]}
+                        onChange={e => updateSection(key, e.target.value)}
+                        rows={3}
+                        placeholder={`Type here: ${section.hint}`}
+                        className="border-dashed text-sm resize-none focus:border-solid"
+                      />
+                    </div>
                   </div>
-                ))}
-              </div>
-
-              <Textarea
-                value={narrative}
-                onChange={e => setNarrative(e.target.value)}
-                rows={12}
-                placeholder={NARRATIVE_PLACEHOLDER}
-                className={`font-mono text-sm ${!isValid && charCount > 0 ? "border-red-300 focus-visible:ring-red-400" : ""}`}
-              />
+                );
+              })}
 
               {!isValid && charCount > 0 && (
                 <p className="text-xs text-red-600 flex items-center gap-1">
                   <AlertCircle className="h-3.5 w-3.5" />
-                  Minimum {NARRATIVE_MIN_LENGTH} characters required. You need {NARRATIVE_MIN_LENGTH - charCount} more.
+                  Minimum {NARRATIVE_MIN_LENGTH} characters total required. You need {NARRATIVE_MIN_LENGTH - charCount} more.
                 </p>
               )}
 
-              <div className="flex items-center gap-3 pt-2">
+              <Separator />
+
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="sm"
@@ -481,16 +531,42 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
                   <Send className="h-4 w-4 mr-1" /> Submit Self-Assessment
                 </Button>
                 {!isValid && (
-                  <span className="text-xs text-muted-foreground">Complete the narrative to enable submission</span>
+                  <span className="text-xs text-muted-foreground">Fill in all sections to enable submission</span>
                 )}
               </div>
             </>
           ) : (
             <div className="space-y-3">
               {appraisal.selfAssessmentNarrative ? (
-                <div className="p-4 bg-gray-50 rounded-lg border">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{appraisal.selfAssessmentNarrative}</p>
-                </div>
+                <>
+                  {(() => {
+                    const parsed = parseSections(appraisal.selfAssessmentNarrative);
+                    const hasStructured = Object.values(parsed).some(v => v.trim().length > 0);
+                    if (hasStructured) {
+                      return NARRATIVE_SECTIONS.map((section, i) => {
+                        const key = ["achievements", "challenges", "skills", "contributions", "goals"][i];
+                        const content = parsed[key];
+                        if (!content) return null;
+                        return (
+                          <div key={i} className="border rounded-lg overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b">
+                              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold">{i + 1}</span>
+                              <span className="font-medium text-sm">{section.title}</span>
+                            </div>
+                            <div className="p-3">
+                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>
+                            </div>
+                          </div>
+                        );
+                      });
+                    }
+                    return (
+                      <div className="p-4 bg-gray-50 rounded-lg border">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{appraisal.selfAssessmentNarrative}</p>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 <div className="text-center py-6 text-muted-foreground">
                   <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
