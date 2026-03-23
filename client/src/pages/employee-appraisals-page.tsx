@@ -19,7 +19,8 @@ import {
   Award, Users, Calendar, Clock, Target, Star, FileText, Settings,
   Plus, Edit, Trash2, Send, CheckCircle, AlertCircle, Eye, Play,
   Pause, RotateCcw, BarChart3, ChevronRight, Loader2, Shield,
-  TrendingUp, UserCheck, AlertTriangle, ClipboardCheck
+  TrendingUp, UserCheck, AlertTriangle, ClipboardCheck, Library,
+  Archive, Power, GripVertical, Copy
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -85,6 +86,7 @@ export default function EmployeeAppraisalsPage() {
       t.push({ id: "all-appraisals", label: "All Appraisals", icon: Users });
       t.push({ id: "cycles", label: "Cycles", icon: Calendar });
       t.push({ id: "templates", label: "Templates", icon: Settings });
+      t.push({ id: "kpi-templates", label: "KPI Library", icon: Library });
       t.push({ id: "jobs", label: "Jobs & Status", icon: Play });
     }
     return t;
@@ -115,6 +117,7 @@ export default function EmployeeAppraisalsPage() {
         <TabsContent value="all-appraisals"><AppraisalListTab view="all" /></TabsContent>
         <TabsContent value="cycles"><CyclesTab /></TabsContent>
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
+        <TabsContent value="kpi-templates"><KpiTemplateLibraryTab /></TabsContent>
         <TabsContent value="jobs"><JobsTab /></TabsContent>
       </Tabs>
     </div>
@@ -1646,6 +1649,401 @@ function JobsTab() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+const HIERARCHY_LEVELS = [
+  { value: 'L1', label: 'L1 - Individual Contributor', desc: 'No direct reports' },
+  { value: 'L2', label: 'L2 - Manager', desc: 'Manages employees' },
+  { value: 'L3', label: 'L3 - Senior Manager', desc: 'Manages managers' },
+];
+
+function KpiTemplateLibraryTab() {
+  const { toast } = useToast();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [expandedTemplateId, setExpandedTemplateId] = useState<number | null>(null);
+  const [showItemDialog, setShowItemDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [itemTemplateId, setItemTemplateId] = useState<number | null>(null);
+  const [filterDept, setFilterDept] = useState<string>('all');
+  const [filterLevel, setFilterLevel] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+
+  const [tplForm, setTplForm] = useState({ name: '', department: '', hierarchyLevel: 'L1', description: '' });
+  const [itemForm, setItemForm] = useState({ kpiTitle: '', kpiDescription: '', defaultWeightage: '', targetGuidance: '', sortOrder: 0 });
+
+  const { data: templates = [], isLoading } = useQuery<any[]>({ queryKey: ['/api/appraisals/kpi-templates'] });
+
+  const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/appraisals/all-appraisals'] });
+
+  const departments = useMemo(() => {
+    const deptSet = new Set<string>();
+    (templates || []).forEach((t: any) => { if (t.department) deptSet.add(t.department); });
+    (allUsers || []).forEach((a: any) => { if (a.department) deptSet.add(a.department); });
+    return Array.from(deptSet).sort();
+  }, [templates, allUsers]);
+
+  const filteredTemplates = useMemo(() => {
+    return (templates || []).filter((t: any) => {
+      if (filterDept !== 'all' && t.department !== filterDept) return false;
+      if (filterLevel !== 'all' && t.hierarchyLevel !== filterLevel) return false;
+      if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+      return true;
+    });
+  }, [templates, filterDept, filterLevel, filterStatus]);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => apiRequest('/api/appraisals/kpi-templates', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowCreateDialog(false); toast({ title: 'Template created' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest(`/api/appraisals/kpi-templates/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setEditingTemplate(null); toast({ title: 'Template updated' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest(`/api/appraisals/kpi-templates/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template deleted' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest(`/api/appraisals/kpi-templates/${id}/activate`, { method: 'POST' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template activated' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: async (id: number) => apiRequest(`/api/appraisals/kpi-templates/${id}/archive`, { method: 'POST' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template archived' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: async ({ templateId, data }: { templateId: number; data: any }) => apiRequest(`/api/appraisals/kpi-templates/${templateId}/items`, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowItemDialog(false); toast({ title: 'KPI added' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ templateId, itemId, data }: { templateId: number; itemId: number; data: any }) => apiRequest(`/api/appraisals/kpi-templates/${templateId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowItemDialog(false); setEditingItem(null); toast({ title: 'KPI updated' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: async ({ templateId, itemId }: { templateId: number; itemId: number }) => apiRequest(`/api/appraisals/kpi-templates/${templateId}/items/${itemId}`, { method: 'DELETE' }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'KPI removed' }); },
+    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const openCreateDialog = () => {
+    setTplForm({ name: '', department: '', hierarchyLevel: 'L1', description: '' });
+    setShowCreateDialog(true);
+  };
+
+  const openEditDialog = (t: any) => {
+    setTplForm({ name: t.name, department: t.department, hierarchyLevel: t.hierarchyLevel, description: t.description || '' });
+    setEditingTemplate(t);
+  };
+
+  const openAddItemDialog = (templateId: number) => {
+    setItemForm({ kpiTitle: '', kpiDescription: '', defaultWeightage: '', targetGuidance: '', sortOrder: 0 });
+    setItemTemplateId(templateId);
+    setEditingItem(null);
+    setShowItemDialog(true);
+  };
+
+  const openEditItemDialog = (templateId: number, item: any) => {
+    setItemForm({
+      kpiTitle: item.kpiTitle, kpiDescription: item.kpiDescription || '',
+      defaultWeightage: item.defaultWeightage, targetGuidance: item.targetGuidance || '',
+      sortOrder: item.sortOrder || 0,
+    });
+    setItemTemplateId(templateId);
+    setEditingItem(item);
+    setShowItemDialog(true);
+  };
+
+  const handleSubmitTemplate = () => {
+    if (!tplForm.name || !tplForm.department || !tplForm.hierarchyLevel) {
+      toast({ title: 'Missing fields', description: 'Name, department, and level are required', variant: 'destructive' });
+      return;
+    }
+    if (editingTemplate) {
+      updateMutation.mutate({ id: editingTemplate.id, data: tplForm });
+    } else {
+      createMutation.mutate(tplForm);
+    }
+  };
+
+  const handleSubmitItem = () => {
+    if (!itemForm.kpiTitle || !itemForm.defaultWeightage) {
+      toast({ title: 'Missing fields', description: 'KPI title and weight are required', variant: 'destructive' });
+      return;
+    }
+    const weight = parseFloat(itemForm.defaultWeightage);
+    if (isNaN(weight) || weight <= 0 || weight > 100) {
+      toast({ title: 'Invalid weight', description: 'Weight must be between 0.01 and 100', variant: 'destructive' });
+      return;
+    }
+    if (editingItem) {
+      updateItemMutation.mutate({ templateId: itemTemplateId!, itemId: editingItem.id, data: { ...itemForm, defaultWeightage: weight } });
+    } else {
+      addItemMutation.mutate({ templateId: itemTemplateId!, data: { ...itemForm, defaultWeightage: weight } });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = { draft: 'bg-gray-100 text-gray-800', active: 'bg-green-100 text-green-800', archived: 'bg-orange-100 text-orange-800' };
+    return <Badge className={`${colors[status] || 'bg-gray-100'} border-0`}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
+  };
+
+  const getLevelBadge = (level: string) => {
+    const colors: Record<string, string> = { L1: 'bg-blue-100 text-blue-800', L2: 'bg-purple-100 text-purple-800', L3: 'bg-indigo-100 text-indigo-800' };
+    return <Badge className={`${colors[level] || 'bg-gray-100'} border-0`}>{level}</Badge>;
+  };
+
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2"><Library className="h-5 w-5 text-blue-600" /> KPI Template Library</CardTitle>
+              <CardDescription>Define standard KPIs per department and hierarchy level. Active templates auto-populate KPIs when new appraisal cycles are activated.</CardDescription>
+            </div>
+            <Button onClick={openCreateDialog} size="sm"><Plus className="h-4 w-4 mr-1" /> New Template</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 mb-4 flex-wrap">
+            <Select value={filterDept} onValueChange={setFilterDept}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Department" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterLevel} onValueChange={setFilterLevel}>
+              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Level" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Levels</SelectItem>
+                {HIERARCHY_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredTemplates.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Library className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p>No KPI templates found. Create one to get started.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredTemplates.map((tpl: any) => (
+                <Card key={tpl.id} className={`border ${tpl.status === 'active' ? 'border-green-300 bg-green-50/30' : ''}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm">{tpl.name}</span>
+                          {getStatusBadge(tpl.status)}
+                          {getLevelBadge(tpl.hierarchyLevel)}
+                          <Badge variant="outline" className="text-xs">{tpl.department}</Badge>
+                        </div>
+                        {tpl.description && <p className="text-xs text-muted-foreground mb-2">{tpl.description}</p>}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{tpl.itemCount} KPI{tpl.itemCount !== 1 ? 's' : ''}</span>
+                          <span className={tpl.totalWeight === 100 ? 'text-green-600 font-medium' : tpl.totalWeight > 100 ? 'text-red-600 font-medium' : 'text-amber-600'}>
+                            Weight: {tpl.totalWeight?.toFixed(1)}%{tpl.totalWeight === 100 ? ' ✓' : ''}
+                          </span>
+                          <span>Updated {new Date(tpl.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setExpandedTemplateId(expandedTemplateId === tpl.id ? null : tpl.id)} title="View KPIs">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {tpl.status !== 'archived' && (
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(tpl)} title="Edit"><Edit className="h-4 w-4" /></Button>
+                        )}
+                        {tpl.status === 'draft' && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => activateMutation.mutate(tpl.id)} disabled={activateMutation.isPending} title="Activate">
+                              <Power className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => { if (confirm('Delete this template?')) deleteMutation.mutate(tpl.id); }} disabled={deleteMutation.isPending} title="Delete">
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </>
+                        )}
+                        {tpl.status === 'active' && (
+                          <Button variant="ghost" size="sm" onClick={() => archiveMutation.mutate(tpl.id)} disabled={archiveMutation.isPending} title="Archive">
+                            <Archive className="h-4 w-4 text-orange-500" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {expandedTemplateId === tpl.id && (
+                      <div className="mt-4 pt-3 border-t">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-medium">KPI Items</h4>
+                          {tpl.status !== 'archived' && (
+                            <Button variant="outline" size="sm" onClick={() => openAddItemDialog(tpl.id)}>
+                              <Plus className="h-3 w-3 mr-1" /> Add KPI
+                            </Button>
+                          )}
+                        </div>
+                        {(!tpl.items || tpl.items.length === 0) ? (
+                          <p className="text-xs text-muted-foreground py-3 text-center">No KPI items yet. Add KPIs to this template.</p>
+                        ) : (
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[30px]">#</TableHead>
+                                <TableHead>KPI Title</TableHead>
+                                <TableHead>Description</TableHead>
+                                <TableHead className="w-[80px]">Weight</TableHead>
+                                <TableHead>Target Guidance</TableHead>
+                                {tpl.status !== 'archived' && <TableHead className="w-[80px]">Actions</TableHead>}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {tpl.items.map((item: any, idx: number) => (
+                                <TableRow key={item.id}>
+                                  <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
+                                  <TableCell className="font-medium text-sm">{item.kpiTitle}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{item.kpiDescription || '-'}</TableCell>
+                                  <TableCell><Badge variant="outline">{parseFloat(item.defaultWeightage).toFixed(1)}%</Badge></TableCell>
+                                  <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{item.targetGuidance || '-'}</TableCell>
+                                  {tpl.status !== 'archived' && (
+                                    <TableCell>
+                                      <div className="flex gap-1">
+                                        <Button variant="ghost" size="sm" onClick={() => openEditItemDialog(tpl.id, item)} className="h-7 w-7 p-0"><Edit className="h-3 w-3" /></Button>
+                                        <Button variant="ghost" size="sm" onClick={() => { if (confirm('Remove this KPI?')) deleteItemMutation.mutate({ templateId: tpl.id, itemId: item.id }); }} className="h-7 w-7 p-0"><Trash2 className="h-3 w-3 text-red-500" /></Button>
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showCreateDialog || !!editingTemplate} onOpenChange={(open) => { if (!open) { setShowCreateDialog(false); setEditingTemplate(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? 'Edit KPI Template' : 'Create KPI Template'}</DialogTitle>
+            <DialogDescription>Define a KPI template for a specific department and hierarchy level.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Template Name</Label>
+              <Input value={tplForm.name} onChange={e => setTplForm({ ...tplForm, name: e.target.value })} placeholder="e.g., Production L2 KPIs 2026" />
+            </div>
+            <div>
+              <Label>Department</Label>
+              {departments.length > 0 ? (
+                <Select value={tplForm.department} onValueChange={v => setTplForm({ ...tplForm, department: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                  <SelectContent>
+                    {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={tplForm.department} onChange={e => setTplForm({ ...tplForm, department: e.target.value })} placeholder="e.g., Production" />
+              )}
+            </div>
+            <div>
+              <Label>Hierarchy Level</Label>
+              <Select value={tplForm.hierarchyLevel} onValueChange={v => setTplForm({ ...tplForm, hierarchyLevel: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {HIERARCHY_LEVELS.map(l => <SelectItem key={l.value} value={l.value}><span className="font-medium">{l.value}</span> — {l.desc}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Textarea value={tplForm.description} onChange={e => setTplForm({ ...tplForm, description: e.target.value })} placeholder="Brief description of this template..." rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowCreateDialog(false); setEditingTemplate(null); }}>Cancel</Button>
+            <Button onClick={handleSubmitTemplate} disabled={createMutation.isPending || updateMutation.isPending}>
+              {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {editingTemplate ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showItemDialog} onOpenChange={(open) => { if (!open) { setShowItemDialog(false); setEditingItem(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingItem ? 'Edit KPI Item' : 'Add KPI Item'}</DialogTitle>
+            <DialogDescription>Define a KPI that will be auto-populated into appraisals.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>KPI Title</Label>
+              <Input value={itemForm.kpiTitle} onChange={e => setItemForm({ ...itemForm, kpiTitle: e.target.value })} placeholder="e.g., Revenue Growth" />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Textarea value={itemForm.kpiDescription} onChange={e => setItemForm({ ...itemForm, kpiDescription: e.target.value })} placeholder="Detailed description..." rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Weight (%)</Label>
+                <Input type="number" min="0.01" max="100" step="0.1" value={itemForm.defaultWeightage} onChange={e => setItemForm({ ...itemForm, defaultWeightage: e.target.value })} placeholder="e.g., 25" />
+              </div>
+              <div>
+                <Label>Sort Order</Label>
+                <Input type="number" min="0" value={itemForm.sortOrder} onChange={e => setItemForm({ ...itemForm, sortOrder: parseInt(e.target.value) || 0 })} />
+              </div>
+            </div>
+            <div>
+              <Label>Target Guidance (optional)</Label>
+              <Textarea value={itemForm.targetGuidance} onChange={e => setItemForm({ ...itemForm, targetGuidance: e.target.value })} placeholder="Sample target/expected outcome..." rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowItemDialog(false); setEditingItem(null); }}>Cancel</Button>
+            <Button onClick={handleSubmitItem} disabled={addItemMutation.isPending || updateItemMutation.isPending}>
+              {(addItemMutation.isPending || updateItemMutation.isPending) && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {editingItem ? 'Update' : 'Add KPI'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   appraisalCycleTemplates, appraisalCycles, employeeAppraisals,
   employeeAppraisalKpis, employeeAppraisalCompetencies,
   appraisalComments, appraisalApprovals, appraisalAuditLog,
+  appraisalKpiTemplates, appraisalKpiTemplateItems,
   users, notifications,
   InsertAppraisalCycleTemplate, InsertAppraisalCycle, InsertEmployeeAppraisal,
   insertAppraisalCycleTemplateSchema, insertAppraisalCycleSchema, insertEmployeeAppraisalSchema
@@ -1333,6 +1334,36 @@ async function runActivationJob(dryRun: boolean = false): Promise<{ activatedCyc
         }).returning();
         createdAppraisals.push({ appraisalId: appraisal.id, employeeId: emp.id, name: empName });
         appraisalCount++;
+
+        try {
+          const empLevel = await getHierarchyLevel(emp.id);
+          const empDept = emp.department || '';
+          if (empDept) {
+            const [activeTemplate] = await db.select().from(appraisalKpiTemplates)
+              .where(and(
+                eq(appraisalKpiTemplates.department, empDept),
+                eq(appraisalKpiTemplates.hierarchyLevel, empLevel),
+                eq(appraisalKpiTemplates.status, 'active')
+              ));
+            if (activeTemplate) {
+              const templateItems = await db.select().from(appraisalKpiTemplateItems)
+                .where(eq(appraisalKpiTemplateItems.templateId, activeTemplate.id))
+                .orderBy(appraisalKpiTemplateItems.sortOrder);
+              for (const item of templateItems) {
+                await db.insert(employeeAppraisalKpis).values({
+                  appraisalId: appraisal.id,
+                  kpiTitle: item.kpiTitle,
+                  kpiDescription: item.kpiDescription || undefined,
+                  weightage: item.defaultWeightage,
+                  target: item.targetGuidance || undefined,
+                });
+              }
+            }
+          }
+        } catch (kpiErr: any) {
+          // KPI auto-pop is best-effort; don't block appraisal creation
+        }
+
         await logAudit('appraisal', appraisal.id, 'appraisal_auto_created', null, 'System', true, { cycleId: cycle.id, employeeId: emp.id });
       } catch (err: any) {
         errors.push({ cycleId: cycle.id, employeeId: emp.id, name: empName, error: err.message });
@@ -1578,6 +1609,213 @@ router.get('/jobs/status', ensureAuthenticated, async (req: Request, res: Respon
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch job status' });
+  }
+});
+
+// ==========================================
+// KPI TEMPLATE LIBRARY (Department + Level)
+// ==========================================
+
+async function getHierarchyLevel(userId: number): Promise<'L1' | 'L2' | 'L3'> {
+  const directReports = await db.select({ id: users.id }).from(users)
+    .where(and(eq(users.reportingManagerId, userId), eq(users.isActive, true)));
+  if (directReports.length === 0) return 'L1';
+  for (const report of directReports) {
+    const subReports = await db.select({ id: users.id }).from(users)
+      .where(and(eq(users.reportingManagerId, report.id), eq(users.isActive, true)));
+    if (subReports.length > 0) return 'L3';
+  }
+  return 'L2';
+}
+
+router.get('/kpi-templates', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const templates = await db.select().from(appraisalKpiTemplates).orderBy(appraisalKpiTemplates.department, appraisalKpiTemplates.hierarchyLevel);
+    const allItems = await db.select().from(appraisalKpiTemplateItems).orderBy(appraisalKpiTemplateItems.sortOrder);
+    const result = templates.map(t => ({
+      ...t,
+      items: allItems.filter(i => i.templateId === t.id),
+      itemCount: allItems.filter(i => i.templateId === t.id).length,
+      totalWeight: allItems.filter(i => i.templateId === t.id).reduce((s, i) => s + (parseFloat(i.defaultWeightage) || 0), 0),
+    }));
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch KPI templates' });
+  }
+});
+
+router.post('/kpi-templates', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+
+    const { name, department, hierarchyLevel, description } = req.body;
+    if (!name || !department || !hierarchyLevel) return res.status(400).json({ error: 'Name, department, and hierarchy level are required' });
+    if (!['L1', 'L2', 'L3'].includes(hierarchyLevel)) return res.status(400).json({ error: 'Hierarchy level must be L1, L2, or L3' });
+
+    const [template] = await db.insert(appraisalKpiTemplates).values({
+      name, department, hierarchyLevel, description, status: 'draft', createdBy: user.id,
+    }).returning();
+
+    await logAudit('kpi_template', template.id, 'kpi_template_created', user.id, getUserDisplayName(user), false, { name, department, hierarchyLevel });
+    res.status(201).json(template);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to create KPI template' });
+  }
+});
+
+router.put('/kpi-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const id = parseInt(req.params.id);
+
+    const { name, department, hierarchyLevel, description } = req.body;
+    const [updated] = await db.update(appraisalKpiTemplates)
+      .set({ name, department, hierarchyLevel, description, updatedAt: new Date() })
+      .where(eq(appraisalKpiTemplates.id, id)).returning();
+    if (!updated) return res.status(404).json({ error: 'Template not found' });
+
+    await logAudit('kpi_template', id, 'kpi_template_updated', user.id, getUserDisplayName(user), false, req.body);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update KPI template' });
+  }
+});
+
+router.delete('/kpi-templates/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const id = parseInt(req.params.id);
+    const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, id));
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+    if (template.status === 'active') return res.status(400).json({ error: 'Cannot delete an active template. Archive it first.' });
+
+    await db.delete(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, id));
+    await logAudit('kpi_template', id, 'kpi_template_deleted', user.id, getUserDisplayName(user), false, { name: template.name });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to delete KPI template' });
+  }
+});
+
+router.post('/kpi-templates/:id/activate', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const id = parseInt(req.params.id);
+    const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, id));
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+
+    const items = await db.select().from(appraisalKpiTemplateItems).where(eq(appraisalKpiTemplateItems.templateId, id));
+    if (items.length === 0) return res.status(400).json({ error: 'Template must have at least one KPI item before activation' });
+    const totalWeight = items.reduce((s, i) => s + (parseFloat(i.defaultWeightage) || 0), 0);
+    if (Math.abs(totalWeight - 100) > 0.01) return res.status(400).json({ error: `KPI weights must sum to 100% (current: ${totalWeight.toFixed(1)}%)` });
+
+    const [existing] = await db.select().from(appraisalKpiTemplates)
+      .where(and(
+        eq(appraisalKpiTemplates.department, template.department),
+        eq(appraisalKpiTemplates.hierarchyLevel, template.hierarchyLevel),
+        eq(appraisalKpiTemplates.status, 'active'),
+        ne(appraisalKpiTemplates.id, id)
+      ));
+    if (existing) {
+      await db.update(appraisalKpiTemplates).set({ status: 'archived', updatedAt: new Date() }).where(eq(appraisalKpiTemplates.id, existing.id));
+    }
+
+    const [updated] = await db.update(appraisalKpiTemplates).set({ status: 'active', updatedAt: new Date() }).where(eq(appraisalKpiTemplates.id, id)).returning();
+    await logAudit('kpi_template', id, 'kpi_template_activated', user.id, getUserDisplayName(user), false, { name: template.name, previousActive: existing?.id });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to activate KPI template' });
+  }
+});
+
+router.post('/kpi-templates/:id/archive', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const id = parseInt(req.params.id);
+    const [updated] = await db.update(appraisalKpiTemplates).set({ status: 'archived', updatedAt: new Date() }).where(eq(appraisalKpiTemplates.id, id)).returning();
+    if (!updated) return res.status(404).json({ error: 'Template not found' });
+    await logAudit('kpi_template', id, 'kpi_template_archived', user.id, getUserDisplayName(user), false, { name: updated.name });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to archive KPI template' });
+  }
+});
+
+router.get('/kpi-templates/:id/items', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const items = await db.select().from(appraisalKpiTemplateItems)
+      .where(eq(appraisalKpiTemplateItems.templateId, parseInt(req.params.id)))
+      .orderBy(appraisalKpiTemplateItems.sortOrder);
+    res.json(items);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch template items' });
+  }
+});
+
+router.post('/kpi-templates/:id/items', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const templateId = parseInt(req.params.id);
+    const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, templateId));
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+
+    const { kpiTitle, kpiDescription, defaultWeightage, targetGuidance, sortOrder } = req.body;
+    if (!kpiTitle || !defaultWeightage) return res.status(400).json({ error: 'KPI title and weight are required' });
+
+    const [item] = await db.insert(appraisalKpiTemplateItems).values({
+      templateId, kpiTitle, kpiDescription, defaultWeightage: defaultWeightage.toString(), targetGuidance, sortOrder: sortOrder || 0,
+    }).returning();
+    res.status(201).json(item);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to add template item' });
+  }
+});
+
+router.put('/kpi-templates/:id/items/:itemId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const templateId = parseInt(req.params.id);
+    const itemId = parseInt(req.params.itemId);
+    const { kpiTitle, kpiDescription, defaultWeightage, targetGuidance, sortOrder } = req.body;
+    const [updated] = await db.update(appraisalKpiTemplateItems)
+      .set({ kpiTitle, kpiDescription, defaultWeightage: defaultWeightage?.toString(), targetGuidance, sortOrder, updatedAt: new Date() })
+      .where(and(eq(appraisalKpiTemplateItems.id, itemId), eq(appraisalKpiTemplateItems.templateId, templateId)))
+      .returning();
+    if (!updated) return res.status(404).json({ error: 'Item not found' });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update template item' });
+  }
+});
+
+router.delete('/kpi-templates/:id/items/:itemId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
+    const templateId = parseInt(req.params.id);
+    const itemId = parseInt(req.params.itemId);
+    await db.delete(appraisalKpiTemplateItems)
+      .where(and(eq(appraisalKpiTemplateItems.id, itemId), eq(appraisalKpiTemplateItems.templateId, templateId)));
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to delete template item' });
+  }
+});
+
+router.get('/hierarchy-level/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const level = await getHierarchyLevel(userId);
+    res.json({ userId, level });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to determine hierarchy level' });
   }
 });
 

@@ -10395,9 +10395,52 @@ export const insertAppraisalAuditLogSchema = createInsertSchema(appraisalAuditLo
 export type InsertAppraisalAuditLog = z.infer<typeof insertAppraisalAuditLogSchema>;
 export type AppraisalAuditLog = typeof appraisalAuditLog.$inferSelect;
 
+// Table 9: Appraisal KPI Templates (Department + Level based)
+export const appraisalKpiTemplates = pgTable('appraisal_kpi_templates', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 300 }).notNull(),
+  department: varchar('department', { length: 100 }).notNull(),
+  hierarchyLevel: varchar('hierarchy_level', { length: 10 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  description: text('description'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAppraisalKpiTemplateSchema = createInsertSchema(appraisalKpiTemplates).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAppraisalKpiTemplate = z.infer<typeof insertAppraisalKpiTemplateSchema>;
+export type AppraisalKpiTemplate = typeof appraisalKpiTemplates.$inferSelect;
+
+// Table 10: Appraisal KPI Template Items
+export const appraisalKpiTemplateItems = pgTable('appraisal_kpi_template_items', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').notNull().references(() => appraisalKpiTemplates.id, { onDelete: 'cascade' }),
+  kpiTitle: varchar('kpi_title', { length: 300 }).notNull(),
+  kpiDescription: text('kpi_description'),
+  defaultWeightage: decimal('default_weightage', { precision: 5, scale: 2 }).notNull(),
+  targetGuidance: text('target_guidance'),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertAppraisalKpiTemplateItemSchema = createInsertSchema(appraisalKpiTemplateItems).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAppraisalKpiTemplateItem = z.infer<typeof insertAppraisalKpiTemplateItemSchema>;
+export type AppraisalKpiTemplateItem = typeof appraisalKpiTemplateItems.$inferSelect;
+
 // Appraisal Relations
 export const appraisalCycleTemplatesRelations = relations(appraisalCycleTemplates, ({ many }) => ({
   cycles: many(appraisalCycles),
+}));
+
+export const appraisalKpiTemplatesRelations = relations(appraisalKpiTemplates, ({ one, many }) => ({
+  creator: one(users, { fields: [appraisalKpiTemplates.createdBy], references: [users.id], relationName: 'kpiTemplateCreator' }),
+  items: many(appraisalKpiTemplateItems),
+}));
+
+export const appraisalKpiTemplateItemsRelations = relations(appraisalKpiTemplateItems, ({ one }) => ({
+  template: one(appraisalKpiTemplates, { fields: [appraisalKpiTemplateItems.templateId], references: [appraisalKpiTemplates.id] }),
 }));
 
 export const appraisalCyclesRelations = relations(appraisalCycles, ({ one, many }) => ({
