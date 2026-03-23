@@ -1688,26 +1688,103 @@ function GeneratedSalariesView() {
           </div>
 
           {(() => {
-            const gross = ['baseSalary','hra','conveyanceAllowance','ltaAllowance','specialAllowance','supplementaryAllowance','kgpAllowance','bonus','overtimePay','otherAllowances','reimbursements']
+            const gross = ['baseSalary','hra','conveyanceAllowance','ltaAllowance','specialAllowance','supplementaryAllowance','kgpAllowance','bonus','overtimePay','otherAllowances']
               .reduce((s, k) => s + parseFloat(editFormData[k] || '0'), 0);
-            const deductions = ['employeePf','professionalTax','incomeTax','tdsAmount','esiDeduction','employeeEsic','loanDeductions','advanceDeductions','otherDeductions']
+            const reimb = parseFloat(editFormData.reimbursements || '0');
+            const deductions = ['employeePf','professionalTax','incomeTax','tdsAmount','employeeEsic','loanDeductions','advanceDeductions','otherDeductions']
               .reduce((s, k) => s + parseFloat(editFormData[k] || '0'), 0);
-            const net = gross - deductions;
+            const net = gross - deductions + reimb;
+
+            const empName = editRecord?.employeeName || 'Employee';
+            const periodLabel = `${editRecord?.month}/${editRecord?.year}`;
+            const cardCode = editRecord?.cardCode || editRecord?.employeeCode || '';
+            const postingDate = editRecord?.year && editRecord?.month
+              ? `${editRecord.year}-${String(editRecord.month).padStart(2, '0')}-${new Date(editRecord.year, editRecord.month, 0).getDate()}`
+              : new Date().toISOString().slice(0, 10);
+
+            const earningMap: Record<string, string> = {
+              baseSalary: 'BASIC', hra: 'HRA', conveyanceAllowance: 'CONVEYANCE',
+              ltaAllowance: 'LTA', specialAllowance: 'SPECIAL_ALLOWANCE',
+              supplementaryAllowance: 'SUPPLEMENTARY', kgpAllowance: 'KGP',
+              bonus: 'BONUS', overtimePay: 'OVERTIME', otherAllowances: 'OTHER_ALLOWANCES',
+            };
+            const jeLines: any[] = [];
+            let lineNum = 0;
+
+            for (const [key, code] of Object.entries(earningMap)) {
+              const val = parseFloat(editFormData[key] || '0');
+              if (val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: `<${code}_EXPENSE>`, Debit: val, Credit: 0, LineMemo: `${code} - ${empName} - ${periodLabel}` });
+            }
+
+            const employerPf = parseFloat(editFormData.employerPf || '0');
+            const employerEsic = parseFloat(editFormData.employerEsic || '0');
+            if (employerPf > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<PF_EMPLOYER_EXPENSE>', Debit: employerPf, Credit: 0, LineMemo: `PF_EMPLOYER - ${empName} - ${periodLabel}` });
+            if (employerEsic > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<ESIC_EMPLOYER_EXPENSE>', Debit: employerEsic, Credit: 0, LineMemo: `ESIC_EMPLOYER - ${empName} - ${periodLabel}` });
+
+            const employeePf = parseFloat(editFormData.employeePf || '0');
+            const combinedPf = employeePf + employerPf;
+            if (combinedPf > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<PF_PAYABLE>', Debit: 0, Credit: combinedPf, LineMemo: `PF_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
+
+            const employeeEsic = parseFloat(editFormData.employeeEsic || '0');
+            const combinedEsic = employeeEsic + employerEsic;
+            if (combinedEsic > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<ESIC_PAYABLE>', Debit: 0, Credit: combinedEsic, LineMemo: `ESIC_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
+
+            const otherDed = [
+              { code: 'PT', val: parseFloat(editFormData.professionalTax || '0') },
+              { code: 'TDS', val: parseFloat(editFormData.tdsAmount || editFormData.incomeTax || '0') },
+              { code: 'LOAN_DEDUCTION', val: parseFloat(editFormData.loanDeductions || '0') },
+              { code: 'ADVANCE_DEDUCTION', val: parseFloat(editFormData.advanceDeductions || '0') },
+            ];
+            for (const d of otherDed) {
+              if (d.val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: `<${d.code}_LIABILITY>`, Debit: 0, Credit: d.val, LineMemo: `${d.code} - ${empName} - ${periodLabel}` });
+            }
+
+            if (net > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<NET_PAY_LIABILITY>', ShortName: cardCode, Debit: 0, Credit: net, LineMemo: `NET_PAY - ${empName} - ${periodLabel}` });
+
+            const totalDebit = Math.round(jeLines.reduce((s, l) => s + (l.Debit || 0), 0) * 100) / 100;
+            const totalCredit = Math.round(jeLines.reduce((s, l) => s + (l.Credit || 0), 0) * 100) / 100;
+
+            const jePayload = {
+              ReferenceDate: postingDate,
+              Memo: `Salary JE - ${empName} - ${periodLabel}`,
+              Reference2: cardCode,
+              Reference3: '92B',
+              U_Employee_Name: empName,
+              JournalEntryLines: jeLines,
+            };
+
             return (
-              <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
-                <div className="text-sm">
-                  <span className="text-gray-600">Gross: </span>
-                  <span className="font-semibold text-blue-700">₹{gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              <>
+                <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                  <div className="text-sm">
+                    <span className="text-gray-600">Gross: </span>
+                    <span className="font-semibold text-blue-700">₹{gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-600">Deductions: </span>
+                    <span className="font-semibold text-red-600">₹{deductions.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-600">Net Pay: </span>
+                    <span className="font-bold text-green-700 text-base">₹{net.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
-                <div className="text-sm">
-                  <span className="text-gray-600">Deductions: </span>
-                  <span className="font-semibold text-red-600">₹{deductions.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-purple-700">SAP JE JSON Preview</h4>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={totalDebit === totalCredit ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                        Dr: ₹{totalDebit.toLocaleString('en-IN', { minimumFractionDigits: 2 })} | Cr: ₹{totalCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        {totalDebit === totalCredit ? ' ✓ Balanced' : ' ✗ Unbalanced'}
+                      </span>
+                    </div>
+                  </div>
+                  <pre className="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-[250px] font-mono">
+                    {JSON.stringify(jePayload, null, 2)}
+                  </pre>
                 </div>
-                <div className="text-sm">
-                  <span className="text-gray-600">Net Pay: </span>
-                  <span className="font-bold text-green-700 text-base">₹{net.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </div>
+              </>
             );
           })()}
 
