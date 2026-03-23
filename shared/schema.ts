@@ -762,6 +762,8 @@ const userSchema = {
   panNumber: text('pan_number'),
   cardCode: text('card_code'),
   cardName: text('card_name'),
+  loanCardCode: text('loan_card_code'),
+  loanCardName: text('loan_card_name'),
   dateOfJoining: text('date_of_joining'),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),

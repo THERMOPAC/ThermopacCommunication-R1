@@ -89,6 +89,8 @@ const userFormSchema = z.object({
   employeeCode: z.string().min(1, "Employee Code is required"),
   cardCode: z.string().min(1, "Card Code is required"),
   cardName: z.string().min(1, "Card Name is required"),
+  loanCardCode: z.string().optional(),
+  loanCardName: z.string().optional(),
   panNumber: z.string().min(1, "PAN Number is required"),
   dateOfJoining: z.string().min(1, "Date of Joining is required"),
   role: z.enum(roles),
@@ -128,6 +130,8 @@ interface User {
   employeeCode?: string;
   cardCode?: string;
   cardName?: string;
+  loanCardCode?: string;
+  loanCardName?: string;
   panNumber?: string;
   dateOfJoining?: string;
   role: string;
@@ -326,6 +330,8 @@ export default function UserManagementPage() {
       employeeCode: "",
       cardCode: "",
       cardName: "",
+      loanCardCode: "",
+      loanCardName: "",
       panNumber: "",
       dateOfJoining: "",
     },
@@ -374,6 +380,8 @@ export default function UserManagementPage() {
       employeeCode: user.employeeCode || "",
       cardCode: user.cardCode || "",
       cardName: user.cardName || "",
+      loanCardCode: user.loanCardCode || "",
+      loanCardName: user.loanCardName || "",
       panNumber: user.panNumber || "",
       dateOfJoining: user.dateOfJoining || "",
       role: user.role as any,
@@ -454,6 +462,32 @@ export default function UserManagementPage() {
                 <FormLabel>Card Name *</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter SAP card name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="loanCardCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Loan Card Code</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter SAP loan card code" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="loanCardName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Loan Card Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter SAP loan card name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

@@ -59,6 +59,8 @@ const editUserSchema = z.object({
   panNumber: z.string().optional(),
   cardCode: z.string().optional(),
   cardName: z.string().optional(),
+  loanCardCode: z.string().optional(),
+  loanCardName: z.string().optional(),
   dateOfJoining: z.string().optional(),
   reportingManagerId: z.string().min(1, "Reporting Manager is required"),
   workLocationId: z.string().optional(), // Keep as string to avoid conversion issues
@@ -101,6 +103,8 @@ interface User {
   panNumber?: string;
   cardCode?: string;
   cardName?: string;
+  loanCardCode?: string;
+  loanCardName?: string;
   dateOfJoining?: string;
   reportingManagerId?: number;
   workLocationId?: number;
@@ -166,6 +170,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
       panNumber: '',
       cardCode: '',
       cardName: '',
+      loanCardCode: '',
+      loanCardName: '',
       dateOfJoining: '',
       reportingManagerId: '',
       workLocationId: 'none',
@@ -231,6 +237,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         panNumber: (user as any).panNumber || '',
         cardCode: (user as any).cardCode || '',
         cardName: (user as any).cardName || '',
+        loanCardCode: (user as any).loanCardCode || '',
+        loanCardName: (user as any).loanCardName || '',
         dateOfJoining: (user as any).dateOfJoining || '',
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
@@ -279,6 +287,8 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         panNumber: data.panNumber?.trim() || null,
         cardCode: data.cardCode?.trim() || null,
         cardName: data.cardName?.trim() || null,
+        loanCardCode: data.loanCardCode?.trim() || null,
+        loanCardName: data.loanCardName?.trim() || null,
         dateOfJoining: data.dateOfJoining?.trim() || null,
         userType: data.userType || 'system_user',
         // Convert string IDs to numbers, handle empty strings and "none" values properly
@@ -412,6 +422,34 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                     <FormLabel>Card Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter SAP card name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="loanCardCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loan Card Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter SAP loan card code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="loanCardName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loan Card Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter SAP loan card name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

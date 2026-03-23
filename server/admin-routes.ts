@@ -128,7 +128,9 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
         halfDayMinimumHours: users.halfDayMinimumHours,
         weeklyOffDays: users.weeklyOffDays,
         salaryType: users.salaryType,
-        otApplicable: users.otApplicable
+        otApplicable: users.otApplicable,
+        loanCardCode: users.loanCardCode,
+        loanCardName: users.loanCardName
       })
       .from(users)
       .orderBy(asc(users.firstName));
