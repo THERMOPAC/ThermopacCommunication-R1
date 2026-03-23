@@ -36,12 +36,14 @@ const THRESHOLDS = {
   r1_pr_conversion_days: 7,
   r3_eval_pending_days: 7,
   r5_po_draft_stuck_days: 14,
-  r8_delivery_missed_days: 7,
+  r8_delivery_missed_days: 14,
   r9_inspection_pending_days: 14,
   r10_dispatch_delay_days: 7,
   r2_rfq_pending_days: 7,
   r6_vendor_submission_days: 30,
-  r7_manufacturing_delay_days: 60,
+  r7_manufacturing_delay_days: 90,
+  r7_manufacturing_delay_max_days: 365,
+  r8_delivery_missed_max_days: 180,
   r11_logistics_delay_days: 30,
 };
 
@@ -1592,11 +1594,12 @@ export class ProjectControlAgent implements IAgent {
         }
       }
 
-      // ── R7: Manufacturing Delay (60+d, no GR) — Live SAP ──
+      // ── R7: Manufacturing Delay (90+d, no GR, max 365d) — Live SAP ──
       for (const po of sapPOs) {
         if (!po.DocDueDate) continue;
         const daysOverdue = po.daysOverdue;
         if (daysOverdue < THRESHOLDS.r7_manufacturing_delay_days) continue;
+        if (daysOverdue > THRESHOLDS.r7_manufacturing_delay_max_days) continue;
         const hasGR = grByBasePO[String(po.DocEntry)]?.length > 0;
         if (hasGR) continue;
 
