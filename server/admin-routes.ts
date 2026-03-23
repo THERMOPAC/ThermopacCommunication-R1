@@ -3582,6 +3582,7 @@ router.get('/payroll/records/:id/je-preview', ensureAuthenticated, async (req: R
     const [employee] = await db.select({
       id: users.id, firstName: users.firstName, lastName: users.lastName,
       username: users.username, cardCode: users.cardCode, cardName: users.cardName, employeeCode: users.employeeCode,
+      loanCardCode: users.loanCardCode,
     }).from(users).where(eq(users.id, record.userId));
     if (!employee) return res.status(400).json({ error: 'Employee not found' });
 
@@ -3699,18 +3700,32 @@ function buildSalaryJePayload(
     }
   }
 
-  const otherDeductions = [
+  const plainDeductions = [
     { code: 'PT', value: parseFloat(record.professionalTax || '0') },
     { code: 'TDS', value: parseFloat(record.tdsAmount || record.incomeTax || '0') },
-    { code: 'LOAN_DEDUCTION', value: parseFloat(record.loanDeductions || '0') },
-    { code: 'ADVANCE_DEDUCTION', value: parseFloat(record.advanceDeductions || '0') },
   ];
 
-  for (const comp of otherDeductions) {
+  for (const comp of plainDeductions) {
     if (comp.value > 0) {
       const acctCode = glMap.get(`${comp.code}|payroll_liability`);
       if (!acctCode) continue;
       jeLines.push({ Line_ID: lineNum++, AccountCode: acctCode, Debit: 0, Credit: comp.value, LineMemo: `${comp.code} - ${empName} - ${periodLabel}` });
+    }
+  }
+
+  const loanCardCode = employee.loanCardCode || null;
+  const bpDeductions = [
+    { code: 'LOAN_DEDUCTION', value: parseFloat(record.loanDeductions || '0') },
+    { code: 'ADVANCE_DEDUCTION', value: parseFloat(record.advanceDeductions || '0') },
+  ];
+
+  for (const comp of bpDeductions) {
+    if (comp.value > 0) {
+      const acctCode = glMap.get(`${comp.code}|payroll_liability`);
+      if (!acctCode) continue;
+      const line: any = { Line_ID: lineNum++, AccountCode: acctCode, Debit: 0, Credit: comp.value, LineMemo: `${comp.code} - ${empName} - ${periodLabel}` };
+      if (loanCardCode) line.ShortName = loanCardCode;
+      jeLines.push(line);
     }
   }
 
