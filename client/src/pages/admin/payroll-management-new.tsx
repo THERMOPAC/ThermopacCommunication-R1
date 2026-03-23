@@ -604,6 +604,11 @@ function GeneratedSalariesView() {
   const [editRecord, setEditRecord] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
 
+  const { data: glMappings } = useQuery<Record<string, string>>({
+    queryKey: ['/api/admin/payroll/gl-mappings'],
+    enabled: showEditDialog,
+  });
+
   const { data: generatedSalaries, isLoading: isLoadingGenerated } = useQuery({
     queryKey: ['/api/admin/payroll/records'],
     enabled: true
@@ -1702,32 +1707,47 @@ function GeneratedSalariesView() {
               ? `${editRecord.year}-${String(editRecord.month).padStart(2, '0')}-${new Date(editRecord.year, editRecord.month, 0).getDate()}`
               : new Date().toISOString().slice(0, 10);
 
-            const earningMap: Record<string, string> = {
-              baseSalary: 'BASIC', hra: 'HRA', conveyanceAllowance: 'CONVEYANCE',
-              ltaAllowance: 'LTA', specialAllowance: 'SPECIAL_ALLOWANCE',
-              supplementaryAllowance: 'SUPPLEMENTARY', kgpAllowance: 'KGP',
-              bonus: 'BONUS', overtimePay: 'OVERTIME', otherAllowances: 'OTHER_ALLOWANCES',
-            };
+            const gl = glMappings || {};
+            const glCode = (comp: string, ctx: string) => gl[`${comp}|${ctx}`] || `<${comp}|${ctx}>`;
+
+            const earningComponents = [
+              { key: 'baseSalary', code: 'BASIC' },
+              { key: 'hra', code: 'HRA' },
+              { key: 'conveyanceAllowance', code: 'CONVEYANCE' },
+              { key: 'ltaAllowance', code: 'LTA' },
+              { key: 'specialAllowance', code: 'SPECIAL_ALLOWANCE' },
+              { key: 'supplementaryAllowance', code: 'SUPPLEMENTARY' },
+              { key: 'kgpAllowance', code: 'KGP' },
+              { key: 'bonus', code: 'BONUS' },
+              { key: 'overtimePay', code: 'OVERTIME' },
+              { key: 'otherAllowances', code: 'OTHER_ALLOWANCES' },
+            ];
             const jeLines: any[] = [];
             let lineNum = 0;
 
-            for (const [key, code] of Object.entries(earningMap)) {
-              const val = parseFloat(editFormData[key] || '0');
-              if (val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: `<${code}_EXPENSE>`, Debit: val, Credit: 0, LineMemo: `${code} - ${empName} - ${periodLabel}` });
+            for (const comp of earningComponents) {
+              const val = parseFloat(editFormData[comp.key] || '0');
+              if (val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode(comp.code, 'expense'), Debit: val, Credit: 0, LineMemo: `${comp.code} - ${empName} - ${periodLabel}` });
             }
 
             const employerPf = parseFloat(editFormData.employerPf || '0');
             const employerEsic = parseFloat(editFormData.employerEsic || '0');
-            if (employerPf > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<PF_EMPLOYER_EXPENSE>', Debit: employerPf, Credit: 0, LineMemo: `PF_EMPLOYER - ${empName} - ${periodLabel}` });
-            if (employerEsic > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<ESIC_EMPLOYER_EXPENSE>', Debit: employerEsic, Credit: 0, LineMemo: `ESIC_EMPLOYER - ${empName} - ${periodLabel}` });
+            if (employerPf > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode('PF_EMPLOYER', 'expense'), Debit: employerPf, Credit: 0, LineMemo: `PF_EMPLOYER - ${empName} - ${periodLabel}` });
+            if (employerEsic > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode('ESIC_EMPLOYER', 'expense'), Debit: employerEsic, Credit: 0, LineMemo: `ESIC_EMPLOYER - ${empName} - ${periodLabel}` });
 
             const employeePf = parseFloat(editFormData.employeePf || '0');
             const combinedPf = employeePf + employerPf;
-            if (combinedPf > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<PF_PAYABLE>', Debit: 0, Credit: combinedPf, LineMemo: `PF_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
+            if (combinedPf > 0) {
+              const pfLiability = gl['PF_EMPLOYER|payroll_liability'] || gl['PF_EMPLOYEE|payroll_liability'] || glCode('PF_EMPLOYER', 'payroll_liability');
+              jeLines.push({ Line_ID: lineNum++, AccountCode: pfLiability, Debit: 0, Credit: combinedPf, LineMemo: `PF_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
+            }
 
             const employeeEsic = parseFloat(editFormData.employeeEsic || '0');
             const combinedEsic = employeeEsic + employerEsic;
-            if (combinedEsic > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<ESIC_PAYABLE>', Debit: 0, Credit: combinedEsic, LineMemo: `ESIC_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
+            if (combinedEsic > 0) {
+              const esicLiability = gl['ESIC_EMPLOYER|payroll_liability'] || gl['ESIC_EMPLOYEE|payroll_liability'] || glCode('ESIC_EMPLOYER', 'payroll_liability');
+              jeLines.push({ Line_ID: lineNum++, AccountCode: esicLiability, Debit: 0, Credit: combinedEsic, LineMemo: `ESIC_PAYABLE (Emp+Er) - ${empName} - ${periodLabel}` });
+            }
 
             const otherDed = [
               { code: 'PT', val: parseFloat(editFormData.professionalTax || '0') },
@@ -1736,10 +1756,10 @@ function GeneratedSalariesView() {
               { code: 'ADVANCE_DEDUCTION', val: parseFloat(editFormData.advanceDeductions || '0') },
             ];
             for (const d of otherDed) {
-              if (d.val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: `<${d.code}_LIABILITY>`, Debit: 0, Credit: d.val, LineMemo: `${d.code} - ${empName} - ${periodLabel}` });
+              if (d.val > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode(d.code, 'payroll_liability'), Debit: 0, Credit: d.val, LineMemo: `${d.code} - ${empName} - ${periodLabel}` });
             }
 
-            if (net > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: '<NET_PAY_LIABILITY>', ShortName: cardCode, Debit: 0, Credit: net, LineMemo: `NET_PAY - ${empName} - ${periodLabel}` });
+            if (net > 0) jeLines.push({ Line_ID: lineNum++, AccountCode: glCode('NET_PAY', 'payroll_liability'), ShortName: cardCode, Debit: 0, Credit: net, LineMemo: `NET_PAY - ${empName} - ${periodLabel}` });
 
             const totalDebit = Math.round(jeLines.reduce((s, l) => s + (l.Debit || 0), 0) * 100) / 100;
             const totalCredit = Math.round(jeLines.reduce((s, l) => s + (l.Credit || 0), 0) * 100) / 100;

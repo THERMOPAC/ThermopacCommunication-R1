@@ -2772,6 +2772,23 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
   }
 });
 
+router.get('/payroll/gl-mappings', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const mappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
+    const result: Record<string, string> = {};
+    for (const m of mappings) {
+      if (m.sapAcctCode) {
+        result[`${m.componentCode}|${m.postingContext}`] = m.sapAcctCode;
+      } else if (m.glAccountCode) {
+        result[`${m.componentCode}|${m.postingContext}`] = m.glAccountCode;
+      }
+    }
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const sapUser = process.env.SAP_USERNAME || '';
