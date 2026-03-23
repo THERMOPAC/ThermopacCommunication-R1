@@ -80,6 +80,18 @@ async function hasRecentAgentTask(fingerprint: string, cooldownDays: number): Pr
   return (result.rows || []).length > 0;
 }
 
+async function hasAnyOpenLeadTask(leadId: number): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task'
+      AND source_agent = ${SOURCE_AGENT}
+      AND category LIKE ${`%lead:${leadId}%`}
+      AND status NOT IN ('completed', 'cancelled')
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
 async function autoCloseResolvedTasks(): Promise<number> {
   let closedCount = 0;
   const openAgentTasks = await db.execute(sql`
@@ -346,9 +358,12 @@ export class SalesMarketingAgent implements IAgent {
       if (finding) findingsCount++;
 
       if (!skipTaskCreation) {
+        const MAX_STALE_TASKS = 5;
+        let staleTaskCount = 0;
         for (const lead of staleLeads) {
+          if (staleTaskCount >= MAX_STALE_TASKS) break;
+          if (await hasAnyOpenLeadTask(lead.id)) continue;
           const fp = makeFingerprint('stale_lead_s1', `lead:${lead.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
 
           const rec = await recommendationManager.createRecommendation({
@@ -369,7 +384,7 @@ export class SalesMarketingAgent implements IAgent {
             description: "Auto-generated task from Sales & Marketing Agent",
             assignTo: L1,
           });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          if (rec.id > 0) { recommendationsCount++; staleTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
         }
       }
     }
@@ -404,8 +419,8 @@ export class SalesMarketingAgent implements IAgent {
         let escalationTaskCount = 0;
         for (const lead of escalatedLeads) {
           if (escalationTaskCount >= MAX_ESCALATION_TASKS) break;
+          if (await hasAnyOpenLeadTask(lead.id)) continue;
           const fp = makeFingerprint('stale_lead_s2', `lead:${lead.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
           const rec = await recommendationManager.createRecommendation({
@@ -461,8 +476,8 @@ export class SalesMarketingAgent implements IAgent {
         let stuckTaskCount = 0;
         for (const lead of stuckLeads) {
           if (stuckTaskCount >= MAX_STUCK_TASKS) break;
+          if (await hasAnyOpenLeadTask(lead.id)) continue;
           const fp = makeFingerprint('lead_stuck_s3', `lead:${lead.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 30)) continue;
 
           const rec = await recommendationManager.createRecommendation({
@@ -518,8 +533,8 @@ export class SalesMarketingAgent implements IAgent {
         let hvTaskCount = 0;
         for (const lead of highValueNeglected) {
           if (hvTaskCount >= MAX_HV_TASKS) break;
+          if (await hasAnyOpenLeadTask(lead.id)) continue;
           const fp = makeFingerprint('high_value_lead', `lead:${lead.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 7)) continue;
 
           const rec = await recommendationManager.createRecommendation({
@@ -574,8 +589,8 @@ export class SalesMarketingAgent implements IAgent {
         let closeTaskCount = 0;
         for (const lead of pastCloseDate) {
           if (closeTaskCount >= MAX_CLOSE_TASKS) break;
+          if (await hasAnyOpenLeadTask(lead.id)) continue;
           const fp = makeFingerprint('past_close', `lead:${lead.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, 14)) continue;
 
           const rec = await recommendationManager.createRecommendation({
