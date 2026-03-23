@@ -3,31 +3,36 @@ import { sql } from 'drizzle-orm';
 
 export type EscalationLevel = 'L1' | 'L2' | 'L3';
 
-async function getReportingManager(userId: number): Promise<number> {
+async function getReportingManager(userId: number): Promise<number | null> {
+  if (!userId || isNaN(userId)) return null;
   const result = await db.execute(sql`
     SELECT reporting_manager_id FROM users WHERE id = ${userId} AND is_active = true LIMIT 1
   `);
   const row = (result.rows as any[])[0];
+  if (!row || !row.reporting_manager_id) return null;
   return Number(row.reporting_manager_id);
 }
 
 export async function resolveEscalation(
   level: EscalationLevel,
   entityOwnerId: number | null,
-): Promise<number> {
-  const ownerId = entityOwnerId!;
+): Promise<number | null> {
+  if (!entityOwnerId) return null;
+  const ownerId = entityOwnerId;
 
   if (level === 'L1') {
     return ownerId;
   }
 
   if (level === 'L2') {
-    return await getReportingManager(ownerId);
+    const mgr = await getReportingManager(ownerId);
+    return mgr ?? ownerId;
   }
 
-  // L3: reporting manager's reporting manager
   const mgr = await getReportingManager(ownerId);
-  return await getReportingManager(mgr);
+  if (!mgr) return ownerId;
+  const mgrMgr = await getReportingManager(mgr);
+  return mgrMgr ?? mgr;
 }
 
 export function severityToLevel(severity: string): EscalationLevel {
