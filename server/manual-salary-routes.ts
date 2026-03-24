@@ -726,14 +726,12 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
         U_Employee_Name: empName,
         JournalEntryLines: [
           {
-            Line_ID: 0,
             AccountCode: otGl,
             Debit: otAmount,
             Credit: 0,
             LineMemo: `Manual OT Expense - ${empName} - ${periodLabel}`,
           },
           {
-            Line_ID: 1,
             AccountCode: payableGl,
             ShortName: employee.cardCode,
             Debit: 0,
@@ -744,7 +742,6 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
       };
     } else {
       const jeLines: any[] = [];
-      let lineNum = 0;
 
       const earningComponents = [
         { code: 'BASIC', value: parseFloat(entry.baseEarnings || '0') },
@@ -756,7 +753,6 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
           const acctCode = getGlCode(allMappings, comp.code, 'expense');
           if (acctCode) {
             jeLines.push({
-              Line_ID: lineNum++,
               AccountCode: acctCode,
               Debit: comp.value,
               Credit: 0,
@@ -778,7 +774,6 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
           const acctCode = getGlCode(allMappings, comp.code, 'payroll_liability');
           if (acctCode) {
             jeLines.push({
-              Line_ID: lineNum++,
               AccountCode: acctCode,
               Debit: 0,
               Credit: comp.value,
@@ -793,7 +788,6 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
         const acctCode = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
         if (acctCode) {
           jeLines.push({
-            Line_ID: lineNum++,
             AccountCode: acctCode,
             Debit: 0,
             Credit: netPayVal,

@@ -330,14 +330,12 @@ export function ManualSalaryTab() {
         U_Employee_Name: empName,
         JournalEntryLines: [
           {
-            Line_ID: 0,
             AccountCode: getGl('OVERTIME', 'expense'),
             Debit: otAmount,
             Credit: 0,
             LineMemo: `Manual OT Expense - ${empName} - ${periodLabel}`,
           },
           {
-            Line_ID: 1,
             AccountCode: getGl('EMPLOYEE_PAYABLE', 'payroll_liability'),
             ShortName: selectedUser.cardCode || '[NO_CARD_CODE]',
             Debit: 0,
@@ -349,28 +347,27 @@ export function ManualSalaryTab() {
     }
 
     const jeLines: any[] = [];
-    let lineNum = 0;
 
     if (preview.baseEarnings > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('BASIC', 'expense'), Debit: preview.baseEarnings, Credit: 0, LineMemo: `Manual Salary BASIC - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('BASIC', 'expense'), Debit: preview.baseEarnings, Credit: 0, LineMemo: `Manual Salary BASIC - ${empName} - ${periodLabel}` });
     }
     if (preview.overtimeEarned > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('OVERTIME', 'expense'), Debit: preview.overtimeEarned, Credit: 0, LineMemo: `Manual Salary OVERTIME - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('OVERTIME', 'expense'), Debit: preview.overtimeEarned, Credit: 0, LineMemo: `Manual Salary OVERTIME - ${empName} - ${periodLabel}` });
     }
     if (preview.pfAmount > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('PF_EMPLOYEE', 'payroll_liability'), Debit: 0, Credit: preview.pfAmount, LineMemo: `Manual Salary PF - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('PF_EMPLOYEE', 'payroll_liability'), Debit: 0, Credit: preview.pfAmount, LineMemo: `Manual Salary PF - ${empName} - ${periodLabel}` });
     }
     if (preview.esicAmount > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('ESIC_EMPLOYEE', 'payroll_liability'), Debit: 0, Credit: preview.esicAmount, LineMemo: `Manual Salary ESIC - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('ESIC_EMPLOYEE', 'payroll_liability'), Debit: 0, Credit: preview.esicAmount, LineMemo: `Manual Salary ESIC - ${empName} - ${periodLabel}` });
     }
     if (preview.ptAmount > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('PT', 'payroll_liability'), Debit: 0, Credit: preview.ptAmount, LineMemo: `Manual Salary PT - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('PT', 'payroll_liability'), Debit: 0, Credit: preview.ptAmount, LineMemo: `Manual Salary PT - ${empName} - ${periodLabel}` });
     }
     if (preview.tdsAmount > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('TDS', 'payroll_liability'), Debit: 0, Credit: preview.tdsAmount, LineMemo: `Manual Salary TDS - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('TDS', 'payroll_liability'), Debit: 0, Credit: preview.tdsAmount, LineMemo: `Manual Salary TDS - ${empName} - ${periodLabel}` });
     }
     if (preview.netPay > 0) {
-      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('NET_PAY', 'payroll_liability'), Debit: 0, Credit: preview.netPay, LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}` });
+      jeLines.push({ AccountCode: getGl('NET_PAY', 'payroll_liability'), Debit: 0, Credit: preview.netPay, LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}` });
     }
 
     return {
