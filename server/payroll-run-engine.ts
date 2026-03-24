@@ -687,6 +687,8 @@ async function stepSalaryCalculation(
         paidDays = rawPaidDays;
         proratedBase = basicSalary * paidDays;
         const hourlyRate = parseFloat(sal.hourlyRate || '0') || (basicSalary / workingHoursPerDay);
+        // Rule: Daily = dailyRate / dutyHours; Monthly = (basic * 2.5) / 30 / dutyHours
+        // If hourlyRate stored in DB (from salary config), it already follows the correct formula
         const otRate = parseFloat(sal.otRate || '1.0');
         const otMultiplier = parseFloat(sal.otMultiplier || '1.0');
         overtimePay = hourlyRate * overtimeHours * otRate * otMultiplier;

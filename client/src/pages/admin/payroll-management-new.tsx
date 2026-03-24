@@ -3296,8 +3296,12 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
         const rawHours = (outH * 60 + outM - inH * 60 - inM) / 60;
         if (rawHours > 0) dutyHours = rawHours;
       }
-      const divisor = watchedValues.salaryType === 'daily' ? 26 : 30;
-      const rate = (basic * 2.5) / divisor / dutyHours;
+      let rate: number;
+      if (watchedValues.salaryType === 'daily') {
+        rate = basic / dutyHours;
+      } else {
+        rate = (basic * 2.5) / 30 / dutyHours;
+      }
       form.setValue('hourlyRate', rate.toFixed(2));
     }
   }, [watchedValues.salaryType, watchedValues.basicSalary, watchedValues.workingHoursPerDay, watchedValues.userId, form, users]);
@@ -3470,7 +3474,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
-                      Basic × 2.5 / {watchedValues.salaryType === 'daily' ? '26' : '30'} / Duty Hours (Out − In)
+                      {watchedValues.salaryType === 'daily' ? 'Daily Rate / Duty Hours (Out − In)' : 'Basic × 2.5 / 30 / Duty Hours (Out − In)'}
                     </p>
                     <FormMessage />
                   </FormItem>

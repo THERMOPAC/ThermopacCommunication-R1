@@ -95,8 +95,12 @@ export function ManualSalaryTab() {
         const rawHours = (outH * 60 + outM - inH * 60 - inM) / 60;
         if (rawHours > 0) dutyHours = rawHours;
       }
-      const divisor = config.salaryType === 'daily' ? 26 : 30;
-      const rate = (basic * 2.5) / divisor / dutyHours;
+      let rate: number;
+      if (config.salaryType === 'daily') {
+        rate = basic / dutyHours;
+      } else {
+        rate = (basic * 2.5) / 30 / dutyHours;
+      }
       setFormData(d => ({ ...d, baseRate: rate.toFixed(2) }));
     }
   }, [formData.userId, salaryConfigs, allUsers, editingEntry]);
