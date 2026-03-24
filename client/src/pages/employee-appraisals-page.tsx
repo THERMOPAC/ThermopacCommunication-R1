@@ -650,12 +650,25 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
   const [editId, setEditId] = useState<number | null>(null);
   const emptyForm = { kpiTitle: "", kpiDescription: "", weightage: "", targetValue: "", achievedValue: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" };
   const [form, setForm] = useState(emptyForm);
+  const [selectedTemplateKpi, setSelectedTemplateKpi] = useState("");
 
   const canAddKpi = (isEmployee && ["open", "draft"].includes(appraisal.status)) || (isL1 && appraisal.status === "self_submitted") || isAdmin;
   const canEditSelf = isEmployee && ["open", "draft"].includes(appraisal.status);
   const canEditL1 = isL1 && appraisal.status === "self_submitted";
   const canEditL2 = isL2 && appraisal.status === "l1_reviewed";
   const canEditDefinition = canEditSelf || canEditL1;
+
+  const { data: templateData } = useQuery<any>({
+    queryKey: ["/api/appraisals", appraisalId, "template-kpis"],
+    queryFn: async () => {
+      const res = await fetch(`/api/appraisals/${appraisalId}/template-kpis`, { credentials: "include" });
+      if (!res.ok) return { items: [] };
+      return res.json();
+    },
+    enabled: showAdd && !editId && canEditDefinition,
+  });
+  const templateItems = templateData?.items || [];
+  const existingTitles = new Set(kpis.map((k: any) => k.kpiTitle?.toLowerCase()));
 
   const existingWeight = kpis.reduce((s: number, k: any) => s + (parseFloat(k.weightage) || 0), 0);
   const editingKpiWeight = editId ? (parseFloat(kpis.find((k: any) => k.id === editId)?.weightage) || 0) : 0;
@@ -741,7 +754,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
           </div>
         </div>
         {canAddKpi && !appraisal.isLocked && (
-          <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); }} disabled={existingWeight >= 100}>
+          <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); setSelectedTemplateKpi(""); }} disabled={existingWeight >= 100}>
             <Plus className="h-4 w-4 mr-1" /> Add KPI
           </Button>
         )}
@@ -816,6 +829,33 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
               {canEditDefinition && (
                 <div className="space-y-3 p-3 bg-gray-50 rounded-lg border">
                   <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">KPI Definition {canEditL1 ? "(Editable by L1)" : ""}</p>
+                  {!editId && templateItems.length > 0 && (
+                    <div>
+                      <Label>Pick from Template <span className="text-xs text-muted-foreground font-normal">({templateData?.templateName} — {templateData?.department}/{templateData?.level})</span></Label>
+                      <Select value={selectedTemplateKpi} onValueChange={v => {
+                        setSelectedTemplateKpi(v);
+                        if (v) {
+                          const item = templateItems.find((i: any) => String(i.id) === v);
+                          if (item) {
+                            setForm({ ...form, kpiTitle: item.kpiTitle, kpiDescription: item.kpiDescription || "", weightage: item.defaultWeightage || "", targetValue: item.targetGuidance || "" });
+                          }
+                        }
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Select a KPI from template..." /></SelectTrigger>
+                        <SelectContent>
+                          {templateItems.map((item: any) => {
+                            const alreadyAdded = existingTitles.has(item.kpiTitle?.toLowerCase());
+                            return (
+                              <SelectItem key={item.id} value={String(item.id)} disabled={alreadyAdded}>
+                                {item.kpiTitle} ({item.defaultWeightage}%){alreadyAdded ? " — Already added" : ""}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <Separator className="my-2" />
+                    </div>
+                  )}
                   <div><Label>KPI Title <span className="text-red-500">*</span></Label><Input value={form.kpiTitle} onChange={e => setForm({ ...form, kpiTitle: e.target.value })} placeholder="Enter a clear, specific KPI title" /></div>
                   <div><Label>Description</Label><Textarea value={form.kpiDescription} onChange={e => setForm({ ...form, kpiDescription: e.target.value })} rows={2} placeholder="Describe how this KPI will be measured" /></div>
                   <div className="grid grid-cols-2 gap-2">
@@ -1447,11 +1487,17 @@ function CyclesTab() {
 
       {selectedCycleId && progress && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Cycle Progress: {progress.cycle?.name}</CardTitle></CardHeader>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Cycle Dashboard: {progress.cycle?.name}</CardTitle>
+              <StatusBadge status={progress.cycle?.status} />
+            </div>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">Completion: {progress.completionRate}%</span>
+              <span className="text-sm font-medium w-36">Completion: {progress.completionRate}%</span>
               <Progress value={progress.completionRate} className="flex-1" />
+              <span className="text-sm text-muted-foreground">{progress.totalAppraisals} total</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {Object.entries(progress.statusCounts || {}).map(([status, count]) => (
@@ -1461,14 +1507,47 @@ function CyclesTab() {
                 </div>
               ))}
             </div>
+            {progress.deadlines && (
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs font-semibold text-blue-700 mb-2 uppercase tracking-wide">Deadline Timeline</p>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                  {[
+                    { label: "Self Assessment", date: progress.deadlines.selfAssessment },
+                    { label: "Manager Review", date: progress.deadlines.managerReview },
+                    { label: "L2 Review", date: progress.deadlines.l2Review },
+                    { label: "Approval", date: progress.deadlines.approval },
+                    { label: "Closure", date: progress.deadlines.closure },
+                  ].map(d => {
+                    const isPast = d.date < new Date().toISOString().split("T")[0];
+                    return (
+                      <div key={d.label} className={`p-2 rounded border text-center ${isPast ? "bg-red-50 border-red-200" : "bg-white border-gray-200"}`}>
+                        <p className="font-medium text-gray-600">{d.label}</p>
+                        <p className={`font-bold mt-0.5 ${isPast ? "text-red-600" : "text-gray-900"}`}>{d.date}</p>
+                        {isPast && <p className="text-red-500 text-[10px] mt-0.5">Past due</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {progress.overdueBreakdown && Object.values(progress.overdueBreakdown).some((v: any) => v > 0) && (
               <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-xs font-medium text-red-700 mb-2">Overdue Items</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                  {progress.overdueBreakdown.selfAssessmentOverdue > 0 && <span>Self: {progress.overdueBreakdown.selfAssessmentOverdue}</span>}
-                  {progress.overdueBreakdown.managerReviewOverdue > 0 && <span>L1: {progress.overdueBreakdown.managerReviewOverdue}</span>}
-                  {progress.overdueBreakdown.l2ReviewOverdue > 0 && <span>L2: {progress.overdueBreakdown.l2ReviewOverdue}</span>}
-                  {progress.overdueBreakdown.approvalOverdue > 0 && <span>Approval: {progress.overdueBreakdown.approvalOverdue}</span>}
+                <p className="text-xs font-semibold text-red-700 mb-2 uppercase tracking-wide">Overdue Items</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Self Assessment", count: progress.overdueBreakdown.selfAssessmentOverdue },
+                    { label: "L1 Manager Review", count: progress.overdueBreakdown.managerReviewOverdue },
+                    { label: "L2 Review", count: progress.overdueBreakdown.l2ReviewOverdue },
+                    { label: "Final Approval", count: progress.overdueBreakdown.approvalOverdue },
+                  ].filter(i => i.count > 0).map(i => (
+                    <div key={i.label} className="flex items-center gap-2 p-2 bg-white rounded border border-red-100">
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                      <div>
+                        <p className="text-xs text-red-600">{i.label}</p>
+                        <p className="text-sm font-bold text-red-700">{i.count} overdue</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

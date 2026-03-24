@@ -445,6 +445,35 @@ router.get('/hierarchy-level/:userId', ensureAuthenticated, async (req: Request,
     res.status(500).json({ error: 'Failed to determine hierarchy level' });
   }
 });
+
+router.get('/:appraisalId/template-kpis', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const appraisalId = parseInt(req.params.appraisalId);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const empDept = appraisal.department || '';
+    if (!empDept) return res.json({ items: [], message: 'No department set for employee' });
+
+    const empLevel = await getHierarchyLevel(appraisal.employeeId);
+    const [activeTemplate] = await db.select().from(appraisalKpiTemplates)
+      .where(and(
+        eq(appraisalKpiTemplates.department, empDept),
+        eq(appraisalKpiTemplates.hierarchyLevel, empLevel),
+        eq(appraisalKpiTemplates.status, 'active')
+      ));
+    if (!activeTemplate) return res.json({ items: [], message: `No active template for ${empDept} / ${empLevel}` });
+
+    const items = await db.select().from(appraisalKpiTemplateItems)
+      .where(eq(appraisalKpiTemplateItems.templateId, activeTemplate.id))
+      .orderBy(appraisalKpiTemplateItems.sortOrder);
+
+    res.json({ templateId: activeTemplate.id, templateName: activeTemplate.name, department: empDept, level: empLevel, items });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch template KPIs' });
+  }
+});
+
 // ==========================================
 // SINGLE APPRAISAL DETAIL
 // ==========================================
@@ -1639,7 +1668,7 @@ async function runActivationJob(dryRun: boolean = false): Promise<{ activatedCyc
                   kpiTitle: item.kpiTitle,
                   kpiDescription: item.kpiDescription || undefined,
                   weightage: item.defaultWeightage,
-                  target: item.targetGuidance || undefined,
+                  targetValue: item.targetGuidance || undefined,
                 });
               }
             }
