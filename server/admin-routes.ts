@@ -3721,10 +3721,14 @@ function buildSalaryJePayload(
 
   for (const comp of bpDeductions) {
     if (comp.value > 0) {
-      const acctCode = glMap.get(`${comp.code}|payroll_liability`);
-      if (!acctCode) continue;
-      const line: any = { Line_ID: lineNum++, AccountCode: acctCode };
-      if (loanCardCode) line.ShortName = loanCardCode;
+      const line: any = { Line_ID: lineNum++ };
+      if (loanCardCode) {
+        line.ShortName = loanCardCode;
+      } else {
+        const acctCode = glMap.get(`${comp.code}|payroll_liability`);
+        if (!acctCode) continue;
+        line.AccountCode = acctCode;
+      }
       line.Debit = 0;
       line.Credit = comp.value;
       line.LineMemo = `${comp.code} - ${empName} - ${periodLabel}`;
@@ -3904,7 +3908,10 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       return res.status(400).json({ error: 'No JE lines could be generated.' });
     }
 
-    const invalidLines = jeLines.filter((l: any) => !l.AccountCode || !l.AccountCode.startsWith('_SYS'));
+    const invalidLines = jeLines.filter((l: any) => {
+      if (l.ShortName && !l.AccountCode) return false;
+      return !l.AccountCode || !l.AccountCode.startsWith('_SYS');
+    });
     if (invalidLines.length > 0) {
       const errMsg = `Invalid AccountCodes (not _SYS): ${invalidLines.map((l: any) => l.AccountCode).join(', ')}`;
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
