@@ -4573,6 +4573,20 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
       salarySlipData.leaveBalances!.push({ leaveType: lt.code, opening, used, closing });
     }
 
+    const absentRecords = await db
+      .select({ date: attendanceRecords.date, status: attendanceRecords.status })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.userId, record.userId),
+          gte(attendanceRecords.date, record.startDate),
+          lte(attendanceRecords.date, record.endDate),
+          inArray(attendanceRecords.status, ['absent', 'half_day'])
+        )
+      )
+      .orderBy(attendanceRecords.date);
+    salarySlipData.absentDates = absentRecords.map(r => r.date);
+
     const generator = new SalarySlipGenerator();
     await generator.generateSalarySlip(salarySlipData, res);
 

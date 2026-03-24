@@ -32,6 +32,7 @@ interface SalarySlipData {
     unpaidLeaveDays: number;
     lopDays: number;
   };
+  absentDates?: string[];
   earnings: {
     basicSalary: number;
     hra: number;
@@ -257,6 +258,32 @@ export class SalarySlipGenerator {
     }
     this.hLine(y + 20, '#D1D5DB', 0.4);
     y += 23;
+
+    const absentDates = d.absentDates || [];
+    if (absentDates.length > 0) {
+      doc.save();
+      doc.rect(m, y, w, 13).fillColor('#FEF2F2').fill();
+      doc.restore();
+      this.hLine(y, '#991B1B', 0.6);
+      doc.font(FONT_BOLD).fontSize(6.5).fillColor('#991B1B');
+      this.t('ABSENT DATES', m + 8, y + 3.5);
+      y += 14;
+
+      const formattedDates = absentDates.map(dt => {
+        const d2 = new Date(dt + 'T00:00:00');
+        return d2.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      });
+
+      const dateStr = formattedDates.join(',  ');
+      doc.save();
+      const dateTextH = 14;
+      doc.rect(m, y, w, dateTextH).fillColor('#FFFFFF').fill();
+      doc.restore();
+      doc.font(FONT_REGULAR).fontSize(6).fillColor('#DC2626');
+      this.t(dateStr, m + 8, y + 4, { width: w - 16 });
+      this.hLine(y + dateTextH, '#D1D5DB', 0.4);
+      y += dateTextH + 3;
+    }
 
     const leaveBals = d.leaveBalances || [];
     doc.save();
