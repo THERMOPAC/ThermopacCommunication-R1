@@ -3723,8 +3723,13 @@ function buildSalaryJePayload(
     if (comp.value > 0) {
       const acctCode = glMap.get(`${comp.code}|payroll_liability`);
       if (!acctCode) continue;
-      const line: any = { Line_ID: lineNum++, AccountCode: acctCode };
-      if (loanCardCode) line.ShortName = loanCardCode;
+      const line: any = { Line_ID: lineNum++ };
+      if (loanCardCode) {
+        line.ShortName = loanCardCode;
+        line.ControlAccount = acctCode;
+      } else {
+        line.AccountCode = acctCode;
+      }
       line.Debit = 0;
       line.Credit = comp.value;
       line.LineMemo = `${comp.code} - ${empName} - ${periodLabel}`;
@@ -3904,9 +3909,12 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
       return res.status(400).json({ error: 'No JE lines could be generated.' });
     }
 
-    const invalidLines = jeLines.filter((l: any) => !l.AccountCode || !l.AccountCode.startsWith('_SYS'));
+    const invalidLines = jeLines.filter((l: any) => {
+      const acct = l.AccountCode || l.ControlAccount;
+      return !acct || !acct.startsWith('_SYS');
+    });
     if (invalidLines.length > 0) {
-      const errMsg = `Invalid AccountCodes (not _SYS): ${invalidLines.map((l: any) => l.AccountCode).join(', ')}`;
+      const errMsg = `Invalid AccountCodes (not _SYS): ${invalidLines.map((l: any) => l.AccountCode || l.ControlAccount).join(', ')}`;
       await db.update(payrollRecords).set({ sapPostingStatus: 'failed', sapErrorMessage: errMsg, updatedAt: new Date() }).where(eq(payrollRecords.id, recordId));
       return res.status(400).json({ error: errMsg });
     }
@@ -3918,6 +3926,9 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     }
 
     console.log(`[Salary JE] ${empName} (${employee.cardCode}): ${jeLines.length} lines, Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)}`);
+    console.log(`[Salary JE] Payload lines:`, JSON.stringify(jeLines.map((l: any, i: number) => ({
+      idx: i, AccountCode: l.AccountCode, ControlAccount: l.ControlAccount, ShortName: l.ShortName, D: l.Debit, C: l.Credit, memo: l.LineMemo?.substring(0, 30)
+    }))));
 
     await db.update(payrollRecords).set({
       sapPostingStatus: 'pending',
