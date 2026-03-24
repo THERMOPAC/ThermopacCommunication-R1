@@ -35,13 +35,16 @@ router.get('/loans', async (req: Request, res: Response) => {
       : await query;
 
     const loansWithNames = await Promise.all(loans.map(async (loan) => {
-      const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, loan.employeeId));
+      const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username, cardCode: users.cardCode, department: users.department, employeeCode: users.employeeCode }).from(users).where(eq(users.id, loan.employeeId));
       const approver = loan.approvedBy ? await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, loan.approvedBy)) : [];
       const empName = emp[0] ? (emp[0].firstName && emp[0].lastName ? `${emp[0].firstName} ${emp[0].lastName}` : emp[0].username) : 'Unknown';
       const approverName = approver[0] ? (approver[0].firstName && approver[0].lastName ? `${approver[0].firstName} ${approver[0].lastName}` : approver[0].username) : null;
       return {
         ...loan,
         employeeName: empName,
+        employeeCardCode: emp[0]?.cardCode || null,
+        employeeDepartment: emp[0]?.department || null,
+        employeeCode: emp[0]?.employeeCode || null,
         approvedByName: approverName,
       };
     }));
@@ -148,13 +151,16 @@ router.get('/advances', async (req: Request, res: Response) => {
       : await db.select().from(employeeAdvances).orderBy(desc(employeeAdvances.createdAt));
 
     const advancesWithNames = await Promise.all(advances.map(async (adv) => {
-      const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, adv.employeeId));
+      const emp = await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username, cardCode: users.cardCode, department: users.department, employeeCode: users.employeeCode }).from(users).where(eq(users.id, adv.employeeId));
       const approver = adv.approvedBy ? await db.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, adv.approvedBy)) : [];
       const empName = emp[0] ? (emp[0].firstName && emp[0].lastName ? `${emp[0].firstName} ${emp[0].lastName}` : emp[0].username) : 'Unknown';
       const approverName = approver[0] ? (approver[0].firstName && approver[0].lastName ? `${approver[0].firstName} ${approver[0].lastName}` : approver[0].username) : null;
       return {
         ...adv,
         employeeName: empName,
+        employeeCardCode: emp[0]?.cardCode || null,
+        employeeDepartment: emp[0]?.department || null,
+        employeeCode: emp[0]?.employeeCode || null,
         approvedByName: approverName,
       };
     }));

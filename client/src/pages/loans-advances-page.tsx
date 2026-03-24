@@ -22,6 +22,11 @@ function formatCurrency(val: number | string) {
   return `₹${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function formatCurrencyPdf(val: number | string) {
+  const n = typeof val === 'string' ? parseFloat(val) : val;
+  return `Rs. ${(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
     active: 'bg-green-100 text-green-700',
@@ -89,7 +94,9 @@ function generatePaymentMemoPdf(type: 'loan' | 'advance', record: any, action: '
   doc.setFontSize(10);
 
   y = drawRow('Employee Name:', record.employeeName || 'N/A', y);
-  y = drawRow('Employee ID:', String(record.employeeId), y);
+  y = drawRow('Card Code:', record.employeeCardCode || 'N/A', y);
+  if (record.employeeCode) y = drawRow('Employee Code:', record.employeeCode, y);
+  if (record.employeeDepartment) y = drawRow('Department:', record.employeeDepartment, y);
   y += 5;
 
   doc.setFillColor(240, 245, 255);
@@ -113,17 +120,17 @@ function generatePaymentMemoPdf(type: 'loan' | 'advance', record: any, action: '
 
   if (type === 'loan') {
     y = drawRow('Loan Type:', (record.loanType || '').replace(/^\w/, (c: string) => c.toUpperCase()), y);
-    y = drawRow('Principal Amount:', formatCurrency(record.principalAmount), y);
+    y = drawRow('Principal Amount:', formatCurrencyPdf(record.principalAmount), y);
     y = drawRow('Interest Rate:', `${record.interestRate || 0}%`, y);
-    y = drawRow('EMI Amount:', formatCurrency(record.emiAmount), y);
+    y = drawRow('EMI Amount:', formatCurrencyPdf(record.emiAmount), y);
     y = drawRow('Tenure:', `${record.tenureMonths} months`, y);
     y = drawRow('Disbursement Date:', record.disbursementDate || 'N/A', y);
     y = drawRow('Deduction Start:', record.startDeductionDate || 'N/A', y);
   } else {
-    y = drawRow('Advance Amount:', formatCurrency(record.amount), y);
+    y = drawRow('Advance Amount:', formatCurrencyPdf(record.amount), y);
     y = drawRow('Recovery Type:', (record.recoveryType || '').replace('_', ' ').replace(/^\w/, (c: string) => c.toUpperCase()), y);
     if (record.recoveryType === 'installment') {
-      y = drawRow('Recovery/Month:', formatCurrency(record.recoveryAmount || 0), y);
+      y = drawRow('Recovery/Month:', formatCurrencyPdf(record.recoveryAmount || 0), y);
       y = drawRow('Recovery Months:', String(record.recoveryMonths || 'N/A'), y);
     }
     y = drawRow('Advance Date:', record.advanceDate || 'N/A', y);
@@ -217,7 +224,7 @@ export default function LoansAdvancesPage() {
       setShowLoanDialog(false);
       const empUser = users.find((u: any) => String(u.id) === loanForm.employeeId);
       const empName = empUser ? (empUser.firstName && empUser.lastName ? `${empUser.firstName} ${empUser.lastName}` : empUser.username) : 'N/A';
-      setLastCreatedLoan({ ...data, employeeName: empName });
+      setLastCreatedLoan({ ...data, employeeName: empName, employeeCardCode: empUser?.cardCode || null, employeeDepartment: empUser?.department || null, employeeCode: empUser?.employeeCode || null });
       toast({ title: 'Loan created successfully' });
       resetLoanForm();
     },
@@ -233,7 +240,7 @@ export default function LoansAdvancesPage() {
       setShowAdvanceDialog(false);
       const empUser = users.find((u: any) => String(u.id) === advanceForm.employeeId);
       const empName = empUser ? (empUser.firstName && empUser.lastName ? `${empUser.firstName} ${empUser.lastName}` : empUser.username) : 'N/A';
-      setLastCreatedAdvance({ ...data, employeeName: empName });
+      setLastCreatedAdvance({ ...data, employeeName: empName, employeeCardCode: empUser?.cardCode || null, employeeDepartment: empUser?.department || null, employeeCode: empUser?.employeeCode || null });
       toast({ title: 'Advance created successfully' });
       resetAdvanceForm();
     },
