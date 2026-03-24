@@ -651,7 +651,11 @@ export function ManualSalaryTab() {
                 <tbody>
                   {entries.map((e: any) => {
                     const workerName = e.cardName || (e.firstName && e.lastName ? `${e.firstName} ${e.lastName}` : e.userName);
-                    const daysOrHrs = e.entryType === 'daily' ? `${e.daysWorked}d` : e.entryType === 'hourly' ? `${e.hoursWorked}h` : `${e.quantity}q`;
+                    const isOtOnly = parseFloat(e.baseEarnings || '0') === 0 && parseFloat(e.overtimeEarned || '0') > 0;
+                    const daysOrHrs = isOtOnly
+                      ? `${e.overtimeHours || 0}h`
+                      : e.entryType === 'daily' ? `${e.daysWorked}d` : e.entryType === 'hourly' ? `${e.hoursWorked}h` : `${e.quantity}q`;
+                    const displayType = isOtOnly ? 'OT Only' : e.entryType;
                     return (
                       <tr key={e.id} className="border-b hover:bg-gray-50/50">
                         <td className="p-3">
@@ -659,11 +663,11 @@ export function ManualSalaryTab() {
                           <div className="text-xs text-muted-foreground">{e.employeeCode || e.department || ''}</div>
                         </td>
                         <td className="p-3">
-                          <Badge variant="outline" className="text-orange-700 border-orange-300 bg-orange-50">{e.entryType}</Badge>
+                          <Badge variant="outline" className={isOtOnly ? "text-purple-700 border-purple-300 bg-purple-50" : "text-orange-700 border-orange-300 bg-orange-50"}>{displayType}</Badge>
                         </td>
                         <td className="p-3 text-right font-mono">{daysOrHrs}</td>
                         <td className="p-3 text-right font-mono">{fmt(e.baseRate)}</td>
-                        <td className="p-3 text-right font-mono">{fmt(e.baseEarnings)}</td>
+                        <td className="p-3 text-right font-mono">{isOtOnly ? '--' : fmt(e.baseEarnings)}</td>
                         <td className="p-3 text-right font-mono">{parseFloat(e.overtimeEarned || '0') > 0 ? fmt(e.overtimeEarned) : '--'}</td>
                         <td className="p-3 text-right font-mono font-semibold">{fmt(e.grossEarnings)}</td>
                         <td className="p-3 text-right font-mono text-red-600">{fmt(e.totalDeductions)}</td>
