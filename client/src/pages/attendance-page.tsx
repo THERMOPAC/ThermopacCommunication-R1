@@ -366,6 +366,8 @@ export default function AttendancePage() {
         return <Badge className="bg-blue-100 text-blue-800">Weekly Off</Badge>;
       case 'holiday':
         return <Badge className="bg-purple-100 text-purple-800">Holiday</Badge>;
+      case 'on leave':
+        return <Badge className="bg-indigo-100 text-indigo-800">On Leave</Badge>;
       case 'incomplete':
         return <Badge className="bg-yellow-100 text-yellow-800">Incomplete</Badge>;
       default:

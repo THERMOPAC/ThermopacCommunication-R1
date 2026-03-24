@@ -454,7 +454,100 @@ router.get('/my-records', ensureAuthenticated, async (req: Request, res: Respons
       .limit(Number(limit))
       .offset(Number(offset));
 
-    res.json(records);
+    if (!startDate || !endDate) {
+      return res.json(records);
+    }
+
+    const employee = req.user as any;
+    const weeklyOffDays: number[] = Array.isArray(employee.weeklyOffDays)
+      ? employee.weeklyOffDays
+      : [0, 6];
+
+    const holidays = await db
+      .select({ date: companyHolidays.date, name: companyHolidays.name })
+      .from(companyHolidays)
+      .where(and(
+        gte(companyHolidays.date, startDate as string),
+        lte(companyHolidays.date, endDate as string)
+      ));
+    const holidayMap = new Map(holidays.map(h => [h.date, h.name]));
+
+    const approvedLeaves = await db
+      .select({
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+        isHalfDay: leaveRequests.isHalfDay,
+      })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, userId),
+        eq(leaveRequests.status, 'approved'),
+        lte(leaveRequests.startDate, endDate as string),
+        gte(leaveRequests.endDate, startDate as string)
+      ));
+
+    const leaveDateMap = new Map<string, boolean>();
+    for (const leave of approvedLeaves) {
+      const ls = new Date(leave.startDate);
+      const le = new Date(leave.endDate);
+      for (let d = new Date(ls); d <= le; d.setDate(d.getDate() + 1)) {
+        leaveDateMap.set(d.toISOString().split('T')[0], leave.isHalfDay || false);
+      }
+    }
+
+    const recordMap = new Map<string, any>();
+    for (const r of records) {
+      recordMap.set(r.date, r);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const allRecords: any[] = [];
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+
+    for (let d = new Date(end); d >= start; d.setDate(d.getDate() - 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      if (dateStr > today) continue;
+
+      const existing = recordMap.get(dateStr);
+      if (existing) {
+        allRecords.push(existing);
+        continue;
+      }
+
+      const dayOfWeek = d.getDay();
+      const isWeeklyOff = weeklyOffDays.includes(dayOfWeek);
+      const holidayName = holidayMap.get(dateStr);
+      const isLeave = leaveDateMap.has(dateStr);
+
+      let syntheticStatus = 'absent';
+      let adminNotes: string | null = null;
+      if (holidayName) {
+        syntheticStatus = 'holiday';
+        adminNotes = holidayName;
+      } else if (isWeeklyOff) {
+        syntheticStatus = 'weekly off';
+      } else if (isLeave) {
+        syntheticStatus = leaveDateMap.get(dateStr) ? 'half_day' : 'on leave';
+      }
+
+      allRecords.push({
+        id: null,
+        date: dateStr,
+        checkInTime: null,
+        checkOutTime: null,
+        workingHours: null,
+        overtimeHours: null,
+        status: syntheticStatus,
+        isLocationVerified: false,
+        isIpVerified: false,
+        employeeNotes: null,
+        adminNotes,
+        workLocation: null,
+      });
+    }
+
+    res.json(allRecords);
   } catch (error) {
     console.error('Error getting attendance records:', error);
     res.status(500).json({ error: 'Failed to get attendance records' });
