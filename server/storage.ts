@@ -1696,14 +1696,18 @@ export class DatabaseStorage implements IStorage {
         const today = new Date();
         const todayStr = today.toISOString().split('T')[0];
 
-        if (pattern.nextGenerationDate && todayStr < pattern.nextGenerationDate) {
-          console.log(`Pattern ${pattern.id} next generation date is ${pattern.nextGenerationDate} — skipping until then`);
+        const nextGenDateStr = pattern.nextGenerationDate
+          ? pattern.nextGenerationDate.split('T')[0]
+          : null;
+
+        if (nextGenDateStr && todayStr < nextGenDateStr) {
+          console.log(`Pattern ${pattern.id} next generation date is ${nextGenDateStr} — skipping until then`);
           continue;
         }
 
         let taskDueDate: Date | null;
-        if (pattern.nextGenerationDate) {
-          taskDueDate = new Date(pattern.nextGenerationDate + 'T00:00:00');
+        if (nextGenDateStr) {
+          taskDueDate = new Date(nextGenDateStr + 'T00:00:00');
         } else {
           taskDueDate = this.calculateNextOccurrence(pattern, today);
         }
@@ -1712,70 +1716,70 @@ export class DatabaseStorage implements IStorage {
           console.log(`No valid next occurrence found for pattern ${pattern.id}`);
           continue;
         }
-        
-        const startDate = todayStr;
-        const dueDate = taskDueDate.toISOString().split('T')[0];
-        
-        // Calculate finish date based on template duration
-        const finishDate = new Date(taskDueDate);
-        finishDate.setDate(finishDate.getDate() + (pattern.templateDurationDays || 1) - 1);
-        
-        const newRecurringTask: InsertRecurringTask = {
-          title: pattern.templateTitle,
-          description: pattern.templateDescription,
-          priority: pattern.templatePriority as 'Low' | 'Medium' | 'High',
-          startDate,
-          finishDate: finishDate.toISOString().split('T')[0],
-          assignedTo: pattern.templateAssignedTo,
-          createdAt: new Date().toISOString(),
-          category: pattern.templateCategory,
-          recurringPatternId: pattern.id,
-          dueDate: dueDate,
-          occurrenceNumber: (pattern.generatedCount || 0) + 1,
-          status: 'pending'
-        };
-        
-        // Check if a task with this due date and pattern already exists
-        const existingTasks = await db
-          .select()
-          .from(recurringTasksTable)
-          .where(
-            and(
-              eq(recurringTasksTable.recurringPatternId, pattern.id),
-              eq(recurringTasksTable.dueDate, dueDate)
-            )
-          );
-        
-        if (existingTasks.length > 0) {
-          console.log(`Skipping task creation - already exists for pattern ${pattern.id} on date ${dueDate}`);
-          continue; // Skip to the next pattern
+
+        let localGeneratedCount = pattern.generatedCount || 0;
+        const maxCatchUp = 10;
+        let catchUpCount = 0;
+
+        while (taskDueDate && taskDueDate.toISOString().split('T')[0] <= todayStr && catchUpCount < maxCatchUp) {
+          if (pattern.maxOccurrences && localGeneratedCount >= pattern.maxOccurrences) break;
+
+          const dueDate = taskDueDate.toISOString().split('T')[0];
+          const finishDate = new Date(taskDueDate);
+          finishDate.setDate(finishDate.getDate() + (pattern.templateDurationDays || 1) - 1);
+
+          const existingTasks = await db
+            .select()
+            .from(recurringTasksTable)
+            .where(
+              and(
+                eq(recurringTasksTable.recurringPatternId, pattern.id),
+                eq(recurringTasksTable.dueDate, dueDate)
+              )
+            );
+
+          if (existingTasks.length > 0) {
+            console.log(`Skipping task creation - already exists for pattern ${pattern.id} on date ${dueDate}`);
+            taskDueDate = this.calculateNextOccurrence(pattern, taskDueDate);
+            catchUpCount++;
+            continue;
+          }
+
+          const newRecurringTask: InsertRecurringTask = {
+            title: pattern.templateTitle,
+            description: pattern.templateDescription,
+            priority: pattern.templatePriority as 'Low' | 'Medium' | 'High',
+            startDate: todayStr,
+            finishDate: finishDate.toISOString().split('T')[0],
+            assignedTo: pattern.templateAssignedTo,
+            createdAt: new Date().toISOString(),
+            category: pattern.templateCategory,
+            recurringPatternId: pattern.id,
+            dueDate: dueDate,
+            occurrenceNumber: localGeneratedCount + 1,
+            status: 'pending'
+          };
+
+          const task = await this.createRecurringTask(newRecurringTask);
+          tasksGeneratedCount++;
+          localGeneratedCount++;
+          catchUpCount++;
+          console.log(`Created recurring task ${task.id} from pattern ${pattern.id} (occurrence #${task.occurrenceNumber}, due ${dueDate})`);
+
+          taskDueDate = this.calculateNextOccurrence(pattern, taskDueDate);
         }
-        
-        // Create the recurring task in the dedicated table
-        const task = await this.createRecurringTask(newRecurringTask);
-        tasksGeneratedCount++; // Increment the counter for each new task created
-        console.log(`Created recurring task ${task.id} from pattern ${pattern.id} (occurrence #${task.occurrenceNumber})`);
-        
-        // Calculate next generation date using the same logic as task due date
-        const nextGenerationDate = this.calculateNextOccurrence(pattern, taskDueDate);
-        
-        // Update the pattern with new information
-        if (nextGenerationDate) {
-          await this.updateRecurringPattern(pattern.id, {
-            lastGeneratedDate: new Date().toISOString(),
-            nextGenerationDate: nextGenerationDate.toISOString().split('T')[0],
-            generatedCount: (pattern.generatedCount || 0) + 1
-          });
-          
-          console.log(`Updated pattern ${pattern.id} with next generation date: ${nextGenerationDate.toISOString().split('T')[0]}`);
+
+        const nextGenDate = taskDueDate ? taskDueDate.toISOString().split('T')[0] : null;
+        await this.updateRecurringPattern(pattern.id, {
+          lastGeneratedDate: new Date().toISOString(),
+          ...(nextGenDate ? { nextGenerationDate: nextGenDate } : {}),
+          generatedCount: localGeneratedCount
+        });
+
+        if (nextGenDate) {
+          console.log(`Updated pattern ${pattern.id} with next generation date: ${nextGenDate} (generated ${catchUpCount} catch-up tasks)`);
         } else {
-          // Only update generated count if we couldn't calculate next date
-          await this.updateRecurringPattern(pattern.id, {
-            lastGeneratedDate: new Date().toISOString(),
-            generatedCount: (pattern.generatedCount || 0) + 1
-          });
-          
-          console.log(`Updated pattern ${pattern.id} but could not calculate next generation date`);
+          console.log(`Updated pattern ${pattern.id} — no further occurrences calculated`);
         }
       } catch (error) {
         console.error(`Error processing recurring pattern ${pattern.id}:`, error);
