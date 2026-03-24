@@ -958,42 +958,6 @@ export class MasterControlAgent implements IAgent {
         }
       }
 
-      // M4.06: Agent effectiveness check — completion rate <30% over 7 days → task to Superuser
-      for (const [agentKey, stats] of agentTaskStats) {
-        if (stats.total < 5) continue;
-        const rate = stats.completed / stats.total;
-        if (rate < c.effectiveness_completion_threshold) {
-          const displayName = agentDisplayName(agentKey);
-          const fingerprint = fp('m4_06_effectiveness', 'agent', agentKey);
-          const finding = await findingManager.createFinding({
-            findingType: 'threshold_breach', severity: 'medium',
-            title: `M4.06 Low effectiveness: ${displayName} (${(rate * 100).toFixed(0)}% completion, ${stats.total} tasks)`,
-            description: `${displayName} has a ${(rate * 100).toFixed(0)}% task completion rate over the last 7 days (${stats.completed}/${stats.total}). Threshold: ${(c.effectiveness_completion_threshold * 100).toFixed(0)}%.`,
-            logicType: 'rule_based',
-            relatedEntityType: 'agent', relatedEntityId: agentKey,
-            dataSnapshot: { agentKey, total: stats.total, completed: stats.completed, rate: (rate * 100).toFixed(1) },
-          });
-          if (!finding.isDuplicate) {
-            findingsCount++;
-            acc.findingIds.push(finding.id);
-            acc.groupCounts['M4'] = (acc.groupCounts['M4'] || 0) + 1;
-            if (canCreateTask(acc) && !(await hasOpenTask(fingerprint))) {
-              const rec = await recommendationManager.createRecommendation({
-                findingId: finding.id, title: `[Agent] Governance – Low effectiveness: ${displayName}`,
-                actionType: 'create_task', actionCategory: 'task_creation',
-                description: `Review agent effectiveness.`,
-                actionPayload: {
-                  title: `[Agent] Governance – Review agent effectiveness: ${displayName}`,
-                  description: `${displayName} has a ${(rate * 100).toFixed(0)}% task completion rate over 7 days (${stats.completed}/${stats.total} completed).\nThreshold: ${(c.effectiveness_completion_threshold * 100).toFixed(0)}%.\n\nThis suggests the agent may be creating tasks that are:\n- Too noisy or low-priority\n- Assigned to wrong people\n- Not actionable\n\nReview the agent's configuration and recent task quality.`,
-                  assignedTo: c.superuser_id, priority: 'Medium', category: `Governance ${fingerprint}`,
-                },
-                logicType: 'rule_based', confidence: 0.85, priority: 'normal',
-              });
-              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); acc.taskCreated++; }
-            }
-          }
-        }
-      }
     } catch (err: any) {
       console.error(`[MasterControl] M4 error:`, err.message);
     }
