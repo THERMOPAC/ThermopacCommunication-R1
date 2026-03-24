@@ -58,7 +58,7 @@ function calculateWorkHours(timeIn: string, timeOut: string | null): number | nu
 }
 
 // Helper function to determine attendance status
-function getAttendanceStatus(timeIn: string, timeOut: string | null, halfDayMinHours: number = 4.5, lateThresholdMinutes: number = 15, dutyTimeIn: string = '09:00'): string {
+function getAttendanceStatus(timeIn: string, timeOut: string | null, halfDayMinHours: number = 4, lateThresholdMinutes: number = 15, dutyTimeIn: string = '09:00', fullDayMinHours: number = 8): string {
   const checkInTime = new Date(timeIn);
   const startOfDay = new Date(checkInTime);
   const [dutyHour, dutyMin] = dutyTimeIn.split(':').map(Number);
@@ -71,7 +71,8 @@ function getAttendanceStatus(timeIn: string, timeOut: string | null, halfDayMinH
   const workHours = calculateWorkHours(timeIn, timeOut);
   if (!workHours) return 'Present';
   
-  if (workHours < halfDayMinHours) return 'Half Day';
+  if (workHours < halfDayMinHours) return 'Absent';
+  if (workHours < fullDayMinHours) return 'Half Day';
   if (checkInTime > startOfDay) return 'Late';
   
   return 'Present';
@@ -1001,6 +1002,7 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
         department: users.department,
         weeklyOffDays: users.weeklyOffDays,
         halfDayMinimumHours: users.halfDayMinimumHours,
+        minimumDailyHours: users.minimumDailyHours,
         allowedLateMinutes: users.allowedLateMinutes,
         dutyTimeIn: users.dutyTimeIn
       })
@@ -1062,11 +1064,11 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
       } else if (dbStatus === 'half_day') {
         displayStatus = 'Half Day';
       } else {
-        // For 'present' status or unknown, calculate based on check-in time and employee settings
-        const halfDayMin = Number(record.halfDayMinimumHours) || 4.5;
+        const halfDayMin = Number(record.halfDayMinimumHours) || 4;
+        const fullDayMin = Number(record.minimumDailyHours) || 8;
         const lateMin = Number(record.allowedLateMinutes) || 15;
         const dutyIn = record.dutyTimeIn || '09:00';
-        displayStatus = getAttendanceStatus(record.checkInTime, record.checkOutTime, halfDayMin, lateMin, dutyIn);
+        displayStatus = getAttendanceStatus(record.checkInTime, record.checkOutTime, halfDayMin, lateMin, dutyIn, fullDayMin);
       }
       
       return {

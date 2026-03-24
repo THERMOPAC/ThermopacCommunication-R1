@@ -166,7 +166,7 @@ export default function AttendancePage() {
   });
 
   const getEffectiveStatus = (r: any) => {
-    const status = r.status?.toLowerCase() || '';
+    const status = (r.status?.toLowerCase() || '').replace(/_/g, ' ');
     if (status === 'present' && r.checkInTime && !r.checkOutTime) {
       const today = new Date().toISOString().split('T')[0];
       const recordDate = r.date ? new Date(r.date).toISOString().split('T')[0] : '';
@@ -341,7 +341,7 @@ export default function AttendancePage() {
   };
 
   const getStatusBadge = (status: string, record?: any) => {
-    const statusLower = status?.toLowerCase() || '';
+    const statusLower = (status?.toLowerCase() || '').replace(/_/g, ' ');
     if (record && record.checkInTime && !record.checkOutTime) {
       const today = new Date().toISOString().split('T')[0];
       const recordDate = record.date ? new Date(record.date).toISOString().split('T')[0] : '';
@@ -366,6 +366,8 @@ export default function AttendancePage() {
         return <Badge className="bg-blue-100 text-blue-800">Weekly Off</Badge>;
       case 'holiday':
         return <Badge className="bg-purple-100 text-purple-800">Holiday</Badge>;
+      case 'incomplete':
+        return <Badge className="bg-yellow-100 text-yellow-800">Incomplete</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }

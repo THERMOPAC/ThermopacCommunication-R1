@@ -272,17 +272,48 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       }
     }
 
-    // Determine attendance status based on DWAR completion and working hours
+    // Check leave / holiday / weekly off before applying hour-based status
+    const employeeUser = req.user as any;
     let attendanceStatus: string;
-    if (!isDwarCompleted) {
-      attendanceStatus = 'absent';
+
+    const [approvedLeave] = await db
+      .select({ id: leaveRequests.id, isHalfDay: leaveRequests.isHalfDay })
+      .from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, userId),
+        eq(leaveRequests.status, 'approved'),
+        lte(leaveRequests.startDate, today),
+        gte(leaveRequests.endDate, today)
+      ))
+      .limit(1);
+
+    const [holiday] = await db
+      .select({ id: companyHolidays.id })
+      .from(companyHolidays)
+      .where(eq(companyHolidays.date, today))
+      .limit(1);
+
+    const weeklyOffDays: number[] = Array.isArray(employeeUser.weeklyOffDays)
+      ? employeeUser.weeklyOffDays
+      : [0, 6];
+    const todayDayOfWeek = new Date(today).getDay();
+    const isWeeklyOff = weeklyOffDays.includes(todayDayOfWeek);
+
+    if (holiday) {
+      attendanceStatus = 'holiday';
+    } else if (isWeeklyOff) {
+      attendanceStatus = 'weekly off';
+    } else if (approvedLeave) {
+      attendanceStatus = approvedLeave.isHalfDay ? 'half_day' : 'present';
     } else {
-      const employeeUser = req.user as any;
-      const halfDayMin = Number(employeeUser.halfDayMinimumHours) || 4.5;
-      if (workingHours < halfDayMin) {
+      const fullDayMin = Number(employeeUser.minimumDailyHours) || 8;
+      const halfDayMin = Number(employeeUser.halfDayMinimumHours) || 4;
+      if (workingHours >= fullDayMin) {
+        attendanceStatus = 'present';
+      } else if (workingHours >= halfDayMin) {
         attendanceStatus = 'half_day';
       } else {
-        attendanceStatus = 'present';
+        attendanceStatus = 'absent';
       }
     }
     
@@ -305,21 +336,21 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
       .where(eq(attendanceRecords.id, existingRecord.id))
       .returning();
 
-    // If DWAR not completed, create an attendance issue
+    // If DWAR not completed, create a compliance warning (does NOT affect attendance status)
     if (!isDwarCompleted) {
       try {
         await db.insert(attendanceIssues).values({
           attendanceRecordId: existingRecord.id,
           userId: userId,
           issueType: 'no_dwar',
-          description: `DWAR not submitted at checkout. DWAR status: ${dwarStatus.status || 'Not created'}. Marked as absent.`,
-          severity: 'high',
+          description: `DWAR not submitted at checkout. DWAR status: ${dwarStatus.status || 'Not created'}. Attendance status based on hours worked: ${attendanceStatus}.`,
+          severity: 'medium',
           status: 'pending',
           detectedAt: now,
           managerNotified: false,
           hrNotified: false
         });
-        console.log(`Created attendance issue for user ${userId}: DWAR incomplete at checkout`);
+        console.log(`Created DWAR compliance warning for user ${userId} (attendance status: ${attendanceStatus})`);
       } catch (issueError) {
         console.error('Error creating attendance issue:', issueError);
       }
