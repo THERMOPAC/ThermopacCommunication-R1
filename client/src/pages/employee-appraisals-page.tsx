@@ -295,8 +295,8 @@ function AppraisalDetail({ appraisalId, onBack, view }: { appraisalId: number; o
           <TabsTrigger value="kpis">KPIs ({kpis?.length || 0})</TabsTrigger>
           <TabsTrigger value="competencies">Competencies ({competencies?.length || 0})</TabsTrigger>
           <TabsTrigger value="comments">Comments ({comments?.length || 0})</TabsTrigger>
-          <TabsTrigger value="history">History ({approvals?.length || 0})</TabsTrigger>
           <TabsTrigger value="actions">Actions</TabsTrigger>
+          <TabsTrigger value="history">History ({approvals?.length || 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -311,11 +311,11 @@ function AppraisalDetail({ appraisalId, onBack, view }: { appraisalId: number; o
         <TabsContent value="comments">
           <CommentsSection appraisalId={appraisalId} comments={comments || []} appraisal={appraisal} />
         </TabsContent>
-        <TabsContent value="history">
-          <HistorySection approvals={approvals || []} />
-        </TabsContent>
         <TabsContent value="actions">
           <ActionsSection appraisalId={appraisalId} appraisal={appraisal} isEmployee={isEmployee} isL1={isL1} isL2={isL2} isL3={isL3} isAdmin={isAdmin} />
+        </TabsContent>
+        <TabsContent value="history">
+          <HistorySection approvals={approvals || []} />
         </TabsContent>
       </Tabs>
     </div>
