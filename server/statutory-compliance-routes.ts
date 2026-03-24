@@ -820,11 +820,24 @@ async function postJeToSap(userId: number, jePayload: any): Promise<{ success: b
       sessionId = loginResult.sessionId;
     }
 
-    const sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+    let sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
       method: 'POST',
       path: '/b1s/v1/JournalEntries',
       body: jePayload,
     });
+
+    if (sapResponse.statusCode === 401 || (sapResponse.statusCode === 500 && sapResponse.body?.includes('session'))) {
+      sapSessionManager.clearSession(userId);
+      const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
+      sapSessionManager.setSession(userId, { sessionId: loginResult.sessionId, routeId: undefined, userId, createdAt: new Date(), expiresAt: new Date(Date.now() + 30 * 60000) });
+      sessionId = loginResult.sessionId;
+
+      sapResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+        method: 'POST',
+        path: '/b1s/v1/JournalEntries',
+        body: jePayload,
+      });
+    }
 
     if (sapResponse.ok) {
       const responseData = JSON.parse(sapResponse.body);
