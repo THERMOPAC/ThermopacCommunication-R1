@@ -3287,13 +3287,20 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
 
   useEffect(() => {
     const basic = parseFloat(watchedValues.basicSalary || '0');
-    const minHours = parseFloat(watchedValues.workingHoursPerDay || '8');
-    if (basic > 0 && minHours > 0) {
+    if (basic > 0) {
+      const user = users.find(u => u.id === watchedValues.userId);
+      let dutyHours = parseFloat(watchedValues.workingHoursPerDay || '8');
+      if (user?.dutyTimeIn && user?.dutyTimeOut) {
+        const [inH, inM] = user.dutyTimeIn.split(':').map(Number);
+        const [outH, outM] = user.dutyTimeOut.split(':').map(Number);
+        const rawHours = (outH * 60 + outM - inH * 60 - inM) / 60;
+        if (rawHours > 0) dutyHours = rawHours;
+      }
       const divisor = watchedValues.salaryType === 'daily' ? 26 : 30;
-      const rate = (basic * 2.5) / divisor / minHours;
+      const rate = (basic * 2.5) / divisor / dutyHours;
       form.setValue('hourlyRate', rate.toFixed(2));
     }
-  }, [watchedValues.salaryType, watchedValues.basicSalary, watchedValues.workingHoursPerDay, form]);
+  }, [watchedValues.salaryType, watchedValues.basicSalary, watchedValues.workingHoursPerDay, watchedValues.userId, form, users]);
   
   const calculations = useSalaryCalculations(watchedValues, selectedUserRole);
 
@@ -3463,7 +3470,7 @@ function SalaryForm({ users, groupedUsers = {}, workLocations, getEmployeeWorkwe
                       />
                     </FormControl>
                     <p className="text-xs text-muted-foreground">
-                      Basic × 2.5 / {watchedValues.salaryType === 'daily' ? '26' : '30'} / Min Daily Hrs
+                      Basic × 2.5 / {watchedValues.salaryType === 'daily' ? '26' : '30'} / Duty Hours (Out − In)
                     </p>
                     <FormMessage />
                   </FormItem>
