@@ -741,38 +741,6 @@ export class MasterControlAgent implements IAgent {
         if (!finding.isDuplicate) { findingsCount++; acc.findingIds.push(finding.id); acc.groupCounts['M4'] = (acc.groupCounts['M4'] || 0) + 1; }
       }
 
-      // M4.04: Global daily task ceiling breached
-      const totalAgentTasksToday = agentTasksToday.filter(t => t.source_agent !== SOURCE_AGENT).length;
-      if (totalAgentTasksToday > c.global_daily_task_ceiling) {
-        const fingerprint = fpGlobal('m4_04_global_ceiling');
-        const finding = await findingManager.createFinding({
-          findingType: 'threshold_breach', severity: 'high',
-          title: `M4.04 Global task ceiling breached (${totalAgentTasksToday}/${c.global_daily_task_ceiling})`,
-          description: `All agents combined created ${totalAgentTasksToday} tasks today, exceeding the global ceiling of ${c.global_daily_task_ceiling}.`,
-          logicType: 'rule_based',
-          dataSnapshot: { total: totalAgentTasksToday, ceiling: c.global_daily_task_ceiling },
-        });
-        if (!finding.isDuplicate) {
-          findingsCount++;
-          acc.findingIds.push(finding.id);
-          acc.groupCounts['M4'] = (acc.groupCounts['M4'] || 0) + 1;
-          if (canCreateTask(acc) && !(await hasOpenTask(fingerprint))) {
-            const rec = await recommendationManager.createRecommendation({
-              findingId: finding.id, title: '[Agent] Governance – Global task ceiling breached',
-              actionType: 'create_task', actionCategory: 'task_creation',
-              description: `System-wide agent task volume too high.`,
-              actionPayload: {
-                title: `[Agent] Governance – Global task ceiling breached (${totalAgentTasksToday}/${c.global_daily_task_ceiling})`,
-                description: `All agents combined created ${totalAgentTasksToday} tasks today (ceiling: ${c.global_daily_task_ceiling}).\n\nBreakdown by agent:\n${Array.from(tasksByAgent.entries()).filter(([k]) => k !== SOURCE_AGENT).map(([k, t]) => `  ${agentDisplayName(k)}: ${t.length}`).join('\n')}\n\nReview agent thresholds and consider adjusting.`,
-                assignedTo: c.superuser_id, priority: 'High', category: `Governance ${fingerprint}`,
-              },
-              logicType: 'rule_based', confidence: 0.9, priority: 'high',
-            });
-            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); acc.taskCreated++; }
-          }
-        }
-      }
-
     } catch (err: any) {
       console.error(`[MasterControl] M4 error:`, err.message);
     }
