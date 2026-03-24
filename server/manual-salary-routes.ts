@@ -49,21 +49,28 @@ async function calculateManualSalary(input: {
   overtimeRateMultiplier: number;
   periodMonth: number;
   employeeRole?: string;
+  entryPurpose?: string;
 }) {
+  const isOtOnly = input.entryPurpose === 'ot_only';
+
   let baseEarnings = 0;
-  if (input.entryType === 'daily') {
-    baseEarnings = input.daysWorked * input.baseRate;
-  } else if (input.entryType === 'hourly') {
-    baseEarnings = input.hoursWorked * input.baseRate;
-  } else {
-    baseEarnings = input.quantity * input.baseRate;
+  if (!isOtOnly) {
+    if (input.entryType === 'daily') {
+      baseEarnings = input.daysWorked * input.baseRate;
+    } else if (input.entryType === 'hourly') {
+      baseEarnings = input.hoursWorked * input.baseRate;
+    } else {
+      baseEarnings = input.quantity * input.baseRate;
+    }
   }
 
-  const hourlyRateForOT = input.entryType === 'daily'
-    ? input.baseRate / 8
-    : input.entryType === 'hourly'
-      ? input.baseRate
-      : input.baseRate / 8;
+  const hourlyRateForOT = isOtOnly
+    ? input.baseRate
+    : input.entryType === 'daily'
+      ? input.baseRate / 8
+      : input.entryType === 'hourly'
+        ? input.baseRate
+        : input.baseRate / 8;
 
   const overtimeEarned = input.overtimeHours * hourlyRateForOT * input.overtimeRateMultiplier;
   const grossEarnings = baseEarnings + overtimeEarned;
@@ -120,7 +127,7 @@ function getQuarter(month: number): string {
 
 router.post('/preview', ensurePayrollAdmin, async (req: Request, res: Response) => {
   try {
-    const { entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, periodId } = req.body;
+    const { entryType, daysWorked, hoursWorked, quantity, baseRate, overtimeHours, overtimeRateMultiplier, periodId, entryPurpose } = req.body;
     let periodMonth = new Date().getMonth() + 1;
     if (periodId) {
       const [period] = await db.select().from(payrollPeriods).where(eq(payrollPeriods.id, periodId));
@@ -135,6 +142,7 @@ router.post('/preview', ensurePayrollAdmin, async (req: Request, res: Response) 
       overtimeHours: parseFloat(overtimeHours || '0'),
       overtimeRateMultiplier: parseFloat(overtimeRateMultiplier || '1.5'),
       periodMonth,
+      entryPurpose: entryPurpose || undefined,
     });
     res.json(result);
   } catch (e: any) {

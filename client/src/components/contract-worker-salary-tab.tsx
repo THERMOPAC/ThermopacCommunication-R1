@@ -80,6 +80,7 @@ export function ManualSalaryTab() {
   const { data: periods = [] } = useQuery<any[]>({ queryKey: ['/api/payroll/payroll-periods'] });
   const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ['/api/users'] });
   const { data: salaryConfigs = [] } = useQuery<any[]>({ queryKey: ['/api/admin/payroll/salary-setup'] });
+  const { data: glMappings = [] } = useQuery<any[]>({ queryKey: ['/api/statutory/gl-mappings'] });
 
   useEffect(() => {
     if (!formData.userId || editingEntry) return;
@@ -121,6 +122,7 @@ export function ManualSalaryTab() {
     const timer = setTimeout(() => {
       previewMutation.mutate({
         entryType: formData.entryType,
+        entryPurpose: formData.entryPurpose,
         daysWorked: formData.daysWorked,
         hoursWorked: formData.hoursWorked,
         quantity: formData.quantity,
@@ -131,7 +133,7 @@ export function ManualSalaryTab() {
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [formData.entryType, formData.daysWorked, formData.hoursWorked, formData.quantity, formData.baseRate, formData.overtimeHours, formData.overtimeRateMultiplier, formData.periodId]);
+  }, [formData.entryType, formData.entryPurpose, formData.daysWorked, formData.hoursWorked, formData.quantity, formData.baseRate, formData.overtimeHours, formData.overtimeRateMultiplier, formData.periodId]);
 
   const invalidateList = () => qc.invalidateQueries({ queryKey: ['/api/manual-salary/list'] });
 
@@ -253,6 +255,7 @@ export function ManualSalaryTab() {
       baseRate: entry.baseRate || '',
       overtimeHours: entry.overtimeHours || '0',
       overtimeRateMultiplier: entry.overtimeRateMultiplier || '1.5',
+      entryPurpose: entry.entryPurpose || 'ot_only',
       remarks: entry.remarks || '',
     });
     setIsEditOpen(true);
@@ -294,6 +297,65 @@ export function ManualSalaryTab() {
     const totalNet = entries.reduce((s: number, e: any) => s + parseFloat(e.netPay || '0'), 0);
     return { total, generated, verified, transferred, totalGross, totalNet };
   }, [entries]);
+
+  const sapJePreview = useMemo(() => {
+    if (!preview) return null;
+    const selectedUser = allUsers.find((u: any) => u.id === parseInt(formData.userId));
+    if (!selectedUser) return null;
+    const selectedPeriod = periods.find((p: any) => p.id === parseInt(formData.periodId));
+
+    const empName = selectedUser.cardName || (selectedUser.firstName && selectedUser.lastName ? `${selectedUser.firstName} ${selectedUser.lastName}` : selectedUser.username);
+    const periodLabel = selectedPeriod?.periodName || 'Unknown Period';
+
+    const getGl = (code: string, context: string) => {
+      const m = glMappings.find((g: any) => g.componentCode === code && g.context === context && g.isActive);
+      return m?.accountCode || `[${code}_${context}]`;
+    };
+
+    const jeLines: any[] = [];
+    let lineNum = 0;
+
+    if (preview.baseEarnings > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('BASIC', 'expense'), Debit: preview.baseEarnings, Credit: 0, LineMemo: `Manual Salary BASIC - ${empName} - ${periodLabel}` });
+    }
+    if (preview.overtimeEarned > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('OVERTIME', 'expense'), Debit: preview.overtimeEarned, Credit: 0, LineMemo: `Manual Salary OVERTIME - ${empName} - ${periodLabel}` });
+    }
+    if (preview.pfAmount > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('PF_EMPLOYEE', 'payroll_liability'), Debit: 0, Credit: preview.pfAmount, LineMemo: `Manual Salary PF - ${empName} - ${periodLabel}` });
+    }
+    if (preview.esicAmount > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('ESIC_EMPLOYEE', 'payroll_liability'), Debit: 0, Credit: preview.esicAmount, LineMemo: `Manual Salary ESIC - ${empName} - ${periodLabel}` });
+    }
+    if (preview.ptAmount > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('PT', 'payroll_liability'), Debit: 0, Credit: preview.ptAmount, LineMemo: `Manual Salary PT - ${empName} - ${periodLabel}` });
+    }
+    if (preview.tdsAmount > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('TDS', 'payroll_liability'), Debit: 0, Credit: preview.tdsAmount, LineMemo: `Manual Salary TDS - ${empName} - ${periodLabel}` });
+    }
+    if (preview.netPay > 0) {
+      jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('NET_PAY', 'payroll_liability'), Debit: 0, Credit: preview.netPay, LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}` });
+    }
+
+    const postingDate = selectedPeriod?.startDate
+      ? (() => { const sd = new Date(selectedPeriod.startDate); return new Date(sd.getFullYear(), sd.getMonth() + 1, 0).toISOString().split('T')[0]; })()
+      : new Date().toISOString().split('T')[0];
+
+    return {
+      ReferenceDate: postingDate,
+      Memo: `Manual Salary Salary JE - ${empName} - ${periodLabel}`,
+      Reference2: selectedUser.cardCode || '[NO_CARD_CODE]',
+      Reference3: '194C',
+      U_Employee_Name: empName,
+      U_TDS_Status: 'A',
+      U_PF_Status: 'A',
+      U_ESIC_Status: 'A',
+      U_PT_Status: 'A',
+      JournalEntryLines: jeLines,
+    };
+  }, [preview, formData.userId, formData.periodId, allUsers, periods, glMappings]);
+
+  const [showJePreview, setShowJePreview] = useState(false);
 
   function renderFormFields(isEdit: boolean) {
     const isOtOnly = formData.entryPurpose === 'ot_only';
@@ -413,11 +475,72 @@ export function ManualSalaryTab() {
               </CardHeader>
               <CardContent className="p-3 pt-0">
                 <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
+                  {!isOtOnly && preview.baseEarnings > 0 && (
+                    <div className="flex justify-between"><span>Base Pay:</span><span className="font-mono">{fmt(preview.baseEarnings)}</span></div>
+                  )}
                   <div className="flex justify-between"><span>Overtime:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
-                  <div className="flex justify-between text-green-700 font-bold text-base"><span>OT Amount:</span><span className="font-mono">{fmt(preview.overtimeEarned)}</span></div>
+                  <div className="flex justify-between font-semibold"><span>Gross:</span><span className="font-mono">{fmt(preview.grossEarnings)}</span></div>
+                  {preview.totalDeductions > 0 && (
+                    <div className="flex justify-between text-red-600"><span>Deductions:</span><span className="font-mono">{fmt(preview.totalDeductions)}</span></div>
+                  )}
+                  <div className="flex justify-between text-green-700 font-bold text-base"><span>Net Pay:</span><span className="font-mono">{fmt(preview.netPay)}</span></div>
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Hourly Rate: {fmt(parseFloat(formData.baseRate || '0'))} × {formData.overtimeHours} hrs × {formData.overtimeRateMultiplier} = {fmt(preview.overtimeEarned)}
                 </div>
               </CardContent>
             </Card>
+
+            {sapJePreview && (
+              <Card className="border-blue-200 bg-blue-50/50">
+                <CardHeader className="p-3 pb-1 cursor-pointer" onClick={() => setShowJePreview(!showJePreview)}>
+                  <CardTitle className="text-sm flex items-center gap-2 justify-between">
+                    <span className="flex items-center gap-2"><Send className="h-4 w-4" /> SAP JE Preview</span>
+                    <span className="text-xs text-muted-foreground">{showJePreview ? '▲ Hide' : '▼ Show'}</span>
+                  </CardTitle>
+                </CardHeader>
+                {showJePreview && (
+                  <CardContent className="p-3 pt-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b bg-blue-100/50">
+                            <th className="text-left p-1.5 font-medium">#</th>
+                            <th className="text-left p-1.5 font-medium">Account</th>
+                            <th className="text-right p-1.5 font-medium">Debit</th>
+                            <th className="text-right p-1.5 font-medium">Credit</th>
+                            <th className="text-left p-1.5 font-medium">Memo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sapJePreview.JournalEntryLines.map((line: any) => (
+                            <tr key={line.Line_ID} className="border-b">
+                              <td className="p-1.5 text-muted-foreground">{line.Line_ID}</td>
+                              <td className="p-1.5 font-mono text-xs">{line.AccountCode}</td>
+                              <td className="p-1.5 text-right font-mono">{line.Debit > 0 ? fmt(line.Debit) : '-'}</td>
+                              <td className="p-1.5 text-right font-mono">{line.Credit > 0 ? fmt(line.Credit) : '-'}</td>
+                              <td className="p-1.5 text-muted-foreground truncate max-w-[200px]">{line.LineMemo}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t-2 font-bold text-xs">
+                            <td colSpan={2} className="p-1.5">Total</td>
+                            <td className="p-1.5 text-right font-mono">{fmt(sapJePreview.JournalEntryLines.reduce((s: number, l: any) => s + l.Debit, 0))}</td>
+                            <td className="p-1.5 text-right font-mono">{fmt(sapJePreview.JournalEntryLines.reduce((s: number, l: any) => s + l.Credit, 0))}</td>
+                            <td className="p-1.5"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                    <details className="mt-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Raw JSON</summary>
+                      <pre className="mt-1 p-2 bg-slate-900 text-green-400 rounded text-[10px] overflow-x-auto max-h-[200px]">{JSON.stringify(sapJePreview, null, 2)}</pre>
+                    </details>
+                  </CardContent>
+                )}
+              </Card>
+            )}
           </>
         )}
       </div>
