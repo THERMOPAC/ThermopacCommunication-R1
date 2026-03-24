@@ -456,12 +456,18 @@ router.get('/:appraisalId/template-kpis', ensureAuthenticated, async (req: Reque
     if (!empDept) return res.json({ items: [], message: 'No department set for employee' });
 
     const empLevel = await getHierarchyLevel(appraisal.employeeId);
-    const [activeTemplate] = await db.select().from(appraisalKpiTemplates)
-      .where(and(
-        eq(appraisalKpiTemplates.department, empDept),
-        eq(appraisalKpiTemplates.hierarchyLevel, empLevel),
-        eq(appraisalKpiTemplates.status, 'active')
-      ));
+    const levelsToTry = empLevel === 'L3' ? ['L3', 'L2'] : empLevel === 'L2' ? ['L2'] : ['L1'];
+    let activeTemplate: any = null;
+    let matchedLevel = empLevel;
+    for (const lvl of levelsToTry) {
+      const [found] = await db.select().from(appraisalKpiTemplates)
+        .where(and(
+          eq(appraisalKpiTemplates.department, empDept),
+          eq(appraisalKpiTemplates.hierarchyLevel, lvl),
+          eq(appraisalKpiTemplates.status, 'active')
+        ));
+      if (found) { activeTemplate = found; matchedLevel = lvl; break; }
+    }
     if (!activeTemplate) return res.json({ items: [], message: `No active template for ${empDept} / ${empLevel}` });
 
     const items = await db.select().from(appraisalKpiTemplateItems)
