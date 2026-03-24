@@ -760,50 +760,6 @@ export class MasterControlAgent implements IAgent {
     // M4: TASK VOLUME & NOISE CONTROL
     // ════════════════════════════════════════════════════════════════════════
     try {
-      // M4.01: Agent exceeded daily task creation cap
-      for (const [agentKey, tasks] of tasksByAgent) {
-        if (agentKey === SOURCE_AGENT) continue;
-        const displayName = agentDisplayName(agentKey);
-        const policyResult = await db.execute(sql`
-          SELECT max_actions_per_day FROM agent_policies
-          WHERE agent_key = ${agentKey} AND action_category = 'task_creation'
-          LIMIT 1
-        `);
-        queriesRun++;
-        const maxPerDay = Number((policyResult.rows as any[])[0]?.max_actions_per_day || 50);
-
-        if (tasks.length > maxPerDay) {
-          const fingerprint = fp('m4_01_cap_breach', 'agent', agentKey);
-          const finding = await findingManager.createFinding({
-            findingType: 'threshold_breach', severity: 'high',
-            title: `M4.01 Task cap breached: ${displayName} (${tasks.length}/${maxPerDay})`,
-            description: `${displayName} created ${tasks.length} tasks today, exceeding its daily limit of ${maxPerDay}.`,
-            logicType: 'rule_based',
-            relatedEntityType: 'agent', relatedEntityId: agentKey,
-            dataSnapshot: { agentKey, created: tasks.length, limit: maxPerDay },
-          });
-          if (!finding.isDuplicate) {
-            findingsCount++;
-            acc.findingIds.push(finding.id);
-            acc.groupCounts['M4'] = (acc.groupCounts['M4'] || 0) + 1;
-            if (canCreateTask(acc) && !(await hasOpenTask(fingerprint))) {
-              const rec = await recommendationManager.createRecommendation({
-                findingId: finding.id, title: `[Agent] Governance – Task cap breached: ${displayName}`,
-                actionType: 'create_task', actionCategory: 'task_creation',
-                description: `${displayName} exceeded daily task limit.`,
-                actionPayload: {
-                  title: `[Agent] Governance – ${displayName} exceeded task cap (${tasks.length}/${maxPerDay})`,
-                  description: `${displayName} created ${tasks.length} tasks today (limit: ${maxPerDay}).\n\nThis may indicate a configuration issue or genuine spike in problems. Review the agent's thresholds and recent findings.`,
-                  assignedTo: c.superuser_id, priority: 'High', category: `Governance ${fingerprint}`,
-                },
-                logicType: 'rule_based', confidence: 0.9, priority: 'high',
-              });
-              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); acc.taskCreated++; }
-            }
-          }
-        }
-      }
-
       // M4.02: Low task completion rate (Low → insight only)
       const agentTaskStats = new Map<string, { total: number; completed: number }>();
       for (const task of agentTasksRecent) {
