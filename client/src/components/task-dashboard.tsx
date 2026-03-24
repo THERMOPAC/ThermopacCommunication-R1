@@ -54,6 +54,7 @@ export default function TaskDashboard() {
     // Force a fresh fetch of tasks when component mounts
     handleRefreshTasks();
   }, []);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [assignedByFilter, setAssignedByFilter] = useState<string | null>(null);
   const [assignedToFilter, setAssignedToFilter] = useState<string | null>(null);
@@ -172,8 +173,10 @@ export default function TaskDashboard() {
       });
     }
     
-    // Due date filter has been removed as per requirement
-    
+    if (statusFilter) {
+      filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
+    }
+
     if (priorityFilter) {
       filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
     }
@@ -326,8 +329,49 @@ export default function TaskDashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          {/* Due date filter removed as per requirement */}
-          
+          {/* Status filter */}
+          <Select
+            value={statusFilter || "all"}
+            onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 text-amber-500 mr-2" />
+                  Pending
+                </div>
+              </SelectItem>
+              <SelectItem value="in_progress">
+                <div className="flex items-center">
+                  <RefreshCw className="h-4 w-4 text-blue-500 mr-2" />
+                  In Progress
+                </div>
+              </SelectItem>
+              <SelectItem value="completed">
+                <div className="flex items-center">
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                  Completed
+                </div>
+              </SelectItem>
+              <SelectItem value="on_hold">
+                <div className="flex items-center">
+                  <AlertCircle className="h-4 w-4 text-orange-500 mr-2" />
+                  On Hold
+                </div>
+              </SelectItem>
+              <SelectItem value="cancelled">
+                <div className="flex items-center">
+                  <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
+                  Cancelled
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Priority filter */}
           <Select
             value={priorityFilter || "all"}
