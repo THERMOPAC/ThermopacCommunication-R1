@@ -1796,49 +1796,49 @@ function KpiTemplateLibraryTab() {
   }, [templates, filterDept, filterLevel, filterStatus]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest('/api/appraisals/kpi-templates', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    mutationFn: async (data: any) => apiRequest("POST", "/api/appraisals/kpi-templates", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowCreateDialog(false); toast({ title: 'Template created' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest(`/api/appraisals/kpi-templates/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest("PUT", `/api/appraisals/kpi-templates/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setEditingTemplate(null); toast({ title: 'Template updated' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => apiRequest(`/api/appraisals/kpi-templates/${id}`, { method: 'DELETE' }),
+    mutationFn: async (id: number) => apiRequest("DELETE", `/api/appraisals/kpi-templates/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template deleted' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const activateMutation = useMutation({
-    mutationFn: async (id: number) => apiRequest(`/api/appraisals/kpi-templates/${id}/activate`, { method: 'POST' }),
+    mutationFn: async (id: number) => apiRequest("POST", `/api/appraisals/kpi-templates/${id}/activate`, {}),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template activated' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const archiveMutation = useMutation({
-    mutationFn: async (id: number) => apiRequest(`/api/appraisals/kpi-templates/${id}/archive`, { method: 'POST' }),
+    mutationFn: async (id: number) => apiRequest("POST", `/api/appraisals/kpi-templates/${id}/archive`, {}),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template archived' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const addItemMutation = useMutation({
-    mutationFn: async ({ templateId, data }: { templateId: number; data: any }) => apiRequest(`/api/appraisals/kpi-templates/${templateId}/items`, { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    mutationFn: async ({ templateId, data }: { templateId: number; data: any }) => apiRequest("POST", `/api/appraisals/kpi-templates/${templateId}/items`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowItemDialog(false); toast({ title: 'KPI added' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const updateItemMutation = useMutation({
-    mutationFn: async ({ templateId, itemId, data }: { templateId: number; itemId: number; data: any }) => apiRequest(`/api/appraisals/kpi-templates/${templateId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
+    mutationFn: async ({ templateId, itemId, data }: { templateId: number; itemId: number; data: any }) => apiRequest("PUT", `/api/appraisals/kpi-templates/${templateId}/items/${itemId}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowItemDialog(false); setEditingItem(null); toast({ title: 'KPI updated' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
 
   const deleteItemMutation = useMutation({
-    mutationFn: async ({ templateId, itemId }: { templateId: number; itemId: number }) => apiRequest(`/api/appraisals/kpi-templates/${templateId}/items/${itemId}`, { method: 'DELETE' }),
+    mutationFn: async ({ templateId, itemId }: { templateId: number; itemId: number }) => apiRequest("DELETE", `/api/appraisals/kpi-templates/${templateId}/items/${itemId}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'KPI removed' }); },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
