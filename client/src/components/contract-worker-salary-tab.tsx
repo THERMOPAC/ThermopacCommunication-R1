@@ -106,9 +106,12 @@ export function ManualSalaryTab() {
 
   const { data: entries = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/manual-salary/list', effectivePeriodId],
-    queryFn: () => {
+    queryFn: async () => {
       const url = effectivePeriodId ? `/api/manual-salary/list?periodId=${effectivePeriodId}` : '/api/manual-salary/list';
-      return fetch(url, { credentials: 'include' }).then(r => r.json());
+      const r = await fetch(url, { credentials: 'include' });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 
