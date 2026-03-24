@@ -1938,7 +1938,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/users", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    if (req.user!.role !== "Superuser") return res.sendStatus(403);
+    const allowedRoles = ['Superuser', 'Admin', 'General Manager', 'Senior Manager', 'HR Manager', 'Finance Manager'];
+    if (!allowedRoles.includes(req.user!.role)) {
+      try {
+        const { checkModulePermission } = await import('./utils/permission-utils');
+        const hasFinance = await checkModulePermission(req.user!.id, 'Finance', 'view');
+        const hasAdmin = await checkModulePermission(req.user!.id, 'Administration', 'view');
+        if (!hasFinance && !hasAdmin) return res.sendStatus(403);
+      } catch {
+        return res.sendStatus(403);
+      }
+    }
 
     const users = await storage.getAllUsers();
     res.json(users);
