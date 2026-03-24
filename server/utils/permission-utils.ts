@@ -148,6 +148,8 @@ export async function getUserModulePermissions(userId: number) {
     canCreate: boolean; 
     canEdit: boolean;
     canDelete: boolean;
+    canUpload: boolean;
+    canDownload: boolean;
     isCustom: boolean; 
   }> = {} as any;
   
@@ -159,6 +161,8 @@ export async function getUserModulePermissions(userId: number) {
         canCreate: true,
         canEdit: true,
         canDelete: true,
+        canUpload: true,
+        canDownload: true,
         isCustom: false
       };
     });
@@ -178,6 +182,8 @@ export async function getUserModulePermissions(userId: number) {
       canCreate: rolePerm.canCreate,
       canEdit: rolePerm.canEdit,
       canDelete: rolePerm.canDelete,
+      canUpload: rolePerm.canUpload ?? false,
+      canDownload: rolePerm.canDownload ?? false,
       isCustom: false
     };
   });
@@ -189,6 +195,8 @@ export async function getUserModulePermissions(userId: number) {
       canCreate: userPerm.canCreate,
       canEdit: userPerm.canEdit,
       canDelete: userPerm.canDelete,
+      canUpload: userPerm.canUpload,
+      canDownload: userPerm.canDownload,
       isCustom: true
     };
   });
