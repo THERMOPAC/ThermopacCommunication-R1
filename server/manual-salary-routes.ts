@@ -662,10 +662,10 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
 
     if (isOtOnly) {
       const otGl = getGlCode(allMappings, 'OVERTIME', 'expense');
-      const payableGl = getGlCode(allMappings, 'EMPLOYEE_PAYABLE', 'payroll_liability');
+      const payableGl = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
       const missingOt: string[] = [];
       if (!otGl) missingOt.push('OVERTIME (expense)');
-      if (!payableGl) missingOt.push('EMPLOYEE_PAYABLE (payroll_liability)');
+      if (!payableGl) missingOt.push('NET_PAY (payroll_liability)');
       if (missingOt.length > 0) {
         await db.update(payrollRecords).set({
           sapPostingStatus: 'failed',
@@ -714,7 +714,7 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
     if (isOtOnly) {
       const otAmount = parseFloat(entry.overtimeEarned || '0');
       const otGl = getGlCode(allMappings, 'OVERTIME', 'expense')!;
-      const payableGl = getGlCode(allMappings, 'EMPLOYEE_PAYABLE', 'payroll_liability')!;
+      const payableGl = getGlCode(allMappings, 'NET_PAY', 'payroll_liability')!;
 
       jePayload = {
         ReferenceDate: postingDate,

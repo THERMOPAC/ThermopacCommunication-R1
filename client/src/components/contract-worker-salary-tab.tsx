@@ -339,7 +339,7 @@ export function ManualSalaryTab() {
             LineMemo: `Manual OT Expense - ${empName} - ${periodLabel}`,
           },
           {
-            AccountCode: getGl('EMPLOYEE_PAYABLE', 'payroll_liability'),
+            AccountCode: getGl('NET_PAY', 'payroll_liability'),
             ShortName: selectedUser.cardCode || '[NO_CARD_CODE]',
             Debit: 0,
             Credit: otAmount,
