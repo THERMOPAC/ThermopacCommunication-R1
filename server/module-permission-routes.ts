@@ -51,7 +51,7 @@ router.post('/api/users/:userId/module-permissions/:moduleName', authenticateUse
   try {
     const userId = parseInt(req.params.userId);
     const moduleName = req.params.moduleName as any;
-    const { canView, canCreate, canEdit, canDelete } = req.body;
+    const { canView, canCreate, canEdit, canDelete, canUpload, canDownload } = req.body;
     
     // Validate module name
     if (!modules.includes(moduleName)) {
@@ -63,7 +63,9 @@ router.post('/api/users/:userId/module-permissions/:moduleName', authenticateUse
       canView,
       canCreate,
       canEdit,
-      canDelete
+      canDelete,
+      canUpload,
+      canDownload
     });
     
     res.json({ success: true });
