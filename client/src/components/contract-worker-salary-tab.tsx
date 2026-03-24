@@ -328,8 +328,8 @@ export function ManualSalaryTab() {
         TaxDate: postingDate,
         DueDate: postingDate,
         Memo: `Manual Overtime Entry - ${empName} - ${periodLabel}`,
-        Ref1: 'OT-ENTRY-<id>',
-        Ref2: selectedUser.cardCode || '[NO_CARD_CODE]',
+        Reference: 'OT-ENTRY-<id>',
+        Reference2: selectedUser.cardCode || '[NO_CARD_CODE]',
         U_Employee_Name: empName,
         JournalEntryLines: [
           {
@@ -378,9 +378,9 @@ export function ManualSalaryTab() {
       TaxDate: postingDate,
       DueDate: postingDate,
       Memo: `Manual Salary JE - ${empName} - ${periodLabel}`,
-      Ref1: 'MS-ENTRY-<id>',
-      Ref2: selectedUser.cardCode || '[NO_CARD_CODE]',
-      Ref3: '194C',
+      Reference: 'MS-ENTRY-<id>',
+      Reference2: selectedUser.cardCode || '[NO_CARD_CODE]',
+      Reference3: '194C',
       U_Employee_Name: empName,
       U_TDS_Status: 'A',
       U_PF_Status: 'A',

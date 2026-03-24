@@ -721,8 +721,8 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
         TaxDate: postingDate,
         DueDate: postingDate,
         Memo: `Manual Overtime Entry - ${empName} - ${periodLabel}`,
-        Ref1: `OT-ENTRY-${entry.id}`,
-        Ref2: employee.cardCode,
+        Reference: `OT-ENTRY-${entry.id}`,
+        Reference2: employee.cardCode,
         U_Employee_Name: empName,
         JournalEntryLines: [
           {
@@ -805,9 +805,9 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
         TaxDate: postingDate,
         DueDate: postingDate,
         Memo: `Manual Salary JE - ${empName} - ${periodLabel}`,
-        Ref1: `MS-ENTRY-${entry.id}`,
-        Ref2: employee.cardCode,
-        Ref3: '194C',
+        Reference: `MS-ENTRY-${entry.id}`,
+        Reference2: employee.cardCode,
+        Reference3: '194C',
         U_Employee_Name: empName,
         U_TDS_Status: 'A',
         U_PF_Status: 'A',
