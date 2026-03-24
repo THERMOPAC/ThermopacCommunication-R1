@@ -281,16 +281,18 @@ export class SalarySlipGenerator {
       for (let i = 0; i < absentDates.length; i++) {
         const rowY = y + i * rowH;
         const entry = absentDates[i];
-        const [yr, mo, da] = entry.date.split('-').map(Number);
-        const d2 = new Date(yr, mo - 1, da);
-        const formatted = d2.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const dateVal = typeof entry === 'string' ? entry : entry.date;
+        const typeVal = typeof entry === 'string' ? 'LOP' : (entry.type || 'LOP');
+        const parts = dateVal.split('-');
+        const d2 = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const formatted = `${String(d2.getDate()).padStart(2, '0')} ${d2.toLocaleString('en-US', { month: 'short' })} ${d2.getFullYear()}`;
 
         doc.font(FONT_REGULAR).fontSize(6).fillColor('#1F2937');
         this.t(formatted, m + 8, rowY + 2.5, { width: dateColW - 16 });
 
-        const typeColor = entry.type === 'LOP' ? '#DC2626' : '#B45309';
+        const typeColor = typeVal === 'LOP' ? '#DC2626' : '#B45309';
         doc.font(FONT_BOLD).fontSize(6).fillColor(typeColor);
-        this.t(entry.type, m + dateColW, rowY + 2.5, { width: typeColW - 8 });
+        this.t(typeVal, m + dateColW, rowY + 2.5, { width: typeColW - 8 });
 
         if (i > 0) this.hLine(rowY, '#F3F4F6', 0.3);
       }
