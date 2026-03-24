@@ -311,8 +311,8 @@ export function ManualSalaryTab() {
     const periodLabel = selectedPeriod?.periodName || 'Unknown Period';
 
     const getGl = (code: string, context: string) => {
-      const m = glMappings.find((g: any) => g.componentCode === code && g.context === context && g.isActive);
-      return m?.accountCode || `[${code}_${context}]`;
+      const m = glMappings.find((g: any) => g.componentCode === code && g.postingContext === context && g.isActive);
+      return (m?.sapAcctCode && m.sapAcctCode.trim() !== '' ? m.sapAcctCode : m?.glAccountCode) || `[${code}_${context}]`;
     };
 
     const postingDate = selectedPeriod?.startDate
