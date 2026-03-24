@@ -230,12 +230,14 @@ export class SalarySlipGenerator {
       ? [
           { label: 'Salary Basis', value: 'Daily' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
+          { label: 'Weekly Offs', value: (d.period.weeklyOffs || 0).toFixed(1) },
           { label: 'Leave Used', value: totalLeaveUsed.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
         ]
       : [
           { label: 'Salary Basis', value: '30 Days' },
           { label: 'Present Days', value: d.period.presentDays.toFixed(1) },
+          { label: 'Weekly Offs', value: (d.period.weeklyOffs || 0).toFixed(1) },
           { label: 'Leave Used', value: totalLeaveUsed.toFixed(1) },
           { label: 'LOP Days', value: d.period.lopDays.toFixed(1) },
           { label: 'Paid Days', value: d.period.paidDays.toFixed(1) },
