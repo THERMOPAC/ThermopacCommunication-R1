@@ -703,46 +703,6 @@ export class MasterControlAgent implements IAgent {
         if (!finding.isDuplicate) { findingsCount++; acc.findingIds.push(finding.id); acc.groupCounts['M3'] = (acc.groupCounts['M3'] || 0) + 1; }
       }
 
-      // M3.02: Overlapping actions — same user entity, different agents, multiple tasks (Medium → task to function head)
-      for (const [userKey, entry] of userEntityMap) {
-        if (entry.agents.size < 2 || entry.tasks.length < 4) continue;
-        const agentList = Array.from(entry.agents);
-        const userId = userKey.split(':')[1];
-        const fingerprint = fp('m3_02_overlap', 'user', userId);
-        const finding = await findingManager.createFinding({
-          findingType: 'mismatch', severity: 'medium',
-          title: `M3.02 Overlapping agent actions on user #${userId} (${entry.tasks.length} tasks, ${agentList.length} agents)`,
-          description: `User #${userId} is receiving actions from ${agentList.length} different agents: ${agentList.map(a => agentDisplayName(a)).join(', ')}. Total tasks: ${entry.tasks.length}.\nThis may indicate overlapping monitoring scopes.`,
-          logicType: 'rule_based',
-          relatedEntityType: 'user', relatedEntityId: userId,
-          dataSnapshot: { userId, agents: agentList, taskCount: entry.tasks.length },
-        });
-        if (!finding.isDuplicate) {
-          findingsCount++;
-          acc.findingIds.push(finding.id);
-          acc.groupCounts['M3'] = (acc.groupCounts['M3'] || 0) + 1;
-          if (canCreateTask(acc) && !(await hasOpenTask(fingerprint))) {
-            const primaryAgent = agentList.sort((a, b) =>
-              (entry.tasks.filter((t: any) => t.source_agent === b).length) -
-              (entry.tasks.filter((t: any) => t.source_agent === a).length)
-            )[0];
-            const functionHead = await resolveFunctionHead(primaryAgent, c);
-            const rec = await recommendationManager.createRecommendation({
-              findingId: finding.id, title: `[Agent] Governance – Overlapping actions on user #${userId}`,
-              actionType: 'create_task', actionCategory: 'task_creation',
-              description: `Multiple agents creating tasks for same user.`,
-              actionPayload: {
-                title: `[Agent] Governance – Overlapping agent actions on user #${userId} (${entry.tasks.length} tasks)`,
-                description: `User #${userId} is receiving tasks from ${agentList.length} agents:\n${agentList.map(a => `  - ${agentDisplayName(a)}: ${entry.tasks.filter((t: any) => t.source_agent === a).length} tasks`).join('\n')}\n\nReview whether agent monitoring scopes should be adjusted to reduce overlap.`,
-                assignedTo: functionHead, priority: 'Medium', category: `Governance ${fingerprint}`,
-              },
-              logicType: 'rule_based', confidence: 0.8, priority: 'normal',
-            });
-            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); acc.taskCreated++; }
-          }
-        }
-      }
-
       // M3.03: Contradictory actions detection
       // Look for cases where one agent creates a "complete/close" action and another creates a "investigate/escalate" on same entity
       const contradictionPatterns = [
