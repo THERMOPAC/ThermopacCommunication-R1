@@ -658,114 +658,170 @@ router.post('/:id/post-sap', ensurePayrollAdmin, async (req: Request, res: Respo
 
     const allMappings = await db.select().from(glAccountMappings).where(eq(glAccountMappings.isActive, true));
 
-    const REQUIRED_COMPONENTS = [
-      { code: 'BASIC', context: 'expense' },
-      { code: 'OVERTIME', context: 'expense' },
-      { code: 'PF_EMPLOYEE', context: 'payroll_liability' },
-      { code: 'ESIC_EMPLOYEE', context: 'payroll_liability' },
-      { code: 'PT', context: 'payroll_liability' },
-      { code: 'TDS', context: 'payroll_liability' },
-      { code: 'NET_PAY', context: 'payroll_liability' },
-    ];
+    const isOtOnly = entry.entryPurpose === 'ot_only';
 
-    const missingMappings: string[] = [];
-    for (const comp of REQUIRED_COMPONENTS) {
-      const gl = getGlCode(allMappings, comp.code, comp.context);
-      if (!gl) missingMappings.push(`${comp.code} (${comp.context})`);
-    }
+    if (isOtOnly) {
+      const otGl = getGlCode(allMappings, 'OVERTIME', 'expense');
+      const payableGl = getGlCode(allMappings, 'EMPLOYEE_PAYABLE', 'payroll_liability');
+      const missingOt: string[] = [];
+      if (!otGl) missingOt.push('OVERTIME (expense)');
+      if (!payableGl) missingOt.push('EMPLOYEE_PAYABLE (payroll_liability)');
+      if (missingOt.length > 0) {
+        await db.update(payrollRecords).set({
+          sapPostingStatus: 'failed',
+          sapErrorMessage: `GL mappings missing for: ${missingOt.join(', ')}`,
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, record.id));
+        return res.status(400).json({ error: 'GL mappings incomplete', missingMappings: missingOt });
+      }
+    } else {
+      const REQUIRED_COMPONENTS = [
+        { code: 'BASIC', context: 'expense' },
+        { code: 'OVERTIME', context: 'expense' },
+        { code: 'PF_EMPLOYEE', context: 'payroll_liability' },
+        { code: 'ESIC_EMPLOYEE', context: 'payroll_liability' },
+        { code: 'PT', context: 'payroll_liability' },
+        { code: 'TDS', context: 'payroll_liability' },
+        { code: 'NET_PAY', context: 'payroll_liability' },
+      ];
 
-    if (missingMappings.length > 0) {
-      await db.update(payrollRecords).set({
-        sapPostingStatus: 'failed',
-        sapErrorMessage: `GL mappings missing for: ${missingMappings.join(', ')}`,
-        updatedAt: new Date(),
-      }).where(eq(payrollRecords.id, record.id));
-      return res.status(400).json({ error: 'GL mappings incomplete', missingMappings });
+      const missingMappings: string[] = [];
+      for (const comp of REQUIRED_COMPONENTS) {
+        const gl = getGlCode(allMappings, comp.code, comp.context);
+        if (!gl) missingMappings.push(`${comp.code} (${comp.context})`);
+      }
+
+      if (missingMappings.length > 0) {
+        await db.update(payrollRecords).set({
+          sapPostingStatus: 'failed',
+          sapErrorMessage: `GL mappings missing for: ${missingMappings.join(', ')}`,
+          updatedAt: new Date(),
+        }).where(eq(payrollRecords.id, record.id));
+        return res.status(400).json({ error: 'GL mappings incomplete', missingMappings });
+      }
     }
 
     const [period] = await db.select({ periodName: payrollPeriods.periodName, startDate: payrollPeriods.startDate })
       .from(payrollPeriods).where(eq(payrollPeriods.id, record.periodId));
     const periodLabel = period?.periodName || 'Unknown Period';
 
-    const jeLines: any[] = [];
-    let lineNum = 0;
+    const postingDate = period?.startDate
+      ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
 
-    const earningComponents = [
-      { code: 'BASIC', value: parseFloat(entry.baseEarnings || '0') },
-      { code: 'OVERTIME', value: parseFloat(entry.overtimeEarned || '0') },
-    ];
+    let jePayload: any;
 
-    for (const comp of earningComponents) {
-      if (comp.value > 0) {
-        const acctCode = getGlCode(allMappings, comp.code, 'expense');
-        if (acctCode) {
-          jeLines.push({
-            Line_ID: lineNum++,
-            AccountCode: acctCode,
-            Debit: comp.value,
+    if (isOtOnly) {
+      const otAmount = parseFloat(entry.overtimeEarned || '0');
+      const otGl = getGlCode(allMappings, 'OVERTIME', 'expense')!;
+      const payableGl = getGlCode(allMappings, 'EMPLOYEE_PAYABLE', 'payroll_liability')!;
+
+      jePayload = {
+        ReferenceDate: postingDate,
+        TaxDate: postingDate,
+        DueDate: postingDate,
+        Memo: `Manual Overtime Entry - ${empName} - ${periodLabel}`,
+        Reference1: `OT-ENTRY-${entry.id}`,
+        Reference2: employee.cardCode,
+        U_Employee_Name: empName,
+        JournalEntryLines: [
+          {
+            Line_ID: 0,
+            AccountCode: otGl,
+            Debit: otAmount,
             Credit: 0,
-            LineMemo: `Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
-          });
+            LineMemo: `Manual OT Expense - ${empName} - ${periodLabel}`,
+          },
+          {
+            Line_ID: 1,
+            AccountCode: payableGl,
+            ShortName: employee.cardCode,
+            Debit: 0,
+            Credit: otAmount,
+            LineMemo: `Manual OT Payable - ${empName} - ${periodLabel}`,
+          },
+        ],
+      };
+    } else {
+      const jeLines: any[] = [];
+      let lineNum = 0;
+
+      const earningComponents = [
+        { code: 'BASIC', value: parseFloat(entry.baseEarnings || '0') },
+        { code: 'OVERTIME', value: parseFloat(entry.overtimeEarned || '0') },
+      ];
+
+      for (const comp of earningComponents) {
+        if (comp.value > 0) {
+          const acctCode = getGlCode(allMappings, comp.code, 'expense');
+          if (acctCode) {
+            jeLines.push({
+              Line_ID: lineNum++,
+              AccountCode: acctCode,
+              Debit: comp.value,
+              Credit: 0,
+              LineMemo: `Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
+            });
+          }
         }
       }
-    }
 
-    const deductionComponents = [
-      { code: 'PF_EMPLOYEE', value: parseFloat(entry.pfAmount || '0') },
-      { code: 'ESIC_EMPLOYEE', value: parseFloat(entry.esicAmount || '0') },
-      { code: 'PT', value: parseFloat(entry.ptAmount || '0') },
-      { code: 'TDS', value: parseFloat(entry.tdsAmount || '0') },
-    ];
+      const deductionComponents = [
+        { code: 'PF_EMPLOYEE', value: parseFloat(entry.pfAmount || '0') },
+        { code: 'ESIC_EMPLOYEE', value: parseFloat(entry.esicAmount || '0') },
+        { code: 'PT', value: parseFloat(entry.ptAmount || '0') },
+        { code: 'TDS', value: parseFloat(entry.tdsAmount || '0') },
+      ];
 
-    for (const comp of deductionComponents) {
-      if (comp.value > 0) {
-        const acctCode = getGlCode(allMappings, comp.code, 'payroll_liability');
+      for (const comp of deductionComponents) {
+        if (comp.value > 0) {
+          const acctCode = getGlCode(allMappings, comp.code, 'payroll_liability');
+          if (acctCode) {
+            jeLines.push({
+              Line_ID: lineNum++,
+              AccountCode: acctCode,
+              Debit: 0,
+              Credit: comp.value,
+              LineMemo: `Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
+            });
+          }
+        }
+      }
+
+      const netPayVal = parseFloat(entry.netPay || '0');
+      if (netPayVal > 0) {
+        const acctCode = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
         if (acctCode) {
           jeLines.push({
             Line_ID: lineNum++,
             AccountCode: acctCode,
             Debit: 0,
-            Credit: comp.value,
-            LineMemo: `Manual Salary ${comp.code} - ${empName} - ${periodLabel}`,
+            Credit: netPayVal,
+            LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}`,
           });
         }
       }
-    }
 
-    const netPayVal = parseFloat(entry.netPay || '0');
-    if (netPayVal > 0) {
-      const acctCode = getGlCode(allMappings, 'NET_PAY', 'payroll_liability');
-      if (acctCode) {
-        jeLines.push({
-          Line_ID: lineNum++,
-          AccountCode: acctCode,
-          Debit: 0,
-          Credit: netPayVal,
-          LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}`,
-        });
+      if (jeLines.length === 0) {
+        return res.status(400).json({ error: 'No JE lines could be built. GL mappings may be missing.' });
       }
+
+      jePayload = {
+        ReferenceDate: postingDate,
+        TaxDate: postingDate,
+        DueDate: postingDate,
+        Memo: `Manual Salary JE - ${empName} - ${periodLabel}`,
+        Reference1: `MS-ENTRY-${entry.id}`,
+        Reference2: employee.cardCode,
+        Reference3: '194C',
+        U_Employee_Name: empName,
+        U_TDS_Status: 'A',
+        U_PF_Status: 'A',
+        U_ESIC_Status: 'A',
+        U_PT_Status: 'A',
+        JournalEntryLines: jeLines,
+      };
     }
-
-    if (jeLines.length === 0) {
-      return res.status(400).json({ error: 'No JE lines could be built. GL mappings may be missing.' });
-    }
-
-    const postingDate = period?.startDate
-      ? new Date(new Date(period.startDate).getFullYear(), new Date(period.startDate).getMonth() + 1, 0).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
-
-    const jePayload = {
-      ReferenceDate: postingDate,
-      Memo: `Manual Salary Salary JE - ${empName} - ${periodLabel}`,
-      Reference2: employee.cardCode,
-      Reference3: '194C',
-      U_Employee_Name: empName,
-      U_TDS_Status: 'A',
-      U_PF_Status: 'A',
-      U_ESIC_Status: 'A',
-      U_PT_Status: 'A',
-      JournalEntryLines: jeLines,
-    };
 
     await db.update(payrollRecords).set({
       sapPostingStatus: 'pending',

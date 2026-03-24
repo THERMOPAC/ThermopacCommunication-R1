@@ -312,6 +312,42 @@ export function ManualSalaryTab() {
       return m?.accountCode || `[${code}_${context}]`;
     };
 
+    const postingDate = selectedPeriod?.startDate
+      ? (() => { const sd = new Date(selectedPeriod.startDate); return new Date(sd.getFullYear(), sd.getMonth() + 1, 0).toISOString().split('T')[0]; })()
+      : new Date().toISOString().split('T')[0];
+
+    const isOtOnlyPreview = formData.entryPurpose === 'ot_only';
+
+    if (isOtOnlyPreview) {
+      const otAmount = preview.overtimeEarned || preview.netPay || 0;
+      return {
+        ReferenceDate: postingDate,
+        TaxDate: postingDate,
+        DueDate: postingDate,
+        Memo: `Manual Overtime Entry - ${empName} - ${periodLabel}`,
+        Reference1: 'OT-ENTRY-<id>',
+        Reference2: selectedUser.cardCode || '[NO_CARD_CODE]',
+        U_Employee_Name: empName,
+        JournalEntryLines: [
+          {
+            Line_ID: 0,
+            AccountCode: getGl('OVERTIME', 'expense'),
+            Debit: otAmount,
+            Credit: 0,
+            LineMemo: `Manual OT Expense - ${empName} - ${periodLabel}`,
+          },
+          {
+            Line_ID: 1,
+            AccountCode: getGl('EMPLOYEE_PAYABLE', 'payroll_liability'),
+            ShortName: selectedUser.cardCode || '[NO_CARD_CODE]',
+            Debit: 0,
+            Credit: otAmount,
+            LineMemo: `Manual OT Payable - ${empName} - ${periodLabel}`,
+          },
+        ],
+      };
+    }
+
     const jeLines: any[] = [];
     let lineNum = 0;
 
@@ -337,13 +373,12 @@ export function ManualSalaryTab() {
       jeLines.push({ Line_ID: lineNum++, AccountCode: getGl('NET_PAY', 'payroll_liability'), Debit: 0, Credit: preview.netPay, LineMemo: `Manual Salary Net Pay - ${empName} - ${periodLabel}` });
     }
 
-    const postingDate = selectedPeriod?.startDate
-      ? (() => { const sd = new Date(selectedPeriod.startDate); return new Date(sd.getFullYear(), sd.getMonth() + 1, 0).toISOString().split('T')[0]; })()
-      : new Date().toISOString().split('T')[0];
-
     return {
       ReferenceDate: postingDate,
-      Memo: `Manual Salary Salary JE - ${empName} - ${periodLabel}`,
+      TaxDate: postingDate,
+      DueDate: postingDate,
+      Memo: `Manual Salary JE - ${empName} - ${periodLabel}`,
+      Reference1: 'MS-ENTRY-<id>',
       Reference2: selectedUser.cardCode || '[NO_CARD_CODE]',
       Reference3: '194C',
       U_Employee_Name: empName,
