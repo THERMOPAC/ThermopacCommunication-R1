@@ -12,18 +12,26 @@ import {
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { postJeToSap, getGlCode } from './statutory-compliance-routes';
+import { checkModulePermission } from './utils/permission-utils';
 
 const router = Router();
 router.use(ensureAuthenticated);
 
-function ensurePayrollAdmin(req: Request, res: Response, next: Function) {
+async function ensurePayrollAdmin(req: Request, res: Response, next: Function) {
   const user = req.user as any;
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
   const allowedRoles = ['Superuser', 'Admin', 'HR Manager', 'Finance Manager'];
-  if (!allowedRoles.includes(user.role)) {
-    return res.status(403).json({ error: 'Access denied. Only Admin, HR, or Finance roles can manage manual salaries.' });
+  if (allowedRoles.includes(user.role)) {
+    return next();
   }
-  next();
+  try {
+    const hasFinanceView = await checkModulePermission(user.id, 'Finance', 'view');
+    if (hasFinanceView) {
+      return next();
+    }
+  } catch (e) {
+  }
+  return res.status(403).json({ error: 'Access denied. Only Admin, HR, or Finance roles can manage manual salaries.' });
 }
 
 async function getProfessionalTaxConfig(): Promise<{ monthly: number; february: number }> {
