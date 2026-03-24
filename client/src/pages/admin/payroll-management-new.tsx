@@ -817,7 +817,15 @@ function GeneratedSalariesView() {
       }
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
-      window.open(blobUrl, '_blank');
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      const disposition = resp.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      a.download = match ? match[1] : `salary-slip-${payrollRecordId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to generate payslip', variant: 'destructive' });
     }
