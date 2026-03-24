@@ -509,26 +509,31 @@ router.get('/my-records', ensureAuthenticated, async (req: Request, res: Respons
       const dateStr = d.toISOString().split('T')[0];
       if (dateStr > today) continue;
 
-      const existing = recordMap.get(dateStr);
-      if (existing) {
-        allRecords.push(existing);
-        continue;
-      }
-
       const dayOfWeek = d.getDay();
       const isWeeklyOff = weeklyOffDays.includes(dayOfWeek);
       const holidayName = holidayMap.get(dateStr);
       const isLeave = leaveDateMap.has(dateStr);
 
-      let syntheticStatus = 'absent';
+      const existing = recordMap.get(dateStr);
+
+      let overrideStatus: string | null = null;
       let adminNotes: string | null = null;
       if (holidayName) {
-        syntheticStatus = 'holiday';
+        overrideStatus = 'holiday';
         adminNotes = holidayName;
       } else if (isWeeklyOff) {
-        syntheticStatus = 'weekly off';
+        overrideStatus = 'weekly off';
       } else if (isLeave) {
-        syntheticStatus = leaveDateMap.get(dateStr) ? 'half_day' : 'on leave';
+        overrideStatus = leaveDateMap.get(dateStr) ? 'half_day' : 'on leave';
+      }
+
+      if (existing) {
+        allRecords.push({
+          ...existing,
+          status: overrideStatus || existing.status,
+          adminNotes: adminNotes || existing.adminNotes,
+        });
+        continue;
       }
 
       allRecords.push({
@@ -538,7 +543,7 @@ router.get('/my-records', ensureAuthenticated, async (req: Request, res: Respons
         checkOutTime: null,
         workingHours: null,
         overtimeHours: null,
-        status: syntheticStatus,
+        status: overrideStatus || 'absent',
         isLocationVerified: false,
         isIpVerified: false,
         employeeNotes: null,
