@@ -4585,7 +4585,48 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
         )
       )
       .orderBy(attendanceRecords.date);
-    salarySlipData.absentDates = absentRecords.map(r => r.date);
+    const explicitAbsentDates = absentRecords.map(r => r.date);
+
+    const allAttRecords = await db
+      .select({ date: attendanceRecords.date })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.userId, record.userId),
+          gte(attendanceRecords.date, record.startDate),
+          lte(attendanceRecords.date, record.endDate)
+        )
+      );
+    const recordedDates = new Set(allAttRecords.map(r => r.date));
+
+    const holidayRecords = await db
+      .select({ date: companyHolidays.date })
+      .from(companyHolidays)
+      .where(
+        and(
+          gte(companyHolidays.date, record.startDate),
+          lte(companyHolidays.date, record.endDate)
+        )
+      );
+    const holidaySet = new Set(holidayRecords.map(r => r.date));
+
+    const empUser2 = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, record.userId)).limit(1);
+    const weeklyOffDays: number[] = empUser2[0]?.weeklyOffDays || [0];
+
+    const unrecordedAbsentDates: string[] = [];
+    const pStart = new Date(record.startDate + 'T00:00:00');
+    const pEnd = new Date(record.endDate + 'T00:00:00');
+    for (let dt = new Date(pStart); dt <= pEnd; dt.setDate(dt.getDate() + 1)) {
+      const dateStr = dt.toISOString().split('T')[0];
+      const dayOfWeek = dt.getDay();
+      if (weeklyOffDays.includes(dayOfWeek)) continue;
+      if (holidaySet.has(dateStr)) continue;
+      if (recordedDates.has(dateStr)) continue;
+      unrecordedAbsentDates.push(dateStr);
+    }
+
+    const allAbsentDates = [...explicitAbsentDates, ...unrecordedAbsentDates].sort();
+    salarySlipData.absentDates = allAbsentDates;
 
     const generator = new SalarySlipGenerator();
     await generator.generateSalarySlip(salarySlipData, res);
