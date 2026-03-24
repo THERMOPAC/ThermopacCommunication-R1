@@ -86,17 +86,20 @@ export function ManualSalaryTab() {
     if (!formData.userId || editingEntry) return;
     const config = salaryConfigs.find((c: any) => c.userId === parseInt(formData.userId) && c.isActive);
     if (config) {
-      if (config.hourlyRate) {
-        setFormData(d => ({ ...d, baseRate: parseFloat(config.hourlyRate).toFixed(2) }));
-      } else {
-        const basic = parseFloat(config.basicSalary || '0');
-        const hrs = parseFloat(config.workingHoursPerDay || '8') || 8;
-        const divisor = config.salaryType === 'daily' ? 26 : 30;
-        const rate = (basic * 2.5) / divisor / hrs;
-        setFormData(d => ({ ...d, baseRate: rate.toFixed(2) }));
+      const basic = parseFloat(config.basicSalary || '0');
+      const user = allUsers.find((u: any) => u.id === parseInt(formData.userId));
+      let dutyHours = parseFloat(config.workingHoursPerDay || '8') || 8;
+      if (user?.dutyTimeIn && user?.dutyTimeOut) {
+        const [inH, inM] = user.dutyTimeIn.split(':').map(Number);
+        const [outH, outM] = user.dutyTimeOut.split(':').map(Number);
+        const rawHours = (outH * 60 + outM - inH * 60 - inM) / 60;
+        if (rawHours > 0) dutyHours = rawHours;
       }
+      const divisor = config.salaryType === 'daily' ? 26 : 30;
+      const rate = (basic * 2.5) / divisor / dutyHours;
+      setFormData(d => ({ ...d, baseRate: rate.toFixed(2) }));
     }
-  }, [formData.userId, salaryConfigs, editingEntry]);
+  }, [formData.userId, salaryConfigs, allUsers, editingEntry]);
 
 
   const effectivePeriodId = selectedPeriodId && selectedPeriodId !== 'all' ? selectedPeriodId : '';
