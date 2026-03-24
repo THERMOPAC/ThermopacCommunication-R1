@@ -72,7 +72,11 @@ router.get('/loans/:id', async (req: Request, res: Response) => {
 
 router.post('/loans', async (req: Request, res: Response) => {
   try {
-    const { employeeId, loanType, principalAmount, interestRate, emiAmount, tenureMonths, disbursementDate, startDeductionDate, remarks, approvedBy } = req.body;
+    const { employeeId, loanType, principalAmount, interestRate, emiAmount, tenureMonths, disbursementDate, startDeductionDate, remarks, approvedBy, approvedRequestReference } = req.body;
+
+    if (!approvedRequestReference || !approvedRequestReference.trim()) {
+      return res.status(400).json({ message: 'Approved Request Reference is required' });
+    }
 
     const loanReference = await generateLoanReference();
     const currentUser = (req as any).user?.id || 1;
@@ -81,6 +85,7 @@ router.post('/loans', async (req: Request, res: Response) => {
       employeeId,
       loanType,
       loanReference,
+      approvedRequestReference: approvedRequestReference.trim(),
       principalAmount: String(principalAmount),
       interestRate: String(interestRate || 0),
       emiAmount: String(emiAmount),
@@ -180,7 +185,11 @@ router.get('/advances/:id', async (req: Request, res: Response) => {
 
 router.post('/advances', async (req: Request, res: Response) => {
   try {
-    const { employeeId, amount, recoveryType, recoveryAmount, recoveryMonths, advanceDate, startRecoveryDate, reason, approvedBy } = req.body;
+    const { employeeId, amount, recoveryType, recoveryAmount, recoveryMonths, advanceDate, startRecoveryDate, reason, approvedBy, approvedRequestReference } = req.body;
+
+    if (!approvedRequestReference || !approvedRequestReference.trim()) {
+      return res.status(400).json({ message: 'Approved Request Reference is required' });
+    }
 
     const advanceReference = await generateAdvanceReference();
     const currentUser = (req as any).user?.id || 1;
@@ -188,6 +197,7 @@ router.post('/advances', async (req: Request, res: Response) => {
     const [advance] = await db.insert(employeeAdvances).values({
       employeeId,
       advanceReference,
+      approvedRequestReference: approvedRequestReference.trim(),
       amount: String(amount),
       recoveryType,
       recoveryAmount: recoveryAmount ? String(recoveryAmount) : null,

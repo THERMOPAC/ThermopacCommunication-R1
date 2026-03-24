@@ -4840,6 +4840,7 @@ export const employeeLoans = pgTable('employee_loans', {
   employeeId: integer('employee_id').notNull().references(() => users.id),
   loanType: varchar('loan_type', { length: 30 }).notNull(), // personal, housing, vehicle, emergency, other
   loanReference: varchar('loan_reference', { length: 50 }).notNull().unique(),
+  approvedRequestReference: varchar('approved_request_reference', { length: 100 }),
   principalAmount: decimal('principal_amount', { precision: 12, scale: 2 }).notNull(),
   interestRate: decimal('interest_rate', { precision: 5, scale: 2 }).default('0'),
   emiAmount: decimal('emi_amount', { precision: 10, scale: 2 }).notNull(),
@@ -4884,6 +4885,7 @@ export const employeeAdvances = pgTable('employee_advances', {
   id: serial('id').primaryKey(),
   employeeId: integer('employee_id').notNull().references(() => users.id),
   advanceReference: varchar('advance_reference', { length: 50 }).notNull().unique(),
+  approvedRequestReference: varchar('approved_request_reference', { length: 100 }),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   recoveryType: varchar('recovery_type', { length: 20 }).notNull(), // lump_sum, installment
   recoveryAmount: decimal('recovery_amount', { precision: 10, scale: 2 }),

@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Eye, Pause, Play, XCircle, IndianRupee, Landmark, Wallet, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Eye, Pause, Play, XCircle, IndianRupee, Landmark, Wallet, ArrowLeft, Send, CheckCircle2, AlertCircle, Loader2, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocation } from "wouter";
+import jsPDF from "jspdf";
 
 function formatCurrency(val: number | string) {
   const n = typeof val === 'string' ? parseFloat(val) : val;
@@ -36,6 +37,151 @@ function statusBadge(status: string) {
   return <Badge className={colors[status] || 'bg-gray-100'}>{status}</Badge>;
 }
 
+function generatePaymentMemoPdf(type: 'loan' | 'advance', record: any, action: 'view' | 'download' | 'print') {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  let y = 15;
+
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('THERMOPAC', pageW / 2, y, { align: 'center' });
+  y += 7;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Thermal Process Equipment Manufacturer', pageW / 2, y, { align: 'center' });
+  y += 10;
+
+  doc.setDrawColor(0, 102, 204);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  const memoTitle = type === 'loan' ? 'LOAN PAYMENT MEMO' : 'ADVANCE PAYMENT MEMO';
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(memoTitle, pageW / 2, y, { align: 'center' });
+  y += 10;
+
+  const reference = type === 'loan' ? record.loanReference : record.advanceReference;
+  const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Memo Ref: ${reference}`, margin, y);
+  doc.text(`Date: ${today}`, pageW - margin, y, { align: 'right' });
+  y += 12;
+
+  const drawRow = (label: string, value: string, yPos: number) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, margin, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, margin + 55, yPos);
+    return yPos + 7;
+  };
+
+  doc.setFillColor(240, 245, 255);
+  doc.rect(margin, y - 4, pageW - margin * 2, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('EMPLOYEE DETAILS', margin + 2, y + 1);
+  y += 10;
+  doc.setFontSize(10);
+
+  y = drawRow('Employee Name:', record.employeeName || 'N/A', y);
+  y = drawRow('Employee ID:', String(record.employeeId), y);
+  y += 5;
+
+  doc.setFillColor(240, 245, 255);
+  doc.rect(margin, y - 4, pageW - margin * 2, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('REQUEST & APPROVAL', margin + 2, y + 1);
+  y += 10;
+  doc.setFontSize(10);
+
+  y = drawRow('Approved Request Ref:', record.approvedRequestReference || 'N/A', y);
+  y += 5;
+
+  doc.setFillColor(240, 245, 255);
+  doc.rect(margin, y - 4, pageW - margin * 2, 8, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('FINANCIAL DETAILS', margin + 2, y + 1);
+  y += 10;
+  doc.setFontSize(10);
+
+  if (type === 'loan') {
+    y = drawRow('Loan Type:', (record.loanType || '').replace(/^\w/, (c: string) => c.toUpperCase()), y);
+    y = drawRow('Principal Amount:', formatCurrency(record.principalAmount), y);
+    y = drawRow('Interest Rate:', `${record.interestRate || 0}%`, y);
+    y = drawRow('EMI Amount:', formatCurrency(record.emiAmount), y);
+    y = drawRow('Tenure:', `${record.tenureMonths} months`, y);
+    y = drawRow('Disbursement Date:', record.disbursementDate || 'N/A', y);
+    y = drawRow('Deduction Start:', record.startDeductionDate || 'N/A', y);
+  } else {
+    y = drawRow('Advance Amount:', formatCurrency(record.amount), y);
+    y = drawRow('Recovery Type:', (record.recoveryType || '').replace('_', ' ').replace(/^\w/, (c: string) => c.toUpperCase()), y);
+    if (record.recoveryType === 'installment') {
+      y = drawRow('Recovery/Month:', formatCurrency(record.recoveryAmount || 0), y);
+      y = drawRow('Recovery Months:', String(record.recoveryMonths || 'N/A'), y);
+    }
+    y = drawRow('Advance Date:', record.advanceDate || 'N/A', y);
+    y = drawRow('Recovery Start:', record.startRecoveryDate || 'N/A', y);
+  }
+
+  if (record.remarks || record.reason) {
+    y += 3;
+    y = drawRow('Remarks:', record.remarks || record.reason || '', y);
+  }
+  y += 5;
+
+  y = drawRow('Status:', (record.status || 'active').replace(/^\w/, (c: string) => c.toUpperCase()), y);
+  y += 15;
+
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+
+  const sigY = y;
+  const colW = (pageW - margin * 2) / 3;
+  for (let i = 0; i < 3; i++) {
+    const x = margin + i * colW + 5;
+    doc.line(x, sigY, x + colW - 10, sigY);
+  }
+  y += 5;
+  doc.setFontSize(9);
+  doc.text('Employee Signature', margin + 5, y);
+  doc.text('Prepared By', margin + colW + 5, y);
+  doc.text('Authorized Signatory', margin + colW * 2 + 5, y);
+
+  y += 15;
+  doc.setDrawColor(0, 102, 204);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y, pageW - margin, y);
+  y += 5;
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text('This is a system-generated document. Please verify all details before processing.', pageW / 2, y, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
+
+  const fileName = `Payment_Memo_${reference}.pdf`;
+
+  if (action === 'view') {
+    const blobUrl = doc.output('bloburl');
+    window.open(blobUrl as unknown as string, '_blank');
+  } else if (action === 'download') {
+    doc.save(fileName);
+  } else if (action === 'print') {
+    const blobUrl = doc.output('bloburl');
+    const printWindow = window.open(blobUrl as unknown as string, '_blank');
+    if (printWindow) {
+      printWindow.addEventListener('load', () => {
+        printWindow.print();
+      });
+    }
+  }
+}
+
 export default function LoansAdvancesPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -48,11 +194,15 @@ export default function LoansAdvancesPage() {
   const [loanForm, setLoanForm] = useState({
     employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0',
     emiAmount: '', tenureMonths: '', disbursementDate: '', startDeductionDate: '', remarks: '',
+    approvedRequestReference: '',
   });
   const [advanceForm, setAdvanceForm] = useState({
     employeeId: '', amount: '', recoveryType: 'lump_sum', recoveryAmount: '',
     recoveryMonths: '', advanceDate: '', startRecoveryDate: '', reason: '',
+    approvedRequestReference: '',
   });
+  const [lastCreatedLoan, setLastCreatedLoan] = useState<any>(null);
+  const [lastCreatedAdvance, setLastCreatedAdvance] = useState<any>(null);
 
   const { data: users = [] } = useQuery<any[]>({ queryKey: ['/api/users/selection'] });
   const { data: loans = [], isLoading: loansLoading } = useQuery<any[]>({ queryKey: ['/api/loan-advance/loans'] });
@@ -62,9 +212,12 @@ export default function LoansAdvancesPage() {
     mutationFn: async (data: any) => {
       return await apiRequest('POST', '/api/loan-advance/loans', data);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/loans'] });
       setShowLoanDialog(false);
+      const empUser = users.find((u: any) => String(u.id) === loanForm.employeeId);
+      const empName = empUser ? (empUser.firstName && empUser.lastName ? `${empUser.firstName} ${empUser.lastName}` : empUser.username) : 'N/A';
+      setLastCreatedLoan({ ...data, employeeName: empName });
       toast({ title: 'Loan created successfully' });
       resetLoanForm();
     },
@@ -75,9 +228,12 @@ export default function LoansAdvancesPage() {
     mutationFn: async (data: any) => {
       return await apiRequest('POST', '/api/loan-advance/advances', data);
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/loan-advance/advances'] });
       setShowAdvanceDialog(false);
+      const empUser = users.find((u: any) => String(u.id) === advanceForm.employeeId);
+      const empName = empUser ? (empUser.firstName && empUser.lastName ? `${empUser.firstName} ${empUser.lastName}` : empUser.username) : 'N/A';
+      setLastCreatedAdvance({ ...data, employeeName: empName });
       toast({ title: 'Advance created successfully' });
       resetAdvanceForm();
     },
@@ -135,10 +291,10 @@ export default function LoansAdvancesPage() {
     return next.toISOString().split('T')[0];
   }
   function resetLoanForm() {
-    setLoanForm({ employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0', emiAmount: '', tenureMonths: '', disbursementDate: getToday(), startDeductionDate: getFirstOfNextMonth(), remarks: '' });
+    setLoanForm({ employeeId: '', loanType: 'personal', principalAmount: '', interestRate: '0', emiAmount: '', tenureMonths: '', disbursementDate: getToday(), startDeductionDate: getFirstOfNextMonth(), remarks: '', approvedRequestReference: '' });
   }
   function resetAdvanceForm() {
-    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'lump_sum', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '' });
+    setAdvanceForm({ employeeId: '', amount: '', recoveryType: 'lump_sum', recoveryAmount: '', recoveryMonths: '', advanceDate: getToday(), startRecoveryDate: getFirstOfNextMonth(), reason: '', approvedRequestReference: '' });
   }
 
   const filteredLoans = employeeFilter === 'all' ? loans : loans.filter((l: any) => String(l.employeeId) === employeeFilter);
@@ -331,6 +487,16 @@ export default function LoansAdvancesPage() {
                             <Button size="sm" variant="ghost" onClick={() => setSelectedLoan(loan)}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="text-indigo-600 hover:text-indigo-800" onClick={() => generatePaymentMemoPdf('loan', loan, 'view')}>
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Print Memo</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             {loan.sapPostingStatus !== 'posted' && (
                               <TooltipProvider>
                                 <Tooltip>
@@ -434,6 +600,16 @@ export default function LoansAdvancesPage() {
                             <Button size="sm" variant="ghost" onClick={() => setSelectedAdvance(adv)}>
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="text-indigo-600 hover:text-indigo-800" onClick={() => generatePaymentMemoPdf('advance', adv, 'view')}>
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Print Memo</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             {adv.sapPostingStatus !== 'posted' && (
                               <TooltipProvider>
                                 <Tooltip>
@@ -479,6 +655,10 @@ export default function LoansAdvancesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Create New Loan</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
+            <div>
+              <Label>Approved Request Reference <span className="text-red-500">*</span></Label>
+              <Input placeholder="e.g. HR/LN/2025/001 or email approval ref" value={loanForm.approvedRequestReference} onChange={(e) => setLoanForm({ ...loanForm, approvedRequestReference: e.target.value })} />
+            </div>
             <div>
               <Label>Employee</Label>
               <Select value={loanForm.employeeId} onValueChange={(v) => setLoanForm({ ...loanForm, employeeId: v })}>
@@ -581,7 +761,7 @@ export default function LoansAdvancesPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLoanDialog(false)}>Cancel</Button>
             <Button
-              disabled={!loanForm.employeeId || !loanForm.principalAmount || !loanForm.emiAmount || !loanForm.tenureMonths || !loanForm.disbursementDate || !loanForm.startDeductionDate}
+              disabled={!loanForm.approvedRequestReference.trim() || !loanForm.employeeId || !loanForm.principalAmount || !loanForm.emiAmount || !loanForm.tenureMonths || !loanForm.disbursementDate || !loanForm.startDeductionDate}
               onClick={() => createLoanMutation.mutate({
                 employeeId: Number(loanForm.employeeId),
                 loanType: loanForm.loanType,
@@ -592,6 +772,7 @@ export default function LoansAdvancesPage() {
                 disbursementDate: loanForm.disbursementDate,
                 startDeductionDate: loanForm.startDeductionDate,
                 remarks: loanForm.remarks,
+                approvedRequestReference: loanForm.approvedRequestReference.trim(),
               })}
             >
               {createLoanMutation.isPending ? 'Creating...' : 'Create Loan'}
@@ -605,6 +786,10 @@ export default function LoansAdvancesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Create New Advance</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
+            <div>
+              <Label>Approved Request Reference <span className="text-red-500">*</span></Label>
+              <Input placeholder="e.g. HR/ADV/2025/001 or email approval ref" value={advanceForm.approvedRequestReference} onChange={(e) => setAdvanceForm({ ...advanceForm, approvedRequestReference: e.target.value })} />
+            </div>
             <div>
               <Label>Employee</Label>
               <Select value={advanceForm.employeeId} onValueChange={(v) => setAdvanceForm({ ...advanceForm, employeeId: v })}>
@@ -669,7 +854,7 @@ export default function LoansAdvancesPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdvanceDialog(false)}>Cancel</Button>
             <Button
-              disabled={!advanceForm.employeeId || !advanceForm.amount || !advanceForm.advanceDate || !advanceForm.startRecoveryDate}
+              disabled={!advanceForm.approvedRequestReference.trim() || !advanceForm.employeeId || !advanceForm.amount || !advanceForm.advanceDate || !advanceForm.startRecoveryDate}
               onClick={() => createAdvanceMutation.mutate({
                 employeeId: Number(advanceForm.employeeId),
                 amount: parseFloat(advanceForm.amount),
@@ -679,6 +864,7 @@ export default function LoansAdvancesPage() {
                 advanceDate: advanceForm.advanceDate,
                 startRecoveryDate: advanceForm.startRecoveryDate,
                 reason: advanceForm.reason,
+                approvedRequestReference: advanceForm.approvedRequestReference.trim(),
               })}
             >
               {createAdvanceMutation.isPending ? 'Creating...' : 'Create Advance'}
@@ -686,6 +872,48 @@ export default function LoansAdvancesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {lastCreatedLoan && (
+        <Dialog open={!!lastCreatedLoan} onOpenChange={() => setLastCreatedLoan(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Loan Created — {lastCreatedLoan.loanReference}</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Payment memo is ready. Choose an action below:</p>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button onClick={() => { generatePaymentMemoPdf('loan', lastCreatedLoan, 'view'); }}>
+                <Eye className="h-4 w-4 mr-2" /> View Memo
+              </Button>
+              <Button variant="outline" onClick={() => { generatePaymentMemoPdf('loan', lastCreatedLoan, 'download'); }}>
+                <FileText className="h-4 w-4 mr-2" /> Download Memo
+              </Button>
+              <Button variant="outline" onClick={() => { generatePaymentMemoPdf('loan', lastCreatedLoan, 'print'); }}>
+                <FileText className="h-4 w-4 mr-2" /> Print Memo
+              </Button>
+              <Button variant="ghost" onClick={() => setLastCreatedLoan(null)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {lastCreatedAdvance && (
+        <Dialog open={!!lastCreatedAdvance} onOpenChange={() => setLastCreatedAdvance(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Advance Created — {lastCreatedAdvance.advanceReference}</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Payment memo is ready. Choose an action below:</p>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button onClick={() => { generatePaymentMemoPdf('advance', lastCreatedAdvance, 'view'); }}>
+                <Eye className="h-4 w-4 mr-2" /> View Memo
+              </Button>
+              <Button variant="outline" onClick={() => { generatePaymentMemoPdf('advance', lastCreatedAdvance, 'download'); }}>
+                <FileText className="h-4 w-4 mr-2" /> Download Memo
+              </Button>
+              <Button variant="outline" onClick={() => { generatePaymentMemoPdf('advance', lastCreatedAdvance, 'print'); }}>
+                <FileText className="h-4 w-4 mr-2" /> Print Memo
+              </Button>
+              <Button variant="ghost" onClick={() => setLastCreatedAdvance(null)}>Close</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Loan Detail Dialog */}
       <LoanDetailDialog loan={selectedLoan} onClose={() => setSelectedLoan(null)} onStatusChange={(id: number, status: string) => updateLoanMutation.mutate({ id, data: { status } })} />
