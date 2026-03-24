@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -9,150 +10,23 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import ResetPasswordPage from "@/pages/reset-password-page";
 import Dashboard from "@/pages/dashboard";
-import ProfilePage from "@/pages/profile-page";
-import LeaderboardPage from "@/pages/leaderboard-page";
-import RecurringTasksPage from "@/pages/recurring-tasks-page";
-import LoansAdvancesPage from "@/pages/loans-advances-page";
-import EmailsPage from "@/pages/emails-page";
-import MessagesPage from "@/pages/messages-page";
-
-// Design Management pages
-import DesignDashboardPage from "@/pages/design-management/design-dashboard";
-import DesignProjectsPage from "@/pages/design-management/design-projects";
-import DrawingRegistryPage from "@/pages/design-management/drawing-registry";
-import ReviewApprovalPage from "@/pages/design-management/design-reviews";
-import TransmittalsPage from "@/pages/design-management/transmittals";
-import StandardsTemplatesPage from "@/pages/design-management/standards-templates";
-import ReportsAnalyticsPage from "@/pages/design-management/reports-analytics";
-import ProjectsPage from "@/pages/projects-page";
-import ProjectDetailPage from "@/pages/project-detail-page";
-import ProjectDashboardPage from "@/pages/project-dashboard-page";
-import CustomersPage from "@/pages/customers-page";
-import ItemMasterPage from "@/pages/item-master-page";
-import ProductionPlanningPage from "@/pages/production-planning-page";
-import WorkOrderDetailPage from "@/pages/work-order-detail-page";
-import WorkOrderEditPage from "@/pages/work-order-edit-page";
-import ShopFloorPage from "@/pages/shop-floor-page";
-import DailyProductionReportPage from "@/pages/daily-production-report-page";
-import ProductionTeamManagement from "@/pages/production-team-management";
-import InspectionsPage from "@/pages/inspections-page";
-import MaterialIdentificationPage from "@/pages/material-identification-page";
-import MaterialIdentificationListPage from "@/pages/material-identification-list-page";
-import MaterialIdentificationViewPage from "@/pages/material-identification-view-page";
-import MaterialIdentificationEditPage from "@/pages/material-identification-edit-page";
-import SpecialFixesPage from "@/pages/special-fixes-page";
-
-// Sales and Marketing pages
-import RadarPage from "@/pages/radar-page";
-import LeadGenerationPage from "@/pages/lead-generation-page";
-import LeadsPage from "@/pages/leads-page";
-import ProductsPage from "@/pages/products-page";
-import OfferTemplatesPage from "@/pages/offer-templates-page";
-import OffersPage from "@/pages/offers-page";
-import CampaignsPage from "@/pages/campaigns-page";
-import MarketingDashboardPage from "@/pages/marketing-dashboard-page";
-import MarketingToolsPage from "@/pages/marketing-tools-page";
-import ROICalculatorPage from "@/pages/roi-calculator-page";
-
-import AgentDashboardPage from "@/pages/agent-dashboard-page";
-
-// Finance module pages
-import FinanceDashboardPage from "@/pages/finance/finance-dashboard-page";
-import InvoicesPage from "@/pages/finance/invoices-page";
-import InvoiceCreatePage from "@/pages/finance/invoice-create-page";
-import InvoiceDetailPage from "@/pages/finance/invoice-detail-page";
-import PaymentsPage from "@/pages/finance/payments-page";
-import PaymentDetailPage from "@/pages/finance/payment-detail-enhanced";
-import PaymentCreatePage from "@/pages/finance/payment-create-page";
-import NewPaymentCreatePage from "@/pages/finance/new-payment-create";
-import EditPaymentPage from "@/pages/finance/edit-payment-page";
-import BrcPage from "@/pages/finance/brc-page";
-import BrcManagementPage from "@/pages/finance/brc-management-page";
-
-// Administration module pages
-import AdministrationPage from "@/pages/admin/administration-page";
-import UserManagementPage from "@/pages/admin/user-management-page";
-import AttendanceManagementPage from "@/pages/admin/attendance-management-page";
-import LeaveManagementPage from "@/pages/admin/leave-management-page";
-import PayrollManagementPage from "@/pages/admin/payroll-management-new";
-import WorkweekPolicyManagementPage from "@/pages/admin/workweek-policy-management-page";
-import BusinessTripManagementPage from "@/pages/admin/business-trip-management";
-import VisaManagementPageNew from "@/pages/admin/visa-management-new";
-import LegalManagementPage from "@/pages/admin/legal-management";
-import MeetingsManagementPage from "@/pages/admin/meetings-management";
-import GoogleCalendarSettingsPage from "@/pages/google-calendar-settings";
-import PasswordCompliancePage from "@/pages/password-compliance-page";
-import BusinessIntelligencePage from "@/pages/business-intelligence-page";
-import LLMPromptEnginePage from "@/pages/llm-prompt-engine";
-import ActiveAlertsPage from "@/pages/active-alerts-page";
-import AlertsPage from "@/pages/alerts-page";
-import TurnoverReportPage from "@/pages/finance/reports/turnover-page";
-import OutstandingReportPage from "@/pages/finance/reports/outstanding-page";
-import RemittancesReportPage from "@/pages/finance/reports/remittances-page";
-import ReconciliationReportPage from "@/pages/finance/reports/reconciliation-page";
-import PaymentAllocationPage from "@/pages/finance/payment-allocation-redesigned";
-import BatchAdvanceAllocationPage from "@/pages/finance/batch-advance-allocation-page-fixed";
-import InvoiceAgingDashboard from "@/pages/finance/reports/invoice-aging-dashboard";
-import WriteOffManagementPage from "@/pages/finance/write-off-management";
-import FinanceToolsPage from "@/pages/finance-tools-page";
-import GlMappingPage from "@/pages/finance/gl-mapping-page";
-import TdsCompliancePage from "@/pages/finance/statutory/tds-compliance-page";
-import PfCompliancePage from "@/pages/finance/statutory/pf-compliance-page";
-import EsicCompliancePage from "@/pages/finance/statutory/esic-compliance-page";
-import PtCompliancePage from "@/pages/finance/statutory/pt-compliance-page";
-import CompanyIncomeTaxPage from "@/pages/finance/company-income-tax-page";
-
-// New Material Identification pages
-import MaterialIdentificationCreatePage from "@/pages/material-identification-create-page";
-import MaterialIdentificationListNewPage from "@/pages/material-identification-list-new-page";
-import MaterialIdentificationViewNewPage from "@/pages/material-identification-view-new-page";
-import MaterialIdentificationEditNewPage from "@/pages/material-identification-edit-new-page";
-import MaterialIdentificationDirectUpdate from "@/pages/material-identification-direct-update";
-import WpsPqrPage from "@/pages/wps-pqr-page";
-import WpqrPage from "@/pages/wpqr-page";
-import PMAPage from "@/pages/pma-page";
-import TestProceduresPage from "@/pages/test-procedures-page";
-import WelderManagementPage from "@/pages/welder-management-page";
-import WelderCertificatesPage from "@/pages/welder-certificates-page";
-import WelderTestPage from "@/pages/welder-test-page";
-import CalibrationManagementPage from "@/pages/calibration-management-page";
-import CalibrationTestPage from "@/pages/calibration-test-page";
-import QualityAssurancePlanPage from "@/pages/quality-assurance-plan-page";
-import CreateQAPPage from "@/pages/create-qap-page";
-import ViewEditQAPPage from "@/pages/view-edit-qap-page";
-import ProjectCommissioningPage from "@/pages/project-commissioning-page";
-import DispatchShippingPage from "@/pages/dispatch-shipping-page";
-import AfterSalesPage from "@/pages/after-sales-page";
-import ProcurementPlanningPage from "@/pages/procurement-planning-page";
-import ProcurementTrackingPage from "@/pages/procurement-tracking-page";
-import TemplateManagementPage from "@/pages/template-management-page";
-import ModulePermissionsPage from "@/pages/module-permissions-page";
-import DiagnosticsPage from "@/pages/diagnostics-page";
-import GcsDiagnosticPage from "@/pages/gcs-diagnostic-page";
-import GcsTestPage from "@/pages/gcs-test-page";
-import DesignToolsPage from "@/pages/design-tools-page";
-import DesignManagementPage from "@/pages/design-management-page";
-import WorkLocationsPage from "@/pages/work-locations-page";
-import AttendancePage from "@/pages/attendance-page";
-import AttendanceRegularizationPage from "@/pages/attendance-regularization-page";
-import DwarPage from "@/pages/dwar-page";
-import LeaveRequestPage from "@/pages/leave-request-page";
-import EmployeeAppraisalsPage from "@/pages/employee-appraisals-page";
-
-// SAP B1 Integration pages
-import PurchaseModule from "@/pages/PurchaseModule";
-import SapPurchasingDashboard from "@/pages/SapPurchasingDashboard";
-import SapPurchaseOrders from "@/pages/SapPurchaseOrders";
-import SapPurchaseQuotations from "@/pages/SapPurchaseQuotations";
-import SapGoodsReceipts from "@/pages/SapGoodsReceipts";
-import SapPurchaseInvoices from "@/pages/SapPurchaseInvoices";
-import SapIntegrationPage from "@/pages/SapIntegrationPage";
+import { PageLoader } from "@/loaders/lazy-utils";
 
 import { useAuth } from "@/hooks/use-auth";
 import { PasswordManagement } from "@/components/password-management";
 import { Loader2 } from "lucide-react";
 
-// SuperuserRoute component to protect routes that only superusers should access
+import * as Admin from "@/loaders/admin";
+import * as Finance from "@/loaders/finance";
+import * as SalesMarketing from "@/loaders/sales-marketing";
+import * as ProjectsProduction from "@/loaders/projects-production";
+import * as Quality from "@/loaders/quality";
+import * as Design from "@/loaders/design";
+import * as SAP from "@/loaders/sap";
+import * as Agents from "@/loaders/agents";
+import * as Employee from "@/loaders/employee";
+import * as System from "@/loaders/system";
+
 function SuperuserRoute({
   path,
   component: Component,
@@ -189,7 +63,7 @@ function PasswordManagementPage() {
 }
 
 function VisaManagementWrapper() {
-  return <VisaManagementPageNew />;
+  return <Admin.VisaManagementPageNew />;
 }
 
 function Router() {
@@ -202,154 +76,149 @@ function Router() {
       <ProtectedRoute path="/tasks" component={Dashboard} />
       <ProtectedRoute path="/team" component={Dashboard} />
       <ProtectedRoute path="/recommendations" component={Dashboard} />
-      <ProtectedRoute path="/messages" component={MessagesPage} />
-      <ProtectedRoute path="/alerts" component={AlertsPage} />
-      <ProtectedRoute path="/emails" component={EmailsPage} />
-      <SuperuserRoute path="/tools" component={DiagnosticsPage} />
-      <ProtectedRoute path="/profile" component={ProfilePage} />
-      <ProtectedRoute path="/leaderboard" component={LeaderboardPage} />
-      <ProtectedRoute path="/recurring-tasks" component={RecurringTasksPage} />
-      <ProtectedRoute path="/loans-advances" component={LoansAdvancesPage} />
+      <ProtectedRoute path="/messages" component={() => <System.MessagesPage />} />
+      <ProtectedRoute path="/alerts" component={() => <System.AlertsPage />} />
+      <ProtectedRoute path="/emails" component={() => <System.EmailsPage />} />
+      <SuperuserRoute path="/tools" component={() => <System.DiagnosticsPage />} />
+      <ProtectedRoute path="/profile" component={() => <Employee.ProfilePage />} />
+      <ProtectedRoute path="/leaderboard" component={() => <Employee.LeaderboardPage />} />
+      <ProtectedRoute path="/recurring-tasks" component={() => <Employee.RecurringTasksPage />} />
+      <ProtectedRoute path="/loans-advances" component={() => <Employee.LoansAdvancesPage />} />
 
       {/* Sales and Marketing Routes */}
-      <ProtectedRoute path="/radar" component={RadarPage} />
-      <ProtectedRoute path="/lead-generation" component={LeadGenerationPage} />
-      <ProtectedRoute path="/leads" component={LeadsPage} />
-      <ProtectedRoute path="/products" component={ProductsPage} />
-      <ProtectedRoute path="/offer-templates" component={OfferTemplatesPage} />
-      <ProtectedRoute path="/offers" component={OffersPage} />
-      <ProtectedRoute path="/campaigns" component={CampaignsPage} />
-      <ProtectedRoute path="/marketing-dashboard" component={MarketingDashboardPage} />
-      <ProtectedRoute path="/marketing-tools" component={MarketingToolsPage} />
-      <ProtectedRoute path="/roi-calculator" component={ROICalculatorPage} />
+      <ProtectedRoute path="/radar" component={() => <SalesMarketing.RadarPage />} />
+      <ProtectedRoute path="/lead-generation" component={() => <SalesMarketing.LeadGenerationPage />} />
+      <ProtectedRoute path="/leads" component={() => <SalesMarketing.LeadsPage />} />
+      <ProtectedRoute path="/products" component={() => <SalesMarketing.ProductsPage />} />
+      <ProtectedRoute path="/offer-templates" component={() => <SalesMarketing.OfferTemplatesPage />} />
+      <ProtectedRoute path="/offers" component={() => <SalesMarketing.OffersPage />} />
+      <ProtectedRoute path="/campaigns" component={() => <SalesMarketing.CampaignsPage />} />
+      <ProtectedRoute path="/marketing-dashboard" component={() => <SalesMarketing.MarketingDashboardPage />} />
+      <ProtectedRoute path="/marketing-tools" component={() => <SalesMarketing.MarketingToolsPage />} />
+      <ProtectedRoute path="/roi-calculator" component={() => <SalesMarketing.ROICalculatorPage />} />
       
       {/* Agent Dashboard */}
-      <ProtectedRoute path="/agent-dashboard" component={AgentDashboardPage} />
+      <ProtectedRoute path="/agent-dashboard" component={() => <Agents.AgentDashboardPage />} />
       
       {/* Finance Module Routes */}
-      <ProtectedRoute path="/finance" component={FinanceDashboardPage} />
-      <ProtectedRoute path="/finance/dashboard" component={FinanceDashboardPage} />
-      <ProtectedRoute path="/finance/invoices" component={InvoicesPage} />
-      <ProtectedRoute path="/finance/invoices/new" component={() => <InvoiceCreatePage />} />
-      <ProtectedRoute path="/finance/invoices/:id/edit" component={() => <InvoiceCreatePage isEditMode={true} />} />
-      <ProtectedRoute path="/finance/invoices/:id/download" component={() => <InvoiceDetailPage download={true} />} />
-      <ProtectedRoute path="/finance/invoices/:id/print" component={() => <InvoiceDetailPage print={true} />} />
-      <ProtectedRoute path="/finance/invoices/view/:id" component={() => <InvoiceDetailPage />} />
-      <ProtectedRoute path="/finance/invoices/:id" component={() => <InvoiceDetailPage />} />
-      <ProtectedRoute path="/finance/payments" component={PaymentsPage} />
-      <ProtectedRoute path="/finance/payments/new" component={() => <NewPaymentCreatePage />} />
-      <ProtectedRoute path="/finance/new-payment-create" component={() => <NewPaymentCreatePage />} />
-      <ProtectedRoute path="/finance/payments/:id/edit-old" component={() => <PaymentCreatePage isEditMode={true} />} />
-      <ProtectedRoute path="/finance/payments/:id/edit-new" component={() => <EditPaymentPage />} />
-      <ProtectedRoute path="/finance/payments/:id/edit" component={() => <EditPaymentPage />} />
-      <ProtectedRoute path="/finance/reports/reconciliation" component={ReconciliationReportPage} />
-      <ProtectedRoute path="/finance/payment-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/basic-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/new-basic-allocation" component={PaymentAllocationPage} />
-      <ProtectedRoute path="/finance/batch-advance-allocation" component={BatchAdvanceAllocationPage} />
-      <ProtectedRoute path="/finance/payments/:id" component={() => <PaymentDetailPage />} />
-      <ProtectedRoute path="/finance/brc" component={BrcPage} />
+      <ProtectedRoute path="/finance" component={() => <Finance.FinanceDashboardPage />} />
+      <ProtectedRoute path="/finance/dashboard" component={() => <Finance.FinanceDashboardPage />} />
+      <ProtectedRoute path="/finance/invoices" component={() => <Finance.InvoicesPage />} />
+      <ProtectedRoute path="/finance/invoices/new" component={() => <Finance.InvoiceCreatePage />} />
+      <ProtectedRoute path="/finance/invoices/:id/edit" component={() => <Finance.InvoiceCreatePage isEditMode={true} />} />
+      <ProtectedRoute path="/finance/invoices/:id/download" component={() => <Finance.InvoiceDetailPage download={true} />} />
+      <ProtectedRoute path="/finance/invoices/:id/print" component={() => <Finance.InvoiceDetailPage print={true} />} />
+      <ProtectedRoute path="/finance/invoices/view/:id" component={() => <Finance.InvoiceDetailPage />} />
+      <ProtectedRoute path="/finance/invoices/:id" component={() => <Finance.InvoiceDetailPage />} />
+      <ProtectedRoute path="/finance/payments" component={() => <Finance.PaymentsPage />} />
+      <ProtectedRoute path="/finance/payments/new" component={() => <Finance.NewPaymentCreatePage />} />
+      <ProtectedRoute path="/finance/new-payment-create" component={() => <Finance.NewPaymentCreatePage />} />
+      <ProtectedRoute path="/finance/payments/:id/edit-old" component={() => <Finance.PaymentCreatePage isEditMode={true} />} />
+      <ProtectedRoute path="/finance/payments/:id/edit-new" component={() => <Finance.EditPaymentPage />} />
+      <ProtectedRoute path="/finance/payments/:id/edit" component={() => <Finance.EditPaymentPage />} />
+      <ProtectedRoute path="/finance/reports/reconciliation" component={() => <Finance.ReconciliationReportPage />} />
+      <ProtectedRoute path="/finance/payment-allocation" component={() => <Finance.PaymentAllocationPage />} />
+      <ProtectedRoute path="/finance/basic-allocation" component={() => <Finance.PaymentAllocationPage />} />
+      <ProtectedRoute path="/finance/new-basic-allocation" component={() => <Finance.PaymentAllocationPage />} />
+      <ProtectedRoute path="/finance/batch-advance-allocation" component={() => <Finance.BatchAdvanceAllocationPage />} />
+      <ProtectedRoute path="/finance/payments/:id" component={() => <Finance.PaymentDetailPage />} />
+      <ProtectedRoute path="/finance/brc" component={() => <Finance.BrcPage />} />
       <ProtectedRoute path="/brc" component={() => <Redirect to="/finance/brc-management" />} />
-      <ProtectedRoute path="/finance/brc-management" component={BrcManagementPage} />
-      <ProtectedRoute path="/finance/reports/turnover" component={TurnoverReportPage} />
-      <ProtectedRoute path="/finance/reports/outstanding" component={OutstandingReportPage} />
-      <ProtectedRoute path="/finance/reports/remittances" component={RemittancesReportPage} />
-      <ProtectedRoute path="/finance/reports/invoice-aging" component={InvoiceAgingDashboard} />
-      <ProtectedRoute path="/finance/write-offs" component={() => <WriteOffManagementPage />} />
-      <ProtectedRoute path="/finance/write-off-management" component={() => <WriteOffManagementPage />} />
-      <ProtectedRoute path="/finance/tools" component={FinanceToolsPage} />
-      <ProtectedRoute path="/finance/gl-mapping" component={GlMappingPage} />
-      <ProtectedRoute path="/finance/statutory/tds" component={TdsCompliancePage} />
-      <ProtectedRoute path="/finance/statutory/pf" component={PfCompliancePage} />
-      <ProtectedRoute path="/finance/statutory/esic" component={EsicCompliancePage} />
-      <ProtectedRoute path="/finance/statutory/pt" component={PtCompliancePage} />
-      <ProtectedRoute path="/finance/company-income-tax" component={CompanyIncomeTaxPage} />
+      <ProtectedRoute path="/finance/brc-management" component={() => <Finance.BrcManagementPage />} />
+      <ProtectedRoute path="/finance/reports/turnover" component={() => <Finance.TurnoverReportPage />} />
+      <ProtectedRoute path="/finance/reports/outstanding" component={() => <Finance.OutstandingReportPage />} />
+      <ProtectedRoute path="/finance/reports/remittances" component={() => <Finance.RemittancesReportPage />} />
+      <ProtectedRoute path="/finance/reports/invoice-aging" component={() => <Finance.InvoiceAgingDashboard />} />
+      <ProtectedRoute path="/finance/write-offs" component={() => <Finance.WriteOffManagementPage />} />
+      <ProtectedRoute path="/finance/write-off-management" component={() => <Finance.WriteOffManagementPage />} />
+      <ProtectedRoute path="/finance/tools" component={() => <Finance.FinanceToolsPage />} />
+      <ProtectedRoute path="/finance/gl-mapping" component={() => <Finance.GlMappingPage />} />
+      <ProtectedRoute path="/finance/statutory/tds" component={() => <Finance.TdsCompliancePage />} />
+      <ProtectedRoute path="/finance/statutory/pf" component={() => <Finance.PfCompliancePage />} />
+      <ProtectedRoute path="/finance/statutory/esic" component={() => <Finance.EsicCompliancePage />} />
+      <ProtectedRoute path="/finance/statutory/pt" component={() => <Finance.PtCompliancePage />} />
+      <ProtectedRoute path="/finance/company-income-tax" component={() => <Finance.CompanyIncomeTaxPage />} />
       
       {/* Administration Module Routes */}
-      <ProtectedRoute path="/admin" component={AdministrationPage} />
-      <ProtectedRoute path="/admin/administration" component={() => <Layout><AdministrationPage /></Layout>} />
-      <ProtectedRoute path="/admin/users" component={() => <Layout><UserManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/user-management" component={() => <Layout><UserManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/attendance" component={() => <Layout><AttendanceManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/attendance-management" component={() => <Layout><AttendanceManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/leave" component={() => <Layout><LeaveManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/leave-management" component={() => <Layout><LeaveManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/payroll" component={() => <Layout><PayrollManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/payroll-management" component={() => <Layout><PayrollManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/workweek-policies" component={() => <Layout><WorkweekPolicyManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/workweek-policy-management" component={() => <Layout><WorkweekPolicyManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/business-trips" component={() => <Layout><BusinessTripManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/business-trip-management" component={() => <Layout><BusinessTripManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin" component={() => <Admin.AdministrationPage />} />
+      <ProtectedRoute path="/admin/administration" component={() => <Layout><Admin.AdministrationPage /></Layout>} />
+      <ProtectedRoute path="/admin/users" component={() => <Layout><Admin.UserManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/user-management" component={() => <Layout><Admin.UserManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/attendance" component={() => <Layout><Admin.AttendanceManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/attendance-management" component={() => <Layout><Admin.AttendanceManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/leave" component={() => <Layout><Admin.LeaveManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/leave-management" component={() => <Layout><Admin.LeaveManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/payroll" component={() => <Layout><Admin.PayrollManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/payroll-management" component={() => <Layout><Admin.PayrollManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/workweek-policies" component={() => <Layout><Admin.WorkweekPolicyManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/workweek-policy-management" component={() => <Layout><Admin.WorkweekPolicyManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/business-trips" component={() => <Layout><Admin.BusinessTripManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/business-trip-management" component={() => <Layout><Admin.BusinessTripManagementPage /></Layout>} />
       <ProtectedRoute path="/admin/visa-management" component={() => <Layout><VisaManagementWrapper /></Layout>} />
-      <ProtectedRoute path="/admin/legal-management" component={() => <Layout><LegalManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/meetings-management" component={() => <Layout><MeetingsManagementPage /></Layout>} />
-      <ProtectedRoute path="/admin/password-compliance" component={() => <Layout><PasswordCompliancePage /></Layout>} />
-      <ProtectedRoute path="/google-calendar-settings" component={GoogleCalendarSettingsPage} />
+      <ProtectedRoute path="/admin/legal-management" component={() => <Layout><Admin.LegalManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/meetings-management" component={() => <Layout><Admin.MeetingsManagementPage /></Layout>} />
+      <ProtectedRoute path="/admin/password-compliance" component={() => <Layout><Admin.PasswordCompliancePage /></Layout>} />
+      <ProtectedRoute path="/google-calendar-settings" component={() => <Employee.GoogleCalendarSettingsPage />} />
       
-      <ProtectedRoute path="/project-dashboard" component={ProjectDashboardPage} />
-      <ProtectedRoute path="/projects" component={ProjectsPage} />
-      <ProtectedRoute path="/projects/:id" component={ProjectDetailPage} />
-      <ProtectedRoute path="/customers" component={CustomersPage} />
-      <ProtectedRoute path="/item-master" component={ItemMasterPage} />
-      <ProtectedRoute path="/design-tools" component={DesignToolsPage} />
+      {/* Projects & Production Routes */}
+      <ProtectedRoute path="/project-dashboard" component={() => <ProjectsProduction.ProjectDashboardPage />} />
+      <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
+      <ProtectedRoute path="/projects/:id" component={() => <ProjectsProduction.ProjectDetailPage />} />
+      <ProtectedRoute path="/customers" component={() => <ProjectsProduction.CustomersPage />} />
+      <ProtectedRoute path="/item-master" component={() => <ProjectsProduction.ItemMasterPage />} />
+      <ProtectedRoute path="/design-tools" component={() => <Design.DesignToolsPage />} />
       
       {/* Design Management Module Routes */}
-      <ProtectedRoute path="/design-management" component={() => <Layout><DesignDashboardPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-projects" component={() => <Layout><DesignProjectsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/projects" component={() => <Layout><DesignProjectsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-drawings" component={() => <Layout><DrawingRegistryPage /></Layout>} />
-      <ProtectedRoute path="/design-management/drawings" component={() => <Layout><DrawingRegistryPage /></Layout>} />
-      <ProtectedRoute path="/design-management/drawing-registry" component={() => <Layout><DrawingRegistryPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-reviews" component={() => <Layout><ReviewApprovalPage /></Layout>} />
-      <ProtectedRoute path="/design-management/reviews" component={() => <Layout><ReviewApprovalPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-transmittals" component={() => <Layout><TransmittalsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/transmittals" component={() => <Layout><TransmittalsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-standards" component={() => <Layout><StandardsTemplatesPage /></Layout>} />
-      <ProtectedRoute path="/design-management/standards" component={() => <Layout><StandardsTemplatesPage /></Layout>} />
-      <ProtectedRoute path="/design-management/design-reports" component={() => <Layout><ReportsAnalyticsPage /></Layout>} />
-      <ProtectedRoute path="/design-management/reports" component={() => <Layout><ReportsAnalyticsPage /></Layout>} />
-      <ProtectedRoute path="/procurement-planning" component={ProcurementPlanningPage} />
-      <ProtectedRoute path="/procurement-tracking" component={ProcurementTrackingPage} />
-      <ProtectedRoute path="/production-planning" component={ProductionPlanningPage} />
-      <ProtectedRoute path="/production/work-orders/details/:id" component={WorkOrderDetailPage} />
-      <ProtectedRoute path="/production/work-orders/edit/:id" component={WorkOrderEditPage} />
-      {/* Backward compatibility route */}
-      <ProtectedRoute path="/production/work-orders/:id" component={WorkOrderDetailPage} />
-      <ProtectedRoute path="/shop-floor" component={ShopFloorPage} />
-      <ProtectedRoute path="/daily-production-report" component={DailyProductionReportPage} />
-      <ProtectedRoute path="/production-team-management" component={ProductionTeamManagement} />
-      <ProtectedRoute path="/wps-pqr" component={WpsPqrPage} />
-      <ProtectedRoute path="/wpqr" component={WpqrPage} />
-      <ProtectedRoute path="/quality/pma" component={PMAPage} />
-      <ProtectedRoute path="/quality/test-procedures" component={TestProceduresPage} />
-      <ProtectedRoute path="/welder-management" component={WelderManagementPage} />
-      <ProtectedRoute path="/quality/welder-certificates/:welderId" component={WelderCertificatesPage} />
-      <ProtectedRoute path="/welder-test" component={WelderTestPage} />
-      <ProtectedRoute path="/calibration-management" component={CalibrationManagementPage} />
-      {/* Material Identification routes with /quality prefix - NEW IMPLEMENTATION */}
-      <ProtectedRoute path="/quality/material-identification/new" component={MaterialIdentificationCreatePage} />
-      <ProtectedRoute path="/quality/material-identification" component={MaterialIdentificationListNewPage} />
+      <ProtectedRoute path="/design-management" component={() => <Layout><Design.DesignDashboardPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-projects" component={() => <Layout><Design.DesignProjectsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/projects" component={() => <Layout><Design.DesignProjectsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-drawings" component={() => <Layout><Design.DrawingRegistryPage /></Layout>} />
+      <ProtectedRoute path="/design-management/drawings" component={() => <Layout><Design.DrawingRegistryPage /></Layout>} />
+      <ProtectedRoute path="/design-management/drawing-registry" component={() => <Layout><Design.DrawingRegistryPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-reviews" component={() => <Layout><Design.ReviewApprovalPage /></Layout>} />
+      <ProtectedRoute path="/design-management/reviews" component={() => <Layout><Design.ReviewApprovalPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-transmittals" component={() => <Layout><Design.TransmittalsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/transmittals" component={() => <Layout><Design.TransmittalsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-standards" component={() => <Layout><Design.StandardsTemplatesPage /></Layout>} />
+      <ProtectedRoute path="/design-management/standards" component={() => <Layout><Design.StandardsTemplatesPage /></Layout>} />
+      <ProtectedRoute path="/design-management/design-reports" component={() => <Layout><Design.ReportsAnalyticsPage /></Layout>} />
+      <ProtectedRoute path="/design-management/reports" component={() => <Layout><Design.ReportsAnalyticsPage /></Layout>} />
+      <ProtectedRoute path="/procurement-planning" component={() => <ProjectsProduction.ProcurementPlanningPage />} />
+      <ProtectedRoute path="/procurement-tracking" component={() => <ProjectsProduction.ProcurementTrackingPage />} />
+      <ProtectedRoute path="/production-planning" component={() => <ProjectsProduction.ProductionPlanningPage />} />
+      <ProtectedRoute path="/production/work-orders/details/:id" component={() => <ProjectsProduction.WorkOrderDetailPage />} />
+      <ProtectedRoute path="/production/work-orders/edit/:id" component={() => <ProjectsProduction.WorkOrderEditPage />} />
+      <ProtectedRoute path="/production/work-orders/:id" component={() => <ProjectsProduction.WorkOrderDetailPage />} />
+      <ProtectedRoute path="/shop-floor" component={() => <ProjectsProduction.ShopFloorPage />} />
+      <ProtectedRoute path="/daily-production-report" component={() => <ProjectsProduction.DailyProductionReportPage />} />
+      <ProtectedRoute path="/production-team-management" component={() => <ProjectsProduction.ProductionTeamManagement />} />
+      
+      {/* Quality Routes */}
+      <ProtectedRoute path="/wps-pqr" component={() => <Quality.WpsPqrPage />} />
+      <ProtectedRoute path="/wpqr" component={() => <Quality.WpqrPage />} />
+      <ProtectedRoute path="/quality/pma" component={() => <Quality.PMAPage />} />
+      <ProtectedRoute path="/quality/test-procedures" component={() => <Quality.TestProceduresPage />} />
+      <ProtectedRoute path="/welder-management" component={() => <Quality.WelderManagementPage />} />
+      <ProtectedRoute path="/quality/welder-certificates/:welderId" component={() => <Quality.WelderCertificatesPage />} />
+      <ProtectedRoute path="/welder-test" component={() => <Quality.WelderTestPage />} />
+      <ProtectedRoute path="/calibration-management" component={() => <Quality.CalibrationManagementPage />} />
+      <ProtectedRoute path="/quality/material-identification/new" component={() => <Quality.MaterialIdentificationCreatePage />} />
+      <ProtectedRoute path="/quality/material-identification" component={() => <Quality.MaterialIdentificationListNewPage />} />
       <ProtectedRoute 
         path="/quality/material-identification/view/:id" 
-        component={() => <MaterialIdentificationViewNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
+        component={() => <Quality.MaterialIdentificationViewNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
       />
       <ProtectedRoute 
         path="/quality/material-identification/edit/:id" 
-        component={() => <MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
+        component={() => <Quality.MaterialIdentificationEditNewPage params={{ id: window.location.pathname.split('/').pop() || '' }} />} 
       />
-      
-      {/* Test page for direct updates */}
       <ProtectedRoute 
         path="/quality/material-identification/direct-update/:id" 
-        component={() => <MaterialIdentificationDirectUpdate />} 
+        component={() => <Quality.MaterialIdentificationDirectUpdate />} 
       />
-      
-      {/* Legacy route for backward compatibility, redirects to view page */}
       <Route path="/quality/material-identification/:id">
         {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
       </Route>
-      
-      {/* Redirects from old to new routes */}
       <Route path="/material-identification/new">
         <Redirect to="/quality/material-identification/new" />
       </Route>
@@ -359,47 +228,47 @@ function Router() {
       <Route path="/material-identification/:id">
         {(params) => <Redirect to={`/quality/material-identification/view/${params.id}`} />}
       </Route>
-      <ProtectedRoute path="/inspections" component={InspectionsPage} />
-      <ProtectedRoute path="/quality/inspections" component={InspectionsPage} />
-      <ProtectedRoute path="/quality-assurance-plan" component={QualityAssurancePlanPage} />
-      <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={CreateQAPPage} />
-      <ProtectedRoute path="/quality-assurance-plan/view/:id" component={ViewEditQAPPage} />
-      <ProtectedRoute path="/project-commissioning" component={ProjectCommissioningPage} />
-      <ProtectedRoute path="/dispatch-shipping" component={DispatchShippingPage} />
-      <ProtectedRoute path="/after-sales" component={AfterSalesPage} />
-      <ProtectedRoute path="/template-management" component={TemplateManagementPage} />
+      <ProtectedRoute path="/inspections" component={() => <Quality.InspectionsPage />} />
+      <ProtectedRoute path="/quality/inspections" component={() => <Quality.InspectionsPage />} />
+      <ProtectedRoute path="/quality-assurance-plan" component={() => <Quality.QualityAssurancePlanPage />} />
+      <ProtectedRoute path="/quality-assurance-plan/form/:id?" component={() => <Quality.CreateQAPPage />} />
+      <ProtectedRoute path="/quality-assurance-plan/view/:id" component={() => <Quality.ViewEditQAPPage />} />
+      <ProtectedRoute path="/project-commissioning" component={() => <ProjectsProduction.ProjectCommissioningPage />} />
+      <ProtectedRoute path="/dispatch-shipping" component={() => <ProjectsProduction.DispatchShippingPage />} />
+      <ProtectedRoute path="/after-sales" component={() => <ProjectsProduction.AfterSalesPage />} />
+      <ProtectedRoute path="/template-management" component={() => <System.TemplateManagementPage />} />
       <SuperuserRoute path="/users" component={Dashboard} />
-      <SuperuserRoute path="/work-locations" component={() => <Layout><WorkLocationsPage /></Layout>} />
-      <ProtectedRoute path="/attendance" component={() => <Layout><AttendancePage /></Layout>} />
-      <ProtectedRoute path="/attendance/regularization" component={() => <Layout><AttendanceRegularizationPage /></Layout>} />
-      <ProtectedRoute path="/dwar" component={() => <Layout><DwarPage /></Layout>} />
-      <ProtectedRoute path="/leave-request" component={() => <Layout><LeaveRequestPage /></Layout>} />
-      <ProtectedRoute path="/appraisals" component={() => <Layout><EmployeeAppraisalsPage /></Layout>} />
+      <SuperuserRoute path="/work-locations" component={() => <Layout><Admin.WorkLocationsPage /></Layout>} />
+      <ProtectedRoute path="/attendance" component={() => <Layout><Employee.AttendancePage /></Layout>} />
+      <ProtectedRoute path="/attendance/regularization" component={() => <Layout><Employee.AttendanceRegularizationPage /></Layout>} />
+      <ProtectedRoute path="/dwar" component={() => <Layout><Employee.DwarPage /></Layout>} />
+      <ProtectedRoute path="/leave-request" component={() => <Layout><Employee.LeaveRequestPage /></Layout>} />
+      <ProtectedRoute path="/appraisals" component={() => <Layout><Employee.EmployeeAppraisalsPage /></Layout>} />
 
       <SuperuserRoute path="/password-management" component={PasswordManagementPage} />
-      <SuperuserRoute path="/module-permissions" component={ModulePermissionsPage} />
-      <SuperuserRoute path="/business-intelligence" component={() => <Layout><BusinessIntelligencePage /></Layout>} />
-      <SuperuserRoute path="/llm-prompt-engine" component={() => <Layout><LLMPromptEnginePage /></Layout>} />
-      <SuperuserRoute path="/active-alerts" component={ActiveAlertsPage} />
-      <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><GoogleCalendarSettingsPage /></Layout>} />
+      <SuperuserRoute path="/module-permissions" component={() => <System.ModulePermissionsPage />} />
+      <SuperuserRoute path="/business-intelligence" component={() => <Layout><Agents.BusinessIntelligencePage /></Layout>} />
+      <SuperuserRoute path="/llm-prompt-engine" component={() => <Layout><Agents.LLMPromptEnginePage /></Layout>} />
+      <SuperuserRoute path="/active-alerts" component={() => <System.ActiveAlertsPage />} />
+      <ProtectedRoute path="/google-calendar-settings" component={() => <Layout><Employee.GoogleCalendarSettingsPage /></Layout>} />
       
       {/* SAP B1 Integration Routes */}
-      <ProtectedRoute path="/sap-integration" component={() => <Layout><SapIntegrationPage /></Layout>} />
-      <ProtectedRoute path="/purchase-module" component={() => <Layout><PurchaseModule /></Layout>} />
-      <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><PurchaseModule /></Layout>} />
-      <ProtectedRoute path="/admin/sap-purchase" component={() => <Layout><PurchaseModule /></Layout>} />
+      <ProtectedRoute path="/sap-integration" component={() => <Layout><SAP.SapIntegrationPage /></Layout>} />
+      <ProtectedRoute path="/purchase-module" component={() => <Layout><SAP.PurchaseModule /></Layout>} />
+      <ProtectedRoute path="/sap-b1/purchase" component={() => <Layout><SAP.PurchaseModule /></Layout>} />
+      <ProtectedRoute path="/admin/sap-purchase" component={() => <Layout><SAP.PurchaseModule /></Layout>} />
       
       {/* SAP Purchasing Module Routes */}
-      <ProtectedRoute path="/sap-purchasing/dashboard" component={() => <Layout><SapPurchasingDashboard /></Layout>} />
-      <ProtectedRoute path="/sap-purchasing/orders" component={() => <Layout><SapPurchaseOrders /></Layout>} />
-      <ProtectedRoute path="/sap-purchasing/quotations" component={() => <Layout><SapPurchaseQuotations /></Layout>} />
-      <ProtectedRoute path="/sap-purchasing/receipts" component={() => <Layout><SapGoodsReceipts /></Layout>} />
-      <ProtectedRoute path="/sap-purchasing/invoices" component={() => <Layout><SapPurchaseInvoices /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/dashboard" component={() => <Layout><SAP.SapPurchasingDashboard /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/orders" component={() => <Layout><SAP.SapPurchaseOrders /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/quotations" component={() => <Layout><SAP.SapPurchaseQuotations /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/receipts" component={() => <Layout><SAP.SapGoodsReceipts /></Layout>} />
+      <ProtectedRoute path="/sap-purchasing/invoices" component={() => <Layout><SAP.SapPurchaseInvoices /></Layout>} />
       
-      <SuperuserRoute path="/gcs-diagnostic" component={GcsDiagnosticPage} />
-      <SuperuserRoute path="/gcs-test" component={GcsTestPage} />
-      <SuperuserRoute path="/special-fixes" component={SpecialFixesPage} />
-      <SuperuserRoute path="/calibration-test" component={CalibrationTestPage} />
+      <SuperuserRoute path="/gcs-diagnostic" component={() => <System.GcsDiagnosticPage />} />
+      <SuperuserRoute path="/gcs-test" component={() => <System.GcsTestPage />} />
+      <SuperuserRoute path="/special-fixes" component={() => <System.SpecialFixesPage />} />
+      <SuperuserRoute path="/calibration-test" component={() => <Quality.CalibrationTestPage />} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -409,7 +278,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
+        <Suspense fallback={<PageLoader />}>
+          <Router />
+        </Suspense>
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>

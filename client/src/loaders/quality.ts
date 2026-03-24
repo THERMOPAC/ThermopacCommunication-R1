@@ -1,0 +1,24 @@
+import { lazyWithRetry } from "./lazy-utils";
+
+export const InspectionsPage = lazyWithRetry(() => import("@/pages/inspections-page"));
+export const MaterialIdentificationPage = lazyWithRetry(() => import("@/pages/material-identification-page"));
+export const MaterialIdentificationListPage = lazyWithRetry(() => import("@/pages/material-identification-list-page"));
+export const MaterialIdentificationViewPage = lazyWithRetry(() => import("@/pages/material-identification-view-page"));
+export const MaterialIdentificationEditPage = lazyWithRetry(() => import("@/pages/material-identification-edit-page"));
+export const MaterialIdentificationCreatePage = lazyWithRetry(() => import("@/pages/material-identification-create-page"));
+export const MaterialIdentificationListNewPage = lazyWithRetry(() => import("@/pages/material-identification-list-new-page"));
+export const MaterialIdentificationViewNewPage = lazyWithRetry(() => import("@/pages/material-identification-view-new-page"));
+export const MaterialIdentificationEditNewPage = lazyWithRetry(() => import("@/pages/material-identification-edit-new-page"));
+export const MaterialIdentificationDirectUpdate = lazyWithRetry(() => import("@/pages/material-identification-direct-update"));
+export const WpsPqrPage = lazyWithRetry(() => import("@/pages/wps-pqr-page"));
+export const WpqrPage = lazyWithRetry(() => import("@/pages/wpqr-page"));
+export const PMAPage = lazyWithRetry(() => import("@/pages/pma-page"));
+export const TestProceduresPage = lazyWithRetry(() => import("@/pages/test-procedures-page"));
+export const WelderManagementPage = lazyWithRetry(() => import("@/pages/welder-management-page"));
+export const WelderCertificatesPage = lazyWithRetry(() => import("@/pages/welder-certificates-page"));
+export const WelderTestPage = lazyWithRetry(() => import("@/pages/welder-test-page"));
+export const CalibrationManagementPage = lazyWithRetry(() => import("@/pages/calibration-management-page"));
+export const CalibrationTestPage = lazyWithRetry(() => import("@/pages/calibration-test-page"));
+export const QualityAssurancePlanPage = lazyWithRetry(() => import("@/pages/quality-assurance-plan-page"));
+export const CreateQAPPage = lazyWithRetry(() => import("@/pages/create-qap-page"));
+export const ViewEditQAPPage = lazyWithRetry(() => import("@/pages/view-edit-qap-page"));

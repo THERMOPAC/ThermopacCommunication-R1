@@ -1,0 +1,28 @@
+import { lazyWithRetry } from "./lazy-utils";
+
+export const FinanceDashboardPage = lazyWithRetry(() => import("@/pages/finance/finance-dashboard-page"));
+export const InvoicesPage = lazyWithRetry(() => import("@/pages/finance/invoices-page"));
+export const InvoiceCreatePage = lazyWithRetry(() => import("@/pages/finance/invoice-create-page"));
+export const InvoiceDetailPage = lazyWithRetry(() => import("@/pages/finance/invoice-detail-page"));
+export const PaymentsPage = lazyWithRetry(() => import("@/pages/finance/payments-page"));
+export const PaymentDetailPage = lazyWithRetry(() => import("@/pages/finance/payment-detail-enhanced"));
+export const PaymentCreatePage = lazyWithRetry(() => import("@/pages/finance/payment-create-page"));
+export const NewPaymentCreatePage = lazyWithRetry(() => import("@/pages/finance/new-payment-create"));
+export const EditPaymentPage = lazyWithRetry(() => import("@/pages/finance/edit-payment-page"));
+export const BrcPage = lazyWithRetry(() => import("@/pages/finance/brc-page"));
+export const BrcManagementPage = lazyWithRetry(() => import("@/pages/finance/brc-management-page"));
+export const TurnoverReportPage = lazyWithRetry(() => import("@/pages/finance/reports/turnover-page"));
+export const OutstandingReportPage = lazyWithRetry(() => import("@/pages/finance/reports/outstanding-page"));
+export const RemittancesReportPage = lazyWithRetry(() => import("@/pages/finance/reports/remittances-page"));
+export const ReconciliationReportPage = lazyWithRetry(() => import("@/pages/finance/reports/reconciliation-page"));
+export const PaymentAllocationPage = lazyWithRetry(() => import("@/pages/finance/payment-allocation-redesigned"));
+export const BatchAdvanceAllocationPage = lazyWithRetry(() => import("@/pages/finance/batch-advance-allocation-page-fixed"));
+export const InvoiceAgingDashboard = lazyWithRetry(() => import("@/pages/finance/reports/invoice-aging-dashboard"));
+export const WriteOffManagementPage = lazyWithRetry(() => import("@/pages/finance/write-off-management"));
+export const FinanceToolsPage = lazyWithRetry(() => import("@/pages/finance-tools-page"));
+export const GlMappingPage = lazyWithRetry(() => import("@/pages/finance/gl-mapping-page"));
+export const TdsCompliancePage = lazyWithRetry(() => import("@/pages/finance/statutory/tds-compliance-page"));
+export const PfCompliancePage = lazyWithRetry(() => import("@/pages/finance/statutory/pf-compliance-page"));
+export const EsicCompliancePage = lazyWithRetry(() => import("@/pages/finance/statutory/esic-compliance-page"));
+export const PtCompliancePage = lazyWithRetry(() => import("@/pages/finance/statutory/pt-compliance-page"));
+export const CompanyIncomeTaxPage = lazyWithRetry(() => import("@/pages/finance/company-income-tax-page"));

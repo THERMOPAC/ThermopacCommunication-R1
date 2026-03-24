@@ -1,0 +1,18 @@
+import { lazyWithRetry } from "./lazy-utils";
+
+export const ProjectsPage = lazyWithRetry(() => import("@/pages/projects-page"));
+export const ProjectDetailPage = lazyWithRetry(() => import("@/pages/project-detail-page"));
+export const ProjectDashboardPage = lazyWithRetry(() => import("@/pages/project-dashboard-page"));
+export const CustomersPage = lazyWithRetry(() => import("@/pages/customers-page"));
+export const ItemMasterPage = lazyWithRetry(() => import("@/pages/item-master-page"));
+export const ProductionPlanningPage = lazyWithRetry(() => import("@/pages/production-planning-page"));
+export const WorkOrderDetailPage = lazyWithRetry(() => import("@/pages/work-order-detail-page"));
+export const WorkOrderEditPage = lazyWithRetry(() => import("@/pages/work-order-edit-page"));
+export const ShopFloorPage = lazyWithRetry(() => import("@/pages/shop-floor-page"));
+export const DailyProductionReportPage = lazyWithRetry(() => import("@/pages/daily-production-report-page"));
+export const ProductionTeamManagement = lazyWithRetry(() => import("@/pages/production-team-management"));
+export const ProcurementPlanningPage = lazyWithRetry(() => import("@/pages/procurement-planning-page"));
+export const ProcurementTrackingPage = lazyWithRetry(() => import("@/pages/procurement-tracking-page"));
+export const ProjectCommissioningPage = lazyWithRetry(() => import("@/pages/project-commissioning-page"));
+export const DispatchShippingPage = lazyWithRetry(() => import("@/pages/dispatch-shipping-page"));
+export const AfterSalesPage = lazyWithRetry(() => import("@/pages/after-sales-page"));

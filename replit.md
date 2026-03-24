@@ -10,7 +10,7 @@ The system is a full-stack web application built with organized, hierarchical da
 
 ## Technical Implementations
 - **Backend**: Express.js with TypeScript, PostgreSQL (Drizzle ORM), session-based authentication, Google Cloud Storage, and a RESTful API.
-- **Frontend**: React with TypeScript, Wouter for routing, TanStack Query for state management, Radix UI components with Tailwind CSS, React Hook Form with Zod validation, and Vite for builds.
+- **Frontend**: React with TypeScript, Wouter for routing, TanStack Query for state management, Radix UI components with Tailwind CSS, React Hook Form with Zod validation, and Vite for builds. Uses lazy loading via `client/src/loaders/` module files (admin, finance, sales-marketing, projects-production, quality, design, sap, agents, employee, system) with `lazyWithRetry` (exponential backoff retry). App.tsx imports module namespaces (`import * as Admin from "@/loaders/admin"`) instead of 139 eager page imports.
 - **Data Storage**: PostgreSQL on Neon, a dedicated GCS bucket (`thermopac_storage`) for files, and database-backed sessions.
 - **UI/UX Decisions**: Consistent color schemes (blue, green, red, yellow/orange), hierarchical card-based layouts, unified dropdowns, consistent table structures, professional dialogs, standardized file upload/replacement workflows, and branded professional report generation (PDF/Excel).
 - **Feature Specifications**:
