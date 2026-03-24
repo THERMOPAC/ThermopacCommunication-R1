@@ -32,7 +32,7 @@ interface SalarySlipData {
     unpaidLeaveDays: number;
     lopDays: number;
   };
-  absentDates?: string[];
+  absentDates?: { date: string; type: string }[];
   earnings: {
     basicSalary: number;
     hra: number;
@@ -269,20 +269,34 @@ export class SalarySlipGenerator {
       this.t('ABSENT DATES', m + 8, y + 3.5);
       y += 14;
 
-      const formattedDates = absentDates.map(dt => {
-        const d2 = new Date(dt + 'T00:00:00');
-        return d2.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-      });
-
-      const dateStr = formattedDates.join(',  ');
+      const rowH = 10;
+      const totalH = absentDates.length * rowH;
       doc.save();
-      const dateTextH = 14;
-      doc.rect(m, y, w, dateTextH).fillColor('#FFFFFF').fill();
+      doc.rect(m, y, w, totalH).fillColor('#FFFFFF').fill();
       doc.restore();
-      doc.font(FONT_REGULAR).fontSize(6).fillColor('#DC2626');
-      this.t(dateStr, m + 8, y + 4, { width: w - 16 });
-      this.hLine(y + dateTextH, '#D1D5DB', 0.4);
-      y += dateTextH + 3;
+
+      const dateColW = w * 0.5;
+      const typeColW = w * 0.5;
+
+      for (let i = 0; i < absentDates.length; i++) {
+        const rowY = y + i * rowH;
+        const entry = absentDates[i];
+        const [yr, mo, da] = entry.date.split('-').map(Number);
+        const d2 = new Date(yr, mo - 1, da);
+        const formatted = d2.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+        doc.font(FONT_REGULAR).fontSize(6).fillColor('#1F2937');
+        this.t(formatted, m + 8, rowY + 2.5, { width: dateColW - 16 });
+
+        const typeColor = entry.type === 'LOP' ? '#DC2626' : '#B45309';
+        doc.font(FONT_BOLD).fontSize(6).fillColor(typeColor);
+        this.t(entry.type, m + dateColW, rowY + 2.5, { width: typeColW - 8 });
+
+        if (i > 0) this.hLine(rowY, '#F3F4F6', 0.3);
+      }
+
+      this.hLine(y + totalH, '#D1D5DB', 0.4);
+      y += totalH + 3;
     }
 
     const leaveBals = d.leaveBalances || [];

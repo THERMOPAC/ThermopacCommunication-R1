@@ -4613,20 +4613,31 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
     const empUser2 = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, record.userId)).limit(1);
     const weeklyOffDays: number[] = empUser2[0]?.weeklyOffDays || [0];
 
-    const unrecordedAbsentDates: string[] = [];
-    const pStart = new Date(record.startDate + 'T00:00:00');
-    const pEnd = new Date(record.endDate + 'T00:00:00');
+    const absentDateEntries: { date: string; type: string }[] = [];
+    for (const r of absentRecords) {
+      absentDateEntries.push({ date: r.date, type: r.status === 'half_day' ? 'Half Day' : 'LOP' });
+    }
+
+    const startStr = typeof record.startDate === 'string' ? record.startDate : new Date(record.startDate).toISOString().split('T')[0];
+    const endStr = typeof record.endDate === 'string' ? record.endDate : new Date(record.endDate).toISOString().split('T')[0];
+    const [sy, sm, sd] = startStr.split('-').map(Number);
+    const [ey, em, ed] = endStr.split('-').map(Number);
+    const pStart = new Date(sy, sm - 1, sd);
+    const pEnd = new Date(ey, em - 1, ed);
     for (let dt = new Date(pStart); dt <= pEnd; dt.setDate(dt.getDate() + 1)) {
-      const dateStr = dt.toISOString().split('T')[0];
+      const yyyy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
       const dayOfWeek = dt.getDay();
       if (weeklyOffDays.includes(dayOfWeek)) continue;
       if (holidaySet.has(dateStr)) continue;
       if (recordedDates.has(dateStr)) continue;
-      unrecordedAbsentDates.push(dateStr);
+      absentDateEntries.push({ date: dateStr, type: 'LOP' });
     }
 
-    const allAbsentDates = [...explicitAbsentDates, ...unrecordedAbsentDates].sort();
-    salarySlipData.absentDates = allAbsentDates;
+    absentDateEntries.sort((a, b) => a.date.localeCompare(b.date));
+    salarySlipData.absentDates = absentDateEntries;
 
     const generator = new SalarySlipGenerator();
     await generator.generateSalarySlip(salarySlipData, res);
