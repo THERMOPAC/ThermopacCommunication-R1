@@ -990,40 +990,6 @@ export class AdministrationControlAgent implements IAgent {
           }
         }
 
-        // A3.02: Missing bank details
-        if (salary && (!salary.bank_account_no || !salary.bank_name)) {
-          const fingerprint = fp('a3_02_no_bank', 'user', uid);
-          const finding = await findingManager.createFinding({
-            findingType: 'gap', severity: 'high',
-            title: `A3.02 Missing bank details: ${name}`,
-            description: `${name} has a salary structure but missing bank account or bank name.`,
-            logicType: 'rule_based',
-            relatedEntityType: 'user', relatedEntityId: String(uid),
-            dataSnapshot: { userId: uid, hasAccount: !!salary.bank_account_no, hasBank: !!salary.bank_name },
-          });
-          if (!finding.isDuplicate) {
-            findingsCount++;
-            acc.findingIds.push(finding.id);
-            acc.blockingFindings.push(`A3.02:${name}`);
-            acc.groupCounts['A3'] = (acc.groupCounts['A3'] || 0) + 1;
-            if (canCreateTask(acc, 'a3_02', `user:${uid}`) && !(await hasOpenTask(fingerprint))) {
-              const assignTo = await resolveAssignee(uid, c.hr_admin_user_id);
-              const rec = await recommendationManager.createRecommendation({
-                findingId: finding.id, title: `[Agent] Admin – Missing bank details: ${name}`,
-                actionType: 'create_task', actionCategory: 'task_creation',
-                description: `Collect bank details for ${name}.`,
-                actionPayload: {
-                  title: `[Agent] Admin – Collect bank details for ${name}`,
-                  description: `${name} has a salary structure but missing bank details.\nisBlocking: true\n\nRequired for salary transfer.`,
-                  assignedTo: assignTo, priority: 'High', category: `Administration ${fingerprint}`,
-                },
-                logicType: 'rule_based', confidence: 0.95, priority: 'high',
-              });
-              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); recordAction(acc, 'task', 'a3_02', `user:${uid}`); }
-            }
-          }
-        }
-
         // A3.03: No work location
         if (!user.work_location_id) {
           const fingerprint = fp('a3_03_no_location', 'user', uid);
