@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -887,6 +887,9 @@ export const recurringPatterns = pgTable('recurring_patterns', {
   // Duration in days (used to calculate finishDate when generating new tasks)
   templateDurationDays: integer('template_duration_days').default(1).notNull(),
   
+  // Planned hours for each task occurrence
+  templatePlannedHours: real('template_planned_hours').default(0),
+  
   // When was the last instance generated
   lastGeneratedDate: text('last_generated_date'),
   nextGenerationDate: text('next_generation_date'),
@@ -943,6 +946,9 @@ export const recurringTasks = pgTable('recurring_tasks', {
   
   // Due date - when this task must be completed
   dueDate: text('due_date').notNull(),
+  
+  // Planned hours for this task occurrence
+  plannedHours: real('planned_hours').default(0),
 });
 
 // Track task history for workflow analysis
@@ -1262,6 +1268,7 @@ export const insertRecurringPatternSchema = createInsertSchema(recurringPatterns
   templateCategory: z.string().optional(),
   templateAssignedTo: z.number().optional(),
   templateDurationDays: z.number().min(1),
+  templatePlannedHours: z.number().min(0).optional().default(0),
   userId: z.number(),
   isActive: z.boolean().optional().default(true),
   maxOccurrences: z.number().nullable().optional(),

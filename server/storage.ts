@@ -1847,7 +1847,8 @@ export class DatabaseStorage implements IStorage {
             recurringPatternId: pattern.id,
             dueDate: dueDate,
             occurrenceNumber: localGeneratedCount + 1,
-            status: 'pending'
+            status: 'pending',
+            plannedHours: pattern.templatePlannedHours || 0,
           };
 
           const task = await this.createRecurringTask(newRecurringTask);

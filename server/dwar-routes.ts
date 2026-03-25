@@ -38,7 +38,8 @@ router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Re
         status: recurringTasks.status,
         startDate: recurringTasks.startDate,
         finishDate: recurringTasks.finishDate,
-        dueDate: recurringTasks.dueDate
+        dueDate: recurringTasks.dueDate,
+        plannedHours: recurringTasks.plannedHours
       })
       .from(recurringTasks)
       .where(and(

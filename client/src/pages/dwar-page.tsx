@@ -99,6 +99,7 @@ interface AvailableTask {
   startDate: string;
   finishDate: string;
   source?: 'recurring';
+  plannedHours?: number;
 }
 
 export default function DwarPage() {
@@ -429,29 +430,27 @@ export default function DwarPage() {
                     let autoPlannedHours = 0;
                     let wasAutoFilled = false;
                     if (selectedTask) {
-                      let startStr: string | undefined;
-                      let endStr: string | undefined;
-                      if (selectedTask.source === 'recurring') {
-                        startStr = new Date().toISOString().split('T')[0];
-                        endStr = selectedTask.dueDate;
+                      if (selectedTask.source === 'recurring' && selectedTask.plannedHours && selectedTask.plannedHours > 0) {
+                        autoPlannedHours = selectedTask.plannedHours;
+                        wasAutoFilled = true;
                       } else {
-                        startStr = selectedTask.startDate;
-                        endStr = selectedTask.dueDate || selectedTask.finishDate;
-                      }
-                      if (startStr && endStr) {
-                        const start = new Date(startStr);
-                        const end = new Date(endStr);
-                        if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
-                          let businessDays = 0;
-                          const cur = new Date(start);
-                          while (cur <= end) {
-                            const day = cur.getDay();
-                            if (day !== 0 && day !== 6) businessDays++;
-                            cur.setDate(cur.getDate() + 1);
-                          }
-                          if (businessDays > 0) {
-                            autoPlannedHours = businessDays * 8;
-                            wasAutoFilled = true;
+                        const startStr = selectedTask.startDate;
+                        const endStr = selectedTask.dueDate || selectedTask.finishDate;
+                        if (startStr && endStr) {
+                          const start = new Date(startStr);
+                          const end = new Date(endStr);
+                          if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+                            let businessDays = 0;
+                            const cur = new Date(start);
+                            while (cur <= end) {
+                              const day = cur.getDay();
+                              if (day !== 0 && day !== 6) businessDays++;
+                              cur.setDate(cur.getDate() + 1);
+                            }
+                            if (businessDays > 0) {
+                              autoPlannedHours = businessDays * 8;
+                              wasAutoFilled = true;
+                            }
                           }
                         }
                       }

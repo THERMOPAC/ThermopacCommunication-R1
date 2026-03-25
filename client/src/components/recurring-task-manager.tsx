@@ -73,6 +73,7 @@ const recurringTaskSchema = z.object({
   templatePriority: z.enum(["Low", "Medium", "High"]),
   templateCategory: z.string().min(1, "Category is required"),
   templateDurationDays: z.coerce.number().int().min(1, "Duration must be at least 1 day"),
+  templatePlannedHours: z.coerce.number().min(0, "Planned hours must be 0 or more").optional().default(0),
   templateAssignedTo: z.coerce.number().optional(),
   
   // Weekly pattern fields
@@ -160,6 +161,7 @@ interface RecurringPatternSubmitData {
   templatePriority: "Low" | "Medium" | "High";
   templateCategory?: string;
   templateDurationDays: number;
+  templatePlannedHours?: number;
   templateAssignedTo?: number;
   userId: number; // Required
   createdBy: number; // Required
@@ -328,6 +330,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       templateAssignedTo: undefined,
       templateCategory: "work",
       templateDurationDays: 1,
+      templatePlannedHours: 0,
       isActive: true,
       // These will be set automatically from the user
       userId: undefined,
@@ -394,6 +397,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
           templatePriority: data.templatePriority,
           templateCategory: data.templateCategory || undefined,
           templateDurationDays: Number(data.templateDurationDays),
+          templatePlannedHours: Number(data.templatePlannedHours || 0),
           templateAssignedTo: data.templateAssignedTo ? Number(data.templateAssignedTo) : undefined,
           
           // Required user fields - preserve the original user
@@ -478,6 +482,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
           templatePriority: data.templatePriority,
           templateCategory: data.templateCategory || undefined,
           templateDurationDays: Number(data.templateDurationDays),
+          templatePlannedHours: Number(data.templatePlannedHours || 0),
           templateAssignedTo: data.templateAssignedTo ? Number(data.templateAssignedTo) : undefined,
           
           // Required user fields
@@ -610,6 +615,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       templatePriority: data.templatePriority,
       templateCategory: data.templateCategory || undefined, // Set to undefined if empty string
       templateDurationDays: Number(data.templateDurationDays), // Ensure it's a number
+      templatePlannedHours: Number(data.templatePlannedHours || 0),
       isActive: data.isActive === undefined ? true : Boolean(data.isActive), // Ensure it's a boolean
       // CRITICAL: Always ensure userId and createdBy are set and are numbers
       userId: Number(user.id), // We've validated user.id exists above
@@ -689,6 +695,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
       templateAssignedTo: pattern.templateAssignedTo,
       templateCategory: pattern.templateCategory,
       templateDurationDays: pattern.templateDurationDays,
+      templatePlannedHours: pattern.templatePlannedHours || 0,
       isActive: pattern.isActive,
     };
 
@@ -850,6 +857,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                   templatePriority: "Medium",
                   templateCategory: "work",
                   templateDurationDays: 1,
+                  templatePlannedHours: 0,
                   isActive: true,
                   // These will be set from the user when submitted
                   userId: undefined,
@@ -1308,7 +1316,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                         />
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         <FormField
                           control={form.control}
                           name="templateDurationDays"
@@ -1324,7 +1332,30 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                                 />
                               </FormControl>
                               <FormDescription>
-                                Expected days to complete this task
+                                Expected days to complete
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="templatePlannedHours"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Planned Hours</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step="0.5"
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Hours planned per occurrence
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -1509,6 +1540,10 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
                         <div className="flex justify-between">
                           <span className="text-sm font-medium">Duration:</span>
                           <span className="text-sm">{pattern.templateDurationDays} day(s)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium">Planned Hours:</span>
+                          <span className="text-sm">{pattern.templatePlannedHours || 0}h</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-sm font-medium">Tasks Generated:</span>
