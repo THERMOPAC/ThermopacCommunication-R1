@@ -430,9 +430,11 @@ export default function DwarPage() {
                     let autoPlannedHours = 0;
                     let wasAutoFilled = false;
                     if (selectedTask) {
-                      if (selectedTask.source === 'recurring' && selectedTask.plannedHours && selectedTask.plannedHours > 0) {
-                        autoPlannedHours = selectedTask.plannedHours;
-                        wasAutoFilled = true;
+                      if (selectedTask.source === 'recurring') {
+                        if (selectedTask.plannedHours && selectedTask.plannedHours > 0) {
+                          autoPlannedHours = selectedTask.plannedHours;
+                          wasAutoFilled = true;
+                        }
                       } else {
                         const startStr = selectedTask.startDate;
                         const endStr = selectedTask.dueDate || selectedTask.finishDate;
