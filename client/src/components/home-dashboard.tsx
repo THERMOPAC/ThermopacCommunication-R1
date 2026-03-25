@@ -26,7 +26,11 @@ import {
   Bell,
   Mail,
   Lightbulb,
-  Award
+  Award,
+  Target,
+  Zap,
+  HandshakeIcon,
+  Loader2
 } from "lucide-react";
 
 export default function HomeDashboard() {
@@ -61,6 +65,31 @@ export default function HomeDashboard() {
   
   // Gmail stats
   const unreadEmailCount = gmailMessages.filter(m => !m.isRead).length;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const { data: dwarKpi, isLoading: kpiLoading } = useQuery<{
+    overallPerformanceScore: number;
+    performanceGrade: string;
+    averageProductivityScore: number;
+    averageQualityScore: number;
+    averageEfficiencyRating: number;
+    averageCollaborationScore: number;
+    dwarSubmissionRate: number;
+    totalTasksCompleted: number;
+    attendancePercentage: number;
+    totalApprovedReports: number;
+    averageManagerRating: number;
+  }>({
+    queryKey: ["/api/dwar/kpi", user?.id, currentYear, currentMonth],
+    queryFn: async () => {
+      const data = await apiRequest("GET", `/api/dwar/kpi/${user?.id}/${currentYear}/${currentMonth}`);
+      return data as any;
+    },
+    enabled: !!user?.id,
+  });
 
   // Animation for progress bars
   useEffect(() => {
@@ -215,10 +244,9 @@ export default function HomeDashboard() {
     }
   };
   
-  // Mock productivity score and rank (in real app, these would come from API)
-  const productivityScore = 84;
-  const userRank = 3;
-  const totalUsers = subordinates.length + 1; // Including the current user
+  const overallScore = Math.round(dwarKpi?.overallPerformanceScore || 0);
+  const performanceGrade = dwarKpi?.performanceGrade || '--';
+  const totalUsers = subordinates.length + 1;
 
   return (
     <div className="space-y-6">
@@ -346,10 +374,10 @@ export default function HomeDashboard() {
                 
                 <div>
                   <div className="flex justify-between mb-1">
-                    <p className="text-sm font-medium">Monthly Productivity</p>
-                    <p className="text-sm font-medium">{productivityScore}%</p>
+                    <p className="text-sm font-medium">Monthly Performance</p>
+                    <p className="text-sm font-medium">{kpiLoading ? '...' : `${overallScore}%`}</p>
                   </div>
-                  <Progress value={productivityScore} className="h-2" />
+                  <Progress value={overallScore} className="h-2" />
                 </div>
               </div>
             </CardContent>
@@ -446,100 +474,93 @@ export default function HomeDashboard() {
         
         {/* Right column */}
         <div className="space-y-6">
-          {/* User Performance */}
+          {/* User Performance — Real DWAR Data */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center gap-2">
                 <Award className="h-5 w-5 text-primary" />
                 Performance Overview
               </CardTitle>
+              <CardDescription>
+                {new Date(currentYear, currentMonth - 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} — Daily Work Indicators
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-center py-4">
-                <div className="relative h-36 w-36 flex items-center justify-center">
-                  <svg className="h-full w-full" viewBox="0 0 100 100">
-                    {/* Background circle */}
-                    <circle
-                      className="text-muted-foreground/20"
-                      strokeWidth="8"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="40"
-                      cx="50"
-                      cy="50"
-                    />
-                    {/* Progress circle */}
-                    <circle
-                      className="text-primary"
-                      strokeWidth="8"
-                      strokeDasharray={`${productivityScore * 2.51} 251.2`}
-                      strokeLinecap="round"
-                      stroke="currentColor"
-                      fill="transparent"
-                      r="40"
-                      cx="50"
-                      cy="50"
-                      transform="rotate(-90 50 50)"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold">{productivityScore}</span>
-                    <span className="text-sm text-muted-foreground">Productivity</span>
+              {kpiLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center py-4">
+                    <div className="relative h-36 w-36 flex items-center justify-center">
+                      <svg className="h-full w-full" viewBox="0 0 100 100">
+                        <circle
+                          className="text-muted-foreground/20"
+                          strokeWidth="8"
+                          stroke="currentColor"
+                          fill="transparent"
+                          r="40"
+                          cx="50"
+                          cy="50"
+                        />
+                        <circle
+                          className={overallScore >= 80 ? "text-green-600" : overallScore >= 60 ? "text-amber-500" : "text-red-500"}
+                          strokeWidth="8"
+                          strokeDasharray={`${overallScore * 2.51} 251.2`}
+                          strokeLinecap="round"
+                          stroke="currentColor"
+                          fill="transparent"
+                          r="40"
+                          cx="50"
+                          cy="50"
+                          transform="rotate(-90 50 50)"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-bold">{overallScore}</span>
+                        <span className="text-xs text-muted-foreground">Grade: {performanceGrade}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
               
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-medium">Your Rank</p>
-                  <Badge variant="outline" className="font-semibold">
-                    #{userRank} of {totalUsers}
-                  </Badge>
-                </div>
-                
-                <Separator />
-                
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-medium">Tasks Completed</p>
-                  <p className="font-medium">{completedTasks.length}</p>
-                </div>
-                
-                <Separator />
-                
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-medium">On-time Completion</p>
-                  <p className="font-medium">
-                    {totalTasks > 0
-                      ? `${Math.round((completedTasks.filter(t => {
-                          // Check both finishDate and dueDate for on-time completion
-                          const hasCompletedAt = !!t.completedAt;
-                          
-                          // If no completion date or no deadline dates, it's considered on-time
-                          if (!hasCompletedAt || (!t.dueDate && !t.finishDate)) return true;
-                          
-                          // Get completed date
-                          const completedDate = new Date(t.completedAt);
-                          
-                          // Check against finishDate if it exists
-                          if (t.finishDate) {
-                            const finishDate = new Date(t.finishDate);
-                            if (completedDate <= finishDate) return true;
-                          }
-                          
-                          // Check against dueDate if it exists and wasn't already determined to be on time
-                          if (t.dueDate) {
-                            const dueDate = new Date(t.dueDate);
-                            if (completedDate <= dueDate) return true;
-                          }
-                          
-                          // If we get here, the task was completed after both deadline dates
-                          return false;
-                        }).length / totalTasks) * 100)}%`
-                      : "0%"
-                    }
-                  </p>
-                </div>
-              </div>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Productivity', value: Math.round(dwarKpi?.averageProductivityScore || 0), icon: <Target className="h-4 w-4 text-blue-500" />, color: 'bg-blue-500' },
+                      { label: 'Quality', value: Math.round(dwarKpi?.averageQualityScore || 0), icon: <Award className="h-4 w-4 text-emerald-500" />, color: 'bg-emerald-500' },
+                      { label: 'Efficiency', value: Math.round(dwarKpi?.averageEfficiencyRating || 0), icon: <Zap className="h-4 w-4 text-amber-500" />, color: 'bg-amber-500' },
+                      { label: 'Collaboration', value: Math.round(dwarKpi?.averageCollaborationScore || 0), icon: <HandshakeIcon className="h-4 w-4 text-violet-500" />, color: 'bg-violet-500' },
+                      { label: 'Attendance', value: Math.round(dwarKpi?.attendancePercentage || 0), icon: <CheckCircle className="h-4 w-4 text-teal-500" />, color: 'bg-teal-500' },
+                    ].map(item => (
+                      <div key={item.label}>
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex items-center gap-1.5">
+                            {item.icon}
+                            <span className="text-sm">{item.label}</span>
+                          </div>
+                          <span className="text-sm font-semibold">{item.value}%</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${item.color}`} style={{ width: `${Math.min(item.value, 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold">{dwarKpi?.totalTasksCompleted || 0}</p>
+                      <p className="text-xs text-muted-foreground">Tasks Done</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold">{Math.round(dwarKpi?.dwarSubmissionRate || 0)}%</p>
+                      <p className="text-xs text-muted-foreground">DWAR Rate</p>
+                    </div>
+                  </div>
+                </>
+              )}
               
               <Button variant="outline" className="w-full gap-1" asChild>
                 <Link href="/leaderboard">
