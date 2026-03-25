@@ -20,7 +20,7 @@ router.use(ensureAuthenticated);
 function ensurePayrollAdmin(req: Request, res: Response, next: Function) {
   const user = req.user as any;
   if (!user) return res.status(401).json({ error: 'Not authenticated' });
-  const allowedRoles = ['Superuser', 'Admin', 'HR Manager', 'Finance Manager'];
+  const allowedRoles = ['Superuser', 'Admin', 'HR Manager', 'Finance Manager', 'Manager', 'Senior Manager', 'Employee'];
   if (!allowedRoles.includes(user.role)) {
     return res.status(403).json({ error: 'Access denied.' });
   }
