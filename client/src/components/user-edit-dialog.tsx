@@ -33,6 +33,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { SelectGroup, SelectLabel } from '@/components/ui/select';
 import { roles, roleHierarchy, canManage } from '../../../shared/roles';
+import { employeeTypes, employeeTypeLabels, type EmployeeType } from '@shared/schema';
 
 // Simplified form schema with proper types
 const editUserSchema = z.object({
@@ -76,6 +77,7 @@ const editUserSchema = z.object({
   minimumDailyHours: z.number().optional(),
   halfDayMinimumHours: z.number().optional(),
   weeklyOffDays: z.array(z.number()).optional(),
+  employeeType: z.enum(employeeTypes).optional(),
 });
 
 type EditUserFormValues = z.infer<typeof editUserSchema>;
@@ -120,6 +122,7 @@ interface User {
   minimumDailyHours?: number;
   halfDayMinimumHours?: number;
   weeklyOffDays?: number[];
+  employeeType?: string;
 }
 
 interface UserEditDialogProps {
@@ -243,6 +246,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         reportingManagerId: user.reportingManagerId ? user.reportingManagerId.toString() : '',
         workLocationId: user.workLocationId ? user.workLocationId.toString() : 'none',
         userType: (user.userType as 'system_user' | 'non_system_user') || 'system_user',
+        employeeType: ((user as any).employeeType as EmployeeType) || 'PERMANENT',
         password: '',
         // Duty Schedule fields
         dutyTimeIn: user.dutyTimeIn || '09:00',
@@ -500,6 +504,31 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                         {roles.map((role) => (
                           <SelectItem key={role} value={role}>
                             {role}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="employeeType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employee Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || 'PERMANENT'}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select employee type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {employeeTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {employeeTypeLabels[type]}
                           </SelectItem>
                         ))}
                       </SelectContent>
