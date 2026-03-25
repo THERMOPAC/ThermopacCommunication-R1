@@ -496,9 +496,145 @@ export class AdvisorAgent implements IAgent {
     });
     if (!insight.isDuplicate) insightsCount++;
 
+    // ─── INSIGHT 2: Agent Health Summary ───
+    const healthyCount = agentStatuses.filter(a => a.healthy).length;
+    const unhealthyAgents = agentStatuses.filter(a => !a.healthy);
+    let healthContent = `Agent Health Analysis — ${today}\n`;
+    healthContent += `═══════════════════════════════════════════\n\n`;
+    healthContent += `Overall: ${healthyCount}/${totalAgents} agents healthy\n\n`;
+
+    if (unhealthyAgents.length > 0) {
+      healthContent += `AGENTS REQUIRING ATTENTION:\n`;
+      for (const agent of unhealthyAgents) {
+        const reasons: string[] = [];
+        if (!agent.ran) reasons.push('Did not run');
+        if (agent.lastRunStatus === 'failed') reasons.push('Execution failed');
+        if (agent.lastRunStatus === 'running') reasons.push('Appears stuck');
+        if (agent.criticalFindings > 0) reasons.push(`${agent.criticalFindings} critical findings`);
+        if (agent.highFindings > 0) reasons.push(`${agent.highFindings} high findings`);
+        if (agent.overdueTasks > 0) reasons.push(`${agent.overdueTasks} overdue tasks`);
+        healthContent += `  • ${agent.name} (${agent.domain}): ${reasons.join(', ')}\n`;
+      }
+    } else {
+      healthContent += `All agents operating normally — no attention needed.\n`;
+    }
+
+    const healthInsight = await insightManager.createInsight({
+      findingIds: [],
+      insightType: 'summary',
+      title: `Agent Health Analysis — ${today}`,
+      content: healthContent,
+      logicType: 'rule_based',
+      dataSources: ['agent_runs', 'agent_findings'],
+      scopePeriod: today,
+      metadata: { healthy: healthyCount, unhealthy: unhealthyAgents.length, total: totalAgents },
+    });
+    if (!healthInsight.isDuplicate) insightsCount++;
+
+    // ─── INSIGHT 3: Findings Distribution ───
+    const totalFindings = agentStatuses.reduce((s, a) => s + a.findingsToday, 0);
+    const totalCriticalAll = agentStatuses.reduce((s, a) => s + a.criticalFindings, 0);
+    const totalHighAll = agentStatuses.reduce((s, a) => s + a.highFindings, 0);
+    const totalMediumAll = agentStatuses.reduce((s, a) => s + a.mediumFindings, 0);
+    const totalLowAll = agentStatuses.reduce((s, a) => s + a.lowFindings, 0);
+
+    let findingsContent = `Findings Distribution Report — ${today}\n`;
+    findingsContent += `═══════════════════════════════════════════\n\n`;
+    findingsContent += `Total findings (24h): ${totalFindings}\n`;
+    findingsContent += `  Critical: ${totalCriticalAll}  |  High: ${totalHighAll}  |  Medium: ${totalMediumAll}  |  Low: ${totalLowAll}\n\n`;
+
+    findingsContent += `BY AGENT:\n`;
+    const agentsByFindings = [...agentStatuses].filter(a => a.findingsToday > 0).sort((a, b) => b.findingsToday - a.findingsToday);
+    if (agentsByFindings.length > 0) {
+      for (const agent of agentsByFindings) {
+        findingsContent += `  ${agent.name}: ${agent.findingsToday} findings`;
+        const breakdown: string[] = [];
+        if (agent.criticalFindings > 0) breakdown.push(`${agent.criticalFindings} critical`);
+        if (agent.highFindings > 0) breakdown.push(`${agent.highFindings} high`);
+        if (agent.mediumFindings > 0) breakdown.push(`${agent.mediumFindings} medium`);
+        if (agent.lowFindings > 0) breakdown.push(`${agent.lowFindings} low`);
+        findingsContent += ` (${breakdown.join(', ')})\n`;
+      }
+    } else {
+      findingsContent += `  No findings generated in the last 24 hours.\n`;
+    }
+
+    const findingsInsight = await insightManager.createInsight({
+      findingIds: findingIds.slice(0, 100),
+      insightType: 'summary',
+      title: `Findings Distribution Report — ${today}`,
+      content: findingsContent,
+      logicType: 'rule_based',
+      dataSources: ['agent_findings'],
+      scopePeriod: today,
+      metadata: { total: totalFindings, critical: totalCriticalAll, high: totalHighAll, medium: totalMediumAll, low: totalLowAll },
+    });
+    if (!findingsInsight.isDuplicate) insightsCount++;
+
+    // ─── INSIGHT 4: Task Backlog Analysis ───
+    const totalOpenTasks = agentStatuses.reduce((s, a) => s + a.openTasks, 0);
+    const totalOverdueTasks = agentStatuses.reduce((s, a) => s + a.overdueTasks, 0);
+
+    if (totalOpenTasks > 0) {
+      let taskContent = `Agent Task Backlog Analysis — ${today}\n`;
+      taskContent += `═══════════════════════════════════════════\n\n`;
+      taskContent += `Total open agent-generated tasks: ${totalOpenTasks}\n`;
+      taskContent += `Total overdue: ${totalOverdueTasks}\n`;
+      taskContent += `Completion pressure: ${totalOverdueTasks > 0 ? `${Math.round(totalOverdueTasks / totalOpenTasks * 100)}% overdue` : 'On track'}\n\n`;
+
+      taskContent += `BY AGENT:\n`;
+      const agentsByTasks = [...agentStatuses].filter(a => a.openTasks > 0).sort((a, b) => b.openTasks - a.openTasks);
+      for (const agent of agentsByTasks) {
+        taskContent += `  ${agent.name}: ${agent.openTasks} open`;
+        if (agent.overdueTasks > 0) taskContent += ` (${agent.overdueTasks} overdue)`;
+        taskContent += `\n`;
+      }
+
+      if (totalOverdueTasks > 10) {
+        taskContent += `\nRECOMMENDATION: High task backlog detected. Consider bulk-reviewing and closing stale agent tasks, or adjusting agent thresholds to reduce task noise.\n`;
+      }
+
+      const taskInsight = await insightManager.createInsight({
+        findingIds: [],
+        insightType: 'summary',
+        title: `Agent Task Backlog Analysis — ${today}`,
+        content: taskContent,
+        logicType: 'rule_based',
+        dataSources: ['tasks'],
+        scopePeriod: today,
+        metadata: { openTasks: totalOpenTasks, overdueTasks: totalOverdueTasks },
+      });
+      if (!taskInsight.isDuplicate) insightsCount++;
+    }
+
+    // ─── INSIGHT 5: Action Items for Leadership ───
+    if (topActions.length > 0) {
+      let actionContent = `Leadership Action Items — ${today}\n`;
+      actionContent += `═══════════════════════════════════════════\n\n`;
+      actionContent += `${topActions.length} action(s) recommended based on today's agent analysis:\n\n`;
+
+      for (let i = 0; i < topActions.length; i++) {
+        const action = topActions[i];
+        actionContent += `${i + 1}. [${action.priority.toUpperCase()}] ${action.text}\n`;
+        actionContent += `   → Owner: ${action.owner}\n\n`;
+      }
+
+      const actionInsight = await insightManager.createInsight({
+        findingIds: [],
+        insightType: 'recommendation',
+        title: `Leadership Action Items — ${today}`,
+        content: actionContent,
+        logicType: 'rule_based',
+        dataSources: ['agent_runs', 'agent_findings', 'tasks'],
+        scopePeriod: today,
+        metadata: { actionCount: topActions.length },
+      });
+      if (!actionInsight.isDuplicate) insightsCount++;
+    }
+
     const elapsed = Date.now() - startTime;
 
-    console.log(`[Advisor] Complete: ${insightsCount} insight, ${issues.length} issues, ${topActions.length} actions in ${elapsed}ms`);
+    console.log(`[Advisor] Complete: ${insightsCount} insights, ${issues.length} issues, ${topActions.length} actions in ${elapsed}ms`);
 
     return {
       findingsCount: 0,
