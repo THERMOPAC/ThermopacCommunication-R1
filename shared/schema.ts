@@ -728,6 +728,32 @@ export type CampaignLeadSelect = typeof campaignLeads.$inferSelect;
 
 export type Module = typeof modules[number];
 
+export const employeeTypes = [
+  'PERMANENT',
+  'TEMPORARY',
+  'CONTRACT',
+  'PROBATION',
+  'INTERN',
+  'PART_TIME',
+  'DAILY_WAGE',
+  'CONSULTANT',
+  'APPRENTICE',
+] as const;
+
+export type EmployeeType = typeof employeeTypes[number];
+
+export const employeeTypeLabels: Record<EmployeeType, string> = {
+  PERMANENT: 'Permanent (Full-Time)',
+  TEMPORARY: 'Temporary',
+  CONTRACT: 'Contract',
+  PROBATION: 'Probation',
+  INTERN: 'Intern / Trainee',
+  PART_TIME: 'Part-Time',
+  DAILY_WAGE: 'Daily Wage',
+  CONSULTANT: 'Consultant / Freelancer',
+  APPRENTICE: 'Apprentice',
+};
+
 // Helper function to convert string dates to Date objects
 const dateStringToDate = (dateStr: string | undefined | null) => {
   if (!dateStr) return undefined;
@@ -744,6 +770,7 @@ const userSchema = {
   mobileNumber: text('mobile_number').notNull(),
   countryCode: text('country_code').notNull(),
   role: text('role', { enum: roles }).notNull(),
+  employeeType: text('employee_type', { enum: employeeTypes }).default('PERMANENT'),
   
   // Extended fields for Administration Module
   firstName: text('first_name'),

@@ -34,6 +34,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { insertUserSchema } from "@shared/schema";
 import { roles, roleHierarchy, canManage } from "@shared/roles";
+import { employeeTypes, employeeTypeLabels, EmployeeType } from "@shared/schema";
 
 export default function UserManagement() {
   const { toast } = useToast();
@@ -178,6 +179,7 @@ export default function UserManagement() {
       email: "",
       password: "",
       role: undefined,
+      employeeType: "PERMANENT" as const,
       mobileNumber: "",
       countryCode: "",
       reportingManagerId: undefined,
@@ -191,6 +193,7 @@ export default function UserManagement() {
       password: "",
       email: "",
       role: "Employee" as const,
+      employeeType: "PERMANENT" as const,
       mobileNumber: "",
       countryCode: "+1",
       reportingManagerId: undefined,
@@ -237,6 +240,7 @@ export default function UserManagement() {
       username: user.username,
       email: user.email,
       role: user.role,
+      employeeType: (user as any).employeeType || 'PERMANENT',
       mobileNumber: user.mobileNumber,
       countryCode: user.countryCode,
       reportingManagerId: user.reportingManagerId === null ? undefined : user.reportingManagerId,
@@ -325,6 +329,7 @@ export default function UserManagement() {
               <TableHead>Username</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Employee Type</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Reporting Manager</TableHead>
               <TableHead>Actions</TableHead>
@@ -338,6 +343,9 @@ export default function UserManagement() {
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <Badge variant="secondary">{user.role}</Badge>
+                </TableCell>
+                <TableCell>
+                  {(user as any).employeeType ? employeeTypeLabels[(user as any).employeeType as EmployeeType] || (user as any).employeeType : 'Permanent (Full-Time)'}
                 </TableCell>
                 <TableCell>{user.countryCode} {user.mobileNumber}</TableCell>
                 <TableCell>
@@ -477,6 +485,31 @@ export default function UserManagement() {
                           {roles.map((role) => (
                             <SelectItem key={role} value={role}>
                               {role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="employeeType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee Type <span className="text-red-500">*</span></FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value || 'PERMANENT'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select employee type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {employeeTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {employeeTypeLabels[type]}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -638,6 +671,31 @@ export default function UserManagement() {
                           {roles.map((role) => (
                             <SelectItem key={role} value={role}>
                               {role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={addForm.control}
+                  name="employeeType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Employee Type <span className="text-red-500">*</span></FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || 'PERMANENT'}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select employee type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {employeeTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {employeeTypeLabels[type]}
                             </SelectItem>
                           ))}
                         </SelectContent>
