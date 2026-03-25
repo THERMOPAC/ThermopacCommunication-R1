@@ -306,8 +306,8 @@ export class AppraisalReportGenerator {
       return;
     }
 
-    const colWidths = [25, 110, 45, 50, 50, 45, 45, 45, 45, 45];
-    const headers = ['#', 'KPI Title', 'Weight', 'Target', 'Achieved', 'Self', 'L1', 'L2', 'Final', 'Comment'];
+    const colWidths = [25, 200, 50, 55, 55, 55, 65];
+    const headers = ['#', 'KPI Title', 'Weight', 'Self', 'L1', 'L2', 'Final'];
 
     this.drawTableHeader(headers, colWidths);
 
@@ -315,22 +315,27 @@ export class AppraisalReportGenerator {
     for (let i = 0; i < kpis.length; i++) {
       const k = kpis[i];
       const finalScore = k.managerScore ? parseFloat(k.managerScore) : (k.selfScore ? parseFloat(k.selfScore) : null);
-      const comment = fmt(k.managerComments || k.l2Comments, '');
-      const shortComment = comment.length > 20 ? comment.substring(0, 18) + '…' : comment;
       const row = [
         String(i + 1),
         fmt(k.kpiTitle),
         fmt(k.weightage) + '%',
-        fmt(k.targetValue),
-        fmt(k.achievedValue),
         fmtScore(k.selfScore),
         fmtScore(k.managerScore),
         fmtScore(k.l2Score),
         finalScore !== null ? finalScore.toFixed(2) : '—',
-        shortComment,
       ];
       this.drawTableRow(row, colWidths, i % 2 === 0);
       totalWeight += parseFloat(k.weightage) || 0;
+
+      const target = fmt(k.targetValue, '');
+      const achieved = fmt(k.achievedValue, '');
+      if (target || achieved) {
+        this.checkPageBreak(14);
+        this.doc.font(FONT_REGULAR).fontSize(6.5).fillColor(COLORS.muted);
+        const detail = [target ? `Target: ${target}` : '', achieved ? `Achieved: ${achieved}` : ''].filter(Boolean).join('  |  ');
+        this.doc.text(detail, this.margin + 28, this.currentY + 1, { width: this.contentWidth - 35, lineBreak: false });
+        this.currentY += 12;
+      }
     }
 
     this.currentY += 4;
@@ -467,7 +472,7 @@ export class AppraisalReportGenerator {
     const fields = [
       ['Final Rating', ratingLabel(s.ratingBand)],
       ['Effective Score', fmtScore(s.effectiveScore)],
-      ['Increment', a.l3IncrementType && a.l3IncrementType !== 'none' ? `${a.l3IncrementType} — ${a.l3IncrementValue || ''}%` : 'Not Applicable'],
+      ['Increment', a.l3IncrementType && a.l3IncrementType !== 'none' ? `${a.l3IncrementValue || '0'}%` : 'Not Applicable'],
       ['Promotion', normalizeBool(a.l3PromotionApproved)],
     ];
     for (let i = 0; i < fields.length; i++) {

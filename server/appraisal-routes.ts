@@ -2678,6 +2678,13 @@ router.get('/:id/report', ensureAuthenticated, async (req: Request, res: Respons
       ? await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, appraisal.cycleId))
       : [null];
 
+    const [employee] = appraisal.employeeId
+      ? await db.select().from(users).where(eq(users.id, appraisal.employeeId))
+      : [null];
+    if (employee) {
+      (appraisal as any).employmentType = employee.employeeType || null;
+    }
+
     const kpis = await db.select().from(employeeAppraisalKpis)
       .where(eq(employeeAppraisalKpis.appraisalId, appraisalId))
       .orderBy(employeeAppraisalKpis.sortOrder);
