@@ -14,21 +14,26 @@ import {
   TrendingUp,
   Users,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 export default function DesignManagementPage() {
   const { user } = useAuth();
 
-  // Mock statistics - will be replaced with real data from API
+  const { data: statsData, isLoading: statsLoading } = useQuery<any>({
+    queryKey: ['/api/design/dashboard/stats'],
+  });
+
   const designStats = {
-    totalProjects: 0,
-    activeProjects: 0,
-    totalDrawings: 0,
-    pendingReviews: 0,
+    totalProjects: statsData?.totalProjects ?? 0,
+    activeProjects: statsData?.designProjects ?? 0,
+    totalDrawings: statsData?.activeDrawings ?? 0,
+    pendingReviews: statsData?.pendingReviews ?? 0,
     standardsLibrary: 0,
-    transmittals: 0
+    transmittals: statsData?.completedTransmittals ?? 0
   };
 
   return (

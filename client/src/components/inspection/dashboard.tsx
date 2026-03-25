@@ -46,48 +46,16 @@ export default function InspectionDashboard({ projectId }: { projectId: number |
     enabled: !!projectId,
   });
 
-  // Fallback data in case API isn't implemented yet
-  const mockData = {
-    summary: {
-      total: 44,
-      pending: 25,
-      inProgress: 10,
-      completed: 8,
-      rejected: 1
-    },
-    byType: [
-      { name: 'Material', count: 15 },
-      { name: 'Welding', count: 12 },
-      { name: 'NDT', count: 8 },
-      { name: 'Visual', count: 5 },
-      { name: 'Hydrotest', count: 4 }
-    ],
-    byStatus: [
-      { name: 'Pending', value: 25, color: '#FFBB28' },
-      { name: 'In Progress', value: 10, color: '#0088FE' },
-      { name: 'Completed', value: 8, color: '#00C49F' },
-      { name: 'Rejected', value: 1, color: '#FF8042' }
-    ],
-    completionTrend: [
-      { name: 'Week 1', completed: 2, pending: 42 },
-      { name: 'Week 2', completed: 5, pending: 39 },
-      { name: 'Week 3', completed: 8, pending: 36 },
-      { name: 'Week 4', completed: 8, pending: 36 }
-    ],
-    ncrs: {
-      total: 3,
-      open: 2,
-      closed: 1
-    },
-    performanceMetrics: {
-      avgCompletionTime: 3.5, // in days
-      inspectionPassRate: 88, // percentage
-      firstTimePassRate: 75 // percentage
-    }
+  const emptyData = {
+    summary: { total: 0, pending: 0, inProgress: 0, completed: 0, rejected: 0 },
+    byType: [] as { name: string; count: number }[],
+    byStatus: [] as { name: string; value: number; color: string }[],
+    completionTrend: [] as { name: string; completed: number; pending: number }[],
+    ncrs: { total: 0, open: 0, closed: 0 },
+    performanceMetrics: { avgCompletionTime: 0, inspectionPassRate: 0, firstTimePassRate: 0 }
   };
 
-  // Use mock data until API is implemented
-  const data = analyticsData || mockData;
+  const data = analyticsData || emptyData;
 
   if (isLoading) {
     return (

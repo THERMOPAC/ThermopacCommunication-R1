@@ -23,18 +23,15 @@ export default function ProjectCommissioningPage() {
     ),
   });
   
-  // Mock commissioning data for demonstration
   const commissioningData = projects?.map((project) => ({
     id: project.id,
     projectCode: project.code,
     projectName: project.name,
-    status: Math.random() > 0.5 ? 'Ready for Commissioning' : 'Pending Checklist',
-    checklistComplete: Math.random() > 0.3,
-    documentationReady: Math.random() > 0.3,
-    customerApproved: Math.random() > 0.7,
-    handoverDate: Math.random() > 0.5 
-      ? new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString() 
-      : 'Not Scheduled'
+    status: project.status === 'Completed' ? 'Ready for Commissioning' : 'Pending Checklist',
+    checklistComplete: project.status === 'Completed',
+    documentationReady: project.status === 'Completed',
+    customerApproved: false,
+    handoverDate: project.targetEndDate ? new Date(project.targetEndDate).toLocaleDateString() : 'Not Scheduled'
   }));
 
   // Display status badge with appropriate color

@@ -589,59 +589,6 @@ function VisaRecordsTab() {
     staleTime: 30 * 1000, // 30 seconds
   });
 
-  // Mock data for demo purposes (will be replaced by real API data)
-  const _mockVisaRecords: VisaRecord[] = [
-    {
-      id: 1,
-      employeeId: 1,
-      employeeName: "John Smith",
-      employeeDepartment: "Engineering",
-      visaType: "Work Visa",
-      country: "United States",
-      visaNumber: "US202501234",
-      issueDate: "2024-01-15",
-      expiryDate: "2026-01-15",
-      status: "Active",
-      quotaReference: "Q2024-001",
-      notes: "Standard work visa",
-      createdAt: "2024-01-20T10:00:00Z",
-      createdByName: "Admin",
-      daysToExpiry: 370
-    },
-    {
-      id: 2,
-      employeeId: 2,
-      employeeName: "Maria Garcia",
-      employeeDepartment: "Sales",
-      visaType: "Business Visa",
-      country: "Germany",
-      visaNumber: "DE202500987",
-      issueDate: "2024-06-01",
-      expiryDate: "2025-08-15",
-      status: "Active",
-      notes: "Business development visa",
-      createdAt: "2024-06-05T14:30:00Z",
-      createdByName: "HR Manager",
-      daysToExpiry: 25
-    },
-    {
-      id: 3,
-      employeeId: 3,
-      employeeName: "Ahmed Hassan",
-      employeeDepartment: "IT",
-      visaType: "Tourist Visa",
-      country: "Canada",
-      visaNumber: "CA202400456",
-      issueDate: "2024-03-10",
-      expiryDate: "2025-01-10",
-      status: "Expired",
-      notes: "Conference attendance",
-      createdAt: "2024-03-15T09:15:00Z",
-      createdByName: "Travel Coordinator",
-      daysToExpiry: -180
-    }
-  ];
-
   // Fetch actual users from the database
   const { data: employees = [], isLoading: isEmployeesLoading, error: employeesError } = useQuery({
     queryKey: ['/api/admin/users'],
