@@ -5,6 +5,7 @@ import {
   employeeAppraisalKpis, employeeAppraisalCompetencies,
   appraisalComments, appraisalApprovals, appraisalAuditLog,
   appraisalKpiTemplates, appraisalKpiTemplateItems,
+  appraisalIncrementPolicy, appraisalDesignationProgression,
   users, notifications,
   InsertAppraisalCycleTemplate, InsertAppraisalCycle, InsertEmployeeAppraisal,
   insertAppraisalCycleTemplateSchema, insertAppraisalCycleSchema, insertEmployeeAppraisalSchema
@@ -1441,6 +1442,101 @@ router.post('/:id/l2-review', ensureAuthenticated, async (req: Request, res: Res
   }
 });
 
+router.get('/:id/system-recommendation', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const effectiveScore = appraisal.l2Score ? parseFloat(appraisal.l2Score) : (appraisal.overallCalculatedScore ? parseFloat(appraisal.overallCalculatedScore) : 0);
+    const ratingBand = getRatingBand(effectiveScore);
+
+    const policies = await db.select().from(appraisalIncrementPolicy)
+      .where(eq(appraisalIncrementPolicy.isActive, true));
+
+    let incrementRange = { min: 0, max: 0 };
+    let promotionSuitability = 'Low';
+    let policySource = 'default';
+
+    const matchedPolicy = policies.find(p =>
+      effectiveScore >= parseFloat(p.minScoreRange) && effectiveScore <= parseFloat(p.maxScoreRange)
+    );
+
+    if (matchedPolicy) {
+      incrementRange = {
+        min: parseFloat(matchedPolicy.incrementMinPercent),
+        max: parseFloat(matchedPolicy.incrementMaxPercent),
+      };
+      promotionSuitability = matchedPolicy.promotionSuitability;
+      policySource = 'policy_matrix';
+    } else {
+      if (ratingBand === 'excellent') { incrementRange = { min: 15, max: 25 }; promotionSuitability = 'High'; }
+      else if (ratingBand === 'very_good') { incrementRange = { min: 10, max: 15 }; promotionSuitability = 'Medium'; }
+      else if (ratingBand === 'good') { incrementRange = { min: 5, max: 10 }; promotionSuitability = 'Low'; }
+      else if (ratingBand === 'fair') { incrementRange = { min: 0, max: 5 }; promotionSuitability = 'No'; }
+      else { incrementRange = { min: 0, max: 0 }; promotionSuitability = 'No'; }
+      policySource = 'default_rules';
+    }
+
+    let suggestedNextRole: string | null = null;
+    let tenureMonths = 0;
+    if (appraisal.designation) {
+      const progressions = await db.select().from(appraisalDesignationProgression)
+        .where(and(
+          eq(appraisalDesignationProgression.isActive, true),
+          eq(appraisalDesignationProgression.currentDesignation, appraisal.designation)
+        ));
+
+      if (appraisal.dateOfJoining) {
+        const doj = new Date(appraisal.dateOfJoining);
+        tenureMonths = Math.floor((Date.now() - doj.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+      }
+
+      const eligible = progressions.find(p => {
+        const tenureOk = !p.minimumTenureMonths || tenureMonths >= p.minimumTenureMonths;
+        const ratingOk = !p.minimumRating || isRatingAtLeast(ratingBand, p.minimumRating);
+        return tenureOk && ratingOk;
+      });
+      if (eligible) suggestedNextRole = eligible.nextDesignation;
+    }
+
+    const l1Recommendations = {
+      increment: appraisal.l1IncrementRecommendation,
+      promotion: appraisal.l1PromotionRecommendation,
+      training: appraisal.l1TrainingRecommendation,
+    };
+    const l2Recommendations = {
+      increment: appraisal.l2IncrementRecommendation,
+      promotion: appraisal.l2PromotionRecommendation,
+      training: appraisal.l2TrainingRecommendation,
+    };
+
+    const recommendation = {
+      finalScore: Math.round(effectiveScore * 100) / 100,
+      ratingBand,
+      incrementRange,
+      promotionSuitability,
+      suggestedNextRole,
+      currentDesignation: appraisal.designation,
+      tenureMonths,
+      policySource,
+      l1Recommendations,
+      l2Recommendations,
+      trainingRecommendation: appraisal.l2TrainingRecommendation || appraisal.l1TrainingRecommendation || null,
+    };
+
+    res.json(recommendation);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to generate recommendation' });
+  }
+});
+
+function isRatingAtLeast(actual: string, minimum: string): boolean {
+  const order = ['poor', 'fair', 'good', 'very_good', 'excellent'];
+  return order.indexOf(actual) >= order.indexOf(minimum);
+}
+
 router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
@@ -1460,10 +1556,20 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
       training: appraisal.l2TrainingRecommendation || appraisal.l1TrainingRecommendation,
     };
 
+    const l3Decision: any = {};
+    if (req.body.l3IncrementType) l3Decision.l3IncrementType = req.body.l3IncrementType;
+    if (req.body.l3IncrementValue !== undefined && req.body.l3IncrementValue !== '') l3Decision.l3IncrementValue = req.body.l3IncrementValue.toString();
+    if (req.body.l3PromotionApproved !== undefined) l3Decision.l3PromotionApproved = req.body.l3PromotionApproved;
+    if (req.body.l3NewDesignation) l3Decision.l3NewDesignation = req.body.l3NewDesignation;
+    if (req.body.l3EffectiveDate) l3Decision.l3EffectiveDate = req.body.l3EffectiveDate;
+    if (req.body.l3FinalRemarks) l3Decision.l3FinalRemarks = req.body.l3FinalRemarks;
+    if (req.body.systemRecommendation) l3Decision.systemRecommendation = req.body.systemRecommendation;
+
     const [updated] = await db.update(employeeAppraisals).set({
       status: 'approved', l3ApprovedAt: new Date(), l3Comments: req.body.l3Comments || null,
       finalScore: (Math.round(effectiveScore * 100) / 100).toString(),
       finalRating, finalRecommendations,
+      ...l3Decision,
       isLocked: true, updatedAt: new Date(),
     }).where(eq(employeeAppraisals.id, appraisalId)).returning();
 

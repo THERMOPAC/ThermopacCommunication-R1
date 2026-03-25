@@ -10304,6 +10304,15 @@ export const employeeAppraisals = pgTable('employee_appraisals', {
   l3Comments: text('l3_comments'),
   l3ApprovedAt: timestamp('l3_approved_at'),
 
+  l3IncrementType: varchar('l3_increment_type', { length: 20 }),
+  l3IncrementValue: decimal('l3_increment_value', { precision: 10, scale: 2 }),
+  l3PromotionApproved: boolean('l3_promotion_approved'),
+  l3NewDesignation: varchar('l3_new_designation', { length: 200 }),
+  l3EffectiveDate: text('l3_effective_date'),
+  l3FinalRemarks: text('l3_final_remarks'),
+
+  systemRecommendation: jsonb('system_recommendation'),
+
   finalScore: decimal('final_score', { precision: 5, scale: 2 }),
   finalRating: varchar('final_rating', { length: 30 }),
   finalRecommendations: jsonb('final_recommendations'),
@@ -10331,6 +10340,32 @@ export const insertEmployeeAppraisalSchema = createInsertSchema(employeeAppraisa
 });
 export type InsertEmployeeAppraisal = z.infer<typeof insertEmployeeAppraisalSchema>;
 export type EmployeeAppraisal = typeof employeeAppraisals.$inferSelect;
+
+export const appraisalIncrementPolicy = pgTable('appraisal_increment_policy', {
+  id: serial('id').primaryKey(),
+  ratingBand: varchar('rating_band', { length: 30 }).notNull(),
+  minScoreRange: decimal('min_score_range', { precision: 3, scale: 1 }).notNull(),
+  maxScoreRange: decimal('max_score_range', { precision: 3, scale: 1 }).notNull(),
+  incrementMinPercent: decimal('increment_min_percent', { precision: 5, scale: 2 }).notNull(),
+  incrementMaxPercent: decimal('increment_max_percent', { precision: 5, scale: 2 }).notNull(),
+  promotionSuitability: varchar('promotion_suitability', { length: 10 }).notNull().default('Low'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const appraisalDesignationProgression = pgTable('appraisal_designation_progression', {
+  id: serial('id').primaryKey(),
+  currentDesignation: varchar('current_designation', { length: 200 }).notNull(),
+  nextDesignation: varchar('next_designation', { length: 200 }).notNull(),
+  minimumTenureMonths: integer('minimum_tenure_months').default(12),
+  minimumRating: varchar('minimum_rating', { length: 30 }),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type AppraisalIncrementPolicy = typeof appraisalIncrementPolicy.$inferSelect;
+export type AppraisalDesignationProgression = typeof appraisalDesignationProgression.$inferSelect;
 
 // Table 4: Employee Appraisal KPIs
 export const employeeAppraisalKpis = pgTable('employee_appraisal_kpis', {

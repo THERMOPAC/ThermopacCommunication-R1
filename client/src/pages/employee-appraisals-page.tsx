@@ -617,6 +617,58 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
         </Card>
       )}
 
+      {(appraisal.l3IncrementType || appraisal.l3PromotionApproved !== null || appraisal.l3FinalRemarks) && ['approved', 'closed'].includes(appraisal.status) && (
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-4 w-4 text-green-600" /> L3 Decision Summary</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Increment</p>
+                <p className="font-medium text-sm">
+                  {appraisal.l3IncrementType === 'percentage' ? `${appraisal.l3IncrementValue}%` :
+                   appraisal.l3IncrementType === 'fixed' ? `₹${Number(appraisal.l3IncrementValue).toLocaleString()}` : 'None'}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Promotion</p>
+                <p className={`font-medium text-sm ${appraisal.l3PromotionApproved ? 'text-green-600' : ''}`}>
+                  {appraisal.l3PromotionApproved ? 'Approved' : 'Not Approved'}
+                </p>
+              </div>
+              {appraisal.l3NewDesignation && (
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">New Designation</p>
+                  <p className="font-medium text-sm">{appraisal.l3NewDesignation}</p>
+                </div>
+              )}
+              {appraisal.l3EffectiveDate && (
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Effective Date</p>
+                  <p className="font-medium text-sm">{new Date(appraisal.l3EffectiveDate).toLocaleDateString()}</p>
+                </div>
+              )}
+              {appraisal.l3FinalRemarks && (
+                <div className="rounded-lg border p-3 col-span-2 md:col-span-3">
+                  <p className="text-xs text-muted-foreground">Final Remarks</p>
+                  <p className="text-sm">{appraisal.l3FinalRemarks}</p>
+                </div>
+              )}
+            </div>
+            {appraisal.systemRecommendation && (
+              <div className="mt-3 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <p className="text-xs font-medium text-indigo-700 mb-2">System Recommendation (at time of approval)</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div><span className="text-muted-foreground">Score:</span> <span className="font-medium">{(appraisal.systemRecommendation as any).finalScore?.toFixed(2)}</span></div>
+                  <div><span className="text-muted-foreground">Band:</span> <span className="font-medium capitalize">{(appraisal.systemRecommendation as any).ratingBand?.replace('_', ' ')}</span></div>
+                  <div><span className="text-muted-foreground">Suggested %:</span> <span className="font-medium">{(appraisal.systemRecommendation as any).incrementRange?.min}–{(appraisal.systemRecommendation as any).incrementRange?.max}%</span></div>
+                  <div><span className="text-muted-foreground">Promotion:</span> <span className="font-medium">{(appraisal.systemRecommendation as any).promotionSuitability}</span></div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Dialog open={showSubmitConfirm} onOpenChange={setShowSubmitConfirm}>
         <DialogContent>
           <DialogHeader>
@@ -1217,7 +1269,17 @@ function HistorySection({ approvals }: { approvals: any[] }) {
 function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, isAdmin }: any) {
   const { toast } = useToast();
   const [actionDialog, setActionDialog] = useState<string | null>(null);
-  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "" });
+  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementType: "none", l3IncrementValue: "", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "" });
+
+  const { data: sysRec } = useQuery<any>({
+    queryKey: ["/api/appraisals", appraisalId, "system-recommendation"],
+    queryFn: async () => {
+      const res = await fetch(`/api/appraisals/${appraisalId}/system-recommendation`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: isL3 && appraisal.status === "l2_reviewed",
+  });
 
   const actionMutation = useMutation({
     mutationFn: async ({ action, body }: { action: string; body: any }) => {
@@ -1250,7 +1312,16 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
       body.l2PromotionRecommendation = actionForm.l2PromotionRecommendation;
       body.l2TrainingRecommendation = actionForm.l2TrainingRecommendation;
     }
-    if (action === "l3-approve") { body.l3Comments = actionForm.l3Comments; }
+    if (action === "l3-approve") {
+      body.l3Comments = actionForm.l3Comments;
+      body.l3IncrementType = actionForm.l3IncrementType;
+      body.l3IncrementValue = actionForm.l3IncrementValue || null;
+      body.l3PromotionApproved = actionForm.l3PromotionApproved;
+      body.l3NewDesignation = actionForm.l3NewDesignation || null;
+      body.l3EffectiveDate = actionForm.l3EffectiveDate || null;
+      body.l3FinalRemarks = actionForm.l3FinalRemarks || null;
+      if (sysRec) body.systemRecommendation = sysRec;
+    }
     if (action === "reopen") { body.reopenReason = actionForm.reopenReason; body.reopenTargetStage = actionForm.reopenTargetStage; }
     actionMutation.mutate({ action, body });
   };
@@ -1289,7 +1360,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
         )}
 
         <Dialog open={actionDialog !== null} onOpenChange={() => setActionDialog(null)}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className={actionDialog === "l3-approve" ? "max-w-2xl max-h-[85vh] overflow-y-auto" : "max-w-lg"}>
             <DialogHeader>
               <DialogTitle>
                 {actionDialog === "self-submit" && "Submit Self-Assessment"}
@@ -1329,7 +1400,111 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                 </>
               )}
               {actionDialog === "l3-approve" && (
-                <div><Label>L3 Comments</Label><Textarea value={actionForm.l3Comments} onChange={e => setActionForm({ ...actionForm, l3Comments: e.target.value })} rows={3} /></div>
+                <>
+                  {sysRec && (
+                    <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200 space-y-3">
+                      <p className="text-xs font-semibold text-indigo-700 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> System Recommendation (Decision Support)</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white rounded p-2 border">
+                          <p className="text-muted-foreground">Final Score</p>
+                          <p className="font-bold text-base">{sysRec.finalScore?.toFixed(2)}</p>
+                        </div>
+                        <div className="bg-white rounded p-2 border">
+                          <p className="text-muted-foreground">Rating Band</p>
+                          <p className="font-bold text-base capitalize">{sysRec.ratingBand?.replace('_', ' ')}</p>
+                        </div>
+                        <div className="bg-white rounded p-2 border">
+                          <p className="text-muted-foreground">Increment Range</p>
+                          <p className="font-bold">{sysRec.incrementRange?.min}% — {sysRec.incrementRange?.max}%</p>
+                        </div>
+                        <div className="bg-white rounded p-2 border">
+                          <p className="text-muted-foreground">Promotion Suitability</p>
+                          <p className={`font-bold ${sysRec.promotionSuitability === 'High' ? 'text-green-600' : sysRec.promotionSuitability === 'Medium' ? 'text-yellow-600' : 'text-gray-600'}`}>{sysRec.promotionSuitability}</p>
+                        </div>
+                        {sysRec.suggestedNextRole && (
+                          <div className="bg-white rounded p-2 border col-span-2">
+                            <p className="text-muted-foreground">Suggested Next Role</p>
+                            <p className="font-bold">{sysRec.suggestedNextRole}</p>
+                          </div>
+                        )}
+                        {sysRec.tenureMonths > 0 && (
+                          <div className="bg-white rounded p-2 border">
+                            <p className="text-muted-foreground">Tenure</p>
+                            <p className="font-bold">{Math.floor(sysRec.tenureMonths / 12)}y {sysRec.tenureMonths % 12}m</p>
+                          </div>
+                        )}
+                        {sysRec.trainingRecommendation && (
+                          <div className="bg-white rounded p-2 border col-span-2">
+                            <p className="text-muted-foreground">Training Recommendation</p>
+                            <p className="font-medium">{sysRec.trainingRecommendation}</p>
+                          </div>
+                        )}
+                      </div>
+                      {(sysRec.l1Recommendations?.increment || sysRec.l2Recommendations?.increment) && (
+                        <div className="text-xs space-y-1 pt-1 border-t border-indigo-200">
+                          <p className="font-medium text-indigo-700">Reviewer Recommendations:</p>
+                          {sysRec.l1Recommendations?.increment && <p>L1 Increment: {sysRec.l1Recommendations.increment} | Promotion: {sysRec.l1Recommendations.promotion || '-'}</p>}
+                          {sysRec.l2Recommendations?.increment && <p>L2 Increment: {sysRec.l2Recommendations.increment} | Promotion: {sysRec.l2Recommendations.promotion || '-'}</p>}
+                        </div>
+                      )}
+                      <p className="text-[10px] text-indigo-400 italic">Source: {sysRec.policySource === 'policy_matrix' ? 'Company Policy Matrix' : 'Default Rules'}</p>
+                    </div>
+                  )}
+
+                  <Separator />
+                  <p className="text-xs font-semibold text-gray-700">L3 Decision</p>
+
+                  <div><Label>L3 Comments</Label><Textarea value={actionForm.l3Comments} onChange={e => setActionForm({ ...actionForm, l3Comments: e.target.value })} rows={2} /></div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Increment Type</Label>
+                      <Select value={actionForm.l3IncrementType} onValueChange={v => setActionForm({ ...actionForm, l3IncrementType: v, l3IncrementValue: v === "none" ? "" : actionForm.l3IncrementValue })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Increment</SelectItem>
+                          <SelectItem value="percentage">Percentage (%)</SelectItem>
+                          <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {actionForm.l3IncrementType !== "none" && (
+                      <div>
+                        <Label>{actionForm.l3IncrementType === "percentage" ? "Increment %" : "Amount (₹)"}</Label>
+                        <Input type="number" min="0" step="0.01" value={actionForm.l3IncrementValue} onChange={e => setActionForm({ ...actionForm, l3IncrementValue: e.target.value })} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Promotion Approved?</Label>
+                      <Select value={actionForm.l3PromotionApproved ? "yes" : "no"} onValueChange={v => setActionForm({ ...actionForm, l3PromotionApproved: v === "yes", l3NewDesignation: v === "no" ? "" : actionForm.l3NewDesignation })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="no">No</SelectItem>
+                          <SelectItem value="yes">Yes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {actionForm.l3PromotionApproved && (
+                      <div>
+                        <Label>New Designation / Role</Label>
+                        <Input value={actionForm.l3NewDesignation} onChange={e => setActionForm({ ...actionForm, l3NewDesignation: e.target.value })} placeholder={sysRec?.suggestedNextRole || "Enter designation"} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label>Effective Date</Label>
+                    <Input type="date" value={actionForm.l3EffectiveDate} onChange={e => setActionForm({ ...actionForm, l3EffectiveDate: e.target.value })} />
+                  </div>
+
+                  <div>
+                    <Label>Final Remarks</Label>
+                    <Textarea value={actionForm.l3FinalRemarks} onChange={e => setActionForm({ ...actionForm, l3FinalRemarks: e.target.value })} rows={2} placeholder="Final remarks on increment, promotion, and development..." />
+                  </div>
+                </>
               )}
               {actionDialog === "reopen" && (
                 <>
