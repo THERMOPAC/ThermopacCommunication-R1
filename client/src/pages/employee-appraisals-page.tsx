@@ -1504,7 +1504,12 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
           </Button>
         )}
         {isL2 && appraisal.status === "l1_reviewed" && (
-          <Button className="w-full justify-start" variant="outline" onClick={() => setActionDialog("l2-review")}>
+          <Button className="w-full justify-start" variant="outline" onClick={() => {
+            if (score?.effectiveScore) {
+              setActionForm(prev => ({ ...prev, l2Score: score.effectiveScore.toFixed(1) }));
+            }
+            setActionDialog("l2-review");
+          }}>
             <Shield className="h-4 w-4 mr-2" /> Complete L2 Review
           </Button>
         )}
