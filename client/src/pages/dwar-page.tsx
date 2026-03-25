@@ -98,6 +98,7 @@ interface AvailableTask {
   dueDate?: string;
   startDate: string;
   finishDate: string;
+  source?: 'recurring';
 }
 
 export default function DwarPage() {
@@ -428,8 +429,15 @@ export default function DwarPage() {
                     let autoPlannedHours = 0;
                     let wasAutoFilled = false;
                     if (selectedTask) {
-                      const startStr = selectedTask.startDate;
-                      const endStr = selectedTask.dueDate || selectedTask.finishDate;
+                      let startStr: string | undefined;
+                      let endStr: string | undefined;
+                      if (selectedTask.source === 'recurring') {
+                        startStr = new Date().toISOString().split('T')[0];
+                        endStr = selectedTask.dueDate;
+                      } else {
+                        startStr = selectedTask.startDate;
+                        endStr = selectedTask.dueDate || selectedTask.finishDate;
+                      }
                       if (startStr && endStr) {
                         const start = new Date(startStr);
                         const end = new Date(endStr);
