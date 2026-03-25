@@ -425,12 +425,36 @@ export default function DwarPage() {
                   <Select value={newActivity.taskId?.toString() || 'none'} onValueChange={(value) => {
                     const taskId = value === 'none' ? undefined : parseInt(value);
                     const selectedTask = availableTasks.find(t => t.id === taskId);
-                    setPlannedHoursAutoFilled(false);
+                    let autoPlannedHours = 0;
+                    let wasAutoFilled = false;
+                    if (selectedTask) {
+                      const startStr = selectedTask.startDate;
+                      const endStr = selectedTask.dueDate || selectedTask.finishDate;
+                      if (startStr && endStr) {
+                        const start = new Date(startStr);
+                        const end = new Date(endStr);
+                        if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+                          let businessDays = 0;
+                          const cur = new Date(start);
+                          while (cur <= end) {
+                            const day = cur.getDay();
+                            if (day !== 0 && day !== 6) businessDays++;
+                            cur.setDate(cur.getDate() + 1);
+                          }
+                          if (businessDays > 0) {
+                            autoPlannedHours = businessDays * 8;
+                            wasAutoFilled = true;
+                          }
+                        }
+                      }
+                    }
+                    setPlannedHoursAutoFilled(wasAutoFilled);
                     setNewActivity({
                       ...newActivity, 
                       taskId,
                       type: selectedTask ? 'Task Work' : newActivity.type,
                       description: selectedTask ? selectedTask.title : newActivity.description,
+                      plannedHours: wasAutoFilled ? autoPlannedHours : newActivity.plannedHours,
                     });
                   }}>
                     <SelectTrigger>
@@ -478,6 +502,9 @@ export default function DwarPage() {
                       }}
                       placeholder="0.00"
                     />
+                    {plannedHoursAutoFilled && (
+                      <p className="text-xs text-blue-600 mt-1">Calculated from task schedule (business days × 8h)</p>
+                    )}
                     {(newActivity.plannedHours || 0) > 10 && (
                       <p className="text-xs text-amber-600 mt-1">Planned hours exceed 10 — verify if realistic for one day</p>
                     )}
