@@ -703,6 +703,12 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
   const emptyForm = { kpiTitle: "", kpiDescription: "", weightage: "", targetValue: "", achievedValue: "", selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" };
   const [form, setForm] = useState(emptyForm);
   const [selectedTemplateKpi, setSelectedTemplateKpi] = useState("");
+  const [showTemplateSwitch, setShowTemplateSwitch] = useState(false);
+  const [switchTemplateId, setSwitchTemplateId] = useState<number | null>(null);
+  const [switchMode, setSwitchMode] = useState<"replace" | "merge">("replace");
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const canSwitchTemplate = ["open", "draft"].includes(appraisal.status) && !appraisal.isLocked;
 
   const canAddKpi = (isEmployee && ["open", "draft"].includes(appraisal.status)) || (isL1 && appraisal.status === "self_submitted") || isAdmin;
   const canEditSelf = isEmployee && ["open", "draft"].includes(appraisal.status);
@@ -784,6 +790,46 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const { data: availableTemplates } = useQuery<any>({
+    queryKey: ["/api/appraisals", appraisalId, "available-templates"],
+    queryFn: async () => {
+      const res = await fetch(`/api/appraisals/${appraisalId}/available-templates`, { credentials: "include" });
+      if (!res.ok) return { templates: [] };
+      return res.json();
+    },
+    enabled: showTemplateSwitch,
+  });
+
+  const switchTemplateMutation = useMutation({
+    mutationFn: async () => {
+      if (!switchTemplateId) throw new Error("Please select a template");
+      return await apiRequest("POST", `/api/appraisals/${appraisalId}/switch-template`, {
+        templateId: switchTemplateId,
+        mode: switchMode,
+        confirmReset,
+      });
+    },
+    onSuccess: async (res: any) => {
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "score"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId] });
+      setShowTemplateSwitch(false);
+      setSwitchTemplateId(null);
+      setSwitchMode("replace");
+      setConfirmReset(false);
+      toast({ title: "Template Switched", description: data.message });
+    },
+    onError: (e: any) => {
+      if (e.message?.includes("confirmReset")) {
+        setConfirmReset(false);
+        toast({ title: "Scoring Detected", description: "Some KPIs have scores. Please confirm the reset to proceed.", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: e.message, variant: "destructive" });
+      }
+    },
+  });
+
   const startEdit = (kpi: any) => {
     setForm({ kpiTitle: kpi.kpiTitle || "", kpiDescription: kpi.kpiDescription || "", weightage: kpi.weightage || "", targetValue: kpi.targetValue || "", achievedValue: kpi.achievedValue || "", selfScore: kpi.selfScore || "", selfComments: kpi.selfComments || "", managerScore: kpi.managerScore || "", managerComments: kpi.managerComments || "", l2Score: kpi.l2Score || "", l2Comments: kpi.l2Comments || "" });
     setEditId(kpi.id);
@@ -791,25 +837,44 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
 
   const weightValid = Math.abs(existingWeight - 100) < 0.01;
   const remainingWeight = Math.max(0, 100 - otherWeight);
+  const hasScoring = kpis.some((k: any) => k.selfScore || k.managerScore || k.l2Score);
+  const selectedSwitchTemplate = availableTemplates?.templates?.find((t: any) => t.id === switchTemplateId);
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-base">Key Performance Indicators</CardTitle>
-          <div className="flex items-center gap-3 mt-1">
+          <CardTitle className="text-base flex items-center gap-2">
+            Key Performance Indicators
+            {appraisal.templateChangeCount > 0 && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-medium">
+                <RotateCcw className="h-3 w-3 mr-1" /> Template Changed
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
             <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${weightValid ? "bg-green-100 text-green-700" : existingWeight > 100 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
               <span>Total Weight: {existingWeight.toFixed(1)}%</span>
               {weightValid ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />}
             </div>
             {!weightValid && <span className="text-xs text-muted-foreground">{existingWeight < 100 ? `${(100 - existingWeight).toFixed(1)}% remaining` : "Exceeds 100%"}</span>}
+            {appraisal.appliedTemplateName && (
+              <span className="text-xs text-muted-foreground">Template: {appraisal.appliedTemplateName}</span>
+            )}
           </div>
         </div>
-        {canAddKpi && !appraisal.isLocked && (
-          <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); setSelectedTemplateKpi(""); }} disabled={existingWeight >= 100}>
-            <Plus className="h-4 w-4 mr-1" /> Add KPI
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canSwitchTemplate && (
+            <Button size="sm" variant="outline" onClick={() => { setShowTemplateSwitch(true); setSwitchTemplateId(null); setSwitchMode("replace"); setConfirmReset(false); }}>
+              <Library className="h-4 w-4 mr-1" /> Switch Template
+            </Button>
+          )}
+          {canAddKpi && !appraisal.isLocked && (
+            <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); setSelectedTemplateKpi(""); }} disabled={existingWeight >= 100}>
+              <Plus className="h-4 w-4 mr-1" /> Add KPI
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {kpis.length === 0 ? (
@@ -990,6 +1055,104 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
               <Button onClick={() => editId ? updateMutation.mutate(editId) : addMutation.mutate()} disabled={addMutation.isPending || updateMutation.isPending || (canEditDefinition && (weightExceeds || currentFormWeight <= 0))}>
                 {(addMutation.isPending || updateMutation.isPending) ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                 {editId ? "Update" : "Add"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showTemplateSwitch} onOpenChange={() => { setShowTemplateSwitch(false); setSwitchTemplateId(null); setConfirmReset(false); }}>
+          <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Library className="h-5 w-5" /> Switch KPI Template
+              </DialogTitle>
+              <DialogDescription>
+                Select a different KPI template for this appraisal. Only templates from the employee's department ({appraisal.department}) are available.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              {!availableTemplates?.canSwitch && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                  <AlertTriangle className="h-4 w-4 inline mr-1" />
+                  Template change is only allowed when the appraisal status is <strong>Open</strong> or <strong>Draft</strong>. Current status: <strong>{STATUS_LABELS[appraisal.status] || appraisal.status}</strong>.
+                </div>
+              )}
+              {availableTemplates?.canSwitch && (
+                <>
+                  {appraisal.appliedTemplateName && (
+                    <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                      Current template: <strong>{appraisal.appliedTemplateName}</strong>
+                      {appraisal.templateChangeCount > 0 && <span className="ml-2">(Changed {appraisal.templateChangeCount} time{appraisal.templateChangeCount > 1 ? "s" : ""})</span>}
+                    </div>
+                  )}
+                  <div>
+                    <Label>Select Template</Label>
+                    <Select value={switchTemplateId ? String(switchTemplateId) : ""} onValueChange={v => { setSwitchTemplateId(parseInt(v)); setConfirmReset(false); }}>
+                      <SelectTrigger><SelectValue placeholder="Choose a template..." /></SelectTrigger>
+                      <SelectContent>
+                        {(availableTemplates?.templates || []).map((t: any) => (
+                          <SelectItem key={t.id} value={String(t.id)} disabled={t.id === appraisal.appliedTemplateId}>
+                            {t.name} ({t.hierarchyLevel}) — {t.itemCount} KPIs
+                            {t.id === appraisal.appliedTemplateId ? " (Current)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedSwitchTemplate && (
+                    <div className="p-3 bg-gray-50 rounded-lg border text-xs space-y-2">
+                      <p className="font-semibold text-gray-700">{selectedSwitchTemplate.name}</p>
+                      <p className="text-gray-500">{selectedSwitchTemplate.itemCount} KPIs • Total Weight: {selectedSwitchTemplate.totalWeight}%</p>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {selectedSwitchTemplate.items?.map((item: any) => (
+                          <div key={item.id} className="flex justify-between text-gray-600">
+                            <span>{item.kpiTitle}</span>
+                            <span className="font-medium">{item.defaultWeightage}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label>Apply Mode</Label>
+                    <Select value={switchMode} onValueChange={(v: any) => { setSwitchMode(v); setConfirmReset(false); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="replace">Replace All KPIs (removes existing, adds template KPIs)</SelectItem>
+                        <SelectItem value="merge">Keep Existing + Add Missing KPIs</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {switchMode === "replace" && kpis.length > 0 && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                      <AlertTriangle className="h-4 w-4 inline mr-1" />
+                      This will remove all <strong>{kpis.length} existing KPI{kpis.length > 1 ? "s" : ""}</strong> and replace them with the template KPIs.
+                      {hasScoring && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                          <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+                          <strong>Warning:</strong> Some KPIs already have scores. Replacing will delete all scored data.
+                          <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                            <input type="checkbox" checked={confirmReset} onChange={e => setConfirmReset(e.target.checked)} className="rounded" />
+                            <span>I confirm: reset all scores and replace KPIs</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setShowTemplateSwitch(false); setSwitchTemplateId(null); setConfirmReset(false); }}>Cancel</Button>
+              <Button
+                onClick={() => switchTemplateMutation.mutate()}
+                disabled={!switchTemplateId || !availableTemplates?.canSwitch || switchTemplateMutation.isPending || (switchMode === "replace" && hasScoring && !confirmReset)}
+              >
+                {switchTemplateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                {switchMode === "replace" ? "Replace KPIs" : "Merge KPIs"}
               </Button>
             </DialogFooter>
           </DialogContent>

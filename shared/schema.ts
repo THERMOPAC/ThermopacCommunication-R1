@@ -10321,6 +10321,12 @@ export const employeeAppraisals = pgTable('employee_appraisals', {
   competencyAvgScore: decimal('competency_avg_score', { precision: 5, scale: 2 }),
   overallCalculatedScore: decimal('overall_calculated_score', { precision: 5, scale: 2 }),
 
+  appliedTemplateId: integer('applied_template_id').references(() => appraisalKpiTemplates.id),
+  appliedTemplateName: varchar('applied_template_name', { length: 300 }),
+  templateChangedAt: timestamp('template_changed_at'),
+  templateChangedBy: integer('template_changed_by').references(() => users.id),
+  templateChangeCount: integer('template_change_count').default(0),
+
   isLocked: boolean('is_locked').default(false),
   reopenedAt: timestamp('reopened_at'),
   reopenedBy: integer('reopened_by').references(() => users.id),

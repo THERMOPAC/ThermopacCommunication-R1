@@ -716,6 +716,185 @@ router.get('/cycles/:cycleId/eligible-employees', ensureAuthenticated, async (re
 });
 
 // ==========================================
+// KPI TEMPLATE SWITCHING
+// ==========================================
+
+router.get('/:id/available-templates', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const appraisalId = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    const empDept = appraisal.department;
+    if (!empDept) return res.json({ templates: [], department: null });
+
+    const templates = await db.select().from(appraisalKpiTemplates)
+      .where(and(
+        eq(appraisalKpiTemplates.department, empDept),
+        eq(appraisalKpiTemplates.status, 'active')
+      ))
+      .orderBy(appraisalKpiTemplates.hierarchyLevel);
+
+    const templatesWithItems = await Promise.all(templates.map(async (t) => {
+      const items = await db.select().from(appraisalKpiTemplateItems)
+        .where(eq(appraisalKpiTemplateItems.templateId, t.id))
+        .orderBy(appraisalKpiTemplateItems.sortOrder);
+      const totalWeight = items.reduce((sum, i) => sum + (parseFloat(i.defaultWeightage) || 0), 0);
+      return { ...t, items, itemCount: items.length, totalWeight };
+    }));
+
+    res.json({
+      templates: templatesWithItems,
+      department: empDept,
+      currentTemplateId: appraisal.appliedTemplateId,
+      canSwitch: ['open', 'draft'].includes(appraisal.status) && !appraisal.isLocked,
+      status: appraisal.status,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch available templates' });
+  }
+});
+
+router.post('/:id/switch-template', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const { templateId, mode } = req.body;
+
+    if (!templateId) return res.status(400).json({ error: 'Template ID is required' });
+    if (!['replace', 'merge'].includes(mode)) return res.status(400).json({ error: 'Mode must be "replace" or "merge"' });
+
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
+
+    if (!['open', 'draft'].includes(appraisal.status)) {
+      return res.status(400).json({
+        error: 'Template change is only allowed when appraisal status is Open or Draft. Current status: ' + appraisal.status
+      });
+    }
+
+    const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, templateId));
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+
+    if (template.department !== appraisal.department) {
+      return res.status(400).json({ error: 'Cannot use a template from a different department. Employee department: ' + appraisal.department + ', Template department: ' + template.department });
+    }
+
+    if (template.status !== 'active') {
+      return res.status(400).json({ error: 'Template is not active' });
+    }
+
+    const existingKpis = await db.select().from(employeeAppraisalKpis)
+      .where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+
+    const hasScoring = existingKpis.some(k =>
+      k.selfScore || k.managerScore || k.l2Score
+    );
+
+    if (hasScoring && mode === 'replace') {
+      const { confirmReset } = req.body;
+      if (!confirmReset) {
+        return res.status(409).json({
+          error: 'Scoring has already started on existing KPIs. Set confirmReset=true to confirm reset.',
+          hasScoring: true,
+          scoredKpiCount: existingKpis.filter(k => k.selfScore || k.managerScore || k.l2Score).length,
+        });
+      }
+    }
+
+    const templateItems = await db.select().from(appraisalKpiTemplateItems)
+      .where(eq(appraisalKpiTemplateItems.templateId, templateId))
+      .orderBy(appraisalKpiTemplateItems.sortOrder);
+
+    if (templateItems.length === 0) {
+      return res.status(400).json({ error: 'Selected template has no KPI items' });
+    }
+
+    const previousTemplateId = appraisal.appliedTemplateId;
+    const previousTemplateName = appraisal.appliedTemplateName;
+    let addedCount = 0;
+    let removedCount = 0;
+    let keptCount = 0;
+
+    if (mode === 'replace') {
+      if (existingKpis.length > 0) {
+        await db.delete(employeeAppraisalKpis)
+          .where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+        removedCount = existingKpis.length;
+      }
+
+      for (const item of templateItems) {
+        await db.insert(employeeAppraisalKpis).values({
+          appraisalId,
+          kpiTitle: item.kpiTitle,
+          kpiDescription: item.kpiDescription || undefined,
+          weightage: item.defaultWeightage,
+          targetValue: item.targetGuidance || undefined,
+          sortOrder: item.sortOrder || 0,
+        });
+        addedCount++;
+      }
+    } else {
+      const existingTitles = new Set(existingKpis.map(k => k.kpiTitle?.toLowerCase()));
+      keptCount = existingKpis.length;
+
+      for (const item of templateItems) {
+        if (!existingTitles.has(item.kpiTitle?.toLowerCase())) {
+          await db.insert(employeeAppraisalKpis).values({
+            appraisalId,
+            kpiTitle: item.kpiTitle,
+            kpiDescription: item.kpiDescription || undefined,
+            weightage: item.defaultWeightage,
+            targetValue: item.targetGuidance || undefined,
+            sortOrder: item.sortOrder || 0,
+          });
+          addedCount++;
+        }
+      }
+    }
+
+    await db.update(employeeAppraisals)
+      .set({
+        appliedTemplateId: templateId,
+        appliedTemplateName: template.name,
+        templateChangedAt: new Date(),
+        templateChangedBy: user.id,
+        templateChangeCount: (appraisal.templateChangeCount || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(employeeAppraisals.id, appraisalId));
+
+    await logAudit('appraisal', appraisalId, 'template_switched', user.id, getUserDisplayName(user), false, {
+      previousTemplateId,
+      previousTemplateName: previousTemplateName || 'None',
+      newTemplateId: templateId,
+      newTemplateName: template.name,
+      mode,
+      addedCount,
+      removedCount,
+      keptCount,
+      hasScoring,
+      confirmReset: req.body.confirmReset || false,
+    });
+
+    res.json({
+      success: true,
+      message: mode === 'replace'
+        ? `Template switched to "${template.name}". ${removedCount} KPIs removed, ${addedCount} KPIs added.`
+        : `Template merged with "${template.name}". ${keptCount} KPIs kept, ${addedCount} new KPIs added.`,
+      addedCount,
+      removedCount,
+      keptCount,
+      templateName: template.name,
+    });
+  } catch (error: any) {
+    console.error('Error switching template:', error);
+    res.status(500).json({ error: 'Failed to switch template' });
+  }
+});
+
+// ==========================================
 // PHASE 3: KPI CRUD
 // ==========================================
 
@@ -754,6 +933,15 @@ async function ensureKpisForAppraisal(appraisalId: number): Promise<void> {
       targetValue: item.targetGuidance || undefined,
       sortOrder: item.sortOrder || 0,
     });
+  }
+
+  if (!appraisal.appliedTemplateId) {
+    await db.update(employeeAppraisals)
+      .set({
+        appliedTemplateId: activeTemplate.id,
+        appliedTemplateName: activeTemplate.name,
+      })
+      .where(eq(employeeAppraisals.id, appraisalId));
   }
 }
 
