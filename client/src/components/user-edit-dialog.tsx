@@ -682,6 +682,20 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
 
               <FormField
                 control={form.control}
+                name="epfNo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>EPF Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. MH/BAN/0012345/000/0001234" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="dateOfJoining"
                 render={({ field }) => (
                   <FormItem>
