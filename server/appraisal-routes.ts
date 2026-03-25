@@ -598,7 +598,56 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
       l3: l3Name,
     });
 
-    res.status(201).json(appraisal);
+    let kpiCount = 0;
+    let compCount = 0;
+    try {
+      const empLevel = await getHierarchyLevel(employee.id);
+      const empDept = employee.department || '';
+      if (empDept) {
+        let activeTemplate = (await db.select().from(appraisalKpiTemplates)
+          .where(and(
+            eq(appraisalKpiTemplates.department, empDept),
+            eq(appraisalKpiTemplates.hierarchyLevel, empLevel),
+            eq(appraisalKpiTemplates.status, 'active')
+          )))[0];
+        if (!activeTemplate && empLevel === 'L3') {
+          activeTemplate = (await db.select().from(appraisalKpiTemplates)
+            .where(and(
+              eq(appraisalKpiTemplates.department, empDept),
+              eq(appraisalKpiTemplates.hierarchyLevel, 'L2'),
+              eq(appraisalKpiTemplates.status, 'active')
+            )))[0];
+        }
+        if (activeTemplate) {
+          const templateItems = await db.select().from(appraisalKpiTemplateItems)
+            .where(eq(appraisalKpiTemplateItems.templateId, activeTemplate.id))
+            .orderBy(appraisalKpiTemplateItems.sortOrder);
+          for (const item of templateItems) {
+            await db.insert(employeeAppraisalKpis).values({
+              appraisalId: appraisal.id,
+              kpiTitle: item.kpiTitle,
+              kpiDescription: item.kpiDescription || undefined,
+              weightage: item.defaultWeightage,
+              targetValue: item.targetGuidance || undefined,
+              sortOrder: item.sortOrder || 0,
+            });
+            kpiCount++;
+          }
+        }
+      }
+    } catch (kpiErr: any) {
+      console.error('[Appraisal] KPI auto-population failed (non-blocking):', kpiErr.message);
+    }
+    try {
+      await ensureCompetenciesForAppraisal(appraisal.id);
+      const comps = await db.select().from(employeeAppraisalCompetencies)
+        .where(eq(employeeAppraisalCompetencies.appraisalId, appraisal.id));
+      compCount = comps.length;
+    } catch (compErr: any) {
+      console.error('[Appraisal] Competency auto-population failed (non-blocking):', compErr.message);
+    }
+
+    res.status(201).json({ ...appraisal, kpisPopulated: kpiCount, competenciesPopulated: compCount });
   } catch (error: any) {
     console.error('Error creating appraisal:', error);
     res.status(400).json({ error: error.message || 'Failed to create appraisal' });
@@ -1276,6 +1325,14 @@ router.post('/:id/self-submit', ensureAuthenticated, async (req: Request, res: R
     });
     await logAudit('appraisal', appraisalId, 'self_submitted', user.id, getUserDisplayName(user), false, { kpiCount: kpis.length });
 
+    await createAppraisalNotification(
+      appraisal.l1ReviewerId,
+      'Appraisal Self-Assessment Submitted',
+      `${appraisal.employeeName} has submitted their self-assessment and is awaiting your L1 review.`,
+      'high',
+      appraisalId
+    );
+
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to self-submit' });
@@ -1317,6 +1374,14 @@ router.post('/:id/l1-review', ensureAuthenticated, async (req: Request, res: Res
       performedBy: user.id, performedByName: getUserDisplayName(user), remarks: req.body.remarks || 'L1 review completed',
     });
     await logAudit('appraisal', appraisalId, 'l1_reviewed', user.id, getUserDisplayName(user), false, { l1Score: scores.overallCalculatedScore });
+
+    await createAppraisalNotification(
+      appraisal.l2ReviewerId,
+      'L1 Review Completed — Awaiting L2 Review',
+      `${appraisal.l1ReviewerName} has completed L1 review for ${appraisal.employeeName}. Please proceed with your L2 review.`,
+      'high',
+      appraisalId
+    );
 
     res.json(updated);
   } catch (error: any) {
@@ -1362,6 +1427,14 @@ router.post('/:id/l2-review', ensureAuthenticated, async (req: Request, res: Res
     });
     await logAudit('appraisal', appraisalId, 'l2_reviewed', user.id, getUserDisplayName(user), false, { l2Score: l2Score || 'no override', l2OverrideReason });
 
+    await createAppraisalNotification(
+      appraisal.l3ApproverId,
+      'L2 Review Completed — Awaiting Final Approval',
+      `${appraisal.l2ReviewerName} has completed L2 review for ${appraisal.employeeName}. Please proceed with final approval.`,
+      'high',
+      appraisalId
+    );
+
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to complete L2 review' });
@@ -1403,6 +1476,30 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
     await db.update(appraisalCycles).set({
       completedAppraisals: sql`completed_appraisals + 1`, updatedAt: new Date(),
     }).where(eq(appraisalCycles.id, appraisal.cycleId));
+
+    await createAppraisalNotification(
+      appraisal.employeeId,
+      'Appraisal Approved',
+      `Your appraisal has been approved with a final rating of ${finalRating} (Score: ${(Math.round(effectiveScore * 100) / 100)}).`,
+      'high',
+      appraisalId
+    );
+    try {
+      const hrAdminUsers = await db.select().from(users).where(
+        and(sql`${users.role} IN ('HR', 'Admin')`, eq(users.isActive, true))
+      );
+      for (const hrUser of hrAdminUsers) {
+        await createAppraisalNotification(
+          hrUser.id,
+          'Appraisal Approved',
+          `Appraisal for ${appraisal.employeeName} has been approved by ${appraisal.l3ApproverName}. Rating: ${finalRating}.`,
+          'medium',
+          appraisalId
+        );
+      }
+    } catch (notifErr: any) {
+      console.error('[Appraisal] HR notification failed (non-blocking):', notifErr.message);
+    }
 
     res.json(updated);
   } catch (error: any) {
@@ -1452,6 +1549,24 @@ router.post('/:id/reopen', ensureAuthenticated, async (req: Request, res: Respon
       performedBy: user.id, performedByName: getUserDisplayName(user), remarks: `Reopened: ${reopenReason}`,
     });
     await logAudit('appraisal', appraisalId, 'reopened', user.id, getUserDisplayName(user), false, { previousStatus, targetStage, reopenReason });
+
+    let reopenNotifyUserId: number;
+    let reopenNotifyTitle: string;
+    let reopenNotifyMsg: string;
+    if (targetStage === 'open') {
+      reopenNotifyUserId = appraisal.employeeId;
+      reopenNotifyTitle = 'Appraisal Reopened — Action Required';
+      reopenNotifyMsg = `Your appraisal has been reopened for revisions. Reason: ${reopenReason}. Please update your self-assessment.`;
+    } else if (targetStage === 'self_submitted') {
+      reopenNotifyUserId = appraisal.l1ReviewerId;
+      reopenNotifyTitle = 'Appraisal Reopened — L1 Review Required';
+      reopenNotifyMsg = `Appraisal for ${appraisal.employeeName} has been reopened. Reason: ${reopenReason}. Please re-do your L1 review.`;
+    } else {
+      reopenNotifyUserId = appraisal.l2ReviewerId;
+      reopenNotifyTitle = 'Appraisal Reopened — L2 Review Required';
+      reopenNotifyMsg = `Appraisal for ${appraisal.employeeName} has been reopened. Reason: ${reopenReason}. Please re-do your L2 review.`;
+    }
+    await createAppraisalNotification(reopenNotifyUserId, reopenNotifyTitle, reopenNotifyMsg, 'high', appraisalId);
 
     res.json(updated);
   } catch (error: any) {
@@ -1957,6 +2072,28 @@ async function createAppraisalNotification(userId: number, title: string, messag
 // PHASE 6: REMINDER JOB (6 AM daily)
 // ==========================================
 
+async function hasNotificationToday(userId: number, appraisalId: number, titlePattern: string): Promise<boolean> {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const existing = await db.select({ id: notifications.id }).from(notifications)
+    .where(and(
+      eq(notifications.userId, userId),
+      eq(notifications.sourceId, appraisalId),
+      eq(notifications.sourceType, 'appraisal'),
+      sql`${notifications.title} = ${titlePattern}`,
+      sql`${notifications.createdAt} >= ${todayStart}`
+    ))
+    .limit(1);
+  return existing.length > 0;
+}
+
+async function createAppraisalNotificationIdempotent(userId: number, title: string, message: string, priority: string, appraisalId: number) {
+  const alreadySent = await hasNotificationToday(userId, appraisalId, title);
+  if (alreadySent) return false;
+  await createAppraisalNotification(userId, title, message, priority, appraisalId);
+  return true;
+}
+
 async function runReminderJob(dryRun: boolean = false): Promise<{ reminders: any[]; escalations: any[]; errors: any[] }> {
   const reminders: any[] = [];
   const escalations: any[] = [];
@@ -1983,59 +2120,59 @@ async function runReminderJob(dryRun: boolean = false): Promise<{ reminders: any
         if (appraisal.status === 'open' && daysUntilSelf <= 7 && daysUntilSelf > 0) {
           const msg = `Your self-assessment for "${cycle.name}" is due in ${daysUntilSelf} day(s) (${selfDeadline}). Please complete it soon.`;
           reminders.push({ type: 'self_reminder', appraisalId: appraisal.id, employeeId: appraisal.employeeId, name: appraisal.employeeName, daysLeft: daysUntilSelf });
-          if (!dryRun) await createAppraisalNotification(appraisal.employeeId, 'Appraisal Self-Assessment Reminder', msg, daysUntilSelf <= 3 ? 'high' : 'medium', appraisal.id);
+          if (!dryRun) await createAppraisalNotificationIdempotent(appraisal.employeeId, 'Appraisal Self-Assessment Reminder', msg, daysUntilSelf <= 3 ? 'high' : 'medium', appraisal.id);
         }
 
         if (appraisal.status === 'open' && daysUntilSelf <= 0) {
           const msg = `Self-assessment for ${appraisal.employeeName} in "${cycle.name}" is overdue (deadline was ${selfDeadline}).`;
           escalations.push({ type: 'self_overdue', appraisalId: appraisal.id, employeeId: appraisal.employeeId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilSelf) });
           if (!dryRun) {
-            await createAppraisalNotification(appraisal.employeeId, 'Appraisal Self-Assessment OVERDUE', msg, 'critical', appraisal.id);
-            await createAppraisalNotification(appraisal.l1ReviewerId, 'Team Member Self-Assessment Overdue', `${appraisal.employeeName}'s self-assessment is overdue.`, 'high', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.employeeId, 'Appraisal Self-Assessment OVERDUE', msg, 'critical', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.l1ReviewerId, 'Team Member Self-Assessment Overdue', `${appraisal.employeeName}'s self-assessment is overdue.`, 'high', appraisal.id);
           }
         }
 
         if (appraisal.status === 'self_submitted' && daysUntilManager <= 7 && daysUntilManager > 0) {
           const msg = `L1 review for ${appraisal.employeeName} in "${cycle.name}" is due in ${daysUntilManager} day(s).`;
           reminders.push({ type: 'l1_reminder', appraisalId: appraisal.id, l1ReviewerId: appraisal.l1ReviewerId, name: appraisal.employeeName, daysLeft: daysUntilManager });
-          if (!dryRun) await createAppraisalNotification(appraisal.l1ReviewerId, 'L1 Review Reminder', msg, daysUntilManager <= 3 ? 'high' : 'medium', appraisal.id);
+          if (!dryRun) await createAppraisalNotificationIdempotent(appraisal.l1ReviewerId, 'L1 Review Reminder', msg, daysUntilManager <= 3 ? 'high' : 'medium', appraisal.id);
         }
 
         if (appraisal.status === 'self_submitted' && daysUntilManager <= 0) {
           const msg = `L1 review for ${appraisal.employeeName} in "${cycle.name}" is overdue (deadline was ${managerDeadline}).`;
           escalations.push({ type: 'l1_overdue', appraisalId: appraisal.id, l1ReviewerId: appraisal.l1ReviewerId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilManager) });
           if (!dryRun) {
-            await createAppraisalNotification(appraisal.l1ReviewerId, 'L1 Review OVERDUE', msg, 'critical', appraisal.id);
-            await createAppraisalNotification(appraisal.l2ReviewerId, 'L1 Review Overdue — Escalation', `L1 review for ${appraisal.employeeName} is overdue. Please follow up with ${appraisal.l1ReviewerName}.`, 'high', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.l1ReviewerId, 'L1 Review OVERDUE', msg, 'critical', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.l2ReviewerId, 'L1 Review Overdue — Escalation', `L1 review for ${appraisal.employeeName} is overdue. Please follow up with ${appraisal.l1ReviewerName}.`, 'high', appraisal.id);
           }
         }
 
         if (appraisal.status === 'l1_reviewed' && daysUntilL2 <= 7 && daysUntilL2 > 0) {
           const msg = `L2 review for ${appraisal.employeeName} in "${cycle.name}" is due in ${daysUntilL2} day(s).`;
           reminders.push({ type: 'l2_reminder', appraisalId: appraisal.id, l2ReviewerId: appraisal.l2ReviewerId, name: appraisal.employeeName, daysLeft: daysUntilL2 });
-          if (!dryRun) await createAppraisalNotification(appraisal.l2ReviewerId, 'L2 Review Reminder', msg, daysUntilL2 <= 3 ? 'high' : 'medium', appraisal.id);
+          if (!dryRun) await createAppraisalNotificationIdempotent(appraisal.l2ReviewerId, 'L2 Review Reminder', msg, daysUntilL2 <= 3 ? 'high' : 'medium', appraisal.id);
         }
 
         if (appraisal.status === 'l1_reviewed' && daysUntilL2 <= 0) {
           escalations.push({ type: 'l2_overdue', appraisalId: appraisal.id, l2ReviewerId: appraisal.l2ReviewerId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilL2) });
           if (!dryRun) {
-            await createAppraisalNotification(appraisal.l2ReviewerId, 'L2 Review OVERDUE', `L2 review for ${appraisal.employeeName} is overdue.`, 'critical', appraisal.id);
-            await createAppraisalNotification(appraisal.l3ApproverId, 'L2 Review Overdue — Escalation', `L2 review for ${appraisal.employeeName} by ${appraisal.l2ReviewerName} is overdue.`, 'high', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.l2ReviewerId, 'L2 Review OVERDUE', `L2 review for ${appraisal.employeeName} is overdue.`, 'critical', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.l3ApproverId, 'L2 Review Overdue — Escalation', `L2 review for ${appraisal.employeeName} by ${appraisal.l2ReviewerName} is overdue.`, 'high', appraisal.id);
           }
         }
 
         if (appraisal.status === 'l2_reviewed' && daysUntilApproval <= 7 && daysUntilApproval > 0) {
           reminders.push({ type: 'l3_reminder', appraisalId: appraisal.id, l3ApproverId: appraisal.l3ApproverId, name: appraisal.employeeName, daysLeft: daysUntilApproval });
-          if (!dryRun) await createAppraisalNotification(appraisal.l3ApproverId, 'L3 Approval Reminder', `Final approval for ${appraisal.employeeName} is due in ${daysUntilApproval} day(s).`, daysUntilApproval <= 3 ? 'high' : 'medium', appraisal.id);
+          if (!dryRun) await createAppraisalNotificationIdempotent(appraisal.l3ApproverId, 'L3 Approval Reminder', `Final approval for ${appraisal.employeeName} is due in ${daysUntilApproval} day(s).`, daysUntilApproval <= 3 ? 'high' : 'medium', appraisal.id);
         }
 
         if (appraisal.status === 'l2_reviewed' && daysUntilApproval <= 0) {
           escalations.push({ type: 'l3_overdue', appraisalId: appraisal.id, l3ApproverId: appraisal.l3ApproverId, name: appraisal.employeeName, overdueDays: Math.abs(daysUntilApproval) });
           if (!dryRun) {
-            await createAppraisalNotification(appraisal.l3ApproverId, 'L3 Approval OVERDUE', `Final approval for ${appraisal.employeeName} is overdue.`, 'critical', appraisal.id);
+            await createAppraisalNotificationIdempotent(appraisal.l3ApproverId, 'L3 Approval OVERDUE', `Final approval for ${appraisal.employeeName} is overdue.`, 'critical', appraisal.id);
             const hrUsers = await db.select().from(users).where(and(eq(users.role, 'HR'), eq(users.isActive, true)));
             for (const hr of hrUsers) {
-              await createAppraisalNotification(hr.id, 'Appraisal Approval Overdue', `L3 approval for ${appraisal.employeeName} is overdue. Escalated to HR.`, 'high', appraisal.id);
+              await createAppraisalNotificationIdempotent(hr.id, 'Appraisal Approval Overdue', `L3 approval for ${appraisal.employeeName} is overdue. Escalated to HR.`, 'high', appraisal.id);
             }
           }
         }
