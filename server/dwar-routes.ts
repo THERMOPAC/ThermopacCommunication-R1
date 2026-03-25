@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks } from '@shared/schema';
+import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
@@ -39,9 +39,11 @@ router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Re
         startDate: recurringTasks.startDate,
         finishDate: recurringTasks.finishDate,
         dueDate: recurringTasks.dueDate,
-        plannedHours: recurringTasks.plannedHours
+        plannedHours: recurringTasks.plannedHours,
+        templatePlannedHours: recurringPatterns.templatePlannedHours
       })
       .from(recurringTasks)
+      .leftJoin(recurringPatterns, eq(recurringTasks.recurringPatternId, recurringPatterns.id))
       .where(and(
         eq(recurringTasks.assignedTo, userId),
         eq(recurringTasks.status, 'pending')
@@ -53,7 +55,8 @@ router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Re
       ...rt,
       id: rt.id + 1000000,
       title: `[Recurring] ${rt.title}`,
-      source: 'recurring' as const
+      source: 'recurring' as const,
+      plannedHours: (rt.plannedHours && rt.plannedHours > 0) ? rt.plannedHours : (rt.templatePlannedHours || 0)
     }));
 
     res.json([...regularTasks, ...recurringWithPrefix]);
