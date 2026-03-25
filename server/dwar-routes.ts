@@ -148,17 +148,15 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
     const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
     const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
 
-    // Calculate productivity score
+    const priorityWeight = (p: string) => p === 'high' ? 3 : p === 'medium' ? 2 : 1;
     let productivityScore = 0;
     if (updatedActivities.length > 0) {
-      const completedActivities = updatedActivities.filter(a => a.status === 'completed');
-      const totalActivities = updatedActivities.length;
-      const avgTimeSpent = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / totalActivities;
-      
-      productivityScore = (completedActivities.length / totalActivities) * 50 + 
-                         Math.min(avgTimeSpent / 8, 1) * 30 + 
-                         completedTasks * 5;
-      productivityScore = Math.min(productivityScore, 100);
+      const weightedCompleted = updatedActivities
+        .filter(a => a.status === 'completed')
+        .reduce((sum, a) => sum + priorityWeight(a.priority || 'medium'), 0);
+      const weightedTotal = updatedActivities
+        .reduce((sum, a) => sum + priorityWeight(a.priority || 'medium'), 0);
+      productivityScore = weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
     }
 
     // Update DWAR with new activity
