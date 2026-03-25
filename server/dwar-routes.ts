@@ -412,7 +412,38 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
       productivityScore = weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
     }
 
-    let qualityScore = 0;
+    const [existingReport] = await db
+      .select({ 
+        planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
+        tomorrowPlans: dailyWorkReports.tomorrowPlans
+      })
+      .from(dailyWorkReports)
+      .where(eq(dailyWorkReports.id, reportId));
+
+    const completionAccuracy = productivityScore;
+
+    let followThroughComponent = 50;
+    const ftScore = existingReport?.planFollowThroughScore;
+    if (ftScore !== null && ftScore !== undefined && Number(ftScore) > 0) {
+      followThroughComponent = Number(ftScore);
+    }
+
+    let logQuality = 0;
+    if (updateData.activities && updateData.activities.length > 0) {
+      const total = updateData.activities.length;
+      const goodDescriptions = updateData.activities.filter((a: any) => (a.description || '').length > 10).length;
+      const hasTime = updateData.activities.filter((a: any) => (a.timeSpent || 0) > 0).length;
+      const validPriority = updateData.activities.filter((a: any) => ['high', 'medium', 'low'].includes(a.priority)).length;
+      const tomorrowPlansText = updateData.tomorrowPlans || existingReport?.tomorrowPlans || '';
+      const plansFilledPoints = tomorrowPlansText.length > 10 ? 25 : 0;
+
+      logQuality = (goodDescriptions / total) * 25 + (hasTime / total) * 25 + (validPriority / total) * 25 + plansFilledPoints;
+    }
+
+    let systemQualityScore = (completionAccuracy * 0.4) + (followThroughComponent * 0.4) + (logQuality * 0.2);
+    systemQualityScore = Math.min(Math.round(systemQualityScore * 100) / 100, 100);
+
+    let qualityScore = systemQualityScore;
     if (updateData.managerRating) {
       qualityScore = (updateData.managerRating / 5) * 100;
     }

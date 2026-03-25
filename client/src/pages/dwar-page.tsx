@@ -970,13 +970,12 @@ export default function DwarPage() {
                 <div className="text-2xl font-bold text-blue-600">{Number(todayReport.productivityScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Productivity</div>
               </div>
-              <div className="text-center">
-                {todayReport.managerRating ? (
-                  <div className="text-2xl font-bold text-green-600">{Number(todayReport.qualityScore || 0).toFixed(1)}</div>
-                ) : (
-                  <div className="text-sm font-medium text-gray-400 pt-1">Awaiting Review</div>
-                )}
+              <div className="text-center group relative">
+                <div className="text-2xl font-bold text-green-600">{Number(todayReport.qualityScore || 0).toFixed(1)}</div>
                 <div className="text-sm text-muted-foreground">Quality</div>
+                {todayReport.managerRating && (
+                  <div className="text-[10px] text-amber-600 font-medium">Manager Override</div>
+                )}
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{Number(todayReport.efficiencyRating || 0).toFixed(1)}</div>
@@ -992,6 +991,46 @@ export default function DwarPage() {
               </div>
             </div>
             
+            {!todayReport.managerRating && todayReport.activities && todayReport.activities.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-xs font-medium text-green-700 mb-2">Quality Score Breakdown (System)</div>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="text-center">
+                    <div className="font-semibold text-green-700">{Number(todayReport.productivityScore || 0).toFixed(0)}</div>
+                    <div className="text-green-600">Completion (40%)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold text-green-700">
+                      {Number(todayReport.planFollowThroughScore || 0) > 0 
+                        ? Number(todayReport.planFollowThroughScore).toFixed(0)
+                        : '50'}
+                    </div>
+                    <div className="text-green-600">
+                      Follow-Through (40%)
+                      {!(Number(todayReport.planFollowThroughScore || 0) > 0) && (
+                        <span className="block text-[10px] text-gray-400 italic">neutral fallback</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="font-semibold text-green-700">
+                      {(() => {
+                        const acts = todayReport.activities || [];
+                        if (acts.length === 0) return '0';
+                        const t = acts.length;
+                        const d = acts.filter(a => (a.description || '').length > 10).length;
+                        const h = acts.filter(a => (a.timeSpent || 0) > 0).length;
+                        const p = acts.filter(a => ['high','medium','low'].includes(a.priority)).length;
+                        const pl = (localTomorrowPlans || '').length > 10 ? 25 : 0;
+                        return ((d/t)*25 + (h/t)*25 + (p/t)*25 + pl).toFixed(0);
+                      })()}
+                    </div>
+                    <div className="text-green-600">Log Quality (20%)</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {todayReport.managerFeedback && (
               <div className="mt-4 p-3 bg-muted rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
