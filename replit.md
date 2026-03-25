@@ -10,6 +10,7 @@ Preferred communication style: Simple, everyday language.
 3. **Verify before answering**: Always verify data from the database or codebase before presenting it. Do not assume or infer data that hasn't been confirmed.
 4. **Analytical depth and critical thinking**: Always apply deep analysis and critical thinking in every action — searching, coding, writing rules, answering questions, and solving problems. Break down keywords into root words, related terms, and partial matches before searching. When a search returns no results, immediately try broader variations instead of reporting failure. Never take the surface-level approach — think deeper about what the user means and exhaust all reasonable attempts before asking for help.
 5. **Ask before acting when unclear**: If the meaning of the user's request is not fully clear, ask for clarification BEFORE taking action — not after failing. Do not waste effort on guesses when a simple question would give the right answer immediately.
+6. **No mock or placeholder data**: Every page and component must display only real data fetched from the database or API. If no data exists, show a clear empty state (e.g., "No data available," zero counts, empty charts). Never use hardcoded fake numbers, sample company names, `Math.random()` generated values, or static demo content to fill gaps. Backend services must never silently fall back to sample data on error — errors must propagate so they can be identified and fixed.
 
 # System Architecture
 ## Core Architectural Decisions
