@@ -421,7 +421,7 @@ export default function DwarPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Link to Existing Task (Optional)</Label>
+                  <Label>Link to Existing Task</Label>
                   <Select value={newActivity.taskId?.toString() || 'none'} onValueChange={(value) => {
                     const taskId = value === 'none' ? undefined : parseInt(value);
                     const selectedTask = availableTasks.find(t => t.id === taskId);
@@ -453,13 +453,13 @@ export default function DwarPage() {
                     });
                   }}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a task (optional)" />
+                      <SelectValue placeholder="Select a task" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No task selected</SelectItem>
                       {availableTasks.map((task) => (
                         <SelectItem key={task.id} value={task.id.toString()}>
-                          {task.title} ({task.priority})
+                          {task.title} ({task.priority}){task.dueDate ? ` — Due ${task.dueDate}` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

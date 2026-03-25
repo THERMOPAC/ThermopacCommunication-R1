@@ -6,13 +6,11 @@ import { ensureAuthenticated } from './auth-middleware';
 
 const router = Router();
 
-// Get available tasks for auto-association
 router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
     
-    // Get active tasks assigned to the user
-    const availableTasks = await db
+    const regularTasks = await db
       .select({
         id: tasks.id,
         title: tasks.title,
@@ -29,12 +27,38 @@ router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Re
         eq(tasks.status, 'pending')
       ))
       .orderBy(desc(tasks.createdAt))
-      .limit(20);
+      .limit(50);
 
-    res.json(availableTasks);
+    const recurring = await db
+      .select({
+        id: recurringTasks.id,
+        title: recurringTasks.title,
+        description: recurringTasks.description,
+        priority: recurringTasks.priority,
+        status: recurringTasks.status,
+        startDate: recurringTasks.startDate,
+        finishDate: recurringTasks.finishDate,
+        dueDate: recurringTasks.dueDate
+      })
+      .from(recurringTasks)
+      .where(and(
+        eq(recurringTasks.assignedTo, userId),
+        eq(recurringTasks.status, 'pending')
+      ))
+      .orderBy(desc(recurringTasks.dueDate))
+      .limit(50);
+
+    const recurringWithPrefix = recurring.map(rt => ({
+      ...rt,
+      id: rt.id + 1000000,
+      title: `[Recurring] ${rt.title}`,
+      source: 'recurring' as const
+    }));
+
+    res.json([...regularTasks, ...recurringWithPrefix]);
   } catch (error) {
     console.error('Error fetching available tasks:', error);
-    res.json([]); // Return empty array if tasks table doesn't exist yet
+    res.json([]);
   }
 });
 
