@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, Plus, Search, Filter } from "lucide-react";
+import { Pencil, Trash2, Plus, Search, Filter, Shield, AlertTriangle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
@@ -229,6 +229,11 @@ export default function UserManagement() {
       }
     );
   };
+
+  const { data: statutoryData } = useQuery<any>({
+    queryKey: ['/api/users', editingUser?.id, 'statutory-applicability'],
+    enabled: !!editingUser?.id && isEditDialogOpen,
+  });
 
   const editEligibleManagers = getEligibleManagers(editSelectedRole);
   const addEligibleManagers = getEligibleManagers(addSelectedRole);
@@ -570,6 +575,43 @@ export default function UserManagement() {
                       </FormItem>
                     )}
                   />
+                )}
+
+                {statutoryData && (
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-semibold">Compliance Applicability</span>
+                      {statutoryData.status === 'UNRESOLVED' && (
+                        <Badge variant="destructive" className="text-xs">Unresolved</Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { label: 'PF', value: statutoryData.isPFApplicable },
+                        { label: 'ESIC', value: statutoryData.isESICApplicable },
+                        { label: 'PT', value: statutoryData.isPTApplicable },
+                        { label: 'TDS', value: statutoryData.isTDSApplicable },
+                      ].map((item) => (
+                        <div key={item.label} className="text-center">
+                          <div className="text-xs text-muted-foreground">{item.label}</div>
+                          <Badge variant={item.value === true ? 'default' : item.value === false ? 'secondary' : 'destructive'} className="text-xs">
+                            {item.value === true ? 'Yes' : item.value === false ? 'No' : 'Unresolved'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                    {statutoryData.warnings?.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {statutoryData.warnings.map((w: string, i: number) => (
+                          <div key={i} className="flex items-start gap-1 text-xs text-amber-600">
+                            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span>{w}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <Button

@@ -1,6 +1,8 @@
 import { db } from './db';
 import { users, employeeSalaries, attendanceRecords, leaveRequests, workweekPolicies, companyHolidays, workLocations, leaveBalances, leaveTypes } from '@shared/schema';
 import { eq, and, between, sql, desc, asc, gte, lte } from 'drizzle-orm';
+import { resolveStatutoryApplicability } from '@shared/statutory-rules';
+import type { EmployeeType } from '@shared/schema';
 
 export interface SalaryCalculationInput {
   userId: number;
@@ -224,7 +226,9 @@ export class SalaryCalculationEngine {
         employeeCode: users.employeeCode,
         department: users.department,
         role: users.role,
-        workLocationId: users.workLocationId
+        workLocationId: users.workLocationId,
+        employeeType: users.employeeType,
+        epfNo: users.epfNo,
       })
       .from(users)
       .where(eq(users.id, userId));
@@ -734,16 +738,43 @@ export class SalaryCalculationEngine {
                          ltaAllowance + specialAllowance + supplementaryAllowance + 
                          kgpAllowance + overtimePay;
     
+    const statutoryResult = resolveStatutoryApplicability({
+      employeeType: (employee.employeeType as EmployeeType) || null,
+      grossEarnings,
+      hasEpfNumber: !!employee.epfNo,
+      hasPfConfigured: true,
+      role: employee.role,
+    });
+
+    if (statutoryResult.status === 'UNRESOLVED') {
+      console.warn(`⚠️ [SalaryCalc] Statutory UNRESOLVED for user ${input.userId}: ${statutoryResult.warnings.join('; ')}`);
+    }
+    statutoryResult.warnings.forEach(w => console.log(`📋 [SalaryCalc] User ${input.userId}: ${w}`));
+
     const pfBase = Math.min(grossBasic, 15000);
-    const employeePF = pfBase * 0.12;
-    const employerPF = pfBase * 0.12;
-    
-    const employeeESIC = grossEarnings <= 21000 ? grossEarnings * 0.0075 : 0;
-    const employerESIC = grossEarnings <= 21000 ? grossEarnings * 0.0325 : 0;
-    
+    let employeePF = 0;
+    let employerPF = 0;
+    if (statutoryResult.isPFApplicable) {
+      employeePF = pfBase * 0.12;
+      employerPF = pfBase * 0.12;
+    } else {
+      console.log(`📋 [SalaryCalc] PF skipped for user ${input.userId}: ${statutoryResult.basis.pf}`);
+    }
+
+    let employeeESIC = 0;
+    let employerESIC = 0;
+    if (statutoryResult.isESICApplicable) {
+      employeeESIC = grossEarnings * 0.0075;
+      employerESIC = grossEarnings * 0.0325;
+    } else {
+      console.log(`📋 [SalaryCalc] ESIC skipped for user ${input.userId}: ${statutoryResult.basis.esic}`);
+    }
+
     let professionalTax = 0;
-    if (employee.role !== 'Superuser') {
+    if (statutoryResult.isPTApplicable && employee.role !== 'Superuser') {
       professionalTax = input.month === 2 ? 300 : 200;
+    } else if (!statutoryResult.isPTApplicable) {
+      console.log(`📋 [SalaryCalc] PT skipped for user ${input.userId}: ${statutoryResult.basis.pt}`);
     }
     
     const loanDeduction = input.deductions?.loanDeduction || 0;

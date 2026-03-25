@@ -1936,6 +1936,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/users/:id/statutory-applicability", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const { resolveStatutoryApplicability } = await import('@shared/statutory-rules');
+      const { employeeSalaries } = await import('@shared/schema');
+      const { eq: eqOp } = await import('drizzle-orm');
+      const { db: database } = await import('./db');
+
+      const [salaryConfig] = await database.select().from(employeeSalaries).where(eqOp(employeeSalaries.userId, userId));
+      const grossEarnings = salaryConfig ? parseFloat(salaryConfig.basicSalary || '0') + parseFloat(salaryConfig.hraAmount || '0') + parseFloat(salaryConfig.conveyanceAllowance || '0') + parseFloat(salaryConfig.specialAllowance || '0') + parseFloat(salaryConfig.ltaAmount || '0') : undefined;
+
+      const result = resolveStatutoryApplicability({
+        employeeType: (user as any).employeeType || null,
+        grossEarnings,
+        hasEpfNumber: !!(user as any).epfNo,
+        hasPfConfigured: !!salaryConfig,
+        role: user.role,
+        tdsCategory: (user as any).employeeType === 'CONSULTANT' ? 'consultant' : (user as any).employeeType === 'INTERN' ? 'stipend' : 'salary',
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to resolve statutory applicability" });
+    }
+  });
+
   app.get("/api/users", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const allowedRoles = ['Superuser', 'Admin', 'General Manager', 'Senior Manager', 'HR Manager', 'Finance Manager'];

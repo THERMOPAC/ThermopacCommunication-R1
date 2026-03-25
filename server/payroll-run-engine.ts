@@ -25,6 +25,8 @@ import {
 import { eq, and, gte, lte, desc, asc, sql, ne, isNull, between, inArray } from 'drizzle-orm';
 import { createPayrollLock } from './payroll-lock-service';
 import { computeAndSaveTdsForPeriod } from './tds-calculation-service';
+import { resolveStatutoryApplicability } from '@shared/statutory-rules';
+import type { EmployeeType } from '@shared/schema';
 
 const MONTHLY_DIVISOR = 30;
 
@@ -221,7 +223,7 @@ async function getActiveEmployees(includeNonSystem: boolean = false): Promise<an
     conditions.push(sql`coalesce(${users.userType}, 'system_user') = 'system_user'`);
   }
   return db
-    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType })
+    .select({ id: users.id, username: users.username, email: users.email, role: users.role, workLocationId: users.workLocationId, department: users.department, weeklyOffDays: users.weeklyOffDays, userType: users.userType, employeeType: users.employeeType, epfNo: users.epfNo })
     .from(users)
     .where(and(...conditions));
 }
@@ -742,19 +744,53 @@ async function stepSalaryCalculation(
         }
       }
 
-      const pfBase = Math.min(proratedBase, 15000);
-      const employeePF = pfBase * 0.12;
-      const employerPF = pfBase * 0.12;
+      const statutoryResult = resolveStatutoryApplicability({
+        employeeType: (emp.employeeType as EmployeeType) || null,
+        grossEarnings: grossPay,
+        hasEpfNumber: !!emp.epfNo,
+        hasPfConfigured: true,
+        role: emp.role,
+      });
 
-      const employeeESIC = grossPay <= 21000 ? grossPay * 0.0075 : 0;
-      const employerESIC = grossPay <= 21000 ? grossPay * 0.0325 : 0;
+      if (statutoryResult.status === 'UNRESOLVED') {
+        console.warn(`⚠️ [PayrollRun] Statutory UNRESOLVED for ${emp.username} (${emp.id}): ${statutoryResult.warnings.join('; ')}`);
+        exceptions.push({
+          employeeId: emp.id,
+          employeeName: emp.username,
+          type: 'statutory_unresolved',
+          message: `Statutory applicability unresolved: ${statutoryResult.warnings.join('; ')}`,
+          severity: 'warning',
+        });
+      }
+      statutoryResult.warnings.forEach(w => console.log(`📋 [PayrollRun] ${emp.username}: ${w}`));
+
+      const pfBase = Math.min(proratedBase, 15000);
+      let employeePF = 0;
+      let employerPF = 0;
+      if (statutoryResult.isPFApplicable) {
+        employeePF = pfBase * 0.12;
+        employerPF = pfBase * 0.12;
+      } else {
+        console.log(`📋 [PayrollRun] PF skipped for ${emp.username}: ${statutoryResult.basis.pf}`);
+      }
+
+      let employeeESIC = 0;
+      let employerESIC = 0;
+      if (statutoryResult.isESICApplicable) {
+        employeeESIC = grossPay * 0.0075;
+        employerESIC = grossPay * 0.0325;
+      } else {
+        console.log(`📋 [PayrollRun] ESIC skipped for ${emp.username}: ${statutoryResult.basis.esic}`);
+      }
 
       const gratuityAmount = (basicSalary * 15 / 26) / 12;
 
       let professionalTax = 0;
-      if (emp.role !== 'Superuser') {
+      if (statutoryResult.isPTApplicable && emp.role !== 'Superuser') {
         const periodMonth = new Date(period.startDate).getMonth() + 1;
         professionalTax = periodMonth === 2 ? ptConfig.february : ptConfig.monthly;
+      } else if (!statutoryResult.isPTApplicable) {
+        console.log(`📋 [PayrollRun] PT skipped for ${emp.username}: ${statutoryResult.basis.pt}`);
       }
 
       const totalDeductions = employeePF + employeeESIC + professionalTax;
@@ -944,7 +980,7 @@ async function stepKpiAdjustment(
         ? satisfactionRatings.reduce((s, v) => s + v, 0) / satisfactionRatings.length
         : 0;
 
-      const [empUser] = await db.select({ role: users.role, firstName: users.firstName, lastName: users.lastName }).from(users).where(eq(users.id, record.userId)).limit(1);
+      const [empUser] = await db.select({ role: users.role, firstName: users.firstName, lastName: users.lastName, employeeType: users.employeeType, epfNo: users.epfNo }).from(users).where(eq(users.id, record.userId)).limit(1);
       const empRole = empUser?.role || '';
       const empName = `${empUser?.firstName || ''} ${empUser?.lastName || ''}`.trim();
       const kpiEligibleRoles = ['Manager', 'Employee'];
@@ -1028,9 +1064,16 @@ async function stepKpiAdjustment(
 
       if (isKpiEligible && kgpReduction !== 0) {
         const grossPay = parseFloat(record.grossPay) - kgpReduction;
+        const kpiStatutory = resolveStatutoryApplicability({
+          employeeType: (empUser?.employeeType as EmployeeType) || null,
+          grossEarnings: grossPay,
+          hasEpfNumber: !!empUser?.epfNo,
+          hasPfConfigured: true,
+          role: empRole,
+        });
         const pfBase = Math.min(parseFloat(record.baseSalary), 15000);
-        const employeePF = pfBase * 0.12;
-        const employeeESIC = grossPay <= 21000 ? grossPay * 0.0075 : 0;
+        const employeePF = kpiStatutory.isPFApplicable ? pfBase * 0.12 : 0;
+        const employeeESIC = kpiStatutory.isESICApplicable ? grossPay * 0.0075 : 0;
         const professionalTax = parseFloat(record.professionalTax || '0');
 
         const loanDedVal = parseFloat(record.loanDeductions || '0');
