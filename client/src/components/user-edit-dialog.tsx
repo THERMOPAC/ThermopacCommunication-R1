@@ -295,6 +295,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         loanCardName: data.loanCardName?.trim() || null,
         dateOfJoining: data.dateOfJoining?.trim() || null,
         userType: data.userType || 'system_user',
+        employeeType: data.employeeType || 'PERMANENT',
         // Convert string IDs to numbers, handle empty strings and "none" values properly
         reportingManagerId: parseInt(data.reportingManagerId),
         workLocationId: data.workLocationId && data.workLocationId !== '' && data.workLocationId !== 'none'
