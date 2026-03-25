@@ -74,6 +74,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { roles } from "@shared/roles";
+import { employeeTypes, employeeTypeLabels, type EmployeeType } from "@shared/schema";
 
 // User form schema
 const userFormSchema = z.object({
@@ -113,6 +114,7 @@ const userFormSchema = z.object({
   workTimePolicy: z.enum(['Fixed', 'Flexible']).optional(),
   minimumDailyHours: z.number().optional(),
   halfDayMinimumHours: z.number().optional(),
+  employeeType: z.enum(employeeTypes).optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -157,6 +159,7 @@ interface User {
   workTimePolicy?: 'Fixed' | 'Flexible';
   minimumDailyHours?: number;
   halfDayMinimumHours?: number;
+  employeeType?: string;
 }
 
 export default function UserManagementPage() {
@@ -261,6 +264,7 @@ export default function UserManagementPage() {
       form.reset({
         countryCode: "+91",
         role: "Employee",
+        employeeType: "PERMANENT",
       });
       toast({
         title: "User Updated",
@@ -324,6 +328,7 @@ export default function UserManagementPage() {
     defaultValues: {
       countryCode: "+91",
       role: "Employee",
+      employeeType: "PERMANENT",
       firstName: "",
       lastName: "",
       department: "",
@@ -395,6 +400,7 @@ export default function UserManagementPage() {
       stdCode: user.stdCode || "",
       reportingManagerId: user.reportingManagerId,
       workLocationId: user.workLocationId,
+      employeeType: (user.employeeType as EmployeeType) || "PERMANENT",
     });
     setIsEditDialogOpen(true);
   };
@@ -404,6 +410,7 @@ export default function UserManagementPage() {
     form.reset({
       countryCode: "+91",
       role: "Employee",
+      employeeType: "PERMANENT",
     });
     setIsAddDialogOpen(true);
   };
@@ -641,6 +648,30 @@ export default function UserManagementPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="employeeType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Employee Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value || "PERMANENT"}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select employee type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {employeeTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {employeeTypeLabels[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="panNumber"
@@ -1065,6 +1096,7 @@ export default function UserManagementPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Employee Type</TableHead>
                   <TableHead>User Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -1073,7 +1105,7 @@ export default function UserManagementPage() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                    <TableCell colSpan={9} className="text-center">Loading...</TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => (
@@ -1094,6 +1126,11 @@ export default function UserManagementPage() {
                       <TableCell>{user.department || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{user.role}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-purple-700 border-purple-300 bg-purple-50">
+                          {user.employeeType ? employeeTypeLabels[user.employeeType as EmployeeType] : 'Permanent (Full-Time)'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={user.userType === 'non_system_user' ? 'text-orange-700 border-orange-300 bg-orange-50' : 'text-blue-700 border-blue-300 bg-blue-50'}>
