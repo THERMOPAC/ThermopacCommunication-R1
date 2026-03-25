@@ -933,7 +933,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
         <Dialog open={showAdd || editId !== null} onOpenChange={() => { setShowAdd(false); setEditId(null); }}>
           <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle>{editId ? "Edit KPI" : "Add KPI"}</DialogTitle>
+              <DialogTitle>{editId ? `Edit KPI — ${form.kpiTitle}` : "Add KPI"}</DialogTitle>
               <DialogDescription>{canEditL1 && editId ? "Review and adjust the KPI definition, then provide your manager score." : "Define the KPI with a clear, measurable target."}</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 overflow-y-auto flex-1 pr-1">
