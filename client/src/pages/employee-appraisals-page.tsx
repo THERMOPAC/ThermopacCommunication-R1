@@ -20,7 +20,7 @@ import {
   Plus, Edit, Trash2, Send, CheckCircle, AlertCircle, Eye, Play,
   Pause, RotateCcw, BarChart3, ChevronRight, Loader2, Shield,
   TrendingUp, UserCheck, AlertTriangle, ClipboardCheck, Library,
-  Archive, Power, GripVertical, Copy
+  Archive, Power, GripVertical, Copy, Download
 } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -1523,7 +1523,34 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
             <RotateCcw className="h-4 w-4 mr-2" /> Reopen Appraisal
           </Button>
         )}
-        {!isEmployee && !isL1 && !isL2 && !isL3 && !isAdmin && (
+        {["approved", "closed"].includes(appraisal.status) && (
+          <Button className="w-full justify-start" variant="outline" onClick={async () => {
+            try {
+              toast({ title: "Generating report..." });
+              const resp = await fetch(`/api/appraisals/${appraisalId}/report`, { credentials: "include" });
+              if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ error: "Download failed" }));
+                throw new Error(err.error || "Download failed");
+              }
+              const blob = await resp.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              const cd = resp.headers.get("content-disposition");
+              a.download = cd?.match(/filename="(.+)"/)?.[1] || "appraisal_report.pdf";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              toast({ title: "Report downloaded successfully" });
+            } catch (e: any) {
+              toast({ title: "Report download failed", description: e.message, variant: "destructive" });
+            }
+          }}>
+            <Download className="h-4 w-4 mr-2" /> Download Report
+          </Button>
+        )}
+        {!isEmployee && !isL1 && !isL2 && !isL3 && !isAdmin && !["approved", "closed"].includes(appraisal.status) && (
           <p className="text-muted-foreground text-sm">No actions available for your role at this stage.</p>
         )}
 

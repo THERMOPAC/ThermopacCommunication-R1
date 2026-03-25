@@ -31,7 +31,7 @@ The system is a full-stack web application built with organized, hierarchical da
     - **Email Management System**: AI-powered Gmail integration for intelligent priority classification, analysis, and multi-style reply generation.
     - **Multi-Agent Intelligence & Automation Layer**: Features 11 agents: 9 business agents, a Master Control Agent for governance, and an Advisor Agent for executive decision support. Includes conflict control, an event bus, finding management, and an audit logger. Agents use a dynamic, policy-based escalation framework.
     - **Task Auto-Archive Maintenance Job**: Daily cron job to archive completed tasks older than 30 days.
-    - **Employee Appraisal Module**: Standalone module with a L1→L2→L3 hierarchy-based workflow, supporting appraisal cycles, KPI and competency scoring, increment policies, and L3 decision support with system recommendations. Includes a KPI Template Library and an audit trail for changes.
+    - **Employee Appraisal Module**: Standalone module with a L1→L2→L3 hierarchy-based workflow, supporting appraisal cycles, KPI and competency scoring, increment policies, and L3 decision support with system recommendations. Includes a KPI Template Library, audit trail for changes, and a PDF Final Report generator (`GET /api/appraisals/:id/report`) available for approved/closed appraisals with server-side access control.
     - **Alert Management System**: A full alert system with priority levels, categories, and a 3-state workflow.
     - **API Security**: Implements measures against SQL injection, XSS, authentication middleware, and secure credential management.
 

@@ -12,6 +12,7 @@ import {
 } from '@shared/schema';
 import { eq, and, or, desc, sql, count, lte, inArray, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { AppraisalReportGenerator } from './appraisal-report-generator';
 
 const router = Router();
 
@@ -2650,6 +2651,96 @@ router.get('/cycles/:cycleId/progress', ensureAuthenticated, async (req: Request
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch cycle progress' });
+  }
+});
+
+router.get('/:id/report', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    if (isNaN(appraisalId)) return res.status(400).json({ error: 'Invalid appraisal ID' });
+
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+
+    if (!['approved', 'closed'].includes(appraisal.status)) {
+      return res.status(403).json({ error: 'Report is only available for approved or closed appraisals' });
+    }
+
+    const isAuthorized = ['Superuser', 'HR Manager', 'Admin'].includes(user.role)
+      || appraisal.employeeId === user.id
+      || appraisal.l1ReviewerId === user.id
+      || appraisal.l2ReviewerId === user.id
+      || appraisal.l3ApproverId === user.id;
+    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized to download this report' });
+
+    const [cycle] = appraisal.cycleId
+      ? await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, appraisal.cycleId))
+      : [null];
+
+    const kpis = await db.select().from(employeeAppraisalKpis)
+      .where(eq(employeeAppraisalKpis.appraisalId, appraisalId))
+      .orderBy(employeeAppraisalKpis.sortOrder);
+    const competencies = await db.select().from(employeeAppraisalCompetencies)
+      .where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId))
+      .orderBy(employeeAppraisalCompetencies.sortOrder);
+    const approvals = await db.select().from(appraisalApprovals)
+      .where(eq(appraisalApprovals.appraisalId, appraisalId))
+      .orderBy(appraisalApprovals.createdAt);
+
+    let kpiWeightedScore = 0;
+    let totalWeight = 0;
+    for (const kpi of kpis) {
+      const score = kpi.managerScore ? parseFloat(kpi.managerScore) : (kpi.selfScore ? parseFloat(kpi.selfScore) : 0);
+      const weight = parseFloat(kpi.weightage) || 0;
+      kpiWeightedScore += score * weight;
+      totalWeight += weight;
+    }
+    kpiWeightedScore = totalWeight > 0 ? kpiWeightedScore / totalWeight : 0;
+
+    let competencyAvgScore = 0;
+    let compCount = 0;
+    for (const comp of competencies) {
+      const score = comp.managerScore ? parseFloat(comp.managerScore) : (comp.selfScore ? parseFloat(comp.selfScore) : 0);
+      if (score > 0) { competencyAvgScore += score; compCount++; }
+    }
+    competencyAvgScore = compCount > 0 ? competencyAvgScore / compCount : 0;
+
+    const overallCalculatedScore = (kpiWeightedScore * 0.70) + (competencyAvgScore * 0.30);
+    const l2Override = appraisal.l2Score ? parseFloat(appraisal.l2Score) : null;
+    const effectiveScore = l2Override !== null ? l2Override : overallCalculatedScore;
+    const ratingBand = getRatingBand(effectiveScore);
+
+    const kpiSelfWeightedScore = kpis.reduce((sum, kpi) => {
+      const s = kpi.selfScore ? parseFloat(kpi.selfScore) : 0;
+      const w = parseFloat(kpi.weightage) || 0;
+      return sum + (s * w);
+    }, 0) / (totalWeight || 1);
+    const compSelfAvg = competencies.reduce((sum, c) => sum + (c.selfScore ? parseFloat(c.selfScore) : 0), 0)
+      / (competencies.filter(c => c.selfScore).length || 1);
+
+    const scoreData = {
+      kpiWeightedScore: Math.round(kpiWeightedScore * 100) / 100,
+      competencyAvgScore: Math.round(competencyAvgScore * 100) / 100,
+      overallCalculatedScore: Math.round(overallCalculatedScore * 100) / 100,
+      effectiveScore: Math.round(effectiveScore * 100) / 100,
+      l2OverrideScore: l2Override,
+      l2OverrideReason: appraisal.l2OverrideReason || null,
+      ratingBand,
+      selfAssessment: {
+        kpiSelfWeightedScore: Math.round(kpiSelfWeightedScore * 100) / 100,
+        competencySelfAvgScore: Math.round(compSelfAvg * 100) / 100,
+        overallSelfScore: Math.round((kpiSelfWeightedScore * 0.70 + compSelfAvg * 0.30) * 100) / 100,
+      },
+    };
+
+    const generator = new AppraisalReportGenerator();
+    await generator.generate({ appraisal, cycle, kpis, competencies, approvals, score: scoreData }, res);
+  } catch (error: any) {
+    console.error('Error generating appraisal report:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate report' });
+    }
   }
 });
 
