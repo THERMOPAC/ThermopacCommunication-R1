@@ -6,7 +6,7 @@ import {
   appraisalComments, appraisalApprovals, appraisalAuditLog,
   appraisalKpiTemplates, appraisalKpiTemplateItems,
   appraisalIncrementPolicy, appraisalDesignationProgression,
-  users, notifications,
+  users, notifications, tasks,
   InsertAppraisalCycleTemplate, InsertAppraisalCycle, InsertEmployeeAppraisal,
   insertAppraisalCycleTemplateSchema, insertAppraisalCycleSchema, insertEmployeeAppraisalSchema
 } from '@shared/schema';
@@ -650,10 +650,45 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
       console.error('[Appraisal] Competency auto-population failed (non-blocking):', compErr.message);
     }
 
+    try {
+      const [cycle] = cycleId ? await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId)) : [null];
+      const selfDeadline = cycle?.selfAssessmentDeadline || cycle?.closureDate;
+      const deadlineStr = selfDeadline ? new Date(selfDeadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'as per cycle timeline';
+      const cycleName = cycle?.name || 'Appraisal Cycle';
+      const fy = cycle?.financialYear || '';
+
+      await db.insert(tasks).values({
+        title: `[Appraisal] Complete Self-Assessment — ${cycleName}`,
+        description: `Your appraisal for ${cycleName}${fy ? ` (FY ${fy})` : ''} has been initiated. Please complete your self-assessment including KPI scores, competency ratings, and achievements before ${deadlineStr}.`,
+        status: 'pending',
+        priority: 'High',
+        startDate: new Date().toISOString().split('T')[0],
+        dueDate: selfDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        finishDate: selfDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        assignedTo: employee.id,
+        createdBy: user.id,
+        createdAt: new Date().toISOString().split('T')[0],
+        category: 'HR',
+        sourceType: 'appraisal',
+        sourceId: appraisal.id,
+        sourceAgent: 'communications',
+      });
+
+      await createAppraisalNotification(
+        employee.id,
+        'Appraisal Cycle Started — Self-Assessment Required',
+        `Your appraisal for ${cycleName}${fy ? ` (FY ${fy})` : ''} is now open. Please complete your self-assessment by ${deadlineStr}. Navigate to the Appraisals module to begin.`,
+        'high',
+        appraisal.id
+      );
+    } catch (taskErr: any) {
+      console.error('[Appraisal] Task/notification creation failed (non-blocking):', taskErr.message);
+    }
+
     res.status(201).json({ ...appraisal, kpisPopulated: kpiCount, competenciesPopulated: compCount });
   } catch (error: any) {
     console.error('Error creating appraisal:', error);
-    res.status(400).json({ error: error.message || 'Failed to create appraisal' });
+    sendError(res, error);
   }
 });
 
@@ -2101,6 +2136,37 @@ async function runActivationJob(dryRun: boolean = false): Promise<{ activatedCyc
         }
 
         await logAudit('appraisal', appraisal.id, 'appraisal_auto_created', null, 'System', true, { cycleId: cycle.id, employeeId: emp.id });
+
+        try {
+          const selfDeadline = cycle.selfAssessmentDeadline || cycle.closureDate;
+          const deadlineStr = selfDeadline ? new Date(selfDeadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'as per cycle timeline';
+          await db.insert(tasks).values({
+            title: `[Appraisal] Complete Self-Assessment — ${cycle.name}`,
+            description: `Your appraisal for ${cycle.name} (FY ${cycle.financialYear}) has been initiated. Please complete your self-assessment including KPI scores, competency ratings, and achievements before ${deadlineStr}.`,
+            status: 'pending',
+            priority: 'High',
+            startDate: new Date().toISOString().split('T')[0],
+            dueDate: selfDeadline || cycle.closureDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            finishDate: selfDeadline || cycle.closureDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            assignedTo: emp.id,
+            createdBy: null,
+            createdAt: new Date().toISOString().split('T')[0],
+            category: 'HR',
+            sourceType: 'appraisal',
+            sourceId: appraisal.id,
+            sourceAgent: 'communications',
+          });
+
+          await createAppraisalNotification(
+            emp.id,
+            'Appraisal Cycle Started — Self-Assessment Required',
+            `Your appraisal for ${cycle.name} (FY ${cycle.financialYear}) is now open. Please complete your self-assessment by ${deadlineStr}. Navigate to the Appraisals module to begin.`,
+            'high',
+            appraisal.id
+          );
+        } catch (taskErr: any) {
+          console.error(`[AppraisalActivation] Failed to create task/notification for ${empName}:`, taskErr.message);
+        }
       } catch (err: any) {
         errors.push({ cycleId: cycle.id, employeeId: emp.id, name: empName, error: err.message });
       }
@@ -2243,6 +2309,36 @@ router.post('/cycles/:cycleId/activate', ensureAuthenticated, async (req: Reques
         created.push({ appraisalId: appraisal.id, employeeId: emp.id, name: empName });
         createdCount++;
         await logAudit('appraisal', appraisal.id, 'appraisal_created_on_activation', user.id, getUserDisplayName(user), false, { cycleId, employeeId: emp.id });
+
+        try {
+          const selfDeadline = cycle.selfAssessmentDeadline || cycle.closureDate;
+          const deadlineStr = selfDeadline ? new Date(selfDeadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'as per cycle timeline';
+          await db.insert(tasks).values({
+            title: `[Appraisal] Complete Self-Assessment — ${cycle.name}`,
+            description: `Your appraisal for ${cycle.name} (FY ${cycle.financialYear}) has been initiated. Please complete your self-assessment including KPI scores, competency ratings, and achievements before ${deadlineStr}.`,
+            status: 'pending',
+            priority: 'High',
+            startDate: new Date().toISOString().split('T')[0],
+            dueDate: selfDeadline || cycle.closureDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            finishDate: selfDeadline || cycle.closureDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            assignedTo: emp.id,
+            createdBy: user.id,
+            createdAt: new Date().toISOString().split('T')[0],
+            category: 'HR',
+            sourceType: 'appraisal',
+            sourceId: appraisal.id,
+            sourceAgent: 'communications',
+          });
+          await createAppraisalNotification(
+            emp.id,
+            'Appraisal Cycle Started — Self-Assessment Required',
+            `Your appraisal for ${cycle.name} (FY ${cycle.financialYear}) is now open. Please complete your self-assessment by ${deadlineStr}. Navigate to the Appraisals module to begin.`,
+            'high',
+            appraisal.id
+          );
+        } catch (taskErr: any) {
+          console.error(`[CycleActivation] Task creation failed for ${empName}:`, taskErr.message);
+        }
       } catch (err: any) {
         errors.push({ employeeId: emp.id, name: empName, error: err.message });
       }
@@ -2254,6 +2350,69 @@ router.post('/cycles/:cycleId/activate', ensureAuthenticated, async (req: Reques
     await logAudit('cycle', cycleId, 'cycle_manually_activated', user.id, getUserDisplayName(user), false, { totalAppraisals: createdCount + existingAppraisals.length });
 
     res.json({ cycleId, status: 'active', created, skipped, errors, totalAppraisals: createdCount + existingAppraisals.length });
+  } catch (error: any) {
+    sendError(res, error);
+  }
+});
+
+router.post('/cycles/:cycleId/backfill-tasks', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (!['Superuser', 'HR'].includes(user.role)) return sendPermissionError(res);
+
+    const cycleId = parseInt(req.params.cycleId);
+    const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
+
+    const appraisalsInCycle = await db.select().from(employeeAppraisals)
+      .where(eq(employeeAppraisals.cycleId, cycleId));
+
+    const selfDeadline = cycle.selfAssessmentDeadline || cycle.closureDate;
+    const deadlineStr = selfDeadline ? new Date(selfDeadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'as per cycle timeline';
+
+    let created = 0;
+    let skipped = 0;
+
+    for (const appraisal of appraisalsInCycle) {
+      if (!['open', 'draft'].includes(appraisal.status)) { skipped++; continue; }
+
+      const existingTask = await db.select({ id: tasks.id }).from(tasks)
+        .where(and(
+          eq(tasks.sourceType, 'appraisal'),
+          eq(tasks.sourceId, appraisal.id),
+          sql`${tasks.title} LIKE '%Self-Assessment%'`
+        )).limit(1);
+
+      if (existingTask.length > 0) { skipped++; continue; }
+
+      await db.insert(tasks).values({
+        title: `[Appraisal] Complete Self-Assessment — ${cycle.name}`,
+        description: `Your appraisal for ${cycle.name} (FY ${cycle.financialYear}) has been initiated. Please complete your self-assessment including KPI scores, competency ratings, and achievements before ${deadlineStr}.`,
+        status: 'pending',
+        priority: 'High',
+        startDate: new Date().toISOString().split('T')[0],
+        dueDate: selfDeadline || cycle.closureDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        finishDate: selfDeadline || cycle.closureDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        assignedTo: appraisal.employeeId,
+        createdBy: user.id,
+        createdAt: new Date().toISOString().split('T')[0],
+        category: 'HR',
+        sourceType: 'appraisal',
+        sourceId: appraisal.id,
+        sourceAgent: 'communications',
+      });
+
+      await createAppraisalNotification(
+        appraisal.employeeId,
+        'Appraisal Cycle Started — Self-Assessment Required',
+        `Your appraisal for ${cycle.name} (FY ${cycle.financialYear}) is now open. Please complete your self-assessment by ${deadlineStr}. Navigate to the Appraisals module to begin.`,
+        'high',
+        appraisal.id
+      );
+      created++;
+    }
+
+    res.json({ cycleId, cycleName: cycle.name, tasksCreated: created, skipped, totalAppraisals: appraisalsInCycle.length });
   } catch (error: any) {
     sendError(res, error);
   }
