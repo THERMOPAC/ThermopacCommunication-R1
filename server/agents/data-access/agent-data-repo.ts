@@ -121,6 +121,43 @@ class AgentDataRepository {
     }));
   }
 
+  async getStandardTasksMissingDueDate(): Promise<Array<{
+    id: number; title: string; status: string; priority: string;
+    createdAt: string; daysOld: number;
+    assigneeId: number | null; assigneeName: string;
+    creatorId: number | null; creatorName: string;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT t.id, t.title, t.status, t.priority, t.created_at,
+        EXTRACT(DAY FROM NOW() - t.created_at::timestamp)::int as days_old,
+        t.assigned_to as assignee_id,
+        COALESCE(ua.first_name || ' ' || COALESCE(ua.last_name, ''), ua.username, 'Unassigned') as assignee_name,
+        t.created_by as creator_id,
+        COALESCE(uc.first_name || ' ' || COALESCE(uc.last_name, ''), uc.username, 'Unknown') as creator_name
+      FROM tasks t
+      LEFT JOIN users ua ON t.assigned_to = ua.id
+      LEFT JOIN users uc ON t.created_by = uc.id
+      WHERE t.status NOT IN ('completed', 'cancelled')
+        AND (t.due_date IS NULL OR t.due_date = '')
+        AND (t.finish_date IS NULL OR t.finish_date = '')
+        AND t.source_agent IS NULL
+        AND t.created_at::timestamp < NOW() - INTERVAL '3 days'
+      ORDER BY days_old DESC
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      title: r.title || '',
+      status: r.status || '',
+      priority: r.priority || 'Medium',
+      createdAt: r.created_at || '',
+      daysOld: Number(r.days_old || 0),
+      assigneeId: r.assignee_id ? Number(r.assignee_id) : null,
+      assigneeName: r.assignee_name || 'Unassigned',
+      creatorId: r.creator_id ? Number(r.creator_id) : null,
+      creatorName: r.creator_name || 'Unknown',
+    }));
+  }
+
   async getRecentlyCompletedTasks(withinDays: number = 1): Promise<Array<{
     id: number; title: string; category: string;
     assigneeId: number | null; assigneeName: string;

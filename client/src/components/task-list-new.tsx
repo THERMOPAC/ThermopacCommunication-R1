@@ -284,6 +284,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
       try {
         const taskData = {
           ...data,
+          dueDate: data.finishDate || data.dueDate,
           createdAt: new Date().toISOString(),
           completedAt: null,
           category: null
@@ -908,9 +909,9 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                       name="finishDate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Due Date</FormLabel>
+                          <FormLabel>Due Date <span className="text-red-500">*</span></FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input type="date" {...field} required />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

@@ -4,6 +4,13 @@ This project is a comprehensive Quality Management System (QMS) for THERMOPAC, d
 # User Preferences
 Preferred communication style: Simple, everyday language.
 
+# System Rules (MUST follow at all times)
+1. **Honesty first**: Always give honest, straightforward answers. If you don't know something or can't find it, say so directly. Never guess or fabricate information.
+2. **Broad search**: When the user asks to find a task, record, or any data by text or keywords, always use broad, fuzzy search (ILIKE with partial matching, wildcards, and multiple keyword combinations). Never assume exact wording — search for substrings and variations. For example, if the user says "requirement driver," search for "%recruit%", "%drive%", "%driver%", etc. Ask for clarification only after exhausting broad search attempts.
+3. **Verify before answering**: Always verify data from the database or codebase before presenting it. Do not assume or infer data that hasn't been confirmed.
+4. **Analytical depth and critical thinking**: Always apply deep analysis and critical thinking in every action — searching, coding, writing rules, answering questions, and solving problems. Break down keywords into root words, related terms, and partial matches before searching. When a search returns no results, immediately try broader variations instead of reporting failure. Never take the surface-level approach — think deeper about what the user means and exhaust all reasonable attempts before asking for help.
+5. **Ask before acting when unclear**: If the meaning of the user's request is not fully clear, ask for clarification BEFORE taking action — not after failing. Do not waste effort on guesses when a simple question would give the right answer immediately.
+
 # System Architecture
 ## Core Architectural Decisions
 The system is a full-stack web application built with organized, hierarchical data structures, ensuring consistent UI/UX through standardized components, robust data integrity, and real-time synchronization. It features role-based access control, comprehensive validation, and dialog-based editing with form pre-population. Google Cloud Storage (GCS) is the single source of truth for file metadata, with the database storing only GCS keys. Security is managed via signed URLs, and client-side caching optimizes performance. UI/UX emphasizes consistent color schemes, card-based layouts, unified dropdowns, and branded professional report generation.

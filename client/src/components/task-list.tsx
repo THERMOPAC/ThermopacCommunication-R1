@@ -190,6 +190,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       try {
         const taskData = {
           ...data,
+          dueDate: data.finishDate || data.dueDate,
           createdAt: new Date().toISOString()
         };
         // Use our enhanced apiRequest that handles empty responses better
@@ -564,9 +565,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                     name="finishDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Due Date</FormLabel>
+                        <FormLabel>Due Date <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="date" {...field} required />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -2003,8 +2003,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
 
+      const body = req.body;
+      if (!body.dueDate && body.finishDate) {
+        body.dueDate = body.finishDate;
+      }
       const taskData = insertTaskSchema.parse({
-        ...req.body,
+        ...body,
         createdBy: req.user!.id,
         createdAt: new Date().toISOString(),
       });
@@ -2375,8 +2379,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // For tasks generated from LLM insights, set createdBy to Manager (ID = 1)
           const createdBy = tasks[i].sourceType === 'llm_insight' ? 1 : req.user!.id;
           
+          const taskInput = tasks[i];
+          if (!taskInput.dueDate && taskInput.finishDate) {
+            taskInput.dueDate = taskInput.finishDate;
+          }
           const taskData = insertTaskSchema.parse({
-            ...tasks[i],
+            ...taskInput,
             createdBy: createdBy,
             createdAt: new Date().toISOString(),
             status: 'pending'

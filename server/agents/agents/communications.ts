@@ -324,6 +324,8 @@ export class CommunicationsAgent implements IAgent {
 
     const allOverdueTasks = await agentDataRepo.getOverdueTasksWithEscalation();
     queriesRun++;
+    const tasksMissingDueDate = await agentDataRepo.getStandardTasksMissingDueDate();
+    queriesRun++;
     const nonFinanceTasks = allOverdueTasks.filter(t => !isFinanceTask(t));
 
     const tasksByTier: Record<string, typeof nonFinanceTasks> = {
@@ -1438,6 +1440,57 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
+    // FINDING: STANDARD TASKS MISSING DUE DATE
+    if (tasksMissingDueDate.length > 0) {
+      const topMissing = tasksMissingDueDate.slice(0, 10);
+      const topList = topMissing.map(t => `  • "${t.title}" assigned to ${t.assigneeName} (created ${t.daysOld}d ago by ${t.creatorName})`).join('\n');
+      const result = await findingManager.createFinding({
+        findingType: 'missing_due_date',
+        severity: 'medium',
+        title: `${tasksMissingDueDate.length} standard task${tasksMissingDueDate.length > 1 ? 's' : ''} missing due date`,
+        description: [
+          `${tasksMissingDueDate.length} pending standard task${tasksMissingDueDate.length > 1 ? 's have' : ' has'} no due date set (older than 3 days).`,
+          `\nTasks without due dates are excluded from overdue monitoring and escalation.`,
+          `\nAffected tasks:\n${topList}`,
+          tasksMissingDueDate.length > 10 ? `\n...and ${tasksMissingDueDate.length - 10} more.` : '',
+        ].filter(Boolean).join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { taskCount: tasksMissingDueDate.length, tasks: topMissing.map(t => ({ id: t.id, title: t.title, daysOld: t.daysOld, assigneeName: t.assigneeName })) },
+        relatedEntityType: 'task',
+        relatedEntityId: `missing_due_date`,
+      });
+      if (result.id > 0) findingsCount++;
+    }
+
+    // A7b: STANDARD TASKS MISSING DUE DATE — remind assignee to set one
+    if (!skipTaskCreation) {
+      for (const task of tasksMissingDueDate) {
+        const fp = makeFingerprint('missing_due_date', `task:${task.id}`);
+        if (await hasRecentAgentTask(fp, 14)) continue;
+
+        const rec = await recommendationManager.createRecommendation({
+          actionCategory: 'task_creation',
+          actionType: 'create_task',
+          title: `Set due date: "${task.title}" (created ${task.daysOld}d ago)`,
+          description: `Task "${task.title}" has no due date set. Created by ${task.creatorName} ${task.daysOld} days ago.`,
+          actionPayload: {
+            title: `[Agent] Set due date: ${task.title} (created ${task.daysOld}d ago, no due date)`,
+            description: `Task "${task.title}" was created by ${task.creatorName} on ${task.createdAt.split('T')[0]} (${task.daysOld} days ago) and has no due date set.\n\nPlease set a due date on the original task to ensure proper tracking and escalation.\n\nSource: Communications Agent`,
+            priority: 'Medium',
+            assignedTo: task.assigneeId,
+            category: `Agent Task ${fp}`,
+            sourceType: 'agent_task',
+            sourceAgent: SOURCE_AGENT,
+            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          },
+          logicType: 'rule_based',
+          confidence: 0.9,
+          priority: 'normal',
+        });
+        if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+      }
+    }
+
     // A8: OVERDUE RECURRING TASKS — grouped per assignee
     for (const [assignee, tasks] of Object.entries(recurringByAssignee)) {
       if (tasks.length === 0) continue;
@@ -2218,6 +2271,7 @@ export class CommunicationsAgent implements IAgent {
         `Zombie-Risk (90-179d):     ${tierCounts.zombie_risk + tierCounts.escalation_90} tasks`,
         `Zombie Review (180+d):     ${tierCounts.zombie_review} tasks`,
         `Total overdue:             ${nonFinanceTasks.length} tasks`,
+        `Tasks missing due date:    ${tasksMissingDueDate.length} tasks`,
         `Tasks assigned to inactive users: ${inactiveUserTasks.length}`,
         ``,
         `--- COMPLETIONS ---`,

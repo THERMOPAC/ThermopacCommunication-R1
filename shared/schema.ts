@@ -1079,8 +1079,8 @@ export type PlantCost = typeof plantCosts.$inferSelect;
 export const insertTaskSchema = createInsertSchema(tasks).extend({
   priority: z.enum(['Low', 'Medium', 'High']),
   startDate: z.string(),
-  finishDate: z.string(),
-  dueDate: z.string().optional(),
+  finishDate: z.string().min(1, "Due date is required"),
+  dueDate: z.string().min(1, "Due date is required"),
   sourceType: z.enum(['manual', 'meeting_commitment', 'recurring', 'llm_insight']).optional(),
   sourceId: z.number().optional()
 });
