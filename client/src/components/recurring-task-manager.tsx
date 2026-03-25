@@ -874,7 +874,7 @@ export default function RecurringTaskManager({ users }: RecurringTaskManagerProp
             </DialogTrigger>
             <DialogContent className="max-w-3xl">
               <DialogHeader>
-                <DialogTitle>{editingPattern ? "Edit Recurring Task" : "Create Recurring Task"}</DialogTitle>
+                <DialogTitle>{editingPattern ? `Edit Recurring Task — ${editingPattern.templateTitle}` : "Create Recurring Task"}</DialogTitle>
                 <DialogDescription>
                   Define a pattern for automatically generating tasks.
                 </DialogDescription>
