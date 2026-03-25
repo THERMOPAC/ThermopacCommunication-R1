@@ -502,19 +502,10 @@ export default function DwarPage() {
                       type="number"
                       step="0.01"
                       value={newActivity.plannedHours || ''}
-                      onChange={(e) => {
-                        const val = Math.round((parseFloat(e.target.value) || 0) * 100) / 100;
-                        setNewActivity({...newActivity, plannedHours: val});
-                        setPlannedHoursAutoFilled(false);
-                      }}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
                       placeholder="0.00"
                     />
-                    {plannedHoursAutoFilled && (
-                      <p className="text-xs text-blue-600 mt-1">Calculated from task schedule (business days × 8h)</p>
-                    )}
-                    {(newActivity.plannedHours || 0) > 10 && (
-                      <p className="text-xs text-amber-600 mt-1">Planned hours exceed 10 — verify if realistic for one day</p>
-                    )}
                   </div>
                   <div>
                     <Label>Actual Time Spent (hours)</Label>
