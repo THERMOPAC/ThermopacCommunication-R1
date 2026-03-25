@@ -93,6 +93,7 @@ type Insight = {
   insightType: string;
   title: string;
   summary: string;
+  content: string;
   details: any;
   createdAt: string;
 };
@@ -1266,7 +1267,7 @@ export default function AgentDashboardPage() {
 
 function InsightCard({ insight }: { insight: Insight }) {
   const [expanded, setExpanded] = useState(false);
-  const content = insight.summary || (insight.details as any)?.content || '';
+  const content = insight.content || insight.summary || (insight.details as any)?.content || '';
   const lines = typeof content === 'string' ? content.split('\n') : [];
 
   return (
