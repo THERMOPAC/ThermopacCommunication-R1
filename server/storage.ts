@@ -1491,6 +1491,89 @@ export class DatabaseStorage implements IStorage {
     return patterns as RecurringPattern[];
   }
 
+  calculateFirstScheduledDate(pattern: RecurringPattern, startDate: Date): Date {
+    switch (pattern.pattern) {
+      case 'daily':
+        return new Date(startDate);
+
+      case 'monthly': {
+        if (!pattern.dayOfMonth) return new Date(startDate);
+        const year = startDate.getFullYear();
+        const month = startDate.getMonth();
+        const day = startDate.getDate();
+        if (pattern.dayOfMonth >= day) {
+          const lastDay = new Date(year, month + 1, 0).getDate();
+          return new Date(year, month, Math.min(pattern.dayOfMonth, lastDay));
+        } else {
+          let nextMonth = month + 1;
+          let nextYear = year;
+          if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+          const lastDay = new Date(nextYear, nextMonth + 1, 0).getDate();
+          return new Date(nextYear, nextMonth, Math.min(pattern.dayOfMonth, lastDay));
+        }
+      }
+
+      case 'quarterly': {
+        if (!pattern.dayOfMonth) return new Date(startDate);
+        const qYear = startDate.getFullYear();
+        const qMonth = startDate.getMonth();
+        const qDay = startDate.getDate();
+        const quarterStartMonths = [0, 3, 6, 9];
+        let currentQuarterStart = 0;
+        for (const m of quarterStartMonths) {
+          if (qMonth >= m) currentQuarterStart = m;
+        }
+        for (let offset = 0; offset < 4; offset++) {
+          let checkMonth = currentQuarterStart + offset * 3;
+          let checkYear = qYear;
+          while (checkMonth > 11) { checkMonth -= 12; checkYear++; }
+          const lastDay = new Date(checkYear, checkMonth + 1, 0).getDate();
+          const scheduledDay = Math.min(pattern.dayOfMonth, lastDay);
+          const candidateDate = new Date(checkYear, checkMonth, scheduledDay);
+          if (candidateDate >= startDate) return candidateDate;
+        }
+        return new Date(startDate);
+      }
+
+      case 'half_yearly': {
+        if (!pattern.dayOfMonth) return new Date(startDate);
+        const hyYear = startDate.getFullYear();
+        const hyMonth = startDate.getMonth();
+        const halfStartMonths = [0, 6];
+        let currentHalfStart = 0;
+        for (const m of halfStartMonths) {
+          if (hyMonth >= m) currentHalfStart = m;
+        }
+        for (let offset = 0; offset < 3; offset++) {
+          let checkMonth = currentHalfStart + offset * 6;
+          let checkYear = hyYear;
+          while (checkMonth > 11) { checkMonth -= 12; checkYear++; }
+          const lastDay = new Date(checkYear, checkMonth + 1, 0).getDate();
+          const scheduledDay = Math.min(pattern.dayOfMonth, lastDay);
+          const candidateDate = new Date(checkYear, checkMonth, scheduledDay);
+          if (candidateDate >= startDate) return candidateDate;
+        }
+        return new Date(startDate);
+      }
+
+      case 'yearly': {
+        if (!pattern.dayOfMonth) return new Date(startDate);
+        const yYear = startDate.getFullYear();
+        const targetMonth = (pattern.monthOfYear || (startDate.getMonth() + 1)) - 1;
+        const lastDay1 = new Date(yYear, targetMonth + 1, 0).getDate();
+        const scheduledDay1 = Math.min(pattern.dayOfMonth, lastDay1);
+        const thisYearCandidate = new Date(yYear, targetMonth, scheduledDay1);
+        if (thisYearCandidate >= startDate) return thisYearCandidate;
+        const lastDay2 = new Date(yYear + 1, targetMonth + 1, 0).getDate();
+        const scheduledDay2 = Math.min(pattern.dayOfMonth, lastDay2);
+        return new Date(yYear + 1, targetMonth, scheduledDay2);
+      }
+
+      default:
+        return new Date(startDate);
+    }
+  }
+
   calculateNextOccurrence(pattern: RecurringPattern, fromDate: Date): Date | null {
     const today = new Date(fromDate);
     let nextOccurrence = new Date(today);
@@ -1709,7 +1792,14 @@ export class DatabaseStorage implements IStorage {
         if (nextGenDateStr) {
           taskDueDate = new Date(nextGenDateStr + 'T00:00:00');
         } else {
-          taskDueDate = this.calculateNextOccurrence(pattern, today);
+          const startDate = new Date(pattern.startDate);
+          if (startDate <= today) {
+            taskDueDate = this.calculateFirstScheduledDate(pattern, startDate);
+            console.log(`Pattern ${pattern.id}: First scheduled date from start_date ${pattern.startDate} = ${taskDueDate.toISOString().split('T')[0]}`);
+          } else {
+            taskDueDate = this.calculateFirstScheduledDate(pattern, startDate);
+            console.log(`Pattern ${pattern.id}: Start date ${pattern.startDate} is in the future, first scheduled = ${taskDueDate.toISOString().split('T')[0]}`);
+          }
         }
         
         if (!taskDueDate) {

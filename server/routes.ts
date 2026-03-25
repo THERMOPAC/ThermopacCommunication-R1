@@ -2989,11 +2989,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create the pattern
           const pattern = await storage.createRecurringPattern(patternData);
           
-          // If no nextGenerationDate is provided, set it to startDate
           if (!pattern.nextGenerationDate) {
-            console.log(`📝 Setting nextGenerationDate to startDate: ${pattern.startDate}`);
+            const firstScheduled = storage.calculateFirstScheduledDate(
+              pattern as any,
+              new Date(pattern.startDate)
+            );
+            const firstScheduledStr = firstScheduled.toISOString().split('T')[0];
+            console.log(`📝 Setting nextGenerationDate based on pattern schedule: ${firstScheduledStr} (start_date was ${pattern.startDate})`);
             await storage.updateRecurringPattern(pattern.id, {
-              nextGenerationDate: pattern.startDate
+              nextGenerationDate: firstScheduledStr
             });
           }
           
