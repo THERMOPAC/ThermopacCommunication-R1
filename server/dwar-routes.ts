@@ -148,17 +148,15 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
     const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
     const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
 
-    // Calculate productivity score
+    const priorityWeight = (p: string) => p === 'high' ? 3 : p === 'medium' ? 2 : 1;
     let productivityScore = 0;
     if (updatedActivities.length > 0) {
-      const completedActivities = updatedActivities.filter(a => a.status === 'completed');
-      const totalActivities = updatedActivities.length;
-      const avgTimeSpent = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0) / totalActivities;
-      
-      productivityScore = (completedActivities.length / totalActivities) * 50 + 
-                         Math.min(avgTimeSpent / 8, 1) * 30 + 
-                         completedTasks * 5;
-      productivityScore = Math.min(productivityScore, 100);
+      const weightedCompleted = updatedActivities
+        .filter(a => a.status === 'completed')
+        .reduce((sum, a) => sum + priorityWeight(a.priority || 'medium'), 0);
+      const weightedTotal = updatedActivities
+        .reduce((sum, a) => sum + priorityWeight(a.priority || 'medium'), 0);
+      productivityScore = weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
     }
 
     // Update DWAR with new activity
@@ -402,36 +400,46 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
     const userId = req.user!.id;
     const updateData = req.body;
 
-    // Calculate productivity score based on activities
+    const priorityWeight = (p: string) => p === 'high' ? 3 : p === 'medium' ? 2 : 1;
+
     let productivityScore = 0;
     if (updateData.activities && updateData.activities.length > 0) {
-      const completedActivities = updateData.activities.filter((a: any) => a.status === 'completed');
-      const totalActivities = updateData.activities.length;
-      const avgTimeSpent = updateData.activities.reduce((sum: number, a: any) => sum + (a.timeSpent || 0), 0) / totalActivities;
-      
-      productivityScore = (completedActivities.length / totalActivities) * 50 + 
-                         Math.min(avgTimeSpent / 8, 1) * 30 + 
-                         (updateData.tasksCompleted || 0) * 5;
-      productivityScore = Math.min(productivityScore, 100);
+      const weightedCompleted = updateData.activities
+        .filter((a: any) => a.status === 'completed')
+        .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
+      const weightedTotal = updateData.activities
+        .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
+      productivityScore = weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
     }
 
-    // Calculate quality score based on task completion rate and manager feedback
-    let qualityScore = productivityScore * 0.7; // Base on productivity
+    let qualityScore = 0;
     if (updateData.managerRating) {
       qualityScore = (updateData.managerRating / 5) * 100;
     }
 
-    // Calculate efficiency rating
-    const efficiencyRating = updateData.hoursWorked > 0 ? 
-      ((updateData.tasksCompleted || 0) / updateData.hoursWorked) * 20 : 0;
+    let efficiencyRating = 0;
+    if (updateData.activities && updateData.activities.length > 0 && updateData.hoursWorked > 0) {
+      const weightedCompleted = updateData.activities
+        .filter((a: any) => a.status === 'completed')
+        .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
+      efficiencyRating = Math.min((weightedCompleted / updateData.hoursWorked) * 10, 100);
+    }
 
-    // Calculate collaboration score (based on activities involving others)
-    const collaborationActivities = updateData.activities?.filter((a: any) => 
-      a.description?.toLowerCase().includes('meeting') || 
-      a.description?.toLowerCase().includes('collaboration') ||
-      a.description?.toLowerCase().includes('team')
-    ) || [];
-    const collaborationScore = Math.min((collaborationActivities.length / (updateData.activities?.length || 1)) * 100, 100);
+    let collaborationScore = 0;
+    if (updateData.activities && updateData.activities.length > 0) {
+      let weightedCollabCount = 0;
+      for (const a of updateData.activities) {
+        if (a.collaborative === true) {
+          weightedCollabCount += 1.0;
+        } else if (a.collaborative === undefined || a.collaborative === null) {
+          const desc = (a.description || '').toLowerCase();
+          if (desc.includes('meeting') || desc.includes('collaboration') || desc.includes('team')) {
+            weightedCollabCount += 0.5;
+          }
+        }
+      }
+      collaborationScore = Math.min((weightedCollabCount / updateData.activities.length) * 100, 100);
+    }
 
     const [updatedReport] = await db
       .update(dailyWorkReports)

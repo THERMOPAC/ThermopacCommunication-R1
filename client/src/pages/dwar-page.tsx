@@ -38,8 +38,11 @@ import {
   FileText,
   Award,
   Plus,
-  Save
+  Save,
+  Users,
+  AlertTriangle
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 
 interface Activity {
@@ -51,6 +54,7 @@ interface Activity {
   status: 'completed' | 'in_progress' | 'pending' | 'blocked';
   taskId?: number;
   blockedReason?: string;
+  collaborative?: boolean;
 }
 
 interface PriorityTask {
@@ -124,7 +128,8 @@ export default function DwarPage() {
     priority: 'medium',
     status: 'pending',
     taskId: undefined,
-    blockedReason: ''
+    blockedReason: '',
+    collaborative: false
   });
 
 
@@ -284,7 +289,8 @@ export default function DwarPage() {
       priority: 'medium',
       status: 'pending',
       taskId: undefined,
-      blockedReason: ''
+      blockedReason: '',
+      collaborative: false
     });
     setIsAddActivityOpen(false);
   };
@@ -517,6 +523,17 @@ export default function DwarPage() {
                     />
                   </div>
                 )}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="collaborative"
+                    checked={newActivity.collaborative || false}
+                    onCheckedChange={(checked) => setNewActivity({...newActivity, collaborative: checked === true})}
+                  />
+                  <Label htmlFor="collaborative" className="text-sm font-normal cursor-pointer">
+                    <Users className="h-3.5 w-3.5 inline mr-1" />
+                    This activity involved others
+                  </Label>
+                </div>
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setIsAddActivityOpen(false)}>
                     Cancel
@@ -548,6 +565,12 @@ export default function DwarPage() {
                       </Badge>
                       {activity.taskId && (
                         <Badge variant="outline">Task #{activity.taskId}</Badge>
+                      )}
+                      {activity.collaborative && (
+                        <Badge variant="outline" className="text-blue-600 border-blue-300">
+                          <Users className="h-3 w-3 mr-1" />
+                          Collaborative
+                        </Badge>
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">{activity.description}</p>
@@ -626,12 +649,13 @@ export default function DwarPage() {
                         const newActivity = {
                           type: 'Task Work',
                           description: task.title,
-                          timeSpent: 1, // Default 1 hour, user can edit
+                          timeSpent: 1,
                           plannedHours: 1,
                           priority: task.priority?.toLowerCase() || 'medium',
                           status: 'completed' as const,
                           taskId: task.id,
-                          blockedReason: ''
+                          blockedReason: '',
+                          collaborative: false
                         };
                         
                         const updatedActivities = [...(todayReport.activities || []), newActivity];
@@ -811,14 +835,24 @@ export default function DwarPage() {
               </div>
             )}
             
+            {todayReport?.priorityTasks && todayReport.priorityTasks.length > 5 && (
+              <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                Recommended: Keep to 5 or fewer focused tasks for better planning discipline.
+              </div>
+            )}
+
             <div className="mt-4">
               <Label>Tomorrow's Plans</Label>
               <Textarea
                 value={localTomorrowPlans}
                 onChange={(e) => setLocalTomorrowPlans(e.target.value)}
-                placeholder="Describe your overall plans for tomorrow..."
+                placeholder="Be specific — e.g. 'Complete weld inspection for WO-1234' instead of 'Do inspections'"
                 disabled={todayReport?.status !== 'draft'}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Write clear, specific task descriptions to improve follow-through tracking accuracy.
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -892,6 +926,12 @@ export default function DwarPage() {
                 ))}
               </div>
             )}
+
+            {followThrough.details.yesterdayPlannedItems?.some((item: any) => !item.matched) && (
+              <p className="text-xs text-muted-foreground mt-3 italic">
+                Tip: Tasks not completed today can be re-added to tomorrow's plan to maintain continuity.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -914,14 +954,15 @@ export default function DwarPage() {
         </Card>
       )}
 
-      {/* KPI Display */}
+      {/* Daily Work Indicators */}
       {todayReport && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="h-5 w-5" />
-              Performance KPIs
+              Daily Work Indicators
             </CardTitle>
+            <p className="text-xs text-muted-foreground">Operational signals to help track daily work patterns. Not linked to formal appraisal scoring.</p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -930,7 +971,11 @@ export default function DwarPage() {
                 <div className="text-sm text-muted-foreground">Productivity</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{Number(todayReport.qualityScore || 0).toFixed(1)}</div>
+                {todayReport.managerRating ? (
+                  <div className="text-2xl font-bold text-green-600">{Number(todayReport.qualityScore || 0).toFixed(1)}</div>
+                ) : (
+                  <div className="text-sm font-medium text-gray-400 pt-1">Awaiting Review</div>
+                )}
                 <div className="text-sm text-muted-foreground">Quality</div>
               </div>
               <div className="text-center">
