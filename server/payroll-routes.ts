@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router } from 'express';
 import { db } from './db';
 import { 
@@ -88,7 +89,7 @@ router.get('/employee-salaries', async (req, res) => {
     res.json(salaries);
   } catch (error) {
     console.error('Error fetching employee salaries:', error);
-    res.status(500).json({ error: 'Failed to fetch employee salaries' });
+    sendError(res, error);
   }
 });
 
@@ -113,7 +114,7 @@ router.post('/employee-salaries', async (req, res) => {
     res.status(201).json(newSalary);
   } catch (error) {
     console.error('Error creating employee salary:', error);
-    res.status(500).json({ error: 'Failed to create employee salary' });
+    sendError(res, error);
   }
 });
 
@@ -128,7 +129,7 @@ router.get('/payroll-periods', async (req, res) => {
     res.json(periods);
   } catch (error) {
     console.error('Error fetching payroll periods:', error);
-    res.status(500).json({ error: 'Failed to fetch payroll periods' });
+    sendError(res, error);
   }
 });
 
@@ -144,7 +145,7 @@ router.post('/payroll-periods', async (req, res) => {
     res.status(201).json(newPeriod);
   } catch (error) {
     console.error('Error creating payroll period:', error);
-    res.status(500).json({ error: 'Failed to create payroll period' });
+    sendError(res, error);
   }
 });
 
@@ -290,7 +291,7 @@ router.get('/payroll-records/:periodId', async (req, res) => {
     res.json(records);
   } catch (error) {
     console.error('Error fetching payroll records:', error);
-    res.status(500).json({ error: 'Failed to fetch payroll records' });
+    sendError(res, error);
   }
 });
 
@@ -306,7 +307,7 @@ router.get('/settings', async (req, res) => {
     res.json(settings);
   } catch (error) {
     console.error('Error fetching payroll settings:', error);
-    res.status(500).json({ error: 'Failed to fetch payroll settings' });
+    sendError(res, error);
   }
 });
 
@@ -328,7 +329,7 @@ router.put('/settings/:id', async (req, res) => {
     res.json(updatedSetting);
   } catch (error) {
     console.error('Error updating payroll setting:', error);
-    res.status(500).json({ error: 'Failed to update payroll setting' });
+    sendError(res, error);
   }
 });
 
@@ -343,7 +344,7 @@ router.get('/bonus-rules', async (req, res) => {
     res.json(rules);
   } catch (error) {
     console.error('Error fetching bonus rules:', error);
-    res.status(500).json({ error: 'Failed to fetch bonus rules' });
+    sendError(res, error);
   }
 });
 
@@ -359,7 +360,7 @@ router.post('/bonus-rules', async (req, res) => {
     res.status(201).json(newRule);
   } catch (error) {
     console.error('Error creating bonus rule:', error);
-    res.status(500).json({ error: 'Failed to create bonus rule' });
+    sendError(res, error);
   }
 });
 

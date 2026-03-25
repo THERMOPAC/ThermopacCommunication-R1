@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, getErrorMessage } from '@/lib/queryClient';
 import * as XLSX from 'xlsx';
 import { PayrollRunWizard } from '@/components/payroll-run-wizard';
 import { TdsManagementTab } from '@/components/tds-management';
@@ -450,7 +450,7 @@ function TestSapJeButton() {
     onError: (e: any) => {
       setResult({ error: e.message });
       setShowResult(true);
-      toast({ title: 'Test JE Failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'Test JE Failed', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -476,7 +476,7 @@ function TestSapJeButton() {
                   } catch (e: any) {
                     setResult({ error: e.message });
                     setShowResult(true);
-                    toast({ title: 'GL Auto-Resolve Failed', description: e.message, variant: 'destructive' });
+                    toast({ title: 'GL Auto-Resolve Failed', description: getErrorMessage(e), variant: 'destructive' });
                   }
                 }}
                 variant="outline"
@@ -624,7 +624,7 @@ function GeneratedSalariesView() {
       setVoidAllReason('');
       toast({ title: 'Records Cleared', description: data.message });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const voidRecordMutation = useMutation({
@@ -642,7 +642,7 @@ function GeneratedSalariesView() {
       setShowVoidRecordConfirm(false);
       setVoidRecordId(null);
       setVoidRecordReason('');
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -659,7 +659,7 @@ function GeneratedSalariesView() {
     onError: (e: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/payroll/records'] });
       setPostingId(null);
-      toast({ title: 'SAP Posting Failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'SAP Posting Failed', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -674,7 +674,7 @@ function GeneratedSalariesView() {
       setReasonRecordId(null);
     },
     onError: (e: any) => {
-      toast({ title: 'Status Update Failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'Status Update Failed', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -698,7 +698,7 @@ function GeneratedSalariesView() {
       setReversingId(null);
       setShowReverseConfirm(false);
       setReverseRecordId(null);
-      toast({ title: 'Reversal Failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'Reversal Failed', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -717,7 +717,7 @@ function GeneratedSalariesView() {
     },
     onError: (e: any) => {
       setVerifyingPeriodId(null);
-      toast({ title: 'Verification Error', description: e.message, variant: 'destructive' });
+      toast({ title: 'Verification Error', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -733,7 +733,7 @@ function GeneratedSalariesView() {
     },
     onError: (e: any) => {
       setVerifyingPeriodId(null);
-      toast({ title: 'Re-Verification Error', description: e.message, variant: 'destructive' });
+      toast({ title: 'Re-Verification Error', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -749,7 +749,7 @@ function GeneratedSalariesView() {
       toast({ title: 'Override Applied', description: 'Verification warnings have been overridden' });
     },
     onError: (e: any) => {
-      toast({ title: 'Override Failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'Override Failed', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -763,7 +763,7 @@ function GeneratedSalariesView() {
       toast({ title: 'Record Updated', description: 'Salary record has been updated successfully.' });
     },
     onError: (e: any) => {
-      toast({ title: 'Update Failed', description: e.message, variant: 'destructive' });
+      toast({ title: 'Update Failed', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 
@@ -2127,7 +2127,7 @@ export default function PayrollManagementNew() {
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/verify'] });
       toast({ title: 'Payroll Test Run Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay).toLocaleString()}` });
     },
-    onError: (e: any) => toast({ title: 'Test Run Failed', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Test Run Failed', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const handleTestRun = (config: SalaryConfig) => {

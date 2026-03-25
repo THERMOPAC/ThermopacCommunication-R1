@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -181,7 +181,7 @@ export default function GlMappingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const seedAllMutation = useMutation({
@@ -190,7 +190,7 @@ export default function GlMappingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
       toast({ title: 'GL Mappings Seeded', description: data.created > 0 ? `Created ${data.created} new mapping rows.` : 'All mappings already exist — nothing to seed.' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const validateMutation = useMutation({
@@ -202,7 +202,7 @@ export default function GlMappingPage() {
       const s = data.summary;
       toast({ title: 'GL Validation Complete', description: `${s.valid} valid, ${s.invalid} invalid, ${s.empty} empty of ${s.total} mappings` });
     },
-    onError: (e: any) => toast({ title: 'Validation Failed', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Validation Failed', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const setSapCodeMutation = useMutation({
@@ -212,7 +212,7 @@ export default function GlMappingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/gl-mappings'] });
       toast({ title: 'SAP Account Code Linked' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   function inlineSave(m: any, field: 'glAccountCode' | 'glAccountName', value: string) {

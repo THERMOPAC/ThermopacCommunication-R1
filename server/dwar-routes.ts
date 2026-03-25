@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from 'express';
 import { db } from './db';
 import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns } from '@shared/schema';
@@ -209,7 +210,7 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
 
   } catch (error) {
     console.error('Error auto-creating DWAR activity from task:', error);
-    res.status(500).json({ error: 'Failed to auto-create activity from task' });
+    sendError(res, error);
   }
 });
 
@@ -382,7 +383,7 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
     });
   } catch (error) {
     console.error('Error calculating plan follow-through:', error);
-    res.status(500).json({ error: 'Failed to calculate plan follow-through' });
+    sendError(res, error);
   }
 });
 
@@ -523,7 +524,7 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
     res.json(updatedReport);
   } catch (error) {
     console.error('Error updating DWAR:', error);
-    res.status(500).json({ error: 'Failed to update report' });
+    sendError(res, error);
   }
 });
 
@@ -637,7 +638,7 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
     });
   } catch (error) {
     console.error('Error submitting DWAR:', error);
-    res.status(500).json({ error: 'Failed to submit report' });
+    sendError(res, error);
   }
 });
 
@@ -668,7 +669,7 @@ router.get('/my-reports', ensureAuthenticated, async (req: Request, res: Respons
     res.json(reports);
   } catch (error) {
     console.error('Error getting DWAR history:', error);
-    res.status(500).json({ error: 'Failed to get report history' });
+    sendError(res, error);
   }
 });
 
@@ -703,7 +704,7 @@ router.get('/admin/pending', ensureAuthenticated, async (req: Request, res: Resp
     res.json(reports);
   } catch (error) {
     console.error('Error getting pending reports:', error);
-    res.status(500).json({ error: 'Failed to get pending reports' });
+    sendError(res, error);
   }
 });
 
@@ -747,7 +748,7 @@ router.post('/admin/review/:id', ensureAuthenticated, async (req: Request, res: 
     res.json({ message: `Report ${action}d successfully`, report: updatedReport });
   } catch (error) {
     console.error('Error reviewing DWAR:', error);
-    res.status(500).json({ error: 'Failed to review report' });
+    sendError(res, error);
   }
 });
 
@@ -780,7 +781,7 @@ router.get('/kpi/:userId/:year/:month', ensureAuthenticated, async (req: Request
     res.json(kpiSummary);
   } catch (error) {
     console.error('Error getting monthly KPI:', error);
-    res.status(500).json({ error: 'Failed to get KPI summary' });
+    sendError(res, error);
   }
 });
 

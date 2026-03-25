@@ -68,7 +68,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getErrorMessage } from "@/lib/queryClient";
 
 // Salary configuration form schema
 const salaryFormSchema = z.object({
@@ -258,7 +258,7 @@ export default function PayrollManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/payroll/records'] });
       toast({ title: 'Payroll Test Run Complete', description: `${data.employee}: Net Pay ₹${parseFloat(data.netPay).toLocaleString()}` });
     },
-    onError: (e: any) => toast({ title: 'Test Run Failed', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Test Run Failed', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const handleTestRun = (config: SalaryConfig) => {

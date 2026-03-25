@@ -9,6 +9,7 @@ import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
 import { eq, sql } from "drizzle-orm";
 import { getUserModulePermissions } from "./utils/permission-utils";
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from "./utils/error-response";
 import { setupGmailRoutes } from "./gmail-routes";
 import { setupGoogleAuth } from "./google-auth";
 import { setupInternalMessagesRoutes } from "./internal-messages-routes";
@@ -641,7 +642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(costs);
     } catch (error) {
       console.error('Error in direct plant costs GET route:', error);
-      res.status(500).json({ error: 'Failed to fetch plant costs' });
+      sendError(res, error);
     }
   });
 
@@ -667,7 +668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedCost);
     } catch (error) {
       console.error('Error in direct plant costs PUT route:', error);
-      res.status(500).json({ error: 'Failed to update plant cost' });
+      sendError(res, error);
     }
   });
 
@@ -694,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(newCost);
     } catch (error) {
       console.error('Error in direct plant costs POST route:', error);
-      res.status(500).json({ error: 'Failed to create plant cost' });
+      sendError(res, error);
     }
   });
 
@@ -713,7 +714,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, message: 'Plant cost deleted successfully' });
     } catch (error) {
       console.error('Error in direct plant costs DELETE route:', error);
-      res.status(500).json({ error: 'Failed to delete plant cost' });
+      sendError(res, error);
     }
   });
   console.log('Plant costs routes registered directly');
@@ -1073,7 +1074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
     } catch (error: any) {
       console.error('❌ ERROR in marketing dashboard finance endpoint:', error);
-      res.status(500).json({ error: 'Failed to fetch dashboard data' });
+      sendError(res, error);
     }
   });
   
@@ -1111,7 +1112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error fetching exchange rate:', error);
-      res.status(500).json({ error: 'Failed to fetch exchange rate' });
+      sendError(res, error);
     }
   });
 
@@ -1171,7 +1172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error updating exchange rate:', error);
-      res.status(500).json({ error: 'Failed to update exchange rate' });
+      sendError(res, error);
     }
   });
 
@@ -1240,7 +1241,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error refreshing exchange rate:', error);
-      res.status(500).json({ error: 'Failed to refresh exchange rate from API' });
+      sendError(res, error);
     }
   });
 
@@ -1993,7 +1994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(users);
     } catch (error) {
       console.error('Error fetching users for selection:', error);
-      res.status(500).json({ error: 'Failed to fetch users' });
+      sendError(res, error);
     }
   });
 

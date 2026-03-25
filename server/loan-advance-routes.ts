@@ -4,6 +4,7 @@ import { employeeLoans, employeeLoanRepayments, employeeAdvances, employeeAdvanc
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { sapHttpsClient } from './sap-b1-integration/sap-https-client';
 import { sapSessionManager } from './sap-session-manager';
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 
 const router = Router();
 
@@ -477,7 +478,7 @@ router.post('/loans/:id/transfer-sap', async (req: Request, res: Response) => {
       return res.status(400).json({ error: result.error });
     }
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to post loan JE to SAP' });
+    sendError(res, error);
   }
 });
 
@@ -504,7 +505,7 @@ router.post('/advances/:id/transfer-sap', async (req: Request, res: Response) =>
       return res.status(400).json({ error: result.error });
     }
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to post advance JE to SAP' });
+    sendError(res, error);
   }
 });
 

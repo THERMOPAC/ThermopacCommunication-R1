@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from "express";
 import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
@@ -20,7 +21,7 @@ router.get('/types', ensureAuthenticated, async (req: Request, res: Response) =>
     res.json(types);
   } catch (error) {
     console.error('Error fetching leave types:', error);
-    res.status(500).json({ error: 'Failed to fetch leave types' });
+    sendError(res, error);
   }
 });
 
@@ -58,7 +59,7 @@ router.get('/my-balance', ensureAuthenticated, async (req: Request, res: Respons
     res.json(balancesWithAvailable);
   } catch (error) {
     console.error('Error fetching leave balance:', error);
-    res.status(500).json({ error: 'Failed to fetch leave balance' });
+    sendError(res, error);
   }
 });
 
@@ -95,7 +96,7 @@ router.get('/balance/:userId', ensureAuthenticated, async (req: Request, res: Re
     res.json(balancesWithAvailable);
   } catch (error) {
     console.error('Error fetching user leave balance:', error);
-    res.status(500).json({ error: 'Failed to fetch leave balance' });
+    sendError(res, error);
   }
 });
 
@@ -183,7 +184,7 @@ router.get('/admin/all-balances', ensureAuthenticated, async (req: Request, res:
     res.json({ employees: employeesWithBalances, leaveTypes: allLeaveTypes, year });
   } catch (error) {
     console.error('Error fetching all leave balances:', error);
-    res.status(500).json({ error: 'Failed to fetch leave balances' });
+    sendError(res, error);
   }
 });
 
@@ -237,7 +238,7 @@ router.get('/my-requests', ensureAuthenticated, async (req: Request, res: Respon
     res.json(requestsWithManager);
   } catch (error) {
     console.error('Error fetching leave requests:', error);
-    res.status(500).json({ error: 'Failed to fetch leave requests' });
+    sendError(res, error);
   }
 });
 
@@ -268,7 +269,7 @@ router.get('/my-reporting-manager', ensureAuthenticated, async (req: Request, re
     res.json(manager || null);
   } catch (error) {
     console.error('Error fetching reporting manager:', error);
-    res.status(500).json({ error: 'Failed to fetch reporting manager' });
+    sendError(res, error);
   }
 });
 
@@ -288,7 +289,7 @@ router.get('/company-holidays', ensureAuthenticated, async (req: Request, res: R
     res.json(holidays);
   } catch (error) {
     console.error('Error fetching company holidays:', error);
-    res.status(500).json({ error: 'Failed to fetch company holidays' });
+    sendError(res, error);
   }
 });
 
@@ -409,7 +410,7 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
     res.status(201).json(newRequest);
   } catch (error) {
     console.error('Error creating leave request:', error);
-    res.status(500).json({ error: 'Failed to create leave request' });
+    sendError(res, error);
   }
 });
 
@@ -458,7 +459,7 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
     res.json({ success: true, message: 'Request cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling leave request:', error);
-    res.status(500).json({ error: 'Failed to cancel request' });
+    sendError(res, error);
   }
 });
 
@@ -505,7 +506,7 @@ router.get('/team-requests', ensureAuthenticated, async (req: Request, res: Resp
     res.json(formattedRequests);
   } catch (error) {
     console.error('Error fetching team leave requests:', error);
-    res.status(500).json({ error: 'Failed to fetch team leave requests' });
+    sendError(res, error);
   }
 });
 
@@ -522,7 +523,7 @@ router.get('/has-direct-reports', ensureAuthenticated, async (req: Request, res:
     res.json({ hasDirectReports: directReports.length > 0 });
   } catch (error) {
     console.error('Error checking direct reports:', error);
-    res.status(500).json({ error: 'Failed to check direct reports' });
+    sendError(res, error);
   }
 });
 
@@ -604,7 +605,7 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
     res.json({ success: true, message: 'Leave request approved successfully' });
   } catch (error) {
     console.error('Error approving leave request:', error);
-    res.status(500).json({ error: 'Failed to approve request' });
+    sendError(res, error);
   }
 });
 
@@ -678,7 +679,7 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
     res.json({ success: true, message: 'Leave request rejected' });
   } catch (error) {
     console.error('Error rejecting leave request:', error);
-    res.status(500).json({ error: 'Failed to reject request' });
+    sendError(res, error);
   }
 });
 
@@ -693,7 +694,7 @@ router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: 
     const isAllowedRole = ['admin', 'manager', 'hr', 'Superuser', 'General Manager', 'Senior Manager'].includes(userRole);
     
     if (!hasAdminPermission && !isAllowedRole) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return sendPermissionError(res);
     }
 
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
@@ -849,7 +850,7 @@ router.get('/admin/allocations', ensureAuthenticated, async (req: Request, res: 
     });
   } catch (error) {
     console.error('Error fetching admin leave allocations:', error);
-    res.status(500).json({ error: 'Failed to fetch leave allocations' });
+    sendError(res, error);
   }
 });
 
@@ -864,7 +865,7 @@ router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res:
     const isAllowedRole = ['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole);
     
     if (!hasAdminPermission && !isAllowedRole) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return sendPermissionError(res);
     }
 
     const { userId, leaveTypeId, year, allocatedDays, carryoverDays } = req.body;
@@ -912,7 +913,7 @@ router.post('/admin/allocations', ensureAuthenticated, async (req: Request, res:
     res.json({ success: true, message: 'Leave allocation updated' });
   } catch (error) {
     console.error('Error updating leave allocation:', error);
-    res.status(500).json({ error: 'Failed to update leave allocation' });
+    sendError(res, error);
   }
 });
 
@@ -927,7 +928,7 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
     const isAllowedRole = ['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole);
     
     if (!hasAdminPermission && !isAllowedRole) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return sendPermissionError(res);
     }
 
     const { year, allocations } = req.body;
@@ -1041,7 +1042,7 @@ router.post('/admin/allocations/bulk', ensureAuthenticated, async (req: Request,
     res.json({ success: true, message: `Bulk allocation complete. Created: ${created}, Skipped: ${skipped}` });
   } catch (error) {
     console.error('Error bulk allocating leave:', error);
-    res.status(500).json({ error: 'Failed to bulk allocate leave' });
+    sendError(res, error);
   }
 });
 
@@ -1056,7 +1057,7 @@ router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req:
     const isAllowedRole = ['admin', 'hr', 'Superuser', 'General Manager'].includes(userRole);
     
     if (!hasAdminPermission && !isAllowedRole) {
-      return res.status(403).json({ error: 'Unauthorized' });
+      return sendPermissionError(res);
     }
 
     const userId = parseInt(req.params.userId);
@@ -1085,7 +1086,7 @@ router.patch('/admin/users/:userId/weekly-off', ensureAuthenticated, async (req:
     res.json({ success: true, message: 'Weekly off days updated' });
   } catch (error) {
     console.error('Error updating weekly off days:', error);
-    res.status(500).json({ error: 'Failed to update weekly off days' });
+    sendError(res, error);
   }
 });
 

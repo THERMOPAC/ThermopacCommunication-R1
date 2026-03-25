@@ -1,21 +1,83 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+export interface ApiErrorResponse {
+  success: false;
+  errorCode: string;
+  message: string;
+  details?: string[];
+  action?: string;
+}
+
+export class ApiError extends Error {
+  public readonly statusCode: number;
+  public readonly errorCode: string;
+  public readonly userMessage: string;
+  public readonly details: string[];
+  public readonly action: string | undefined;
+
+  constructor(statusCode: number, body: ApiErrorResponse) {
+    super(body.message);
+    this.name = 'ApiError';
+    this.statusCode = statusCode;
+    this.errorCode = body.errorCode;
+    this.userMessage = body.message;
+    this.details = body.details ?? [];
+    this.action = body.action;
+  }
+
+  get displayMessage(): string {
+    const parts: string[] = [this.userMessage];
+    if (this.details.length) {
+      parts.push(this.details.join('. '));
+    }
+    if (this.action) {
+      parts.push(this.action);
+    }
+    return parts.join(' ');
   }
 }
 
-/**
- * Enhanced API request function that automatically parses JSON
- * @param method - HTTP method (GET, POST, PUT, etc.)
- * @param url - API endpoint URL
- * @param data - Optional data to send with the request
- * @param skipErrorThrow - Whether to skip throwing errors
- * @param parseJson - Whether to parse and return JSON (default: true)
- * @returns Parsed JSON data or Response object based on parseJson parameter
- */
+function isStructuredError(obj: any): obj is ApiErrorResponse {
+  return obj && obj.success === false && typeof obj.errorCode === 'string' && typeof obj.message === 'string';
+}
+
+async function throwIfResNotOk(res: Response) {
+  if (!res.ok) {
+    let body: string | null = null;
+    try {
+      body = await res.text();
+    } catch {}
+
+    if (body) {
+      try {
+        const parsed = JSON.parse(body);
+        if (isStructuredError(parsed)) {
+          throw new ApiError(res.status, parsed);
+        }
+        if (parsed.error) {
+          throw new ApiError(res.status, {
+            success: false,
+            errorCode: parsed.code || 'UNKNOWN_ERROR',
+            message: typeof parsed.error === 'string' ? parsed.error : (parsed.message || res.statusText),
+            details: parsed.details ? (Array.isArray(parsed.details) ? parsed.details : [String(parsed.details)]) : undefined,
+          });
+        }
+        if (parsed.message) {
+          throw new ApiError(res.status, {
+            success: false,
+            errorCode: 'UNKNOWN_ERROR',
+            message: parsed.message,
+          });
+        }
+      } catch (e) {
+        if (e instanceof ApiError) throw e;
+      }
+    }
+
+    throw new Error(`${res.status}: ${body || res.statusText}`);
+  }
+}
+
 export async function apiRequest<T = any>(
   method: string,
   url: string,
@@ -23,20 +85,17 @@ export async function apiRequest<T = any>(
   skipErrorThrow: boolean = false,
   parseJson: boolean = true
 ): Promise<T | Response> {
-  // For FormData, don't set Content-Type header (browser will set it with boundary)
-  // and don't stringify the data
   const isFormData = data instanceof FormData;
-  
-  // Sanitize data to ensure it's valid JSON
+
   let sanitizedData = data;
   if (data && !isFormData && typeof data === 'object') {
     sanitizedData = JSON.parse(JSON.stringify(data));
   }
-  
+
   try {
     const res = await fetch(url, {
       method,
-      headers: data && !isFormData ? { 
+      headers: data && !isFormData ? {
         "Content-Type": "application/json",
         "Accept": "application/json"
       } : {},
@@ -47,21 +106,19 @@ export async function apiRequest<T = any>(
     if (!skipErrorThrow) {
       await throwIfResNotOk(res);
     }
-    
-    // Return parsed JSON data if requested, otherwise return Response object
+
     if (parseJson) {
       try {
-        // Some endpoints might return empty response
         const text = await res.text();
-        
-        // Additional check - if the response starts with <!DOCTYPE or <html, it's an HTML error page
+
         if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
           console.error('Received HTML instead of JSON:', text.substring(0, 150) + '...');
           throw new Error('Server returned HTML instead of JSON. This may indicate a server error.');
         }
-        
+
         return text ? JSON.parse(text) : null;
       } catch (error) {
+        if (error instanceof ApiError) throw error;
         console.error('Error parsing response:', error);
         if (error instanceof Error) {
           throw new Error(`Failed to parse server response as JSON: ${error.message}`);
@@ -73,9 +130,42 @@ export async function apiRequest<T = any>(
       return res;
     }
   } catch (error) {
+    if (error instanceof ApiError) throw error;
     console.error('API request failed:', error);
     throw error;
   }
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.userMessage;
+  }
+  if (error instanceof Error) {
+    const msg = error.message;
+    const colonIdx = msg.indexOf(': ');
+    if (colonIdx > 0 && colonIdx < 5) {
+      const afterStatus = msg.substring(colonIdx + 2);
+      try {
+        const parsed = JSON.parse(afterStatus);
+        if (isStructuredError(parsed)) return parsed.message;
+        if (parsed.message) return parsed.message;
+        if (parsed.error) return typeof parsed.error === 'string' ? parsed.error : msg;
+      } catch {}
+      return afterStatus;
+    }
+    return msg;
+  }
+  return 'An unexpected error occurred.';
+}
+
+export function getErrorDetails(error: unknown): string[] {
+  if (error instanceof ApiError) return error.details;
+  return [];
+}
+
+export function getErrorAction(error: unknown): string | undefined {
+  if (error instanceof ApiError) return error.action;
+  return undefined;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -93,22 +183,21 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    
+
     try {
-      // Some endpoints might return empty response
       const text = await res.text();
-      
-      // Additional check - if the response starts with <!DOCTYPE or <html, it's an HTML error page
+
       if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
         console.error('Received HTML instead of JSON:', text.substring(0, 150) + '...');
         throw new Error('Server returned HTML instead of JSON. This may indicate a server error.');
       }
-      
+
       return text ? JSON.parse(text) : null;
     } catch (error) {
+      if (error instanceof ApiError) throw error;
       console.error('Error parsing response:', error);
       if (error instanceof Error && error.message.includes('Server returned HTML')) {
-        throw error; // Re-throw the HTML error
+        throw error;
       }
       return null;
     }
@@ -120,8 +209,8 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: 0, // Changed from Infinity to 0 to avoid stale data
-      retry: 1,     // Allow one retry
+      staleTime: 0,
+      retry: 1,
     },
     mutations: {
       retry: false,

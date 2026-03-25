@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Response, Router, Request } from 'express';
 import { db } from './db';
 import { insertWorkOrderSchema, workOrders, insertWorkOrderItemSchema, 
@@ -55,7 +56,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(formattedTeams);
     } catch (error) {
       console.error('Error fetching production teams:', error);
-      res.status(500).json({ error: 'Failed to fetch production teams' });
+      sendError(res, error);
     }
   });
 
@@ -76,7 +77,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(teams);
     } catch (error) {
       console.error('Error fetching team configurations:', error);
-      res.status(500).json({ error: 'Failed to fetch team configurations' });
+      sendError(res, error);
     }
   });
 
@@ -125,7 +126,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newTeam[0]);
     } catch (error) {
       console.error('Error creating team configuration:', error);
-      res.status(500).json({ error: 'Failed to create team configuration' });
+      sendError(res, error);
     }
   });
 
@@ -193,7 +194,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedTeam[0]);
     } catch (error) {
       console.error('Error updating team configuration:', error);
-      res.status(500).json({ error: 'Failed to update team configuration' });
+      sendError(res, error);
     }
   });
 
@@ -238,7 +239,7 @@ export function setupProductionRoutes(app: Router) {
       });
     } catch (error) {
       console.error('Error toggling team status:', error);
-      res.status(500).json({ error: 'Failed to toggle team status' });
+      sendError(res, error);
     }
   });
 
@@ -260,7 +261,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(allWorkOrders);
     } catch (error) {
       console.error('Error fetching all work orders:', error);
-      res.status(500).json({ error: 'Failed to fetch work orders' });
+      sendError(res, error);
     }
   });
   
@@ -692,7 +693,7 @@ export function setupProductionRoutes(app: Router) {
     });
   } catch (error) {
     console.error('Error generating work orders preview:', error);
-    res.status(500).json({ error: 'Failed to generate work orders preview' });
+    sendError(res, error);
   }
 });
   
@@ -741,7 +742,7 @@ export function setupProductionRoutes(app: Router) {
       });
     } catch (error) {
       console.error('Error cleaning up duplicate work orders:', error);
-      return res.status(500).json({ error: 'An unexpected error occurred during duplicate cleanup' });
+      return sendError(res, error);
     }
   });
   
@@ -1224,7 +1225,7 @@ export function setupProductionRoutes(app: Router) {
       
     } catch (error: any) {
       console.error('Error generating work orders:', error);
-      return res.status(500).json({ error: error.message || 'Failed to generate work orders' });
+      return sendError(res, error);
     }
   });
   
@@ -1697,7 +1698,7 @@ export function setupProductionRoutes(app: Router) {
       });
     } catch (error) {
       console.error('Error generating work orders for project:', error);
-      res.status(500).json({ error: 'Failed to generate work orders' });
+      sendError(res, error);
     }
   });
   
@@ -1730,7 +1731,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(allWorkOrders);
     } catch (error) {
       console.error('Error fetching work orders:', error);
-      res.status(500).json({ error: 'Failed to fetch work orders' });
+      sendError(res, error);
     }
   });
   
@@ -1757,7 +1758,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(workOrder);
     } catch (error) {
       console.error('Error fetching work order:', error);
-      res.status(500).json({ error: 'Failed to fetch work order' });
+      sendError(res, error);
     }
   });
   
@@ -1824,7 +1825,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newWorkOrder);
     } catch (error) {
       console.error('Error creating work order:', error);
-      res.status(500).json({ error: 'Failed to create work order' });
+      sendError(res, error);
     }
   });
   
@@ -1951,7 +1952,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedWorkOrder);
     } catch (error) {
       console.error('Error updating work order:', error);
-      res.status(500).json({ error: 'Failed to update work order' });
+      sendError(res, error);
     }
   });
   
@@ -1980,7 +1981,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json({ message: 'Work order deleted successfully' });
     } catch (error) {
       console.error('Error deleting work order:', error);
-      res.status(500).json({ error: 'Failed to delete work order' });
+      sendError(res, error);
     }
   });
   
@@ -2026,7 +2027,7 @@ export function setupProductionRoutes(app: Router) {
       });
     } catch (error) {
       console.error('Error cleaning up work orders:', error);
-      res.status(500).json({ error: 'Failed to clean up work orders for project' });
+      sendError(res, error);
     }
   });
   
@@ -2142,7 +2143,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(items);
     } catch (error) {
       console.error('Error fetching work order items:', error);
-      res.status(500).json({ error: 'Failed to fetch work order items' });
+      sendError(res, error);
     }
   });
   
@@ -2195,7 +2196,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newWorkOrderItem);
     } catch (error) {
       console.error('Error adding item to work order:', error);
-      res.status(500).json({ error: 'Failed to add item to work order' });
+      sendError(res, error);
     }
   });
   
@@ -2230,7 +2231,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedWorkOrderItem);
     } catch (error) {
       console.error('Error updating work order item:', error);
-      res.status(500).json({ error: 'Failed to update work order item' });
+      sendError(res, error);
     }
   });
   
@@ -2259,7 +2260,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json({ message: 'Work order item deleted successfully' });
     } catch (error) {
       console.error('Error deleting work order item:', error);
-      res.status(500).json({ error: 'Failed to delete work order item' });
+      sendError(res, error);
     }
   });
   
@@ -2277,7 +2278,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(assignments);
     } catch (error) {
       console.error('Error fetching resource assignments:', error);
-      res.status(500).json({ error: 'Failed to fetch resource assignments' });
+      sendError(res, error);
     }
   });
   
@@ -2312,7 +2313,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newAssignment);
     } catch (error) {
       console.error('Error assigning resource:', error);
-      res.status(500).json({ error: 'Failed to assign resource' });
+      sendError(res, error);
     }
   });
   
@@ -2347,7 +2348,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedAssignment);
     } catch (error) {
       console.error('Error updating resource assignment:', error);
-      res.status(500).json({ error: 'Failed to update resource assignment' });
+      sendError(res, error);
     }
   });
   
@@ -2376,7 +2377,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json({ message: 'Resource assignment deleted successfully' });
     } catch (error) {
       console.error('Error deleting resource assignment:', error);
-      res.status(500).json({ error: 'Failed to delete resource assignment' });
+      sendError(res, error);
     }
   });
   
@@ -2410,7 +2411,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(historyRecords);
     } catch (error) {
       console.error('Error fetching work order history:', error);
-      res.status(500).json({ error: 'Failed to fetch work order history' });
+      sendError(res, error);
     }
   });
   
@@ -2455,7 +2456,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newHistoryRecord);
     } catch (error) {
       console.error('Error adding work order history record:', error);
-      res.status(500).json({ error: 'Failed to add work order history record' });
+      sendError(res, error);
     }
   });
   
@@ -2474,7 +2475,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(records);
     } catch (error) {
       console.error('Error fetching production records:', error);
-      res.status(500).json({ error: 'Failed to fetch production records' });
+      sendError(res, error);
     }
   });
   
@@ -2506,7 +2507,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newRecord);
     } catch (error) {
       console.error('Error creating production record:', error);
-      res.status(500).json({ error: 'Failed to create production record' });
+      sendError(res, error);
     }
   });
   
@@ -2541,7 +2542,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedRecord);
     } catch (error) {
       console.error('Error updating production record:', error);
-      res.status(500).json({ error: 'Failed to update production record' });
+      sendError(res, error);
     }
   });
   
@@ -2570,7 +2571,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json({ message: 'Production record deleted successfully' });
     } catch (error) {
       console.error('Error deleting production record:', error);
-      res.status(500).json({ error: 'Failed to delete production record' });
+      sendError(res, error);
     }
   });
   
@@ -2588,7 +2589,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(materials);
     } catch (error) {
       console.error('Error fetching material consumption:', error);
-      res.status(500).json({ error: 'Failed to fetch material consumption' });
+      sendError(res, error);
     }
   });
   
@@ -2620,7 +2621,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newMaterial);
     } catch (error) {
       console.error('Error adding material consumption:', error);
-      res.status(500).json({ error: 'Failed to add material consumption' });
+      sendError(res, error);
     }
   });
   
@@ -2650,7 +2651,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedMaterial);
     } catch (error) {
       console.error('Error updating material consumption:', error);
-      res.status(500).json({ error: 'Failed to update material consumption' });
+      sendError(res, error);
     }
   });
   
@@ -2679,7 +2680,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json({ message: 'Material consumption deleted successfully' });
     } catch (error) {
       console.error('Error deleting material consumption:', error);
-      res.status(500).json({ error: 'Failed to delete material consumption' });
+      sendError(res, error);
     }
   });
   
@@ -2697,7 +2698,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(machines);
     } catch (error) {
       console.error('Error fetching machine allocations:', error);
-      res.status(500).json({ error: 'Failed to fetch machine allocations' });
+      sendError(res, error);
     }
   });
   
@@ -2732,7 +2733,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(201).json(newMachine);
     } catch (error) {
       console.error('Error adding machine allocation:', error);
-      res.status(500).json({ error: 'Failed to add machine allocation' });
+      sendError(res, error);
     }
   });
   
@@ -2767,7 +2768,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json(updatedMachine);
     } catch (error) {
       console.error('Error updating machine allocation:', error);
-      res.status(500).json({ error: 'Failed to update machine allocation' });
+      sendError(res, error);
     }
   });
   
@@ -2796,7 +2797,7 @@ export function setupProductionRoutes(app: Router) {
       res.status(200).json({ message: 'Machine allocation deleted successfully' });
     } catch (error) {
       console.error('Error deleting machine allocation:', error);
-      res.status(500).json({ error: 'Failed to delete machine allocation' });
+      sendError(res, error);
     }
   });
 

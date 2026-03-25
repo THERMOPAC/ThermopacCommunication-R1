@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getErrorMessage } from "@/lib/queryClient";
 
 const searchFormSchema = z.object({
   query: z.string().min(3, "Search query must be at least 3 characters"),

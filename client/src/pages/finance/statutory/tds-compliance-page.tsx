@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -551,7 +551,7 @@ function ReconciliationTab() {
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/reconciliation'] });
       toast({ title: 'Reconciliation refreshed', description: `${data.refreshed} records processed` });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const toleranceMutation = useMutation({
@@ -561,7 +561,7 @@ function ReconciliationTab() {
       setShowToleranceDialog(false);
       toast({ title: 'Tolerance updated' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const deepVerifyMutation = useMutation({
@@ -574,7 +574,7 @@ function ReconciliationTab() {
         description: `${data.verified} verified: ${data.matched} matched, ${data.withinTolerance} within tolerance, ${data.mismatched} mismatched, ${data.verificationErrors} errors`,
       });
     },
-    onError: (e: any) => toast({ title: 'Verification Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Verification Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const summary = useMemo(() => {

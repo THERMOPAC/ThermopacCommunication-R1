@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
 import {
   Plus, Clock, CheckCircle, XCircle, AlertCircle, MapPin,
   Calendar, FileText, Eye, Trash2, ClipboardCheck, History,

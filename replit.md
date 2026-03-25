@@ -11,6 +11,9 @@ The system is a full-stack web application built with organized, hierarchical da
 ## Technical Implementations
 - **Backend**: Express.js with TypeScript, PostgreSQL (Drizzle ORM), session-based authentication, Google Cloud Storage, and a RESTful API.
 - **Frontend**: React with TypeScript, Wouter for routing, TanStack Query for state management, Radix UI components with Tailwind CSS, React Hook Form with Zod validation, and Vite for builds. Lazy loading is implemented for module files.
+- **Error Handling Framework**: Centralized, structured error handling across the system:
+    - **Backend**: `server/utils/app-errors.ts` defines error classes (`ValidationError`, `PermissionError`, `NotFoundError`, `BusinessRuleError`, `IntegrationError`, `AuthenticationError`). `server/utils/error-response.ts` provides helper functions (`sendError`, `sendValidationError`, `sendNotFound`, `sendPermissionError`, `sendBusinessError`). `server/utils/error-middleware.ts` provides the global Express error handler. All API errors follow a standard JSON format: `{ success: false, errorCode, message, details?, action? }`. Raw SQL/stack traces are never exposed to users; `wrapUnknownError()` auto-classifies database constraint violations, timeouts, etc.
+    - **Frontend**: `client/src/lib/queryClient.ts` exports `ApiError` class, `getErrorMessage(error)`, `getErrorDetails(error)`, and `getErrorAction(error)` for structured error display. Use `getErrorMessage(e)` in `onError` callbacks instead of `e.message`.
 - **Data Storage**: PostgreSQL on Neon, a dedicated GCS bucket (`thermopac_storage`) for files, and database-backed sessions.
 - **Feature Specifications**:
     - **Project Management**: Tracks projects, items, and work orders.

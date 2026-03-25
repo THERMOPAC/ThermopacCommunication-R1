@@ -35,7 +35,7 @@ import {
   SelectGroup,
   SelectLabel,
 } from '@/components/ui/select';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, getErrorMessage } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { insertVisaRecordSchema, type InsertVisaRecord } from '@shared/schema';
 import {

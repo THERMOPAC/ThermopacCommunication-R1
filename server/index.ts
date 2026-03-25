@@ -439,27 +439,9 @@ app.use((req, res, next) => {
     next();
   });
 
-  // Global error handler
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    
-    // For API routes, always return JSON
-    if (req.path.startsWith('/api')) {
-      // Force content type to be JSON even for errors
-      res.setHeader('Content-Type', 'application/json');
-      res.status(status).json({ 
-        error: message,
-        code: err.code || 'SERVER_ERROR'
-      });
-    } else {
-      // For non-API routes, use the default handler
-      res.status(status).json({ message });
-    }
-    
-    // Log the error but don't throw it
-    console.error("Express error:", err);
-  });
+  // Global error handler — uses structured AppError framework
+  const { errorHandler } = await import('./utils/error-middleware');
+  app.use(errorHandler as any);
 
 
 

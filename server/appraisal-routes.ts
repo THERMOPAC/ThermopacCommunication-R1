@@ -13,6 +13,7 @@ import {
 import { eq, and, or, desc, sql, count, lte, inArray, ne } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 import { AppraisalReportGenerator } from './appraisal-report-generator';
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 
 const router = Router();
 
@@ -52,7 +53,7 @@ router.get('/templates', ensureAuthenticated, async (req: Request, res: Response
     res.json(templates);
   } catch (error: any) {
     console.error('Error fetching templates:', error);
-    res.status(500).json({ error: 'Failed to fetch templates' });
+    sendError(res, error);
   }
 });
 
@@ -68,7 +69,7 @@ router.post('/templates', ensureAuthenticated, async (req: Request, res: Respons
     res.status(201).json(template);
   } catch (error: any) {
     console.error('Error creating template:', error);
-    res.status(400).json({ error: error.message || 'Failed to create template' });
+    sendError(res, error);
   }
 });
 
@@ -84,12 +85,12 @@ router.put('/templates/:id', ensureAuthenticated, async (req: Request, res: Resp
       .set({ name, cycleType, triggerMonth, triggerDay, selfDeadlineDays, managerDeadlineDays, l2DeadlineDays, approvalDeadlineDays, closureBufferDays, minServiceDays, autoCreate, isActive, updatedAt: new Date() })
       .where(eq(appraisalCycleTemplates.id, id))
       .returning();
-    if (!updated) return res.status(404).json({ error: 'Template not found' });
+    if (!updated) return sendNotFound(res, 'Template');
     await logAudit('template', id, 'template_updated', user.id, getUserDisplayName(user), false, req.body);
     res.json(updated);
   } catch (error: any) {
     console.error('Error updating template:', error);
-    res.status(400).json({ error: error.message || 'Failed to update template' });
+    sendError(res, error);
   }
 });
 
@@ -103,7 +104,7 @@ router.get('/cycles', ensureAuthenticated, async (req: Request, res: Response) =
     res.json(cycles);
   } catch (error: any) {
     console.error('Error fetching cycles:', error);
-    res.status(500).json({ error: 'Failed to fetch cycles' });
+    sendError(res, error);
   }
 });
 
@@ -111,11 +112,11 @@ router.get('/cycles/:id', ensureAuthenticated, async (req: Request, res: Respons
   try {
     const id = parseInt(req.params.id);
     const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, id));
-    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
     res.json(cycle);
   } catch (error: any) {
     console.error('Error fetching cycle:', error);
-    res.status(500).json({ error: 'Failed to fetch cycle' });
+    sendError(res, error);
   }
 });
 
@@ -131,7 +132,7 @@ router.post('/cycles', ensureAuthenticated, async (req: Request, res: Response) 
     res.status(201).json(cycle);
   } catch (error: any) {
     console.error('Error creating cycle:', error);
-    res.status(400).json({ error: error.message || 'Failed to create cycle' });
+    sendError(res, error);
   }
 });
 
@@ -143,7 +144,7 @@ router.put('/cycles/:id', ensureAuthenticated, async (req: Request, res: Respons
     }
     const id = parseInt(req.params.id);
     const [existing] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, id));
-    if (!existing) return res.status(404).json({ error: 'Cycle not found' });
+    if (!existing) return sendNotFound(res, 'Appraisal Cycle');
 
     const { name, status, selfAssessmentDeadline, managerReviewDeadline, l2ReviewDeadline, approvalDeadline, closureDate } = req.body;
     const [updated] = await db.update(appraisalCycles)
@@ -154,7 +155,7 @@ router.put('/cycles/:id', ensureAuthenticated, async (req: Request, res: Respons
     res.json(updated);
   } catch (error: any) {
     console.error('Error updating cycle:', error);
-    res.status(400).json({ error: error.message || 'Failed to update cycle' });
+    sendError(res, error);
   }
 });
 
@@ -204,7 +205,7 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
     res.json(appraisals);
   } catch (error: any) {
     console.error('Error fetching appraisals:', error);
-    res.status(500).json({ error: 'Failed to fetch appraisals' });
+    sendError(res, error);
   }
 });
 
@@ -237,7 +238,7 @@ router.get('/user/role-check', ensureAuthenticated, async (req: Request, res: Re
     });
   } catch (error: any) {
     console.error('Error checking roles:', error);
-    res.status(500).json({ error: 'Failed to check roles' });
+    sendError(res, error);
   }
 });
 
@@ -269,7 +270,7 @@ router.get('/kpi-templates', ensureAuthenticated, async (req: Request, res: Resp
     }));
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch KPI templates' });
+    sendError(res, error);
   }
 });
 
@@ -279,8 +280,8 @@ router.post('/kpi-templates', ensureAuthenticated, async (req: Request, res: Res
     if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
 
     const { name, department, hierarchyLevel, description } = req.body;
-    if (!name || !department || !hierarchyLevel) return res.status(400).json({ error: 'Name, department, and hierarchy level are required' });
-    if (!['L1', 'L2', 'L3'].includes(hierarchyLevel)) return res.status(400).json({ error: 'Hierarchy level must be L1, L2, or L3' });
+    if (!name || !department || !hierarchyLevel) return sendValidationError(res, 'KPI template requires a name, department, and hierarchy level.', { action: 'Fill in all required fields and try again.' });
+    if (!['L1', 'L2', 'L3'].includes(hierarchyLevel)) return sendValidationError(res, 'Hierarchy level must be L1, L2, or L3.');
 
     const [template] = await db.insert(appraisalKpiTemplates).values({
       name, department, hierarchyLevel, description, status: 'draft', createdBy: user.id,
@@ -289,7 +290,7 @@ router.post('/kpi-templates', ensureAuthenticated, async (req: Request, res: Res
     await logAudit('kpi_template', template.id, 'kpi_template_created', user.id, getUserDisplayName(user), false, { name, department, hierarchyLevel });
     res.status(201).json(template);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to create KPI template' });
+    sendError(res, error);
   }
 });
 
@@ -303,12 +304,12 @@ router.put('/kpi-templates/:id', ensureAuthenticated, async (req: Request, res: 
     const [updated] = await db.update(appraisalKpiTemplates)
       .set({ name, department, hierarchyLevel, description, updatedAt: new Date() })
       .where(eq(appraisalKpiTemplates.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: 'Template not found' });
+    if (!updated) return sendNotFound(res, 'Template');
 
     await logAudit('kpi_template', id, 'kpi_template_updated', user.id, getUserDisplayName(user), false, req.body);
     res.json(updated);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to update KPI template' });
+    sendError(res, error);
   }
 });
 
@@ -318,14 +319,14 @@ router.delete('/kpi-templates/:id', ensureAuthenticated, async (req: Request, re
     if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
     const id = parseInt(req.params.id);
     const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, id));
-    if (!template) return res.status(404).json({ error: 'Template not found' });
-    if (template.status === 'active') return res.status(400).json({ error: 'Cannot delete an active template. Archive it first.' });
+    if (!template) return sendNotFound(res, 'Template');
+    if (template.status === 'active') return sendBusinessError(res, 'Cannot delete an active template.', { action: 'Archive the template first, then delete it.' });
 
     await db.delete(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, id));
     await logAudit('kpi_template', id, 'kpi_template_deleted', user.id, getUserDisplayName(user), false, { name: template.name });
     res.json({ success: true });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to delete KPI template' });
+    sendError(res, error);
   }
 });
 
@@ -335,7 +336,7 @@ router.post('/kpi-templates/:id/activate', ensureAuthenticated, async (req: Requ
     if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
     const id = parseInt(req.params.id);
     const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, id));
-    if (!template) return res.status(404).json({ error: 'Template not found' });
+    if (!template) return sendNotFound(res, 'Template');
 
     const items = await db.select().from(appraisalKpiTemplateItems).where(eq(appraisalKpiTemplateItems.templateId, id));
     if (items.length === 0) return res.status(400).json({ error: 'Template must have at least one KPI item before activation' });
@@ -357,7 +358,7 @@ router.post('/kpi-templates/:id/activate', ensureAuthenticated, async (req: Requ
     await logAudit('kpi_template', id, 'kpi_template_activated', user.id, getUserDisplayName(user), false, { name: template.name, previousActive: existing?.id });
     res.json(updated);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to activate KPI template' });
+    sendError(res, error);
   }
 });
 
@@ -367,11 +368,11 @@ router.post('/kpi-templates/:id/archive', ensureAuthenticated, async (req: Reque
     if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
     const id = parseInt(req.params.id);
     const [updated] = await db.update(appraisalKpiTemplates).set({ status: 'archived', updatedAt: new Date() }).where(eq(appraisalKpiTemplates.id, id)).returning();
-    if (!updated) return res.status(404).json({ error: 'Template not found' });
+    if (!updated) return sendNotFound(res, 'Template');
     await logAudit('kpi_template', id, 'kpi_template_archived', user.id, getUserDisplayName(user), false, { name: updated.name });
     res.json(updated);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to archive KPI template' });
+    sendError(res, error);
   }
 });
 
@@ -382,7 +383,7 @@ router.get('/kpi-templates/:id/items', ensureAuthenticated, async (req: Request,
       .orderBy(appraisalKpiTemplateItems.sortOrder);
     res.json(items);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch template items' });
+    sendError(res, error);
   }
 });
 
@@ -392,7 +393,7 @@ router.post('/kpi-templates/:id/items', ensureAuthenticated, async (req: Request
     if (!['Superuser', 'HR', 'Admin'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Admin can manage KPI templates' });
     const templateId = parseInt(req.params.id);
     const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, templateId));
-    if (!template) return res.status(404).json({ error: 'Template not found' });
+    if (!template) return sendNotFound(res, 'Template');
 
     const { kpiTitle, kpiDescription, defaultWeightage, targetGuidance, sortOrder } = req.body;
     if (!kpiTitle || !defaultWeightage) return res.status(400).json({ error: 'KPI title and weight are required' });
@@ -402,7 +403,7 @@ router.post('/kpi-templates/:id/items', ensureAuthenticated, async (req: Request
     }).returning();
     res.status(201).json(item);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to add template item' });
+    sendError(res, error);
   }
 });
 
@@ -420,7 +421,7 @@ router.put('/kpi-templates/:id/items/:itemId', ensureAuthenticated, async (req: 
     if (!updated) return res.status(404).json({ error: 'Item not found' });
     res.json(updated);
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to update template item' });
+    sendError(res, error);
   }
 });
 
@@ -434,7 +435,7 @@ router.delete('/kpi-templates/:id/items/:itemId', ensureAuthenticated, async (re
       .where(and(eq(appraisalKpiTemplateItems.id, itemId), eq(appraisalKpiTemplateItems.templateId, templateId)));
     res.json({ success: true });
   } catch (error: any) {
-    res.status(400).json({ error: error.message || 'Failed to delete template item' });
+    sendError(res, error);
   }
 });
 
@@ -444,7 +445,7 @@ router.get('/hierarchy-level/:userId', ensureAuthenticated, async (req: Request,
     const level = await getHierarchyLevel(userId);
     res.json({ userId, level });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to determine hierarchy level' });
+    sendError(res, error);
   }
 });
 
@@ -452,7 +453,7 @@ router.get('/:appraisalId/template-kpis', ensureAuthenticated, async (req: Reque
   try {
     const appraisalId = parseInt(req.params.appraisalId);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const empDept = appraisal.department || '';
     if (!empDept) return res.json({ items: [], message: 'No department set for employee' });
@@ -478,7 +479,7 @@ router.get('/:appraisalId/template-kpis', ensureAuthenticated, async (req: Reque
 
     res.json({ templateId: activeTemplate.id, templateName: activeTemplate.name, department: empDept, level: empLevel, items });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch template KPIs' });
+    sendError(res, error);
   }
 });
 
@@ -491,7 +492,7 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     const user = req.user as any;
     const id = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, id));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id
@@ -506,7 +507,7 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     res.json(appraisal);
   } catch (error: any) {
     console.error('Error fetching appraisal:', error);
-    res.status(500).json({ error: 'Failed to fetch appraisal' });
+    sendError(res, error);
   }
 });
 
@@ -534,7 +535,7 @@ router.post('/', ensureAuthenticated, async (req: Request, res: Response) => {
 
     const [employee] = await db.select().from(users).where(eq(users.id, employeeId));
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
-    if (!employee.isActive) return res.status(400).json({ error: 'Employee is not active' });
+    if (!employee.isActive) return sendBusinessError(res, 'This employee is not active and cannot be appraised.', { action: 'Verify the employee status in the HR module.' });
     if (!employee.reportingManagerId) return res.status(400).json({ error: 'Employee has no reporting manager (L1)' });
 
     const [l1] = await db.select().from(users).where(eq(users.id, employee.reportingManagerId));
@@ -669,7 +670,7 @@ router.get('/cycles/:cycleId/eligible-employees', ensureAuthenticated, async (re
 
     const cycleId = parseInt(req.params.cycleId);
     const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
-    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
 
     let templateMinServiceDays = 90;
     if (cycle.templateId) {
@@ -712,7 +713,7 @@ router.get('/cycles/:cycleId/eligible-employees', ensureAuthenticated, async (re
     res.json({ eligible, skipped, total: allActiveUsers.length });
   } catch (error: any) {
     console.error('Error fetching eligible employees:', error);
-    res.status(500).json({ error: 'Failed to fetch eligible employees' });
+    sendError(res, error);
   }
 });
 
@@ -724,7 +725,7 @@ router.get('/:id/available-templates', ensureAuthenticated, async (req: Request,
   try {
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const empDept = appraisal.department;
     if (!empDept) return res.json({ templates: [], department: null });
@@ -752,7 +753,7 @@ router.get('/:id/available-templates', ensureAuthenticated, async (req: Request,
       status: appraisal.status,
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch available templates' });
+    sendError(res, error);
   }
 });
 
@@ -766,7 +767,7 @@ router.post('/:id/switch-template', ensureAuthenticated, async (req: Request, re
     if (!['replace', 'merge'].includes(mode)) return res.status(400).json({ error: 'Mode must be "replace" or "merge"' });
 
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     if (!['open', 'draft'].includes(appraisal.status)) {
@@ -776,7 +777,7 @@ router.post('/:id/switch-template', ensureAuthenticated, async (req: Request, re
     }
 
     const [template] = await db.select().from(appraisalKpiTemplates).where(eq(appraisalKpiTemplates.id, templateId));
-    if (!template) return res.status(404).json({ error: 'Template not found' });
+    if (!template) return sendNotFound(res, 'Template');
 
     if (template.department !== appraisal.department) {
       return res.status(400).json({ error: 'Cannot use a template from a different department. Employee department: ' + appraisal.department + ', Template department: ' + template.department });
@@ -891,7 +892,7 @@ router.post('/:id/switch-template', ensureAuthenticated, async (req: Request, re
     });
   } catch (error: any) {
     console.error('Error switching template:', error);
-    res.status(500).json({ error: 'Failed to switch template' });
+    sendError(res, error);
   }
 });
 
@@ -951,12 +952,12 @@ router.get('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response)
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
-    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+    if (!isAuthorized) return sendPermissionError(res);
 
     try { await ensureKpisForAppraisal(appraisalId); } catch (e) {}
 
@@ -965,7 +966,7 @@ router.get('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response)
       .orderBy(employeeAppraisalKpis.sortOrder);
     res.json(kpis);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch KPIs' });
+    sendError(res, error);
   }
 });
 
@@ -974,7 +975,7 @@ router.post('/:id/kpis', ensureAuthenticated, async (req: Request, res: Response
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const canAdd = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
@@ -1000,7 +1001,7 @@ router.put('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res: Re
     const appraisalId = parseInt(req.params.id);
     const kpiId = parseInt(req.params.kpiId);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const updateFields: any = { updatedAt: new Date() };
@@ -1053,7 +1054,7 @@ router.delete('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res:
     const appraisalId = parseInt(req.params.id);
     const kpiId = parseInt(req.params.kpiId);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const canDelete = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
@@ -1066,7 +1067,7 @@ router.delete('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res:
     await logAudit('kpi', kpiId, 'kpi_deleted', user.id, getUserDisplayName(user), false, { appraisalId });
     res.json({ success: true });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to delete KPI' });
+    sendError(res, error);
   }
 });
 
@@ -1114,12 +1115,12 @@ router.get('/:id/competencies', ensureAuthenticated, async (req: Request, res: R
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
-    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+    if (!isAuthorized) return sendPermissionError(res);
 
     await ensureCompetenciesForAppraisal(appraisalId);
 
@@ -1128,7 +1129,7 @@ router.get('/:id/competencies', ensureAuthenticated, async (req: Request, res: R
       .orderBy(employeeAppraisalCompetencies.sortOrder);
     res.json(competencies);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch competencies' });
+    sendError(res, error);
   }
 });
 
@@ -1137,7 +1138,7 @@ router.post('/:id/competencies', ensureAuthenticated, async (req: Request, res: 
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const canAdd = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
@@ -1163,7 +1164,7 @@ router.put('/:id/competencies/:compId', ensureAuthenticated, async (req: Request
     const appraisalId = parseInt(req.params.id);
     const compId = parseInt(req.params.compId);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const updateFields: any = { updatedAt: new Date() };
@@ -1204,7 +1205,7 @@ router.delete('/:id/competencies/:compId', ensureAuthenticated, async (req: Requ
     const appraisalId = parseInt(req.params.id);
     const compId = parseInt(req.params.compId);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const canDelete = (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status))
@@ -1217,7 +1218,7 @@ router.delete('/:id/competencies/:compId', ensureAuthenticated, async (req: Requ
     await logAudit('competency', compId, 'competency_deleted', user.id, getUserDisplayName(user), false, { appraisalId });
     res.json({ success: true });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to delete competency' });
+    sendError(res, error);
   }
 });
 
@@ -1230,19 +1231,19 @@ router.get('/:id/comments', ensureAuthenticated, async (req: Request, res: Respo
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
-    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+    if (!isAuthorized) return sendPermissionError(res);
 
     const comments = await db.select().from(appraisalComments)
       .where(eq(appraisalComments.appraisalId, appraisalId))
       .orderBy(appraisalComments.createdAt);
     res.json(comments);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch comments' });
+    sendError(res, error);
   }
 });
 
@@ -1251,13 +1252,13 @@ router.post('/:id/comments', ensureAuthenticated, async (req: Request, res: Resp
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
-    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+    if (!isAuthorized) return sendPermissionError(res);
 
     let commentByRole = 'employee';
     if (appraisal.l1ReviewerId === user.id) commentByRole = 'l1_reviewer';
@@ -1288,7 +1289,7 @@ router.put('/:id/self-assessment', ensureAuthenticated, async (req: Request, res
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
     if (appraisal.isLocked) return res.status(400).json({ error: 'Appraisal is locked' });
 
     if (appraisal.employeeId !== user.id) {
@@ -1320,12 +1321,12 @@ router.get('/:id/score', ensureAuthenticated, async (req: Request, res: Response
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
-    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+    if (!isAuthorized) return sendPermissionError(res);
 
     const kpis = await db.select().from(employeeAppraisalKpis)
       .where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
@@ -1387,7 +1388,7 @@ router.get('/:id/score', ensureAuthenticated, async (req: Request, res: Response
       weightageValid: Math.abs(totalWeight - 100) < 0.01,
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to calculate score' });
+    sendError(res, error);
   }
 });
 
@@ -1400,19 +1401,19 @@ router.get('/:id/approvals', ensureAuthenticated, async (req: Request, res: Resp
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const isAuthorized = ['Superuser', 'HR', 'Admin'].includes(user.role)
       || appraisal.employeeId === user.id || appraisal.l1ReviewerId === user.id
       || appraisal.l2ReviewerId === user.id || appraisal.l3ApproverId === user.id;
-    if (!isAuthorized) return res.status(403).json({ error: 'Not authorized' });
+    if (!isAuthorized) return sendPermissionError(res);
 
     const approvals = await db.select().from(appraisalApprovals)
       .where(eq(appraisalApprovals.appraisalId, appraisalId))
       .orderBy(appraisalApprovals.createdAt);
     res.json(approvals);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch approval history' });
+    sendError(res, error);
   }
 });
 
@@ -1432,7 +1433,7 @@ router.get('/:id/audit', ensureAuthenticated, async (req: Request, res: Response
       .orderBy(desc(appraisalAuditLog.createdAt));
     res.json(logs);
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch audit log' });
+    sendError(res, error);
   }
 });
 
@@ -1481,7 +1482,7 @@ router.post('/:id/self-submit', ensureAuthenticated, async (req: Request, res: R
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     if (appraisal.employeeId !== user.id) return res.status(403).json({ error: 'Only the employee can self-submit' });
     if (appraisal.status !== 'open') return res.status(400).json({ error: 'Appraisal must be in Open status to self-submit' });
@@ -1534,7 +1535,7 @@ router.post('/:id/l1-review', ensureAuthenticated, async (req: Request, res: Res
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     if (appraisal.l1ReviewerId !== user.id) return res.status(403).json({ error: 'Only L1 Reviewer can perform L1 review' });
     if (appraisal.status !== 'self_submitted') return res.status(400).json({ error: 'Appraisal must be in Self Submitted status for L1 review' });
@@ -1584,7 +1585,7 @@ router.post('/:id/l2-review', ensureAuthenticated, async (req: Request, res: Res
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     if (appraisal.l2ReviewerId !== user.id) return res.status(403).json({ error: 'Only L2 Reviewer can perform L2 review' });
     if (appraisal.status !== 'l1_reviewed') return res.status(400).json({ error: 'Appraisal must be in L1 Reviewed status for L2 review' });
@@ -1636,7 +1637,7 @@ router.get('/:id/system-recommendation', ensureAuthenticated, async (req: Reques
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     const effectiveScore = appraisal.l2Score ? parseFloat(appraisal.l2Score) : (appraisal.overallCalculatedScore ? parseFloat(appraisal.overallCalculatedScore) : 0);
     const ratingBand = getRatingBand(effectiveScore);
@@ -1731,7 +1732,7 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
     const user = req.user as any;
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     if (appraisal.l3ApproverId !== user.id) return res.status(403).json({ error: 'Only L3 Approver can give final approval' });
     if (appraisal.status !== 'l2_reviewed') return res.status(400).json({ error: 'Appraisal must be in L2 Reviewed status for final approval' });
@@ -1811,7 +1812,7 @@ router.post('/:id/reopen', ensureAuthenticated, async (req: Request, res: Respon
 
     const appraisalId = parseInt(req.params.id);
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     if (!['approved', 'closed'].includes(appraisal.status)) {
       return res.status(400).json({ error: 'Only Approved or Closed appraisals can be reopened' });
@@ -2152,7 +2153,7 @@ router.post('/jobs/cycle-generator/dry-run', ensureAuthenticated, async (req: Re
     const result = await runCycleGeneratorJob(true);
     res.json({ dryRun: true, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Dry run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2164,7 +2165,7 @@ router.post('/jobs/cycle-generator/run', ensureAuthenticated, async (req: Reques
     await logAudit('system', 0, 'manual_cycle_generator_run', user.id, getUserDisplayName(user), false, result);
     res.json({ dryRun: false, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Manual run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2175,7 +2176,7 @@ router.post('/jobs/activation/dry-run', ensureAuthenticated, async (req: Request
     const result = await runActivationJob(true);
     res.json({ dryRun: true, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Dry run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2187,7 +2188,7 @@ router.post('/jobs/activation/run', ensureAuthenticated, async (req: Request, re
     await logAudit('system', 0, 'manual_activation_run', user.id, getUserDisplayName(user), false, result);
     res.json({ dryRun: false, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Manual run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2198,7 +2199,7 @@ router.post('/cycles/:cycleId/activate', ensureAuthenticated, async (req: Reques
 
     const cycleId = parseInt(req.params.cycleId);
     const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
-    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
     if (cycle.status !== 'draft') return res.status(400).json({ error: 'Only draft cycles can be activated' });
 
     let templateMinServiceDays = 90;
@@ -2254,7 +2255,7 @@ router.post('/cycles/:cycleId/activate', ensureAuthenticated, async (req: Reques
 
     res.json({ cycleId, status: 'active', created, skipped, errors, totalAppraisals: createdCount + existingAppraisals.length });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to activate cycle' });
+    sendError(res, error);
   }
 });
 
@@ -2264,7 +2265,7 @@ router.post('/cycles/:cycleId/pause', ensureAuthenticated, async (req: Request, 
     if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
     const cycleId = parseInt(req.params.cycleId);
     const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
-    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
     if (cycle.status === 'paused') return res.status(400).json({ error: 'Cycle is already paused' });
     if (!['active', 'draft'].includes(cycle.status)) return res.status(400).json({ error: 'Only active or draft cycles can be paused' });
 
@@ -2279,7 +2280,7 @@ router.post('/cycles/:cycleId/pause', ensureAuthenticated, async (req: Request, 
     await logAudit('cycle', cycleId, 'cycle_paused', user.id, getUserDisplayName(user), false, { previousStatus: cycle.status, pauseReason });
     res.json(updated);
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to pause cycle' });
+    sendError(res, error);
   }
 });
 
@@ -2289,7 +2290,7 @@ router.post('/cycles/:cycleId/resume', ensureAuthenticated, async (req: Request,
     if (!['Superuser', 'HR'].includes(user.role)) return res.status(403).json({ error: 'Only HR/Superuser' });
     const cycleId = parseInt(req.params.cycleId);
     const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
-    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
     if (cycle.status !== 'paused') return res.status(400).json({ error: 'Only paused cycles can be resumed' });
 
     const resumeStatus = cycle.previousStatusBeforePause || 'active';
@@ -2301,7 +2302,7 @@ router.post('/cycles/:cycleId/resume', ensureAuthenticated, async (req: Request,
     await logAudit('cycle', cycleId, 'cycle_resumed', user.id, getUserDisplayName(user), false, { resumedTo: resumeStatus });
     res.json(updated);
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Failed to resume cycle' });
+    sendError(res, error);
   }
 });
 
@@ -2343,7 +2344,7 @@ router.get('/jobs/status', ensureAuthenticated, async (req: Request, res: Respon
       recentJobRuns: recentAuditLogs,
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch job status' });
+    sendError(res, error);
   }
 });
 
@@ -2570,7 +2571,7 @@ router.post('/jobs/reminder/dry-run', ensureAuthenticated, async (req: Request, 
     const result = await runReminderJob(true);
     res.json({ dryRun: true, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Dry run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2582,7 +2583,7 @@ router.post('/jobs/reminder/run', ensureAuthenticated, async (req: Request, res:
     await logAudit('system', 0, 'manual_reminder_run', user.id, getUserDisplayName(user), false, result);
     res.json({ dryRun: false, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Manual run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2593,7 +2594,7 @@ router.post('/jobs/closure/dry-run', ensureAuthenticated, async (req: Request, r
     const result = await runClosureJob(true);
     res.json({ dryRun: true, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Dry run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2605,7 +2606,7 @@ router.post('/jobs/closure/run', ensureAuthenticated, async (req: Request, res: 
     await logAudit('system', 0, 'manual_closure_run', user.id, getUserDisplayName(user), false, result);
     res.json({ dryRun: false, ...result });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || 'Manual run failed' });
+    sendError(res, error);
   }
 });
 
@@ -2614,7 +2615,7 @@ router.get('/cycles/:cycleId/progress', ensureAuthenticated, async (req: Request
     const user = req.user as any;
     const cycleId = parseInt(req.params.cycleId);
     const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, cycleId));
-    if (!cycle) return res.status(404).json({ error: 'Cycle not found' });
+    if (!cycle) return sendNotFound(res, 'Appraisal Cycle');
 
     const cycleAppraisals = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.cycleId, cycleId));
 
@@ -2650,7 +2651,7 @@ router.get('/cycles/:cycleId/progress', ensureAuthenticated, async (req: Request
       },
     });
   } catch (error: any) {
-    res.status(500).json({ error: 'Failed to fetch cycle progress' });
+    sendError(res, error);
   }
 });
 
@@ -2661,7 +2662,7 @@ router.get('/:id/report', ensureAuthenticated, async (req: Request, res: Respons
     if (isNaN(appraisalId)) return res.status(400).json({ error: 'Invalid appraisal ID' });
 
     const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
-    if (!appraisal) return res.status(404).json({ error: 'Appraisal not found' });
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
 
     if (!['approved', 'closed'].includes(appraisal.status)) {
       return res.status(403).json({ error: 'Report is only available for approved or closed appraisals' });
@@ -2746,7 +2747,7 @@ router.get('/:id/report', ensureAuthenticated, async (req: Request, res: Respons
   } catch (error: any) {
     console.error('Error generating appraisal report:', error);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to generate report' });
+      sendError(res, error);
     }
   }
 });

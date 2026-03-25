@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import express, { Request, Response } from 'express';
 import { db } from './db';
 import { 
@@ -140,7 +141,7 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
     res.json(allUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
+    sendError(res, error);
   }
 });
 
@@ -164,7 +165,7 @@ router.get('/users/:id', ensureAuthenticated, async (req: Request, res: Response
     res.json(userWithoutPassword);
   } catch (error) {
     console.error('Error fetching user:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
+    sendError(res, error);
   }
 });
 
@@ -253,7 +254,7 @@ router.post('/users', ensureAuthenticated, async (req: Request, res: Response) =
       }
       return res.status(400).json({ error: 'A user with these details already exists. Please check for duplicates.' });
     }
-    res.status(500).json({ error: 'Failed to create user. Please try again.' });
+    sendError(res, error);
   }
 });
 
@@ -351,7 +352,7 @@ router.patch('/users/:id/status', ensureAuthenticated, async (req: Request, res:
     res.json({ message: `User ${isActive ? 'activated' : 'deactivated'} successfully` });
   } catch (error) {
     console.error('Error updating user status:', error);
-    res.status(500).json({ error: 'Failed to update user status' });
+    sendError(res, error);
   }
 });
 
@@ -376,7 +377,7 @@ router.post('/users/:id/reset-password', ensureAuthenticated, async (req: Reques
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error('Error resetting password:', error);
-    res.status(500).json({ error: 'Failed to reset password' });
+    sendError(res, error);
   }
 });
 
@@ -439,7 +440,7 @@ router.get('/payroll/salary-setup', ensureAuthenticated, async (req: Request, re
     res.json(salaryConfigs);
   } catch (error) {
     console.error('Error fetching salary configurations:', error);
-    res.status(500).json({ error: 'Failed to fetch salary configurations' });
+    sendError(res, error);
   }
 });
 
@@ -465,7 +466,7 @@ router.get('/payroll/salary-setup/:userId', ensureAuthenticated, async (req: Req
     res.json(salaryConfig);
   } catch (error) {
     console.error('Error fetching salary configuration:', error);
-    res.status(500).json({ error: 'Failed to fetch salary configuration' });
+    sendError(res, error);
   }
 });
 
@@ -574,7 +575,7 @@ router.post('/payroll/salary-setup', ensureAuthenticated, async (req: Request, r
     }
   } catch (error) {
     console.error('Error saving salary configuration:', error);
-    res.status(500).json({ error: 'Failed to save salary configuration' });
+    sendError(res, error);
   }
 });
 
@@ -651,7 +652,7 @@ router.put('/payroll/salary-setup/:id', ensureAuthenticated, async (req: Request
     res.json(updated);
   } catch (error) {
     console.error('Error updating salary configuration:', error);
-    res.status(500).json({ error: 'Failed to update salary configuration' });
+    sendError(res, error);
   }
 });
 
@@ -668,7 +669,7 @@ router.get('/payroll/periods', ensureAuthenticated, async (req: Request, res: Re
     res.json(periods);
   } catch (error) {
     console.error('Error fetching payroll periods:', error);
-    res.status(500).json({ error: 'Failed to fetch payroll periods' });
+    sendError(res, error);
   }
 });
 
@@ -691,7 +692,7 @@ router.post('/payroll/periods', ensureAuthenticated, async (req: Request, res: R
     res.status(201).json(newPeriod);
   } catch (error) {
     console.error('Error creating payroll period:', error);
-    res.status(500).json({ error: 'Failed to create payroll period' });
+    sendError(res, error);
   }
 });
 
@@ -728,7 +729,7 @@ router.get('/payroll/records/:periodId', ensureAuthenticated, async (req: Reques
     res.json(records);
   } catch (error) {
     console.error('Error fetching payroll records:', error);
-    res.status(500).json({ error: 'Failed to fetch payroll records' });
+    sendError(res, error);
   }
 });
 
@@ -929,7 +930,7 @@ router.get('/attendance/stats', ensureAuthenticated, async (req: Request, res: R
     res.json(stats);
   } catch (error) {
     console.error('Error fetching attendance stats:', error);
-    res.status(500).json({ error: 'Failed to fetch attendance statistics' });
+    sendError(res, error);
   }
 });
 
@@ -1205,7 +1206,7 @@ router.get('/attendance/records', ensureAuthenticated, async (req: Request, res:
     res.json(allRecords);
   } catch (error) {
     console.error('Error fetching attendance records:', error);
-    res.status(500).json({ error: 'Failed to fetch attendance records' });
+    sendError(res, error);
   }
 });
 
@@ -1250,7 +1251,7 @@ router.get('/leave-types', ensureAuthenticated, async (req: Request, res: Respon
     res.json(allLeaveTypes);
   } catch (error) {
     console.error('Error fetching leave types:', error);
-    res.status(500).json({ error: 'Failed to fetch leave types' });
+    sendError(res, error);
   }
 });
 
@@ -1269,7 +1270,7 @@ router.post('/leave-types', ensureAuthenticated, async (req: Request, res: Respo
     res.status(201).json(newLeaveType);
   } catch (error) {
     console.error('Error creating leave type:', error);
-    res.status(500).json({ error: 'Failed to create leave type' });
+    sendError(res, error);
   }
 });
 
@@ -1294,7 +1295,7 @@ router.put('/leave-types/:id', ensureAuthenticated, async (req: Request, res: Re
     res.json(updatedLeaveType);
   } catch (error) {
     console.error('Error updating leave type:', error);
-    res.status(500).json({ error: 'Failed to update leave type' });
+    sendError(res, error);
   }
 });
 
@@ -1333,7 +1334,7 @@ router.get('/leave-balances/:userId', ensureAuthenticated, async (req: Request, 
     res.json(balances);
   } catch (error) {
     console.error('Error fetching leave balances:', error);
-    res.status(500).json({ error: 'Failed to fetch leave balances' });
+    sendError(res, error);
   }
 });
 
@@ -1371,7 +1372,7 @@ router.post('/leave-balances/initialize', ensureAuthenticated, async (req: Reque
     res.status(201).json(createdBalances);
   } catch (error) {
     console.error('Error initializing leave balances:', error);
-    res.status(500).json({ error: 'Failed to initialize leave balances' });
+    sendError(res, error);
   }
 });
 
@@ -1434,7 +1435,7 @@ router.get('/leave-requests', ensureAuthenticated, async (req: Request, res: Res
     res.json(requests);
   } catch (error) {
     console.error('Error fetching leave requests:', error);
-    res.status(500).json({ error: 'Failed to fetch leave requests' });
+    sendError(res, error);
   }
 });
 
@@ -1459,7 +1460,7 @@ router.post('/leave-requests', ensureAuthenticated, async (req: Request, res: Re
     res.status(201).json(newLeaveRequest);
   } catch (error) {
     console.error('Error creating leave request:', error);
-    res.status(500).json({ error: 'Failed to create leave request' });
+    sendError(res, error);
   }
 });
 
@@ -1512,7 +1513,7 @@ router.put('/leave-requests/:id/status', ensureAuthenticated, async (req: Reques
     res.json(updatedRequest);
   } catch (error) {
     console.error('Error updating leave request status:', error);
-    res.status(500).json({ error: 'Failed to update leave request status' });
+    sendError(res, error);
   }
 });
 
@@ -1532,7 +1533,7 @@ router.get('/company-holidays', ensureAuthenticated, async (req: Request, res: R
     res.json(holidays);
   } catch (error) {
     console.error('Error fetching company holidays:', error);
-    res.status(500).json({ error: 'Failed to fetch company holidays' });
+    sendError(res, error);
   }
 });
 
@@ -1555,7 +1556,7 @@ router.post('/company-holidays', ensureAuthenticated, async (req: Request, res: 
     res.status(201).json(newHoliday);
   } catch (error) {
     console.error('Error creating company holiday:', error);
-    res.status(500).json({ error: 'Failed to create company holiday' });
+    sendError(res, error);
   }
 });
 
@@ -1585,7 +1586,7 @@ router.put('/company-holidays/:id', ensureAuthenticated, async (req: Request, re
     res.json(updatedHoliday);
   } catch (error) {
     console.error('Error updating company holiday:', error);
-    res.status(500).json({ error: 'Failed to update company holiday' });
+    sendError(res, error);
   }
 });
 
@@ -1608,7 +1609,7 @@ router.delete('/company-holidays/:id', ensureAuthenticated, async (req: Request,
     res.json({ message: 'Holiday deleted successfully' });
   } catch (error) {
     console.error('Error deleting company holiday:', error);
-    res.status(500).json({ error: 'Failed to delete company holiday' });
+    sendError(res, error);
   }
 });
 
@@ -1626,7 +1627,7 @@ router.get('/leave-policies', ensureAuthenticated, async (req: Request, res: Res
     res.json(policies);
   } catch (error) {
     console.error('Error fetching leave policies:', error);
-    res.status(500).json({ error: 'Failed to fetch leave policies' });
+    sendError(res, error);
   }
 });
 
@@ -1656,7 +1657,7 @@ router.put('/leave-policies/:id', ensureAuthenticated, async (req: Request, res:
     res.json(updatedPolicy);
   } catch (error) {
     console.error('Error updating leave policy:', error);
-    res.status(500).json({ error: 'Failed to update leave policy' });
+    sendError(res, error);
   }
 });
 
@@ -1714,7 +1715,7 @@ router.get('/leave-dashboard', ensureAuthenticated, async (req: Request, res: Re
     });
   } catch (error) {
     console.error('Error fetching leave dashboard data:', error);
-    res.status(500).json({ error: 'Failed to fetch leave dashboard data' });
+    sendError(res, error);
   }
 });
 
@@ -1831,7 +1832,7 @@ router.get('/leave-summary/:employeeId/:year/:month', ensureAuthenticated, async
     });
   } catch (error) {
     console.error('Error fetching leave summary:', error);
-    res.status(500).json({ error: 'Failed to fetch leave summary' });
+    sendError(res, error);
   }
 });
 
@@ -1881,7 +1882,7 @@ router.get('/workweek-policies', ensureAuthenticated, async (req: Request, res: 
     res.json(policies);
   } catch (error) {
     console.error('Error fetching workweek policies:', error);
-    res.status(500).json({ error: 'Failed to fetch workweek policies' });
+    sendError(res, error);
   }
 });
 
@@ -1904,7 +1905,7 @@ router.get('/workweek-policies/:id', ensureAuthenticated, async (req: Request, r
     res.json(policy);
   } catch (error) {
     console.error('Error fetching workweek policy:', error);
-    res.status(500).json({ error: 'Failed to fetch workweek policy' });
+    sendError(res, error);
   }
 });
 
@@ -1932,7 +1933,7 @@ router.post('/workweek-policies', ensureAuthenticated, async (req: Request, res:
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
-    res.status(500).json({ error: 'Failed to create workweek policy' });
+    sendError(res, error);
   }
 });
 
@@ -1962,7 +1963,7 @@ router.put('/workweek-policies/:id', ensureAuthenticated, async (req: Request, r
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
-    res.status(500).json({ error: 'Failed to update workweek policy' });
+    sendError(res, error);
   }
 });
 
@@ -1985,7 +1986,7 @@ router.delete('/workweek-policies/:id', ensureAuthenticated, async (req: Request
     res.json({ message: 'Workweek policy deleted successfully' });
   } catch (error) {
     console.error('Error deleting workweek policy:', error);
-    res.status(500).json({ error: 'Failed to delete workweek policy' });
+    sendError(res, error);
   }
 });
 
@@ -2024,7 +2025,7 @@ router.get('/employee-workweek-assignments', ensureAuthenticated, async (req: Re
     res.json(assignments);
   } catch (error) {
     console.error('Error fetching employee workweek assignments:', error);
-    res.status(500).json({ error: 'Failed to fetch employee workweek assignments' });
+    sendError(res, error);
   }
 });
 
@@ -2052,7 +2053,7 @@ router.post('/employee-workweek-assignments', ensureAuthenticated, async (req: R
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
-    res.status(500).json({ error: 'Failed to create employee workweek assignment' });
+    sendError(res, error);
   }
 });
 
@@ -2086,7 +2087,7 @@ router.get('/workweek-calendar-overrides/:policyId', ensureAuthenticated, async 
     res.json(overrides);
   } catch (error) {
     console.error('Error fetching workweek calendar overrides:', error);
-    res.status(500).json({ error: 'Failed to fetch workweek calendar overrides' });
+    sendError(res, error);
   }
 });
 
@@ -2114,7 +2115,7 @@ router.post('/workweek-calendar-overrides', ensureAuthenticated, async (req: Req
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
-    res.status(500).json({ error: 'Failed to create workweek calendar override' });
+    sendError(res, error);
   }
 });
 
@@ -2137,7 +2138,7 @@ router.delete('/workweek-calendar-overrides/:id', ensureAuthenticated, async (re
     res.json({ message: 'Workweek calendar override deleted successfully' });
   } catch (error) {
     console.error('Error deleting workweek calendar override:', error);
-    res.status(500).json({ error: 'Failed to delete workweek calendar override' });
+    sendError(res, error);
   }
 });
 
@@ -2162,7 +2163,7 @@ router.get('/work-locations', ensureAuthenticated, async (req: Request, res: Res
     res.json(locations);
   } catch (error) {
     console.error('Error fetching work locations:', error);
-    res.status(500).json({ error: 'Failed to fetch work locations' });
+    sendError(res, error);
   }
 });
 
@@ -2331,7 +2332,7 @@ router.get('/payroll/records', ensureAuthenticated, async (req: Request, res: Re
     res.json(recordsWithUserInfo);
   } catch (error) {
     console.error('Error fetching payroll records:', error);
-    res.status(500).json({ error: 'Failed to fetch payroll records' });
+    sendError(res, error);
   }
 });
 
@@ -2373,7 +2374,7 @@ router.delete('/payroll/records/clear-all', ensureAuthenticated, async (req: Req
     });
   } catch (error) {
     console.error('Error clearing payroll records:', error);
-    res.status(500).json({ error: 'Failed to clear payroll records' });
+    sendError(res, error);
   }
 });
 
@@ -2504,7 +2505,7 @@ router.patch('/payroll/records/:id/void', ensureAuthenticated, async (req: Reque
     });
   } catch (error: any) {
     console.error('Error voiding payroll record:', error);
-    res.status(500).json({ error: error.message || 'Failed to void payroll record' });
+    sendError(res, error);
   }
 });
 
@@ -2516,7 +2517,7 @@ router.get('/payroll/sap-gl-accounts', ensureAuthenticated, async (req: Request,
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -2561,7 +2562,7 @@ router.get('/payroll/sap-coa-search', ensureAuthenticated, async (req: Request, 
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -2663,7 +2664,7 @@ router.get('/payroll/sap-diagnostic', ensureAuthenticated, async (req: Request, 
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const results: any = { companyDb: sapDb, sapUser, tests: {} };
 
@@ -2830,7 +2831,7 @@ router.post('/payroll/validate-gl-mappings', ensureAuthenticated, async (req: Re
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const sessionId = loginResult.sessionId;
@@ -3054,7 +3055,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
     const sapDb = process.env.SAP_COMPANY_DB || '';
 
     if (!sapUser || !sapPass || !sapDb) {
-      return res.status(500).json({ error: 'SAP credentials not configured' });
+      return sendError(res, error);
     }
 
     console.log(`[Test SAP JE] Fresh login to ${sapDb} as ${sapUser}...`);
@@ -3321,7 +3322,7 @@ router.post('/payroll/test-sap-je', ensureAuthenticated, async (req: Request, re
     }
   } catch (error: any) {
     console.error('Error in test SAP JE:', error);
-    res.status(500).json({ error: error.message || 'Failed to post test JE to SAP' });
+    sendError(res, error);
   }
 });
 
@@ -3381,7 +3382,7 @@ router.patch('/payroll/records/:id/edit', ensureAuthenticated, async (req: Reque
     res.json({ message: 'Salary record updated successfully', record: updated });
   } catch (error: any) {
     console.error('Error editing payroll record:', error);
-    res.status(500).json({ error: error.message || 'Failed to edit payroll record' });
+    sendError(res, error);
   }
 });
 
@@ -3508,7 +3509,7 @@ router.patch('/payroll/records/:id/status', ensureAuthenticated, async (req: Req
     res.json({ success: true, status: newStatus, message: `Record ${action === 'verify' ? 'verified' : action === 'hold' ? 'held' : action === 'reject' ? 'rejected' : 'reopened'} successfully.${reversalMsg}` });
   } catch (error: any) {
     console.error('Error updating payroll record status:', error);
-    res.status(500).json({ error: error.message || 'Failed to update record status' });
+    sendError(res, error);
   }
 });
 
@@ -3616,7 +3617,7 @@ router.get('/payroll/records/:id/je-preview', ensureAuthenticated, async (req: R
     res.json({ payload, totalDebit, totalCredit, balanced: Math.abs(totalDebit - totalCredit) < 0.01 });
   } catch (error: any) {
     console.error('Error generating JE preview:', error);
-    res.status(500).json({ error: error.message || 'Failed to generate JE preview' });
+    sendError(res, error);
   }
 });
 
@@ -3625,7 +3626,7 @@ router.post('/payroll/gl-mapping/auto-resolve', ensureAuthenticated, async (req:
     const sapUser = process.env.SAP_USERNAME || '';
     const sapPass = process.env.SAP_PASSWORD || '';
     const sapDb = process.env.SAP_COMPANY_DB || '';
-    if (!sapUser || !sapPass || !sapDb) return res.status(500).json({ error: 'SAP credentials not configured' });
+    if (!sapUser || !sapPass || !sapDb) return sendError(res, error);
 
     const loginResult = await sapHttpsClient.login(sapUser, sapPass, sapDb);
     const result = await resolveGlMappingsFromSap(loginResult.sessionId);
@@ -4000,7 +4001,7 @@ router.post('/payroll/records/:id/post-sap', ensureAuthenticated, async (req: Re
     return res.status(500).json({ error: lastError || 'SAP session retry exhausted' });
   } catch (error: any) {
     console.error('Error posting salary JE to SAP:', error);
-    res.status(500).json({ error: error.message || 'Failed to post salary JE to SAP' });
+    sendError(res, error);
   }
 });
 
@@ -4097,7 +4098,7 @@ router.post('/payroll/records/:id/reverse-sap', ensureAuthenticated, async (req:
     }
   } catch (error: any) {
     console.error('Error posting reversal salary JE to SAP:', error);
-    res.status(500).json({ error: error.message || 'Failed to post reversal JE to SAP' });
+    sendError(res, error);
   }
 });
 
@@ -4649,7 +4650,7 @@ router.get('/salary-slip/:payrollRecordId', ensureAuthenticated, async (req: Req
 
   } catch (error) {
     console.error('Error generating salary slip:', error);
-    res.status(500).json({ error: 'Failed to generate salary slip' });
+    sendError(res, error);
   }
 });
 

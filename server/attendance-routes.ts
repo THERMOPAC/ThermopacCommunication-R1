@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from 'express';
 import { db } from './db';
 import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays, leaveTypes, leaveBalances } from '@shared/schema';
@@ -74,7 +75,7 @@ router.get('/status', ensureAuthenticated, async (req: Request, res: Response) =
     });
   } catch (error) {
     console.error('Error getting attendance status:', error);
-    res.status(500).json({ error: 'Failed to get attendance status' });
+    sendError(res, error);
   }
 });
 
@@ -201,7 +202,7 @@ router.post('/check-in', ensureAuthenticated, async (req: Request, res: Response
     }
   } catch (error) {
     console.error('Error during check-in:', error);
-    res.status(500).json({ error: 'Failed to check in' });
+    sendError(res, error);
   }
 });
 
@@ -404,7 +405,7 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
     });
   } catch (error) {
     console.error('Error during check-out:', error);
-    res.status(500).json({ error: 'Failed to check out' });
+    sendError(res, error);
   }
 });
 
@@ -555,7 +556,7 @@ router.get('/my-records', ensureAuthenticated, async (req: Request, res: Respons
     res.json(allRecords);
   } catch (error) {
     console.error('Error getting attendance records:', error);
-    res.status(500).json({ error: 'Failed to get attendance records' });
+    sendError(res, error);
   }
 });
 
@@ -598,7 +599,7 @@ router.get('/my-summary', ensureAuthenticated, async (req: Request, res: Respons
     res.json(summary);
   } catch (error) {
     console.error('Error getting attendance summary:', error);
-    res.status(500).json({ error: 'Failed to get attendance summary' });
+    sendError(res, error);
   }
 });
 
@@ -668,7 +669,7 @@ router.get('/admin/records', ensureAuthenticated, async (req: Request, res: Resp
     res.json(records);
   } catch (error) {
     console.error('Error getting admin attendance records:', error);
-    res.status(500).json({ error: 'Failed to get attendance records' });
+    sendError(res, error);
   }
 });
 
@@ -720,7 +721,7 @@ router.get('/issues', ensureAuthenticated, async (req: Request, res: Response) =
     res.json(issues);
   } catch (error) {
     console.error('Error getting attendance issues:', error);
-    res.status(500).json({ error: 'Failed to get attendance issues' });
+    sendError(res, error);
   }
 });
 
@@ -750,7 +751,7 @@ router.patch('/issues/:id/resolve', ensureAuthenticated, async (req: Request, re
     });
   } catch (error) {
     console.error('Error resolving attendance issue:', error);
-    res.status(500).json({ error: 'Failed to resolve attendance issue' });
+    sendError(res, error);
   }
 });
 
@@ -780,7 +781,7 @@ router.patch('/records/:id/approve', ensureAuthenticated, async (req: Request, r
     });
   } catch (error) {
     console.error('Error approving attendance record:', error);
-    res.status(500).json({ error: 'Failed to approve attendance record' });
+    sendError(res, error);
   }
 });
 
@@ -892,7 +893,7 @@ router.get('/daily-quote', async (req: Request, res: Response) => {
     res.json(quote);
   } catch (error) {
     console.error('Error getting daily quote:', error);
-    res.status(500).json({ error: 'Failed to get daily quote' });
+    sendError(res, error);
   }
 });
 
@@ -1040,7 +1041,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     res.status(201).json(reg);
   } catch (error: any) {
     console.error('Error creating regularization:', error);
-    res.status(500).json({ error: 'Failed to create regularization request' });
+    sendError(res, error);
   }
 });
 
@@ -1146,7 +1147,7 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
     res.json(absentDays);
   } catch (error) {
     console.error('Error fetching absent days:', error);
-    res.status(500).json({ error: 'Failed to fetch absent days' });
+    sendError(res, error);
   }
 });
 
@@ -1186,7 +1187,7 @@ router.get('/regularization/my-requests', ensureAuthenticated, async (req: Reque
     res.json(requests);
   } catch (error) {
     console.error('Error fetching regularization requests:', error);
-    res.status(500).json({ error: 'Failed to fetch requests' });
+    sendError(res, error);
   }
 });
 
@@ -1221,7 +1222,7 @@ router.get('/regularization/pending-approvals', ensureAuthenticated, async (req:
     res.json(pending);
   } catch (error) {
     console.error('Error fetching pending approvals:', error);
-    res.status(500).json({ error: 'Failed to fetch pending approvals' });
+    sendError(res, error);
   }
 });
 
@@ -1438,7 +1439,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
     res.json(updated);
   } catch (error) {
     console.error('Error approving regularization:', error);
-    res.status(500).json({ error: 'Failed to approve request' });
+    sendError(res, error);
   }
 });
 
@@ -1496,7 +1497,7 @@ router.post('/regularization/:id/reject', ensureAuthenticated, async (req: Reque
     res.json(updated);
   } catch (error) {
     console.error('Error rejecting regularization:', error);
-    res.status(500).json({ error: 'Failed to reject request' });
+    sendError(res, error);
   }
 });
 
@@ -1514,7 +1515,7 @@ router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, r
     res.json({ message: 'Request cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling regularization:', error);
-    res.status(500).json({ error: 'Failed to cancel request' });
+    sendError(res, error);
   }
 });
 
@@ -1563,7 +1564,7 @@ router.get('/regularization/all', ensureAuthenticated, async (req: Request, res:
     res.json(allRequests);
   } catch (error) {
     console.error('Error fetching all regularizations:', error);
-    res.status(500).json({ error: 'Failed to fetch regularizations' });
+    sendError(res, error);
   }
 });
 

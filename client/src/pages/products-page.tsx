@@ -4,7 +4,7 @@ import {
   Plus, Pencil, Trash2, MoreHorizontal, Search, Settings, Package,
   Loader2, X, Filter, ChevronRight, ChevronDown, GitBranch, ArrowUp, ArrowDown
 } from "lucide-react";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";

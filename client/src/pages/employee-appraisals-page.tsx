@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
 import {
   Award, Users, Calendar, Clock, Target, Star, FileText, Settings,
   Plus, Edit, Trash2, Send, CheckCircle, AlertCircle, Eye, Play,
@@ -420,7 +420,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId] });
       toast({ title: "Draft Saved", description: "Your self-assessment narrative has been saved as a draft." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const submitMutation = useMutation({
@@ -435,7 +435,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
       setShowSubmitConfirm(false);
       toast({ title: "Submitted", description: "Your self-assessment has been submitted for L1 review." });
     },
-    onError: (e: any) => { setShowSubmitConfirm(false); toast({ title: "Submission Failed", description: e.message, variant: "destructive" }); },
+    onError: (e: any) => { setShowSubmitConfirm(false); toast({ title: "Submission Failed", description: getErrorMessage(e), variant: "destructive" }); },
   });
 
   const sectionKeys = ["achievements", "challenges", "skills", "contributions", "goals"];
@@ -755,7 +755,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
       setForm(emptyForm);
       toast({ title: "KPI added" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -775,7 +775,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
       setEditId(null);
       toast({ title: "KPI updated" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -787,7 +787,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals", appraisalId, "score"] });
       toast({ title: "KPI deleted" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const { data: availableTemplates } = useQuery<any>({
@@ -825,7 +825,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
         setConfirmReset(false);
         toast({ title: "Scoring Detected", description: "Some KPIs have scores. Please confirm the reset to proceed.", variant: "destructive" });
       } else {
-        toast({ title: "Error", description: e.message, variant: "destructive" });
+        toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" });
       }
     },
   });
@@ -1194,7 +1194,7 @@ function CompetencySection({ appraisalId, appraisal, competencies, isEmployee, i
       setEditId(null);
       toast({ title: "Competency score saved" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const startEdit = (comp: any) => {
@@ -1351,7 +1351,7 @@ function CommentsSection({ appraisalId, comments, appraisal }: { appraisalId: nu
       setNewComment("");
       toast({ title: "Comment added" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   return (
@@ -1456,7 +1456,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
       setActionDialog(null);
       toast({ title: "Action completed successfully" });
     },
-    onError: (e: any) => toast({ title: "Action failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Action failed", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const handleAction = (action: string) => {
@@ -1544,7 +1544,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
               URL.revokeObjectURL(url);
               toast({ title: "Report downloaded successfully" });
             } catch (e: any) {
-              toast({ title: "Report download failed", description: e.message, variant: "destructive" });
+              toast({ title: "Report download failed", description: getErrorMessage(e), variant: "destructive" });
             }
           }}>
             <Download className="h-4 w-4 mr-2" /> Download Report
@@ -1767,7 +1767,7 @@ function CyclesTab() {
       setShowCreate(false);
       toast({ title: "Cycle created" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const activateMutation = useMutation({
@@ -1778,7 +1778,7 @@ function CyclesTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
       toast({ title: "Cycle activated", description: `${data.created?.length || 0} appraisals created.` });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const pauseMutation = useMutation({
@@ -1789,7 +1789,7 @@ function CyclesTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
       toast({ title: "Cycle paused" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   const resumeMutation = useMutation({
@@ -1800,7 +1800,7 @@ function CyclesTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/cycles"] });
       toast({ title: "Cycle resumed" });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -2041,7 +2041,7 @@ function JobsTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/appraisals/jobs/status"] });
       toast({ title: `Job completed`, description: `${endpoint.includes("dry-run") ? "Dry run" : "Execution"} finished.` });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: getErrorMessage(e), variant: "destructive" }),
   });
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -2168,49 +2168,49 @@ function KpiTemplateLibraryTab() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => apiRequest("POST", "/api/appraisals/kpi-templates", data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowCreateDialog(false); toast({ title: 'Template created' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => apiRequest("PUT", `/api/appraisals/kpi-templates/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setEditingTemplate(null); toast({ title: 'Template updated' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("DELETE", `/api/appraisals/kpi-templates/${id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template deleted' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const activateMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("POST", `/api/appraisals/kpi-templates/${id}/activate`, {}),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template activated' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const archiveMutation = useMutation({
     mutationFn: async (id: number) => apiRequest("POST", `/api/appraisals/kpi-templates/${id}/archive`, {}),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'Template archived' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const addItemMutation = useMutation({
     mutationFn: async ({ templateId, data }: { templateId: number; data: any }) => apiRequest("POST", `/api/appraisals/kpi-templates/${templateId}/items`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowItemDialog(false); toast({ title: 'KPI added' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ templateId, itemId, data }: { templateId: number; itemId: number; data: any }) => apiRequest("PUT", `/api/appraisals/kpi-templates/${templateId}/items/${itemId}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); setShowItemDialog(false); setEditingItem(null); toast({ title: 'KPI updated' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const deleteItemMutation = useMutation({
     mutationFn: async ({ templateId, itemId }: { templateId: number; itemId: number }) => apiRequest("DELETE", `/api/appraisals/kpi-templates/${templateId}/items/${itemId}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/appraisals/kpi-templates'] }); toast({ title: 'KPI removed' }); },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const openCreateDialog = () => {

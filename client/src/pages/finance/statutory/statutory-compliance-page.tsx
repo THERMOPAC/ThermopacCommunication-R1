@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getErrorMessage } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -156,7 +156,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
       setShowGenerateDialog(false);
       toast({ title: 'Challan generated from payroll data' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const paymentMutation = useMutation({
@@ -166,7 +166,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
       setShowPaymentDialog(false);
       toast({ title: 'Payment recorded' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const filingMutation = useMutation({
@@ -189,7 +189,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
       setSapChallanTarget(null);
       toast({ title: 'Challan posted to SAP' });
     },
-    onError: (e: any) => toast({ title: 'SAP Posting Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'SAP Posting Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const reverseSapMutation = useMutation({
@@ -199,7 +199,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/challans'] });
       toast({ title: 'Challan reversal posted to SAP' });
     },
-    onError: (e: any) => toast({ title: 'SAP Reversal Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'SAP Reversal Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const deleteChallanMutation = useMutation({
@@ -210,7 +210,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
       queryClient.invalidateQueries({ queryKey: ['/api/statutory/tds/compliance-register'] });
       toast({ title: 'Challan deleted successfully' });
     },
-    onError: (e: any) => toast({ title: 'Delete Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Delete Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const createFilingMutation = useMutation({
@@ -220,7 +220,7 @@ export default function StatutoryCompliancePage({ moduleType, embedded }: Props)
       setShowFilingDialog(false);
       toast({ title: 'Filing record created' });
     },
-    onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' }),
   });
 
   const detailQuery = useQuery<any>({

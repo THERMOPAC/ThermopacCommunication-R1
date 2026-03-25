@@ -1,3 +1,4 @@
+import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import express, { Request, Response } from 'express';
 import { storage } from './storage';
 import { 
@@ -36,7 +37,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(projects);
     } catch (error) {
       console.error('Error fetching projects:', error);
-      res.status(500).json({ error: 'Failed to fetch projects' });
+      sendError(res, error);
     }
   });
   
@@ -78,7 +79,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json({ nextCode });
     } catch (error) {
       console.error('Error generating next project code:', error);
-      res.status(500).json({ error: 'Failed to generate next project code' });
+      sendError(res, error);
     }
   });
 
@@ -267,7 +268,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(phases);
     } catch (error) {
       console.error(`Error fetching phases for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project phases' });
+      sendError(res, error);
     }
   });
 
@@ -283,7 +284,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(phase);
     } catch (error) {
       console.error(`Error fetching phase ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to fetch phase details' });
+      sendError(res, error);
     }
   });
 
@@ -366,7 +367,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(members);
     } catch (error) {
       console.error(`Error fetching members for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project members' });
+      sendError(res, error);
     }
   });
 
@@ -431,7 +432,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.status(204).send();
     } catch (error) {
       console.error(`Error removing member from project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to remove project member' });
+      sendError(res, error);
     }
   });
 
@@ -478,7 +479,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(deliverables);
     } catch (error) {
       console.error(`Error fetching deliverables for phase ${req.params.phaseId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch phase deliverables' });
+      sendError(res, error);
     }
   });
 
@@ -494,7 +495,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(deliverable);
     } catch (error) {
       console.error(`Error fetching deliverable ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to fetch deliverable details' });
+      sendError(res, error);
     }
   });
 
@@ -572,7 +573,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(tasks);
     } catch (error) {
       console.error(`Error fetching tasks for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project tasks' });
+      sendError(res, error);
     }
   });
 
@@ -583,7 +584,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(tasks);
     } catch (error) {
       console.error(`Error fetching tasks for phase ${req.params.phaseId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch phase tasks' });
+      sendError(res, error);
     }
   });
 
@@ -627,7 +628,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(approvals);
     } catch (error) {
       console.error(`Error fetching approvals for phase ${req.params.phaseId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch phase approvals' });
+      sendError(res, error);
     }
   });
 
@@ -719,7 +720,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(keyStages);
     } catch (error) {
       console.error(`Error fetching key stages for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project key stages' });
+      sendError(res, error);
     }
   });
   
@@ -748,7 +749,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.status(201).json(keyStage);
     } catch (error) {
       console.error(`Error creating key stage for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to create project key stage' });
+      sendError(res, error);
     }
   });
   
@@ -788,7 +789,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(keyStage);
     } catch (error) {
       console.error(`Error updating key stage ${req.params.stageId}:`, error);
-      res.status(500).json({ error: 'Failed to update project key stage' });
+      sendError(res, error);
     }
   });
   
@@ -803,7 +804,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(keyStage);
     } catch (error) {
       console.error(`Error marking key stage ${req.params.stageId} as completed:`, error);
-      res.status(500).json({ error: 'Failed to mark project key stage as completed' });
+      sendError(res, error);
     }
   });
   
@@ -818,7 +819,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(keyStage);
     } catch (error) {
       console.error(`Error marking key stage ${req.params.stageId} as incomplete:`, error);
-      res.status(500).json({ error: 'Failed to mark project key stage as incomplete' });
+      sendError(res, error);
     }
   });
   
@@ -830,7 +831,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(documents);
     } catch (error) {
       console.error(`Error fetching documents for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project documents' });
+      sendError(res, error);
     }
   });
 
@@ -841,7 +842,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(documents);
     } catch (error) {
       console.error(`Error fetching documents for phase ${req.params.phaseId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch phase documents' });
+      sendError(res, error);
     }
   });
 
@@ -934,7 +935,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(items);
     } catch (error) {
       console.error(`Error fetching items for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project items' });
+      sendError(res, error);
     }
   });
 
@@ -962,7 +963,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(virtualComponents.rows || virtualComponents);
     } catch (error) {
       console.error(`Error fetching virtual components for project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to fetch virtual components' });
+      sendError(res, error);
     }
   });
 
@@ -973,7 +974,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(items);
     } catch (error) {
       console.error(`Error fetching items for project code ${req.params.projectCode}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project items by code' });
+      sendError(res, error);
     }
   });
 
@@ -989,7 +990,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(item);
     } catch (error) {
       console.error(`Error fetching project item ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to fetch project item' });
+      sendError(res, error);
     }
   });
 
@@ -1304,7 +1305,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.status(204).send();
     } catch (error) {
       console.error(`Error deleting project item ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to delete project item' });
+      sendError(res, error);
     }
   });
 
@@ -1339,7 +1340,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json({ deletedCount: count });
     } catch (error) {
       console.error(`Error deleting all items from project ${req.params.projectId}:`, error);
-      res.status(500).json({ error: 'Failed to delete project items' });
+      sendError(res, error);
     }
   });
 
@@ -1361,7 +1362,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json({ nextBpCode: nextCode });
     } catch (error) {
       console.error('Error generating next BP code:', error);
-      res.status(500).json({ error: 'Failed to generate next BP code' });
+      sendError(res, error);
     }
   });
 
@@ -1371,7 +1372,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(customers);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      res.status(500).json({ error: 'Failed to fetch customers' });
+      sendError(res, error);
     }
   });
 
@@ -1387,7 +1388,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.json(customer);
     } catch (error) {
       console.error(`Error fetching customer ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to fetch customer details' });
+      sendError(res, error);
     }
   });
 
@@ -1546,7 +1547,7 @@ export function setupProjectRoutes(app: express.Express) {
       res.status(204).send();
     } catch (error) {
       console.error(`Error deleting customer ${req.params.id}:`, error);
-      res.status(500).json({ error: 'Failed to delete customer' });
+      sendError(res, error);
     }
   });
 
