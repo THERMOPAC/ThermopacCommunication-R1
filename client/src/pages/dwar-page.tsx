@@ -109,6 +109,17 @@ export default function DwarPage() {
   const [taskSearchTerm, setTaskSearchTerm] = useState('');
   const [taskDropdownOpen, setTaskDropdownOpen] = useState(false);
   const taskSearchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (taskSearchRef.current && !taskSearchRef.current.contains(e.target as Node)) {
+        setTaskDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [gratitudeDialog, setGratitudeDialog] = useState<{
     open: boolean;
     message: string;
@@ -428,11 +439,7 @@ export default function DwarPage() {
                 <DialogTitle>Add New Activity</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="relative" ref={taskSearchRef} onBlur={(e) => {
-                  if (!taskSearchRef.current?.contains(e.relatedTarget as Node)) {
-                    setTimeout(() => setTaskDropdownOpen(false), 150);
-                  }
-                }}>
+                <div className="relative" ref={taskSearchRef}>
                   <Label>Link to Existing Task</Label>
                   <div className="relative">
                     <Input
@@ -473,6 +480,9 @@ export default function DwarPage() {
                           <div
                             key={task.id}
                             className="px-3 py-2 text-sm cursor-pointer hover:bg-accent truncate"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                            }}
                             onClick={() => {
                               let autoPlannedHours = 0;
                               let wasAutoFilled = false;
