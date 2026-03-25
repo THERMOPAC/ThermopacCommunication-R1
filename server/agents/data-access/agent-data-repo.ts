@@ -468,6 +468,7 @@ class AgentDataRepository {
         FROM users u
         LEFT JOIN users m ON u.reporting_manager_id = m.id
         WHERE u.is_active = true AND u.role NOT IN ('Superuser')
+          AND COALESCE(u.user_type, 'system_user') != 'non_system_user'
       ),
       working_days AS (
         SELECT generate_series(CURRENT_DATE - 6, CURRENT_DATE, '1 day'::interval)::date as work_date
@@ -758,6 +759,7 @@ class AgentDataRepository {
         FROM users u
         LEFT JOIN users m ON u.reporting_manager_id = m.id
         WHERE u.is_active = true AND u.role NOT IN ('Superuser')
+          AND COALESCE(u.user_type, 'system_user') != 'non_system_user'
       ),
       scored AS (
         SELECT d.user_id,
