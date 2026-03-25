@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,6 +106,9 @@ export default function DwarPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+  const [taskSearchTerm, setTaskSearchTerm] = useState('');
+  const [taskDropdownOpen, setTaskDropdownOpen] = useState(false);
+  const taskSearchRef = useRef<HTMLDivElement>(null);
   const [gratitudeDialog, setGratitudeDialog] = useState<{
     open: boolean;
     message: string;
@@ -410,7 +413,10 @@ export default function DwarPage() {
             Today's Activities
           </CardTitle>
           {todayReport?.status === 'draft' && (
-            <Dialog open={isAddActivityOpen} onOpenChange={setIsAddActivityOpen}>
+            <Dialog open={isAddActivityOpen} onOpenChange={(open) => {
+              setIsAddActivityOpen(open);
+              if (open) { setTaskSearchTerm(''); setTaskDropdownOpen(false); }
+            }}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <PlusCircle className="h-4 w-4 mr-2" />
@@ -422,63 +428,100 @@ export default function DwarPage() {
                 <DialogTitle>Add New Activity</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div>
+                <div className="relative" ref={taskSearchRef} onBlur={(e) => {
+                  if (!taskSearchRef.current?.contains(e.relatedTarget as Node)) {
+                    setTimeout(() => setTaskDropdownOpen(false), 150);
+                  }
+                }}>
                   <Label>Link to Existing Task</Label>
-                  <Select value={newActivity.taskId?.toString() || 'none'} onValueChange={(value) => {
-                    const taskId = value === 'none' ? undefined : parseInt(value);
-                    const selectedTask = availableTasks.find(t => t.id === taskId);
-                    let autoPlannedHours = 0;
-                    let wasAutoFilled = false;
-                    if (selectedTask) {
-                      if (selectedTask.source === 'recurring') {
-                        if (selectedTask.plannedHours && selectedTask.plannedHours > 0) {
-                          autoPlannedHours = selectedTask.plannedHours;
-                          wasAutoFilled = true;
-                        }
-                      } else {
-                        const startStr = selectedTask.startDate;
-                        const endStr = selectedTask.dueDate || selectedTask.finishDate;
-                        if (startStr && endStr) {
-                          const start = new Date(startStr);
-                          const end = new Date(endStr);
-                          if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
-                            let businessDays = 0;
-                            const cur = new Date(start);
-                            while (cur <= end) {
-                              const day = cur.getDay();
-                              if (day !== 0 && day !== 6) businessDays++;
-                              cur.setDate(cur.getDate() + 1);
-                            }
-                            if (businessDays > 0) {
-                              autoPlannedHours = businessDays * 8;
-                              wasAutoFilled = true;
-                            }
-                          }
-                        }
-                      }
-                    }
-                    setPlannedHoursAutoFilled(wasAutoFilled);
-                    setNewActivity({
-                      ...newActivity, 
-                      taskId,
-                      type: selectedTask ? 'Task Work' : newActivity.type,
-                      description: selectedTask ? selectedTask.title : newActivity.description,
-                      plannedHours: wasAutoFilled ? autoPlannedHours : newActivity.plannedHours,
-                      priority: selectedTask ? (selectedTask.priority.toLowerCase() as 'low' | 'medium' | 'high') : newActivity.priority,
-                    });
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a task" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No task selected</SelectItem>
-                      {availableTasks.map((task) => (
-                        <SelectItem key={task.id} value={task.id.toString()}>
-                          {task.title} ({task.priority}){task.dueDate ? ` — Due ${task.dueDate}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative">
+                    <Input
+                      value={taskSearchTerm}
+                      onChange={(e) => {
+                        setTaskSearchTerm(e.target.value);
+                        setTaskDropdownOpen(true);
+                      }}
+                      onFocus={() => setTaskDropdownOpen(true)}
+                      placeholder={newActivity.taskId ? availableTasks.find(t => t.id === newActivity.taskId)?.title || 'Search tasks...' : 'Search tasks...'}
+                      className={newActivity.taskId ? 'pr-8' : ''}
+                    />
+                    {newActivity.taskId && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setNewActivity({...newActivity, taskId: undefined, plannedHours: 0, priority: 'medium'});
+                          setTaskSearchTerm('');
+                          setPlannedHoursAutoFilled(false);
+                        }}
+                      >✕</button>
+                    )}
+                  </div>
+                  {taskDropdownOpen && (
+                    <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {(() => {
+                        const term = taskSearchTerm.toLowerCase();
+                        const filtered = availableTasks.filter(t =>
+                          t.title.toLowerCase().includes(term) ||
+                          t.priority.toLowerCase().includes(term) ||
+                          (t.dueDate && t.dueDate.includes(term))
+                        );
+                        if (filtered.length === 0) return (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">No tasks found</div>
+                        );
+                        return filtered.map((task) => (
+                          <div
+                            key={task.id}
+                            className="px-3 py-2 text-sm cursor-pointer hover:bg-accent truncate"
+                            onClick={() => {
+                              let autoPlannedHours = 0;
+                              let wasAutoFilled = false;
+                              if (task.source === 'recurring') {
+                                if (task.plannedHours && task.plannedHours > 0) {
+                                  autoPlannedHours = task.plannedHours;
+                                  wasAutoFilled = true;
+                                }
+                              } else {
+                                const startStr = task.startDate;
+                                const endStr = task.dueDate || task.finishDate;
+                                if (startStr && endStr) {
+                                  const start = new Date(startStr);
+                                  const end = new Date(endStr);
+                                  if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+                                    let businessDays = 0;
+                                    const cur = new Date(start);
+                                    while (cur <= end) {
+                                      const day = cur.getDay();
+                                      if (day !== 0 && day !== 6) businessDays++;
+                                      cur.setDate(cur.getDate() + 1);
+                                    }
+                                    if (businessDays > 0) {
+                                      autoPlannedHours = businessDays * 8;
+                                      wasAutoFilled = true;
+                                    }
+                                  }
+                                }
+                              }
+                              setPlannedHoursAutoFilled(wasAutoFilled);
+                              setNewActivity({
+                                ...newActivity,
+                                taskId: task.id,
+                                type: 'Task Work',
+                                description: task.title,
+                                plannedHours: wasAutoFilled ? autoPlannedHours : newActivity.plannedHours,
+                                priority: task.priority.toLowerCase() as 'low' | 'medium' | 'high',
+                              });
+                              setTaskSearchTerm(task.title);
+                              setTaskDropdownOpen(false);
+                            }}
+                          >
+                            {task.title} <span className="text-muted-foreground">({task.priority})</span>
+                            {task.dueDate ? <span className="text-muted-foreground"> — Due {task.dueDate}</span> : ''}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  )}
                 </div>
                 
                 <div>
