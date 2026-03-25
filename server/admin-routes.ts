@@ -131,7 +131,8 @@ router.get('/users', ensureAuthenticated, async (req: Request, res: Response) =>
         salaryType: users.salaryType,
         otApplicable: users.otApplicable,
         loanCardCode: users.loanCardCode,
-        loanCardName: users.loanCardName
+        loanCardName: users.loanCardName,
+        employeeType: users.employeeType
       })
       .from(users)
       .orderBy(asc(users.firstName));
@@ -197,7 +198,8 @@ router.post('/users', ensureAuthenticated, async (req: Request, res: Response) =
       esicNo,
       stdCode,
       reportingManagerId,
-      workLocationId
+      workLocationId,
+      employeeType
     } = req.body;
 
     // Hash password
@@ -231,6 +233,7 @@ router.post('/users', ensureAuthenticated, async (req: Request, res: Response) =
         stdCode,
         reportingManagerId,
         workLocationId,
+        employeeType: employeeType || 'PERMANENT',
         isActive: true
       })
       .returning();
