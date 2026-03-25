@@ -312,7 +312,7 @@ function AppraisalDetail({ appraisalId, onBack, view }: { appraisalId: number; o
           <CommentsSection appraisalId={appraisalId} comments={comments || []} appraisal={appraisal} />
         </TabsContent>
         <TabsContent value="actions">
-          <ActionsSection appraisalId={appraisalId} appraisal={appraisal} isEmployee={isEmployee} isL1={isL1} isL2={isL2} isL3={isL3} isAdmin={isAdmin} />
+          <ActionsSection appraisalId={appraisalId} appraisal={appraisal} isEmployee={isEmployee} isL1={isL1} isL2={isL2} isL3={isL3} isAdmin={isAdmin} score={score} />
         </TabsContent>
         <TabsContent value="history">
           <HistorySection approvals={approvals || []} />
@@ -1429,7 +1429,7 @@ function HistorySection({ approvals }: { approvals: any[] }) {
   );
 }
 
-function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, isAdmin }: any) {
+function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, isAdmin, score }: any) {
   const { toast } = useToast();
   const [actionDialog, setActionDialog] = useState<string | null>(null);
   const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementType: "none", l3IncrementValue: "", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "" });
