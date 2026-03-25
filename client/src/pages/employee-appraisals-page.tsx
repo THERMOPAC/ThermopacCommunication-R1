@@ -177,7 +177,40 @@ function AppraisalListTab({ view }: { view: string }) {
                   {view !== "my" && <TableCell>{a.finalScore || a.overallCalculatedScore || "-"}</TableCell>}
                   <TableCell>{a.finalRating ? <RatingBadge rating={a.finalRating} /> : "-"}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" /> View</Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" /> View</Button>
+                      {['approved', 'closed'].includes(a.status) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-green-700 hover:text-green-800"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const resp = await fetch(`/api/appraisals/${a.id}/report`, { credentials: "include" });
+                              if (!resp.ok) {
+                                const err = await resp.json().catch(() => null);
+                                throw new Error(err?.message || 'Failed to download report');
+                              }
+                              const blob = await resp.blob();
+                              const url = window.URL.createObjectURL(blob);
+                              const link = document.createElement("a");
+                              link.href = url;
+                              const cd = resp.headers.get("content-disposition");
+                              link.download = cd?.match(/filename="(.+)"/)?.[1] || `appraisal_report_${a.id}.pdf`;
+                              document.body.appendChild(link);
+                              link.click();
+                              link.remove();
+                              window.URL.revokeObjectURL(url);
+                            } catch (err: any) {
+                              toast({ title: "Download Failed", description: getErrorMessage(err), variant: "destructive" });
+                            }
+                          }}
+                        >
+                          <Download className="h-4 w-4 mr-1" /> Report
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
