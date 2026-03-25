@@ -462,6 +462,7 @@ export default function DwarPage() {
                       type: selectedTask ? 'Task Work' : newActivity.type,
                       description: selectedTask ? selectedTask.title : newActivity.description,
                       plannedHours: wasAutoFilled ? autoPlannedHours : newActivity.plannedHours,
+                      priority: selectedTask ? (selectedTask.priority.toLowerCase() as 'low' | 'medium' | 'high') : newActivity.priority,
                     });
                   }}>
                     <SelectTrigger>
@@ -521,8 +522,8 @@ export default function DwarPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Priority</Label>
-                    <Select value={newActivity.priority} onValueChange={(value: any) => setNewActivity({...newActivity, priority: value})}>
-                      <SelectTrigger>
+                    <Select value={newActivity.priority} disabled>
+                      <SelectTrigger className="bg-muted cursor-not-allowed">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
