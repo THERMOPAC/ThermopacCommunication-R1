@@ -1184,9 +1184,12 @@ class AgentDataRepository {
         GREATEST(0, EXTRACT(DAY FROM NOW() - ac.approval_deadline::timestamp))::int as days_overdue_approval
       FROM employee_appraisals ea
       JOIN appraisal_cycles ac ON ea.cycle_id = ac.id
+      JOIN users u ON ea.employee_id = u.id
       WHERE ea.status NOT IN ('approved', 'closed')
         AND ac.status = 'active'
         AND ea.is_locked = false
+        AND u.user_type = 'system_user'
+        AND u.is_active = true
       ORDER BY ea.status, ea.department
     `);
     return (rows.rows || []).map((r: any) => ({
