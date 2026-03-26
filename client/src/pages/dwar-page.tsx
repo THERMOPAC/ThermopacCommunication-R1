@@ -1274,7 +1274,7 @@ export default function DwarPage() {
               <Award className="h-5 w-5" />
               Daily Work Indicators
             </CardTitle>
-            <p className="text-xs text-muted-foreground">Operational indicators for tracking daily work patterns. These are not connected to formal appraisal KPIs.</p>
+            <p className="text-xs text-muted-foreground">Daily work indicators used in monthly KPI calculations. These scores feed into your performance summary but are separate from the formal appraisal process.</p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
