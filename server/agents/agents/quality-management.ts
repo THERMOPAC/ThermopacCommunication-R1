@@ -8,6 +8,7 @@ import { sql } from 'drizzle-orm';
 import {
   resolveProjectManager, resolveProductionManager, resolveGM,
   resolveReportingManager, resolveDepartmentHead, hasOpenTask as hasOpenTaskShared,
+  hasCompletedTask as hasCompletedTaskShared,
 } from './project-control-shared';
 
 let cachedQCHeadId: number | null = null;
@@ -38,6 +39,10 @@ function fpProject(type: string, projectId: number | string, entity: string, id:
 
 async function hasOpenTask(fingerprint: string): Promise<boolean> {
   return hasOpenTaskShared(fingerprint, SOURCE_AGENT);
+}
+
+async function hasCompletedTask(fingerprint: string): Promise<boolean> {
+  return hasCompletedTaskShared(fingerprint, SOURCE_AGENT);
 }
 
 function priorityFromSeverity(sev: string): string {
@@ -90,7 +95,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
       resolved = (r.rows || []).length > 0;
     }
 
-    const pmaMatch = cat.match(/\[fp:qm_q4_pma_expired:pma:(\d+)\]/);
+    const pmaMatch = cat.match(/\[fp:qm_q4_pma_expired\w*:pma:(\d+)\]/);
     if (pmaMatch) {
       const r = await db.execute(sql`
         SELECT 1 FROM pma_documents WHERE id = ${Number(pmaMatch[1])}
@@ -170,28 +175,74 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(row.project_id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
-          const level = escalationLevelFromSeverity(sev);
+        {
           const pm = await resolveProjectManager(row.project_id);
-          const assignee = await resolveQMEscalation(level, pm);
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] Inspection Backlog: ${row.project_name} (${pendingCount} pending)`,
-            actionType: 'create_task',
-            description: `${pendingCount} pending inspections — oldest ${oldestAge}d ago. Project-summary task.`,
-            actionPayload: {
-              title: `[Agent] Inspection Backlog: ${row.project_name} — ${pendingCount} Pending Inspections`,
-              description: `Project "${row.project_name}" (${row.project_code}) has accumulated ${pendingCount} pending inspections.\nWithout planned date: ${row.no_planned_date}\nOldest: ${row.oldest_created} (${oldestAge} days)\nTypes: ${row.types}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Review all pending inspections for this project\n2. Assign planned dates and inspectors\n3. Prioritize based on production schedule`,
-              assignedTo: assignee,
-              priority: priorityFromSeverity(sev),
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: priorityFromSeverity(sev).toLowerCase() as any,
-            confidence: 0.95,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = fpProject('q1_backlog_L1', row.project_id, 'project', row.project_id);
+          const fpL2 = fpProject('q1_backlog_L2', row.project_id, 'project', row.project_id);
+          const fpL3 = fpProject('q1_backlog_L3', row.project_id, 'project', row.project_id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', pm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Inspection Backlog: ${row.project_name} (${pendingCount} pending)`,
+              actionType: 'create_task',
+              description: `${pendingCount} pending inspections — oldest ${oldestAge}d ago. L1 review task.`,
+              actionPayload: {
+                title: `[Agent] Inspection Backlog: ${row.project_name} — ${pendingCount} Pending Inspections`,
+                description: `Project "${row.project_name}" (${row.project_code}) has accumulated ${pendingCount} pending inspections.\nWithout planned date: ${row.no_planned_date}\nOldest: ${row.oldest_created} (${oldestAge} days)\nTypes: ${row.types}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Review all pending inspections for this project\n2. Assign planned dates and inspectors\n3. Prioritize based on production schedule\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'Medium',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'medium',
+              confidence: 0.95,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (sev === 'high' || sev === 'critical') {
+            if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2) && !await hasCompletedTask(fpL2)) {
+              const assignee = await resolveQMEscalation('L2', pm);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id || finding.findingId,
+                title: `[Agent] ESCALATION: Inspection Backlog: ${row.project_name} (${pendingCount} pending)`,
+                actionType: 'create_task',
+                description: `${pendingCount} pending inspections — L1 completed but issue persists. L2 escalation.`,
+                actionPayload: {
+                  title: `[Agent] ESCALATION: Inspection Backlog: ${row.project_name} — ${pendingCount} Pending`,
+                  description: `Project "${row.project_name}" (${row.project_code}) still has ${pendingCount} pending inspections after L1 review was completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nThis has been escalated because the issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                  assignedTo: assignee,
+                  priority: 'High',
+                  category: `Quality ${fpL2}`,
+                },
+                actionCategory: 'task_creation',
+                logicType: 'rule_based',
+                priority: 'high',
+                confidence: 0.95,
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+            } else if (sev === 'critical' && await hasCompletedTask(fpL2) && !await hasOpenTask(fpL3)) {
+              const assignee = await resolveQMEscalation('L3', pm);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id || finding.findingId,
+                title: `[Agent] CRITICAL ESCALATION: Inspection Backlog: ${row.project_name} (${pendingCount} pending)`,
+                actionType: 'create_task',
+                description: `${pendingCount} pending inspections — L2 completed but issue persists. L3 escalation.`,
+                actionPayload: {
+                  title: `[Agent] CRITICAL: Inspection Backlog: ${row.project_name} — ${pendingCount} Pending`,
+                  description: `Project "${row.project_name}" (${row.project_code}) still has ${pendingCount} pending inspections after L1 and L2 reviews were completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nThis has been escalated to senior management because the issue persists.\n\nSource: Quality Management Agent — L3 Senior Management Escalation`,
+                  assignedTo: assignee,
+                  priority: 'Critical',
+                  category: `Quality ${fpL3}`,
+                },
+                actionCategory: 'task_creation',
+                logicType: 'rule_based',
+                priority: 'critical',
+                confidence: 0.95,
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+            }
+          }
         }
       }
 
@@ -390,27 +441,51 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(row.project_id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
+        {
           const stalepm = await resolveProjectManager(row.project_id);
-          const assignee = await resolveQMEscalation('L2', stalepm);
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] Stale Inspections: ${row.project_name}`,
-            actionType: 'create_task',
-            description: `${row.stale_count} inspections pending > 180d — systemic issue.`,
-            actionPayload: {
-              title: `[Agent] Stale Inspections: ${row.project_name} — ${row.stale_count} Pending > 180 Days`,
-              description: `${row.stale_count} inspections in "${row.project_name}" have been pending for over 180 days.\nOldest: ${row.max_age} days\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Review all stale inspections — cancel obsolete ones, reschedule active ones.`,
-              assignedTo: assignee,
-              priority: priorityFromSeverity(sev),
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: priorityFromSeverity(sev).toLowerCase(),
-            confidence: 0.90,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = fpProject('q1_stale_L1', row.project_id, 'project', row.project_id);
+          const fpL2 = fpProject('q1_stale_L2', row.project_id, 'project', row.project_id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', stalepm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Stale Inspections: ${row.project_name}`,
+              actionType: 'create_task',
+              description: `${row.stale_count} inspections pending > 180d — L1 review.`,
+              actionPayload: {
+                title: `[Agent] Stale Inspections: ${row.project_name} — ${row.stale_count} Pending > 180 Days`,
+                description: `${row.stale_count} inspections in "${row.project_name}" have been pending for over 180 days.\nOldest: ${row.max_age} days\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Review all stale inspections — cancel obsolete ones, reschedule active ones.\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'Medium',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'medium',
+              confidence: 0.90,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2)) {
+            const assignee = await resolveQMEscalation('L2', stalepm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] ESCALATION: Stale Inspections: ${row.project_name}`,
+              actionType: 'create_task',
+              description: `${row.stale_count} inspections pending > 180d — L1 completed, L2 escalation.`,
+              actionPayload: {
+                title: `[Agent] ESCALATION: Stale Inspections: ${row.project_name} — ${row.stale_count} Pending > 180 Days`,
+                description: `${row.stale_count} inspections in "${row.project_name}" are still pending after L1 review was completed.\nOldest: ${row.max_age} days\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                assignedTo: assignee,
+                priority: priorityFromSeverity(sev),
+                category: `Quality ${fpL2}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: priorityFromSeverity(sev).toLowerCase(),
+              confidence: 0.90,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
 
@@ -437,27 +512,51 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(proj.id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
+        {
           const pm = await resolveProjectManager(proj.id);
-          const assignee = await resolveQMEscalation('L2', pm);
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] No Inspection Orders: ${proj.name}`,
-            actionType: 'create_task',
-            description: `Active project with zero inspection orders — no QC coverage.`,
-            actionPayload: {
-              title: `[Agent] No Inspection Orders: ${proj.name} (${proj.code})`,
-              description: `Active project "${proj.name}" (${proj.code}) has no inspection orders.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Create inspection plan covering incoming, in-process, and final inspections.`,
-              assignedTo: assignee,
-              priority: priorityFromSeverity(sev),
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: priorityFromSeverity(sev).toLowerCase(),
-            confidence: 0.90,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = fpProject('q1_no_inspections_L1', proj.id, 'project', proj.id);
+          const fpL2 = fpProject('q1_no_inspections_L2', proj.id, 'project', proj.id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', pm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] No Inspection Orders: ${proj.name}`,
+              actionType: 'create_task',
+              description: `Active project with zero inspection orders — L1 review.`,
+              actionPayload: {
+                title: `[Agent] No Inspection Orders: ${proj.name} (${proj.code})`,
+                description: `Active project "${proj.name}" (${proj.code}) has no inspection orders.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Create inspection plan covering incoming, in-process, and final inspections.\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'Medium',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'medium',
+              confidence: 0.90,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2)) {
+            const assignee = await resolveQMEscalation('L2', pm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] ESCALATION: No Inspection Orders: ${proj.name}`,
+              actionType: 'create_task',
+              description: `Active project with zero inspection orders — L1 completed, L2 escalation.`,
+              actionPayload: {
+                title: `[Agent] ESCALATION: No Inspection Orders: ${proj.name} (${proj.code})`,
+                description: `Active project "${proj.name}" (${proj.code}) still has no inspection orders after L1 review was completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                assignedTo: assignee,
+                priority: priorityFromSeverity(sev),
+                category: `Quality ${fpL2}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: priorityFromSeverity(sev).toLowerCase(),
+              confidence: 0.90,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     } catch (err: any) {
@@ -496,26 +595,51 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(inst.id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveQMEscalation('L2', await resolveQCHead());
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] CRITICAL: Instrument In Use With Expired Calibration: ${inst.instrument_id}`,
-            actionType: 'create_task',
-            description: `Active instrument ${daysOverdue}d past calibration — compliance violation.`,
-            actionPayload: {
-              title: `[Agent] CRITICAL: ${inst.instrument_id} — In Use With Expired Calibration (${daysOverdue}d overdue)`,
-              description: `COMPLIANCE RISK: Instrument "${inst.instrument_name}" (${inst.instrument_id}) is actively in use with expired calibration.\nType: ${inst.instrument_type} | Serial: ${inst.serial_number}\nLocation: ${inst.location}\nCalibration Due: ${new Date(inst.next_calibration_date).toISOString().split('T')[0]} (${daysOverdue}d overdue)\nCertificate: ${inst.certificate_number || 'N/A'}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Remove instrument from service immediately\n2. Send for recalibration\n3. Review any measurements/inspections done since expiry`,
-              assignedTo: assignee,
-              priority: 'Critical',
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: 'critical',
-            confidence: 0.98,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        {
+          const qcHead = await resolveQCHead();
+          const fpL1 = fp('q2_inuse_expired_L1', 'instrument', inst.id);
+          const fpL2 = fp('q2_inuse_expired_L2', 'instrument', inst.id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', qcHead);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Instrument Expired Calibration: ${inst.instrument_id}`,
+              actionType: 'create_task',
+              description: `Active instrument ${daysOverdue}d past calibration — L1 review.`,
+              actionPayload: {
+                title: `[Agent] ${inst.instrument_id} — Expired Calibration (${daysOverdue}d overdue)`,
+                description: `COMPLIANCE RISK: Instrument "${inst.instrument_name}" (${inst.instrument_id}) is actively in use with expired calibration.\nType: ${inst.instrument_type} | Serial: ${inst.serial_number}\nLocation: ${inst.location}\nCalibration Due: ${new Date(inst.next_calibration_date).toISOString().split('T')[0]} (${daysOverdue}d overdue)\nCertificate: ${inst.certificate_number || 'N/A'}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Remove instrument from service immediately\n2. Send for recalibration\n3. Review any measurements/inspections done since expiry\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'High',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'high',
+              confidence: 0.98,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2)) {
+            const assignee = await resolveQMEscalation('L2', qcHead);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] ESCALATION: Instrument Expired Calibration: ${inst.instrument_id}`,
+              actionType: 'create_task',
+              description: `Active instrument ${daysOverdue}d past calibration — L1 completed, L2 escalation.`,
+              actionPayload: {
+                title: `[Agent] ESCALATION: ${inst.instrument_id} — Expired Calibration (${daysOverdue}d overdue)`,
+                description: `COMPLIANCE RISK: Instrument "${inst.instrument_name}" (${inst.instrument_id}) is still in use with expired calibration after L1 review was completed.\nType: ${inst.instrument_type} | Serial: ${inst.serial_number}\nLocation: ${inst.location}\nCalibration Due: ${new Date(inst.next_calibration_date).toISOString().split('T')[0]} (${daysOverdue}d overdue)\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                assignedTo: assignee,
+                priority: 'Critical',
+                category: `Quality ${fpL2}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'critical',
+              confidence: 0.98,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
 
@@ -535,7 +659,29 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: 'systemic',
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
+        const fpSysL2 = fp('q2_systemic_L2', 'global', 'calibration');
+        const fpSysL3 = fp('q2_systemic_L3', 'global', 'calibration');
+        if (!await hasOpenTask(fpSysL2) && !await hasCompletedTask(fpSysL2)) {
+          const assignee = await resolveQMEscalation('L2', await resolveQCHead());
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] Systemic Calibration Failure: ${inUseOverdue.length} instruments`,
+            actionType: 'create_task',
+            description: `${inUseOverdue.length} instruments in use with expired calibration — L2 review.`,
+            actionPayload: {
+              title: `[Agent] Systemic Calibration Failure: ${inUseOverdue.length} Instruments Overdue`,
+              description: `${inUseOverdue.length} calibration instruments currently in active use have expired calibration.\nInstruments: ${inUseOverdue.map((i: any) => i.instrument_id).join(', ')}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Halt use of all expired instruments, conduct calibration audit.\n\nSource: Quality Management Agent — L2 Manager Review`,
+              assignedTo: assignee,
+              priority: 'High',
+              category: `Quality ${fpSysL2}`,
+            },
+            actionCategory: 'task_creation',
+            logicType: 'rule_based',
+            priority: 'high',
+            confidence: 0.98,
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        } else if (await hasCompletedTask(fpSysL2) && !await hasOpenTask(fpSysL3)) {
           const assignee = await resolveQMEscalation('L3', await resolveQCHead());
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
@@ -544,10 +690,10 @@ export class QualityManagementAgent implements IAgent {
             description: `Systemic calibration failure — ${inUseOverdue.length} active instruments overdue.`,
             actionPayload: {
               title: `[Agent] SYSTEMIC Calibration Failure: ${inUseOverdue.length} Active Instruments With Expired Calibration`,
-              description: `SYSTEMIC COMPLIANCE FAILURE: ${inUseOverdue.length} calibration instruments in active use have expired calibration.\nInstruments: ${inUseOverdue.map((i: any) => `${i.instrument_id} (${i.days_overdue}d overdue)`).join(', ')}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Conduct emergency calibration audit\n2. Remove all expired instruments from service\n3. Review and fix calibration tracking process\n4. Report to management on compliance gap`,
+              description: `SYSTEMIC COMPLIANCE FAILURE: ${inUseOverdue.length} calibration instruments in active use have expired calibration after L2 review was completed.\nInstruments: ${inUseOverdue.map((i: any) => `${i.instrument_id} (${i.days_overdue}d overdue)`).join(', ')}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after manager review.\n\nAction Required:\n1. Conduct emergency calibration audit\n2. Remove all expired instruments from service\n3. Review and fix calibration tracking process\n4. Report to management on compliance gap\n\nSource: Quality Management Agent — L3 Senior Management Escalation`,
               assignedTo: assignee,
               priority: 'Critical',
-              category: `Quality ${fingerprint}`,
+              category: `Quality ${fpSysL3}`,
             },
             actionCategory: 'task_creation',
             logicType: 'rule_based',
@@ -677,27 +823,74 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(welder.id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
-          const level = escalationLevelFromSeverity(sev);
-          const assignee = await resolveQMEscalation(level, await resolveQCHead());
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] Active Welder Expired Certificate: ${welder.name} (${welder.welderId})`,
-            actionType: 'create_task',
-            description: `Active welder with certificate expired ${daysExpired}d.`,
-            actionPayload: {
-              title: `[Agent] Active Welder Expired Certificate: ${welder.name} (${welder.welderId}) — ${daysExpired}d expired`,
-              description: `Welder "${welder.name}" (${welder.welderId}) is marked Active with expired certificate.\nCertificate: ${welder.certificateNo}\nExpiry: ${new Date(welder.certificateExpiryDate).toISOString().split('T')[0]} (${daysExpired}d ago)\nWPS: ${welder.wpsNumber} | Trade: ${welder.trade}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: ${daysExpired > 365 ? 'Update status to Expired or arrange recertification test.' : 'Stop welding activities and arrange immediate recertification.'}`,
-              assignedTo: assignee,
-              priority: priorityFromSeverity(sev),
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: priorityFromSeverity(sev).toLowerCase(),
-            confidence: 0.95,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        {
+          const qcHead = await resolveQCHead();
+          const fpL1 = fp('q3_active_expired_L1', 'welder', welder.id);
+          const fpL2 = fp('q3_active_expired_L2', 'welder', welder.id);
+          const fpL3 = fp('q3_active_expired_L3', 'welder', welder.id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', qcHead);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Active Welder Expired Certificate: ${welder.name} (${welder.welderId})`,
+              actionType: 'create_task',
+              description: `Active welder with certificate expired ${daysExpired}d — L1 review.`,
+              actionPayload: {
+                title: `[Agent] Active Welder Expired Certificate: ${welder.name} (${welder.welderId}) — ${daysExpired}d expired`,
+                description: `Welder "${welder.name}" (${welder.welderId}) is marked Active with expired certificate.\nCertificate: ${welder.certificateNo}\nExpiry: ${new Date(welder.certificateExpiryDate).toISOString().split('T')[0]} (${daysExpired}d ago)\nWPS: ${welder.wpsNumber} | Trade: ${welder.trade}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: ${daysExpired > 365 ? 'Update status to Expired or arrange recertification test.' : 'Stop welding activities and arrange immediate recertification.'}\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'Medium',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'medium',
+              confidence: 0.95,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (sev === 'high' || sev === 'critical') {
+            if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2) && !await hasCompletedTask(fpL2)) {
+              const assignee = await resolveQMEscalation('L2', qcHead);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id || finding.findingId,
+                title: `[Agent] ESCALATION: Welder Expired Certificate: ${welder.name} (${welder.welderId})`,
+                actionType: 'create_task',
+                description: `Active welder with certificate expired ${daysExpired}d — L1 completed, L2 escalation.`,
+                actionPayload: {
+                  title: `[Agent] ESCALATION: Welder ${welder.name} (${welder.welderId}) — Certificate ${daysExpired}d Expired`,
+                  description: `Welder "${welder.name}" (${welder.welderId}) is still Active with expired certificate after L1 review was completed.\nCertificate: ${welder.certificateNo}\nExpiry: ${new Date(welder.certificateExpiryDate).toISOString().split('T')[0]} (${daysExpired}d ago)\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                  assignedTo: assignee,
+                  priority: 'High',
+                  category: `Quality ${fpL2}`,
+                },
+                actionCategory: 'task_creation',
+                logicType: 'rule_based',
+                priority: 'high',
+                confidence: 0.95,
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+            } else if (sev === 'critical' && await hasCompletedTask(fpL2) && !await hasOpenTask(fpL3)) {
+              const assignee = await resolveQMEscalation('L3', qcHead);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id || finding.findingId,
+                title: `[Agent] CRITICAL: Welder Expired Certificate: ${welder.name} (${welder.welderId})`,
+                actionType: 'create_task',
+                description: `Active welder with certificate expired ${daysExpired}d — L2 completed, L3 escalation.`,
+                actionPayload: {
+                  title: `[Agent] CRITICAL: Welder ${welder.name} (${welder.welderId}) — Certificate ${daysExpired}d Expired`,
+                  description: `Welder "${welder.name}" (${welder.welderId}) is still Active with expired certificate after L1 and L2 reviews were completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated to senior management because issue persists.\n\nSource: Quality Management Agent — L3 Senior Management Escalation`,
+                  assignedTo: assignee,
+                  priority: 'Critical',
+                  category: `Quality ${fpL3}`,
+                },
+                actionCategory: 'task_creation',
+                logicType: 'rule_based',
+                priority: 'critical',
+                confidence: 0.95,
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+            }
+          }
         }
       }
 
@@ -889,26 +1082,51 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(pma.id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
-          const assignee = await resolveQMEscalation('L2', await resolveQCHead());
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] Expired PMA Still Active: ${pma.pma_number}`,
-            actionType: 'create_task',
-            description: `PMA expired ${daysExpired}d ago but still marked Active.`,
-            actionPayload: {
-              title: `[Agent] Expired PMA Still Active: ${pma.pma_number} (${daysExpired}d expired)`,
-              description: `PMA "${pma.pma_number}" is expired but still marked Active.\nSpecification: ${pma.specification} | Grade: ${pma.grade}\nExpiry: ${new Date(pma.expiry_date).toISOString().split('T')[0]} (${daysExpired}d ago)\nCertified By: ${pma.certified_by}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Renew PMA with certification authority, OR\n2. Mark as Inactive\n3. Review all materials approved under this PMA`,
-              assignedTo: assignee,
-              priority: 'Critical',
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: 'critical',
-            confidence: 0.95,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        {
+          const qcHead = await resolveQCHead();
+          const fpL1 = fp('q4_pma_expired_L1', 'pma', pma.id);
+          const fpL2 = fp('q4_pma_expired_L2', 'pma', pma.id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', qcHead);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Expired PMA Still Active: ${pma.pma_number}`,
+              actionType: 'create_task',
+              description: `PMA expired ${daysExpired}d ago but still marked Active — L1 review.`,
+              actionPayload: {
+                title: `[Agent] Expired PMA Still Active: ${pma.pma_number} (${daysExpired}d expired)`,
+                description: `PMA "${pma.pma_number}" is expired but still marked Active.\nSpecification: ${pma.specification} | Grade: ${pma.grade}\nExpiry: ${new Date(pma.expiry_date).toISOString().split('T')[0]} (${daysExpired}d ago)\nCertified By: ${pma.certified_by}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Renew PMA with certification authority, OR\n2. Mark as Inactive\n3. Review all materials approved under this PMA\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'High',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'high',
+              confidence: 0.95,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2)) {
+            const assignee = await resolveQMEscalation('L2', qcHead);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] ESCALATION: Expired PMA Still Active: ${pma.pma_number}`,
+              actionType: 'create_task',
+              description: `PMA expired ${daysExpired}d ago — L1 completed, L2 escalation.`,
+              actionPayload: {
+                title: `[Agent] ESCALATION: Expired PMA: ${pma.pma_number} (${daysExpired}d expired)`,
+                description: `PMA "${pma.pma_number}" is still active after L1 review was completed.\nSpecification: ${pma.specification} | Grade: ${pma.grade}\nExpiry: ${new Date(pma.expiry_date).toISOString().split('T')[0]} (${daysExpired}d ago)\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                assignedTo: assignee,
+                priority: 'Critical',
+                category: `Quality ${fpL2}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'critical',
+              confidence: 0.95,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
 
@@ -1022,27 +1240,51 @@ export class QualityManagementAgent implements IAgent {
           relatedEntityId: String(proj.id),
         });
         if (!finding.isDuplicate) findingsCount++;
-        if (!await hasOpenTask(fingerprint)) {
+        {
           const pm = await resolveProjectManager(proj.id);
-          const assignee = await resolveQMEscalation('L2', pm);
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding.id || finding.findingId,
-            title: `[Agent] Active Project Without QAP: ${proj.name}`,
-            actionType: 'create_task',
-            description: `Active project with no Quality Assurance Plan.`,
-            actionPayload: {
-              title: `[Agent] Active Project Without QAP: ${proj.name} (${proj.code})`,
-              description: `Active project "${proj.name}" (${proj.code}) has no Quality Assurance Plan generated.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Select appropriate QAP template\n2. Generate QAP for this project\n3. Get QAP reviewed and approved`,
-              assignedTo: assignee,
-              priority: priorityFromSeverity(sev),
-              category: `Quality ${fingerprint}`,
-            },
-            actionCategory: 'task_creation',
-            logicType: 'rule_based',
-            priority: priorityFromSeverity(sev).toLowerCase(),
-            confidence: 0.90,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = fpProject('q4_no_qap_L1', proj.id, 'project', proj.id);
+          const fpL2 = fpProject('q4_no_qap_L2', proj.id, 'project', proj.id);
+          if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+            const assignee = await resolveQMEscalation('L1', pm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] Active Project Without QAP: ${proj.name}`,
+              actionType: 'create_task',
+              description: `Active project with no Quality Assurance Plan — L1 review.`,
+              actionPayload: {
+                title: `[Agent] Active Project Without QAP: ${proj.name} (${proj.code})`,
+                description: `Active project "${proj.name}" (${proj.code}) has no Quality Assurance Plan generated.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required:\n1. Select appropriate QAP template\n2. Generate QAP for this project\n3. Get QAP reviewed and approved\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                assignedTo: assignee,
+                priority: 'Medium',
+                category: `Quality ${fpL1}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: 'medium',
+              confidence: 0.90,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2)) {
+            const assignee = await resolveQMEscalation('L2', pm);
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding.id || finding.findingId,
+              title: `[Agent] ESCALATION: Active Project Without QAP: ${proj.name}`,
+              actionType: 'create_task',
+              description: `Active project with no QAP — L1 completed, L2 escalation.`,
+              actionPayload: {
+                title: `[Agent] ESCALATION: No QAP: ${proj.name} (${proj.code})`,
+                description: `Active project "${proj.name}" (${proj.code}) still has no Quality Assurance Plan after L1 review was completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                assignedTo: assignee,
+                priority: priorityFromSeverity(sev),
+                category: `Quality ${fpL2}`,
+              },
+              actionCategory: 'task_creation',
+              logicType: 'rule_based',
+              priority: priorityFromSeverity(sev).toLowerCase(),
+              confidence: 0.90,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
 
@@ -1120,27 +1362,74 @@ export class QualityManagementAgent implements IAgent {
             relatedEntityId: projectId,
           });
           if (!finding.isDuplicate) findingsCount++;
-          if (!await hasOpenTask(fingerprint)) {
+          {
             const entityOwner = first.created_by ? Number(first.created_by) : null;
-            const assignee = await resolveQMEscalation(escalationLevelFromSeverity(sev), entityOwner);
-            const rec = await recommendationManager.createRecommendation({
-              findingId: finding.id || finding.findingId,
-              title: `[Agent] Materials Without Documents: ${first.project_name}`,
-              actionType: 'create_task',
-              description: `${materials.length} materials missing supporting documents — traceability gap.`,
-              actionPayload: {
-                title: `[Agent] Materials Without Documents: ${first.project_name} — ${materials.length} Missing MTC`,
-                description: `${materials.length} materials in "${first.project_name}" (${first.project_code}) have no supporting documents.\nMaterials: ${materials.map((m: any) => `${m.material_identification_id} (${m.material_code} / Heat: ${m.heat_number})`).join('\n')}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Upload Mill Test Certificates and supporting documents for all listed materials.`,
-                assignedTo: assignee,
-                priority: priorityFromSeverity(sev),
-                category: `Quality ${fingerprint}`,
-              },
-              actionCategory: 'task_creation',
-              logicType: 'rule_based',
-              priority: priorityFromSeverity(sev).toLowerCase(),
-              confidence: 0.95,
-            });
-            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+            const fpL1 = fpProject('q5_no_docs_L1', projectId, 'project', projectId);
+            const fpL2 = fpProject('q5_no_docs_L2', projectId, 'project', projectId);
+            const fpL3 = fpProject('q5_no_docs_L3', projectId, 'project', projectId);
+            if (!await hasOpenTask(fpL1) && !await hasCompletedTask(fpL1)) {
+              const assignee = await resolveQMEscalation('L1', entityOwner);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id || finding.findingId,
+                title: `[Agent] Materials Without Documents: ${first.project_name}`,
+                actionType: 'create_task',
+                description: `${materials.length} materials missing supporting documents — L1 review.`,
+                actionPayload: {
+                  title: `[Agent] Materials Without Documents: ${first.project_name} — ${materials.length} Missing MTC`,
+                  description: `${materials.length} materials in "${first.project_name}" (${first.project_code}) have no supporting documents.\nMaterials: ${materials.map((m: any) => `${m.material_identification_id} (${m.material_code} / Heat: ${m.heat_number})`).join('\n')}\nagent_severity: ${sev}\nfinding_category: ${category}\n\nAction Required: Upload Mill Test Certificates and supporting documents for all listed materials.\n\nSource: Quality Management Agent — L1 Assignee Review`,
+                  assignedTo: assignee,
+                  priority: 'Medium',
+                  category: `Quality ${fpL1}`,
+                },
+                actionCategory: 'task_creation',
+                logicType: 'rule_based',
+                priority: 'medium',
+                confidence: 0.95,
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+            } else if (sev === 'high' || sev === 'critical') {
+              if (await hasCompletedTask(fpL1) && !await hasOpenTask(fpL2) && !await hasCompletedTask(fpL2)) {
+                const assignee = await resolveQMEscalation('L2', entityOwner);
+                const rec = await recommendationManager.createRecommendation({
+                  findingId: finding.id || finding.findingId,
+                  title: `[Agent] ESCALATION: Materials Without Documents: ${first.project_name}`,
+                  actionType: 'create_task',
+                  description: `${materials.length} materials missing documents — L1 completed, L2 escalation.`,
+                  actionPayload: {
+                    title: `[Agent] ESCALATION: Materials Without Documents: ${first.project_name} — ${materials.length} Missing MTC`,
+                    description: `${materials.length} materials in "${first.project_name}" (${first.project_code}) still have no supporting documents after L1 review was completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated because issue persists after assignee review.\n\nSource: Quality Management Agent — L2 Manager Escalation`,
+                    assignedTo: assignee,
+                    priority: 'High',
+                    category: `Quality ${fpL2}`,
+                  },
+                  actionCategory: 'task_creation',
+                  logicType: 'rule_based',
+                  priority: 'high',
+                  confidence: 0.95,
+                });
+                if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+              } else if (sev === 'critical' && await hasCompletedTask(fpL2) && !await hasOpenTask(fpL3)) {
+                const assignee = await resolveQMEscalation('L3', entityOwner);
+                const rec = await recommendationManager.createRecommendation({
+                  findingId: finding.id || finding.findingId,
+                  title: `[Agent] CRITICAL: Materials Without Documents: ${first.project_name}`,
+                  actionType: 'create_task',
+                  description: `${materials.length} materials missing documents — L2 completed, L3 escalation.`,
+                  actionPayload: {
+                    title: `[Agent] CRITICAL: Materials Without Documents: ${first.project_name} — ${materials.length} Missing MTC`,
+                    description: `${materials.length} materials in "${first.project_name}" (${first.project_code}) still have no supporting documents after L1 and L2 reviews were completed.\nagent_severity: ${sev}\nfinding_category: ${category}\n\nEscalated to senior management because issue persists.\n\nSource: Quality Management Agent — L3 Senior Management Escalation`,
+                    assignedTo: assignee,
+                    priority: 'Critical',
+                    category: `Quality ${fpL3}`,
+                  },
+                  actionCategory: 'task_creation',
+                  logicType: 'rule_based',
+                  priority: 'critical',
+                  confidence: 0.95,
+                });
+                if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+              }
+            }
           }
         }
       }
