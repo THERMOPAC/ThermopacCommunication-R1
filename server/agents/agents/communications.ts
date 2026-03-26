@@ -1253,6 +1253,123 @@ export class CommunicationsAgent implements IAgent {
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // ─── FINDING TYPE 38-42: APPRAISAL COMPLETION MONITORING ───
+    // ═══════════════════════════════════════════════════════════════
+    const pendingAppraisals = await agentDataRepo.getPendingAppraisals();
+    const appraisalCycleProgress = await agentDataRepo.getAppraisalCycleProgress();
+    queriesRun += 2;
+
+    const overdueSelfAssessments = pendingAppraisals.filter(a => ['open', 'draft'].includes(a.status) && a.daysOverdueSelf > 0);
+    const overdueL1Reviews = pendingAppraisals.filter(a => a.status === 'self_submitted' && a.daysOverdueManager > 0);
+    const overdueL2Reviews = pendingAppraisals.filter(a => a.status === 'l1_reviewed' && a.daysOverdueL2 > 0);
+    const overdueL3Approvals = pendingAppraisals.filter(a => a.status === 'l2_reviewed' && a.daysOverdueApproval > 0);
+
+    for (const a of overdueSelfAssessments) {
+      const result = await findingManager.createFinding({
+        findingType: 'appraisal_overdue',
+        severity: a.daysOverdueSelf >= 7 ? 'high' : 'medium',
+        title: `${a.employeeName}: Self-assessment overdue by ${a.daysOverdueSelf} day(s) — "${a.cycleName}"`,
+        description: [
+          `${a.employeeName} (${a.department}) has not submitted their self-assessment for cycle "${a.cycleName}".`,
+          `Status: ${a.status} | Deadline was: ${a.selfDeadline}`,
+          `\n→ Notify: ${a.employeeName} — please complete your self-assessment.`,
+          a.daysOverdueSelf >= 7 ? `→ Escalate: ${a.l1ReviewerName} (L1 reviewer) — team member self-assessment significantly overdue.` : '',
+        ].filter(Boolean).join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { appraisalId: a.id, employeeId: a.employeeId, employeeName: a.employeeName,
+          department: a.department, status: a.status, daysOverdue: a.daysOverdueSelf, cycleName: a.cycleName },
+        relatedEntityType: 'appraisal_completion',
+        relatedEntityId: `appraisal:${a.id}:self_overdue`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    for (const a of overdueL1Reviews) {
+      const result = await findingManager.createFinding({
+        findingType: 'appraisal_overdue',
+        severity: a.daysOverdueManager >= 7 ? 'high' : 'medium',
+        title: `L1 Review overdue: ${a.employeeName} — ${a.daysOverdueManager} day(s) past deadline — "${a.cycleName}"`,
+        description: [
+          `L1 reviewer ${a.l1ReviewerName} has not completed the review for ${a.employeeName} (${a.department}).`,
+          `Status: self_submitted | Manager review deadline was: ${a.managerDeadline}`,
+          `\n→ Notify: ${a.l1ReviewerName} — please complete the L1 review.`,
+          a.daysOverdueManager >= 7 ? `→ Escalate: ${a.l2ReviewerName} (L2 reviewer) — L1 review significantly overdue.` : '',
+        ].filter(Boolean).join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { appraisalId: a.id, employeeName: a.employeeName, l1ReviewerName: a.l1ReviewerName,
+          department: a.department, daysOverdue: a.daysOverdueManager, cycleName: a.cycleName },
+        relatedEntityType: 'appraisal_completion',
+        relatedEntityId: `appraisal:${a.id}:l1_overdue`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    for (const a of overdueL2Reviews) {
+      const result = await findingManager.createFinding({
+        findingType: 'appraisal_overdue',
+        severity: a.daysOverdueL2 >= 7 ? 'high' : 'medium',
+        title: `L2 Review overdue: ${a.employeeName} — ${a.daysOverdueL2} day(s) past deadline — "${a.cycleName}"`,
+        description: [
+          `L2 reviewer ${a.l2ReviewerName} has not completed the review for ${a.employeeName} (${a.department}).`,
+          `Status: l1_reviewed | L2 review deadline was: ${a.l2Deadline}`,
+          `\n→ Notify: ${a.l2ReviewerName} — please complete the L2 review.`,
+        ].join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { appraisalId: a.id, employeeName: a.employeeName, l2ReviewerName: a.l2ReviewerName,
+          department: a.department, daysOverdue: a.daysOverdueL2, cycleName: a.cycleName },
+        relatedEntityType: 'appraisal_completion',
+        relatedEntityId: `appraisal:${a.id}:l2_overdue`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    for (const a of overdueL3Approvals) {
+      const result = await findingManager.createFinding({
+        findingType: 'appraisal_overdue',
+        severity: a.daysOverdueApproval >= 7 ? 'critical' : 'high',
+        title: `L3 Approval overdue: ${a.employeeName} — ${a.daysOverdueApproval} day(s) past deadline — "${a.cycleName}"`,
+        description: [
+          `L3 approver ${a.l3ApproverName} has not completed the final approval for ${a.employeeName} (${a.department}).`,
+          `Status: l2_reviewed | Approval deadline was: ${a.approvalDeadline}`,
+          `\n→ Notify: ${a.l3ApproverName} — please complete the final approval.`,
+        ].join('\n'),
+        logicType: 'rule_based',
+        dataSnapshot: { appraisalId: a.id, employeeName: a.employeeName, l3ApproverName: a.l3ApproverName,
+          department: a.department, daysOverdue: a.daysOverdueApproval, cycleName: a.cycleName },
+        relatedEntityType: 'appraisal_completion',
+        relatedEntityId: `appraisal:${a.id}:l3_overdue`,
+      });
+      if (!result.isDuplicate) findingsCount++;
+    }
+
+    for (const cycle of appraisalCycleProgress) {
+      if (cycle.totalAppraisals === 0) continue;
+      const completionPct = Math.round((cycle.completedCount / cycle.totalAppraisals) * 100);
+      if (cycle.pendingCount > 0) {
+        const result = await findingManager.createFinding({
+          findingType: 'appraisal_progress',
+          severity: completionPct < 50 ? 'high' : 'medium',
+          title: `Appraisal Cycle "${cycle.cycleName}": ${completionPct}% complete — ${cycle.pendingCount} pending`,
+          description: [
+            `Cycle "${cycle.cycleName}" progress: ${cycle.completedCount}/${cycle.totalAppraisals} completed (${completionPct}%).`,
+            `\nBreakdown of pending:`,
+            `  • Not started (open): ${cycle.openCount}`,
+            `  • Draft (in progress): ${cycle.draftCount}`,
+            `  • Awaiting L1 review: ${cycle.selfSubmittedCount}`,
+            `  • Awaiting L2 review: ${cycle.l1ReviewedCount}`,
+            `  • Awaiting L3 approval: ${cycle.l2ReviewedCount}`,
+            `\nDeadlines: Self=${cycle.selfDeadline || 'N/A'} | L1=${cycle.managerDeadline || 'N/A'} | L2=${cycle.l2Deadline || 'N/A'} | Approval=${cycle.approvalDeadline || 'N/A'}`,
+          ].join('\n'),
+          logicType: 'rule_based',
+          dataSnapshot: cycle,
+          relatedEntityType: 'appraisal_cycle',
+          relatedEntityId: `cycle:${cycle.cycleId}:progress`,
+        });
+        if (!result.isDuplicate) findingsCount++;
+      }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // ═══════════════════════════════════════════════════════════════════════
     // ═══════  TASK CREATION ENGINE (28 + 5 + 5 MODEL)  ═══════════════════
@@ -2176,6 +2293,131 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
+    // A30-A33: APPRAISAL COMPLETION — automated tasks for overdue appraisals
+    const selfByEmployee: Record<string, typeof overdueSelfAssessments> = {};
+    for (const a of overdueSelfAssessments) {
+      const key = String(a.employeeId);
+      if (!selfByEmployee[key]) selfByEmployee[key] = [];
+      selfByEmployee[key].push(a);
+    }
+    for (const [empId, appraisals] of Object.entries(selfByEmployee)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_self_overdue', empId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• "${a.cycleName}" — ${a.daysOverdueSelf}d overdue`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Appraisal self-assessment overdue: ${first.employeeName}`,
+        description: `${first.employeeName} has ${appraisals.length} overdue self-assessment(s). Create a reminder task.`,
+        actionPayload: {
+          title: `[Agent] Complete your appraisal self-assessment (${appraisals.length} pending)`,
+          description: `Your self-assessment is overdue for the following appraisal cycle(s):\n\n${list}\n\nPlease log in to the Appraisals module and complete your self-assessment including:\n1. KPI scores and achievements\n2. Competency self-ratings\n3. Self-assessment narrative\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: first.daysOverdueSelf >= 7 ? 'High' : 'Medium',
+          assignedTo: first.employeeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+        },
+        confidence: 0.9,
+        priority: first.daysOverdueSelf >= 7 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    const l1ByReviewer: Record<string, typeof overdueL1Reviews> = {};
+    for (const a of overdueL1Reviews) {
+      const key = String(a.l1ReviewerId);
+      if (!l1ByReviewer[key]) l1ByReviewer[key] = [];
+      l1ByReviewer[key].push(a);
+    }
+    for (const [reviewerId, appraisals] of Object.entries(l1ByReviewer)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_l1_overdue', reviewerId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• ${a.employeeName} (${a.department}) — ${a.daysOverdueManager}d overdue`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `L1 appraisal review overdue: ${first.l1ReviewerName} (${appraisals.length} pending)`,
+        description: `${first.l1ReviewerName} has ${appraisals.length} pending L1 review(s). Create a review task.`,
+        actionPayload: {
+          title: `[Agent] Complete L1 appraisal reviews (${appraisals.length} pending)`,
+          description: `You have ${appraisals.length} appraisal L1 review(s) pending past the deadline:\n\n${list}\n\nPlease log in to the Appraisals module and complete your reviews including:\n1. KPI scores and manager comments\n2. Competency ratings\n3. Increment/promotion recommendations\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: first.daysOverdueManager >= 7 ? 'High' : 'Medium',
+          assignedTo: first.l1ReviewerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+        },
+        confidence: 0.9,
+        priority: first.daysOverdueManager >= 7 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    const l2ByReviewer: Record<string, typeof overdueL2Reviews> = {};
+    for (const a of overdueL2Reviews) {
+      const key = String(a.l2ReviewerId);
+      if (!l2ByReviewer[key]) l2ByReviewer[key] = [];
+      l2ByReviewer[key].push(a);
+    }
+    for (const [reviewerId, appraisals] of Object.entries(l2ByReviewer)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_l2_overdue', reviewerId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• ${a.employeeName} (${a.department}) — ${a.daysOverdueL2}d overdue`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `L2 appraisal review overdue: ${first.l2ReviewerName} (${appraisals.length} pending)`,
+        description: `${first.l2ReviewerName} has ${appraisals.length} pending L2 review(s). Create a review task.`,
+        actionPayload: {
+          title: `[Agent] Complete L2 appraisal reviews (${appraisals.length} pending)`,
+          description: `You have ${appraisals.length} appraisal L2 review(s) pending past the deadline:\n\n${list}\n\nPlease complete your L2 reviews in the Appraisals module.\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: first.daysOverdueL2 >= 7 ? 'High' : 'Medium',
+          assignedTo: first.l2ReviewerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+        },
+        confidence: 0.9,
+        priority: first.daysOverdueL2 >= 7 ? 'high' : 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    const l3ByApprover: Record<string, typeof overdueL3Approvals> = {};
+    for (const a of overdueL3Approvals) {
+      const key = String(a.l3ApproverId);
+      if (!l3ByApprover[key]) l3ByApprover[key] = [];
+      l3ByApprover[key].push(a);
+    }
+    for (const [approverId, appraisals] of Object.entries(l3ByApprover)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_l3_overdue', approverId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• ${a.employeeName} (${a.department}) — ${a.daysOverdueApproval}d overdue`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `L3 appraisal approval overdue: ${first.l3ApproverName} (${appraisals.length} pending)`,
+        description: `${first.l3ApproverName} has ${appraisals.length} pending L3 approval(s). Create an approval task.`,
+        actionPayload: {
+          title: `[Agent] Complete L3 appraisal approvals (${appraisals.length} pending)`,
+          description: `You have ${appraisals.length} appraisal(s) awaiting final L3 approval past the deadline:\n\n${list}\n\nPlease complete the final approvals including increment/promotion decisions.\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: 'High',
+          assignedTo: first.l3ApproverId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+        },
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
     } // end skipTaskCreation guard for Group A
 
     // ─── GROUP B: WEEKLY CONSOLIDATED "COMMUNICATIONS HEALTH REVIEW" TASK ───
@@ -2325,6 +2567,14 @@ export class CommunicationsAgent implements IAgent {
         `--- INTERNAL MESSAGES ---`,
         `Unread 48h+: ${unreadMessages.length}`,
         ``,
+        `--- APPRAISAL COMPLETION ---`,
+        `Pending appraisals: ${pendingAppraisals.length}`,
+        `  - Self-assessment overdue: ${overdueSelfAssessments.length}`,
+        `  - L1 review overdue: ${overdueL1Reviews.length}`,
+        `  - L2 review overdue: ${overdueL2Reviews.length}`,
+        `  - L3 approval overdue: ${overdueL3Approvals.length}`,
+        ...appraisalCycleProgress.map(c => `  Cycle "${c.cycleName}": ${c.completedCount}/${c.totalAppraisals} complete (${c.totalAppraisals > 0 ? Math.round((c.completedCount / c.totalAppraisals) * 100) : 0}%)`),
+        ``,
         `--- TRENDS (vs prior week) ---`,
         trendLine(trends.currentOverdueTasks, trends.previousOverdueTasks, 'Overdue tasks'),
         trendLine(trends.currentDwarMissing, trends.previousDwarMissing, 'DWAR issues'),
@@ -2380,9 +2630,13 @@ export class CommunicationsAgent implements IAgent {
           `--- ATTENDANCE ---`,
           `30-day patterns flagged: ${attendancePatterns.length}`,
           trendLine(trends.currentAttendanceIssues, trends.previousAttendanceIssues, 'Trend'),
+          ``,
+          `--- APPRAISAL COMPLETION ---`,
+          `Pending: ${pendingAppraisals.length} | Self overdue: ${overdueSelfAssessments.length} | L1 overdue: ${overdueL1Reviews.length} | L2 overdue: ${overdueL2Reviews.length} | L3 overdue: ${overdueL3Approvals.length}`,
+          ...appraisalCycleProgress.map(c => `  ${c.cycleName}: ${c.completedCount}/${c.totalAppraisals} (${c.totalAppraisals > 0 ? Math.round((c.completedCount / c.totalAppraisals) * 100) : 0}%)`),
         ].join('\n'),
         logicType: 'rule_based',
-        dataSources: ['tasks', 'daily_work_reports', 'leave_requests', 'meeting_commitments', 'attendance_records'],
+        dataSources: ['tasks', 'daily_work_reports', 'leave_requests', 'meeting_commitments', 'attendance_records', 'employee_appraisals'],
         scopePeriod: 'weekly',
       });
       insightsCount++;

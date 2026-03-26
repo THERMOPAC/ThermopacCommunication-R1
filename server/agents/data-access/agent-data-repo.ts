@@ -1157,6 +1157,110 @@ class AgentDataRepository {
       category: r.category || 'General',
     }));
   }
+  async getPendingAppraisals(): Promise<Array<{
+    id: number; employeeId: number; employeeName: string; department: string;
+    status: string; cycleId: number; cycleName: string;
+    l1ReviewerId: number; l1ReviewerName: string;
+    l2ReviewerId: number; l2ReviewerName: string;
+    l3ApproverId: number; l3ApproverName: string;
+    selfDeadline: string | null; managerDeadline: string | null;
+    l2Deadline: string | null; approvalDeadline: string | null;
+    daysOverdueSelf: number; daysOverdueManager: number;
+    daysOverdueL2: number; daysOverdueApproval: number;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT ea.id, ea.employee_id, ea.employee_name, ea.department, ea.status,
+        ea.cycle_id, ac.name as cycle_name,
+        ea.l1_reviewer_id, ea.l1_reviewer_name,
+        ea.l2_reviewer_id, ea.l2_reviewer_name,
+        ea.l3_approver_id, ea.l3_approver_name,
+        ac.self_assessment_deadline::text as self_deadline,
+        ac.manager_review_deadline::text as manager_deadline,
+        ac.l2_review_deadline::text as l2_deadline,
+        ac.approval_deadline::text as approval_deadline,
+        GREATEST(0, EXTRACT(DAY FROM NOW() - ac.self_assessment_deadline::timestamp))::int as days_overdue_self,
+        GREATEST(0, EXTRACT(DAY FROM NOW() - ac.manager_review_deadline::timestamp))::int as days_overdue_manager,
+        GREATEST(0, EXTRACT(DAY FROM NOW() - ac.l2_review_deadline::timestamp))::int as days_overdue_l2,
+        GREATEST(0, EXTRACT(DAY FROM NOW() - ac.approval_deadline::timestamp))::int as days_overdue_approval
+      FROM employee_appraisals ea
+      JOIN appraisal_cycles ac ON ea.cycle_id = ac.id
+      WHERE ea.status NOT IN ('approved', 'closed')
+        AND ac.status = 'active'
+        AND ea.is_locked = false
+      ORDER BY ea.status, ea.department
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      id: Number(r.id),
+      employeeId: Number(r.employee_id),
+      employeeName: r.employee_name || 'Unknown',
+      department: r.department || '',
+      status: r.status || 'open',
+      cycleId: Number(r.cycle_id),
+      cycleName: r.cycle_name || '',
+      l1ReviewerId: Number(r.l1_reviewer_id),
+      l1ReviewerName: r.l1_reviewer_name || '',
+      l2ReviewerId: Number(r.l2_reviewer_id),
+      l2ReviewerName: r.l2_reviewer_name || '',
+      l3ApproverId: Number(r.l3_approver_id),
+      l3ApproverName: r.l3_approver_name || '',
+      selfDeadline: r.self_deadline || null,
+      managerDeadline: r.manager_deadline || null,
+      l2Deadline: r.l2_deadline || null,
+      approvalDeadline: r.approval_deadline || null,
+      daysOverdueSelf: Number(r.days_overdue_self || 0),
+      daysOverdueManager: Number(r.days_overdue_manager || 0),
+      daysOverdueL2: Number(r.days_overdue_l2 || 0),
+      daysOverdueApproval: Number(r.days_overdue_approval || 0),
+    }));
+  }
+
+  async getAppraisalCycleProgress(): Promise<Array<{
+    cycleId: number; cycleName: string; status: string;
+    totalAppraisals: number; completedCount: number; pendingCount: number;
+    openCount: number; draftCount: number; selfSubmittedCount: number;
+    l1ReviewedCount: number; l2ReviewedCount: number;
+    selfDeadline: string | null; managerDeadline: string | null;
+    l2Deadline: string | null; approvalDeadline: string | null;
+  }>> {
+    const rows = await db.execute(sql`
+      SELECT ac.id as cycle_id, ac.name as cycle_name, ac.status,
+        ac.self_assessment_deadline::text as self_deadline,
+        ac.manager_review_deadline::text as manager_deadline,
+        ac.l2_review_deadline::text as l2_deadline,
+        ac.approval_deadline::text as approval_deadline,
+        COUNT(ea.id)::int as total_appraisals,
+        COUNT(CASE WHEN ea.status IN ('approved', 'closed') THEN 1 END)::int as completed_count,
+        COUNT(CASE WHEN ea.status NOT IN ('approved', 'closed') THEN 1 END)::int as pending_count,
+        COUNT(CASE WHEN ea.status = 'open' THEN 1 END)::int as open_count,
+        COUNT(CASE WHEN ea.status = 'draft' THEN 1 END)::int as draft_count,
+        COUNT(CASE WHEN ea.status = 'self_submitted' THEN 1 END)::int as self_submitted_count,
+        COUNT(CASE WHEN ea.status = 'l1_reviewed' THEN 1 END)::int as l1_reviewed_count,
+        COUNT(CASE WHEN ea.status = 'l2_reviewed' THEN 1 END)::int as l2_reviewed_count
+      FROM appraisal_cycles ac
+      LEFT JOIN employee_appraisals ea ON ea.cycle_id = ac.id
+      WHERE ac.status = 'active'
+      GROUP BY ac.id, ac.name, ac.status, ac.self_assessment_deadline,
+        ac.manager_review_deadline, ac.l2_review_deadline, ac.approval_deadline
+      ORDER BY ac.id
+    `);
+    return (rows.rows || []).map((r: any) => ({
+      cycleId: Number(r.cycle_id),
+      cycleName: r.cycle_name || '',
+      status: r.status || '',
+      totalAppraisals: Number(r.total_appraisals || 0),
+      completedCount: Number(r.completed_count || 0),
+      pendingCount: Number(r.pending_count || 0),
+      openCount: Number(r.open_count || 0),
+      draftCount: Number(r.draft_count || 0),
+      selfSubmittedCount: Number(r.self_submitted_count || 0),
+      l1ReviewedCount: Number(r.l1_reviewed_count || 0),
+      l2ReviewedCount: Number(r.l2_reviewed_count || 0),
+      selfDeadline: r.self_deadline || null,
+      managerDeadline: r.manager_deadline || null,
+      l2Deadline: r.l2_deadline || null,
+      approvalDeadline: r.approval_deadline || null,
+    }));
+  }
 }
 
 export const agentDataRepo = new AgentDataRepository();
