@@ -68,6 +68,18 @@ async function hasOpenAgentTask(fingerprint: string): Promise<boolean> {
   return (result.rows || []).length > 0;
 }
 
+async function hasCompletedAgentTask(fingerprint: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task'
+      AND source_agent = ${SOURCE_AGENT}
+      AND category LIKE ${'%' + fingerprint + '%'}
+      AND status = 'completed'
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
 async function hasRecentAgentTask(fingerprint: string, cooldownDays: number): Promise<boolean> {
   const result = await db.execute(sql`
     SELECT 1 FROM tasks 
@@ -127,6 +139,15 @@ async function autoCloseResolvedTasks(): Promise<number> {
         const leadId = Number(match[1]);
         const lead = await db.execute(sql`SELECT is_converted FROM leads WHERE id = ${leadId}`);
         if ((lead.rows as any[])[0]?.is_converted) shouldClose = true;
+      }
+    }
+    if (cat.includes('fp:sm_offer_approved')) {
+      const match = cat.match(/offer:(\d+)/);
+      if (match) {
+        const offerId = Number(match[1]);
+        const offer = await db.execute(sql`SELECT status FROM offers WHERE id = ${offerId}`);
+        const st = (offer.rows as any[])[0]?.status;
+        if (st === 'Converted' || st === 'Cancelled') shouldClose = true;
       }
     }
     if (cat.includes('fp:sm_offer_expir') || cat.includes('fp:sm_offer_draft') || cat.includes('fp:sm_offer_no_response')) {
@@ -193,6 +214,7 @@ export class SalesMarketingAgent implements IAgent {
     const salesL1userId = settings.sales_l1_user_id;
     const L1 = salesL1userId;
     const L2 = await resolveEscalation('L2', salesL1userId);
+    const L3 = await resolveEscalation('L3', salesL1userId);
 
     const firstRun = await isFirstRun();
 
@@ -420,8 +442,11 @@ export class SalesMarketingAgent implements IAgent {
         for (const lead of escalatedLeads) {
           if (escalationTaskCount >= MAX_ESCALATION_TASKS) break;
           if (await hasAnyOpenLeadTask(lead.id)) continue;
-          const fp = makeFingerprint('stale_lead_s2', `lead:${lead.id}`);
-          if (await hasRecentAgentTask(fp, 14)) continue;
+          const fpS1 = makeFingerprint('stale_lead_s1', `lead:${lead.id}`);
+          const fpL2 = makeFingerprint('stale_lead_s2_L2', `lead:${lead.id}`);
+          if (!await hasCompletedAgentTask(fpS1)) continue;
+          if (await hasOpenAgentTask(fpL2)) continue;
+          if (await hasRecentAgentTask(fpL2, 14)) continue;
 
           const rec = await recommendationManager.createRecommendation({
             findingId: finding!.id,
@@ -430,10 +455,10 @@ export class SalesMarketingAgent implements IAgent {
             actionType: 'create_task',
             actionPayload: {
               title: `[Sales] ESCALATION: Lead inactive ${lead.days_since_contact}d — ${lead.company_name}`,
-              description: `Lead ${lead.company_name} has had no contact for ${lead.days_since_contact} days.\nStatus: ${lead.status_name}\nProbability: ${lead.probability || 'N/A'}%\nExpected Close: ${lead.expected_close_date || 'Not set'}\n\nThis lead needs immediate attention or should be reassessed.\n\nSource: Sales & Marketing Agent — S2`,
+              description: `Lead ${lead.company_name} has had no contact for ${lead.days_since_contact} days.\nStatus: ${lead.status_name}\nProbability: ${lead.probability || 'N/A'}%\nExpected Close: ${lead.expected_close_date || 'Not set'}\n\nEscalated because L1 follow-up task was completed but lead remains inactive.\n\nSource: Sales & Marketing Agent — S2 L2 Escalation`,
               assignedTo: L2,
               priority: 'High',
-              category: `Sales ${fp}`,
+              category: `Sales ${fpL2}`,
             },
             actionCategory: "task_creation",
             logicType: "rule_based",
@@ -534,28 +559,50 @@ export class SalesMarketingAgent implements IAgent {
         for (const lead of highValueNeglected) {
           if (hvTaskCount >= MAX_HV_TASKS) break;
           if (await hasAnyOpenLeadTask(lead.id)) continue;
-          const fp = makeFingerprint('high_value_lead', `lead:${lead.id}`);
-          if (await hasRecentAgentTask(fp, 7)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding!.id,
-            title: `Priority: High-value lead ${lead.company_name} (${lead.probability}%)`,
-            priority: 'high',
-            actionType: 'create_task',
-            actionPayload: {
-              title: `[Sales] PRIORITY: Contact high-value lead ${lead.company_name} (${lead.probability}% prob)`,
-              description: `High-probability lead ${lead.company_name} hasn't been contacted in ${lead.days_since_contact} days.\nProbability: ${lead.probability}%\nValue: ${lead.currency || ''} ${Number(lead.potential_value || 0).toLocaleString()}\nStatus: ${lead.status_name}\n\nThis is a high-conversion opportunity — prioritize follow-up.\n\nSource: Sales & Marketing Agent — S4`,
-              assignedTo: L2,
-              priority: 'High',
-              category: `Sales ${fp}`,
-            },
-            actionCategory: "task_creation",
-            logicType: "rule_based",
-            confidence: 0.95,
-            description: "Auto-generated task from Sales & Marketing Agent",
-            assignTo: L2,
-          });
-          if (rec.id > 0) { recommendationsCount++; hvTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = makeFingerprint('high_value_lead_L1', `lead:${lead.id}`);
+          const fpL2 = makeFingerprint('high_value_lead_L2', `lead:${lead.id}`);
+          if (!await hasOpenAgentTask(fpL1) && !await hasCompletedAgentTask(fpL1)) {
+            if (await hasRecentAgentTask(fpL1, 7)) continue;
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `Priority: High-value lead ${lead.company_name} (${lead.probability}%)`,
+              priority: 'medium',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] PRIORITY: Contact high-value lead ${lead.company_name} (${lead.probability}% prob)`,
+                description: `High-probability lead ${lead.company_name} hasn't been contacted in ${lead.days_since_contact} days.\nProbability: ${lead.probability}%\nValue: ${lead.currency || ''} ${Number(lead.potential_value || 0).toLocaleString()}\nStatus: ${lead.status_name}\n\nThis is a high-conversion opportunity — prioritize follow-up.\n\nSource: Sales & Marketing Agent — S4 L1 Assignee Review`,
+                assignedTo: L1,
+                priority: 'Medium',
+                category: `Sales ${fpL1}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L1,
+            });
+            if (rec.id > 0) { recommendationsCount++; hvTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `ESCALATION: High-value lead ${lead.company_name} (${lead.probability}%)`,
+              priority: 'high',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] ESCALATION: High-value lead ${lead.company_name} (${lead.probability}% prob)`,
+                description: `High-probability lead ${lead.company_name} still hasn't been contacted after L1 review was completed.\nProbability: ${lead.probability}%\nValue: ${lead.currency || ''} ${Number(lead.potential_value || 0).toLocaleString()}\nStatus: ${lead.status_name}\n\nEscalated because issue persists after assignee review.\n\nSource: Sales & Marketing Agent — S4 L2 Manager Escalation`,
+                assignedTo: L2,
+                priority: 'High',
+                category: `Sales ${fpL2}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L2,
+            });
+            if (rec.id > 0) { recommendationsCount++; hvTaskCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
@@ -902,29 +949,50 @@ export class SalesMarketingAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const offer of approvedNotConverted) {
-          const fp = makeFingerprint('offer_approved', `offer:${offer.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
-          if (await hasRecentAgentTask(fp, 14)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding!.id,
-            title: `Convert approved offer: ${offer.offer_number}`,
-            priority: 'high',
-            actionType: 'create_task',
-            actionPayload: {
-              title: `[Sales] Convert approved offer: ${offer.offer_number} — ${offer.customer_name}`,
-              description: `Offer ${offer.offer_number} was approved ${offer.days_since_updated} days ago but hasn't been converted.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\n\nPlease proceed with order conversion and project setup.\n\nSource: Sales & Marketing Agent — S11`,
-              assignedTo: L2,
-              priority: 'High',
-              category: `Sales ${fp}`,
-            },
-            actionCategory: "task_creation",
-            logicType: "rule_based",
-            confidence: 0.95,
-            description: "Auto-generated task from Sales & Marketing Agent",
-            assignTo: L2,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = makeFingerprint('offer_approved_L1', `offer:${offer.id}`);
+          const fpL2 = makeFingerprint('offer_approved_L2', `offer:${offer.id}`);
+          if (!await hasOpenAgentTask(fpL1) && !await hasCompletedAgentTask(fpL1)) {
+            if (await hasRecentAgentTask(fpL1, 14)) continue;
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `Convert approved offer: ${offer.offer_number}`,
+              priority: 'medium',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] Convert approved offer: ${offer.offer_number} — ${offer.customer_name}`,
+                description: `Offer ${offer.offer_number} was approved ${offer.days_since_updated} days ago but hasn't been converted.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\n\nPlease proceed with order conversion and project setup.\n\nSource: Sales & Marketing Agent — S11 L1 Assignee Review`,
+                assignedTo: L1,
+                priority: 'Medium',
+                category: `Sales ${fpL1}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L1,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `ESCALATION: Convert approved offer: ${offer.offer_number}`,
+              priority: 'high',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] ESCALATION: Approved offer not converted: ${offer.offer_number} — ${offer.customer_name}`,
+                description: `Offer ${offer.offer_number} was approved ${offer.days_since_updated} days ago and remains unconverted after L1 review was completed.\nAmount: ${offer.currency} ${Number(offer.total_amount).toLocaleString()}\n\nEscalated because issue persists after assignee review.\n\nSource: Sales & Marketing Agent — S11 L2 Manager Escalation`,
+                assignedTo: L2,
+                priority: 'High',
+                category: `Sales ${fpL2}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L2,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
@@ -962,29 +1030,51 @@ export class SalesMarketingAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const cust of highRejection) {
-          const fp = makeFingerprint('high_rejection', `cust:${cust.name.substring(0, 20)}`);
-          if (await hasOpenAgentTask(fp)) continue;
-          if (await hasRecentAgentTask(fp, 30)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding!.id,
-            title: `Review rejection pattern: ${cust.name}`,
-            priority: 'medium',
-            actionType: 'create_task',
-            actionPayload: {
-              title: `[Sales] High rejection rate: ${cust.name} — ${cust.rejected}/${cust.total} offers rejected`,
-              description: `Customer ${cust.name} has ${cust.rejected} out of ${cust.total} offers rejected.\n\nPlease review pricing, specifications, and customer requirements to improve conversion.\n\nSource: Sales & Marketing Agent — S12`,
-              assignedTo: L2,
-              priority: 'Medium',
-              category: `Sales ${fp}`,
-            },
-            actionCategory: "task_creation",
-            logicType: "rule_based",
-            confidence: 0.95,
-            description: "Auto-generated task from Sales & Marketing Agent",
-            assignTo: L2,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const custKey = cust.name.substring(0, 20);
+          const fpL1 = makeFingerprint('high_rejection_L1', `cust:${custKey}`);
+          const fpL2 = makeFingerprint('high_rejection_L2', `cust:${custKey}`);
+          if (!await hasOpenAgentTask(fpL1) && !await hasCompletedAgentTask(fpL1)) {
+            if (await hasRecentAgentTask(fpL1, 30)) continue;
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `Review rejection pattern: ${cust.name}`,
+              priority: 'medium',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] High rejection rate: ${cust.name} — ${cust.rejected}/${cust.total} offers rejected`,
+                description: `Customer ${cust.name} has ${cust.rejected} out of ${cust.total} offers rejected.\n\nPlease review pricing, specifications, and customer requirements to improve conversion.\n\nSource: Sales & Marketing Agent — S12 L1 Assignee Review`,
+                assignedTo: L1,
+                priority: 'Medium',
+                category: `Sales ${fpL1}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L1,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `ESCALATION: Rejection pattern: ${cust.name}`,
+              priority: 'high',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] ESCALATION: High rejection rate: ${cust.name} — ${cust.rejected}/${cust.total} rejected`,
+                description: `Customer ${cust.name} still has ${cust.rejected} out of ${cust.total} offers rejected after L1 review was completed.\n\nEscalated because issue persists after assignee review.\n\nSource: Sales & Marketing Agent — S12 L2 Manager Escalation`,
+                assignedTo: L2,
+                priority: 'High',
+                category: `Sales ${fpL2}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L2,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
@@ -1168,29 +1258,50 @@ export class SalesMarketingAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const cust of highPotentialNeglected) {
-          const fp = makeFingerprint('high_potential', `cust:${cust.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
-          if (await hasRecentAgentTask(fp, 30)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding!.id,
-            title: `Re-engage: ${cust.bp_name}`,
-            priority: 'high',
-            actionType: 'create_task',
-            actionPayload: {
-              title: `[Sales] Re-engage high-value customer: ${cust.bp_name}`,
-              description: `Customer ${cust.bp_name} has prior business worth ${cust.currency || ''} ${Number(cust.total_business).toLocaleString()} but hasn't received a new offer recently.\n\nPlease reach out to explore new opportunities.\n\nSource: Sales & Marketing Agent — C4`,
-              assignedTo: L2,
-              priority: 'High',
-              category: `Sales ${fp}`,
-            },
-            actionCategory: "task_creation",
-            logicType: "rule_based",
-            confidence: 0.95,
-            description: "Auto-generated task from Sales & Marketing Agent",
-            assignTo: L2,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = makeFingerprint('high_potential_L1', `cust:${cust.id}`);
+          const fpL2 = makeFingerprint('high_potential_L2', `cust:${cust.id}`);
+          if (!await hasOpenAgentTask(fpL1) && !await hasCompletedAgentTask(fpL1)) {
+            if (await hasRecentAgentTask(fpL1, 30)) continue;
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `Re-engage: ${cust.bp_name}`,
+              priority: 'medium',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] Re-engage high-value customer: ${cust.bp_name}`,
+                description: `Customer ${cust.bp_name} has prior business worth ${cust.currency || ''} ${Number(cust.total_business).toLocaleString()} but hasn't received a new offer recently.\n\nPlease reach out to explore new opportunities.\n\nSource: Sales & Marketing Agent — C4 L1 Assignee Review`,
+                assignedTo: L1,
+                priority: 'Medium',
+                category: `Sales ${fpL1}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L1,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `ESCALATION: Re-engage: ${cust.bp_name}`,
+              priority: 'high',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Sales] ESCALATION: High-value customer neglected: ${cust.bp_name}`,
+                description: `Customer ${cust.bp_name} with prior business worth ${cust.currency || ''} ${Number(cust.total_business).toLocaleString()} still hasn't been re-engaged after L1 review was completed.\n\nEscalated because issue persists after assignee review.\n\nSource: Sales & Marketing Agent — C4 L2 Manager Escalation`,
+                assignedTo: L2,
+                priority: 'High',
+                category: `Sales ${fpL2}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L2,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
@@ -1342,29 +1453,50 @@ export class SalesMarketingAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const mc of overbudgetCampaigns) {
-          const fp = makeFingerprint('campaign_overbudget', `campaign:${mc.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
-          if (await hasRecentAgentTask(fp, 14)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            findingId: finding!.id,
-            title: `Review overbudget campaign: ${mc.name}`,
-            priority: 'high',
-            actionType: 'create_task',
-            actionPayload: {
-              title: `[Marketing] Campaign overbudget: ${mc.name}`,
-              description: `Campaign "${mc.name}" has spent ${Number(mc.actual_cost).toLocaleString()} against a budget of ${Number(mc.budget).toLocaleString()} (${Math.round(Number(mc.actual_cost) / Number(mc.budget) * 100)}%).\n\nPlease review and adjust spending or budget.\n\nSource: Sales & Marketing Agent — D4`,
-              assignedTo: L2,
-              priority: 'High',
-              category: `Digital Marketing ${fp}`,
-            },
-            actionCategory: "task_creation",
-            logicType: "rule_based",
-            confidence: 0.95,
-            description: "Auto-generated task from Sales & Marketing Agent",
-            assignTo: L2,
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = makeFingerprint('campaign_overbudget_L1', `campaign:${mc.id}`);
+          const fpL2 = makeFingerprint('campaign_overbudget_L2', `campaign:${mc.id}`);
+          if (!await hasOpenAgentTask(fpL1) && !await hasCompletedAgentTask(fpL1)) {
+            if (await hasRecentAgentTask(fpL1, 14)) continue;
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `Review overbudget campaign: ${mc.name}`,
+              priority: 'medium',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Marketing] Campaign overbudget: ${mc.name}`,
+                description: `Campaign "${mc.name}" has spent ${Number(mc.actual_cost).toLocaleString()} against a budget of ${Number(mc.budget).toLocaleString()} (${Math.round(Number(mc.actual_cost) / Number(mc.budget) * 100)}%).\n\nPlease review and adjust spending or budget.\n\nSource: Sales & Marketing Agent — D4 L1 Assignee Review`,
+                assignedTo: L1,
+                priority: 'Medium',
+                category: `Digital Marketing ${fpL1}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L1,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2)) {
+            const rec = await recommendationManager.createRecommendation({
+              findingId: finding!.id,
+              title: `ESCALATION: Overbudget campaign: ${mc.name}`,
+              priority: 'high',
+              actionType: 'create_task',
+              actionPayload: {
+                title: `[Marketing] ESCALATION: Campaign overbudget: ${mc.name}`,
+                description: `Campaign "${mc.name}" is still overbudget after L1 review was completed.\nSpent: ${Number(mc.actual_cost).toLocaleString()} vs budget: ${Number(mc.budget).toLocaleString()} (${Math.round(Number(mc.actual_cost) / Number(mc.budget) * 100)}%).\n\nEscalated because issue persists after assignee review.\n\nSource: Sales & Marketing Agent — D4 L2 Manager Escalation`,
+                assignedTo: L2,
+                priority: 'High',
+                category: `Digital Marketing ${fpL2}`,
+              },
+              actionCategory: "task_creation",
+              logicType: "rule_based",
+              confidence: 0.95,
+              description: "Auto-generated task from Sales & Marketing Agent",
+              assignTo: L2,
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
