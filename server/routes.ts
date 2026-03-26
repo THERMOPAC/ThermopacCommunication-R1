@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { ensureAuthenticated } from "./auth-middleware";
 import { storage } from "./storage";
-import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, insertRecurringTaskSchema } from "@shared/schema";
+import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, insertRecurringTaskSchema, tasks, taskHistory } from "@shared/schema";
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -2279,6 +2279,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         message: error instanceof Error ? error.message : "Failed to delete task"
       });
+    }
+  });
+
+  app.post("/api/tasks/:id/submit-completion", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const taskId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const task = await storage.getTask(taskId);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      if (task.sourceType === 'agent_task') return res.status(403).json({ message: "Agent tasks cannot use this workflow" });
+      if (task.assignedTo !== userId) return res.status(403).json({ message: "Only the assignee can mark this task as completed" });
+      if (task.status === 'completed') return res.status(400).json({ message: "Task is already completed" });
+
+      const now = new Date().toISOString();
+      await db.update(tasks).set({
+        status: 'completed',
+        completedAt: now,
+        completionRejectionReason: null,
+      }).where(eq(tasks.id, taskId));
+
+      await db.insert(taskHistory).values({
+        taskId, userId, action: 'submit_completion', timestamp: now,
+        oldValue: { status: task.status },
+        newValue: { status: 'completed' },
+      });
+
+      if (task.createdBy && task.createdBy !== userId) {
+        try {
+          const { createNotification } = await import('./notification-routes');
+          const assigneeName = req.user!.fullName || req.user!.firstName || req.user!.username;
+          await createNotification({
+            userId: task.createdBy,
+            type: 'task_completed',
+            title: `Task Completed: ${task.title}`,
+            message: `${assigneeName} has marked task "${task.title}" as completed. Review and reject if not satisfied.`,
+            link: '/tasks',
+            sourceType: 'task',
+            sourceId: taskId,
+            createdBy: userId,
+          });
+        } catch (notifErr) {
+          console.error('[Task] Completion notification failed:', notifErr);
+        }
+      }
+
+      const updated = await storage.getTask(taskId);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error submitting task completion:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to submit completion" });
+    }
+  });
+
+  app.post("/api/tasks/:id/reject-completion", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+      const taskId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { reason } = req.body;
+      if (!reason || !reason.trim()) return res.status(400).json({ message: "Rejection reason is mandatory" });
+
+      const task = await storage.getTask(taskId);
+      if (!task) return res.status(404).json({ message: "Task not found" });
+      if (task.sourceType === 'agent_task') return res.status(403).json({ message: "Agent tasks cannot use this workflow" });
+      if (task.status !== 'completed') return res.status(400).json({ message: "Can only reject a completed task" });
+      if (task.createdBy !== userId) return res.status(403).json({ message: "Only the task creator can reject completion" });
+      if (task.createdBy === task.assignedTo) return res.status(400).json({ message: "Cannot reject your own self-assigned task" });
+
+      const now = new Date().toISOString();
+      await db.update(tasks).set({
+        status: 'in_progress',
+        completedAt: null,
+        completionRejectionReason: reason.trim(),
+      }).where(eq(tasks.id, taskId));
+
+      await db.insert(taskHistory).values({
+        taskId, userId, action: 'reject_completion', timestamp: now,
+        oldValue: { status: 'completed' },
+        newValue: { status: 'in_progress', rejectionReason: reason.trim() },
+      });
+
+      if (task.assignedTo) {
+        try {
+          const { createNotification } = await import('./notification-routes');
+          const creatorName = req.user!.fullName || req.user!.firstName || req.user!.username;
+          await createNotification({
+            userId: task.assignedTo,
+            type: 'task_rejection',
+            title: `Completion Rejected: ${task.title}`,
+            message: `${creatorName} rejected the completion of "${task.title}". Reason: ${reason.trim()}`,
+            link: '/tasks',
+            sourceType: 'task',
+            sourceId: taskId,
+            createdBy: userId,
+          });
+        } catch (notifErr) {
+          console.error('[Task] Rejection notification failed:', notifErr);
+        }
+      }
+
+      const updated = await storage.getTask(taskId);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error rejecting task completion:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to reject completion" });
     }
   });
 

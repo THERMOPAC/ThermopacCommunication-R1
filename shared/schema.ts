@@ -920,6 +920,7 @@ export const tasks = pgTable('tasks', {
   sourceType: text('source_type'), // 'manual', 'meeting_commitment', 'recurring'
   sourceId: integer('source_id'), // ID of the source record (meeting commitment ID if sourceType is 'meeting_commitment')
   sourceAgent: text('source_agent'), // Which agent created this task (e.g. 'communicator', 'finance_control')
+  completionRejectionReason: text('completion_rejection_reason'),
   isArchived: boolean('is_archived').notNull().default(false),
   archivedAt: timestamp('archived_at'),
 });

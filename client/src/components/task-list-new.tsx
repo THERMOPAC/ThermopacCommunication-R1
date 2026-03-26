@@ -95,6 +95,8 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
   // State for task completion confirmation
   const [taskToComplete, setTaskToComplete] = useState<{id: number, completing: boolean} | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<{id: number, title: string} | null>(null);
+  const [taskToReject, setTaskToReject] = useState<{id: number, title: string} | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -361,6 +363,34 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
         variant: "destructive",
       });
       setTaskToDelete(null);
+    },
+  });
+
+  const submitCompletionMutation = useMutation({
+    mutationFn: async (taskId: number) => {
+      return await apiRequest("POST", `/api/tasks/${taskId}/submit-completion`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Task Completed", description: "Task marked as completed. The creator has been notified." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Failed to submit completion", variant: "destructive" });
+    },
+  });
+
+  const rejectCompletionMutation = useMutation({
+    mutationFn: async ({ taskId, reason }: { taskId: number; reason: string }) => {
+      return await apiRequest("POST", `/api/tasks/${taskId}/reject-completion`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ title: "Completion Rejected", description: "Task has been reopened and the assignee has been notified." });
+      setTaskToReject(null);
+      setRejectionReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Failed to reject completion", variant: "destructive" });
     },
   });
 
@@ -1069,21 +1099,57 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setTaskToComplete({
-                              id: task.id,
-                              completing: task.status !== 'completed'
-                            })}
-                            disabled={completeTaskMutation.isPending}
-                          >
-                            {task.status === 'completed' ? (
-                              <CheckCircle className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <Circle className="h-5 w-5" />
-                            )}
-                          </Button>
+                          {task.sourceType !== 'agent_task' ? (
+                            <div className="flex items-center gap-1">
+                              {task.status !== 'completed' && task.assignedTo === user.id && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Mark Complete"
+                                  onClick={() => setTaskToComplete({ id: task.id, completing: true })}
+                                  disabled={submitCompletionMutation.isPending}
+                                >
+                                  <Circle className="h-5 w-5" />
+                                </Button>
+                              )}
+                              {task.status === 'completed' && task.createdBy === user.id && task.createdBy !== task.assignedTo && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs"
+                                  title="Reject Completion"
+                                  onClick={() => { setTaskToReject({ id: task.id, title: task.title }); setRejectionReason(""); }}
+                                  disabled={rejectCompletionMutation.isPending}
+                                >
+                                  Reject
+                                </Button>
+                              )}
+                              {task.status === 'completed' && (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              )}
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setTaskToComplete({
+                                id: task.id,
+                                completing: task.status !== 'completed'
+                              })}
+                              disabled={completeTaskMutation.isPending}
+                            >
+                              {task.status === 'completed' ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <Circle className="h-5 w-5" />
+                              )}
+                            </Button>
+                          )}
+                          {task.completionRejectionReason && task.status !== 'completed' && (
+                            <p className="text-xs text-red-500 mt-1" title={task.completionRejectionReason}>
+                              Rejected: {task.completionRejectionReason.length > 30 ? task.completionRejectionReason.slice(0, 30) + '...' : task.completionRejectionReason}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <EditTaskDialog task={task} />
@@ -1137,14 +1203,57 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
             <AlertDialogAction
               onClick={() => {
                 if (taskToComplete) {
-                  completeTaskMutation.mutate({
-                    taskId: taskToComplete.id,
-                    completed: taskToComplete.completing
-                  });
+                  const matchedTask = tasks.find(t => t.id === taskToComplete.id);
+                  if (matchedTask && matchedTask.sourceType !== 'agent_task' && taskToComplete.completing) {
+                    submitCompletionMutation.mutate(taskToComplete.id);
+                  } else {
+                    completeTaskMutation.mutate({
+                      taskId: taskToComplete.id,
+                      completed: taskToComplete.completing
+                    });
+                  }
+                  setTaskToComplete(null);
                 }
               }}
             >
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={taskToReject !== null}
+        onOpenChange={(open) => { if (!open) { setTaskToReject(null); setRejectionReason(""); } }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject Task Completion</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will reopen the task and notify the assignee. Please provide a reason for rejection.
+              <br /><br />
+              <strong>{taskToReject?.title}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            placeholder="Enter rejection reason (mandatory)..."
+            value={rejectionReason}
+            onChange={e => setRejectionReason(e.target.value)}
+            className="mt-2"
+            rows={3}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              disabled={!rejectionReason.trim() || rejectCompletionMutation.isPending}
+              onClick={() => {
+                if (taskToReject && rejectionReason.trim()) {
+                  rejectCompletionMutation.mutate({ taskId: taskToReject.id, reason: rejectionReason.trim() });
+                }
+              }}
+            >
+              Reject Completion
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
