@@ -650,16 +650,15 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
         </Card>
       )}
 
-      {(appraisal.l3IncrementType || appraisal.l3PromotionApproved !== null || appraisal.l3FinalRemarks) && ['approved', 'closed'].includes(appraisal.status) && (
+      {(appraisal.l3IncrementValue !== null || appraisal.l3PromotionApproved !== null || appraisal.l3FinalRemarks) && ['approved', 'closed'].includes(appraisal.status) && (
         <Card>
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Award className="h-4 w-4 text-green-600" /> L3 Decision Summary</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Increment</p>
-                <p className="font-medium text-sm">
-                  {appraisal.l3IncrementType === 'percentage' ? `${appraisal.l3IncrementValue}%` :
-                   appraisal.l3IncrementType === 'fixed' ? `₹${Number(appraisal.l3IncrementValue).toLocaleString()}` : 'None'}
+                <p className={`font-medium text-sm ${Number(appraisal.l3IncrementValue) < 0 ? 'text-red-600' : Number(appraisal.l3IncrementValue) > 0 ? 'text-green-600' : ''}`}>
+                  {appraisal.l3IncrementValue !== null && appraisal.l3IncrementValue !== undefined ? `${appraisal.l3IncrementValue}%` : 'None'}
                 </p>
               </div>
               <div className="rounded-lg border p-3">
@@ -1470,7 +1469,7 @@ function HistorySection({ approvals }: { approvals: any[] }) {
 function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, isAdmin, score }: any) {
   const { toast } = useToast();
   const [actionDialog, setActionDialog] = useState<string | null>(null);
-  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementType: "none", l3IncrementValue: "", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "" });
+  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementValue: "0", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "" });
 
   const { data: sysRec } = useQuery<any>({
     queryKey: ["/api/appraisals", appraisalId, "system-recommendation"],
@@ -1515,8 +1514,8 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
     }
     if (action === "l3-approve") {
       body.l3Comments = actionForm.l3Comments;
-      body.l3IncrementType = actionForm.l3IncrementType;
-      body.l3IncrementValue = actionForm.l3IncrementValue || null;
+      body.l3IncrementType = "percentage";
+      body.l3IncrementValue = actionForm.l3IncrementValue;
       body.l3PromotionApproved = actionForm.l3PromotionApproved;
       body.l3NewDesignation = actionForm.l3NewDesignation || null;
       body.l3EffectiveDate = actionForm.l3EffectiveDate || null;
@@ -1689,24 +1688,22 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
 
                   <div><Label>L3 Comments</Label><Textarea value={actionForm.l3Comments} onChange={e => setActionForm({ ...actionForm, l3Comments: e.target.value })} rows={2} /></div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Increment Type</Label>
-                      <Select value={actionForm.l3IncrementType} onValueChange={v => setActionForm({ ...actionForm, l3IncrementType: v, l3IncrementValue: v === "none" ? "" : actionForm.l3IncrementValue })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No Increment</SelectItem>
-                          <SelectItem value="percentage">Percentage (%)</SelectItem>
-                          <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {actionForm.l3IncrementType !== "none" && (
-                      <div>
-                        <Label>{actionForm.l3IncrementType === "percentage" ? "Increment %" : "Amount (₹)"}</Label>
-                        <Input type="number" min="0" step="0.01" value={actionForm.l3IncrementValue} onChange={e => setActionForm({ ...actionForm, l3IncrementValue: e.target.value })} />
-                      </div>
-                    )}
+                  <div>
+                    <Label>Increment %<span className="text-red-500 ml-0.5">*</span></Label>
+                    <Select value={actionForm.l3IncrementValue} onValueChange={v => setActionForm({ ...actionForm, l3IncrementValue: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select increment %" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="-10">-10%</SelectItem>
+                        <SelectItem value="-5">-5%</SelectItem>
+                        <SelectItem value="0">0%</SelectItem>
+                        <SelectItem value="5">5%</SelectItem>
+                        <SelectItem value="10">10%</SelectItem>
+                        <SelectItem value="15">15%</SelectItem>
+                        <SelectItem value="20">20%</SelectItem>
+                        <SelectItem value="25">25%</SelectItem>
+                        <SelectItem value="30">30%</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

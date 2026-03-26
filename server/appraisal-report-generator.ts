@@ -425,8 +425,7 @@ export class AppraisalReportGenerator {
     if (a.l3Comments || a.l3FinalRemarks || a.l3ApprovedAt) {
       this.drawReviewerBlock('L3 Approver / Final Authority', a.l3ApproverName, a.l3ApprovedAt,
         a.l3Comments || a.l3FinalRemarks, [
-          ['Increment Type', normalizeRecommendation(a.l3IncrementType)],
-          ['Increment Value', a.l3IncrementValue ? `${a.l3IncrementValue}%` : 'Not Applicable'],
+          ['Increment', a.l3IncrementValue !== null && a.l3IncrementValue !== undefined ? `${a.l3IncrementValue}%` : 'Not Applicable'],
           ['Promotion Approved', normalizeBool(a.l3PromotionApproved)],
           ['New Designation', fmt(a.l3NewDesignation, 'Not Applicable')],
           ['Effective Date', fmtDate(a.l3EffectiveDate)],
@@ -472,7 +471,7 @@ export class AppraisalReportGenerator {
     const fields = [
       ['Final Rating', ratingLabel(s.ratingBand)],
       ['Effective Score', fmtScore(s.effectiveScore)],
-      ['Increment', a.l3IncrementType && a.l3IncrementType !== 'none' ? `${a.l3IncrementValue || '0'}%` : 'Not Applicable'],
+      ['Increment', a.l3IncrementValue !== null && a.l3IncrementValue !== undefined ? `${a.l3IncrementValue}%` : 'Not Applicable'],
       ['Promotion', normalizeBool(a.l3PromotionApproved)],
     ];
     for (let i = 0; i < fields.length; i++) {

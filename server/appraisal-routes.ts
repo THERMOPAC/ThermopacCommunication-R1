@@ -1793,8 +1793,13 @@ router.post('/:id/l3-approve', ensureAuthenticated, async (req: Request, res: Re
     };
 
     const l3Decision: any = {};
-    if (req.body.l3IncrementType) l3Decision.l3IncrementType = req.body.l3IncrementType;
-    if (req.body.l3IncrementValue !== undefined && req.body.l3IncrementValue !== '') l3Decision.l3IncrementValue = req.body.l3IncrementValue.toString();
+    const allowedIncrements = ['-10', '-5', '0', '5', '10', '15', '20', '25', '30'];
+    const incVal = req.body.l3IncrementValue !== undefined && req.body.l3IncrementValue !== null ? req.body.l3IncrementValue.toString() : null;
+    if (incVal === null || !allowedIncrements.includes(incVal)) {
+      return res.status(400).json({ error: 'Increment % is mandatory. Must be one of: -10, -5, 0, 5, 10, 15, 20, 25, 30' });
+    }
+    l3Decision.l3IncrementType = 'percentage';
+    l3Decision.l3IncrementValue = incVal;
     if (req.body.l3PromotionApproved !== undefined) l3Decision.l3PromotionApproved = req.body.l3PromotionApproved;
     if (req.body.l3NewDesignation) l3Decision.l3NewDesignation = req.body.l3NewDesignation;
     if (req.body.l3EffectiveDate) l3Decision.l3EffectiveDate = req.body.l3EffectiveDate;
