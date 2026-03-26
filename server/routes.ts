@@ -2007,6 +2007,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!body.dueDate && body.finishDate) {
         body.dueDate = body.finishDate;
       }
+      if (body.assignedTo && Number(body.assignedTo) === req.user!.id && body.sourceType !== 'agent_task') {
+        return res.status(400).json({ message: "You cannot assign a task to yourself. Please assign it to another team member." });
+      }
+
       const taskData = insertTaskSchema.parse({
         ...body,
         createdBy: req.user!.id,
