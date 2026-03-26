@@ -75,6 +75,13 @@ export default function AlertsPage() {
     onSuccess: () => { invalidateAll(); toast({ title: 'Alert removed' }); },
   });
 
+  const deleteSelectedMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(ids.map(id => apiRequest('DELETE', `/api/notifications/${id}`)));
+    },
+    onSuccess: () => { invalidateAll(); setSelectedIds(new Set()); toast({ title: `${selectedIds.size} alert(s) deleted` }); },
+  });
+
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
     queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
@@ -175,6 +182,19 @@ export default function AlertsPage() {
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
+
+          {selectedIds.size > 0 && (
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-8 text-xs"
+              disabled={deleteSelectedMutation.isPending}
+              onClick={() => deleteSelectedMutation.mutate(Array.from(selectedIds))}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              {deleteSelectedMutation.isPending ? 'Deleting...' : `Delete Selected (${selectedIds.size})`}
+            </Button>
+          )}
         </div>
 
         <Card className="border">
