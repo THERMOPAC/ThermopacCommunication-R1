@@ -903,9 +903,14 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
             </Button>
           )}
           {canAddKpi && !appraisal.isLocked && (
-            <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); setSelectedTemplateKpi(""); }} disabled={existingWeight >= 100}>
-              <Plus className="h-4 w-4 mr-1" /> Add KPI
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => { setShowAdd(true); setForm(emptyForm); setSelectedTemplateKpi(""); }} disabled={existingWeight >= 100}>
+                <Plus className="h-4 w-4 mr-1" /> Add KPI
+              </Button>
+              {existingWeight >= 100 && (
+                <span className="text-xs text-muted-foreground">Weight is 100% — edit existing KPIs to free up weight before adding new ones</span>
+              )}
+            </div>
           )}
         </div>
       </CardHeader>
