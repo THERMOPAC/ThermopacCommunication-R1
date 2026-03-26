@@ -898,7 +898,7 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
         </div>
         <div className="flex gap-2">
           {canSwitchTemplate && (
-            <Button size="sm" variant="outline" onClick={() => { setShowTemplateSwitch(true); setSwitchTemplateId(null); setSwitchMode("replace"); setConfirmReset(false); }}>
+            <Button size="sm" variant="outline" disabled onClick={() => { setShowTemplateSwitch(true); setSwitchTemplateId(null); setSwitchMode("replace"); setConfirmReset(false); }}>
               <Library className="h-4 w-4 mr-1" /> Switch Template
             </Button>
           )}
