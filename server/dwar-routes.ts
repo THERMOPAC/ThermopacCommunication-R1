@@ -1,7 +1,7 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns } from '@shared/schema';
+import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns, notifications } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
@@ -177,18 +177,8 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
     const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
     const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
 
-    const priorityWeight = (p: string) => p === 'high' ? 3 : p === 'medium' ? 2 : 1;
-    let productivityScore = 0;
-    if (updatedActivities.length > 0) {
-      const weightedCompleted = updatedActivities
-        .filter(a => a.status === 'completed')
-        .reduce((sum, a) => sum + priorityWeight(a.priority || 'medium'), 0);
-      const weightedTotal = updatedActivities
-        .reduce((sum, a) => sum + priorityWeight(a.priority || 'medium'), 0);
-      productivityScore = weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
-    }
+    const scores = calculateAllScores(updatedActivities, null, null);
 
-    // Update DWAR with new activity
     const [updatedReport] = await db
       .update(dailyWorkReports)
       .set({
@@ -196,7 +186,10 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
         hoursWorked: totalHours,
         tasksCompleted: completedTasks,
         tasksInProgress: inProgressTasks,
-        productivityScore: Number(productivityScore.toFixed(2)),
+        productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
+        qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
+        efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
+        collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
         updatedAt: new Date()
       })
       .where(eq(dailyWorkReports.id, todayReport.id))
@@ -214,15 +207,108 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
   }
 });
 
-function calculatePlanFollowThrough(
-  yesterdayPlans: string | null | undefined,
+// === SHARED SCORING HELPERS ===
+
+const priorityWeight = (p: string) => p === 'high' ? 3 : p === 'medium' ? 2 : 1;
+
+function calculateProductivityScore(activities: any[]): number | null {
+  if (!activities || activities.length === 0) return null;
+  const weightedCompleted = activities
+    .filter(a => a.status === 'completed')
+    .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
+  const weightedTotal = activities
+    .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
+  return weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
+}
+
+function calculateEfficiencyScore(activities: any[]): number | null {
+  if (!activities || activities.length === 0) return null;
+  const validCompleted = activities.filter(
+    (a: any) => a.status === 'completed' && (a.plannedHours || 0) > 0 && (a.timeSpent || 0) > 0
+  );
+  if (validCompleted.length === 0) return null;
+  const sumPlanned = validCompleted.reduce((sum: number, a: any) => sum + a.plannedHours, 0);
+  const sumActual = validCompleted.reduce((sum: number, a: any) => sum + a.timeSpent, 0);
+  return Math.min((sumPlanned / sumActual) * 100, 100);
+}
+
+function calculateCollaborationScore(activities: any[]): number | null {
+  if (!activities || activities.length === 0) return null;
+  let weightedCollabCount = 0;
+  for (const a of activities) {
+    if (a.collaborative === true) {
+      weightedCollabCount += 1.0;
+    } else if (a.collaborative === undefined || a.collaborative === null) {
+      const desc = (a.description || '').toLowerCase();
+      if (desc.includes('meeting') || desc.includes('collaboration') || desc.includes('team')) {
+        weightedCollabCount += 0.5;
+      }
+    }
+  }
+  return Math.min((weightedCollabCount / activities.length) * 100, 100);
+}
+
+function calculateLogQuality(activities: any[]): number {
+  if (!activities || activities.length === 0) return 0;
+  const total = activities.length;
+  const goodDescriptions = activities.filter((a: any) => (a.description || '').length > 10).length;
+  const hasTime = activities.filter((a: any) => (a.timeSpent || 0) > 0).length;
+  const validPriority = activities.filter((a: any) => ['high', 'medium', 'low'].includes(a.priority)).length;
+  return (goodDescriptions / total) * 33.3 + (hasTime / total) * 33.3 + (validPriority / total) * 33.3;
+}
+
+function calculateQualityScore(
+  productivityScore: number | null,
+  followThroughScore: number | null,
+  logQuality: number,
+  managerRating?: number | null
+): number | null {
+  if (managerRating) return (managerRating / 5) * 100;
+  if (productivityScore === null) return null;
+  const completionAccuracy = productivityScore;
+  if (followThroughScore !== null && followThroughScore !== undefined) {
+    return Math.min(
+      Math.round(((completionAccuracy * 0.4) + (followThroughScore * 0.4) + (logQuality * 0.2)) * 100) / 100,
+      100
+    );
+  }
+  return Math.min(
+    Math.round(((completionAccuracy * 0.5) + (logQuality * 0.5)) * 100) / 100,
+    100
+  );
+}
+
+function calculateAllScores(activities: any[], followThroughScore: number | null, managerRating?: number | null) {
+  const productivity = calculateProductivityScore(activities);
+  const efficiency = calculateEfficiencyScore(activities);
+  const collaboration = calculateCollaborationScore(activities);
+  const logQuality = calculateLogQuality(activities);
+  const quality = calculateQualityScore(productivity, followThroughScore, logQuality, managerRating);
+  return { productivity, efficiency, collaboration, quality };
+}
+
+function extractKeywords(text: string): string[] {
+  const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'and', 'but', 'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each', 'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'because', 'as', 'if', 'when', 'where', 'how', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'work', 'complete', 'finish', 'start', 'continue', 'need', 'plan', 'today', 'tomorrow']);
+  return text.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+}
+
+function getPreviousWorkingDay(fromDate: Date): Date {
+  const yesterday = new Date(fromDate);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (yesterday.getDay() === 0) yesterday.setDate(yesterday.getDate() - 1);
+  if (yesterday.getDay() === 6) yesterday.setDate(yesterday.getDate() - 1);
+  return yesterday;
+}
+
+async function calculatePlanFollowThrough(
   yesterdayPriorityTasks: any[] | null | undefined,
-  todayActivities: any[] | null | undefined
-): { score: number; details: any } {
+  todayActivities: any[] | null | undefined,
+  todayDateStr: string
+): Promise<{ score: number | null; details: any }> {
   const result = {
-    score: 0,
+    score: null as number | null,
     details: {
-      yesterdayPlannedItems: [] as { text: string; matched: boolean; matchedActivity?: string }[],
+      yesterdayPlannedItems: [] as { text: string; taskId?: number; matched: boolean; matchedActivity?: string; matchMethod?: string }[],
       todayUnplannedItems: [] as string[],
       matchRate: 0,
       plannedCount: 0,
@@ -231,27 +317,19 @@ function calculatePlanFollowThrough(
     }
   };
 
-  const plannedItems: string[] = [];
-
-  if (yesterdayPriorityTasks && Array.isArray(yesterdayPriorityTasks) && yesterdayPriorityTasks.length > 0) {
-    for (const pt of yesterdayPriorityTasks) {
-      if (pt.task && pt.task.trim()) {
-        plannedItems.push(pt.task.trim());
-      }
-    }
+  if (!yesterdayPriorityTasks || !Array.isArray(yesterdayPriorityTasks) || yesterdayPriorityTasks.length === 0) {
+    return { score: null, details: { ...result.details, hasYesterdayPlans: false } };
   }
 
-  if (yesterdayPlans && yesterdayPlans.trim()) {
-    const lines = yesterdayPlans.split(/[\n,;•\-]+/).map(l => l.trim()).filter(l => l.length > 3);
-    for (const line of lines) {
-      if (!plannedItems.some(p => p.toLowerCase() === line.toLowerCase())) {
-        plannedItems.push(line);
-      }
+  const plannedItems: { text: string; taskId?: number }[] = [];
+  for (const pt of yesterdayPriorityTasks) {
+    if (pt.task && pt.task.trim()) {
+      plannedItems.push({ text: pt.task.trim(), taskId: pt.taskId || undefined });
     }
   }
 
   if (plannedItems.length === 0) {
-    return { score: 0, details: { ...result.details, hasYesterdayPlans: false } };
+    return { score: null, details: { ...result.details, hasYesterdayPlans: false } };
   }
 
   result.details.hasYesterdayPlans = true;
@@ -260,46 +338,68 @@ function calculatePlanFollowThrough(
   const activities = (todayActivities && Array.isArray(todayActivities)) ? todayActivities : [];
   const activityDescriptions = activities.map((a: any) => (a.description || '').toLowerCase());
 
-  function extractKeywords(text: string): string[] {
-    const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'and', 'but', 'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each', 'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'because', 'as', 'if', 'when', 'where', 'how', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'work', 'complete', 'finish', 'start', 'continue', 'need', 'plan', 'today', 'tomorrow']);
-    return text.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
-  }
-
   let matchedCount = 0;
   for (const planned of plannedItems) {
-    const plannedKeywords = extractKeywords(planned);
-    let bestMatch = '';
-    let bestMatchScore = 0;
+    let isMatched = false;
+    let matchedActivity = '';
+    let matchMethod = '';
 
-    for (let i = 0; i < activityDescriptions.length; i++) {
-      const activityKeywords = extractKeywords(activityDescriptions[i]);
-      if (plannedKeywords.length === 0 || activityKeywords.length === 0) continue;
+    if (planned.taskId) {
+      const [linkedTask] = await db
+        .select({ status: tasks.status, completedAt: tasks.completedAt })
+        .from(tasks)
+        .where(eq(tasks.id, planned.taskId));
+      
+      if (linkedTask && linkedTask.status === 'completed' && linkedTask.completedAt) {
+        const completedDate = new Date(linkedTask.completedAt).toISOString().split('T')[0];
+        if (completedDate === todayDateStr) {
+          isMatched = true;
+          matchedActivity = `Task #${planned.taskId} completed`;
+          matchMethod = 'task_completion';
+        }
+      }
+    } else {
+      const plannedKeywords = extractKeywords(planned.text);
+      let bestMatch = '';
+      let bestMatchScore = 0;
 
-      let matchingWords = 0;
-      for (const pk of plannedKeywords) {
-        if (activityKeywords.some(ak => ak.includes(pk) || pk.includes(ak))) {
-          matchingWords++;
+      for (let i = 0; i < activityDescriptions.length; i++) {
+        const activityKeywords = extractKeywords(activityDescriptions[i]);
+        if (plannedKeywords.length === 0 || activityKeywords.length === 0) continue;
+
+        let matchingWords = 0;
+        for (const pk of plannedKeywords) {
+          if (activityKeywords.some(ak => ak.includes(pk) || pk.includes(ak))) {
+            matchingWords++;
+          }
+        }
+
+        const matchScore = matchingWords / plannedKeywords.length;
+        if (matchScore > bestMatchScore) {
+          bestMatchScore = matchScore;
+          bestMatch = activities[i]?.description || '';
         }
       }
 
-      const matchScore = matchingWords / plannedKeywords.length;
-      if (matchScore > bestMatchScore) {
-        bestMatchScore = matchScore;
-        bestMatch = activities[i]?.description || '';
+      if (bestMatchScore >= 0.4) {
+        isMatched = true;
+        matchedActivity = bestMatch;
+        matchMethod = 'keyword_match';
       }
     }
 
-    const isMatched = bestMatchScore >= 0.4;
     if (isMatched) matchedCount++;
 
     result.details.yesterdayPlannedItems.push({
-      text: planned,
+      text: planned.text,
+      taskId: planned.taskId,
       matched: isMatched,
-      matchedActivity: isMatched ? bestMatch : undefined
+      matchedActivity: isMatched ? matchedActivity : undefined,
+      matchMethod: isMatched ? matchMethod : undefined
     });
   }
 
-  const matchedActivities = new Set(
+  const matchedActivitiesSet = new Set(
     result.details.yesterdayPlannedItems
       .filter(p => p.matched && p.matchedActivity)
       .map(p => p.matchedActivity!.toLowerCase())
@@ -307,7 +407,7 @@ function calculatePlanFollowThrough(
 
   for (const act of activities) {
     const desc = (act.description || '').toLowerCase();
-    if (!matchedActivities.has(desc) && desc.length > 3) {
+    if (!matchedActivitiesSet.has(desc) && desc.length > 3) {
       result.details.todayUnplannedItems.push(act.description);
     }
   }
@@ -323,11 +423,7 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
   try {
     const userId = req.user!.id;
     const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (yesterday.getDay() === 0) yesterday.setDate(yesterday.getDate() - 1);
-    if (yesterday.getDay() === 6) yesterday.setDate(yesterday.getDate() - 1);
+    const yesterday = getPreviousWorkingDay(today);
 
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     const todayStr = today.toISOString().split('T')[0];
@@ -350,7 +446,7 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
 
     if (!yesterdayReport) {
       return res.json({
-        score: 0,
+        score: null,
         details: {
           hasYesterdayPlans: false,
           message: 'No DWAR found for previous working day',
@@ -360,16 +456,16 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
     }
 
     const todayActivities = todayReport ? (Array.isArray(todayReport.activities) ? todayReport.activities : []) : [];
-    const result = calculatePlanFollowThrough(
-      yesterdayReport.tomorrowPlans,
+    const result = await calculatePlanFollowThrough(
       yesterdayReport.priorityTasks as any[],
-      todayActivities
+      todayActivities,
+      todayStr
     );
 
     if (todayReport && result.details.hasYesterdayPlans) {
       await db.update(dailyWorkReports)
         .set({
-          planFollowThroughScore: result.score.toString(),
+          planFollowThroughScore: result.score !== null ? result.score.toString() : null,
           planFollowThroughDetails: result.details,
           updatedAt: new Date()
         })
@@ -384,6 +480,33 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
   } catch (error) {
     console.error('Error calculating plan follow-through:', error);
     sendError(res, error);
+  }
+});
+
+// Get yesterday's DWAR for carry-forward, quick duplicate, and sidebar
+router.get('/yesterday', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const today = new Date();
+    const yesterday = getPreviousWorkingDay(today);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    const [yesterdayReport] = await db
+      .select()
+      .from(dailyWorkReports)
+      .where(and(
+        eq(dailyWorkReports.userId, userId),
+        eq(dailyWorkReports.reportDate, yesterdayStr)
+      ));
+
+    if (!yesterdayReport) {
+      return res.json({ report: null, date: yesterdayStr });
+    }
+
+    res.json({ report: yesterdayReport, date: yesterdayStr });
+  } catch (error) {
+    console.error('Error getting yesterday\'s DWAR:', error);
+    res.status(500).json({ error: 'Failed to get yesterday\'s report' });
   }
 });
 
@@ -429,18 +552,6 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
     const userId = req.user!.id;
     const updateData = req.body;
 
-    const priorityWeight = (p: string) => p === 'high' ? 3 : p === 'medium' ? 2 : 1;
-
-    let productivityScore = 0;
-    if (updateData.activities && updateData.activities.length > 0) {
-      const weightedCompleted = updateData.activities
-        .filter((a: any) => a.status === 'completed')
-        .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
-      const weightedTotal = updateData.activities
-        .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
-      productivityScore = weightedTotal > 0 ? Math.min((weightedCompleted / weightedTotal) * 100, 100) : 0;
-    }
-
     const [existingReport] = await db
       .select({ 
         planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
@@ -449,66 +560,23 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
       .from(dailyWorkReports)
       .where(eq(dailyWorkReports.id, reportId));
 
-    const completionAccuracy = productivityScore;
-
-    let followThroughComponent = 50;
     const ftScore = existingReport?.planFollowThroughScore;
-    if (ftScore !== null && ftScore !== undefined && Number(ftScore) > 0) {
-      followThroughComponent = Number(ftScore);
-    }
+    const followThroughScore = (ftScore !== null && ftScore !== undefined && Number(ftScore) > 0) ? Number(ftScore) : null;
 
-    let logQuality = 0;
-    if (updateData.activities && updateData.activities.length > 0) {
-      const total = updateData.activities.length;
-      const goodDescriptions = updateData.activities.filter((a: any) => (a.description || '').length > 10).length;
-      const hasTime = updateData.activities.filter((a: any) => (a.timeSpent || 0) > 0).length;
-      const validPriority = updateData.activities.filter((a: any) => ['high', 'medium', 'low'].includes(a.priority)).length;
-      const tomorrowPlansText = updateData.tomorrowPlans || existingReport?.tomorrowPlans || '';
-      const plansFilledPoints = tomorrowPlansText.length > 10 ? 25 : 0;
-
-      logQuality = (goodDescriptions / total) * 25 + (hasTime / total) * 25 + (validPriority / total) * 25 + plansFilledPoints;
-    }
-
-    let systemQualityScore = (completionAccuracy * 0.4) + (followThroughComponent * 0.4) + (logQuality * 0.2);
-    systemQualityScore = Math.min(Math.round(systemQualityScore * 100) / 100, 100);
-
-    let qualityScore = systemQualityScore;
-    if (updateData.managerRating) {
-      qualityScore = (updateData.managerRating / 5) * 100;
-    }
-
-    let efficiencyRating = 0;
-    if (updateData.activities && updateData.activities.length > 0 && updateData.hoursWorked > 0) {
-      const weightedCompleted = updateData.activities
-        .filter((a: any) => a.status === 'completed')
-        .reduce((sum: number, a: any) => sum + priorityWeight(a.priority || 'medium'), 0);
-      efficiencyRating = Math.min((weightedCompleted / updateData.hoursWorked) * 10, 100);
-    }
-
-    let collaborationScore = 0;
-    if (updateData.activities && updateData.activities.length > 0) {
-      let weightedCollabCount = 0;
-      for (const a of updateData.activities) {
-        if (a.collaborative === true) {
-          weightedCollabCount += 1.0;
-        } else if (a.collaborative === undefined || a.collaborative === null) {
-          const desc = (a.description || '').toLowerCase();
-          if (desc.includes('meeting') || desc.includes('collaboration') || desc.includes('team')) {
-            weightedCollabCount += 0.5;
-          }
-        }
-      }
-      collaborationScore = Math.min((weightedCollabCount / updateData.activities.length) * 100, 100);
-    }
+    const scores = calculateAllScores(
+      updateData.activities || [],
+      followThroughScore,
+      updateData.managerRating
+    );
 
     const [updatedReport] = await db
       .update(dailyWorkReports)
       .set({
         ...updateData,
-        productivityScore: Number(productivityScore.toFixed(2)),
-        qualityScore: Number(qualityScore.toFixed(2)),
-        efficiencyRating: Number(efficiencyRating.toFixed(2)),
-        collaborationScore: Number(collaborationScore.toFixed(2)),
+        productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
+        qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
+        efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
+        collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
         updatedAt: new Date()
       })
       .where(and(
@@ -628,7 +696,70 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
       }
     }
 
-    // Trigger monthly KPI calculation if it's month-end
+    // System Monitoring Hooks (async, non-blocking)
+    try {
+      const warnings: string[] = [];
+      const activities: any[] = updatedReport.activities as any[] || [];
+      const totalHours = activities.reduce((sum: number, a: any) => sum + (a.timeSpent || 0), 0);
+
+      // 1. Low hours warning
+      if (totalHours < 4 && activities.length > 0) {
+        warnings.push(`Low hours recorded (${totalHours}h). Please ensure all work time is accounted for.`);
+      }
+
+      // 2. Missing activity entries
+      if (activities.length === 0) {
+        warnings.push('No activities logged. Please add activities before submitting.');
+      }
+
+      // 3. Repeated carry-forward detection
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const recentReports = await db
+        .select()
+        .from(dailyWorkReports)
+        .where(and(
+          eq(dailyWorkReports.userId, userId),
+          gte(dailyWorkReports.reportDate, weekAgo.toISOString().split('T')[0]),
+          lte(dailyWorkReports.reportDate, new Date().toISOString().split('T')[0])
+        ));
+
+      const todayDescriptions = activities.map((a: any) => (a.description || '').toLowerCase().trim()).filter(Boolean);
+      let carryForwardCount = 0;
+      for (const report of recentReports) {
+        if (report.id === updatedReport.id) continue;
+        const rActivities: any[] = report.activities as any[] || [];
+        for (const ra of rActivities) {
+          const desc = (ra.description || '').toLowerCase().trim();
+          if (desc && todayDescriptions.includes(desc)) {
+            carryForwardCount++;
+          }
+        }
+      }
+      if (carryForwardCount >= 3) {
+        warnings.push(`${carryForwardCount} activities appear repeatedly across the last 7 days. Consider breaking them into smaller tasks or escalating blockers.`);
+      }
+
+      // Create notifications for warnings
+      for (const warning of warnings) {
+        await db.insert(notifications).values({
+          userId,
+          type: 'dwar_monitoring',
+          title: 'DWAR Monitoring Alert',
+          message: warning,
+          priority: 'low',
+          category: 'dwar',
+          status: 'new',
+          sourceType: 'dwar',
+          sourceId: updatedReport.id,
+          createdBy: userId
+        });
+      }
+    } catch (monitoringError) {
+      console.error('DWAR monitoring hooks error (non-blocking):', monitoringError);
+    }
+
+    // Trigger monthly KPI calculation
     await calculateMonthlyKPIs(userId);
 
     res.json({ 
@@ -785,7 +916,18 @@ router.get('/kpi/:userId/:year/:month', ensureAuthenticated, async (req: Request
   }
 });
 
-// Function to calculate monthly KPIs
+// Null-aware average: averages only non-null values from submitted reports
+function nullAwareAvg(reports: any[], field: string): number | null {
+  const values = reports
+    .map(r => {
+      const v = r[field];
+      return v !== null && v !== undefined ? parseFloat(v.toString()) : null;
+    })
+    .filter((v): v is number => v !== null);
+  if (values.length === 0) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
 async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetMonth?: number) {
   const currentDate = new Date();
   const year = targetYear || currentDate.getFullYear();
@@ -794,7 +936,6 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
   const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
   const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
-  // Get attendance data
   const attendanceData = await db
     .select()
     .from(attendanceRecords)
@@ -804,7 +945,6 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
       lte(attendanceRecords.date, endDate)
     ));
 
-  // Get DWAR data
   const dwarData = await db
     .select()
     .from(dailyWorkReports)
@@ -814,7 +954,6 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
       lte(dailyWorkReports.reportDate, endDate)
     ));
 
-  // Calculate attendance KPIs
   const totalWorkingDays = attendanceData.length;
   const daysPresent = attendanceData.filter(r => r.status === 'present').length;
   const daysAbsent = attendanceData.filter(r => r.status === 'absent').length;
@@ -823,42 +962,36 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
   const overtimeHours = attendanceData.reduce((sum, r) => sum + parseFloat(r.overtimeHours?.toString() || '0'), 0);
   const attendancePercentage = totalWorkingDays > 0 ? (daysPresent / totalWorkingDays) * 100 : 0;
 
-  // Calculate DWAR KPIs
   const totalTasksCompleted = dwarData.reduce((sum, r) => sum + (r.tasksCompleted || 0), 0);
-  const approvedReports = dwarData.filter(r => r.status === 'approved');
+  const submittedReports = dwarData.filter(r => r.status === 'submitted' || r.status === 'approved');
   const rejectedReports = dwarData.filter(r => r.status === 'rejected');
-  
-  const avgProductivityScore = approvedReports.length > 0 ? 
-    approvedReports.reduce((sum, r) => sum + parseFloat(r.productivityScore?.toString() || '0'), 0) / approvedReports.length : 0;
-  
-  const avgQualityScore = approvedReports.length > 0 ? 
-    approvedReports.reduce((sum, r) => sum + parseFloat(r.qualityScore?.toString() || '0'), 0) / approvedReports.length : 0;
-  
-  const avgEfficiencyRating = approvedReports.length > 0 ? 
-    approvedReports.reduce((sum, r) => sum + parseFloat(r.efficiencyRating?.toString() || '0'), 0) / approvedReports.length : 0;
-  
-  const avgCollaborationScore = approvedReports.length > 0 ? 
-    approvedReports.reduce((sum, r) => sum + parseFloat(r.collaborationScore?.toString() || '0'), 0) / approvedReports.length : 0;
 
-  const reportsWithFollowThrough = approvedReports.filter(r => parseFloat(r.planFollowThroughScore?.toString() || '0') > 0);
-  const avgPlanFollowThrough = reportsWithFollowThrough.length > 0 ?
-    reportsWithFollowThrough.reduce((sum, r) => sum + parseFloat(r.planFollowThroughScore?.toString() || '0'), 0) / reportsWithFollowThrough.length : 0;
+  const avgProductivity = nullAwareAvg(submittedReports, 'productivityScore');
+  const avgQuality = nullAwareAvg(submittedReports, 'qualityScore');
+  const avgEfficiency = nullAwareAvg(submittedReports, 'efficiencyRating');
+  const avgCollaboration = nullAwareAvg(submittedReports, 'collaborationScore');
 
-  const avgManagerRating = approvedReports.filter(r => r.managerRating).length > 0 ?
-    approvedReports.filter(r => r.managerRating).reduce((sum, r) => sum + (r.managerRating || 0), 0) / approvedReports.filter(r => r.managerRating).length : 0;
-
-  const dwarSubmissionRate = totalWorkingDays > 0 ? (dwarData.length / totalWorkingDays) * 100 : 0;
-
-  // Calculate overall performance score
-  const overallPerformanceScore = (
-    attendancePercentage * 0.3 + 
-    avgProductivityScore * 0.25 + 
-    avgQualityScore * 0.25 + 
-    avgEfficiencyRating * 0.1 + 
-    avgCollaborationScore * 0.1
+  const avgManagerRating = nullAwareAvg(
+    submittedReports.filter(r => r.managerRating),
+    'managerRating'
   );
 
-  // Determine performance grade
+  const dwarSubmissionRate = totalWorkingDays > 0 ? (dwarData.filter(r => r.status !== 'draft').length / totalWorkingDays) * 100 : 0;
+
+  const weights: { value: number | null; weight: number }[] = [
+    { value: attendancePercentage, weight: 0.3 },
+    { value: avgProductivity, weight: 0.25 },
+    { value: avgQuality, weight: 0.25 },
+    { value: avgEfficiency, weight: 0.1 },
+    { value: avgCollaboration, weight: 0.1 },
+  ];
+
+  const validWeights = weights.filter(w => w.value !== null);
+  const totalWeight = validWeights.reduce((sum, w) => sum + w.weight, 0);
+  const overallPerformanceScore = totalWeight > 0
+    ? validWeights.reduce((sum, w) => sum + (w.value! * (w.weight / totalWeight)), 0)
+    : 0;
+
   let performanceGrade = 'D';
   if (overallPerformanceScore >= 95) performanceGrade = 'A+';
   else if (overallPerformanceScore >= 90) performanceGrade = 'A';
@@ -867,7 +1000,6 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
   else if (overallPerformanceScore >= 75) performanceGrade = 'C+';
   else if (overallPerformanceScore >= 70) performanceGrade = 'C';
 
-  // Upsert KPI summary
   const kpiData = {
     userId,
     month,
@@ -880,13 +1012,13 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
     overtimeHours: Number(overtimeHours.toFixed(2)),
     attendancePercentage: Number(attendancePercentage.toFixed(2)),
     totalTasksCompleted,
-    averageProductivityScore: Number(avgProductivityScore.toFixed(2)),
-    averageQualityScore: Number(avgQualityScore.toFixed(2)),
-    averageEfficiencyRating: Number(avgEfficiencyRating.toFixed(2)),
-    averageCollaborationScore: Number(avgCollaborationScore.toFixed(2)),
+    averageProductivityScore: avgProductivity !== null ? Number(avgProductivity.toFixed(2)) : 0,
+    averageQualityScore: avgQuality !== null ? Number(avgQuality.toFixed(2)) : 0,
+    averageEfficiencyRating: avgEfficiency !== null ? Number(avgEfficiency.toFixed(2)) : 0,
+    averageCollaborationScore: avgCollaboration !== null ? Number(avgCollaboration.toFixed(2)) : 0,
     dwarSubmissionRate: Number(dwarSubmissionRate.toFixed(2)),
-    averageManagerRating: Number(avgManagerRating.toFixed(2)),
-    totalApprovedReports: approvedReports.length,
+    averageManagerRating: avgManagerRating !== null ? Number(avgManagerRating.toFixed(2)) : 0,
+    totalApprovedReports: submittedReports.length,
     totalRejectedReports: rejectedReports.length,
     overallPerformanceScore: Number(overallPerformanceScore.toFixed(2)),
     performanceGrade,
@@ -894,7 +1026,6 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
   };
 
   try {
-    // Try to update existing record
     const [updatedKpi] = await db
       .update(monthlyKpiSummary)
       .set(kpiData)

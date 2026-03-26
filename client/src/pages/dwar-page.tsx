@@ -40,7 +40,14 @@ import {
   Plus,
   Save,
   Users,
-  AlertTriangle
+  AlertTriangle,
+  Copy,
+  ArrowRight,
+  History,
+  ChevronRight,
+  Bell,
+  ListTodo,
+  X
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
@@ -150,10 +157,19 @@ export default function DwarPage() {
   const [plannedHoursAutoFilled, setPlannedHoursAutoFilled] = useState(false);
 
 
+  const [showPreviousDay, setShowPreviousDay] = useState(false);
+  const [showSubmitWarning, setShowSubmitWarning] = useState(false);
+  const [submitWarnings, setSubmitWarnings] = useState<string[]>([]);
+
   // Get today's DWAR
   const { data: todayReport, isLoading } = useQuery<DailyWorkReport>({
     queryKey: ["/api/dwar/today"],
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60000,
+  });
+
+  // Get yesterday's DWAR for carry-forward, quick duplicate, and sidebar
+  const { data: yesterdayData } = useQuery<{ report: DailyWorkReport | null; date: string }>({
+    queryKey: ["/api/dwar/yesterday"],
   });
 
   // Sync local state with todayReport when it loads
@@ -348,6 +364,98 @@ export default function DwarPage() {
     todayReport.activities.length > 0 && 
     todayReport.hoursWorked > 0;
 
+  const handleCarryForward = () => {
+    if (!todayReport || todayReport.status !== 'draft' || !yesterdayData?.report) return;
+    const yesterdayTasks = yesterdayData.report.priorityTasks || [];
+    if (yesterdayTasks.length === 0) {
+      toast({ title: "Nothing to carry forward", description: "Yesterday has no priority tasks.", variant: "default" });
+      return;
+    }
+    const existingDescriptions = (todayReport.activities || []).map((a: Activity) => a.description.toLowerCase().trim());
+    const newActivities: Activity[] = [];
+    for (const pt of yesterdayTasks) {
+      if (existingDescriptions.includes(pt.task.toLowerCase().trim())) continue;
+      newActivities.push({
+        type: 'Planned Task',
+        description: pt.task,
+        timeSpent: 0,
+        plannedHours: pt.estimatedTime || 0,
+        priority: pt.priority,
+        status: 'pending',
+        collaborative: false,
+      });
+    }
+    if (newActivities.length === 0) {
+      toast({ title: "Already carried forward", description: "All yesterday's planned tasks are already in today's activities." });
+      return;
+    }
+    const updatedActivities = [...(todayReport.activities || []), ...newActivities];
+    updateReportMutation.mutate({
+      activities: updatedActivities,
+      hoursWorked: updatedActivities.reduce((sum, a) => sum + a.timeSpent, 0),
+      tasksCompleted: updatedActivities.filter(a => a.status === 'completed').length,
+      tasksInProgress: updatedActivities.filter(a => a.status === 'in_progress').length
+    });
+    toast({ title: "Carried Forward", description: `${newActivities.length} planned tasks added from yesterday.` });
+  };
+
+  const handleQuickDuplicate = () => {
+    if (!todayReport || todayReport.status !== 'draft' || !yesterdayData?.report) return;
+    const yesterdayActivities = yesterdayData.report.activities || [];
+    if (yesterdayActivities.length === 0) {
+      toast({ title: "Nothing to duplicate", description: "Yesterday has no activities.", variant: "default" });
+      return;
+    }
+    const existingDescriptions = (todayReport.activities || []).map((a: Activity) => a.description.toLowerCase().trim());
+    const newActivities: Activity[] = [];
+    for (const a of yesterdayActivities) {
+      if (existingDescriptions.includes(a.description.toLowerCase().trim())) continue;
+      newActivities.push({
+        type: a.type,
+        description: a.description,
+        timeSpent: 0,
+        plannedHours: a.plannedHours || 0,
+        priority: a.priority,
+        status: 'pending',
+        taskId: a.taskId,
+        collaborative: a.collaborative || false,
+      });
+    }
+    if (newActivities.length === 0) {
+      toast({ title: "Already duplicated", description: "All yesterday's activities are already in today's report." });
+      return;
+    }
+    const updatedActivities = [...(todayReport.activities || []), ...newActivities];
+    updateReportMutation.mutate({
+      activities: updatedActivities,
+      hoursWorked: updatedActivities.reduce((sum, a) => sum + a.timeSpent, 0),
+      tasksCompleted: updatedActivities.filter(a => a.status === 'completed').length,
+      tasksInProgress: updatedActivities.filter(a => a.status === 'in_progress').length
+    });
+    toast({ title: "Activities Duplicated", description: `${newActivities.length} activities copied from yesterday (time reset to 0).` });
+  };
+
+  const handleSubmitWithValidation = () => {
+    if (!todayReport) return;
+    const warnings: string[] = [];
+    const activities = todayReport.activities || [];
+    const totalHours = activities.reduce((sum, a) => sum + a.timeSpent, 0);
+    if (totalHours < 4) warnings.push(`Low hours recorded (${totalHours}h). Consider if all work time is accounted for.`);
+    const zeroTimeActivities = activities.filter(a => a.status === 'completed' && a.timeSpent === 0);
+    if (zeroTimeActivities.length > 0) warnings.push(`${zeroTimeActivities.length} completed activities have 0 hours logged.`);
+    const shortDescriptions = activities.filter(a => (a.description || '').length <= 10);
+    if (shortDescriptions.length > 0) warnings.push(`${shortDescriptions.length} activities have very short descriptions.`);
+    if (!localTomorrowPlans && (!todayReport.priorityTasks || todayReport.priorityTasks.length === 0)) {
+      warnings.push("No tomorrow's plans or priority tasks set.");
+    }
+    if (warnings.length > 0) {
+      setSubmitWarnings(warnings);
+      setShowSubmitWarning(true);
+    } else {
+      submitReportMutation.mutate();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -382,7 +490,7 @@ export default function DwarPage() {
             )}
             {canSubmit && (
               <Button 
-                onClick={() => submitReportMutation.mutate()}
+                onClick={handleSubmitWithValidation}
                 disabled={submitReportMutation.isPending}
               >
                 <Send className="h-4 w-4 mr-2" />
@@ -424,6 +532,23 @@ export default function DwarPage() {
             Today's Activities
           </CardTitle>
           {todayReport?.status === 'draft' && (
+            <div className="flex items-center gap-2">
+              {yesterdayData?.report && (
+                <>
+                  <Button size="sm" variant="outline" onClick={handleCarryForward} title="Carry forward yesterday's planned tasks as pending activities">
+                    <ArrowRight className="h-4 w-4 mr-1" />
+                    Carry Forward
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleQuickDuplicate} title="Copy yesterday's activities with time reset to 0">
+                    <Copy className="h-4 w-4 mr-1" />
+                    Duplicate Yesterday
+                  </Button>
+                </>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setShowPreviousDay(!showPreviousDay)} title="View yesterday's report">
+                <History className="h-4 w-4 mr-1" />
+                Previous Day
+              </Button>
             <Dialog open={isAddActivityOpen} onOpenChange={(open) => {
               setIsAddActivityOpen(open);
               if (open) { setTaskSearchTerm(''); setTaskDropdownOpen(false); }
@@ -634,9 +759,74 @@ export default function DwarPage() {
               </div>
               </DialogContent>
             </Dialog>
+            </div>
           )}
         </CardHeader>
         <CardContent>
+          {/* Previous Day Sidebar */}
+          {showPreviousDay && yesterdayData?.report && (
+            <div className="mb-4 p-4 bg-muted/50 border rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium flex items-center gap-2">
+                  <History className="h-4 w-4" />
+                  Previous Day ({yesterdayData.date})
+                </h4>
+                <Button size="sm" variant="ghost" onClick={() => setShowPreviousDay(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-3 mb-3 text-sm">
+                <div className="text-center p-2 bg-background rounded">
+                  <div className="font-bold text-green-600">{yesterdayData.report.tasksCompleted}</div>
+                  <div className="text-xs text-muted-foreground">Completed</div>
+                </div>
+                <div className="text-center p-2 bg-background rounded">
+                  <div className="font-bold text-purple-600">{yesterdayData.report.hoursWorked}h</div>
+                  <div className="text-xs text-muted-foreground">Hours</div>
+                </div>
+                <div className="text-center p-2 bg-background rounded">
+                  <div className="font-bold text-blue-600">{Number(yesterdayData.report.productivityScore || 0).toFixed(0)}</div>
+                  <div className="text-xs text-muted-foreground">Productivity</div>
+                </div>
+              </div>
+              {yesterdayData.report.activities && yesterdayData.report.activities.length > 0 && (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Activities:</div>
+                  {yesterdayData.report.activities.map((a: Activity, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-1.5 bg-background rounded">
+                      <Badge variant={a.status === 'completed' ? 'default' : a.status === 'blocked' ? 'destructive' : 'outline'} className="text-[10px] px-1.5 py-0">
+                        {a.status.replace('_', ' ')}
+                      </Badge>
+                      <span className="flex-1 truncate">{a.description}</span>
+                      <span className="text-muted-foreground">{a.timeSpent}h</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {yesterdayData.report.priorityTasks && yesterdayData.report.priorityTasks.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Tomorrow's Plans (from yesterday):</div>
+                  {yesterdayData.report.priorityTasks.map((pt: PriorityTask, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-xs p-1.5 bg-background rounded">
+                      <Badge variant={pt.priority === 'high' ? 'destructive' : pt.priority === 'medium' ? 'secondary' : 'outline'} className="text-[10px] px-1.5 py-0">
+                        {pt.priority}
+                      </Badge>
+                      <span className="flex-1 truncate">{pt.task}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {showPreviousDay && !yesterdayData?.report && (
+            <div className="mb-4 p-4 bg-muted/50 border rounded-lg text-center text-sm text-muted-foreground">
+              <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              No report found for the previous working day.
+              <Button size="sm" variant="ghost" onClick={() => setShowPreviousDay(false)} className="ml-2">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           {todayReport?.activities && todayReport.activities.length > 0 ? (
             <div className="space-y-3">
               {todayReport.activities.map((activity, index) => (
@@ -679,7 +869,38 @@ export default function DwarPage() {
                       )}
                     </div>
                     {activity.status === 'blocked' && activity.blockedReason && (
-                      <p className="text-xs text-red-600 mt-1">Blocked: {activity.blockedReason}</p>
+                      <div className="mt-1">
+                        <p className="text-xs text-red-600">Blocked: {activity.blockedReason}</p>
+                        {todayReport?.status === 'draft' && (
+                          <div className="flex gap-2 mt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-xs px-2"
+                              onClick={() => {
+                                const tomorrow = new Date();
+                                tomorrow.setDate(tomorrow.getDate() + 1);
+                                const tomorrowISO = tomorrow.toISOString().split('T')[0];
+                                setLocation(`/tasks?action=create&title=${encodeURIComponent(activity.description + ' (Blocked)')}&dueDate=${tomorrowISO}&description=${encodeURIComponent(activity.blockedReason || '')}&source=dwar`);
+                              }}
+                            >
+                              <ListTodo className="h-3 w-3 mr-1" />
+                              Create Task
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-xs px-2"
+                              onClick={() => {
+                                setLocation(`/alerts?action=create&title=${encodeURIComponent('Blocked: ' + activity.description)}&description=${encodeURIComponent(activity.blockedReason || '')}&source=dwar`);
+                              }}
+                            >
+                              <Bell className="h-3 w-3 mr-1" />
+                              Create Alert
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                   {todayReport?.status === 'draft' && (
@@ -1053,7 +1274,7 @@ export default function DwarPage() {
               <Award className="h-5 w-5" />
               Daily Work Indicators
             </CardTitle>
-            <p className="text-xs text-muted-foreground">Operational signals to help track daily work patterns. Not linked to formal appraisal scoring.</p>
+            <p className="text-xs text-muted-foreground">Operational indicators for tracking daily work patterns. These are not connected to formal appraisal KPIs.</p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -1085,40 +1306,37 @@ export default function DwarPage() {
             {!todayReport.managerRating && todayReport.activities && todayReport.activities.length > 0 && (
               <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="text-xs font-medium text-green-700 mb-2">Quality Score Breakdown (System)</div>
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div className="text-center">
-                    <div className="font-semibold text-green-700">{Number(todayReport.productivityScore || 0).toFixed(0)}</div>
-                    <div className="text-green-600">Completion (40%)</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-green-700">
-                      {Number(todayReport.planFollowThroughScore || 0) > 0 
-                        ? Number(todayReport.planFollowThroughScore).toFixed(0)
-                        : '50'}
-                    </div>
-                    <div className="text-green-600">
-                      Follow-Through (40%)
-                      {!(Number(todayReport.planFollowThroughScore || 0) > 0) && (
-                        <span className="block text-[10px] text-gray-400 italic">neutral fallback</span>
+                {(() => {
+                  const ftScore = todayReport.planFollowThroughScore;
+                  const hasFollowThrough = ftScore !== null && ftScore !== undefined && Number(ftScore) > 0;
+                  const compWeight = hasFollowThrough ? '40%' : '50%';
+                  const lqWeight = hasFollowThrough ? '20%' : '50%';
+                  const acts = todayReport.activities || [];
+                  const t = acts.length;
+                  const d = t > 0 ? acts.filter(a => (a.description || '').length > 10).length : 0;
+                  const h = t > 0 ? acts.filter(a => (a.timeSpent || 0) > 0).length : 0;
+                  const p = t > 0 ? acts.filter(a => ['high','medium','low'].includes(a.priority)).length : 0;
+                  const logQuality = t > 0 ? ((d/t)*33.33 + (h/t)*33.33 + (p/t)*33.34) : 0;
+                  return (
+                    <div className={`grid ${hasFollowThrough ? 'grid-cols-3' : 'grid-cols-2'} gap-3 text-xs`}>
+                      <div className="text-center">
+                        <div className="font-semibold text-green-700">{Number(todayReport.productivityScore || 0).toFixed(0)}</div>
+                        <div className="text-green-600">Completion ({compWeight})</div>
+                      </div>
+                      {hasFollowThrough && (
+                        <div className="text-center">
+                          <div className="font-semibold text-green-700">{Number(ftScore).toFixed(0)}</div>
+                          <div className="text-green-600">Follow-Through (40%)</div>
+                        </div>
                       )}
+                      <div className="text-center">
+                        <div className="font-semibold text-green-700">{logQuality.toFixed(0)}</div>
+                        <div className="text-green-600">Log Quality ({lqWeight})</div>
+                        <div className="text-[10px] text-gray-400">desc + time + priority</div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-green-700">
-                      {(() => {
-                        const acts = todayReport.activities || [];
-                        if (acts.length === 0) return '0';
-                        const t = acts.length;
-                        const d = acts.filter(a => (a.description || '').length > 10).length;
-                        const h = acts.filter(a => (a.timeSpent || 0) > 0).length;
-                        const p = acts.filter(a => ['high','medium','low'].includes(a.priority)).length;
-                        const pl = (localTomorrowPlans || '').length > 10 ? 25 : 0;
-                        return ((d/t)*25 + (h/t)*25 + (p/t)*25 + pl).toFixed(0);
-                      })()}
-                    </div>
-                    <div className="text-green-600">Log Quality (20%)</div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1165,9 +1383,7 @@ export default function DwarPage() {
                   {updateReportMutation.isPending ? 'Saving...' : 'Update DWAR'}
                 </Button>
                 <Button 
-                  onClick={() => {
-                    submitReportMutation.mutate(todayReport.id);
-                  }}
+                  onClick={handleSubmitWithValidation}
                   disabled={submitReportMutation.isPending}
                   className="bg-green-600 hover:bg-green-700"
                 >
@@ -1193,6 +1409,43 @@ export default function DwarPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Submission Warning Dialog */}
+      <Dialog open={showSubmitWarning} onOpenChange={setShowSubmitWarning}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Review Before Submitting
+            </DialogTitle>
+            <DialogDescription>
+              The following items may need attention. You can still submit if these are intentional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-3">
+            {submitWarnings.map((warning, idx) => (
+              <div key={idx} className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <span className="text-amber-800">{warning}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowSubmitWarning(false)}>
+              Go Back & Fix
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSubmitWarning(false);
+                submitReportMutation.mutate();
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Submit Anyway
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Gratitude Dialog */}
       <Dialog open={gratitudeDialog.open} onOpenChange={(open) => setGratitudeDialog(prev => ({ ...prev, open }))}>
