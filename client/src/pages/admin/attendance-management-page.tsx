@@ -190,8 +190,35 @@ export default function AttendanceManagementPage() {
   };
 
   const exportAttendance = () => {
-    // Export functionality would be implemented here
-    console.log('Exporting attendance data...');
+    if (!attendanceRecords || attendanceRecords.length === 0) {
+      toast({ title: "No Data", description: "No attendance records to export for the selected filters.", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["Employee", "Department", "Date", "Time In", "Time Out", "Work Hours", "Status"];
+    const rows = attendanceRecords.map((r: AttendanceRecord) => [
+      r.userName,
+      r.department || "",
+      r.date ? format(new Date(r.date), 'yyyy-MM-dd') : "",
+      r.timeIn || "",
+      r.timeOut || "",
+      r.workHours != null ? String(r.workHours) : "",
+      r.status || "",
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `attendance_export_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Export Complete", description: `Exported ${attendanceRecords.length} attendance records.` });
   };
 
   // Get selected user details
