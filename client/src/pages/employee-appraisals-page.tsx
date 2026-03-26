@@ -920,8 +920,8 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>KPI</TableHead>
-                <TableHead className="w-20">Weight</TableHead>
+                <TableHead className="w-[200px] max-w-[200px]">KPI</TableHead>
+                <TableHead className="w-16">Weight</TableHead>
                 <TableHead className="w-24">Target (Expected)</TableHead>
                 <TableHead className="w-24">Actual (Achieved)</TableHead>
                 <TableHead className="w-20">Self</TableHead>
@@ -933,9 +933,9 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
             <TableBody>
               {kpis.map((kpi: any) => (
                 <TableRow key={kpi.id}>
-                  <TableCell>
-                    <p className="font-medium text-sm">{kpi.kpiTitle}</p>
-                    {kpi.kpiDescription && <p className="text-xs text-muted-foreground">{kpi.kpiDescription}</p>}
+                  <TableCell className="max-w-[200px]">
+                    <p className="font-medium text-sm truncate" title={kpi.kpiTitle}>{kpi.kpiTitle}</p>
+                    {kpi.kpiDescription && <p className="text-xs text-muted-foreground line-clamp-2" title={kpi.kpiDescription}>{kpi.kpiDescription}</p>}
                   </TableCell>
                   <TableCell><span className="font-medium">{kpi.weightage}%</span></TableCell>
                   <TableCell>{kpi.targetValue || "-"}</TableCell>
