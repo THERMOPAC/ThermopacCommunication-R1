@@ -459,17 +459,28 @@ router.get('/:appraisalId/template-kpis', ensureAuthenticated, async (req: Reque
     if (!empDept) return res.json({ items: [], message: 'No department set for employee' });
 
     const empLevel = await getHierarchyLevel(appraisal.employeeId);
+    const [empUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, appraisal.employeeId));
+    const empRole = empUser?.role || '';
+
     const levelsToTry = empLevel === 'L3' ? ['L3', 'L2'] : empLevel === 'L2' ? ['L2'] : ['L1'];
+    const deptsToTry = [empDept];
+    if (empLevel === 'L3' && ['General Manager', 'Senior Manager', 'Director', 'VP'].includes(empRole)) {
+      deptsToTry.push('General Management');
+    }
+
     let activeTemplate: any = null;
     let matchedLevel = empLevel;
     for (const lvl of levelsToTry) {
-      const [found] = await db.select().from(appraisalKpiTemplates)
-        .where(and(
-          eq(appraisalKpiTemplates.department, empDept),
-          eq(appraisalKpiTemplates.hierarchyLevel, lvl),
-          eq(appraisalKpiTemplates.status, 'active')
-        ));
-      if (found) { activeTemplate = found; matchedLevel = lvl; break; }
+      for (const dept of deptsToTry) {
+        const [found] = await db.select().from(appraisalKpiTemplates)
+          .where(and(
+            eq(appraisalKpiTemplates.department, dept),
+            eq(appraisalKpiTemplates.hierarchyLevel, lvl),
+            eq(appraisalKpiTemplates.status, 'active')
+          ));
+        if (found) { activeTemplate = found; matchedLevel = lvl; break; }
+      }
+      if (activeTemplate) break;
     }
     if (!activeTemplate) return res.json({ items: [], message: `No active template for ${empDept} / ${empLevel}` });
 
