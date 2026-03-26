@@ -143,6 +143,17 @@ async function hasRecentAgentTask(fingerprint: string, cooldownDays: number = CO
   return (result.rows || []).length > 0;
 }
 
+async function hasCompletedAgentTask(fingerprint: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task'
+      AND category LIKE ${'%' + fingerprint + '%'}
+      AND status = 'completed'
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
 function makeFingerprint(findingType: string, entityKey: string): string {
   return `[fp:${findingType}:${entityKey}]`;
 }
@@ -1472,12 +1483,14 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // Tier 4-5: Escalation → task for manager
+    // Tier 4-5: Escalation → task for manager (PROGRESSIVE: only if L1 tier3 completed)
     for (const task of [...tasksByTier.escalation_30, ...tasksByTier.escalation_60]) {
       const tier = getEscalationTier(task.daysOverdue);
       const { assignedTo, stage, priority } = await tierToAssigneeRule(tier, task);
+      const fpL1 = makeFingerprint('overdue_tier3', `task:${task.id}`);
       const fp = makeFingerprint(`overdue_${tier}`, `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 7)) continue;
+      if (!(await hasCompletedAgentTask(fpL1))) continue;
 
       const rec = await recommendationManager.createRecommendation({
         actionCategory: 'task_creation',
@@ -1501,11 +1514,14 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A6: ZOMBIE-RISK (90-179d) → management review task
+    // A6: ZOMBIE-RISK (90-179d) → management review task (PROGRESSIVE: only if L2 completed)
     for (const task of [...tasksByTier.escalation_90, ...tasksByTier.zombie_risk]) {
       const { assignedTo, stage, priority } = await tierToAssigneeRule('zombie_risk', task);
       const fp = makeFingerprint('zombie_risk', `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 14)) continue;
+      const fpL2_30 = makeFingerprint('overdue_escalation_30', `task:${task.id}`);
+      const fpL2_60 = makeFingerprint('overdue_escalation_60', `task:${task.id}`);
+      if (!(await hasCompletedAgentTask(fpL2_30)) && !(await hasCompletedAgentTask(fpL2_60))) continue;
 
       const rec = await recommendationManager.createRecommendation({
         actionCategory: 'task_creation',
@@ -1529,11 +1545,13 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A7: ZOMBIE REVIEW (180+d) → superuser closure task
+    // A7: ZOMBIE REVIEW (180+d) → superuser closure task (PROGRESSIVE: only if L3 zombie_risk completed)
     for (const task of tasksByTier.zombie_review) {
       const { assignedTo, stage, priority } = await tierToAssigneeRule('zombie_review', task);
       const fp = makeFingerprint('zombie_review', `task:${task.id}`);
       if (await hasRecentAgentTask(fp, 14)) continue;
+      const fpL3 = makeFingerprint('zombie_risk', `task:${task.id}`);
+      if (!(await hasCompletedAgentTask(fpL3))) continue;
 
       const rec = await recommendationManager.createRecommendation({
         actionCategory: 'task_creation',
@@ -1921,11 +1939,13 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A19: MEETING COMMITMENT OVERDUE 30+ DAYS — escalation task for manager
+    // A19: MEETING COMMITMENT OVERDUE 30+ DAYS — escalation task for manager (PROGRESSIVE: only if L1 completed)
     for (const commitment of detailedCommitments) {
       if (commitment.daysOverdue < 30) continue;
+      const fpL1 = makeFingerprint('commitment_overdue', `commitment:${commitment.id}`);
       const fp = makeFingerprint('commitment_escalation', `commitment:${commitment.id}`);
       if (await hasRecentAgentTask(fp, 14)) continue;
+      if (!(await hasCompletedAgentTask(fpL1))) continue;
 
       const rec = await recommendationManager.createRecommendation({
         actionCategory: 'task_creation',
@@ -2199,12 +2219,15 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A28: RECURRING TASK BACKLOG — task for assignee (5-9) or manager escalation (10+)
+    // A28: RECURRING TASK BACKLOG — task for assignee (5-9) or manager escalation (10+, PROGRESSIVE: only if L1 completed)
     for (const bl of recurringBacklog) {
-      const fp = makeFingerprint('recurring_backlog', `user:${bl.assigneeId}`);
-      if (await hasRecentAgentTask(fp, 7)) continue;
-
       const escalateToManager = bl.pendingCount >= 10 && bl.managerId;
+      const fpL1 = makeFingerprint('recurring_backlog_L1', `user:${bl.assigneeId}`);
+      const fp = escalateToManager
+        ? makeFingerprint('recurring_backlog_L2', `user:${bl.assigneeId}`)
+        : fpL1;
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      if (escalateToManager && !(await hasCompletedAgentTask(fpL1))) continue;
       const topList = bl.tasks.slice(0, 5).map((t: any) => `• ${t.title} (${t.daysOverdue}d overdue)`).join('\n');
       const rec = await recommendationManager.createRecommendation({
         actionCategory: 'task_creation',
@@ -2244,14 +2267,18 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A29: ZOMBIE RECURRING TASKS — grouped per assignee, manager escalation at 60+ days
+    // A29: ZOMBIE RECURRING TASKS — grouped per assignee, manager escalation at 60+ days (PROGRESSIVE: only if L1 completed)
     for (const [assignee, tasks] of Object.entries(zombieByAssignee)) {
       if (tasks.length === 0) continue;
       const firstTask = tasks[0];
       const maxDays = Math.max(...tasks.map(t => t.daysPending));
       const escalateToManager = maxDays >= 60 && firstTask.managerId;
-      const fp = makeFingerprint('zombie_recurring', `user:${firstTask.assigneeId || assignee}`);
+      const fpL1 = makeFingerprint('zombie_recurring_L1', `user:${firstTask.assigneeId || assignee}`);
+      const fp = escalateToManager
+        ? makeFingerprint('zombie_recurring_L2', `user:${firstTask.assigneeId || assignee}`)
+        : fpL1;
       if (await hasRecentAgentTask(fp, 14)) continue;
+      if (escalateToManager && !(await hasCompletedAgentTask(fpL1))) continue;
 
       const topList = tasks.sort((a, b) => b.daysPending - a.daysPending).slice(0, 5)
         .map(t => `• ${t.title} (${t.daysPending}d pending)`).join('\n');
