@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward, Search, Filter, X, Edit as EditIcon } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, CheckCircle, Circle, Forward, Search, Filter, X, Edit as EditIcon, Trash2 } from "lucide-react";
 import { roles, roleHierarchy } from "@shared/roles";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +94,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
 
   // State for task completion confirmation
   const [taskToComplete, setTaskToComplete] = useState<{id: number, completing: boolean} | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<{id: number, title: string} | null>(null);
 
   // Fetch all users for task assignment
   const { data: allUsers = [] } = useQuery<User[]>({
@@ -338,6 +339,28 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
         description: error.message || "Failed to forward task",
         variant: "destructive",
       });
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: number) => {
+      return await apiRequest("DELETE", `/api/tasks/${taskId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "Deleted",
+        description: "Agent task deleted successfully",
+      });
+      setTaskToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete task",
+        variant: "destructive",
+      });
+      setTaskToDelete(null);
     },
   });
 
@@ -1068,6 +1091,19 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                         <TableCell>
                           <ForwardTaskDialog task={task} />
                         </TableCell>
+                        {task.sourceType === 'agent_task' && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setTaskToDelete({ id: task.id, title: task.title })}
+                              disabled={deleteTaskMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1109,6 +1145,35 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
               }}
             >
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog 
+        open={taskToDelete !== null}
+        onOpenChange={(open) => !open && setTaskToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Agent Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this agent-generated task? This action cannot be undone.
+              <br /><br />
+              <strong>{taskToDelete?.title}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (taskToDelete) {
+                  deleteTaskMutation.mutate(taskToDelete.id);
+                }
+              }}
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

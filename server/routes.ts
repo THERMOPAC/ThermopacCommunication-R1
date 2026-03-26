@@ -2250,6 +2250,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/tasks/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) return res.sendStatus(401);
+
+      const taskId = parseInt(req.params.id);
+      const task = await storage.getTask(taskId);
+
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      if (task.sourceType !== 'agent_task') {
+        return res.status(403).json({ message: "Only agent-generated tasks can be deleted" });
+      }
+
+      const userRole = req.user!.role;
+      if (userRole !== 'Superuser' && userRole !== 'General Manager') {
+        return res.status(403).json({ message: "Only Superuser or General Manager can delete agent tasks" });
+      }
+
+      await db.execute(sql`DELETE FROM tasks WHERE id = ${taskId}`);
+      console.log(`Agent task ${taskId} deleted by user ${req.user!.id}`);
+
+      res.json({ success: true, message: "Task deleted" });
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Failed to delete task"
+      });
+    }
+  });
+
   app.get("/api/tasks", async (req, res) => {
     try {
       if (!req.isAuthenticated()) return res.sendStatus(401);
