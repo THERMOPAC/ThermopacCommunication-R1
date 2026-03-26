@@ -2320,7 +2320,150 @@ export class CommunicationsAgent implements IAgent {
       if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
     }
 
-    // A30-A33: APPRAISAL COMPLETION — automated tasks for overdue appraisals
+    // A30-PROACTIVE: ACTIVE CYCLE — create tasks for ALL pending appraisals (not just overdue)
+    // When an appraisal cycle is active, every employee with a pending appraisal gets a task
+    const pendingSelfAssessments = pendingAppraisals.filter(a => ['open', 'draft'].includes(a.status));
+    const pendingL1Reviews = pendingAppraisals.filter(a => a.status === 'self_submitted');
+    const pendingL2Reviews = pendingAppraisals.filter(a => a.status === 'l1_reviewed');
+    const pendingL3Approvals = pendingAppraisals.filter(a => a.status === 'l2_reviewed');
+
+    // Self-assessment tasks for all employees with open/draft appraisals
+    const pendingSelfByEmployee: Record<string, typeof pendingSelfAssessments> = {};
+    for (const a of pendingSelfAssessments) {
+      const key = String(a.employeeId);
+      if (!pendingSelfByEmployee[key]) pendingSelfByEmployee[key] = [];
+      pendingSelfByEmployee[key].push(a);
+    }
+    for (const [empId, appraisals] of Object.entries(pendingSelfByEmployee)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_self_pending', empId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• "${a.cycleName}" — Deadline: ${a.selfDeadline || 'Not set'}`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `Appraisal self-assessment pending: ${first.employeeName}`,
+        description: `${first.employeeName} has ${appraisals.length} pending self-assessment(s) in active cycle. Create a task.`,
+        actionPayload: {
+          title: `[Agent] Complete your appraisal self-assessment — ${first.cycleName}`,
+          description: `You have a pending self-assessment for the active appraisal cycle:\n\n${list}\n\nPlease log in to the Appraisals module and complete your self-assessment including:\n1. KPI scores and achievements\n2. Competency self-ratings\n3. Self-assessment comments\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: 'Medium',
+          assignedTo: first.employeeId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: first.selfDeadline || undefined,
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // L1 review tasks for managers with pending reviews
+    const pendingL1ByReviewer: Record<string, typeof pendingL1Reviews> = {};
+    for (const a of pendingL1Reviews) {
+      const key = String(a.l1ReviewerId);
+      if (!pendingL1ByReviewer[key]) pendingL1ByReviewer[key] = [];
+      pendingL1ByReviewer[key].push(a);
+    }
+    for (const [reviewerId, appraisals] of Object.entries(pendingL1ByReviewer)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_l1_pending', reviewerId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• ${a.employeeName} (${a.department}) — Deadline: ${a.managerDeadline || 'Not set'}`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `L1 appraisal review pending: ${first.l1ReviewerName} (${appraisals.length} employees)`,
+        description: `${first.l1ReviewerName} has ${appraisals.length} pending L1 review(s). Create a review task.`,
+        actionPayload: {
+          title: `[Agent] Complete L1 appraisal reviews (${appraisals.length} pending) — ${first.cycleName}`,
+          description: `You have ${appraisals.length} appraisal L1 review(s) pending:\n\n${list}\n\nPlease log in to the Appraisals module and complete your reviews including:\n1. KPI scores and manager comments\n2. Competency ratings\n3. Increment/promotion recommendations\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: 'Medium',
+          assignedTo: first.l1ReviewerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: first.managerDeadline || undefined,
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // L2 review tasks
+    const pendingL2ByReviewer: Record<string, typeof pendingL2Reviews> = {};
+    for (const a of pendingL2Reviews) {
+      const key = String(a.l2ReviewerId);
+      if (!pendingL2ByReviewer[key]) pendingL2ByReviewer[key] = [];
+      pendingL2ByReviewer[key].push(a);
+    }
+    for (const [reviewerId, appraisals] of Object.entries(pendingL2ByReviewer)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_l2_pending', reviewerId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• ${a.employeeName} (${a.department})`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `L2 appraisal review pending: ${first.l2ReviewerName} (${appraisals.length} employees)`,
+        description: `${first.l2ReviewerName} has ${appraisals.length} pending L2 review(s). Create a review task.`,
+        actionPayload: {
+          title: `[Agent] Complete L2 appraisal reviews (${appraisals.length} pending) — ${first.cycleName}`,
+          description: `You have ${appraisals.length} appraisal L2 review(s) pending:\n\n${list}\n\nPlease complete your L2 reviews in the Appraisals module.\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: 'Medium',
+          assignedTo: first.l2ReviewerId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: first.l2Deadline || undefined,
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'normal',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // L3 approval tasks
+    const pendingL3ByApprover: Record<string, typeof pendingL3Approvals> = {};
+    for (const a of pendingL3Approvals) {
+      const key = String(a.l3ApproverId);
+      if (!pendingL3ByApprover[key]) pendingL3ByApprover[key] = [];
+      pendingL3ByApprover[key].push(a);
+    }
+    for (const [approverId, appraisals] of Object.entries(pendingL3ByApprover)) {
+      const first = appraisals[0];
+      const fp = makeFingerprint('appraisal_l3_pending', approverId);
+      if (await hasRecentAgentTask(fp, 7)) continue;
+      const list = appraisals.map(a => `• ${a.employeeName} (${a.department})`).join('\n');
+      const rec = await recommendationManager.createRecommendation({
+        actionCategory: 'task_creation',
+        actionType: 'create_task',
+        title: `L3 appraisal approval pending: ${first.l3ApproverName} (${appraisals.length} employees)`,
+        description: `${first.l3ApproverName} has ${appraisals.length} pending L3 approval(s). Create an approval task.`,
+        actionPayload: {
+          title: `[Agent] Complete L3 appraisal approvals (${appraisals.length} pending) — ${first.cycleName}`,
+          description: `You have ${appraisals.length} appraisal(s) awaiting final L3 approval:\n\n${list}\n\nPlease complete the final approvals including increment/promotion decisions.\n\nSource: Communications Agent — Appraisal Completion`,
+          priority: 'High',
+          assignedTo: first.l3ApproverId,
+          category: `Agent Task ${fp}`,
+          sourceType: 'agent_task',
+          sourceAgent: SOURCE_AGENT,
+          dueDate: first.approvalDeadline || undefined,
+        },
+        logicType: 'rule_based',
+        confidence: 0.9,
+        priority: 'high',
+      });
+      if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+    }
+
+    // A30-A33: APPRAISAL COMPLETION — automated tasks for overdue appraisals (escalation)
     const selfByEmployee: Record<string, typeof overdueSelfAssessments> = {};
     for (const a of overdueSelfAssessments) {
       const key = String(a.employeeId);
