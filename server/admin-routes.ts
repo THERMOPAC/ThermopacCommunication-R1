@@ -2010,7 +2010,7 @@ router.get('/employee-workweek-assignments', ensureAuthenticated, async (req: Re
         effectiveFrom: employeeWorkweekAssignments.effectiveFrom,
         effectiveUntil: employeeWorkweekAssignments.effectiveUntil,
         assignedBy: employeeWorkweekAssignments.assignedBy,
-        assignedByName: sql`COALESCE(assigned_by_user.first_name || ' ' || assigned_by_user.last_name, assigned_by_user.username)`.as('assignedByName'),
+        assignedByName: sql`(SELECT COALESCE(u2.first_name || ' ' || u2.last_name, u2.username) FROM users u2 WHERE u2.id = ${employeeWorkweekAssignments.assignedBy})`.as('assignedByName'),
         notes: employeeWorkweekAssignments.notes,
         isActive: employeeWorkweekAssignments.isActive,
         createdAt: employeeWorkweekAssignments.createdAt
@@ -2018,7 +2018,6 @@ router.get('/employee-workweek-assignments', ensureAuthenticated, async (req: Re
       .from(employeeWorkweekAssignments)
       .innerJoin(users, eq(employeeWorkweekAssignments.employeeId, users.id))
       .innerJoin(workweekPolicies, eq(employeeWorkweekAssignments.workweekPolicyId, workweekPolicies.id))
-      .leftJoin(users.as('assigned_by_user'), eq(employeeWorkweekAssignments.assignedBy, sql`assigned_by_user.id`))
       .where(eq(employeeWorkweekAssignments.isActive, true))
       .orderBy(desc(employeeWorkweekAssignments.createdAt));
 

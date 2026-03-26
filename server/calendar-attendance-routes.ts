@@ -324,7 +324,20 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
     }));
 
     if (records.length > 0) {
-      await db.insert(attendanceRecords).values(records);
+      for (const record of records) {
+        await db.insert(attendanceRecords)
+          .values(record)
+          .onConflictDoUpdate({
+            target: [attendanceRecords.userId, attendanceRecords.date],
+            set: {
+              status: record.status,
+              source: 'manual_calendar',
+              workingHours: record.workingHours,
+              adminNotes: record.adminNotes,
+              updatedAt: new Date(),
+            },
+          });
+      }
     }
 
     res.json({ 
