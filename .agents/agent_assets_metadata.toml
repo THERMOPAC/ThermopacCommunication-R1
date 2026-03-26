@@ -24,3 +24,9 @@ id = "21w9yky5clUsh66hZDHjj"
 uri = "file://attached_assets/GRPO-Implementation-Plan.md"
 type = "text"
 title = "PO to GRPO — Complete Implementation Plan"
+
+[[outputs]]
+id = "GMh4GZIkoOgwi6RZxfjzc"
+uri = "file://.local/DWAR_Implementation_Report.md"
+type = "text"
+title = "DWAR Scoring Model Overhaul — Full Implementation Report"
