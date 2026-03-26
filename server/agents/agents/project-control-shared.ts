@@ -108,6 +108,17 @@ export async function hasOpenTask(fingerprint: string, sourceAgent: string): Pro
   return (result.rows || []).length > 0;
 }
 
+export async function hasCompletedTask(fingerprint: string, sourceAgent: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task' AND source_agent = ${sourceAgent}
+      AND category LIKE ${'%' + fingerprint + '%'}
+      AND status = 'completed'
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
 export function trendDirection(current: number, previous: number): 'improving' | 'stable' | 'declining' {
   if (previous === 0 && current === 0) return 'stable';
   if (previous === 0) return current > 0 ? 'declining' : 'improving';

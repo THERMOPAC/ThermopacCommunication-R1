@@ -8,7 +8,7 @@ import { sql } from 'drizzle-orm';
 import {
   resolveProjectManager, resolveReportingManager, resolveDepartmentHead,
   severityFromLevel, priorityFromLevel,
-  fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared,
+  fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared, hasCompletedTask as hasCompletedTaskShared,
 } from './project-control-shared';
 import { fetchOpenPurchaseOrders, fetchRecentGRPOs, buildGRPOLookupByBasePO } from './sap-live-queries';
 
@@ -70,6 +70,10 @@ function agentSev(findingCode: string, escalatedLevel?: 'L1' | 'L2' | 'L3'): str
 
 async function hasOpenTask(fingerprint: string): Promise<boolean> {
   return hasOpenTaskShared(fingerprint, SOURCE_AGENT);
+}
+
+async function hasCompletedTask(fingerprint: string): Promise<boolean> {
+  return hasCompletedTaskShared(fingerprint, SOURCE_AGENT);
 }
 
 function healthBand(score: number): string {
@@ -237,35 +241,57 @@ export class ProjectControlAgent implements IAgent {
         const daysOverdue = Number(wo.days_overdue || 0);
         if (daysOverdue < THRESHOLDS.p1_overdue_days) continue;
 
-        const level: 'L1' | 'L2' | 'L3' = daysOverdue >= 90 ? 'L3' : daysOverdue >= 30 ? 'L2' : 'L1';
         const fingerprint = fpWithProject('p1_overdue_task', wo.project_id, 'wo', wo.id);
+
+        // Progressive escalation: always start at L1, escalate only if prior level task was completed but issue persists
+        const l1Fp = `${fingerprint}_L1`;
+        const l2Fp = `${fingerprint}_L2`;
+        const l3Fp = `${fingerprint}_L3`;
+        const hasOpenL1 = await hasOpenTask(l1Fp);
+        const hasOpenL2 = await hasOpenTask(l2Fp);
+        const hasOpenL3 = await hasOpenTask(l3Fp);
+        const hasCompletedL1 = !hasOpenL1 && await hasCompletedTask(l1Fp);
+        const hasCompletedL2 = !hasOpenL2 && await hasCompletedTask(l2Fp);
+
+        let level: 'L1' | 'L2' | 'L3';
+        let currentFp: string;
+        if (!hasOpenL1 && !hasCompletedL1) {
+          level = 'L1'; currentFp = l1Fp;
+        } else if (hasCompletedL1 && !hasOpenL2 && !hasCompletedL2 && daysOverdue >= 30) {
+          level = 'L2'; currentFp = l2Fp;
+        } else if (hasCompletedL1 && hasCompletedL2 && !hasOpenL3 && daysOverdue >= 90) {
+          level = 'L3'; currentFp = l3Fp;
+        } else {
+          continue;
+        }
         const severity = agentSev('P1', level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue',
           severity: severityFromLevel(level) as any,
           title: `P1 Overdue Task: ${wo.work_order_number} — ${wo.title} (${daysOverdue}d)`,
-          description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date (${wo.planned_end_date}).\nStatus: ${wo.status}`,
+          description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date (${wo.planned_end_date}).\nStatus: ${wo.status}\nEscalation: ${level}`,
           logicType: 'rule_based',
-          dataSnapshot: { woId: wo.id, daysOverdue, projectId: wo.project_id },
+          dataSnapshot: { woId: wo.id, daysOverdue, projectId: wo.project_id, escalationLevel: level },
           relatedEntityType: 'work_order',
           relatedEntityId: String(wo.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
-        if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveEscalation(level, wo.supervisor_id ? Number(wo.supervisor_id) : pm);
+        if (!await hasOpenTask(currentFp)) {
+          const entityOwner = wo.supervisor_id ? Number(wo.supervisor_id) : pm;
+          const assignTo = await resolveEscalation(level, entityOwner);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number}`,
+            title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number} (${level} Escalation)`,
             actionType: 'create_task',
-            description: `Work order ${wo.work_order_number} is ${daysOverdue} days overdue.`,
+            description: `Work order ${wo.work_order_number} is ${daysOverdue} days overdue. Escalation level: ${level}.`,
             actionPayload: {
-              title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number} — "${wo.title}" (${daysOverdue}d overdue)`,
-              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date.\nPlanned end: ${wo.planned_end_date}\nStatus: ${wo.status}\nagent_severity: ${severity}\n\nPlease review and update status or escalate blockers.`,
+              title: `[Agent] Project Control – Overdue Task: ${wo.work_order_number} — "${wo.title}" (${daysOverdue}d overdue) [${level}]`,
+              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" is ${daysOverdue} days past planned end date.\nPlanned end: ${wo.planned_end_date}\nStatus: ${wo.status}\nagent_severity: ${severity}\nEscalation: ${level}\n\nPlease review and update status or escalate blockers.`,
               assignedTo: assignTo,
               priority: priorityFromLevel(level),
-              category: `Project ${fingerprint}`,
+              category: `Project ${currentFp}`,
             },
             actionCategory: 'task_creation',
             logicType: 'rule_based',
@@ -281,39 +307,56 @@ export class ProjectControlAgent implements IAgent {
         const daysSinceUpdate = Number(wo.days_since_update || 0);
         if (daysSinceUpdate < THRESHOLDS.p3_stuck_days) continue;
 
-        const level: 'L1' | 'L2' = daysSinceUpdate >= 30 ? 'L2' : 'L1';
         const fingerprint = fpWithProject('p3_stuck', wo.project_id, 'wo', wo.id);
-        const severity = agentSev('P3', level);
+
+        // Progressive escalation: L1 first, then L2 only if L1 completed but issue persists
+        const stuckL1Fp = `${fingerprint}_L1`;
+        const stuckL2Fp = `${fingerprint}_L2`;
+        const hasOpenStuckL1 = await hasOpenTask(stuckL1Fp);
+        const hasOpenStuckL2 = await hasOpenTask(stuckL2Fp);
+        const hasCompletedStuckL1 = !hasOpenStuckL1 && await hasCompletedTask(stuckL1Fp);
+
+        let stuckLevel: 'L1' | 'L2';
+        let stuckCurrentFp: string;
+        if (!hasOpenStuckL1 && !hasCompletedStuckL1) {
+          stuckLevel = 'L1'; stuckCurrentFp = stuckL1Fp;
+        } else if (hasCompletedStuckL1 && !hasOpenStuckL2 && daysSinceUpdate >= 30) {
+          stuckLevel = 'L2'; stuckCurrentFp = stuckL2Fp;
+        } else {
+          continue;
+        }
+        const severity = agentSev('P3', stuckLevel);
 
         const finding = await findingManager.createFinding({
           findingType: 'anomaly',
-          severity: severityFromLevel(level) as any,
+          severity: severityFromLevel(stuckLevel) as any,
           title: `P3 Task Stuck: ${wo.work_order_number} — ${daysSinceUpdate}d no update`,
-          description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no status update for ${daysSinceUpdate} days.\nCurrent status: ${wo.status}`,
+          description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no status update for ${daysSinceUpdate} days.\nCurrent status: ${wo.status}\nEscalation: ${stuckLevel}`,
           logicType: 'rule_based',
-          dataSnapshot: { woId: wo.id, daysSinceUpdate, projectId: wo.project_id },
+          dataSnapshot: { woId: wo.id, daysSinceUpdate, projectId: wo.project_id, escalationLevel: stuckLevel },
           relatedEntityType: 'work_order',
           relatedEntityId: String(wo.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
-        if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveEscalation(level, wo.supervisor_id ? Number(wo.supervisor_id) : pm);
+        if (!await hasOpenTask(stuckCurrentFp)) {
+          const entityOwner = wo.supervisor_id ? Number(wo.supervisor_id) : pm;
+          const assignTo = await resolveEscalation(stuckLevel, entityOwner);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number}`,
+            title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number} (${stuckLevel} Escalation)`,
             actionType: 'create_task',
-            description: `Work order has not been updated for ${daysSinceUpdate} days.`,
+            description: `Work order has not been updated for ${daysSinceUpdate} days. Escalation level: ${stuckLevel}.`,
             actionPayload: {
-              title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number} — "${wo.title}" (${daysSinceUpdate}d no update)`,
-              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no update for ${daysSinceUpdate} days.\nStatus: ${wo.status}\nLast update: ${wo.updated_at}\nagent_severity: ${severity}\n\nPlease review status, update progress, or report blockers.`,
+              title: `[Agent] Project Control – Task Stuck: ${wo.work_order_number} — "${wo.title}" (${daysSinceUpdate}d no update) [${stuckLevel}]`,
+              description: `Work order "${wo.title}" (${wo.work_order_number}) in project "${wo.project_name}" has had no update for ${daysSinceUpdate} days.\nStatus: ${wo.status}\nLast update: ${wo.updated_at}\nagent_severity: ${severity}\nEscalation: ${stuckLevel}\n\nPlease review status, update progress, or report blockers.`,
               assignedTo: assignTo,
-              priority: priorityFromLevel(level),
-              category: `Project ${fingerprint}`,
+              priority: priorityFromLevel(stuckLevel),
+              category: `Project ${stuckCurrentFp}`,
             },
             actionCategory: 'task_creation',
             logicType: 'rule_based',
-            priority: severityFromLevel(level) as any,
+            priority: severityFromLevel(stuckLevel) as any,
             confidence: 0.85,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
