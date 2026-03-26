@@ -72,6 +72,18 @@ async function hasOpenAgentTask(fingerprint: string): Promise<boolean> {
   return (result.rows || []).length > 0;
 }
 
+async function hasCompletedAgentTask(fingerprint: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    SELECT 1 FROM tasks 
+    WHERE source_type = 'agent_task'
+      AND source_agent = ${SOURCE_AGENT}
+      AND category LIKE ${'%' + fingerprint + '%'}
+      AND status = 'completed'
+    LIMIT 1
+  `);
+  return (result.rows || []).length > 0;
+}
+
 async function hasRecentAgentTask(fingerprint: string, cooldownDays: number): Promise<boolean> {
   const result = await db.execute(sql`
     SELECT 1 FROM tasks 
@@ -113,8 +125,8 @@ async function autoCloseResolvedTasks(): Promise<number> {
         if (Number((pay.rows as any[])[0]?.unallocated_amount || 0) <= 1) shouldClose = true;
       }
     }
-    if (cat.includes('fp:fin_writeoff_pending')) {
-      const match = cat.match(/fp:fin_writeoff_pending:wo:(\d+)/);
+    if (cat.includes('fp:fin_writeoff_pending') || cat.includes('fp:fin_writeoff_large')) {
+      const match = cat.match(/fp:fin_writeoff_(?:pending|large)[^:]*:wo:(\d+)/);
       if (match) {
         const woId = Number(match[1]);
         const wo = await db.execute(sql`SELECT status FROM write_offs WHERE id = ${woId}`);
@@ -321,14 +333,14 @@ export class FinanceControlAgent implements IAgent {
     }
 
     const invTiers = [
-      { tier: invTier1, code: 'F1', label: 'Overdue Invoice Reminder (1-15 days)', severity: 'low' as const, assignTo: L1, cooldown: 7, range: '1-15' },
-      { tier: invTier2, code: 'F2', label: 'Overdue Invoice Escalation L1 (16-30 days)', severity: 'medium' as const, assignTo: L1, cooldown: 7, range: '16-30' },
-      { tier: invTier3, code: 'F3', label: 'Overdue Invoice Escalation L2 (31-60 days)', severity: 'high' as const, assignTo: L2, cooldown: 7, range: '31-60' },
-      { tier: invTier4, code: 'F4', label: 'Overdue Invoice Escalation L3 (61-90 days)', severity: 'high' as const, assignTo: L2, cooldown: 7, range: '61-90' },
-      { tier: invTier5, code: 'F5', label: 'Bad Debt Review (90+ days)', severity: 'critical' as const, assignTo: L3, cooldown: 7, range: '90+' },
+      { tier: invTier1, code: 'F1', label: 'Overdue Invoice Reminder (1-15 days)', severity: 'low' as const, assignTo: L1, cooldown: 7, range: '1-15', prevCode: null as string | null },
+      { tier: invTier2, code: 'F2', label: 'Overdue Invoice Escalation L1 (16-30 days)', severity: 'medium' as const, assignTo: L1, cooldown: 7, range: '16-30', prevCode: null as string | null },
+      { tier: invTier3, code: 'F3', label: 'Overdue Invoice Escalation L2 (31-60 days)', severity: 'high' as const, assignTo: L2, cooldown: 7, range: '31-60', prevCode: 'f2' },
+      { tier: invTier4, code: 'F4', label: 'Overdue Invoice Escalation L3 (61-90 days)', severity: 'high' as const, assignTo: L2, cooldown: 7, range: '61-90', prevCode: 'f3' },
+      { tier: invTier5, code: 'F5', label: 'Bad Debt Review (90+ days)', severity: 'critical' as const, assignTo: L3, cooldown: 7, range: '90+', prevCode: 'f4' },
     ];
 
-    for (const { tier, code, label, severity, assignTo, cooldown, range } of invTiers) {
+    for (const { tier, code, label, severity, assignTo, cooldown, range, prevCode } of invTiers) {
       if (tier.length === 0) continue;
 
       const topInvs = tier.slice(0, 5);
@@ -351,6 +363,10 @@ export class FinanceControlAgent implements IAgent {
         let overdueTaskCount = 0;
         for (const inv of tier) {
           if (overdueTaskCount >= MAX_OVERDUE_TASKS_PER_TIER) break;
+          if (prevCode) {
+            const prevFp = makeFingerprint(`overdue_inv_${prevCode}`, `inv:${inv.id}`);
+            if (!await hasCompletedAgentTask(prevFp)) continue;
+          }
           const fp = makeFingerprint(`overdue_inv_${code.toLowerCase()}`, `inv:${inv.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, cooldown)) continue;
@@ -456,9 +472,9 @@ export class FinanceControlAgent implements IAgent {
     const unallocReminder = unallocPayments.filter(p => Number(p.days_since_payment) >= settings.unallocated_payment_reminder_days && Number(p.days_since_payment) < settings.unallocated_payment_escalation_days);
     const unallocEscalation = unallocPayments.filter(p => Number(p.days_since_payment) >= settings.unallocated_payment_escalation_days);
 
-    for (const { items, code, label, severity, assignTo, cooldown } of [
-      { items: unallocReminder, code: 'F7', label: 'Unallocated Payment Reminder (>7d)', severity: 'medium' as const, assignTo: L1, cooldown: 5 },
-      { items: unallocEscalation, code: 'F8', label: 'Unallocated Payment Escalation (>15d)', severity: 'high' as const, assignTo: L2, cooldown: 5 },
+    for (const { items, code, label, severity, assignTo, cooldown, prevCode } of [
+      { items: unallocReminder, code: 'F7', label: 'Unallocated Payment Reminder (>7d)', severity: 'medium' as const, assignTo: L1, cooldown: 5, prevCode: null as string | null },
+      { items: unallocEscalation, code: 'F8', label: 'Unallocated Payment Escalation (>15d)', severity: 'high' as const, assignTo: L2, cooldown: 5, prevCode: 'f7' },
     ]) {
       if (items.length === 0) continue;
 
@@ -483,6 +499,10 @@ export class FinanceControlAgent implements IAgent {
         let unallocTaskCount = 0;
         for (const p of items) {
           if (unallocTaskCount >= MAX_UNALLOC_TASKS) break;
+          if (prevCode) {
+            const prevFp = makeFingerprint(`unalloc_${prevCode}`, `pay:${p.id}`);
+            if (!await hasCompletedAgentTask(prevFp)) continue;
+          }
           const fp = makeFingerprint(`unalloc_${code.toLowerCase()}`, `pay:${p.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, cooldown)) continue;
@@ -819,8 +839,30 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
-        const fp = makeFingerprint('high_outstanding', 'aggregate');
-        if (!await hasOpenAgentTask(fp) && !await hasRecentAgentTask(fp, 30)) {
+        const fpL1 = makeFingerprint('high_outstanding_L1', 'aggregate');
+        const fpL2 = makeFingerprint('high_outstanding_L2', 'aggregate');
+        if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 30)) {
+          const rec = await recommendationManager.createRecommendation({
+            actionCategory: 'task_creation',
+            actionType: 'create_task',
+            title: `[L2 Escalation] Credit Control Review: ${highOutstanding.length} high-outstanding customers`,
+            description: `${highOutstanding.length} customers exceed outstanding threshold. L1 task completed — escalating to L2.`,
+            actionPayload: {
+              title: `[Finance] [L2] Credit Control Review: ${highOutstanding.length} customers with high outstanding`,
+              description: `The following customers have outstanding balance exceeding ₹10,00,000:\n\n${topList}\n\nL1 review completed. Escalating to General Manager for strategic review.\n\nSource: Finance Control Agent — F13 (L2)`,
+              priority: 'High',
+              assignedTo: L2,
+              category: `Finance ${fpL2}`,
+              sourceType: 'agent_task',
+              sourceAgent: SOURCE_AGENT,
+              dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            },
+            logicType: 'rule_based',
+            confidence: 0.9,
+            priority: 'normal',
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 30)) {
           const rec = await recommendationManager.createRecommendation({
             actionCategory: 'task_creation',
             actionType: 'create_task',
@@ -828,10 +870,10 @@ export class FinanceControlAgent implements IAgent {
             description: `${highOutstanding.length} customers exceed outstanding threshold.`,
             actionPayload: {
               title: `[Finance] Credit Control Review: ${highOutstanding.length} customers with high outstanding`,
-              description: `The following customers have outstanding balance exceeding ₹10,00,000:\n\n${topList}\n\nPlease review credit terms and collection strategy.\n\nSource: Finance Control Agent — F13`,
+              description: `The following customers have outstanding balance exceeding ₹10,00,000:\n\n${topList}\n\nPlease review credit terms and collection strategy.\n\nSource: Finance Control Agent — F13 (L1)`,
               priority: 'High',
-              assignedTo: L2,
-              category: `Finance ${fp}`,
+              assignedTo: L1,
+              category: `Finance ${fpL1}`,
               sourceType: 'agent_task',
               sourceAgent: SOURCE_AGENT,
               dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -869,8 +911,30 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
-        const fp = makeFingerprint('turnover_breach', 'aggregate');
-        if (!await hasOpenAgentTask(fp) && !await hasRecentAgentTask(fp, 30)) {
+        const fpL1 = makeFingerprint('turnover_breach_L1', 'aggregate');
+        const fpL2 = makeFingerprint('turnover_breach_L2', 'aggregate');
+        if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 30)) {
+          const rec = await recommendationManager.createRecommendation({
+            actionCategory: 'task_creation',
+            actionType: 'create_task',
+            title: `[L2 Escalation] Turnover risk review: ${turnoverBreach.length} customers`,
+            description: `${turnoverBreach.length} customers have outstanding >20% of turnover. L1 task completed — escalating to L2.`,
+            actionPayload: {
+              title: `[Finance] [L2] Turnover Risk: ${turnoverBreach.length} customers with disproportionate outstanding`,
+              description: `${turnoverBreach.length} customers have outstanding balance exceeding ${settings.outstanding_turnover_pct}% of their yearly turnover.\n\n${topList}\n\nL1 review completed. Escalating to General Manager.\n\nSource: Finance Control Agent — F14 (L2)`,
+              priority: 'High',
+              assignedTo: L2,
+              category: `Finance ${fpL2}`,
+              sourceType: 'agent_task',
+              sourceAgent: SOURCE_AGENT,
+              dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            },
+            logicType: 'rule_based',
+            confidence: 0.85,
+            priority: 'normal',
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 30)) {
           const rec = await recommendationManager.createRecommendation({
             actionCategory: 'task_creation',
             actionType: 'create_task',
@@ -878,10 +942,10 @@ export class FinanceControlAgent implements IAgent {
             description: `${turnoverBreach.length} customers have outstanding >20% of turnover.`,
             actionPayload: {
               title: `[Finance] Turnover Risk: ${turnoverBreach.length} customers with disproportionate outstanding`,
-              description: `${turnoverBreach.length} customers have outstanding balance exceeding ${settings.outstanding_turnover_pct}% of their yearly turnover.\n\n${topList}\n\nThis indicates high receivable risk. Please review.\n\nSource: Finance Control Agent — F14`,
+              description: `${turnoverBreach.length} customers have outstanding balance exceeding ${settings.outstanding_turnover_pct}% of their yearly turnover.\n\n${topList}\n\nThis indicates high receivable risk. Please review.\n\nSource: Finance Control Agent — F14 (L1)`,
               priority: 'High',
-              assignedTo: L2,
-              category: `Finance ${fp}`,
+              assignedTo: L1,
+              category: `Finance ${fpL1}`,
               sourceType: 'agent_task',
               sourceAgent: SOURCE_AGENT,
               dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -978,8 +1042,30 @@ export class FinanceControlAgent implements IAgent {
         if (!fr.isDuplicate) findingsCount++;
 
         if (!skipTaskCreation) {
-          const fp = makeFingerprint('concentration_risk', 'aging');
-          if (!await hasOpenAgentTask(fp) && !await hasRecentAgentTask(fp, 30)) {
+          const fpL1 = makeFingerprint('concentration_risk_L1', 'aging');
+          const fpL2 = makeFingerprint('concentration_risk_L2', 'aging');
+          if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 30)) {
+            const rec = await recommendationManager.createRecommendation({
+              actionCategory: 'task_creation',
+              actionType: 'create_task',
+              title: `[L2 Escalation] Receivable concentration risk review`,
+              description: `${pct60Plus.toFixed(1)}% of receivables in 60+ bucket. L1 task completed — escalating to L2.`,
+              actionPayload: {
+                title: `[Finance] [L2] Receivable Concentration Risk — ${pct60Plus.toFixed(1)}% in 60+ days`,
+                description: `Receivable aging concentration exceeds thresholds:\n\n60+ days: ${pct60Plus.toFixed(1)}% (limit: ${settings.receivable_concentration_60_pct}%)\n90+ days: ${pct90Plus.toFixed(1)}% (limit: ${settings.receivable_concentration_90_pct}%)\n\nL1 review completed. Escalating to General Manager.\n\nSource: Finance Control Agent — F16 (L2)`,
+                priority: 'High',
+                assignedTo: L2,
+                category: `Finance ${fpL2}`,
+                sourceType: 'agent_task',
+                sourceAgent: SOURCE_AGENT,
+                dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              logicType: 'rule_based',
+              confidence: 0.9,
+              priority: 'normal',
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 30)) {
             const rec = await recommendationManager.createRecommendation({
               actionCategory: 'task_creation',
               actionType: 'create_task',
@@ -987,10 +1073,10 @@ export class FinanceControlAgent implements IAgent {
               description: `${pct60Plus.toFixed(1)}% of receivables in 60+ bucket.`,
               actionPayload: {
                 title: `[Finance] Receivable Concentration Risk — ${pct60Plus.toFixed(1)}% in 60+ days`,
-                description: `Receivable aging concentration exceeds thresholds:\n\n60+ days: ${pct60Plus.toFixed(1)}% (limit: ${settings.receivable_concentration_60_pct}%)\n90+ days: ${pct90Plus.toFixed(1)}% (limit: ${settings.receivable_concentration_90_pct}%)\n\nReview collection strategy and customer credit terms.\n\nSource: Finance Control Agent — F16`,
+                description: `Receivable aging concentration exceeds thresholds:\n\n60+ days: ${pct60Plus.toFixed(1)}% (limit: ${settings.receivable_concentration_60_pct}%)\n90+ days: ${pct90Plus.toFixed(1)}% (limit: ${settings.receivable_concentration_90_pct}%)\n\nReview collection strategy and customer credit terms.\n\nSource: Finance Control Agent — F16 (L1)`,
                 priority: 'High',
-                assignedTo: L2,
-                category: `Finance ${fp}`,
+                assignedTo: L1,
+                category: `Finance ${fpL1}`,
                 sourceType: 'agent_task',
                 sourceAgent: SOURCE_AGENT,
                 dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -1131,8 +1217,30 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
-        const fp = makeFingerprint('recon_overdue', 'monthly');
-        if (!await hasOpenAgentTask(fp) && !await hasRecentAgentTask(fp, 30)) {
+        const fpL1 = makeFingerprint('recon_overdue_L1', 'monthly');
+        const fpL2 = makeFingerprint('recon_overdue_L2', 'monthly');
+        if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 30)) {
+          const rec = await recommendationManager.createRecommendation({
+            actionCategory: 'task_creation',
+            actionType: 'create_task',
+            title: `[L2 Escalation] Monthly reconciliation review needed`,
+            description: `Large unreconciled payment pool detected. L1 task completed — escalating to L2.`,
+            actionPayload: {
+              title: `[Finance] [L2] Monthly Reconciliation Review — significant unreconciled pool`,
+              description: `The total unreconciled payment pool is significant across ${unallocPayments.length} payments.\n\nL1 review completed. Escalating to General Manager.\n\nSource: Finance Control Agent — F19 (L2)`,
+              priority: 'High',
+              assignedTo: L2,
+              category: `Finance ${fpL2}`,
+              sourceType: 'agent_task',
+              sourceAgent: SOURCE_AGENT,
+              dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            },
+            logicType: 'rule_based',
+            confidence: 0.8,
+            priority: 'normal',
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 30)) {
           const rec = await recommendationManager.createRecommendation({
             actionCategory: 'task_creation',
             actionType: 'create_task',
@@ -1140,10 +1248,10 @@ export class FinanceControlAgent implements IAgent {
             description: `Large unreconciled payment pool detected.`,
             actionPayload: {
               title: `[Finance] Monthly Reconciliation Review — significant unreconciled pool`,
-              description: `The total unreconciled payment pool is significant across ${unallocPayments.length} payments.\n\nPlease complete monthly reconciliation.\n\nSource: Finance Control Agent — F19`,
+              description: `The total unreconciled payment pool is significant across ${unallocPayments.length} payments.\n\nPlease complete monthly reconciliation.\n\nSource: Finance Control Agent — F19 (L1)`,
               priority: 'High',
-              assignedTo: L2,
-              category: `Finance ${fp}`,
+              assignedTo: L1,
+              category: `Finance ${fpL1}`,
               sourceType: 'agent_task',
               sourceAgent: SOURCE_AGENT,
               dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -1317,10 +1425,10 @@ export class FinanceControlAgent implements IAgent {
     const brcWarning = brcPendingInvs.filter(i => Number(i.months_since_issue) >= settings.brc_warning_months && Number(i.months_since_issue) < settings.brc_critical_months);
     const brcCritical = brcPendingInvs.filter(i => Number(i.months_since_issue) >= settings.brc_critical_months);
 
-    for (const { items, code, label, severity, assignTo, cooldown } of [
-      { items: brcReminder, code: 'F24', label: 'BRC Reminder (6 months)', severity: 'medium' as const, assignTo: L1, cooldown: 30 },
-      { items: brcWarning, code: 'F25', label: 'BRC Warning (8 months)', severity: 'high' as const, assignTo: L2, cooldown: 30 },
-      { items: brcCritical, code: 'F26', label: 'BRC Critical (8.5 months — regulatory deadline)', severity: 'critical' as const, assignTo: L3, cooldown: 7 },
+    for (const { items, code, label, severity, assignTo, cooldown, prevCode } of [
+      { items: brcReminder, code: 'F24', label: 'BRC Reminder (6 months)', severity: 'medium' as const, assignTo: L1, cooldown: 30, prevCode: null as string | null },
+      { items: brcWarning, code: 'F25', label: 'BRC Warning (8 months)', severity: 'high' as const, assignTo: L2, cooldown: 30, prevCode: 'f24' },
+      { items: brcCritical, code: 'F26', label: 'BRC Critical (8.5 months — regulatory deadline)', severity: 'critical' as const, assignTo: L3, cooldown: 7, prevCode: 'f25' },
     ]) {
       if (items.length === 0) continue;
 
@@ -1342,6 +1450,10 @@ export class FinanceControlAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const inv of items) {
+          if (prevCode) {
+            const prevFp = makeFingerprint(`brc_${prevCode}`, `inv:${inv.id}`);
+            if (!await hasCompletedAgentTask(prevFp)) continue;
+          }
           const fp = makeFingerprint(`brc_${code.toLowerCase()}`, `inv:${inv.id}`);
           if (await hasOpenAgentTask(fp)) continue;
           if (await hasRecentAgentTask(fp, cooldown)) continue;
@@ -1385,8 +1497,30 @@ export class FinanceControlAgent implements IAgent {
       if (!fr.isDuplicate) findingsCount++;
 
       if (!skipTaskCreation) {
-        const fp = makeFingerprint('brc_count_high', 'total');
-        if (!await hasOpenAgentTask(fp) && !await hasRecentAgentTask(fp, 30)) {
+        const fpL1 = makeFingerprint('brc_count_high_L1', 'total');
+        const fpL2 = makeFingerprint('brc_count_high_L2', 'total');
+        if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 30)) {
+          const rec = await recommendationManager.createRecommendation({
+            actionCategory: 'task_creation',
+            actionType: 'create_task',
+            title: `[L2 Escalation] BRC pending count high: ${brcPendingInvs.length}`,
+            description: `Total BRC pending exceeds threshold. L1 task completed — escalating to L2.`,
+            actionPayload: {
+              title: `[Finance] [L2] BRC Compliance Alert: ${brcPendingInvs.length} BRCs pending`,
+              description: `Total pending BRC count (${brcPendingInvs.length}) exceeds threshold of ${settings.brc_pending_count_threshold}.\n\nL1 review completed. Escalating to General Manager.\n\nSource: Finance Control Agent — F27 (L2)`,
+              priority: 'High',
+              assignedTo: L2,
+              category: `Finance ${fpL2}`,
+              sourceType: 'agent_task',
+              sourceAgent: SOURCE_AGENT,
+              dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            },
+            logicType: 'rule_based',
+            confidence: 0.9,
+            priority: 'normal',
+          });
+          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+        } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 30)) {
           const rec = await recommendationManager.createRecommendation({
             actionCategory: 'task_creation',
             actionType: 'create_task',
@@ -1394,10 +1528,10 @@ export class FinanceControlAgent implements IAgent {
             description: `Total BRC pending exceeds threshold.`,
             actionPayload: {
               title: `[Finance] BRC Compliance Alert: ${brcPendingInvs.length} BRCs pending`,
-              description: `Total pending BRC count (${brcPendingInvs.length}) exceeds threshold of ${settings.brc_pending_count_threshold}.\n\nPlease review BRC submission pipeline.\n\nSource: Finance Control Agent — F27`,
+              description: `Total pending BRC count (${brcPendingInvs.length}) exceeds threshold of ${settings.brc_pending_count_threshold}.\n\nPlease review BRC submission pipeline.\n\nSource: Finance Control Agent — F27 (L1)`,
               priority: 'High',
-              assignedTo: L2,
-              category: `Finance ${fp}`,
+              assignedTo: L1,
+              category: `Finance ${fpL1}`,
               sourceType: 'agent_task',
               sourceAgent: SOURCE_AGENT,
               dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -1439,30 +1573,51 @@ export class FinanceControlAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const wo of staleWriteOffs) {
-          const fp = makeFingerprint('writeoff_pending', `wo:${wo.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
-          if (await hasRecentAgentTask(fp, 7)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            actionCategory: 'task_creation',
-            actionType: 'create_task',
-            title: `Write-off pending: ${wo.invoice_number || 'WO #' + wo.id}`,
-            description: `Write-off for invoice ${wo.invoice_number} pending approval.`,
-            actionPayload: {
-              title: `[Finance] Approve/Reject write-off: ${wo.invoice_number || 'WO #' + wo.id}`,
-              description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} (amount: ${Number(wo.amount).toLocaleString()}) has been pending approval for 7+ days.\n\nReason: ${wo.reason || 'Not specified'}\n\nPlease review and approve/reject.\n\nSource: Finance Control Agent — F28`,
-              priority: 'High',
-              assignedTo: L2,
-              category: `Finance ${fp}`,
-              sourceType: 'agent_task',
-              sourceAgent: SOURCE_AGENT,
-              dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            },
-            logicType: 'rule_based',
-            confidence: 0.9,
-            priority: 'normal',
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = makeFingerprint('writeoff_pending_L1', `wo:${wo.id}`);
+          const fpL2 = makeFingerprint('writeoff_pending_L2', `wo:${wo.id}`);
+          if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 7)) {
+            const rec = await recommendationManager.createRecommendation({
+              actionCategory: 'task_creation',
+              actionType: 'create_task',
+              title: `[L2 Escalation] Write-off pending: ${wo.invoice_number || 'WO #' + wo.id}`,
+              description: `Write-off for invoice ${wo.invoice_number} pending approval. L1 task completed — escalating to L2.`,
+              actionPayload: {
+                title: `[Finance] [L2] Approve/Reject write-off: ${wo.invoice_number || 'WO #' + wo.id}`,
+                description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} (amount: ${Number(wo.amount).toLocaleString()}) has been pending approval for 7+ days.\n\nReason: ${wo.reason || 'Not specified'}\n\nL1 review completed. Escalating to General Manager.\n\nSource: Finance Control Agent — F28 (L2)`,
+                priority: 'High',
+                assignedTo: L2,
+                category: `Finance ${fpL2}`,
+                sourceType: 'agent_task',
+                sourceAgent: SOURCE_AGENT,
+                dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              logicType: 'rule_based',
+              confidence: 0.9,
+              priority: 'normal',
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 7)) {
+            const rec = await recommendationManager.createRecommendation({
+              actionCategory: 'task_creation',
+              actionType: 'create_task',
+              title: `Write-off pending: ${wo.invoice_number || 'WO #' + wo.id}`,
+              description: `Write-off for invoice ${wo.invoice_number} pending approval.`,
+              actionPayload: {
+                title: `[Finance] Approve/Reject write-off: ${wo.invoice_number || 'WO #' + wo.id}`,
+                description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} (amount: ${Number(wo.amount).toLocaleString()}) has been pending approval for 7+ days.\n\nReason: ${wo.reason || 'Not specified'}\n\nPlease review and approve/reject.\n\nSource: Finance Control Agent — F28 (L1)`,
+                priority: 'Medium',
+                assignedTo: L1,
+                category: `Finance ${fpL1}`,
+                sourceType: 'agent_task',
+                sourceAgent: SOURCE_AGENT,
+                dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              logicType: 'rule_based',
+              confidence: 0.9,
+              priority: 'normal',
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
@@ -1488,30 +1643,73 @@ export class FinanceControlAgent implements IAgent {
 
       if (!skipTaskCreation) {
         for (const wo of largeWriteOffs) {
-          const fp = makeFingerprint('writeoff_large', `wo:${wo.id}`);
-          if (await hasOpenAgentTask(fp)) continue;
-          if (await hasRecentAgentTask(fp, 7)) continue;
-
-          const rec = await recommendationManager.createRecommendation({
-            actionCategory: 'task_creation',
-            actionType: 'create_task',
-            title: `Large write-off approval: ${wo.invoice_number || 'WO #' + wo.id}`,
-            description: `Write-off of ₹${Number(wo.amount).toLocaleString()} requires Super User approval.`,
-            actionPayload: {
-              title: `[Finance] URGENT: Large write-off approval — ${wo.invoice_number || 'WO #' + wo.id} (₹${Number(wo.amount).toLocaleString()})`,
-              description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} with amount ₹${Number(wo.amount).toLocaleString()} exceeds the threshold of ₹${settings.writeoff_approval_threshold.toLocaleString()}.\n\nReason: ${wo.reason || 'Not specified'}\n\nThis requires Super User / CFO approval.\n\nSource: Finance Control Agent — F29`,
-              priority: 'Urgent',
-              assignedTo: L3,
-              category: `Finance ${fp}`,
-              sourceType: 'agent_task',
-              sourceAgent: SOURCE_AGENT,
-              dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            },
-            logicType: 'rule_based',
-            confidence: 0.95,
-            priority: 'urgent',
-          });
-          if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          const fpL1 = makeFingerprint('writeoff_large_L1', `wo:${wo.id}`);
+          const fpL2 = makeFingerprint('writeoff_large_L2', `wo:${wo.id}`);
+          const fpL3 = makeFingerprint('writeoff_large_L3', `wo:${wo.id}`);
+          if (await hasCompletedAgentTask(fpL2) && !await hasOpenAgentTask(fpL3) && !await hasRecentAgentTask(fpL3, 7)) {
+            const rec = await recommendationManager.createRecommendation({
+              actionCategory: 'task_creation',
+              actionType: 'create_task',
+              title: `[L3 Escalation] Large write-off approval: ${wo.invoice_number || 'WO #' + wo.id}`,
+              description: `Write-off of ₹${Number(wo.amount).toLocaleString()} requires Super User approval. L2 task completed — escalating to L3.`,
+              actionPayload: {
+                title: `[Finance] [L3] URGENT: Large write-off approval — ${wo.invoice_number || 'WO #' + wo.id} (₹${Number(wo.amount).toLocaleString()})`,
+                description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} with amount ₹${Number(wo.amount).toLocaleString()} exceeds the threshold of ₹${settings.writeoff_approval_threshold.toLocaleString()}.\n\nReason: ${wo.reason || 'Not specified'}\n\nL2 review completed. Escalating to Super User / CFO for final approval.\n\nSource: Finance Control Agent — F29 (L3)`,
+                priority: 'Urgent',
+                assignedTo: L3,
+                category: `Finance ${fpL3}`,
+                sourceType: 'agent_task',
+                sourceAgent: SOURCE_AGENT,
+                dueDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              logicType: 'rule_based',
+              confidence: 0.95,
+              priority: 'urgent',
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (await hasCompletedAgentTask(fpL1) && !await hasOpenAgentTask(fpL2) && !await hasRecentAgentTask(fpL2, 7)) {
+            const rec = await recommendationManager.createRecommendation({
+              actionCategory: 'task_creation',
+              actionType: 'create_task',
+              title: `[L2 Escalation] Large write-off review: ${wo.invoice_number || 'WO #' + wo.id}`,
+              description: `Write-off of ₹${Number(wo.amount).toLocaleString()} — L1 review completed, escalating to L2.`,
+              actionPayload: {
+                title: `[Finance] [L2] Large write-off review — ${wo.invoice_number || 'WO #' + wo.id} (₹${Number(wo.amount).toLocaleString()})`,
+                description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} with amount ₹${Number(wo.amount).toLocaleString()} exceeds the threshold of ₹${settings.writeoff_approval_threshold.toLocaleString()}.\n\nReason: ${wo.reason || 'Not specified'}\n\nL1 review completed. Escalating to General Manager.\n\nSource: Finance Control Agent — F29 (L2)`,
+                priority: 'High',
+                assignedTo: L2,
+                category: `Finance ${fpL2}`,
+                sourceType: 'agent_task',
+                sourceAgent: SOURCE_AGENT,
+                dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              logicType: 'rule_based',
+              confidence: 0.95,
+              priority: 'normal',
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          } else if (!await hasOpenAgentTask(fpL1) && !await hasRecentAgentTask(fpL1, 7)) {
+            const rec = await recommendationManager.createRecommendation({
+              actionCategory: 'task_creation',
+              actionType: 'create_task',
+              title: `Large write-off review: ${wo.invoice_number || 'WO #' + wo.id}`,
+              description: `Write-off of ₹${Number(wo.amount).toLocaleString()} exceeds threshold — initial review needed.`,
+              actionPayload: {
+                title: `[Finance] Large write-off review — ${wo.invoice_number || 'WO #' + wo.id} (₹${Number(wo.amount).toLocaleString()})`,
+                description: `Write-off request for invoice ${wo.invoice_number || 'Unknown'} with amount ₹${Number(wo.amount).toLocaleString()} exceeds the threshold of ₹${settings.writeoff_approval_threshold.toLocaleString()}.\n\nReason: ${wo.reason || 'Not specified'}\n\nPlease review and prepare for escalation.\n\nSource: Finance Control Agent — F29 (L1)`,
+                priority: 'High',
+                assignedTo: L1,
+                category: `Finance ${fpL1}`,
+                sourceType: 'agent_task',
+                sourceAgent: SOURCE_AGENT,
+                dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              },
+              logicType: 'rule_based',
+              confidence: 0.95,
+              priority: 'normal',
+            });
+            if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
+          }
         }
       }
     }
