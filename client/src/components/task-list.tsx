@@ -246,6 +246,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
     },
   });
 
+  const todayStr = new Date().toISOString().split('T')[0];
   const form = useForm({
     resolver: zodResolver(insertTaskSchema),
     defaultValues: {
@@ -253,8 +254,9 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
       description: "",
       status: "pending",
       priority: "Medium",
-      startDate: new Date().toISOString().split('T')[0],
-      finishDate: "",
+      startDate: todayStr,
+      finishDate: todayStr,
+      dueDate: todayStr,
       assignedTo: undefined,
       createdBy: user!.id,
       createdAt: new Date().toISOString()
@@ -567,7 +569,7 @@ export default function TaskList({ tasks, subordinates }: TaskListProps) {
                       <FormItem>
                         <FormLabel>Due Date <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} required />
+                          <Input type="date" {...field} required onChange={(e) => { field.onChange(e); form.setValue("dueDate", e.target.value); }} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

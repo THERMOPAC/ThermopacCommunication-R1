@@ -341,6 +341,7 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
     },
   });
 
+  const defaultDueDate = urlParams?.get('dueDate') || new Date().toISOString().split('T')[0];
   const form = useForm({
     resolver: zodResolver(insertTaskSchema),
     defaultValues: {
@@ -349,7 +350,8 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
       status: "pending",
       priority: "Medium",
       startDate: new Date().toISOString().split('T')[0],
-      finishDate: urlParams?.get('dueDate') || "",
+      finishDate: defaultDueDate,
+      dueDate: defaultDueDate,
       assignedTo: null,
       createdBy: user!.id,
       createdAt: new Date().toISOString(),
@@ -499,9 +501,9 @@ export default function TaskList({ tasks, subordinates, initialShowCompleted = f
                 name="finishDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Due Date</FormLabel>
+                    <FormLabel>Due Date <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="date" {...field} required onChange={(e) => { field.onChange(e); form.setValue("dueDate", e.target.value); }} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
