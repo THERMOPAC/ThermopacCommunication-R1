@@ -72,7 +72,7 @@ export default function EmployeeAppraisalsPage() {
   const [activeTab, setActiveTab] = useState("my-appraisals");
 
   const { data: roleCheck } = useQuery<any>({
-    queryKey: ["/api/appraisals/role-check"],
+    queryKey: ["/api/appraisals/user/role-check"],
   });
 
   const isHrOrSuperuser = user?.role === "Superuser" || user?.role === "HR";
