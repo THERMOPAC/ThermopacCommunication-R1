@@ -463,6 +463,7 @@ class AgentDataRepository {
       WITH active_users AS (
         SELECT id, COALESCE(first_name || ' ' || COALESCE(last_name, ''), username) as employee_name
         FROM users WHERE is_active = true
+          AND COALESCE(user_type, 'system_user') != 'non_system_user'
       ),
       working_days AS (
         SELECT generate_series(CURRENT_DATE - 6, CURRENT_DATE, '1 day'::interval)::date as work_date
