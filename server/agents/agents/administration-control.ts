@@ -1397,6 +1397,106 @@ export class AdministrationControlAgent implements IAgent {
           }
         }
       }
+      // A4.06: Sandwich leave / break-extension detection
+      // Detect leaves adjacent to holidays or weekly offs (extending breaks)
+      const holidayResult = await db.execute(sql`
+        SELECT date FROM company_holidays
+        WHERE date >= CURRENT_DATE - INTERVAL '60 days' AND date <= CURRENT_DATE + INTERVAL '60 days'
+      `);
+      const holidayDates = new Set((holidayResult.rows || []).map((h: any) => new Date(h.date).toISOString().split('T')[0]));
+      queriesRun++;
+
+      function isWeeklyOff(dateStr: string, weeklyOffDays: number[]): boolean {
+        const d = new Date(dateStr);
+        return weeklyOffDays.includes(d.getDay());
+      }
+
+      function isHolidayOrOff(dateStr: string, weeklyOffDays: number[]): boolean {
+        return holidayDates.has(dateStr) || isWeeklyOff(dateStr, weeklyOffDays);
+      }
+
+      function addDays(dateStr: string, n: number): string {
+        const d = new Date(dateStr);
+        d.setDate(d.getDate() + n);
+        return d.toISOString().split('T')[0];
+      }
+
+      const sandwichTracker = new Map<number, number>();
+
+      for (const leave of approvedLeaves) {
+        const uid = Number(leave.employee_id);
+        const user = activeUsers.find(u => Number(u.id) === uid);
+        if (!user) continue;
+        const name = userName(user);
+        const weeklyOffDays: number[] = user.weekly_off_days || [0, 6];
+        const leaveStart = new Date(leave.start_date).toISOString().split('T')[0];
+        const leaveEnd = new Date(leave.end_date).toISOString().split('T')[0];
+        const dayBefore = addDays(leaveStart, -1);
+        const dayAfter = addDays(leaveEnd, 1);
+
+        const adjacentBefore = isHolidayOrOff(dayBefore, weeklyOffDays);
+        const adjacentAfter = isHolidayOrOff(dayAfter, weeklyOffDays);
+
+        if (!adjacentBefore && !adjacentAfter) continue;
+
+        const pattern = adjacentBefore && adjacentAfter ? 'both sides' : adjacentBefore ? 'before' : 'after';
+        const count = (sandwichTracker.get(uid) || 0) + 1;
+        sandwichTracker.set(uid, count);
+
+        const fingerprint = fp('a4_06_sandwich', 'leave', leave.id);
+        const finding = await findingManager.createFinding({
+          findingType: 'pattern_detected', severity: count >= 3 ? 'high' : 'medium',
+          title: `A4.06 Sandwich leave: ${name} — ${leaveStart} to ${leaveEnd} (${pattern})`,
+          description: `${name} took leave from ${leaveStart} to ${leaveEnd} adjacent to a holiday/weekly off (${pattern}).${count >= 3 ? ` This is a repeated pattern (${count} instances detected).` : ''}`,
+          logicType: 'rule_based',
+          relatedEntityType: 'leave_request', relatedEntityId: String(leave.id),
+          dataSnapshot: { leaveId: leave.id, userId: uid, leaveStart, leaveEnd, pattern, dayBefore, dayAfter, adjacentBefore, adjacentAfter, instanceCount: count },
+        });
+        if (!finding.isDuplicate) {
+          findingsCount++;
+          acc.findingIds.push(finding.id);
+          acc.groupCounts['A4'] = (acc.groupCounts['A4'] || 0) + 1;
+
+          if (count >= 3) {
+            // Repeated pattern — escalate to L2 manager
+            if (canEscalate(acc, 'a4_06', `user:${uid}`) && !(await hasOpenTask(fingerprint))) {
+              const assignTo = await resolveEscalee(uid, 'L2', c.hr_admin_user_id);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id,
+                title: `[Agent] REPEATED sandwich leave pattern: ${name} (${count} instances)`,
+                actionType: 'create_task', actionCategory: 'task_creation',
+                description: `${name} has a repeated pattern of taking leave adjacent to holidays/weekly offs (${count} instances). Requires management review.`,
+                actionPayload: {
+                  title: `[Agent] REPEATED sandwich leave: ${name} (${count} instances)`,
+                  description: `${name} has repeatedly taken leave adjacent to holidays or weekly offs (${count} instances detected).\n\nLatest: ${leaveStart} to ${leaveEnd} — adjacent ${pattern}.\n\nThis pattern may indicate break-extension behavior. Please review and take appropriate action.\n\nSource: Administration Control Agent — A4.06 Sandwich Leave Detection`,
+                  assignedTo: assignTo, priority: 'High', category: `Administration ${fingerprint}`,
+                },
+                logicType: 'rule_based', confidence: 0.90, priority: 'high',
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); recordAction(acc, 'escalation', 'a4_06', `user:${uid}`); }
+            }
+          } else {
+            // First/second instance — flag to L1 manager
+            if (canCreateTask(acc, 'a4_06', `user:${uid}`) && !(await hasOpenTask(fingerprint))) {
+              const assignTo = await resolveAssignee(uid, c.hr_admin_user_id);
+              const rec = await recommendationManager.createRecommendation({
+                findingId: finding.id,
+                title: `[Agent] Sandwich leave detected: ${name} (${leaveStart} to ${leaveEnd})`,
+                actionType: 'create_task', actionCategory: 'task_creation',
+                description: `${name} took leave adjacent to holiday/weekly off (${pattern}).`,
+                actionPayload: {
+                  title: `[Agent] Sandwich leave: ${name} — ${leaveStart} to ${leaveEnd}`,
+                  description: `${name} took leave from ${leaveStart} to ${leaveEnd}, adjacent to a holiday or weekly off (${pattern}).\n\nDay before leave: ${dayBefore} (${adjacentBefore ? 'Holiday/Off' : 'Working day'})\nDay after leave: ${dayAfter} (${adjacentAfter ? 'Holiday/Off' : 'Working day'})\n\nPlease review if this is a break-extension pattern.\n\nSource: Administration Control Agent — A4.06 Sandwich Leave Detection`,
+                  assignedTo: assignTo, priority: 'Medium', category: `Administration ${fingerprint}`,
+                },
+                logicType: 'rule_based', confidence: 0.85, priority: 'normal',
+              });
+              if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); recordAction(acc, 'task', 'a4_06', `user:${uid}`); }
+            }
+          }
+        }
+      }
+
     } catch (err: any) {
       console.error(`[AdminControl] A4 error:`, err.message);
     }
