@@ -463,40 +463,60 @@ export class ProjectControlAgent implements IAgent {
         const pid = Number(project.id);
 
         if (daysUntil <= THRESHOLDS.p8_slippage_warning_days && daysUntil > -365 && completionPct < 90) {
-          const level: 'L1' | 'L2' | 'L3' = daysUntil <= -30 ? 'L3' : daysUntil <= 0 ? 'L2' : 'L1';
           const fingerprint = fpWithProject('p8_schedule_slip', pid, 'project', pid);
-          const severity = agentSev('P8', level);
+
+          const p8L1Fp = `${fingerprint}_L1`;
+          const p8L2Fp = `${fingerprint}_L2`;
+          const p8L3Fp = `${fingerprint}_L3`;
+          const hasOpenP8L1 = await hasOpenTask(p8L1Fp);
+          const hasOpenP8L2 = await hasOpenTask(p8L2Fp);
+          const hasOpenP8L3 = await hasOpenTask(p8L3Fp);
+          const hasCompletedP8L1 = !hasOpenP8L1 && await hasCompletedTask(p8L1Fp);
+          const hasCompletedP8L2 = !hasOpenP8L2 && await hasCompletedTask(p8L2Fp);
+
+          let p8Level: 'L1' | 'L2' | 'L3';
+          let p8CurrentFp: string;
+          if (!hasOpenP8L1 && !hasCompletedP8L1) {
+            p8Level = 'L1'; p8CurrentFp = p8L1Fp;
+          } else if (hasCompletedP8L1 && !hasOpenP8L2 && !hasCompletedP8L2 && daysUntil <= 0) {
+            p8Level = 'L2'; p8CurrentFp = p8L2Fp;
+          } else if (hasCompletedP8L1 && hasCompletedP8L2 && !hasOpenP8L3 && daysUntil <= -30) {
+            p8Level = 'L3'; p8CurrentFp = p8L3Fp;
+          } else {
+            continue;
+          }
+          const severity = agentSev('P8', p8Level);
 
           const finding = await findingManager.createFinding({
             findingType: 'threshold_breach',
-            severity: severityFromLevel(level) as any,
+            severity: severityFromLevel(p8Level) as any,
             title: `P8 Schedule Slippage: ${project.project_name} — ${daysUntil <= 0 ? Math.abs(daysUntil) + 'd PAST deadline' : daysUntil + 'd to deadline'}, ${completionPct}% complete`,
-            description: `Project "${project.project_name}" ${daysUntil <= 0 ? 'is ' + Math.abs(daysUntil) + ' days PAST its deadline' : 'is due in ' + daysUntil + ' days'} but only ${completionPct}% of work orders are completed.\nOverdue WOs: ${project.overdue_work_orders}`,
+            description: `Project "${project.project_name}" ${daysUntil <= 0 ? 'is ' + Math.abs(daysUntil) + ' days PAST its deadline' : 'is due in ' + daysUntil + ' days'} but only ${completionPct}% of work orders are completed.\nOverdue WOs: ${project.overdue_work_orders}\nEscalation: ${p8Level}`,
             logicType: 'rule_based',
-            dataSnapshot: { projectId: pid, daysUntil, completionPct, overdueWOs: project.overdue_work_orders },
+            dataSnapshot: { projectId: pid, daysUntil, completionPct, overdueWOs: project.overdue_work_orders, escalationLevel: p8Level },
             relatedEntityType: 'project',
             relatedEntityId: String(pid),
           });
           if (!finding.isDuplicate) findingsCount++;
 
-          if (!await hasOpenTask(fingerprint)) {
+          if (!await hasOpenTask(p8CurrentFp)) {
             const pm = await resolveProjectManager(pid);
-            const assignTo = await resolveEscalation('L1', pm || Number(project.manager_id));
+            const assignTo = await resolveEscalation(p8Level, pm || Number(project.manager_id));
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
-              title: `[Agent] Project Control – Schedule Slippage: ${project.project_name}`,
+              title: `[Agent] Project Control – Schedule Slippage: ${project.project_name} (${p8Level} Escalation)`,
               actionType: 'create_task',
-              description: `Project is ${daysUntil <= 0 ? 'past its deadline' : 'approaching deadline'} with only ${completionPct}% completion.`,
+              description: `Project is ${daysUntil <= 0 ? 'past its deadline' : 'approaching deadline'} with only ${completionPct}% completion. Escalation: ${p8Level}.`,
               actionPayload: {
-                title: `[Agent] Project Control – Schedule Slippage: ${project.project_name} — ${daysUntil <= 0 ? Math.abs(daysUntil) + 'd OVERDUE' : daysUntil + 'd remaining'}, ${completionPct}% done`,
-                description: `Project "${project.project_name}"\nTarget end date: ${project.target_end_date}\n${daysUntil <= 0 ? 'OVERDUE by ' + Math.abs(daysUntil) + ' days' : daysUntil + ' days remaining'}\nCompletion: ${completionPct}%\nOverdue WOs: ${project.overdue_work_orders}\nagent_severity: ${severity}\n\nReview resource allocation, reprioritize work orders, and update timeline if needed.`,
+                title: `[Agent] Project Control – Schedule Slippage: ${project.project_name} — ${daysUntil <= 0 ? Math.abs(daysUntil) + 'd OVERDUE' : daysUntil + 'd remaining'}, ${completionPct}% done [${p8Level}]`,
+                description: `Project "${project.project_name}"\nTarget end date: ${project.target_end_date}\n${daysUntil <= 0 ? 'OVERDUE by ' + Math.abs(daysUntil) + ' days' : daysUntil + ' days remaining'}\nCompletion: ${completionPct}%\nOverdue WOs: ${project.overdue_work_orders}\nagent_severity: ${severity}\nEscalation: ${p8Level}\n\nReview resource allocation, reprioritize work orders, and update timeline if needed.`,
                 assignedTo: assignTo,
-                priority: priorityFromLevel(level),
-                category: `Project ${fingerprint}`,
+                priority: priorityFromLevel(p8Level),
+                category: `Project ${p8CurrentFp}`,
               },
               actionCategory: 'task_creation',
               logicType: 'rule_based',
-              priority: severityFromLevel(level) as any,
+              priority: severityFromLevel(p8Level) as any,
               confidence: 0.95,
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
@@ -511,39 +531,60 @@ export class ProjectControlAgent implements IAgent {
         const daysOverdue = Math.floor((Date.now() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
         if (daysOverdue < THRESHOLDS.p2_milestone_overdue_days) continue;
 
-        const level: 'L2' | 'L3' = daysOverdue >= 60 ? 'L3' : 'L2';
         const fingerprint = fpWithProject('p2_milestone', phase.project_id, 'phase', phase.id);
-        const severity = agentSev('P2', level);
+
+        const p2L1Fp = `${fingerprint}_L1`;
+        const p2L2Fp = `${fingerprint}_L2`;
+        const p2L3Fp = `${fingerprint}_L3`;
+        const hasOpenP2L1 = await hasOpenTask(p2L1Fp);
+        const hasOpenP2L2 = await hasOpenTask(p2L2Fp);
+        const hasOpenP2L3 = await hasOpenTask(p2L3Fp);
+        const hasCompletedP2L1 = !hasOpenP2L1 && await hasCompletedTask(p2L1Fp);
+        const hasCompletedP2L2 = !hasOpenP2L2 && await hasCompletedTask(p2L2Fp);
+
+        let p2Level: 'L1' | 'L2' | 'L3';
+        let p2CurrentFp: string;
+        if (!hasOpenP2L1 && !hasCompletedP2L1) {
+          p2Level = 'L1'; p2CurrentFp = p2L1Fp;
+        } else if (hasCompletedP2L1 && !hasOpenP2L2 && !hasCompletedP2L2 && daysOverdue >= 30) {
+          p2Level = 'L2'; p2CurrentFp = p2L2Fp;
+        } else if (hasCompletedP2L1 && hasCompletedP2L2 && !hasOpenP2L3 && daysOverdue >= 60) {
+          p2Level = 'L3'; p2CurrentFp = p2L3Fp;
+        } else {
+          continue;
+        }
+        const severity = agentSev('P2', p2Level);
 
         const finding = await findingManager.createFinding({
           findingType: 'overdue',
-          severity: severityFromLevel(level) as any,
+          severity: severityFromLevel(p2Level) as any,
           title: `P2 Milestone Delayed: ${phase.phase_name} in ${phase.project_name} (${daysOverdue}d overdue)`,
-          description: `Phase "${phase.phase_name}" (order: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past its target end date (${phase.target_end_date}).\nProgress: ${phase.progress || 0}%\nStatus: ${phase.status}`,
+          description: `Phase "${phase.phase_name}" (order: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past its target end date (${phase.target_end_date}).\nProgress: ${phase.progress || 0}%\nStatus: ${phase.status}\nEscalation: ${p2Level}`,
           logicType: 'rule_based',
-          dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysOverdue, progress: phase.progress, phaseOrder: phase.order },
+          dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysOverdue, progress: phase.progress, phaseOrder: phase.order, escalationLevel: p2Level },
           relatedEntityType: 'project_phase',
           relatedEntityId: String(phase.id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
-        if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveEscalation('L1', phase.phase_lead_id ? Number(phase.phase_lead_id) : pm);
+        if (!await hasOpenTask(p2CurrentFp)) {
+          const entityOwner = phase.phase_lead_id ? Number(phase.phase_lead_id) : pm;
+          const assignTo = await resolveEscalation(p2Level, entityOwner);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name}`,
+            title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name} (${p2Level} Escalation)`,
             actionType: 'create_task',
-            description: `Phase "${phase.phase_name}" is ${daysOverdue} days past target.`,
+            description: `Phase "${phase.phase_name}" is ${daysOverdue} days past target. Escalation: ${p2Level}.`,
             actionPayload: {
-              title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name} in ${phase.project_name} (${daysOverdue}d overdue)`,
-              description: `Phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past target end date.\nTarget: ${phase.target_end_date}\nProgress: ${phase.progress || 0}%\nagent_severity: ${severity}\n\nReview phase status and take corrective action.`,
+              title: `[Agent] Project Control – Milestone Delayed: ${phase.phase_name} in ${phase.project_name} (${daysOverdue}d overdue) [${p2Level}]`,
+              description: `Phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" is ${daysOverdue} days past target end date.\nTarget: ${phase.target_end_date}\nProgress: ${phase.progress || 0}%\nagent_severity: ${severity}\nEscalation: ${p2Level}\n\nReview phase status and take corrective action.`,
               assignedTo: assignTo,
-              priority: priorityFromLevel(level),
-              category: `Project ${fingerprint}`,
+              priority: priorityFromLevel(p2Level),
+              category: `Project ${p2CurrentFp}`,
             },
             actionCategory: 'task_creation',
             logicType: 'rule_based',
-            priority: severityFromLevel(level) as any,
+            priority: severityFromLevel(p2Level) as any,
             confidence: 0.9,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
@@ -623,37 +664,55 @@ export class ProjectControlAgent implements IAgent {
         if (daysUntil < 0) {
           const daysOverdue = Math.abs(daysUntil);
           const fingerprint = fpWithProject('p7_commitment_overdue', task.project_id, 'task', task.id);
+
+          const p7L1Fp = `${fingerprint}_L1`;
+          const p7L2Fp = `${fingerprint}_L2`;
+          const hasOpenP7L1 = await hasOpenTask(p7L1Fp);
+          const hasOpenP7L2 = await hasOpenTask(p7L2Fp);
+          const hasCompletedP7L1 = !hasOpenP7L1 && await hasCompletedTask(p7L1Fp);
+
+          let p7Level: 'L1' | 'L2';
+          let p7CurrentFp: string;
+          if (!hasOpenP7L1 && !hasCompletedP7L1) {
+            p7Level = 'L1'; p7CurrentFp = p7L1Fp;
+          } else if (hasCompletedP7L1 && !hasOpenP7L2 && daysOverdue >= 14) {
+            p7Level = 'L2'; p7CurrentFp = p7L2Fp;
+          } else {
+            continue;
+          }
           const severity = agentSev('P7');
+
           const finding = await findingManager.createFinding({
             findingType: 'overdue',
-            severity: 'high',
+            severity: severityFromLevel(p7Level) as any,
             title: `P7 Commitment Overdue: ${task.title} (${daysOverdue}d late)`,
-            description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nAssigned to: ${task.assignee_name || 'Unassigned'}`,
+            description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nAssigned to: ${task.assignee_name || 'Unassigned'}\nEscalation: ${p7Level}`,
             logicType: 'derived',
-            dataSnapshot: { taskId: task.id, projectId: task.project_id, daysOverdue },
+            dataSnapshot: { taskId: task.id, projectId: task.project_id, daysOverdue, escalationLevel: p7Level },
             relatedEntityType: 'task',
             relatedEntityId: String(task.id),
           });
           if (!finding.isDuplicate) findingsCount++;
 
-          if (!await hasOpenTask(fingerprint)) {
+          if (!await hasOpenTask(p7CurrentFp)) {
             const pm = await resolveProjectManager(Number(task.project_id));
-            const assignTo = await resolveEscalation('L2', pm);
+            const entityOwner = task.assigned_to ? Number(task.assigned_to) : pm;
+            const assignTo = await resolveEscalation(p7Level, entityOwner);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
-              title: `[Agent] Project Control – Commitment Overdue: ${task.title}`,
+              title: `[Agent] Project Control – Commitment Overdue: ${task.title} (${p7Level} Escalation)`,
               actionType: 'create_task',
-              description: `Project commitment is ${daysOverdue} days overdue.`,
+              description: `Project commitment is ${daysOverdue} days overdue. Escalation: ${p7Level}.`,
               actionPayload: {
-                title: `[Agent] Project Control – Commitment Overdue: ${task.title} (${daysOverdue}d late)`,
-                description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nagent_severity: ${severity}`,
+                title: `[Agent] Project Control – Commitment Overdue: ${task.title} (${daysOverdue}d late) [${p7Level}]`,
+                description: `Task "${task.title}" linked to project "${task.project_name}" is ${daysOverdue} days overdue.\nDue: ${task.effective_due}\nAssigned to: ${task.assignee_name || 'Unassigned'}\nagent_severity: ${severity}\nEscalation: ${p7Level}`,
                 assignedTo: assignTo,
-                priority: 'High',
-                category: `Project ${fingerprint}`,
+                priority: priorityFromLevel(p7Level),
+                category: `Project ${p7CurrentFp}`,
               },
               actionCategory: 'task_creation',
               logicType: 'rule_based',
-              priority: 'high',
+              priority: severityFromLevel(p7Level) as any,
               confidence: 0.85,
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
@@ -712,37 +771,54 @@ export class ProjectControlAgent implements IAgent {
             const daysUntil = Math.ceil((targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
             if (daysUntil <= 30) {
               const fingerprint = fpWithProject('p9_critical_path', phase.project_id, 'phase', phase.id);
+
+              const p9L1Fp = `${fingerprint}_L1`;
+              const p9L2Fp = `${fingerprint}_L2`;
+              const hasOpenP9L1 = await hasOpenTask(p9L1Fp);
+              const hasOpenP9L2 = await hasOpenTask(p9L2Fp);
+              const hasCompletedP9L1 = !hasOpenP9L1 && await hasCompletedTask(p9L1Fp);
+
+              let p9Level: 'L1' | 'L2';
+              let p9CurrentFp: string;
+              if (!hasOpenP9L1 && !hasCompletedP9L1) {
+                p9Level = 'L1'; p9CurrentFp = p9L1Fp;
+              } else if (hasCompletedP9L1 && !hasOpenP9L2 && daysUntil <= 0) {
+                p9Level = 'L2'; p9CurrentFp = p9L2Fp;
+              } else {
+                continue;
+              }
               const severity = agentSev('P9');
+
               const finding = await findingManager.createFinding({
                 findingType: 'threshold_breach',
-                severity: 'critical',
+                severity: severityFromLevel(p9Level) as any,
                 title: `P9 Critical Path Delay: ${phase.phase_name} (seq ${phase.order}) in ${phase.project_name} — predecessors incomplete`,
-                description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete. Target: ${phase.target_end_date} (${daysUntil <= 0 ? Math.abs(daysUntil) + 'd PAST' : daysUntil + 'd remaining'}).`,
+                description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete. Target: ${phase.target_end_date} (${daysUntil <= 0 ? Math.abs(daysUntil) + 'd PAST' : daysUntil + 'd remaining'}).\nEscalation: ${p9Level}`,
                 logicType: 'derived',
-                dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysUntil, phaseOrder: phase.order },
+                dataSnapshot: { phaseId: phase.id, projectId: phase.project_id, daysUntil, phaseOrder: phase.order, escalationLevel: p9Level },
                 relatedEntityType: 'project_phase',
                 relatedEntityId: String(phase.id),
               });
               if (!finding.isDuplicate) findingsCount++;
 
-              if (!await hasOpenTask(fingerprint)) {
+              if (!await hasOpenTask(p9CurrentFp)) {
                 const pm = await resolveProjectManager(Number(phase.project_id));
-                const assignTo = await resolveEscalation('L2', pm);
+                const assignTo = await resolveEscalation(p9Level, pm);
                 const rec = await recommendationManager.createRecommendation({
                   findingId: finding.id || finding.findingId,
-                  title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name}`,
+                  title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name} (${p9Level} Escalation)`,
                   actionType: 'create_task',
-                  description: `Critical phase blocked by incomplete predecessors.`,
+                  description: `Critical phase blocked by incomplete predecessors. Escalation: ${p9Level}.`,
                   actionPayload: {
-                    title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name} in ${phase.project_name}`,
-                    description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete.\nTarget: ${phase.target_end_date}\nagent_severity: ${severity}\n\nRequires immediate management review and intervention.`,
+                    title: `[Agent] Project Control – Critical Path Delay: ${phase.phase_name} in ${phase.project_name} [${p9Level}]`,
+                    description: `Critical phase "${phase.phase_name}" (sequence: ${phase.order}) in project "${phase.project_name}" has predecessor phases still incomplete.\nTarget: ${phase.target_end_date}\nagent_severity: ${severity}\nEscalation: ${p9Level}\n\nRequires immediate management review and intervention.`,
                     assignedTo: assignTo,
-                    priority: 'Critical',
-                    category: `Project ${fingerprint}`,
+                    priority: priorityFromLevel(p9Level),
+                    category: `Project ${p9CurrentFp}`,
                   },
                   actionCategory: 'task_creation',
                   logicType: 'rule_based',
-                  priority: 'critical',
+                  priority: severityFromLevel(p9Level) as any,
                   confidence: 0.9,
                 });
                 if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
@@ -778,37 +854,53 @@ export class ProjectControlAgent implements IAgent {
         if (weightedLoad < THRESHOLDS.p10_weighted_load_threshold) continue;
 
         const fingerprint = fpGlobal('p10_overload', 'user', user.user_id);
+
+        const p10L1Fp = `${fingerprint}_L1`;
+        const p10L2Fp = `${fingerprint}_L2`;
+        const hasOpenP10L1 = await hasOpenTask(p10L1Fp);
+        const hasOpenP10L2 = await hasOpenTask(p10L2Fp);
+        const hasCompletedP10L1 = !hasOpenP10L1 && await hasCompletedTask(p10L1Fp);
+
+        let p10Level: 'L1' | 'L2';
+        let p10CurrentFp: string;
+        if (!hasOpenP10L1 && !hasCompletedP10L1) {
+          p10Level = 'L1'; p10CurrentFp = p10L1Fp;
+        } else if (hasCompletedP10L1 && !hasOpenP10L2) {
+          p10Level = 'L2'; p10CurrentFp = p10L2Fp;
+        } else {
+          continue;
+        }
         const severity = agentSev('P10');
 
         const finding = await findingManager.createFinding({
           findingType: 'threshold_breach',
-          severity: 'medium',
+          severity: severityFromLevel(p10Level) as any,
           title: `P10 Resource Overload: ${user.username} — load score ${weightedLoad.toFixed(1)}`,
-          description: `User "${user.username}" weighted load score is ${weightedLoad.toFixed(1)} (threshold: ${THRESHOLDS.p10_weighted_load_threshold}).\nBreakdown: ${openTasks} tasks (×1.0) + ${openWOs} WOs (×1.0) + ${openDrawings} drawings (×1.2) + ${openProcurement} procurement (×1.0)`,
+          description: `User "${user.username}" weighted load score is ${weightedLoad.toFixed(1)} (threshold: ${THRESHOLDS.p10_weighted_load_threshold}).\nBreakdown: ${openTasks} tasks (×1.0) + ${openWOs} WOs (×1.0) + ${openDrawings} drawings (×1.2) + ${openProcurement} procurement (×1.0)\nEscalation: ${p10Level}`,
           logicType: 'proxy',
-          dataSnapshot: { userId: user.user_id, weightedLoad, openTasks, openWOs, openDrawings, openProcurement },
+          dataSnapshot: { userId: user.user_id, weightedLoad, openTasks, openWOs, openDrawings, openProcurement, escalationLevel: p10Level },
           relatedEntityType: 'user',
           relatedEntityId: String(user.user_id),
         });
         if (!finding.isDuplicate) findingsCount++;
 
-        if (!await hasOpenTask(fingerprint)) {
-          const assignTo = await resolveEscalation('L2', Number(user.user_id));
+        if (!await hasOpenTask(p10CurrentFp)) {
+          const assignTo = await resolveEscalation(p10Level, Number(user.user_id));
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
-            title: `[Agent] Project Control – Resource Overload: ${user.username}`,
+            title: `[Agent] Project Control – Resource Overload: ${user.username} (${p10Level} Escalation)`,
             actionType: 'create_task',
-            description: `Weighted load score ${weightedLoad.toFixed(1)} exceeds threshold.`,
+            description: `Weighted load score ${weightedLoad.toFixed(1)} exceeds threshold. Escalation: ${p10Level}.`,
             actionPayload: {
-              title: `[Agent] Project Control – Resource Overload: ${user.username} (load: ${weightedLoad.toFixed(1)})`,
-              description: `User "${user.username}" weighted load score: ${weightedLoad.toFixed(1)}\nTasks: ${openTasks} (×1.0), WOs: ${openWOs} (×1.0), Drawings: ${openDrawings} (×1.2), Procurement: ${openProcurement} (×1.0)\nagent_severity: ${severity}\n\nReview workload and redistribute if necessary.`,
+              title: `[Agent] Project Control – Resource Overload: ${user.username} (load: ${weightedLoad.toFixed(1)}) [${p10Level}]`,
+              description: `User "${user.username}" weighted load score: ${weightedLoad.toFixed(1)}\nTasks: ${openTasks} (×1.0), WOs: ${openWOs} (×1.0), Drawings: ${openDrawings} (×1.2), Procurement: ${openProcurement} (×1.0)\nagent_severity: ${severity}\nEscalation: ${p10Level}\n\nReview workload and redistribute if necessary.`,
               assignedTo: assignTo,
-              priority: 'Medium',
-              category: `Project ${fingerprint}`,
+              priority: priorityFromLevel(p10Level),
+              category: `Project ${p10CurrentFp}`,
             },
             actionCategory: 'task_creation',
             logicType: 'rule_based',
-            priority: 'medium',
+            priority: severityFromLevel(p10Level) as any,
             confidence: 0.75,
           });
           if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
@@ -858,15 +950,35 @@ export class ProjectControlAgent implements IAgent {
         const band = healthBand(healthScore);
 
         if (band === 'Red' || band === 'Amber') {
-          const findingSeverity = band === 'Red' ? 'critical' : 'high';
           const fingerprint = fpWithProject('p12_health', pid, 'project', pid);
+
+          const p12L1Fp = `${fingerprint}_L1`;
+          const p12L2Fp = `${fingerprint}_L2`;
+          const p12L3Fp = `${fingerprint}_L3`;
+          const hasOpenP12L1 = await hasOpenTask(p12L1Fp);
+          const hasOpenP12L2 = await hasOpenTask(p12L2Fp);
+          const hasOpenP12L3 = await hasOpenTask(p12L3Fp);
+          const hasCompletedP12L1 = !hasOpenP12L1 && await hasCompletedTask(p12L1Fp);
+          const hasCompletedP12L2 = !hasOpenP12L2 && await hasCompletedTask(p12L2Fp);
+
+          let p12Level: 'L1' | 'L2' | 'L3';
+          let p12CurrentFp: string;
+          if (!hasOpenP12L1 && !hasCompletedP12L1) {
+            p12Level = 'L1'; p12CurrentFp = p12L1Fp;
+          } else if (hasCompletedP12L1 && !hasOpenP12L2 && !hasCompletedP12L2) {
+            p12Level = 'L2'; p12CurrentFp = p12L2Fp;
+          } else if (hasCompletedP12L1 && hasCompletedP12L2 && !hasOpenP12L3 && band === 'Red') {
+            p12Level = 'L3'; p12CurrentFp = p12L3Fp;
+          } else {
+            continue;
+          }
           const severity = agentSev('P12');
 
           const finding = await findingManager.createFinding({
             findingType: 'threshold_breach',
-            severity: findingSeverity as any,
+            severity: severityFromLevel(p12Level) as any,
             title: `P12 Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}, band: ${band})`,
-            description: `Project "${project.project_name}" health score is ${Math.round(healthScore)}/100 (${band}).\nWeighted breakdown:\n  Overdue Tasks (25%): ${Math.round(overdueTaskScore)} — ${overdueWOs}/${totalWOs} overdue\n  Design Delays (20%): ${Math.round(designDelayScore)}\n  Procurement Delays (25%): ${Math.round(procurementDelayScore)}\n  Inactivity (15%): ${Math.round(inactivityScore)} — ${maxInactiveDays}d max\n  Milestone Risk (15%): ${Math.round(milestoneScore)} — ${delayedPhases}/${totalPhases} delayed\nCompletion: ${completionPct}%`,
+            description: `Project "${project.project_name}" health score is ${Math.round(healthScore)}/100 (${band}).\nWeighted breakdown:\n  Overdue Tasks (25%): ${Math.round(overdueTaskScore)} — ${overdueWOs}/${totalWOs} overdue\n  Design Delays (20%): ${Math.round(designDelayScore)}\n  Procurement Delays (25%): ${Math.round(procurementDelayScore)}\n  Inactivity (15%): ${Math.round(inactivityScore)} — ${maxInactiveDays}d max\n  Milestone Risk (15%): ${Math.round(milestoneScore)} — ${delayedPhases}/${totalPhases} delayed\nCompletion: ${completionPct}%\nEscalation: ${p12Level}`,
             logicType: 'derived',
             dataSnapshot: {
               projectId: pid, healthScore: Math.round(healthScore), band,
@@ -875,28 +987,30 @@ export class ProjectControlAgent implements IAgent {
               procurementDelayScore: Math.round(procurementDelayScore),
               inactivityScore: Math.round(inactivityScore),
               milestoneScore: Math.round(milestoneScore),
+              escalationLevel: p12Level,
             },
             relatedEntityType: 'project',
             relatedEntityId: String(pid),
           });
           if (!finding.isDuplicate) findingsCount++;
 
-          if (!await hasOpenTask(fingerprint)) {
+          if (!await hasOpenTask(p12CurrentFp)) {
+            const assignTo = await resolveEscalation(p12Level, pm);
             const rec = await recommendationManager.createRecommendation({
               findingId: finding.id || finding.findingId,
-              title: `[Agent] Project Control – Health Alert: ${project.project_name} (${band})`,
+              title: `[Agent] Project Control – Health Alert: ${project.project_name} (${band}) (${p12Level} Escalation)`,
               actionType: 'create_task',
-              description: `Project health score (${Math.round(healthScore)}, ${band}) requires management review.`,
+              description: `Project health score (${Math.round(healthScore)}, ${band}) requires review. Escalation: ${p12Level}.`,
               actionPayload: {
-                title: `[Agent] Project Control – Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}/100, ${band})`,
-                description: `Project "${project.project_name}" health score: ${Math.round(healthScore)}/100 (${band})\nOverdue Tasks: ${overdueWOs}/${totalWOs}\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nagent_severity: ${severity}\n\nRequires immediate management review.`,
-                assignedTo: await resolveEscalation('L3', pm),
-                priority: band === 'Red' ? 'Critical' : 'High',
-                category: `Project ${fingerprint}`,
+                title: `[Agent] Project Control – Health Alert: ${project.project_name} (score: ${Math.round(healthScore)}/100, ${band}) [${p12Level}]`,
+                description: `Project "${project.project_name}" health score: ${Math.round(healthScore)}/100 (${band})\nOverdue Tasks: ${overdueWOs}/${totalWOs}\nMax inactivity: ${maxInactiveDays}d\nDelayed phases: ${delayedPhases}\nagent_severity: ${severity}\nEscalation: ${p12Level}\n\nRequires management review.`,
+                assignedTo: assignTo,
+                priority: priorityFromLevel(p12Level),
+                category: `Project ${p12CurrentFp}`,
               },
               actionCategory: 'task_creation',
               logicType: 'rule_based',
-              priority: findingSeverity as any,
+              priority: severityFromLevel(p12Level) as any,
               confidence: 0.9,
             });
             if (rec.id > 0) { recommendationsCount++; if (rec.autoApproved) autoExecuteQueue.push(rec.id); }
