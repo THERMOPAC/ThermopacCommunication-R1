@@ -895,23 +895,62 @@ router.get('/kpi/:userId/:year/:month', ensureAuthenticated, async (req: Request
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    let [kpiSummary] = await db
-      .select()
-      .from(monthlyKpiSummary)
-      .where(and(
-        eq(monthlyKpiSummary.userId, userId),
-        eq(monthlyKpiSummary.year, year),
-        eq(monthlyKpiSummary.month, month)
-      ));
+    const now = new Date();
+    const isCurrentMonth = year === now.getFullYear() && month === (now.getMonth() + 1);
 
-    if (!kpiSummary) {
-      // Calculate and create KPI summary
+    let kpiSummary;
+    if (isCurrentMonth) {
       kpiSummary = await calculateMonthlyKPIs(userId, year, month);
+    } else {
+      [kpiSummary] = await db
+        .select()
+        .from(monthlyKpiSummary)
+        .where(and(
+          eq(monthlyKpiSummary.userId, userId),
+          eq(monthlyKpiSummary.year, year),
+          eq(monthlyKpiSummary.month, month)
+        ));
+      if (!kpiSummary) {
+        kpiSummary = await calculateMonthlyKPIs(userId, year, month);
+      }
     }
 
     res.json(kpiSummary);
   } catch (error) {
     console.error('Error getting monthly KPI:', error);
+    sendError(res, error);
+  }
+});
+
+// Recalculate monthly KPIs for all users (admin only)
+router.post('/kpi/recalculate', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Only superusers can trigger batch recalculation' });
+    }
+
+    const { year, month } = req.body;
+    const targetYear = year || new Date().getFullYear();
+    const targetMonth = month || (new Date().getMonth() + 1);
+
+    const allUsers = await db
+      .select({ id: users.id, username: users.username })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    const results: { userId: number; username: string; score: number }[] = [];
+    for (const u of allUsers) {
+      try {
+        const kpi = await calculateMonthlyKPIs(u.id, targetYear, targetMonth);
+        results.push({ userId: u.id, username: u.username, score: kpi?.overallPerformanceScore || 0 });
+      } catch (err) {
+        console.error(`KPI recalc failed for user ${u.id}:`, err);
+      }
+    }
+
+    res.json({ message: `Recalculated KPIs for ${results.length} users`, year: targetYear, month: targetMonth, results });
+  } catch (error) {
+    console.error('Error recalculating KPIs:', error);
     sendError(res, error);
   }
 });
