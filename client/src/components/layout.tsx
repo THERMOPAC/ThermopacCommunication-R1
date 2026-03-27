@@ -247,7 +247,7 @@ function Layout({ children }: LayoutProps) {
       href: "/agent-dashboard" 
     }, {
       icon: Zap,
-      label: "Worker Agents",
+      label: "Worker Agents Dashboard",
       href: "/worker-agents"
     }] : []),
     { icon: Mail, label: "Emails", href: "/emails" },
