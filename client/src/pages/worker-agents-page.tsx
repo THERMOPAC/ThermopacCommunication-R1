@@ -391,10 +391,6 @@ export default function WorkerAgentsPage() {
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Effectiveness</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-1.5">
-              <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">Config</span>
-            </TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Live Activity */}
@@ -713,158 +709,115 @@ export default function WorkerAgentsPage() {
             </Card>
           </TabsContent>
 
-          {/* Tab 4: Workers */}
+          {/* Tab 4: Workers (Config-style) */}
           <TabsContent value="workers" className="mt-4 space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  Worker Status
-                </CardTitle>
-                <CardDescription>All registered L1 workers grouped by module — all disabled by default</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                {(() => {
-                  const workers = summary?.workers || [];
-                  const moduleOrder = ["Task Management", "DWAR", "Leave Management", "Appraisal", "Attendance"];
-                  const grouped: Record<string, L1Worker[]> = {};
-                  workers.forEach(w => {
-                    const mod = w.module || "Other";
-                    if (!grouped[mod]) grouped[mod] = [];
-                    grouped[mod].push(w);
-                  });
-                  const sortedModules = moduleOrder.filter(m => grouped[m]).concat(
-                    Object.keys(grouped).filter(m => !moduleOrder.includes(m))
-                  );
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {(() => {
+                const workers = summary?.workers || [];
+                const moduleOrder = ["Task Management", "DWAR", "Leave Management", "Appraisal", "Attendance"];
+                const grouped: Record<string, L1Worker[]> = {};
+                workers.forEach(w => {
+                  const mod = w.module || "Other";
+                  if (!grouped[mod]) grouped[mod] = [];
+                  grouped[mod].push(w);
+                });
+                const sortedModules = moduleOrder.filter(m => grouped[m]).concat(
+                  Object.keys(grouped).filter(m => !moduleOrder.includes(m))
+                );
 
-                  return sortedModules.map(mod => (
-                    <div key={mod}>
-                      <div className="px-4 py-2.5 bg-muted/30 border-b">
-                        <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">{mod}</h3>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-muted/50">
-                              <th className="text-left py-2 px-4 font-medium text-muted-foreground">Worker</th>
-                              <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
-                              <th className="text-left py-2 px-3 font-medium text-muted-foreground">Phase</th>
-                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Events</th>
-                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Actions</th>
-                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Resolved</th>
-                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Avg ms</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {grouped[mod].map(worker => (
-                              <Fragment key={worker.id}>
-                                <tr
-                                  className="border-b last:border-b-0 hover:bg-accent/50 transition-colors cursor-pointer"
-                                  onClick={() => setExpandedWorkerId(expandedWorkerId === worker.id ? null : worker.id)}
-                                >
-                                  <td className="py-3 px-4">
-                                    <div className="flex items-center gap-2.5">
-                                      <div className={`w-2 h-2 rounded-full shrink-0 ${worker.isEnabled && !worker.isSuspended ? 'bg-green-500' : worker.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
-                                      <div>
-                                        <p className="font-medium text-sm">{worker.displayName}</p>
-                                        <p className="text-xs text-muted-foreground line-clamp-1">{worker.description}</p>
-                                      </div>
-                                      {expandedWorkerId === worker.id ? (
-                                        <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Zap className="h-5 w-5" />
+                        Worker Registry
+                      </CardTitle>
+                      <CardDescription>Enable or disable workers</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-5">
+                        {sortedModules.map(mod => (
+                          <div key={mod}>
+                            <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">{mod}</p>
+                            <div className="space-y-2">
+                              {grouped[mod].map(worker => (
+                                <div key={worker.workerKey} className="flex items-center justify-between p-3 rounded-lg border">
+                                  <div>
+                                    <p className="font-medium text-sm">{worker.displayName}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <p className="text-xs text-muted-foreground">
+                                        {worker.eventsConsumed} events · {worker.actionsCreated} actions
+                                      </p>
+                                      {worker.phase === "phase2" && (
+                                        <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">Phase 2</Badge>
                                       )}
                                     </div>
-                                  </td>
-                                  <td className="py-3 px-3">
-                                    {worker.isEnabled && !worker.isSuspended ? (
-                                      <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
-                                    ) : worker.isSuspended ? (
-                                      <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
-                                    ) : (
-                                      <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                                    {worker.consecutiveErrors > 0 && (
+                                      <p className="text-xs text-red-500 mt-0.5">{worker.consecutiveErrors} consecutive errors</p>
                                     )}
-                                  </td>
-                                  <td className="py-3 px-3">
-                                    <Badge variant="outline" className={`text-xs ${worker.phase === 'phase2' ? 'border-orange-300 text-orange-600' : ''}`}>
-                                      {worker.phase === 'phase1' ? 'Phase 1' : 'Phase 2'}
-                                    </Badge>
-                                  </td>
-                                  <td className="py-3 px-3 text-center">
-                                    <span className="text-sm font-medium">{worker.eventsConsumed}</span>
-                                  </td>
-                                  <td className="py-3 px-3 text-center">
-                                    <span className="text-sm font-medium">{worker.actionsCreated}</span>
-                                  </td>
-                                  <td className="py-3 px-3 text-center">
-                                    <span className="text-sm font-medium">{worker.actionsResolved}</span>
-                                  </td>
-                                  <td className="py-3 px-3 text-center">
-                                    <span className="text-xs text-muted-foreground">{worker.avgResponseMs}ms</span>
-                                  </td>
-                                </tr>
-                                {expandedWorkerId === worker.id && (
-                                  <tr key={`${worker.id}-detail`}>
-                                    <td colSpan={7} className="bg-muted/30 px-6 py-4 border-b">
-                                      <div className="space-y-3 text-sm">
-                                        <div>
-                                          <p className="text-xs text-muted-foreground mb-1">Listens to</p>
-                                          <div className="flex gap-1.5 flex-wrap">
-                                            {worker.listenEvents.map(evt => (
-                                              <Badge key={evt} variant="outline" className="text-xs">{evt}</Badge>
-                                            ))}
-                                          </div>
-                                        </div>
-                                        {worker.checks && worker.checks.length > 0 && (
-                                          <div>
-                                            <p className="text-xs text-muted-foreground mb-1">Checks performed</p>
-                                            <div className="flex gap-1.5 flex-wrap">
-                                              {worker.checks.map(check => (
-                                                <Badge key={check} variant="secondary" className="text-xs">
-                                                  {check.replace(/_/g, " ")}
-                                                </Badge>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                        <div className="grid grid-cols-4 gap-4">
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Module</p>
-                                            <p className="font-medium">{worker.module || "—"}</p>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Last Event</p>
-                                            <p className="font-medium">
-                                              {worker.lastEventAt
-                                                ? formatDistanceToNow(new Date(worker.lastEventAt), { addSuffix: true })
-                                                : "Never"}
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Errors</p>
-                                            <p className={`font-medium ${worker.consecutiveErrors > 0 ? "text-red-500" : ""}`}>
-                                              {worker.consecutiveErrors}
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Mode</p>
-                                            <p className="font-medium">Event-driven</p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                )}
-                              </Fragment>
-                            ))}
-                          </tbody>
-                        </table>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={worker.isEnabled}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) enableWorkerMutation.mutate(worker.workerKey);
+                                        else disableWorkerMutation.mutate(worker.workerKey);
+                                      }}
+                                      className={worker.isEnabled ? 'data-[state=checked]:bg-green-600' : 'data-[state=unchecked]:bg-red-500'}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ));
-                })()}
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Info className="h-5 w-5" />
+                    Event Listeners
+                  </CardTitle>
+                  <CardDescription>Events each worker listens to and checks performed</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                    {(summary?.workers || []).map(worker => (
+                      <div key={worker.workerKey} className="flex items-start justify-between p-3 rounded-lg border text-sm">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge className={workerKeyColor(worker.workerKey)} variant="outline">
+                              {workerKeyLabel(worker.workerKey)}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {worker.listenEvents.join(", ")}
+                          </p>
+                        </div>
+                        <div className="text-right text-xs shrink-0 ml-3">
+                          {worker.checks && worker.checks.length > 0 ? (
+                            <div className="flex flex-col gap-1 items-end">
+                              {worker.checks.map(check => (
+                                <Badge key={check} variant="secondary" className="text-xs">
+                                  {check.replace(/_/g, " ")}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">No checks</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Tab 5: Effectiveness */}
@@ -980,116 +933,6 @@ export default function WorkerAgentsPage() {
             </Card>
           </TabsContent>
 
-          {/* Tab 6: Config */}
-          <TabsContent value="config" className="mt-4 space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {(() => {
-                const workers = summary?.workers || [];
-                const moduleOrder = ["Task Management", "DWAR", "Leave Management", "Appraisal", "Attendance"];
-                const grouped: Record<string, L1Worker[]> = {};
-                workers.forEach(w => {
-                  const mod = w.module || "Other";
-                  if (!grouped[mod]) grouped[mod] = [];
-                  grouped[mod].push(w);
-                });
-                const sortedModules = moduleOrder.filter(m => grouped[m]).concat(
-                  Object.keys(grouped).filter(m => !moduleOrder.includes(m))
-                );
-
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Zap className="h-5 w-5" />
-                        Worker Registry
-                      </CardTitle>
-                      <CardDescription>Enable or disable workers</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-5">
-                        {sortedModules.map(mod => (
-                          <div key={mod}>
-                            <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">{mod}</p>
-                            <div className="space-y-2">
-                              {grouped[mod].map(worker => (
-                                <div key={worker.workerKey} className="flex items-center justify-between p-3 rounded-lg border">
-                                  <div>
-                                    <p className="font-medium text-sm">{worker.displayName}</p>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <p className="text-xs text-muted-foreground">
-                                        {worker.eventsConsumed} events · {worker.actionsCreated} actions
-                                      </p>
-                                      {worker.phase === "phase2" && (
-                                        <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">Phase 2</Badge>
-                                      )}
-                                    </div>
-                                    {worker.consecutiveErrors > 0 && (
-                                      <p className="text-xs text-red-500 mt-0.5">{worker.consecutiveErrors} consecutive errors</p>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Switch
-                                      checked={worker.isEnabled}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) enableWorkerMutation.mutate(worker.workerKey);
-                                        else disableWorkerMutation.mutate(worker.workerKey);
-                                      }}
-                                      className={worker.isEnabled ? 'data-[state=checked]:bg-green-600' : 'data-[state=unchecked]:bg-red-500'}
-                                    />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Info className="h-5 w-5" />
-                    Event Listeners
-                  </CardTitle>
-                  <CardDescription>Events each worker listens to and checks performed</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                    {(summary?.workers || []).map(worker => (
-                      <div key={worker.workerKey} className="flex items-start justify-between p-3 rounded-lg border text-sm">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge className={workerKeyColor(worker.workerKey)} variant="outline">
-                              {workerKeyLabel(worker.workerKey)}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {worker.listenEvents.join(", ")}
-                          </p>
-                        </div>
-                        <div className="text-right text-xs shrink-0 ml-3">
-                          {worker.checks && worker.checks.length > 0 ? (
-                            <div className="flex flex-col gap-1 items-end">
-                              {worker.checks.map(check => (
-                                <Badge key={check} variant="secondary" className="text-xs">
-                                  {check.replace(/_/g, " ")}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">No checks</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
     </Layout>
