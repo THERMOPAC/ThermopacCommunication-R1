@@ -36,3 +36,9 @@ id = "91tQXcEMth8-UExQ7t93A"
 uri = "file://attached_assets/ATTENDANCE_AUDIT_REPORT.md"
 type = "text"
 title = "Attendance System — Strict Code Audit Report"
+
+[[outputs]]
+id = "pqbTdh0fka_wuWyIRDBkR"
+uri = "file://attached_assets/ATTENDANCE_VERIFICATION_PACK.md"
+type = "text"
+title = "Attendance Verification Pack & Shared Status Engine Proposal"
