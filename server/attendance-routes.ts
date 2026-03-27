@@ -947,7 +947,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       return res.status(400).json({ error: 'Cannot submit a missed check-out regularization for today. Please use the Check Out button instead.' });
     }
 
-    if (requestType !== 'missed_checkout') {
+    if (requestType === 'full_day_regularization') {
       const balanceYear = reqDate.getFullYear();
       const paidLeaveTypesList = await db.select({ id: leaveTypes.id, name: leaveTypes.name })
         .from(leaveTypes).where(eq(leaveTypes.isPaid, true));
