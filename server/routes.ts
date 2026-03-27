@@ -1812,6 +1812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               minimumDailyHours: usersTable.minimumDailyHours,
               halfDayMinimumHours: usersTable.halfDayMinimumHours,
               weeklyOffDays: usersTable.weeklyOffDays,
+              dutyTimeIn: usersTable.dutyTimeIn,
+              dutyTimeOut: usersTable.dutyTimeOut,
+              allowedLateMinutes: usersTable.allowedLateMinutes,
+              earlyExitMinutes: usersTable.earlyExitMinutes,
+              workTimePolicy: usersTable.workTimePolicy,
             }).from(usersTable).where(eq(usersTable.id, userId));
 
             const statusResult = await determineAttendanceStatus({
@@ -1823,6 +1828,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 minimumDailyHours: userConfig?.minimumDailyHours,
                 halfDayMinimumHours: userConfig?.halfDayMinimumHours,
                 weeklyOffDays: userConfig?.weeklyOffDays as number[] | null,
+                dutyTimeIn: userConfig?.dutyTimeIn,
+                dutyTimeOut: userConfig?.dutyTimeOut,
+                allowedLateMinutes: userConfig?.allowedLateMinutes,
+                earlyExitMinutes: userConfig?.earlyExitMinutes,
+                workTimePolicy: userConfig?.workTimePolicy,
               },
               workLocationId: openRecord.workLocationId,
             });
@@ -1830,8 +1840,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await db.update(attendanceRecords).set({
               checkOutTime: now,
               workingHours: statusResult.workingHours.toFixed(2),
+              netWorkingHours: statusResult.netWorkingHours.toFixed(2),
               overtimeHours: statusResult.overtimeHours.toFixed(2),
               status: statusResult.status,
+              statusSource: statusResult.statusSource,
+              isLateArrival: statusResult.isLateArrival,
+              isEarlyDeparture: statusResult.isEarlyDeparture,
               employeeNotes: 'Auto-checkout on logout',
               updatedAt: now,
             }).where(eq(attendanceRecords.id, openRecord.id));

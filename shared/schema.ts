@@ -196,12 +196,16 @@ export const attendanceRecords = pgTable('attendance_records', {
   
   // Calculated fields
   workingHours: decimal('working_hours', { precision: 5, scale: 2 }),
+  netWorkingHours: decimal('net_working_hours', { precision: 5, scale: 2 }),
   overtimeHours: decimal('overtime_hours', { precision: 5, scale: 2 }).default('0'),
   
   // Status and validation
-  status: varchar('status', { length: 30 }).notNull().default('present'), // present, absent, partial, late, incomplete
+  status: varchar('status', { length: 30 }).notNull().default('present'),
+  statusSource: varchar('status_source', { length: 40 }),
   isLocationVerified: boolean('is_location_verified').default(false),
   isIpVerified: boolean('is_ip_verified').default(false),
+  isLateArrival: boolean('is_late_arrival').default(false),
+  isEarlyDeparture: boolean('is_early_departure').default(false),
   
   // Incomplete attendance tracking
   isIncomplete: boolean('is_incomplete').default(false),
@@ -213,10 +217,11 @@ export const attendanceRecords = pgTable('attendance_records', {
   approvalNotes: text('approval_notes'),
   
   // Admin adjustments
-  adminAdjustment: jsonb('admin_adjustment'), // For manual corrections
+  adminAdjustment: jsonb('admin_adjustment'),
   adjustedBy: integer('adjusted_by').references(() => users.id),
   adjustmentReason: text('adjustment_reason'),
   adjustmentDate: timestamp('adjustment_date'),
+  originalPunchData: jsonb('original_punch_data'),
   
   // Source of attendance data
   source: varchar('source', { length: 30 }).default('biometric'),

@@ -260,6 +260,11 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         minimumDailyHours: employeeUser.minimumDailyHours,
         halfDayMinimumHours: employeeUser.halfDayMinimumHours,
         weeklyOffDays: employeeUser.weeklyOffDays,
+        dutyTimeIn: employeeUser.dutyTimeIn,
+        dutyTimeOut: employeeUser.dutyTimeOut,
+        allowedLateMinutes: employeeUser.allowedLateMinutes,
+        earlyExitMinutes: employeeUser.earlyExitMinutes,
+        workTimePolicy: employeeUser.workTimePolicy,
       },
       workLocationId: existingRecord.workLocationId,
     });
@@ -278,9 +283,13 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
         checkOutIpAddress: ipAddress,
         checkOutDeviceInfo: deviceInfo,
         workingHours: workingHours.toFixed(2),
+        netWorkingHours: statusResult.netWorkingHours.toFixed(2),
         overtimeHours: overtimeHours.toFixed(2),
         employeeNotes,
         status: attendanceStatus,
+        statusSource: statusResult.statusSource,
+        isLateArrival: statusResult.isLateArrival,
+        isEarlyDeparture: statusResult.isEarlyDeparture,
         updatedAt: now
       })
       .where(eq(attendanceRecords.id, existingRecord.id))
@@ -1207,13 +1216,29 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         eq(attendanceRecords.date, reg.requestDate)
       ));
 
+    function buildOriginalPunchData(record: any) {
+      return {
+        originalCheckInTime: record.checkInTime?.toISOString?.() || record.checkInTime || null,
+        originalCheckOutTime: record.checkOutTime?.toISOString?.() || record.checkOutTime || null,
+        originalWorkingHours: record.workingHours || null,
+        originalStatus: record.status || null,
+        originalStatusSource: record.statusSource || null,
+        regularizationType: reg.requestType,
+        adjustedBy: user.id,
+        adjustedAt: new Date().toISOString(),
+        adjustmentReason: reg.reason,
+      };
+    }
+
     if (reg.requestType === 'outdoor_duty') {
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
           status: 'present',
+          statusSource: 'regularization',
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
           workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
+          originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1229,6 +1254,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           checkOutTime: dutyCheckOut,
           workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           status: 'present',
+          statusSource: 'regularization',
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1242,8 +1268,10 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         await db.update(attendanceRecords).set({
           checkInTime: dutyCheckIn,
           status: existingAttendance.checkOutTime ? 'present' : existingAttendance.status,
+          statusSource: 'regularization',
           workingHours: calculateWorkingHours(dutyCheckIn, existingAttendance.checkOutTime),
           isIncomplete: false,
+          originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Missed check-in - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1260,6 +1288,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           checkOutTime: dutyCheckOut,
           workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           status: 'present',
+          statusSource: 'regularization',
           adminNotes: `Regularized: Missed check-in (no existing record, full day applied) - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1292,8 +1321,11 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         await db.update(attendanceRecords).set({
           checkOutTime: resolvedCheckOut,
           status: regStatusResult.status,
+          statusSource: 'regularization',
           workingHours: regStatusResult.workingHours.toFixed(2),
+          netWorkingHours: regStatusResult.netWorkingHours.toFixed(2),
           isIncomplete: false,
+          originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Missed check-out - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1312,6 +1344,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           checkOutTime: dutyCheckOut,
           workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           status: 'present',
+          statusSource: 'regularization',
           adminNotes: `Regularized: Missed check-out (no existing record, full day applied) - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1326,8 +1359,10 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
           status: 'present',
+          statusSource: 'regularization',
           workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           isIncomplete: false,
+          originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Full day - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
@@ -1343,6 +1378,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           checkOutTime: dutyCheckOut,
           workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
           status: 'present',
+          statusSource: 'regularization',
           adminNotes: `Regularized: Full day - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,

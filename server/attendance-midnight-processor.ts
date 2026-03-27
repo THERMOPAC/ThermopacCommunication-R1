@@ -1,6 +1,6 @@
 import { db } from './db';
-import { attendanceRecords, attendanceIssues, dailyWorkReports, users } from '@shared/schema';
-import { eq, and, isNull, gte, lte } from 'drizzle-orm';
+import { attendanceRecords, attendanceIssues, dailyWorkReports, users, leaveRequests, companyHolidays } from '@shared/schema';
+import { eq, and, isNull, gte, lte, not, inArray } from 'drizzle-orm';
 import { determineAttendanceStatus } from './attendance-status-engine';
 
 /**
@@ -43,7 +43,12 @@ export class AttendanceMidnightProcessor {
         minimumDailyHours: users.minimumDailyHours,
         halfDayMinimumHours: users.halfDayMinimumHours,
         weeklyOffDays: users.weeklyOffDays,
+        dutyTimeIn: users.dutyTimeIn,
         dutyTimeOut: users.dutyTimeOut,
+        allowedLateMinutes: users.allowedLateMinutes,
+        earlyExitMinutes: users.earlyExitMinutes,
+        workTimePolicy: users.workTimePolicy,
+        isActive: users.isActive,
       };
 
       const incompleteRecords = await db
@@ -91,11 +96,87 @@ export class AttendanceMidnightProcessor {
         await this.processDwarCompliance(record.attendanceRecord, record.user);
       }
 
+      await this.generateNoShowRecords(yesterdayStr);
+
       console.log(`[${new Date().toISOString()}] Midnight attendance processing completed`);
     } catch (error) {
       console.error('Error in midnight attendance processing:', error);
     } finally {
       this.isRunning = false;
+    }
+  }
+
+  /**
+   * Generate attendance rows for active employees who have no attendance record for the given date.
+   * Skips holidays, weekly-off days, and employees on approved leave.
+   * Status = 'absent', statusSource = 'system_no_show'.
+   */
+  private async generateNoShowRecords(dateStr: string): Promise<void> {
+    try {
+      const [holiday] = await db
+        .select({ id: companyHolidays.id })
+        .from(companyHolidays)
+        .where(eq(companyHolidays.date, dateStr))
+        .limit(1);
+
+      if (holiday) {
+        console.log(`[NoShow] ${dateStr} is a company holiday — skipping no-show generation`);
+        return;
+      }
+
+      const existingUserIds = await db
+        .select({ userId: attendanceRecords.userId })
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.date, dateStr));
+
+      const existingSet = new Set(existingUserIds.map(r => r.userId));
+
+      const allActiveEmployees = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          weeklyOffDays: users.weeklyOffDays,
+        })
+        .from(users)
+        .where(eq(users.isActive, true));
+
+      const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
+      let created = 0;
+
+      for (const emp of allActiveEmployees) {
+        if (existingSet.has(emp.id)) continue;
+
+        const weeklyOff: number[] = Array.isArray(emp.weeklyOffDays) ? emp.weeklyOffDays : [0, 6];
+        if (weeklyOff.includes(dayOfWeek)) continue;
+
+        const [approvedLeave] = await db
+          .select({ id: leaveRequests.id })
+          .from(leaveRequests)
+          .where(and(
+            eq(leaveRequests.employeeId, emp.id),
+            eq(leaveRequests.status, 'approved'),
+            lte(leaveRequests.startDate, dateStr),
+            gte(leaveRequests.endDate, dateStr)
+          ))
+          .limit(1);
+
+        if (approvedLeave) continue;
+
+        await db.insert(attendanceRecords).values({
+          userId: emp.id,
+          date: dateStr,
+          status: 'absent',
+          statusSource: 'system_no_show',
+          source: 'system',
+          adminNotes: `System-generated: No punch record found for ${dateStr}`,
+        });
+
+        created++;
+      }
+
+      console.log(`[NoShow] Generated ${created} no-show absent records for ${dateStr} (${allActiveEmployees.length} active employees checked)`);
+    } catch (error) {
+      console.error(`[NoShow] Error generating no-show records for ${dateStr}:`, error);
     }
   }
 
@@ -113,6 +194,11 @@ export class AttendanceMidnightProcessor {
           minimumDailyHours: user?.minimumDailyHours,
           halfDayMinimumHours: user?.halfDayMinimumHours,
           weeklyOffDays: user?.weeklyOffDays,
+          dutyTimeIn: user?.dutyTimeIn,
+          dutyTimeOut: user?.dutyTimeOut,
+          allowedLateMinutes: user?.allowedLateMinutes,
+          earlyExitMinutes: user?.earlyExitMinutes,
+          workTimePolicy: user?.workTimePolicy,
         },
         workLocationId: record.workLocationId,
       });
@@ -120,6 +206,7 @@ export class AttendanceMidnightProcessor {
       if (statusResult.statusSource === 'holiday' || statusResult.statusSource === 'weekly_off' || statusResult.statusSource === 'leave') {
         await db.update(attendanceRecords).set({
           status: statusResult.status,
+          statusSource: statusResult.statusSource,
           updatedAt: new Date()
         }).where(eq(attendanceRecords.id, record.id));
         console.log(`Set status '${statusResult.status}' (${statusResult.statusSource}) for user ${user?.username || record.userId} on ${record.date}`);
@@ -132,6 +219,7 @@ export class AttendanceMidnightProcessor {
         .update(attendanceRecords)
         .set({
           status: 'absent',
+          statusSource: 'no_data',
           isIncomplete: true,
           incompleteReason: description,
           flaggedAt: new Date(),
@@ -183,6 +271,11 @@ export class AttendanceMidnightProcessor {
           minimumDailyHours: user?.minimumDailyHours,
           halfDayMinimumHours: user?.halfDayMinimumHours,
           weeklyOffDays: user?.weeklyOffDays,
+          dutyTimeIn: user?.dutyTimeIn,
+          dutyTimeOut: user?.dutyTimeOut,
+          allowedLateMinutes: user?.allowedLateMinutes,
+          earlyExitMinutes: user?.earlyExitMinutes,
+          workTimePolicy: user?.workTimePolicy,
         },
         workLocationId: record.workLocationId,
       });
@@ -193,7 +286,11 @@ export class AttendanceMidnightProcessor {
         .update(attendanceRecords)
         .set({
           status: statusResult.status,
+          statusSource: 'incomplete_checkout_estimate',
           workingHours: statusResult.workingHours.toFixed(2),
+          netWorkingHours: statusResult.netWorkingHours.toFixed(2),
+          isLateArrival: statusResult.isLateArrival,
+          isEarlyDeparture: statusResult.isEarlyDeparture,
           isIncomplete: true,
           incompleteReason: description,
           flaggedAt: new Date(),
