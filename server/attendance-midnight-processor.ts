@@ -1,6 +1,7 @@
 import { db } from './db';
-import { attendanceRecords, attendanceIssues, dailyWorkReports, users, leaveRequests, companyHolidays } from '@shared/schema';
-import { eq, and, isNull, lt, gte, lte } from 'drizzle-orm';
+import { attendanceRecords, attendanceIssues, dailyWorkReports, users } from '@shared/schema';
+import { eq, and, isNull, gte, lte } from 'drizzle-orm';
+import { determineAttendanceStatus } from './attendance-status-engine';
 
 /**
  * Midnight Attendance Processor
@@ -42,6 +43,7 @@ export class AttendanceMidnightProcessor {
         minimumDailyHours: users.minimumDailyHours,
         halfDayMinimumHours: users.halfDayMinimumHours,
         weeklyOffDays: users.weeklyOffDays,
+        dutyTimeOut: users.dutyTimeOut,
       };
 
       const incompleteRecords = await db
@@ -97,53 +99,30 @@ export class AttendanceMidnightProcessor {
     }
   }
 
-  private async isLeaveHolidayOrWeeklyOff(userId: number, dateStr: string, user: any): Promise<string | null> {
-    const [approvedLeave] = await db
-      .select({ id: leaveRequests.id, isHalfDay: leaveRequests.isHalfDay })
-      .from(leaveRequests)
-      .where(and(
-        eq(leaveRequests.employeeId, userId),
-        eq(leaveRequests.status, 'approved'),
-        lte(leaveRequests.startDate, dateStr),
-        gte(leaveRequests.endDate, dateStr)
-      ))
-      .limit(1);
-
-    const [holiday] = await db
-      .select({ id: companyHolidays.id })
-      .from(companyHolidays)
-      .where(eq(companyHolidays.date, dateStr))
-      .limit(1);
-
-    const weeklyOffDays: number[] = Array.isArray(user?.weeklyOffDays) ? user.weeklyOffDays : [0, 6];
-    const dayOfWeek = new Date(dateStr).getDay();
-
-    if (holiday) return 'holiday';
-    if (weeklyOffDays.includes(dayOfWeek)) return 'weekly off';
-    if (approvedLeave) return approvedLeave.isHalfDay ? 'half_day' : 'present';
-    return null;
-  }
-
-  private determineStatusByHours(workingHours: number, user: any): string {
-    const fullDayMin = Number(user?.minimumDailyHours) || 8;
-    const halfDayMin = Number(user?.halfDayMinimumHours) || 4;
-    if (workingHours >= fullDayMin) return 'present';
-    if (workingHours >= halfDayMin) return 'half_day';
-    return 'absent';
-  }
-
   /**
    * Process a single incomplete attendance record (no check-in at all)
    */
   private async processIncompleteRecord(record: any, user: any): Promise<void> {
     try {
-      const overrideStatus = await this.isLeaveHolidayOrWeeklyOff(record.userId, record.date, user);
-      if (overrideStatus) {
+      const statusResult = await determineAttendanceStatus({
+        userId: record.userId,
+        date: record.date,
+        checkInTime: null,
+        checkOutTime: null,
+        userConfig: {
+          minimumDailyHours: user?.minimumDailyHours,
+          halfDayMinimumHours: user?.halfDayMinimumHours,
+          weeklyOffDays: user?.weeklyOffDays,
+        },
+        workLocationId: record.workLocationId,
+      });
+
+      if (statusResult.statusSource === 'holiday' || statusResult.statusSource === 'weekly_off' || statusResult.statusSource === 'leave') {
         await db.update(attendanceRecords).set({
-          status: overrideStatus,
+          status: statusResult.status,
           updatedAt: new Date()
         }).where(eq(attendanceRecords.id, record.id));
-        console.log(`Set status '${overrideStatus}' (leave/holiday/weekly off) for user ${user?.username || record.userId} on ${record.date}`);
+        console.log(`Set status '${statusResult.status}' (${statusResult.statusSource}) for user ${user?.username || record.userId} on ${record.date}`);
         return;
       }
 
@@ -190,25 +169,31 @@ export class AttendanceMidnightProcessor {
         return;
       }
 
-      const overrideStatus = await this.isLeaveHolidayOrWeeklyOff(record.userId, record.date, user);
-      if (overrideStatus) {
-        await db.update(attendanceRecords).set({
-          status: overrideStatus,
-          isIncomplete: true,
-          incompleteReason: `Checked in but no check-out on ${record.date}. Status set to '${overrideStatus}' (leave/holiday/weekly off).`,
-          flaggedAt: new Date(),
-          updatedAt: new Date()
-        }).where(eq(attendanceRecords.id, record.id));
-        console.log(`Set status '${overrideStatus}' for user ${user?.username || record.userId} on ${record.date} (no checkout, but leave/holiday/weekly off)`);
-        return;
-      }
+      const dutyEndStr = user?.dutyTimeOut || '18:00';
+      const [h, m] = dutyEndStr.split(':').map(Number);
+      const assumedCheckout = new Date(record.date + 'T00:00:00');
+      assumedCheckout.setHours(h, m, 0, 0);
 
-      const description = `Employee ${user?.username || 'Unknown'} checked in at ${record.checkInTime} but did not check out on ${record.date}. Missing checkout — flagged for review.`;
+      const statusResult = await determineAttendanceStatus({
+        userId: record.userId,
+        date: record.date,
+        checkInTime: record.checkInTime,
+        checkOutTime: assumedCheckout,
+        userConfig: {
+          minimumDailyHours: user?.minimumDailyHours,
+          halfDayMinimumHours: user?.halfDayMinimumHours,
+          weeklyOffDays: user?.weeklyOffDays,
+        },
+        workLocationId: record.workLocationId,
+      });
+
+      const description = `Employee ${user?.username || 'Unknown'} checked in at ${record.checkInTime} but did not check out on ${record.date}. Status estimated using duty end time (${dutyEndStr}). Estimated hours: ${statusResult.workingHours}. Status: ${statusResult.status}. Flagged for review.`;
 
       await db
         .update(attendanceRecords)
         .set({
-          status: 'absent',
+          status: statusResult.status,
+          workingHours: statusResult.workingHours.toFixed(2),
           isIncomplete: true,
           incompleteReason: description,
           flaggedAt: new Date(),
@@ -231,7 +216,7 @@ export class AttendanceMidnightProcessor {
           hrNotified: false
         });
 
-      console.log(`Marked ABSENT for user ${user?.username || record.userId} on ${record.date} — no check-out recorded`);
+      console.log(`Flagged incomplete checkout for user ${user?.username || record.userId} on ${record.date} — estimated status: ${statusResult.status} (${statusResult.workingHours}h)`);
     } catch (error) {
       console.error(`Error processing incomplete checkout for user ${record.userId}:`, error);
     }
@@ -258,18 +243,7 @@ export class AttendanceMidnightProcessor {
       }
 
       const workingHours = parseFloat(record.workingHours || '0');
-      const hoursBasedStatus = this.determineStatusByHours(workingHours, user);
-      const description = `Employee ${user?.username || 'Unknown'} did not submit DWAR for ${record.date}. Attendance status remains '${hoursBasedStatus}' based on ${workingHours.toFixed(1)} hours worked.`;
-
-      if (record.status !== hoursBasedStatus) {
-        await db
-          .update(attendanceRecords)
-          .set({
-            status: hoursBasedStatus,
-            updatedAt: new Date()
-          })
-          .where(eq(attendanceRecords.id, record.id));
-      }
+      const description = `Employee ${user?.username || 'Unknown'} did not submit DWAR for ${record.date}. Attendance status '${record.status}' unchanged — DWAR is a compliance requirement, not a status factor. Hours worked: ${workingHours.toFixed(1)}.`;
 
       await db
         .insert(attendanceIssues)
@@ -285,7 +259,7 @@ export class AttendanceMidnightProcessor {
           hrNotified: false
         });
 
-      console.log(`DWAR compliance warning for user ${user?.username || record.userId} on ${record.date} (status: ${hoursBasedStatus})`);
+      console.log(`DWAR compliance warning for user ${user?.username || record.userId} on ${record.date} (status unchanged: ${record.status})`);
     } catch (error) {
       console.error(`Error processing DWAR compliance for user ${record.userId}:`, error);
     }
@@ -415,22 +389,8 @@ export class AttendanceMidnightProcessor {
           (dwarRecord.status === 'submitted' || dwarRecord.status === 'approved');
 
         if (!hasValidDwar) {
-          // Mark as absent and reset approval flags for consistent state
-          const description = `Retroactive: DWAR not submitted for ${rec.date}. Status: ${dwarRecord?.status || 'Not created'}`;
+          const description = `Retroactive compliance: DWAR not submitted for ${rec.date}. Status: ${dwarRecord?.status || 'Not created'}. Attendance status unchanged — DWAR is a compliance requirement, not a status factor.`;
 
-          await db
-            .update(attendanceRecords)
-            .set({
-              status: 'absent',
-              incompleteReason: description,
-              flaggedAt: new Date(),
-              isIncomplete: false,
-              requiresApproval: false,
-              updatedAt: new Date()
-            })
-            .where(eq(attendanceRecords.id, rec.id));
-
-          // Check if issue already exists
           const existingIssue = await db
             .select()
             .from(attendanceIssues)
@@ -447,7 +407,7 @@ export class AttendanceMidnightProcessor {
                 userId: rec.userId,
                 issueType: 'no_dwar',
                 description,
-                severity: 'high',
+                severity: 'medium',
                 status: 'pending',
                 detectedAt: new Date(),
                 managerNotified: false,
@@ -460,10 +420,10 @@ export class AttendanceMidnightProcessor {
             userId: rec.userId,
             username: user?.username || 'Unknown',
             date: rec.date,
-            action: 'marked_absent'
+            action: 'dwar_compliance_warning'
           });
 
-          console.log(`Marked absent: ${user?.username || rec.userId} on ${rec.date} (DWAR: ${dwarRecord?.status || 'none'})`);
+          console.log(`DWAR compliance warning: ${user?.username || rec.userId} on ${rec.date} (DWAR: ${dwarRecord?.status || 'none'}, status unchanged: ${rec.status})`);
         } else {
           details.push({
             userId: rec.userId,

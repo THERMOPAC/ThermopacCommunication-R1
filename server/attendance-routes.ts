@@ -7,6 +7,7 @@ import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm'
 import { ensureAuthenticated } from './auth-middleware';
 import { attendanceMidnightProcessor } from './attendance-midnight-processor';
 import { checkPayrollLock } from './payroll-lock-service';
+import { determineAttendanceStatus } from './attendance-status-engine';
 
 const router = Router();
 
@@ -247,78 +248,26 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
     // Check DWAR completion status
     const dwarStatus = await checkDwarCompletionStatus(userId, today);
     const isDwarCompleted = dwarStatus.isCompleted;
-    
-    // Calculate working hours
-    const checkInTime = new Date(existingRecord.checkInTime);
-    const workingHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
 
-    // Get attendance settings for overtime calculation
-    let overtimeHours = 0;
-    if (existingRecord.workLocationId) {
-      const [settings] = await db
-        .select()
-        .from(attendanceSettings)
-        .where(eq(attendanceSettings.workLocationId, existingRecord.workLocationId));
-
-      if (settings) {
-        const standardHours = parseFloat(settings.standardWorkingHours?.toString() || '8');
-        const breakHours = settings.automaticBreakDeduction 
-          ? (settings.lunchBreakDuration || 60) / 60 
-          : 0;
-        
-        const netWorkingHours = workingHours - breakHours;
-        if (netWorkingHours > standardHours) {
-          overtimeHours = netWorkingHours - standardHours;
-        }
-      }
-    }
-
-    // Check leave / holiday / weekly off before applying hour-based status
     const employeeUser = req.user as any;
-    let attendanceStatus: string;
 
-    const [approvedLeave] = await db
-      .select({ id: leaveRequests.id, isHalfDay: leaveRequests.isHalfDay })
-      .from(leaveRequests)
-      .where(and(
-        eq(leaveRequests.employeeId, userId),
-        eq(leaveRequests.status, 'approved'),
-        lte(leaveRequests.startDate, today),
-        gte(leaveRequests.endDate, today)
-      ))
-      .limit(1);
+    const statusResult = await determineAttendanceStatus({
+      userId,
+      date: today,
+      checkInTime: new Date(existingRecord.checkInTime),
+      checkOutTime: now,
+      userConfig: {
+        minimumDailyHours: employeeUser.minimumDailyHours,
+        halfDayMinimumHours: employeeUser.halfDayMinimumHours,
+        weeklyOffDays: employeeUser.weeklyOffDays,
+      },
+      workLocationId: existingRecord.workLocationId,
+    });
 
-    const [holiday] = await db
-      .select({ id: companyHolidays.id })
-      .from(companyHolidays)
-      .where(eq(companyHolidays.date, today))
-      .limit(1);
+    const workingHours = statusResult.workingHours;
+    const overtimeHours = statusResult.overtimeHours;
+    const attendanceStatus = statusResult.status;
 
-    const weeklyOffDays: number[] = Array.isArray(employeeUser.weeklyOffDays)
-      ? employeeUser.weeklyOffDays
-      : [0, 6];
-    const todayDayOfWeek = new Date(today).getDay();
-    const isWeeklyOff = weeklyOffDays.includes(todayDayOfWeek);
-
-    if (holiday) {
-      attendanceStatus = 'holiday';
-    } else if (isWeeklyOff) {
-      attendanceStatus = 'weekly off';
-    } else if (approvedLeave) {
-      attendanceStatus = approvedLeave.isHalfDay ? 'half_day' : 'present';
-    } else {
-      const fullDayMin = Number(employeeUser.minimumDailyHours) || 8;
-      const halfDayMin = Number(employeeUser.halfDayMinimumHours) || 4;
-      if (workingHours >= fullDayMin) {
-        attendanceStatus = 'present';
-      } else if (workingHours >= halfDayMin) {
-        attendanceStatus = 'half_day';
-      } else {
-        attendanceStatus = 'absent';
-      }
-    }
-    
-    // Update attendance record
     const [updatedRecord] = await db
       .update(attendanceRecords)
       .set({
@@ -386,8 +335,8 @@ router.post('/check-out', ensureAuthenticated, async (req: Request, res: Respons
     let dwarWarning = null;
     
     if (!isDwarCompleted) {
-      dwarWarning = 'Your DWAR was not submitted. You have been marked as ABSENT for today. Please contact your manager if this was an error.';
-      responseMessage = 'Checked out - DWAR incomplete, marked as absent';
+      dwarWarning = 'Your DWAR was not submitted for today. This has been flagged for compliance review. Your attendance status is based on hours worked.';
+      responseMessage = 'Checked out successfully - DWAR compliance warning recorded';
     }
 
     res.json({
@@ -1328,18 +1277,22 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         } else {
           resolvedCheckOut = dutyCheckOut;
         }
-        const resolvedHours = (resolvedCheckOut.getTime() - actualCheckIn.getTime()) / (1000 * 60 * 60);
-        const finalHours = Math.max(0, Number(resolvedHours.toFixed(2)));
-        const statusByHours = (() => {
-          const fullDayMin = Number(employee?.minimumDailyHours) || 9;
-          if (finalHours >= fullDayMin) return 'present';
-          if (finalHours >= (fullDayMin / 2)) return 'half_day';
-          return 'present';
-        })();
+        const regStatusResult = await determineAttendanceStatus({
+          userId: reg.employeeId,
+          date: reg.requestDate,
+          checkInTime: actualCheckIn,
+          checkOutTime: resolvedCheckOut,
+          userConfig: {
+            minimumDailyHours: employee?.minimumDailyHours,
+            halfDayMinimumHours: null,
+            weeklyOffDays: null,
+          },
+          workLocationId: existingAttendance.workLocationId,
+        });
         await db.update(attendanceRecords).set({
           checkOutTime: resolvedCheckOut,
-          status: statusByHours,
-          workingHours: String(finalHours),
+          status: regStatusResult.status,
+          workingHours: regStatusResult.workingHours.toFixed(2),
           isIncomplete: false,
           adminNotes: `Regularized: Missed check-out - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },

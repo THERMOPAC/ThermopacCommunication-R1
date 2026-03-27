@@ -80,7 +80,8 @@ import agentRoutes from "./agents/agent-routes";
 import l1WorkerRoutes from "./l1-worker-routes";
 import { initializeAgentSystem } from "./agents/agent-setup";
 import { db } from "./db";
-import { masterItems as masterItemsTable, projectItems as projectItemsTable, attendanceRecords } from "@shared/schema";
+import { masterItems as masterItemsTable, projectItems as projectItemsTable, attendanceRecords, users as usersTable } from "@shared/schema";
+import { determineAttendanceStatus } from './attendance-status-engine';
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
 import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
@@ -1807,15 +1808,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ));
 
           if (openRecord) {
-            const checkInTime = new Date(openRecord.checkInTime!);
-            const workingHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+            const [userConfig] = await db.select({
+              minimumDailyHours: usersTable.minimumDailyHours,
+              halfDayMinimumHours: usersTable.halfDayMinimumHours,
+              weeklyOffDays: usersTable.weeklyOffDays,
+            }).from(usersTable).where(eq(usersTable.id, userId));
+
+            const statusResult = await determineAttendanceStatus({
+              userId,
+              date: today,
+              checkInTime: new Date(openRecord.checkInTime!),
+              checkOutTime: now,
+              userConfig: {
+                minimumDailyHours: userConfig?.minimumDailyHours,
+                halfDayMinimumHours: userConfig?.halfDayMinimumHours,
+                weeklyOffDays: userConfig?.weeklyOffDays as number[] | null,
+              },
+              workLocationId: openRecord.workLocationId,
+            });
+
             await db.update(attendanceRecords).set({
               checkOutTime: now,
-              workingHours: workingHours.toFixed(2),
+              workingHours: statusResult.workingHours.toFixed(2),
+              overtimeHours: statusResult.overtimeHours.toFixed(2),
+              status: statusResult.status,
               employeeNotes: 'Auto-checkout on logout',
               updatedAt: now,
             }).where(eq(attendanceRecords.id, openRecord.id));
-            console.log(`Auto-checkout on logout for user ${userId}: ${workingHours.toFixed(2)}h`);
+            console.log(`Auto-checkout on logout for user ${userId}: ${statusResult.workingHours.toFixed(2)}h, status: ${statusResult.status}`);
           }
         } catch (checkoutErr) {
           console.error('Auto-checkout on logout failed:', checkoutErr);
