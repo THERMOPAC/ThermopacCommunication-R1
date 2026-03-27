@@ -30,3 +30,9 @@ id = "GMh4GZIkoOgwi6RZxfjzc"
 uri = "file://.local/DWAR_Implementation_Report.md"
 type = "text"
 title = "DWAR Scoring Model Overhaul — Full Implementation Report"
+
+[[outputs]]
+id = "91tQXcEMth8-UExQ7t93A"
+uri = "file://attached_assets/ATTENDANCE_AUDIT_REPORT.md"
+type = "text"
+title = "Attendance System — Strict Code Audit Report"
