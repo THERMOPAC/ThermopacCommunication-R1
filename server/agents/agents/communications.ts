@@ -13,6 +13,15 @@ import { resolveGM } from './project-control-shared';
 
 const SOURCE_AGENT = 'communicator';
 
+async function safeQuery<T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch (err: any) {
+    console.error(`[Communications] ${label} failed:`, err.message);
+    return fallback;
+  }
+}
+
 const FINANCE_CATEGORIES = ['Finance'];
 const FINANCE_KEYWORDS = ['BRC', 'invoice', 'payment', 'remittance', 'outstanding'];
 
@@ -333,9 +342,9 @@ export class CommunicationsAgent implements IAgent {
       console.log(`[Communications] FIRST RUN detected — findings/insights only, no tasks created (historical backlog suppressed)`);
     }
 
-    const allOverdueTasks = await agentDataRepo.getOverdueTasksWithEscalation();
+    const allOverdueTasks = await safeQuery('getOverdueTasksWithEscalation', () => agentDataRepo.getOverdueTasksWithEscalation(), []);
     queriesRun++;
-    const tasksMissingDueDate = await agentDataRepo.getStandardTasksMissingDueDate();
+    const tasksMissingDueDate = await safeQuery('getStandardTasksMissingDueDate', () => agentDataRepo.getStandardTasksMissingDueDate(), []);
     queriesRun++;
     const nonFinanceTasks = allOverdueTasks.filter(t => !isFinanceTask(t));
 
@@ -524,7 +533,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 8: TASK COMPLETED ───
     // ─── [SUPPRESSED: Positive event, no action needed] ───
     // ═══════════════════════════════════════════════════════════════
-    const recentlyCompleted = await agentDataRepo.getRecentlyCompletedTasks(1);
+    const recentlyCompleted = await safeQuery('getRecentlyCompletedTasks', () => agentDataRepo.getRecentlyCompletedTasks(1), []);
     queriesRun++;
 
     for (const task of recentlyCompleted) {
@@ -550,7 +559,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 9: NO WORKLOAD VISIBILITY ───
     // ─── [AUTOMATED: Zero-task employees → manager review task] ───
     // ═══════════════════════════════════════════════════════════════
-    const noTaskUsers = await agentDataRepo.getUsersWithNoActiveTasks(2);
+    const noTaskUsers = await safeQuery('getUsersWithNoActiveTasks', () => agentDataRepo.getUsersWithNoActiveTasks(2), []);
     queriesRun++;
 
     const noTaskByManager: Record<string, typeof noTaskUsers> = {};
@@ -582,7 +591,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 10: OVERDUE RECURRING TASKS ───
     // ─── [AUTOMATED: Create grouped review task per assignee] ───
     // ═══════════════════════════════════════════════════════════════
-    const overdueRecurring = await agentDataRepo.getOverdueRecurringTasks(7);
+    const overdueRecurring = await safeQuery('getOverdueRecurringTasks', () => agentDataRepo.getOverdueRecurringTasks(7), []);
     queriesRun++;
 
     const recurringByAssignee: Record<string, typeof overdueRecurring> = {};
@@ -620,7 +629,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 35: REPEATED LATE COMPLETION OF RECURRING TASKS ───
     // ─── [AUTOMATED: 3+ late completions in 30 days → manager review task] ───
     // ═══════════════════════════════════════════════════════════════
-    const recurringLateCompletions = await agentDataRepo.getRecurringTaskLateCompletions(30);
+    const recurringLateCompletions = await safeQuery('getRecurringTaskLateCompletions', () => agentDataRepo.getRecurringTaskLateCompletions(30), []);
     queriesRun++;
 
     for (const lc of recurringLateCompletions) {
@@ -647,7 +656,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 36: RECURRING TASK BACKLOG BY ASSIGNEE ───
     // ─── [AUTOMATED: 5+ pending → task for assignee; 10+ → manager escalation] ───
     // ═══════════════════════════════════════════════════════════════
-    const recurringBacklog = await agentDataRepo.getRecurringTaskBacklog(5);
+    const recurringBacklog = await safeQuery('getRecurringTaskBacklog', () => agentDataRepo.getRecurringTaskBacklog(5), []);
     queriesRun++;
 
     for (const bl of recurringBacklog) {
@@ -675,7 +684,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 37: ZOMBIE RECURRING TASKS (30+ DAYS UNTOUCHED) ───
     // ─── [AUTOMATED: 30+ days → assignee task; 60+ days → manager escalation] ───
     // ═══════════════════════════════════════════════════════════════
-    const zombieRecurringTasks = await agentDataRepo.getZombieRecurringTasks(30);
+    const zombieRecurringTasks = await safeQuery('getZombieRecurringTasks', () => agentDataRepo.getZombieRecurringTasks(30), []);
     queriesRun++;
 
     const zombieByAssignee: Record<string, typeof zombieRecurringTasks> = {};
@@ -713,7 +722,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 11-12: UNANSWERED EMAILS ───
     // ─── [AUTOMATED: P0/P1 creates response task; 72h+ creates review task] ───
     // ═══════════════════════════════════════════════════════════════
-    const unansweredEmails = await agentDataRepo.getUnansweredEmails(24);
+    const unansweredEmails = await safeQuery('getUnansweredEmails', () => agentDataRepo.getUnansweredEmails(24), []);
     queriesRun++;
 
     const criticalEmails = unansweredEmails.filter(e => ['P0', 'P1'].includes(e.priority) && e.hoursUnanswered >= 24);
@@ -754,8 +763,8 @@ export class CommunicationsAgent implements IAgent {
     // ─── [AUTOMATED: 3+ incomplete → task for employee] ───
     // ─── [SUPPRESSED: 1 absent / 1-2 incomplete → too minor] ───
     // ═══════════════════════════════════════════════════════════════
-    const attendanceDetailed = await agentDataRepo.getDetailedAttendanceIssues(7);
-    const todayMissing = await agentDataRepo.getTodayMissingAttendance();
+    const attendanceDetailed = await safeQuery('getDetailedAttendanceIssues', () => agentDataRepo.getDetailedAttendanceIssues(7), []);
+    const todayMissing = await safeQuery('getTodayMissingAttendance', () => agentDataRepo.getTodayMissingAttendance(), []);
     queriesRun += 2;
 
     let attendanceAnomalyCount = 0;
@@ -852,7 +861,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── [SUPPRESSED: 1 missing → too minor for task] ───
     // ─── [AUTOMATED: incomplete/empty → task for employee] ───
     // ═══════════════════════════════════════════════════════════════
-    const dwarDetailed = await agentDataRepo.getDetailedDWARGaps();
+    const dwarDetailed = await safeQuery('getDetailedDWARGaps', () => agentDataRepo.getDetailedDWARGaps(), []);
     queriesRun++;
 
     let dwarMissingCount = 0;
@@ -935,7 +944,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 20-23: LEAVE REQUEST MONITORING ───
     // ─── [AUTOMATED: All leave findings → task for manager] ───
     // ═══════════════════════════════════════════════════════════════
-    const pendingLeaves = await agentDataRepo.getDetailedPendingLeaveRequests();
+    const pendingLeaves = await safeQuery('getDetailedPendingLeaveRequests', () => agentDataRepo.getDetailedPendingLeaveRequests(), []);
     queriesRun++;
 
     let leavePendingReminderCount = 0;
@@ -1002,7 +1011,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── [AUTOMATED: All overdue → task for assignee / manager] ───
     // ─── [AUTOMATED: No linked task → create task from commitment] ───
     // ═══════════════════════════════════════════════════════════════
-    const detailedCommitments = await agentDataRepo.getDetailedMeetingCommitments();
+    const detailedCommitments = await safeQuery('getDetailedMeetingCommitments', () => agentDataRepo.getDetailedMeetingCommitments(), []);
     queriesRun++;
 
     let commitmentOverdueCount = 0;
@@ -1076,7 +1085,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 27: UNREAD INTERNAL MESSAGES ───
     // ─── [WEEKLY SUMMARY: Contributes to consolidated review task] ───
     // ═══════════════════════════════════════════════════════════════
-    const unreadMessages = await agentDataRepo.getUnreadInternalMessages(48);
+    const unreadMessages = await safeQuery('getUnreadInternalMessages', () => agentDataRepo.getUnreadInternalMessages(48), []);
     queriesRun++;
 
     if (unreadMessages.length >= 5) {
@@ -1102,7 +1111,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 28: DWAR QUALITY SCORING ───
     // ─── [AUTOMATED: Score ≤30 → task for employee] ───
     // ═══════════════════════════════════════════════════════════════
-    const dwarQuality = await agentDataRepo.getDWARQualityScores();
+    const dwarQuality = await safeQuery('getDWARQualityScores', () => agentDataRepo.getDWARQualityScores(), []);
     queriesRun++;
 
     let dwarQualityFindingsCount = 0;
@@ -1134,7 +1143,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 29-30: 30-DAY ATTENDANCE PATTERNS ───
     // ─── [AUTOMATED: Pattern → task for manager] ───
     // ═══════════════════════════════════════════════════════════════
-    const attendancePatterns = await agentDataRepo.getAttendancePatterns30Day();
+    const attendancePatterns = await safeQuery('getAttendancePatterns30Day', () => agentDataRepo.getAttendancePatterns30Day(), []);
     queriesRun++;
 
     let attendancePatternFindingsCount = 0;
@@ -1181,7 +1190,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 31-32: LEAVE BALANCE ALERTS ───
     // ─── [SUPPRESSED: Informational — no actionable task] ───
     // ═══════════════════════════════════════════════════════════════
-    const leaveBalances = await agentDataRepo.getLeaveBalanceAlerts();
+    const leaveBalances = await safeQuery('getLeaveBalanceAlerts', () => agentDataRepo.getLeaveBalanceAlerts(), []);
     queriesRun++;
 
     let leaveBalanceFindingsCount = 0;
@@ -1224,7 +1233,7 @@ export class CommunicationsAgent implements IAgent {
     // ─── FINDING TYPE 33-34: MEETING DISCIPLINE METRICS ───
     // ─── [WEEKLY SUMMARY: Contributes to consolidated review task] ───
     // ═══════════════════════════════════════════════════════════════
-    const meetingDiscipline = await agentDataRepo.getMeetingDisciplineMetrics();
+    const meetingDiscipline = await safeQuery('getMeetingDisciplineMetrics', () => agentDataRepo.getMeetingDisciplineMetrics(), { completionRate: 100, overdueCommitments: 0, totalCommitments: 0, repeatOffenders: [] } as Awaited<ReturnType<typeof agentDataRepo.getMeetingDisciplineMetrics>>);
     queriesRun++;
 
     let meetingDisciplineFindingsCount = 0;
@@ -1267,8 +1276,8 @@ export class CommunicationsAgent implements IAgent {
     // ═══════════════════════════════════════════════════════════════
     // ─── FINDING TYPE 38-42: APPRAISAL COMPLETION MONITORING ───
     // ═══════════════════════════════════════════════════════════════
-    const pendingAppraisals = await agentDataRepo.getPendingAppraisals();
-    const appraisalCycleProgress = await agentDataRepo.getAppraisalCycleProgress();
+    const pendingAppraisals = await safeQuery('getPendingAppraisals', () => agentDataRepo.getPendingAppraisals(), []);
+    const appraisalCycleProgress = await safeQuery('getAppraisalCycleProgress', () => agentDataRepo.getAppraisalCycleProgress(), []);
     queriesRun += 2;
 
     const overdueSelfAssessments = pendingAppraisals.filter(a => ['open', 'draft'].includes(a.status) && a.daysOverdueSelf > 0);
@@ -1388,7 +1397,7 @@ export class CommunicationsAgent implements IAgent {
     // ═══════════════════════════════════════════════════════════════════════
 
     // Query inactive user tasks before the skip guard — needed for insight summary
-    const inactiveUserTasks = await agentDataRepo.getTasksAssignedToInactiveUsers();
+    const inactiveUserTasks = await safeQuery('getTasksAssignedToInactiveUsers', () => agentDataRepo.getTasksAssignedToInactiveUsers(), []);
     queriesRun++;
 
     // ─── GROUP A: 28 AUTOMATED TASK-CREATING FINDINGS ───
@@ -2654,8 +2663,8 @@ export class CommunicationsAgent implements IAgent {
     // ═══════════════════════════════════════════════════════════════
     // ─── TREND ANALYSIS + DAILY INSIGHT ───
     // ═══════════════════════════════════════════════════════════════
-    const emailStats = await agentDataRepo.getEmailStats();
-    const trends = await agentDataRepo.getTrendComparison();
+    const emailStats = await safeQuery('getEmailStats', () => agentDataRepo.getEmailStats(), { total: 0, p0: 0, p1: 0, p2: 0, p3: 0, unanswered: 0 } as Awaited<ReturnType<typeof agentDataRepo.getEmailStats>>);
+    const trends = await safeQuery('getTrendComparison', () => agentDataRepo.getTrendComparison(), { currentOverdueTasks: 0, previousOverdueTasks: 0, currentDwarMissing: 0, previousDwarMissing: 0, currentAttendanceIssues: 0, previousAttendanceIssues: 0, currentPendingLeaves: 0, previousPendingLeaves: 0, currentOverdueCommitments: 0, previousOverdueCommitments: 0 } as Awaited<ReturnType<typeof agentDataRepo.getTrendComparison>>);
     queriesRun += 2;
 
     const trendLine = (current: number, previous: number, label: string): string => {
