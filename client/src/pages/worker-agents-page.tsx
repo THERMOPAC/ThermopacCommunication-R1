@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import Layout from "@/components/layout";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
   Zap,
@@ -249,6 +250,22 @@ export default function WorkerAgentsPage() {
     },
   });
 
+  const enableWorkerMutation = useMutation({
+    mutationFn: async (workerKey: string) => apiRequest("POST", `/api/l1-workers/workers/${workerKey}/enable`),
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Worker enabled" });
+    },
+  });
+
+  const disableWorkerMutation = useMutation({
+    mutationFn: async (workerKey: string) => apiRequest("POST", `/api/l1-workers/workers/${workerKey}/disable`),
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "Worker disabled" });
+    },
+  });
+
   const stats = summary?.stats;
 
   if (summaryLoading) {
@@ -374,6 +391,10 @@ export default function WorkerAgentsPage() {
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Effectiveness</span>
             </TabsTrigger>
+            <TabsTrigger value="config" className="flex items-center gap-1.5">
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Config</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Live Activity */}
@@ -436,9 +457,8 @@ export default function WorkerAgentsPage() {
                         </tr>
                       ) : (
                         (events || []).map(evt => (
-                          <>
+                          <Fragment key={evt.id}>
                             <tr
-                              key={evt.id}
                               className="border-b last:border-b-0 hover:bg-accent/50 transition-colors cursor-pointer"
                               onClick={() => setExpandedEventId(expandedEventId === evt.id ? null : evt.id)}
                             >
@@ -495,7 +515,7 @@ export default function WorkerAgentsPage() {
                                 </td>
                               </tr>
                             )}
-                          </>
+                          </Fragment>
                         ))
                       )}
                     </tbody>
@@ -737,9 +757,8 @@ export default function WorkerAgentsPage() {
                           </thead>
                           <tbody>
                             {grouped[mod].map(worker => (
-                              <>
+                              <Fragment key={worker.id}>
                                 <tr
-                                  key={worker.id}
                                   className="border-b last:border-b-0 hover:bg-accent/50 transition-colors cursor-pointer"
                                   onClick={() => setExpandedWorkerId(expandedWorkerId === worker.id ? null : worker.id)}
                                 >
@@ -836,7 +855,7 @@ export default function WorkerAgentsPage() {
                                     </td>
                                   </tr>
                                 )}
-                              </>
+                              </Fragment>
                             ))}
                           </tbody>
                         </table>
@@ -959,6 +978,117 @@ export default function WorkerAgentsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Tab 6: Config */}
+          <TabsContent value="config" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {(() => {
+                const workers = summary?.workers || [];
+                const moduleOrder = ["Task Management", "DWAR", "Leave Management", "Appraisal", "Attendance"];
+                const grouped: Record<string, L1Worker[]> = {};
+                workers.forEach(w => {
+                  const mod = w.module || "Other";
+                  if (!grouped[mod]) grouped[mod] = [];
+                  grouped[mod].push(w);
+                });
+                const sortedModules = moduleOrder.filter(m => grouped[m]).concat(
+                  Object.keys(grouped).filter(m => !moduleOrder.includes(m))
+                );
+
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Zap className="h-5 w-5" />
+                        Worker Registry
+                      </CardTitle>
+                      <CardDescription>Enable or disable workers</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-5">
+                        {sortedModules.map(mod => (
+                          <div key={mod}>
+                            <p className="text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-2">{mod}</p>
+                            <div className="space-y-2">
+                              {grouped[mod].map(worker => (
+                                <div key={worker.workerKey} className="flex items-center justify-between p-3 rounded-lg border">
+                                  <div>
+                                    <p className="font-medium text-sm">{worker.displayName}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <p className="text-xs text-muted-foreground">
+                                        {worker.eventsConsumed} events · {worker.actionsCreated} actions
+                                      </p>
+                                      {worker.phase === "phase2" && (
+                                        <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">Phase 2</Badge>
+                                      )}
+                                    </div>
+                                    {worker.consecutiveErrors > 0 && (
+                                      <p className="text-xs text-red-500 mt-0.5">{worker.consecutiveErrors} consecutive errors</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={worker.isEnabled}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) enableWorkerMutation.mutate(worker.workerKey);
+                                        else disableWorkerMutation.mutate(worker.workerKey);
+                                      }}
+                                      className={worker.isEnabled ? 'data-[state=checked]:bg-green-600' : 'data-[state=unchecked]:bg-red-500'}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Info className="h-5 w-5" />
+                    Event Listeners
+                  </CardTitle>
+                  <CardDescription>Events each worker listens to and checks performed</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                    {(summary?.workers || []).map(worker => (
+                      <div key={worker.workerKey} className="flex items-start justify-between p-3 rounded-lg border text-sm">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge className={workerKeyColor(worker.workerKey)} variant="outline">
+                              {workerKeyLabel(worker.workerKey)}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {worker.listenEvents.join(", ")}
+                          </p>
+                        </div>
+                        <div className="text-right text-xs shrink-0 ml-3">
+                          {worker.checks && worker.checks.length > 0 ? (
+                            <div className="flex flex-col gap-1 items-end">
+                              {worker.checks.map(check => (
+                                <Badge key={check} variant="secondary" className="text-xs">
+                                  {check.replace(/_/g, " ")}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">No checks</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

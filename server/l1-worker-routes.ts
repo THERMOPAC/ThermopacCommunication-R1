@@ -245,4 +245,24 @@ router.post("/actions/:id/resolve", ensureAuthenticated, async (req: Request, re
   }
 });
 
+router.post("/workers/:workerKey/enable", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { workerKey } = req.params;
+    await db.update(l1Workers).set({ isEnabled: true }).where(eq(l1Workers.workerKey, workerKey));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post("/workers/:workerKey/disable", ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { workerKey } = req.params;
+    await db.update(l1Workers).set({ isEnabled: false }).where(eq(l1Workers.workerKey, workerKey));
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 export default router;
