@@ -317,6 +317,7 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
       date: entry.date,
       status: entry.status,
       source: 'manual_calendar',
+      statusSource: 'manual_calendar',
       workingHours: entry.status === 'present' ? '8.00' : entry.status === 'half_day' ? '4.00' : '0',
       adminNotes: `Marked via calendar by ${adminUser.username}`,
       createdAt: new Date(),
@@ -332,6 +333,7 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
             set: {
               status: record.status,
               source: 'manual_calendar',
+              statusSource: 'manual_calendar',
               workingHours: record.workingHours,
               adminNotes: record.adminNotes,
               updatedAt: new Date(),

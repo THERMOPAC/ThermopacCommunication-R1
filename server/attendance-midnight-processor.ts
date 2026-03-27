@@ -1,6 +1,6 @@
 import { db } from './db';
 import { attendanceRecords, attendanceIssues, dailyWorkReports, users, leaveRequests, companyHolidays } from '@shared/schema';
-import { eq, and, isNull, gte, lte, not, inArray } from 'drizzle-orm';
+import { eq, and, isNull, gte, lte, not, inArray, sql } from 'drizzle-orm';
 import { determineAttendanceStatus } from './attendance-status-engine';
 
 /**
@@ -138,7 +138,10 @@ export class AttendanceMidnightProcessor {
           weeklyOffDays: users.weeklyOffDays,
         })
         .from(users)
-        .where(eq(users.isActive, true));
+        .where(and(
+          eq(users.isActive, true),
+          sql`coalesce(${users.userType}, 'system_user') = 'system_user'`
+        ));
 
       const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
       let created = 0;
