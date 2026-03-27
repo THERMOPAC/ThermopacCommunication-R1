@@ -42,3 +42,9 @@ id = "pqbTdh0fka_wuWyIRDBkR"
 uri = "file://attached_assets/ATTENDANCE_VERIFICATION_PACK.md"
 type = "text"
 title = "Attendance Verification Pack & Shared Status Engine Proposal"
+
+[[outputs]]
+id = "CfE1qjZurYT70GVR-2bj7"
+uri = "file://attached_assets/ATTENDANCE_POST_IMPLEMENTATION_REVIEW.md"
+type = "text"
+title = "Attendance System — Post-Implementation Expert Review"
