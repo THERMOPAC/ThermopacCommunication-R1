@@ -37,6 +37,8 @@ type L1Worker = {
   description: string | null;
   listenEvents: string[];
   checks: string[] | null;
+  module: string | null;
+  phase: string | null;
   isEnabled: boolean;
   isSuspended: boolean;
   eventsConsumed: number;
@@ -699,118 +701,149 @@ export default function WorkerAgentsPage() {
                   <Zap className="h-5 w-5" />
                   Worker Status
                 </CardTitle>
-                <CardDescription>All registered L1 workers and processing stats</CardDescription>
+                <CardDescription>All registered L1 workers grouped by module — all disabled by default</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b bg-muted/50">
-                        <th className="text-left py-2.5 px-4 font-medium text-muted-foreground">Worker</th>
-                        <th className="text-left py-2.5 px-3 font-medium text-muted-foreground">Status</th>
-                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Events</th>
-                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Actions</th>
-                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Resolved</th>
-                        <th className="text-center py-2.5 px-3 font-medium text-muted-foreground">Avg ms</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(summary?.workers || []).map(worker => (
-                        <>
-                          <tr
-                            key={worker.id}
-                            className="border-b last:border-b-0 hover:bg-accent/50 transition-colors cursor-pointer"
-                            onClick={() => setExpandedWorkerId(expandedWorkerId === worker.id ? null : worker.id)}
-                          >
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className={`w-2 h-2 rounded-full shrink-0 ${worker.isEnabled && !worker.isSuspended ? 'bg-green-500' : worker.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
-                                <div>
-                                  <p className="font-medium text-sm">{worker.displayName}</p>
-                                  <p className="text-xs text-muted-foreground line-clamp-1">{worker.description}</p>
-                                </div>
-                                {expandedWorkerId === worker.id ? (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-3">
-                              {worker.isEnabled && !worker.isSuspended ? (
-                                <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
-                              ) : worker.isSuspended ? (
-                                <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
-                              ) : (
-                                <Badge variant="secondary" className="text-xs">Disabled</Badge>
-                              )}
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span className="text-sm font-medium">{worker.eventsConsumed}</span>
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span className="text-sm font-medium">{worker.actionsCreated}</span>
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span className="text-sm font-medium">{worker.actionsResolved}</span>
-                            </td>
-                            <td className="py-3 px-3 text-center">
-                              <span className="text-xs text-muted-foreground">{worker.avgResponseMs}ms</span>
-                            </td>
-                          </tr>
-                          {expandedWorkerId === worker.id && (
-                            <tr key={`${worker.id}-detail`}>
-                              <td colSpan={6} className="bg-muted/30 px-6 py-4 border-b">
-                                <div className="space-y-3 text-sm">
-                                  <div>
-                                    <p className="text-xs text-muted-foreground mb-1">Listens to</p>
-                                    <div className="flex gap-1.5 flex-wrap">
-                                      {worker.listenEvents.map(evt => (
-                                        <Badge key={evt} variant="outline" className="text-xs">{evt}</Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                  {worker.checks && worker.checks.length > 0 && (
-                                    <div>
-                                      <p className="text-xs text-muted-foreground mb-1">Checks performed</p>
-                                      <div className="flex gap-1.5 flex-wrap">
-                                        {worker.checks.map(check => (
-                                          <Badge key={check} variant="secondary" className="text-xs">
-                                            {check.replace(/_/g, " ")}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                  <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">Last Event</p>
-                                      <p className="font-medium">
-                                        {worker.lastEventAt
-                                          ? formatDistanceToNow(new Date(worker.lastEventAt), { addSuffix: true })
-                                          : "Never"}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">Errors</p>
-                                      <p className={`font-medium ${worker.consecutiveErrors > 0 ? "text-red-500" : ""}`}>
-                                        {worker.consecutiveErrors}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">Mode</p>
-                                      <p className="font-medium">Event-driven</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
+                {(() => {
+                  const workers = summary?.workers || [];
+                  const moduleOrder = ["Task Management", "DWAR", "Leave Management", "Appraisal", "Attendance"];
+                  const grouped: Record<string, L1Worker[]> = {};
+                  workers.forEach(w => {
+                    const mod = w.module || "Other";
+                    if (!grouped[mod]) grouped[mod] = [];
+                    grouped[mod].push(w);
+                  });
+                  const sortedModules = moduleOrder.filter(m => grouped[m]).concat(
+                    Object.keys(grouped).filter(m => !moduleOrder.includes(m))
+                  );
+
+                  return sortedModules.map(mod => (
+                    <div key={mod}>
+                      <div className="px-4 py-2.5 bg-muted/30 border-b">
+                        <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">{mod}</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="text-left py-2 px-4 font-medium text-muted-foreground">Worker</th>
+                              <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+                              <th className="text-left py-2 px-3 font-medium text-muted-foreground">Phase</th>
+                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Events</th>
+                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Actions</th>
+                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Resolved</th>
+                              <th className="text-center py-2 px-3 font-medium text-muted-foreground">Avg ms</th>
                             </tr>
-                          )}
-                        </>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </thead>
+                          <tbody>
+                            {grouped[mod].map(worker => (
+                              <>
+                                <tr
+                                  key={worker.id}
+                                  className="border-b last:border-b-0 hover:bg-accent/50 transition-colors cursor-pointer"
+                                  onClick={() => setExpandedWorkerId(expandedWorkerId === worker.id ? null : worker.id)}
+                                >
+                                  <td className="py-3 px-4">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className={`w-2 h-2 rounded-full shrink-0 ${worker.isEnabled && !worker.isSuspended ? 'bg-green-500' : worker.isSuspended ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+                                      <div>
+                                        <p className="font-medium text-sm">{worker.displayName}</p>
+                                        <p className="text-xs text-muted-foreground line-clamp-1">{worker.description}</p>
+                                      </div>
+                                      {expandedWorkerId === worker.id ? (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    {worker.isEnabled && !worker.isSuspended ? (
+                                      <Badge variant="default" className="bg-green-600 text-xs">Active</Badge>
+                                    ) : worker.isSuspended ? (
+                                      <Badge variant="default" className="bg-yellow-600 text-xs">Suspended</Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs">Disabled</Badge>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <Badge variant="outline" className={`text-xs ${worker.phase === 'phase2' ? 'border-orange-300 text-orange-600' : ''}`}>
+                                      {worker.phase === 'phase1' ? 'Phase 1' : 'Phase 2'}
+                                    </Badge>
+                                  </td>
+                                  <td className="py-3 px-3 text-center">
+                                    <span className="text-sm font-medium">{worker.eventsConsumed}</span>
+                                  </td>
+                                  <td className="py-3 px-3 text-center">
+                                    <span className="text-sm font-medium">{worker.actionsCreated}</span>
+                                  </td>
+                                  <td className="py-3 px-3 text-center">
+                                    <span className="text-sm font-medium">{worker.actionsResolved}</span>
+                                  </td>
+                                  <td className="py-3 px-3 text-center">
+                                    <span className="text-xs text-muted-foreground">{worker.avgResponseMs}ms</span>
+                                  </td>
+                                </tr>
+                                {expandedWorkerId === worker.id && (
+                                  <tr key={`${worker.id}-detail`}>
+                                    <td colSpan={7} className="bg-muted/30 px-6 py-4 border-b">
+                                      <div className="space-y-3 text-sm">
+                                        <div>
+                                          <p className="text-xs text-muted-foreground mb-1">Listens to</p>
+                                          <div className="flex gap-1.5 flex-wrap">
+                                            {worker.listenEvents.map(evt => (
+                                              <Badge key={evt} variant="outline" className="text-xs">{evt}</Badge>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        {worker.checks && worker.checks.length > 0 && (
+                                          <div>
+                                            <p className="text-xs text-muted-foreground mb-1">Checks performed</p>
+                                            <div className="flex gap-1.5 flex-wrap">
+                                              {worker.checks.map(check => (
+                                                <Badge key={check} variant="secondary" className="text-xs">
+                                                  {check.replace(/_/g, " ")}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+                                        <div className="grid grid-cols-4 gap-4">
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Module</p>
+                                            <p className="font-medium">{worker.module || "—"}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Last Event</p>
+                                            <p className="font-medium">
+                                              {worker.lastEventAt
+                                                ? formatDistanceToNow(new Date(worker.lastEventAt), { addSuffix: true })
+                                                : "Never"}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Errors</p>
+                                            <p className={`font-medium ${worker.consecutiveErrors > 0 ? "text-red-500" : ""}`}>
+                                              {worker.consecutiveErrors}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-muted-foreground">Mode</p>
+                                            <p className="font-medium">Event-driven</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ));
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
