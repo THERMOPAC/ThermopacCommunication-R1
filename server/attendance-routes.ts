@@ -938,9 +938,13 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     }
 
     const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     const reqDate = new Date(requestDate);
     if (reqDate > today) {
       return res.status(400).json({ error: 'Cannot submit regularization for a future date' });
+    }
+    if (requestType === 'missed_checkout' && requestDate === todayStr) {
+      return res.status(400).json({ error: 'Cannot submit a missed check-out regularization for today. Please use the Check Out button instead.' });
     }
 
     const balanceYear = reqDate.getFullYear();

@@ -7,7 +7,7 @@ import { insertTaskSchema, insertUserSchema, insertRecurringPatternSchema, inser
 import { canManage, roleHierarchy } from "@shared/roles";
 import { scrypt, timingSafeEqual, randomBytes } from "crypto";
 import { promisify } from "util";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, isNull, isNotNull } from "drizzle-orm";
 import { getUserModulePermissions } from "./utils/permission-utils";
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from "./utils/error-response";
 import { setupGmailRoutes } from "./gmail-routes";
@@ -80,7 +80,7 @@ import agentRoutes from "./agents/agent-routes";
 import l1WorkerRoutes from "./l1-worker-routes";
 import { initializeAgentSystem } from "./agents/agent-setup";
 import { db } from "./db";
-import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
+import { masterItems as masterItemsTable, projectItems as projectItemsTable, attendanceRecords } from "@shared/schema";
 import { checkGcsPermissions } from "./utils/gcs-permissions-check";
 import { default as tripManagementRoutes } from "./trip-management-routes";
 import { default as visaManagementRoutes } from "./visa-management-routes";
@@ -1785,9 +1785,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logout endpoint with proper error handling
-  app.post("/api/logout", (req, res) => {
+  // Logout endpoint with auto-checkout
+  app.post("/api/logout", async (req, res) => {
     try {
+      const userId = (req.user as any)?.id;
+
+      if (userId) {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const now = new Date();
+          const [openRecord] = await db
+            .select()
+            .from(attendanceRecords)
+            .where(and(
+              eq(attendanceRecords.userId, userId),
+              eq(attendanceRecords.date, today),
+              isNotNull(attendanceRecords.checkInTime),
+              isNull(attendanceRecords.checkOutTime)
+            ));
+
+          if (openRecord) {
+            const checkInTime = new Date(openRecord.checkInTime!);
+            const workingHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+            await db.update(attendanceRecords).set({
+              checkOutTime: now,
+              workingHours: workingHours.toFixed(2),
+              employeeNotes: 'Auto-checkout on logout',
+              updatedAt: now,
+            }).where(eq(attendanceRecords.id, openRecord.id));
+            console.log(`Auto-checkout on logout for user ${userId}: ${workingHours.toFixed(2)}h`);
+          }
+        } catch (checkoutErr) {
+          console.error('Auto-checkout on logout failed:', checkoutErr);
+        }
+      }
+
       if (req.session) {
         req.session.destroy((err) => {
           if (err) {
