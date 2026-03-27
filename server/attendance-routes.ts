@@ -1,7 +1,7 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays, leaveTypes, leaveBalances } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays } from '@shared/schema';
 import { createNotification } from './notification-routes';
 import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
@@ -906,9 +906,9 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
     }
 
-    const validTypes = ['outdoor_duty', 'missed_checkout', 'full_day_regularization'];
+    const validTypes = ['outdoor_duty', 'missed_checkout'];
     if (!validTypes.includes(requestType)) {
-      return res.status(400).json({ error: 'Invalid request type' });
+      return res.status(400).json({ error: 'Invalid request type. Use Leave Request for full-day absences.' });
     }
 
     const [attendanceState] = await db.select({
@@ -928,8 +928,8 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     if (requestType === 'missed_checkout' && !isMissingCheckout) {
       return res.status(400).json({ error: 'Missed Check-Out is only valid when check-in exists but check-out is missing' });
     }
-    if ((requestType === 'outdoor_duty' || requestType === 'full_day_regularization') && isMissingCheckout) {
-      return res.status(400).json({ error: 'This request type is not valid for a date with existing check-in. Use Missed Check-Out instead.' });
+    if (requestType === 'outdoor_duty' && isMissingCheckout) {
+      return res.status(400).json({ error: 'Outdoor Duty is not valid for a date with existing check-in. Use Missed Check-Out instead.' });
     }
 
     const lockCheck = await checkPayrollLock('attendance', requestDate, user.id);
@@ -945,38 +945,6 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     }
     if (requestType === 'missed_checkout' && requestDate === todayStr) {
       return res.status(400).json({ error: 'Cannot submit a missed check-out regularization for today. Please use the Check Out button instead.' });
-    }
-
-    if (requestType === 'full_day_regularization') {
-      const balanceYear = reqDate.getFullYear();
-      const paidLeaveTypesList = await db.select({ id: leaveTypes.id, name: leaveTypes.name })
-        .from(leaveTypes).where(eq(leaveTypes.isPaid, true));
-
-      if (paidLeaveTypesList.length > 0) {
-        const paidLeaveTypeIds = paidLeaveTypesList.map(lt => lt.id);
-        const balances = await db.select().from(leaveBalances).where(and(
-          eq(leaveBalances.userId, user.id),
-          eq(leaveBalances.year, balanceYear),
-          inArray(leaveBalances.leaveTypeId, paidLeaveTypeIds)
-        ));
-
-        let totalAvailable = 0;
-        for (const b of balances) {
-          const allocated = parseFloat(b.allocatedDays || '0');
-          const carryover = parseFloat(b.carryoverDays || '0');
-          const used = parseFloat(b.usedDays || '0');
-          const pending = parseFloat(b.pendingDays || '0');
-          totalAvailable += Math.max(0, allocated + carryover - used - pending);
-        }
-
-        if (totalAvailable <= 0) {
-          return res.status(400).json({
-            error: 'No paid leave balance available. You cannot submit a regularization request without leave balance. Please contact HR.',
-            code: 'NO_LEAVE_BALANCE',
-            totalAvailable: 0,
-          });
-        }
-      }
     }
 
     const existing = await db.select().from(attendanceRegularizations)
