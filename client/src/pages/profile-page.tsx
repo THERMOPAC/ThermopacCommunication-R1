@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import UserProfile from "@/components/user-profile";
 import UserPasswordChange from "@/components/user-password-change";
+import TwoFactorSettings from "@/components/two-factor-settings";
 import Layout from "@/components/layout";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
@@ -25,7 +26,6 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold mb-8 pl-4">Profile Settings</h1>
 
         <div className="grid gap-8 md:grid-cols-2">
-          {/* User Profile Card */}
           <Card>
             <CardHeader>
               <CardTitle>Profile Information</CardTitle>
@@ -35,8 +35,10 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Change Password Card */}
-          <UserPasswordChange />
+          <div className="space-y-8">
+            <UserPasswordChange />
+            <TwoFactorSettings />
+          </div>
         </div>
       </div>
     </Layout>

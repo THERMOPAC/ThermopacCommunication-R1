@@ -48,6 +48,7 @@ integrations = ["javascript_openai:1.0.0"]
 
 [userenv.shared]
 GOOGLE_ADS_LOGIN_CUSTOMER_ID = "7421286903"
+TWO_FACTOR_ENCRYPTION_KEY = "b5459d8d2a713a2671c16b16d23f9b6b014000ba8cf2bcea3c7f54b410dd77c0"
 
 [postMerge]
 path = "scripts/post-merge.sh"

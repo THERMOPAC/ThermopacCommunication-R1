@@ -5,7 +5,12 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser, passwordChangeSchema } from "@shared/schema";
+import { User as SelectUser, passwordChangeSchema, users, twoFactorAuditLog } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
+import crypto from "crypto";
 import { 
   validatePasswordStrength,
   isPasswordRecentlyUsed,
@@ -243,17 +248,64 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
-    console.log('Login request body:', req.body);
+  const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      return req.body?.username || 'unknown';
+    },
+    validate: { xForwardedForHeader: false, default: true },
+  });
 
-    passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: { message: string } | undefined) => {
+  app.post("/api/login", loginLimiter, (req, res, next) => {
+    passport.authenticate("local", async (err: Error | null, user: SelectUser | false, info: { message: string } | undefined) => {
       if (err) {
         console.error('Authentication error:', err);
         return next(err);
       }
       if (!user) {
-        console.log('Authentication failed:', info?.message);
         return res.status(401).json({ message: info ? info.message : "Invalid username or password" });
+      }
+
+      if (user.twoFactorEnabled) {
+        try {
+          const nonce = crypto.randomBytes(16).toString('hex');
+          const jwtSecret = process.env.TWO_FACTOR_ENCRYPTION_KEY;
+          if (!jwtSecret) {
+            console.error('TWO_FACTOR_ENCRYPTION_KEY not set');
+            return res.status(500).json({ message: 'Server configuration error' });
+          }
+
+          const challengeToken = jwt.sign(
+            { type: '2fa_challenge', userId: user.id, nonce },
+            jwtSecret,
+            { expiresIn: '5m' }
+          );
+
+          await db.update(users).set({
+            twoFactorChallengeNonce: nonce,
+          }).where(eq(users.id, user.id));
+
+          const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+          await db.insert(twoFactorAuditLog).values({
+            userId: user.id,
+            action: 'challenge_issued',
+            ipAddress,
+            userAgent: req.headers['user-agent'] || 'unknown',
+          });
+
+          return res.status(200).json({
+            requires2FA: true,
+            challengeToken,
+            message: 'Please enter your 2FA code to complete login',
+          });
+        } catch (twoFaErr) {
+          console.error('2FA challenge generation error:', twoFaErr);
+          return res.status(500).json({ message: 'Failed to generate 2FA challenge' });
+        }
       }
 
       req.login(user, (err) => {
@@ -261,11 +313,8 @@ export function setupAuth(app: Express) {
           console.error('Session creation error:', err);
           return next(err);
         }
-        console.log('Login successful:', user.username);
         
-        // Check if user needs to update password
         if (user.passwordNeedsUpdate) {
-          console.log(`User ${user.username} requires password update`);
           return res.status(200).json({ 
             ...user, 
             requiresPasswordUpdate: true,

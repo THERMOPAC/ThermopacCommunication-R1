@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import UserProfile from "@/components/user-profile";
 import NotificationBell from "@/components/notification-bell";
 import AlertPopup from "@/components/alert-popup";
@@ -31,6 +32,7 @@ import {
   HeartPulse,
   Lock,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   Settings,
   FileCheck,
@@ -72,6 +74,41 @@ import { Module } from "@shared/schema";
 type LayoutProps = {
   children: React.ReactNode;
 };
+
+const ENFORCED_2FA_ROLES = ['Superuser', 'Admin', 'Finance Manager', 'HR Manager'];
+
+function TwoFactorReminder() {
+  const { user } = useAuth();
+  const [dismissed, setDismissed] = useState(false);
+  const { data: tfaStatus } = useQuery({
+    queryKey: ['/api/2fa/status'],
+    enabled: !!user && ENFORCED_2FA_ROLES.includes(user.role || ''),
+  });
+
+  if (!user || !ENFORCED_2FA_ROLES.includes(user.role || '')) return null;
+  if ((tfaStatus as any)?.enabled) return null;
+  if (dismissed) return null;
+
+  return (
+    <div className="mx-4 mt-3 mb-1 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0" />
+        <p className="text-sm text-amber-800">
+          <strong>Security requirement:</strong> Your role ({user.role}) requires two-factor authentication.{' '}
+          <Link href="/profile" className="underline font-medium text-amber-900 hover:text-amber-700">
+            Set up 2FA now
+          </Link>
+        </p>
+      </div>
+      <button
+        onClick={() => setDismissed(true)}
+        className="text-amber-600 hover:text-amber-800 text-xs shrink-0"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
 
 function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
@@ -677,6 +714,7 @@ function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden">
         <div className="max-w-[calc(100vw-260px)] mx-auto">
+          <TwoFactorReminder />
           <AttendanceGatekeeper onAccessGranted={() => setAttendanceCheckCompleted(true)}>
             {children}
           </AttendanceGatekeeper>

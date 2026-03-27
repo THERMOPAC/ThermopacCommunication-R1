@@ -94,6 +94,7 @@ import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
 import { businessIntelligenceRoutes } from "./business-intelligence/business-intelligence-routes";
 import { default as designReviewRoutes } from "./design-review-routes";
+import { default as twoFactorRoutes } from "./two-factor-routes";
 import { default as designDrawingRoutes } from "./design-drawing-routes";
 import { default as designBasicDrawingRoutes } from "./design-basic-drawings-routes";
 import { default as designStandardsRoutes } from "./design-standards-routes";
@@ -756,6 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // L1 Worker Agents routes
   app.use('/api/l1-workers', l1WorkerRoutes);
+  app.use('/api/2fa', twoFactorRoutes);
   initializeAgentSystem().catch(err => console.error('[AgentSystem] Initialization error:', err));
   
   // Set up advance tax calculation routes

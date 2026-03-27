@@ -812,6 +812,14 @@ const userSchema = {
   // Password Reset Functionality
   resetToken: varchar('reset_token', { length: 255 }),
   resetTokenExpiresAt: timestamp('reset_token_expires_at'),
+
+  // Two-Factor Authentication
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  twoFactorSecret: text('two_factor_secret'),
+  twoFactorBackupCodes: jsonb('two_factor_backup_codes').default('[]'),
+  twoFactorFailedAttempts: integer('two_factor_failed_attempts').default(0),
+  twoFactorLockedUntil: timestamp('two_factor_locked_until'),
+  twoFactorChallengeNonce: text('two_factor_challenge_nonce'),
   
   // Weekly Off Days for Payroll (JSON array of day numbers: 0=Sunday, 1=Monday, etc.)
   // Default is Saturday(6) and Sunday(0) off
@@ -9069,6 +9077,17 @@ export const userProductivityMetrics = pgTable("user_productivity_metrics", {
   efficiencyScore: decimal("efficiency_score", { precision: 5, scale: 2 }).default("0"), // calculated score
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Two-Factor Authentication Audit Log
+export const twoFactorAuditLog = pgTable("two_factor_audit_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  metadata: jsonb("metadata").default('{}'),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Insert schemas for Business Intelligence tables

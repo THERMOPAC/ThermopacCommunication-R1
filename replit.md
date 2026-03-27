@@ -46,8 +46,9 @@ The system is a full-stack web application built with organized, hierarchical da
     - **Employee Appraisal Module**: Standalone module with a L1→L2→L3 hierarchy-based workflow, supporting appraisal cycles, KPI and competency scoring, increment policies, and L3 decision support with system recommendations. Includes a KPI Template Library, audit trail for changes, and a PDF Final Report generator (`GET /api/appraisals/:id/report`) available for approved/closed appraisals with server-side access control.
     - **Alert Management System**: A full alert system with priority levels, categories, and a 3-state workflow.
     - **API Security**: Implements measures against SQL injection, XSS, authentication middleware, and secure credential management.
+    - **Two-Factor Authentication (2FA)**: TOTP-based 2FA using Google Authenticator/Microsoft Authenticator. Stateless JWT challenge tokens with DB-stored nonce for replay prevention. AES-256-GCM encrypted TOTP secrets. Bcrypt-hashed one-time backup recovery codes with used flag. Rate limiting on login (10/15min per username). OTP lockout after 5 failed attempts (15min). Audit log table (`two_factor_audit_log`). Enforced for Superuser/Admin/Finance/HR roles (dismissable reminder banner). Security Settings UI in profile page. Routes at `/api/2fa/*`. Files: `server/two-factor-routes.ts`, `server/utils/two-factor-crypto.ts`, `client/src/components/two-factor-settings.tsx`.
 
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.
 - **Database Services**: Neon (PostgreSQL hosting).
-- **Third-Party Libraries**: SendGrid, PDF-lib, Stripe, Radix UI, Lucide React, date-fns, TanStack Query, Wouter, React Hook Form, Zod, Vite, Drizzle ORM, Multer, bcrypt, nodemailer, XLSX, jsPDF, chart.js, mssql, OpenAI GPT-4o.
+- **Third-Party Libraries**: SendGrid, PDF-lib, Stripe, Radix UI, Lucide React, date-fns, TanStack Query, Wouter, React Hook Form, Zod, Vite, Drizzle ORM, Multer, bcrypt, nodemailer, XLSX, jsPDF, chart.js, mssql, OpenAI GPT-4o, otpauth, jsonwebtoken, qrcode, express-rate-limit.
