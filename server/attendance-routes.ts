@@ -1346,18 +1346,32 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       }
     } else if (reg.requestType === 'missed_checkout') {
       if (existingAttendance && existingAttendance.checkInTime) {
-        const standardHours = Number(employee?.minimumDailyHours) || 9;
         const actualCheckIn = new Date(existingAttendance.checkInTime);
-        const computedCheckOut = new Date(actualCheckIn.getTime() + standardHours * 60 * 60 * 1000);
+        let resolvedCheckOut: Date;
+        if (reg.correctedCheckOut) {
+          resolvedCheckOut = new Date(reg.correctedCheckOut);
+        } else {
+          resolvedCheckOut = dutyCheckOut;
+        }
+        const resolvedHours = (resolvedCheckOut.getTime() - actualCheckIn.getTime()) / (1000 * 60 * 60);
+        const finalHours = Math.max(0, Number(resolvedHours.toFixed(2)));
+        const statusByHours = (() => {
+          const fullDayMin = Number(employee?.minimumDailyHours) || 9;
+          if (finalHours >= fullDayMin) return 'present';
+          if (finalHours >= (fullDayMin / 2)) return 'half_day';
+          return 'present';
+        })();
         await db.update(attendanceRecords).set({
-          checkOutTime: computedCheckOut,
-          status: 'present',
-          workingHours: String(standardHours),
+          checkOutTime: resolvedCheckOut,
+          status: statusByHours,
+          workingHours: String(finalHours),
           isIncomplete: false,
           adminNotes: `Regularized: Missed check-out - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
           adjustedBy: user.id,
-          adjustmentReason: `Missed check-out regularization approved - check-out set to check-in + ${standardHours}h`,
+          adjustmentReason: reg.correctedCheckOut
+            ? `Missed check-out regularization approved - corrected check-out time used`
+            : `Missed check-out regularization approved - duty end time used as fallback`,
           adjustmentDate: new Date(),
           updatedAt: new Date(),
         }).where(eq(attendanceRecords.id, existingAttendance.id));
