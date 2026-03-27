@@ -906,10 +906,11 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
     }
 
-    const validTypes = ['outdoor_duty', 'missed_checkout'];
+    const validTypes = ['outdoor_duty', 'missed_checkout', 'full_day_regularization'];
     if (!validTypes.includes(requestType)) {
       return res.status(400).json({ error: 'Invalid request type. Use Leave Request for full-day absences.' });
     }
+    const effectiveRequestType = requestType === 'full_day_regularization' ? 'outdoor_duty' : requestType;
 
     const [attendanceState] = await db.select({
       checkInTime: attendanceRecords.checkInTime,
@@ -925,10 +926,10 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     const isMissingCheckout = hasCheckIn && !hasCheckOut;
     const isNoRecord = !attendanceState || (!hasCheckIn && !hasCheckOut) || attendanceState.status === 'absent';
 
-    if (requestType === 'missed_checkout' && !isMissingCheckout) {
+    if (effectiveRequestType === 'missed_checkout' && !isMissingCheckout) {
       return res.status(400).json({ error: 'Missed Check-Out is only valid when check-in exists but check-out is missing' });
     }
-    if (requestType === 'outdoor_duty' && isMissingCheckout) {
+    if (effectiveRequestType === 'outdoor_duty' && isMissingCheckout) {
       return res.status(400).json({ error: 'Outdoor Duty is not valid for a date with existing check-in. Use Missed Check-Out instead.' });
     }
 
@@ -943,7 +944,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     if (reqDate > today) {
       return res.status(400).json({ error: 'Cannot submit regularization for a future date' });
     }
-    if (requestType === 'missed_checkout' && requestDate === todayStr) {
+    if (effectiveRequestType === 'missed_checkout' && requestDate === todayStr) {
       return res.status(400).json({ error: 'Cannot submit a missed check-out regularization for today. Please use the Check Out button instead.' });
     }
 
@@ -951,7 +952,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       .where(and(
         eq(attendanceRegularizations.employeeId, user.id),
         eq(attendanceRegularizations.requestDate, requestDate),
-        eq(attendanceRegularizations.requestType, requestType)
+        eq(attendanceRegularizations.requestType, effectiveRequestType)
       ));
     if (existing.length > 0) {
       return res.status(409).json({ error: 'A regularization request already exists for this date and type' });
@@ -980,14 +981,14 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       by: user.id,
       byName: empName,
       at: new Date().toISOString(),
-      details: `Regularization request submitted: ${requestType}`,
+      details: `Regularization request submitted: ${effectiveRequestType}`,
     }];
 
     const [reg] = await db.insert(attendanceRegularizations).values({
       employeeId: user.id,
       attendanceRecordId: attendanceRec?.id || null,
       requestDate,
-      requestType,
+      requestType: effectiveRequestType,
       correctedCheckIn: null,
       correctedCheckOut: null,
       reason,
@@ -997,7 +998,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       auditTrail: auditEntry,
     }).returning();
 
-    const typeLabel = REQUEST_TYPE_LABELS[requestType] || requestType;
+    const typeLabel = REQUEST_TYPE_LABELS[effectiveRequestType] || effectiveRequestType;
 
     if (approverId) {
       await createNotification({
