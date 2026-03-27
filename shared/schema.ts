@@ -10559,3 +10559,75 @@ export const appraisalApprovalsRelations = relations(appraisalApprovals, ({ one 
   appraisal: one(employeeAppraisals, { fields: [appraisalApprovals.appraisalId], references: [employeeAppraisals.id] }),
   user: one(users, { fields: [appraisalApprovals.performedBy], references: [users.id], relationName: 'appraisalApprovalUser' }),
 }));
+
+export const l1Workers = pgTable("l1_workers", {
+  id: serial("id").primaryKey(),
+  workerKey: varchar("worker_key", { length: 100 }).notNull().unique(),
+  displayName: varchar("display_name", { length: 200 }).notNull(),
+  description: text("description"),
+  listenEvents: text("listen_events").array().notNull(),
+  checks: text("checks").array(),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  isSuspended: boolean("is_suspended").notNull().default(false),
+  eventsConsumed: integer("events_consumed").notNull().default(0),
+  actionsCreated: integer("actions_created").notNull().default(0),
+  actionsResolved: integer("actions_resolved").notNull().default(0),
+  avgResponseMs: integer("avg_response_ms").notNull().default(0),
+  consecutiveErrors: integer("consecutive_errors").notNull().default(0),
+  lastEventAt: timestamp("last_event_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertL1WorkerSchema = createInsertSchema(l1Workers).omit({ id: true, createdAt: true });
+export type InsertL1Worker = z.infer<typeof insertL1WorkerSchema>;
+export type L1Worker = typeof l1Workers.$inferSelect;
+
+export const l1Events = pgTable("l1_events", {
+  id: serial("id").primaryKey(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  workerKey: varchar("worker_key", { length: 100 }).notNull(),
+  userId: integer("user_id"),
+  userName: varchar("user_name", { length: 200 }),
+  entityType: varchar("entity_type", { length: 100 }),
+  entityId: varchar("entity_id", { length: 100 }),
+  entityLabel: varchar("entity_label", { length: 500 }),
+  checksRun: integer("checks_run").notNull().default(0),
+  checksPassed: integer("checks_passed").notNull().default(0),
+  actionsGenerated: integer("actions_generated").notNull().default(0),
+  resultStatus: varchar("result_status", { length: 50 }).notNull().default("passed"),
+  resultSummary: varchar("result_summary", { length: 500 }),
+  processingMs: integer("processing_ms").notNull().default(0),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertL1EventSchema = createInsertSchema(l1Events).omit({ id: true, createdAt: true });
+export type InsertL1Event = z.infer<typeof insertL1EventSchema>;
+export type L1Event = typeof l1Events.$inferSelect;
+
+export const l1Actions = pgTable("l1_actions", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id"),
+  workerKey: varchar("worker_key", { length: 100 }).notNull(),
+  userId: integer("user_id").notNull(),
+  userName: varchar("user_name", { length: 200 }),
+  priority: varchar("priority", { length: 20 }).notNull().default("P2"),
+  what: varchar("what", { length: 200 }).notNull(),
+  where: varchar("where", { length: 500 }),
+  whenTo: varchar("when_to", { length: 200 }),
+  why: varchar("why", { length: 500 }),
+  actionLabel: varchar("action_label", { length: 100 }),
+  actionUrl: varchar("action_url", { length: 500 }),
+  entityType: varchar("entity_type", { length: 100 }),
+  entityId: varchar("entity_id", { length: 100 }),
+  status: varchar("status", { length: 50 }).notNull().default("open"),
+  warningType: varchar("warning_type", { length: 100 }),
+  dismissCount: integer("dismiss_count").notNull().default(0),
+  resolvedAt: timestamp("resolved_at"),
+  dismissedAt: timestamp("dismissed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertL1ActionSchema = createInsertSchema(l1Actions).omit({ id: true, createdAt: true });
+export type InsertL1Action = z.infer<typeof insertL1ActionSchema>;
+export type L1Action = typeof l1Actions.$inferSelect;

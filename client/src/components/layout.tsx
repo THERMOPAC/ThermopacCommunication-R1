@@ -246,6 +246,7 @@ function Layout({ children }: LayoutProps) {
       label: "Agent Dashboard", 
       href: "/agent-dashboard" 
     }] : []),
+    { icon: Zap, label: "Worker Agents", href: "/worker-agents" },
     { icon: Mail, label: "Emails", href: "/emails" },
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
       icon: CalendarDays, 

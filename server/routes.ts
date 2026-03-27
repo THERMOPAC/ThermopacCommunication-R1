@@ -77,6 +77,7 @@ import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
 import { registerCalibrationTestRoutes } from "./calibration-test-routes";
 import agentRoutes from "./agents/agent-routes";
+import l1WorkerRoutes from "./l1-worker-routes";
 import { initializeAgentSystem } from "./agents/agent-setup";
 import { db } from "./db";
 import { masterItems as masterItemsTable, projectItems as projectItemsTable } from "@shared/schema";
@@ -752,6 +753,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Set up Multi-Agent Intelligence Layer routes
   app.use('/api/agents', ensureAuthenticated, agentRoutes);
+
+  // L1 Worker Agents routes
+  app.use('/api/l1-workers', l1WorkerRoutes);
   initializeAgentSystem().catch(err => console.error('[AgentSystem] Initialization error:', err));
   
   // Set up advance tax calculation routes
