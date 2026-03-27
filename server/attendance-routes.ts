@@ -947,33 +947,35 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       return res.status(400).json({ error: 'Cannot submit a missed check-out regularization for today. Please use the Check Out button instead.' });
     }
 
-    const balanceYear = reqDate.getFullYear();
-    const paidLeaveTypesList = await db.select({ id: leaveTypes.id, name: leaveTypes.name })
-      .from(leaveTypes).where(eq(leaveTypes.isPaid, true));
+    if (requestType !== 'missed_checkout') {
+      const balanceYear = reqDate.getFullYear();
+      const paidLeaveTypesList = await db.select({ id: leaveTypes.id, name: leaveTypes.name })
+        .from(leaveTypes).where(eq(leaveTypes.isPaid, true));
 
-    if (paidLeaveTypesList.length > 0) {
-      const paidLeaveTypeIds = paidLeaveTypesList.map(lt => lt.id);
-      const balances = await db.select().from(leaveBalances).where(and(
-        eq(leaveBalances.userId, user.id),
-        eq(leaveBalances.year, balanceYear),
-        inArray(leaveBalances.leaveTypeId, paidLeaveTypeIds)
-      ));
+      if (paidLeaveTypesList.length > 0) {
+        const paidLeaveTypeIds = paidLeaveTypesList.map(lt => lt.id);
+        const balances = await db.select().from(leaveBalances).where(and(
+          eq(leaveBalances.userId, user.id),
+          eq(leaveBalances.year, balanceYear),
+          inArray(leaveBalances.leaveTypeId, paidLeaveTypeIds)
+        ));
 
-      let totalAvailable = 0;
-      for (const b of balances) {
-        const allocated = parseFloat(b.allocatedDays || '0');
-        const carryover = parseFloat(b.carryoverDays || '0');
-        const used = parseFloat(b.usedDays || '0');
-        const pending = parseFloat(b.pendingDays || '0');
-        totalAvailable += Math.max(0, allocated + carryover - used - pending);
-      }
+        let totalAvailable = 0;
+        for (const b of balances) {
+          const allocated = parseFloat(b.allocatedDays || '0');
+          const carryover = parseFloat(b.carryoverDays || '0');
+          const used = parseFloat(b.usedDays || '0');
+          const pending = parseFloat(b.pendingDays || '0');
+          totalAvailable += Math.max(0, allocated + carryover - used - pending);
+        }
 
-      if (totalAvailable <= 0) {
-        return res.status(400).json({
-          error: 'No paid leave balance available. You cannot submit a regularization request without leave balance. Please contact HR.',
-          code: 'NO_LEAVE_BALANCE',
-          totalAvailable: 0,
-        });
+        if (totalAvailable <= 0) {
+          return res.status(400).json({
+            error: 'No paid leave balance available. You cannot submit a regularization request without leave balance. Please contact HR.',
+            code: 'NO_LEAVE_BALANCE',
+            totalAvailable: 0,
+          });
+        }
       }
     }
 
