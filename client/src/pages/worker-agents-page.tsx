@@ -143,9 +143,9 @@ function workerKeyColor(key: string) {
     "l1-agent-enricher": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
     "l1-dwar-presubmit": "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
     "l1-dwar-attendance-sync": "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    "l1-leave-request": "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
-    "l1-leave-approval": "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+    "l1-leave-overlap": "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
     "l1-appraisal-chain": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+    "l1-attendance-checkout": "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
   };
   return colors[key] || "bg-gray-100 text-gray-800";
 }
