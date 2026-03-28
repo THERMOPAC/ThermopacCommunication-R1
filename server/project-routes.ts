@@ -17,6 +17,7 @@ import {
   itemPlanningRecords,
   procurementExecutionRecords,
   productionExecutionRecords,
+  qualityPlanningRecords,
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2022,8 +2023,16 @@ export function setupProjectRoutes(app: express.Express) {
               RETURNING id`
         );
         cascadedProcExecIds = cascadeResult.rows.map((r: any) => r.id);
+        for (const procId of cascadedProcExecIds) {
+          await db.execute(
+            sql`UPDATE quality_planning_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+          );
+        }
         if (cascadedProcExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) for planning record ${id}`);
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) + quality plans for planning record ${id}`);
         }
       }
       if (record.planning_type === 'production') {
@@ -2035,8 +2044,16 @@ export function setupProjectRoutes(app: express.Express) {
               RETURNING id`
         );
         cascadedProdExecIds = cascadeResult.rows.map((r: any) => r.id);
+        for (const prodId of cascadedProdExecIds) {
+          await db.execute(
+            sql`UPDATE quality_planning_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+          );
+        }
         if (cascadedProdExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) for planning record ${id}`);
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) + quality plans for planning record ${id}`);
         }
       }
 
@@ -2311,8 +2328,43 @@ export function setupProjectRoutes(app: express.Express) {
           preferredVendorName: record.preferred_vendor_name, preparationNote,
         })}::jsonb, NOW())`);
 
+      let qualityPlanId: number | null = null;
+      const existingQP = await db.execute(
+        sql`SELECT id FROM quality_planning_records 
+            WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+      );
+      if (existingQP.rows.length === 0) {
+        const [qpRec] = await db.insert(qualityPlanningRecords).values({
+          projectId: record.project_id,
+          projectItemId: record.project_item_id,
+          masterItemId: record.master_item_id,
+          sourceContext: 'procurement',
+          procurementExecId: id,
+          planningRecordId: record.planning_record_id,
+          itemCode: record.item_code || null,
+          itemDescription: record.item_description || null,
+          itemSpecification: record.item_specification || null,
+          uom: record.uom || null,
+          drawingNo: record.drawing_no || null,
+          quantity: record.quantity,
+          qualityRequirementType: 'incoming_inspection',
+          status: 'draft',
+          assignedTo: record.assigned_to,
+          createdBy: userId,
+        }).returning();
+        qualityPlanId = qpRec.id;
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+          VALUES (${record.project_id}, 'quality_planning.created_from_procurement', ${JSON.stringify({
+            qualityPlanId: qpRec.id, procurementExecId: id,
+            projectItemId: record.project_item_id, qualityType: 'incoming_inspection', createdBy: userId,
+          })}::jsonb, NOW())`);
+        console.log(`[ProcurementExec] Created quality planning record ${qpRec.id} (incoming_inspection) from procurement exec ${id}`);
+      } else {
+        qualityPlanId = (existingQP.rows[0] as any).id;
+      }
+
       console.log(`[ProcurementExec] Record ${id} marked ready for PO by user ${userId}`);
-      res.json({ success: true, message: 'Procurement execution record marked ready for PO', id, newStatus: 'ready_for_po' });
+      res.json({ success: true, message: 'Procurement execution record marked ready for PO', id, newStatus: 'ready_for_po', qualityPlanId });
     } catch (error) {
       sendError(res, error);
     }
@@ -2372,14 +2424,23 @@ export function setupProjectRoutes(app: express.Express) {
         })
         .where(eq(procurementExecutionRecords.id, id));
 
+      const qpCascade = await db.execute(
+        sql`UPDATE quality_planning_records 
+            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+            WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+            RETURNING id`
+      );
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'procurement_execution.cancelled', ${JSON.stringify({
           procurementExecId: id, projectItemId: record.project_item_id,
           planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
+          cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
         })}::jsonb, NOW())`);
 
       console.log(`[ProcurementExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled' });
+      res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled', cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id) });
     } catch (error) {
       sendError(res, error);
     }
@@ -2534,8 +2595,44 @@ export function setupProjectRoutes(app: express.Express) {
           estimatedTotalCost: record.estimated_total_cost, preparationNote,
         })}::jsonb, NOW())`);
 
+      let qualityPlanId: number | null = null;
+      const existingQP = await db.execute(
+        sql`SELECT id FROM quality_planning_records 
+            WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+      );
+      if (existingQP.rows.length === 0) {
+        const [qpRec] = await db.insert(qualityPlanningRecords).values({
+          projectId: record.project_id,
+          projectItemId: record.project_item_id,
+          masterItemId: record.master_item_id,
+          sourceContext: 'production',
+          productionExecId: id,
+          planningRecordId: record.planning_record_id,
+          itemCode: record.item_code || null,
+          itemDescription: record.item_description || null,
+          itemSpecification: record.item_specification || null,
+          uom: record.uom || null,
+          drawingNo: record.drawing_no || null,
+          drawingRevision: record.drawing_revision || null,
+          quantity: record.quantity,
+          qualityRequirementType: 'in_process_final_inspection',
+          status: 'draft',
+          assignedTo: record.assigned_to,
+          createdBy: userId,
+        }).returning();
+        qualityPlanId = qpRec.id;
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+          VALUES (${record.project_id}, 'quality_planning.created_from_production', ${JSON.stringify({
+            qualityPlanId: qpRec.id, productionExecId: id,
+            projectItemId: record.project_item_id, qualityType: 'in_process_final_inspection', createdBy: userId,
+          })}::jsonb, NOW())`);
+        console.log(`[ProductionExec] Created quality planning record ${qpRec.id} (in_process_final_inspection) from production exec ${id}`);
+      } else {
+        qualityPlanId = (existingQP.rows[0] as any).id;
+      }
+
       console.log(`[ProductionExec] Record ${id} marked ready for WO by user ${userId}`);
-      res.json({ success: true, message: 'Production execution record marked ready for WO', id, newStatus: 'ready_for_wo' });
+      res.json({ success: true, message: 'Production execution record marked ready for WO', id, newStatus: 'ready_for_wo', qualityPlanId });
     } catch (error) {
       sendError(res, error);
     }
@@ -2595,14 +2692,236 @@ export function setupProjectRoutes(app: express.Express) {
         })
         .where(eq(productionExecutionRecords.id, id));
 
+      const qpCascade = await db.execute(
+        sql`UPDATE quality_planning_records 
+            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+            WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+            RETURNING id`
+      );
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
           productionExecId: id, projectItemId: record.project_item_id,
           planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
+          cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
         })}::jsonb, NOW())`);
 
       console.log(`[ProductionExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled' });
+      res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled', cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id) });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── Quality Planning Record Lifecycle Routes ──────────────────────────────
+
+  app.get('/api/projects/:projectId/quality-plans', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const sourceFilter = req.query.sourceContext as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT qp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                             u3.username as prepared_by_name
+                      FROM quality_planning_records qp
+                      LEFT JOIN users u1 ON qp.assigned_to = u1.id
+                      LEFT JOIN users u2 ON qp.created_by = u2.id
+                      LEFT JOIN users u3 ON qp.prepared_by = u3.id
+                      WHERE qp.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND qp.status = ${statusFilter}`;
+      if (sourceFilter) query = sql`${query} AND qp.source_context = ${sourceFilter}`;
+      if (itemFilter) query = sql`${query} AND qp.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY qp.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/quality-plans/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
+
+      const result = await db.execute(
+        sql`SELECT qp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                   u3.username as prepared_by_name
+            FROM quality_planning_records qp
+            LEFT JOIN users u1 ON qp.assigned_to = u1.id
+            LEFT JOIN users u2 ON qp.created_by = u2.id
+            LEFT JOIN users u3 ON qp.prepared_by = u3.id
+            WHERE qp.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/quality-plans/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
+
+      const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
+      }
+      if (record.status === 'ready_for_inspection_setup') {
+        return sendBusinessError(res, 'Cannot edit: record is already ready for inspection setup. Revert to under_preparation first.');
+      }
+
+      const { qualityRequirementType, qualityNotes, quantity } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (qualityRequirementType !== undefined) updates.qualityRequirementType = qualityRequirementType;
+      if (qualityNotes !== undefined) updates.qualityNotes = qualityNotes || null;
+      if (quantity !== undefined) updates.quantity = String(quantity);
+
+      await db.update(qualityPlanningRecords).set(updates).where(eq(qualityPlanningRecords.id, id));
+      res.json({ success: true, message: 'Quality planning record updated', id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/quality-plans/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'draft') {
+        return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
+      }
+
+      await db.update(qualityPlanningRecords)
+        .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
+        .where(eq(qualityPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'quality_planning.preparation_started', ${JSON.stringify({
+          qualityPlanId: id, sourceContext: record.source_context,
+          qualityRequirementType: record.quality_requirement_type,
+          projectItemId: record.project_item_id, startedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[QualityPlan] Record ${id} preparation started by user ${userId}`);
+      res.json({ success: true, message: 'Quality preparation started', id, newStatus: 'under_preparation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/quality-plans/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
+      const userId = (req.user as any)?.id;
+      const { preparationNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_preparation') {
+        return sendBusinessError(res, `Cannot mark ready: record is in '${record.status}' status. Only 'under_preparation' records can be marked ready.`);
+      }
+
+      await db.update(qualityPlanningRecords)
+        .set({ status: 'ready_for_inspection_setup', preparationNote: preparationNote || null, updatedAt: new Date() })
+        .where(eq(qualityPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'quality_planning.ready_for_inspection_setup', ${JSON.stringify({
+          qualityPlanId: id, sourceContext: record.source_context,
+          qualityRequirementType: record.quality_requirement_type,
+          projectItemId: record.project_item_id, markedBy: userId, preparationNote,
+        })}::jsonb, NOW())`);
+
+      console.log(`[QualityPlan] Record ${id} marked ready for inspection setup by user ${userId}`);
+      res.json({ success: true, message: 'Quality planning record marked ready for inspection setup', id, newStatus: 'ready_for_inspection_setup' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/quality-plans/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'ready_for_inspection_setup') {
+        return sendBusinessError(res, `Cannot revert: only 'ready_for_inspection_setup' records can be reverted. Current status: '${record.status}'.`);
+      }
+
+      await db.update(qualityPlanningRecords)
+        .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
+        .where(eq(qualityPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'quality_planning.reverted_to_preparation', ${JSON.stringify({
+          qualityPlanId: id, projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[QualityPlan] Record ${id} reverted to preparation by user ${userId}`);
+      res.json({ success: true, message: 'Reverted to under_preparation', id, newStatus: 'under_preparation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/quality-plans/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
+      }
+
+      await db.update(qualityPlanningRecords)
+        .set({
+          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+          cancelReason, updatedAt: new Date(),
+        })
+        .where(eq(qualityPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'quality_planning.cancelled', ${JSON.stringify({
+          qualityPlanId: id, sourceContext: record.source_context,
+          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[QualityPlan] Record ${id} cancelled by user ${userId}`);
+      res.json({ success: true, message: 'Quality planning record cancelled', id, newStatus: 'cancelled' });
     } catch (error) {
       sendError(res, error);
     }

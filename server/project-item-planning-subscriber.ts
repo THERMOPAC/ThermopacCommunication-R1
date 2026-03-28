@@ -247,8 +247,16 @@ async function supersedePlanningRecords(params: {
             WHERE planning_record_id = ${supId} AND status IN ('draft', 'under_preparation', 'ready_for_po')
             RETURNING id`
       );
+      for (const procRow of procCascade.rows) {
+        await db.execute(
+          sql`UPDATE quality_planning_records 
+              SET status = 'superseded', superseded_at = NOW(),
+                  supersession_reason = ${reason}, updated_at = NOW()
+              WHERE procurement_exec_id = ${(procRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+        );
+      }
       if (procCascade.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) for superseded planning record ${supId}`);
+        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) + quality plans for superseded planning record ${supId}`);
       }
       const prodCascade = await db.execute(
         sql`UPDATE production_execution_records 
@@ -257,8 +265,16 @@ async function supersedePlanningRecords(params: {
             WHERE planning_record_id = ${supId} AND status IN ('draft', 'under_preparation', 'ready_for_wo')
             RETURNING id`
       );
+      for (const prodRow of prodCascade.rows) {
+        await db.execute(
+          sql`UPDATE quality_planning_records 
+              SET status = 'superseded', superseded_at = NOW(),
+                  supersession_reason = ${reason}, updated_at = NOW()
+              WHERE production_exec_id = ${(prodRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+        );
+      }
       if (prodCascade.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) for superseded planning record ${supId}`);
+        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) + quality plans for superseded planning record ${supId}`);
       }
     }
   }

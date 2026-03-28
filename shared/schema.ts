@@ -1934,6 +1934,44 @@ export const insertProductionExecutionRecordSchema = createInsertSchema(producti
 export type InsertProductionExecutionRecord = z.infer<typeof insertProductionExecutionRecordSchema>;
 export type ProductionExecutionRecord = typeof productionExecutionRecords.$inferSelect;
 
+export const qualityPlanningRecords = pgTable('quality_planning_records', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
+  sourceContext: varchar('source_context', { length: 30 }).notNull(),
+  procurementExecId: integer('procurement_exec_id').references(() => procurementExecutionRecords.id),
+  productionExecId: integer('production_exec_id').references(() => productionExecutionRecords.id),
+  planningRecordId: integer('planning_record_id').references(() => itemPlanningRecords.id),
+  itemCode: varchar('item_code', { length: 100 }),
+  itemDescription: text('item_description'),
+  itemSpecification: text('item_specification'),
+  uom: varchar('uom', { length: 30 }),
+  drawingNo: varchar('drawing_no', { length: 100 }),
+  drawingRevision: integer('drawing_revision'),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  qualityRequirementType: varchar('quality_requirement_type', { length: 50 }).notNull(),
+  qualityNotes: text('quality_notes'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  preparedBy: integer('prepared_by').references(() => users.id),
+  preparedAt: timestamp('prepared_at'),
+  preparationNote: text('preparation_note'),
+  supersededBy: integer('superseded_by'),
+  supersededAt: timestamp('superseded_at'),
+  supersessionReason: text('supersession_reason'),
+  cancelledBy: integer('cancelled_by').references(() => users.id),
+  cancelledAt: timestamp('cancelled_at'),
+  cancelReason: text('cancel_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertQualityPlanningRecordSchema = createInsertSchema(qualityPlanningRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertQualityPlanningRecord = z.infer<typeof insertQualityPlanningRecordSchema>;
+export type QualityPlanningRecord = typeof qualityPlanningRecords.$inferSelect;
+
 // Create insert schemas for project management tables
 export const insertCustomerSchema = createInsertSchema(customers);
 
