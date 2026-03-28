@@ -75,7 +75,7 @@ export default function ProjectsPage() {
     const year = now.getFullYear();
     const startYear = month >= 3 ? year : year - 1;
     const endYear = startYear + 1;
-    return `FY${String(startYear).slice(2)}-${String(endYear).slice(2)}`;
+    return `${String(startYear).slice(2)}${String(endYear).slice(2)}`;
   };
 
   const currentFY = getIndianFinancialYear();

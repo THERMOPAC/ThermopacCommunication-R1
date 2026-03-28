@@ -47,21 +47,14 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const financialYear = req.params.financialYear;
       
-      // Get the current year (YYYY format)
-      const currentYear = new Date().getFullYear().toString();
+      const yearCode = financialYear;
       
-      // Use current year for the project code instead of financial year
-      const yearCode = currentYear;
-      
-      // Get all projects and filter by those starting with the year code
       const userId = req.user!.id;
       const allProjects = await storage.getUserProjects(userId);
       
-      // Find projects with codes that match our pattern (e.g., "2025-1", "2025-2", etc.)
       const regex = new RegExp(`^${yearCode}-(\\d+)$`);
       const matchingProjects = allProjects.filter(project => regex.test(project.code));
       
-      // Find the highest number used so far
       let highestNumber = 0;
       matchingProjects.forEach(project => {
         const matches = project.code.match(regex);
@@ -73,7 +66,6 @@ export function setupProjectRoutes(app: express.Express) {
         }
       });
       
-      // The next number is one more than the highest
       const nextNumber = highestNumber + 1;
       const nextCode = `${yearCode}-${nextNumber}`;
       
