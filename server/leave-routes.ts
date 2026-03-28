@@ -2,7 +2,7 @@ import { sendError, sendValidationError, sendNotFound, sendPermissionError, send
 import { Router, Request, Response } from "express";
 import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
-import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users } from "@shared/schema";
+import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users, attendanceRecords } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
 import { checkPayrollLock } from './payroll-lock-service';
@@ -609,6 +609,38 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
           lastUpdated: new Date()
         })
         .where(eq(leaveBalances.id, approvalBalance.id));
+    }
+
+    const leaveStart = new Date(existingRequest.startDate);
+    const leaveEnd = new Date(existingRequest.endDate);
+    for (let d = new Date(leaveStart); d <= leaveEnd; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const leaveStatus = existingRequest.isHalfDay ? 'half_day' : 'on leave';
+      const [existingAtt] = await db.select({ id: attendanceRecords.id, status: attendanceRecords.status })
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.userId, existingRequest.employeeId),
+          eq(attendanceRecords.date, dateStr)
+        ));
+      if (existingAtt) {
+        if (existingAtt.status !== leaveStatus) {
+          await db.update(attendanceRecords).set({
+            status: leaveStatus,
+            statusSource: 'leave',
+            adminNotes: `Leave approved (request #${requestId})`,
+            updatedAt: new Date(),
+          }).where(eq(attendanceRecords.id, existingAtt.id));
+        }
+      } else {
+        await db.insert(attendanceRecords).values({
+          userId: existingRequest.employeeId,
+          date: dateStr,
+          status: leaveStatus,
+          statusSource: 'leave',
+          source: 'system',
+          adminNotes: `Leave approved (request #${requestId})`,
+        });
+      }
     }
 
     const manager = req.user as any;

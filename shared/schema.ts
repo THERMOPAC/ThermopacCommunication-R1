@@ -233,7 +233,9 @@ export const attendanceRecords = pgTable('attendance_records', {
   // Tracking
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex('uq_attendance_user_date').on(table.userId, table.date),
+]);
 
 // Attendance Settings table
 export const attendanceSettings = pgTable('attendance_settings', {
