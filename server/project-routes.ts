@@ -13,7 +13,8 @@ import {
   insertCustomerSchema,
   workOrders,
   inspectionOrders,
-  projectWorkflowEvents
+  projectWorkflowEvents,
+  itemPlanningRecords,
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -1698,6 +1699,319 @@ export function setupProjectRoutes(app: express.Express) {
       res.status(204).send();
     } catch (error) {
       console.error(`Error deleting customer ${req.params.id}:`, error);
+      sendError(res, error);
+    }
+  });
+
+  // ─── Planning Record Lifecycle Routes ─────────────────────────────────────
+
+  app.get('/api/projects/:projectId/planning-records', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                              u3.username as reviewed_by_name, u4.username as released_by_name,
+                              mi.name as item_name, mi.item_code
+                       FROM item_planning_records ipr
+                       LEFT JOIN users u1 ON ipr.assigned_to = u1.id
+                       LEFT JOIN users u2 ON ipr.created_by = u2.id
+                       LEFT JOIN users u3 ON ipr.reviewed_by = u3.id
+                       LEFT JOIN users u4 ON ipr.released_by = u4.id
+                       LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
+                       WHERE ipr.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND ipr.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND ipr.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY ipr.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/planning-records/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+
+      const result = await db.execute(
+        sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                   u3.username as reviewed_by_name, u4.username as released_by_name,
+                   mi.name as item_name, mi.item_code
+            FROM item_planning_records ipr
+            LEFT JOIN users u1 ON ipr.assigned_to = u1.id
+            LEFT JOIN users u2 ON ipr.created_by = u2.id
+            LEFT JOIN users u3 ON ipr.reviewed_by = u3.id
+            LEFT JOIN users u4 ON ipr.released_by = u4.id
+            LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
+            WHERE ipr.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/planning-records/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM item_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'draft') {
+        return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
+      }
+
+      await db.update(itemPlanningRecords)
+        .set({ status: 'under_review', updatedAt: new Date() })
+        .where(eq(itemPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'planning_record.submitted_for_review', ${JSON.stringify({
+          planningRecordId: id, planningType: record.planning_type,
+          projectItemId: record.project_item_id, submittedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[PlanningLifecycle] Record ${id} submitted for review by user ${userId}`);
+      res.json({ success: true, message: 'Planning record submitted for review', id, newStatus: 'under_review' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/planning-records/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+      const userId = (req.user as any)?.id;
+      const { reviewNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM item_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot review: record is in '${record.status}' status. Only 'under_review' records can be reviewed.`);
+      }
+
+      await db.update(itemPlanningRecords)
+        .set({
+          reviewedBy: userId, reviewedAt: new Date(),
+          reviewNote: reviewNote || null, updatedAt: new Date(),
+        })
+        .where(eq(itemPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'planning_record.reviewed', ${JSON.stringify({
+          planningRecordId: id, planningType: record.planning_type,
+          projectItemId: record.project_item_id, reviewedBy: userId, reviewNote,
+        })}::jsonb, NOW())`);
+
+      console.log(`[PlanningLifecycle] Record ${id} reviewed by user ${userId}`);
+      res.json({ success: true, message: 'Planning record reviewed', id, reviewedBy: userId });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/planning-records/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+      const userId = (req.user as any)?.id;
+      const { releaseNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM item_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot release: record is in '${record.status}' status. Only reviewed 'under_review' records can be released.`);
+      }
+      if (!record.reviewed_by) {
+        return sendBusinessError(res, 'Cannot release: record has not been reviewed yet. Please review first.');
+      }
+
+      const conflicting = await db.execute(
+        sql`SELECT id FROM item_planning_records 
+            WHERE project_id = ${record.project_id}
+              AND project_item_id = ${record.project_item_id}
+              AND planning_type = ${record.planning_type}
+              AND status = 'released' AND id != ${id}`
+      );
+      if (conflicting.rows.length > 0) {
+        return sendBusinessError(res, `Cannot release: another released planning record (ID ${(conflicting.rows[0] as any).id}) already exists for this item and planning type. Supersede it first.`);
+      }
+
+      await db.update(itemPlanningRecords)
+        .set({
+          status: 'released', releasedBy: userId, releasedAt: new Date(),
+          releaseNote: releaseNote || null, updatedAt: new Date(),
+        })
+        .where(eq(itemPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'planning_record.released', ${JSON.stringify({
+          planningRecordId: id, planningType: record.planning_type,
+          projectItemId: record.project_item_id, releasedBy: userId, releaseNote,
+        })}::jsonb, NOW())`);
+
+      console.log(`[PlanningLifecycle] Record ${id} released by user ${userId}`);
+      res.json({ success: true, message: 'Planning record released', id, newStatus: 'released' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/planning-records/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM item_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
+      }
+
+      await db.update(itemPlanningRecords)
+        .set({
+          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+          cancelReason, updatedAt: new Date(),
+        })
+        .where(eq(itemPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'planning_record.cancelled', ${JSON.stringify({
+          planningRecordId: id, planningType: record.planning_type,
+          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[PlanningLifecycle] Record ${id} cancelled by user ${userId}`);
+      res.json({ success: true, message: 'Planning record cancelled', id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/planning-records/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM item_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot revert: only 'under_review' records can be reverted to draft. Current status: '${record.status}'.`);
+      }
+
+      await db.update(itemPlanningRecords)
+        .set({
+          status: 'draft', reviewedBy: null, reviewedAt: null, reviewNote: null, updatedAt: new Date(),
+        })
+        .where(eq(itemPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'planning_record.reverted_to_draft', ${JSON.stringify({
+          planningRecordId: id, planningType: record.planning_type,
+          projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[PlanningLifecycle] Record ${id} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: 'Planning record reverted to draft', id, newStatus: 'draft' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/planning-records/:id/convert', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
+      const userId = (req.user as any)?.id;
+      const { targetType, note } = req.body || {};
+
+      if (!targetType || !['procurement', 'production'].includes(targetType)) {
+        return sendValidationError(res, 'targetType must be "procurement" or "production"');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM item_planning_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.planning_type !== 'review') {
+        return sendBusinessError(res, 'Only review-type planning records can be converted.');
+      }
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot convert: record is '${record.status}'.`);
+      }
+
+      const conflicting = await db.execute(
+        sql`SELECT id FROM item_planning_records 
+            WHERE project_id = ${record.project_id}
+              AND project_item_id = ${record.project_item_id}
+              AND planning_type = ${targetType}
+              AND status IN ('draft', 'under_review', 'released')`
+      );
+      if (conflicting.rows.length > 0) {
+        return sendBusinessError(res, `Cannot convert: an active ${targetType} planning record (ID ${(conflicting.rows[0] as any).id}) already exists for this item.`);
+      }
+
+      const newClassification = targetType === 'procurement' ? 'Buy' : 'Make';
+      const [newRecord] = await db.insert(itemPlanningRecords).values({
+        projectId: record.project_id,
+        projectItemId: record.project_item_id,
+        masterItemId: record.master_item_id,
+        planningType: targetType,
+        status: 'draft',
+        classificationSnapshot: newClassification,
+        linkedTaskId: record.linked_task_id,
+        assignedTo: record.assigned_to,
+        createdBy: userId,
+        notes: note || `Converted from review record #${id}`,
+      }).returning();
+
+      await db.update(itemPlanningRecords)
+        .set({
+          status: 'superseded', supersededBy: newRecord.id, supersededAt: new Date(),
+          supersessionReason: `Converted to ${targetType} planning record #${newRecord.id}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(itemPlanningRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'planning_record.converted', ${JSON.stringify({
+          originalRecordId: id, newRecordId: newRecord.id,
+          fromType: 'review', toType: targetType,
+          projectItemId: record.project_item_id, convertedBy: userId, note,
+        })}::jsonb, NOW())`);
+
+      console.log(`[PlanningLifecycle] Review record ${id} converted to ${targetType} record ${newRecord.id} by user ${userId}`);
+      res.json({
+        success: true, message: `Review record converted to ${targetType}`,
+        originalRecordId: id, newRecord,
+      });
+    } catch (error) {
       sendError(res, error);
     }
   });

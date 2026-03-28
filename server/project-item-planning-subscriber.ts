@@ -172,11 +172,11 @@ async function upsertPlanningRecord(params: {
   const { projectId, projectItemId, masterItemId, planningType, classification, assignTo, changedBy, linkedTaskId } = params;
 
   const existing = await db.execute(
-    sql`SELECT id, linked_task_id FROM item_planning_records 
+    sql`SELECT id, linked_task_id, status FROM item_planning_records 
         WHERE project_id = ${projectId} 
           AND project_item_id = ${projectItemId} 
           AND planning_type = ${planningType} 
-          AND status = 'active' 
+          AND status IN ('draft', 'under_review', 'released') 
         LIMIT 1`
   );
 
@@ -199,7 +199,7 @@ async function upsertPlanningRecord(params: {
     projectItemId,
     masterItemId,
     planningType,
-    status: 'active',
+    status: 'draft',
     classificationSnapshot: classification,
     linkedTaskId,
     assignedTo: assignTo,
@@ -230,7 +230,7 @@ async function supersedePlanningRecords(params: {
         WHERE project_id = ${projectId} 
           AND project_item_id = ${projectItemId} 
           AND planning_type != ${excludePlanningType} 
-          AND status = 'active'
+          AND status IN ('draft', 'under_review', 'released')
         RETURNING id`
   );
 
