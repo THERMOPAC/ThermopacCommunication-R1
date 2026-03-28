@@ -89,6 +89,7 @@ export default function ProjectsPage() {
     financialYear: currentFY,
     startDate: new Date().toISOString().split("T")[0],
     targetEndDate: "",
+    durationMonths: "",
     priority: "Medium",
     status: "planning",
   });
@@ -134,7 +135,7 @@ export default function ProjectsPage() {
         name: "", description: "", code: "", customerId: "", projectType: "",
         financialYear: currentFY,
         startDate: new Date().toISOString().split("T")[0],
-        targetEndDate: "", priority: "Medium", status: "planning",
+        targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
       });
     },
     onError: (error: any) => {
@@ -446,14 +447,41 @@ export default function ProjectsPage() {
                 <Label htmlFor="np-desc">Description *</Label>
                 <Textarea id="np-desc" value={newProjectData.description} onChange={(e) => setNewProjectData(d => ({ ...d, description: e.target.value }))} placeholder="Brief project description" rows={2} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="np-start">Start Date *</Label>
-                  <Input id="np-start" type="date" value={newProjectData.startDate} onChange={(e) => setNewProjectData(d => ({ ...d, startDate: e.target.value }))} />
+                  <Input id="np-start" type="date" value={newProjectData.startDate} onChange={(e) => {
+                    const startDate = e.target.value;
+                    setNewProjectData(d => {
+                      if (d.durationMonths && startDate) {
+                        const start = new Date(startDate);
+                        start.setMonth(start.getMonth() + parseInt(d.durationMonths));
+                        start.setDate(start.getDate() - 1);
+                        return { ...d, startDate, targetEndDate: start.toISOString().split("T")[0] };
+                      }
+                      return { ...d, startDate };
+                    });
+                  }} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="np-end">Target End Date *</Label>
-                  <Input id="np-end" type="date" value={newProjectData.targetEndDate} onChange={(e) => setNewProjectData(d => ({ ...d, targetEndDate: e.target.value }))} />
+                  <Label htmlFor="np-duration">Duration (Months) *</Label>
+                  <Input id="np-duration" type="number" min="1" max="60" placeholder="e.g. 12" value={newProjectData.durationMonths} onChange={(e) => {
+                    const months = e.target.value;
+                    setNewProjectData(d => {
+                      if (months && d.startDate) {
+                        const start = new Date(d.startDate);
+                        start.setMonth(start.getMonth() + parseInt(months));
+                        start.setDate(start.getDate() - 1);
+                        return { ...d, durationMonths: months, targetEndDate: start.toISOString().split("T")[0] };
+                      }
+                      return { ...d, durationMonths: months, targetEndDate: "" };
+                    });
+                  }} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="np-end">Target End Date</Label>
+                  <Input id="np-end" type="date" value={newProjectData.targetEndDate} onChange={(e) => setNewProjectData(d => ({ ...d, targetEndDate: e.target.value, durationMonths: "" }))} />
+                  <p className="text-xs text-muted-foreground">Auto-calculated from duration</p>
                 </div>
               </div>
               <div className="space-y-2">
