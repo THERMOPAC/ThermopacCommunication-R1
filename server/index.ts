@@ -436,6 +436,9 @@ app.use((req, res, next) => {
   const { registerEpcKickoffSubscriber } = await import('./epc-kickoff-subscriber');
   registerEpcKickoffSubscriber();
 
+  const { registerProjectItemPlanningSubscriber } = await import('./project-item-planning-subscriber');
+  registerProjectItemPlanningSubscriber();
+
   const server = await registerRoutes(app);
 
   // Add a special middleware to ensure all API routes return JSON even for errors
