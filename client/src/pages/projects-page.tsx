@@ -108,9 +108,13 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     if (nextCodeData?.nextCode && newProjectDialogOpen) {
-      setNewProjectData(d => ({ ...d, code: nextCodeData.nextCode }));
+      setNewProjectData(d => {
+        const selected = customers?.find(c => c.id.toString() === d.customerId);
+        const autoName = selected ? `${selected.bpName} - ${selected.bpCode} - ${nextCodeData.nextCode}` : d.name;
+        return { ...d, code: nextCodeData.nextCode, name: autoName };
+      });
     }
-  }, [nextCodeData, newProjectDialogOpen]);
+  }, [nextCodeData, newProjectDialogOpen, customers]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof newProjectData) => {
@@ -383,7 +387,11 @@ export default function ProjectsPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="np-customer">Select Customer *</Label>
-                <Select value={newProjectData.customerId} onValueChange={(v) => setNewProjectData(d => ({ ...d, customerId: v }))}>
+                <Select value={newProjectData.customerId} onValueChange={(v) => {
+                  const selected = customers?.find(c => c.id.toString() === v);
+                  const autoName = selected ? `${selected.bpName} - ${selected.bpCode} - ${newProjectData.code}` : "";
+                  setNewProjectData(d => ({ ...d, customerId: v, name: autoName }));
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choose a customer..." />
                   </SelectTrigger>
@@ -402,7 +410,7 @@ export default function ProjectsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="np-name">Project Name *</Label>
-                <Input id="np-name" value={newProjectData.name} onChange={(e) => setNewProjectData(d => ({ ...d, name: e.target.value }))} placeholder="e.g. Thermal Oil Heater - ABC Corp" />
+                <Input id="np-name" value={newProjectData.name} readOnly className="bg-muted" placeholder="Auto-populated from Customer + Project Code" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
