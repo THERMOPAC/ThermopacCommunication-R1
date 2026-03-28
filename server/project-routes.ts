@@ -19,6 +19,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { checkModulePermission } from './utils/permission-utils';
+import { agentEventBus } from './agents/framework/event-bus';
 
 // Helper function to validate a user is authenticated
 function ensureAuthenticated(req: Request, res: Response, next: express.NextFunction) {
@@ -172,6 +173,20 @@ export function setupProjectRoutes(app: express.Express) {
         });
       }
       
+      agentEventBus.emit('project.created', {
+        projectId: project.id,
+        projectCode: project.code,
+        projectName: project.name,
+        customerId: project.customerId,
+        managerId: project.managerId,
+        startDate: project.startDate,
+        targetEndDate: project.targetEndDate,
+        status: project.status,
+        phasesCreated: phaseNames,
+        createdBy: userId,
+      }, 'project-routes');
+      console.log(`[EventBus] project.created emitted — projectId=${project.id}, code=${project.code}, createdBy=${userId}`);
+
       res.status(201).json(project);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -241,7 +256,21 @@ export function setupProjectRoutes(app: express.Express) {
       
       console.log("Final clean update data:", updateData);
       
+      const oldStatus = project.status;
       const updatedProject = await storage.updateProject(projectId, updateData);
+
+      if (updateData.status && updateData.status !== oldStatus) {
+        agentEventBus.emit('project.status_changed', {
+          projectId,
+          projectCode: project.code,
+          projectName: project.name,
+          oldStatus,
+          newStatus: updateData.status,
+          changedBy: userId,
+        }, 'project-routes');
+        console.log(`[EventBus] project.status_changed emitted — projectId=${projectId}, ${oldStatus} → ${updateData.status}, changedBy=${userId}`);
+      }
+
       res.json(updatedProject);
     } catch (error) {
       console.error(`Error updating project ${req.params.id}:`, error);
