@@ -19,6 +19,7 @@ import {
   productionExecutionRecords,
   qualityPlanningRecords,
   poPreparationRecords,
+  woPreparationRecords,
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2058,9 +2059,15 @@ export function setupProjectRoutes(app: express.Express) {
                     cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
                 WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
           );
+          await db.execute(
+            sql`UPDATE wo_preparation_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE execution_record_id = ${prodId} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
+          );
         }
         if (cascadedProdExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) + quality plans for planning record ${id}`);
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) + quality plans + WO preps for planning record ${id}`);
         }
       }
 
@@ -2689,8 +2696,47 @@ export function setupProjectRoutes(app: express.Express) {
         qualityPlanId = (existingQP.rows[0] as any).id;
       }
 
+      let woPrepId: number | null = null;
+      const existingWOPrep = await db.execute(
+        sql`SELECT id FROM wo_preparation_records 
+            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
+      );
+      if (existingWOPrep.rows.length === 0) {
+        const [woPrepRec] = await db.insert(woPreparationRecords).values({
+          projectId: record.project_id,
+          projectItemId: record.project_item_id,
+          planningRecordId: record.planning_record_id,
+          executionRecordId: id,
+          qualityPlanId: qualityPlanId,
+          masterItemId: record.master_item_id,
+          itemCode: record.item_code || null,
+          itemDescription: record.item_description || null,
+          itemSpecification: record.item_specification || null,
+          uom: record.uom || null,
+          drawingNo: record.drawing_no || null,
+          drawingRevision: record.drawing_revision || null,
+          quantity: record.quantity,
+          estimatedUnitCost: record.estimated_unit_cost || null,
+          estimatedTotalCost: record.estimated_total_cost || null,
+          makeClassification: record.make_classification || null,
+          manufacturingNotes: record.manufacturing_notes || null,
+          status: 'draft',
+          assignedTo: record.assigned_to,
+          createdBy: userId,
+        }).returning();
+        woPrepId = woPrepRec.id;
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+          VALUES (${record.project_id}, 'wo_preparation.created', ${JSON.stringify({
+            woPrepId: woPrepRec.id, executionRecordId: id, qualityPlanId,
+            projectItemId: record.project_item_id, createdBy: userId,
+          })}::jsonb, NOW())`);
+        console.log(`[ProductionExec] Created WO preparation record ${woPrepRec.id} from execution ${id}`);
+      } else {
+        woPrepId = (existingWOPrep.rows[0] as any).id;
+      }
+
       console.log(`[ProductionExec] Record ${id} marked ready for WO by user ${userId}`);
-      res.json({ success: true, message: 'Production execution record marked ready for WO', id, newStatus: 'ready_for_wo', qualityPlanId });
+      res.json({ success: true, message: 'Production execution record marked ready for WO', id, newStatus: 'ready_for_wo', qualityPlanId, woPrepId });
     } catch (error) {
       sendError(res, error);
     }
@@ -2758,15 +2804,27 @@ export function setupProjectRoutes(app: express.Express) {
             RETURNING id`
       );
 
+      const woPrepCascade = await db.execute(
+        sql`UPDATE wo_preparation_records 
+            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')
+            RETURNING id`
+      );
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
           productionExecId: id, projectItemId: record.project_item_id,
           planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
           cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
+          cascadedWoPrepIds: woPrepCascade.rows.map((r: any) => r.id),
         })}::jsonb, NOW())`);
 
       console.log(`[ProductionExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled', cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id) });
+      res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled',
+        cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
+        cascadedWoPrepIds: woPrepCascade.rows.map((r: any) => r.id),
+      });
     } catch (error) {
       sendError(res, error);
     }
@@ -3230,6 +3288,257 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[POPrep] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'PO preparation record cancelled', id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── WO Preparation Record Lifecycle Routes ──────────────────────────────
+
+  app.get('/api/projects/:projectId/wo-preparations', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT wp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                             u3.username as reviewed_by_name, u4.username as ready_by_name
+                      FROM wo_preparation_records wp
+                      LEFT JOIN users u1 ON wp.assigned_to = u1.id
+                      LEFT JOIN users u2 ON wp.created_by = u2.id
+                      LEFT JOIN users u3 ON wp.reviewed_by = u3.id
+                      LEFT JOIN users u4 ON wp.ready_by = u4.id
+                      WHERE wp.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND wp.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND wp.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY wp.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/wo-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+
+      const result = await db.execute(
+        sql`SELECT wp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                   u3.username as reviewed_by_name, u4.username as ready_by_name
+            FROM wo_preparation_records wp
+            LEFT JOIN users u1 ON wp.assigned_to = u1.id
+            LEFT JOIN users u2 ON wp.created_by = u2.id
+            LEFT JOIN users u3 ON wp.reviewed_by = u3.id
+            LEFT JOIN users u4 ON wp.ready_by = u4.id
+            WHERE wp.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/wo-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
+      }
+      if (record.status === 'ready_for_wo_creation') {
+        return sendBusinessError(res, 'Cannot edit: record is already ready for WO creation. Revert to under_review first.');
+      }
+
+      const { quantity, estimatedUnitCost, estimatedTotalCost, drawingNo, drawingRevision,
+              makeClassification, manufacturingNotes, reviewNotes } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (quantity !== undefined) updates.quantity = String(quantity);
+      if (estimatedUnitCost !== undefined) updates.estimatedUnitCost = estimatedUnitCost ? String(estimatedUnitCost) : null;
+      if (estimatedTotalCost !== undefined) updates.estimatedTotalCost = estimatedTotalCost ? String(estimatedTotalCost) : null;
+      if (drawingNo !== undefined) updates.drawingNo = drawingNo || null;
+      if (drawingRevision !== undefined) updates.drawingRevision = drawingRevision || null;
+      if (makeClassification !== undefined) updates.makeClassification = makeClassification || null;
+      if (manufacturingNotes !== undefined) updates.manufacturingNotes = manufacturingNotes || null;
+      if (reviewNotes !== undefined) updates.reviewNotes = reviewNotes || null;
+
+      await db.update(woPreparationRecords).set(updates).where(eq(woPreparationRecords.id, id));
+      res.json({ success: true, message: 'WO preparation record updated', id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/wo-preparations/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'draft') {
+        return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
+      }
+
+      await db.update(woPreparationRecords)
+        .set({ status: 'under_review', updatedAt: new Date() })
+        .where(eq(woPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'wo_preparation.submitted_for_review', ${JSON.stringify({
+          woPrepId: id, executionRecordId: record.execution_record_id,
+          projectItemId: record.project_item_id, submittedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[WOPrep] Record ${id} submitted for review by user ${userId}`);
+      res.json({ success: true, message: 'WO preparation submitted for review', id, newStatus: 'under_review' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/wo-preparations/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+      const userId = (req.user as any)?.id;
+      const { reviewNotes } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot approve: record is in '${record.status}' status. Only 'under_review' records can be approved.`);
+      }
+
+      await db.update(woPreparationRecords)
+        .set({
+          status: 'ready_for_wo_creation', reviewedBy: userId, reviewedAt: new Date(),
+          readyBy: userId, readyAt: new Date(),
+          reviewNotes: reviewNotes || null, updatedAt: new Date(),
+        })
+        .where(eq(woPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'wo_preparation.ready_for_wo_creation', ${JSON.stringify({
+          woPrepId: id, executionRecordId: record.execution_record_id,
+          projectItemId: record.project_item_id, approvedBy: userId, reviewNotes,
+        })}::jsonb, NOW())`);
+
+      console.log(`[WOPrep] Record ${id} approved and ready for WO creation by user ${userId}`);
+      res.json({ success: true, message: 'WO preparation approved — ready for WO creation', id, newStatus: 'ready_for_wo_creation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/wo-preparations/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot revert to draft: only 'under_review' records can be reverted. Current status: '${record.status}'.`);
+      }
+
+      await db.update(woPreparationRecords)
+        .set({ status: 'draft', reviewedBy: null, reviewedAt: null, reviewNotes: null, updatedAt: new Date() })
+        .where(eq(woPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'wo_preparation.reverted_to_draft', ${JSON.stringify({
+          woPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[WOPrep] Record ${id} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: 'Reverted to draft', id, newStatus: 'draft' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/wo-preparations/:id/revert-to-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'ready_for_wo_creation') {
+        return sendBusinessError(res, `Cannot revert to review: only 'ready_for_wo_creation' records can be reverted. Current status: '${record.status}'.`);
+      }
+
+      await db.update(woPreparationRecords)
+        .set({ status: 'under_review', readyBy: null, readyAt: null, updatedAt: new Date() })
+        .where(eq(woPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'wo_preparation.reverted_to_review', ${JSON.stringify({
+          woPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[WOPrep] Record ${id} reverted to under_review by user ${userId}`);
+      res.json({ success: true, message: 'Reverted to under_review', id, newStatus: 'under_review' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/wo-preparations/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
+      }
+
+      await db.update(woPreparationRecords)
+        .set({
+          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+          cancelReason, updatedAt: new Date(),
+        })
+        .where(eq(woPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'wo_preparation.cancelled', ${JSON.stringify({
+          woPrepId: id, executionRecordId: record.execution_record_id,
+          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[WOPrep] Record ${id} cancelled by user ${userId}`);
+      res.json({ success: true, message: 'WO preparation record cancelled', id, newStatus: 'cancelled' });
     } catch (error) {
       sendError(res, error);
     }

@@ -2013,6 +2013,47 @@ export const insertPoPreparationRecordSchema = createInsertSchema(poPreparationR
 export type InsertPoPreparationRecord = z.infer<typeof insertPoPreparationRecordSchema>;
 export type PoPreparationRecord = typeof poPreparationRecords.$inferSelect;
 
+export const woPreparationRecords = pgTable('wo_preparation_records', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  planningRecordId: integer('planning_record_id').notNull().references(() => itemPlanningRecords.id),
+  executionRecordId: integer('execution_record_id').notNull().references(() => productionExecutionRecords.id),
+  qualityPlanId: integer('quality_plan_id').references(() => qualityPlanningRecords.id),
+  masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
+  itemCode: varchar('item_code', { length: 100 }),
+  itemDescription: text('item_description'),
+  itemSpecification: text('item_specification'),
+  uom: varchar('uom', { length: 30 }),
+  drawingNo: varchar('drawing_no', { length: 100 }),
+  drawingRevision: integer('drawing_revision'),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  estimatedUnitCost: decimal('estimated_unit_cost', { precision: 12, scale: 2 }),
+  estimatedTotalCost: decimal('estimated_total_cost', { precision: 14, scale: 2 }),
+  makeClassification: varchar('make_classification', { length: 30 }),
+  manufacturingNotes: text('manufacturing_notes'),
+  reviewNotes: text('review_notes'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  reviewedBy: integer('reviewed_by').references(() => users.id),
+  reviewedAt: timestamp('reviewed_at'),
+  readyBy: integer('ready_by').references(() => users.id),
+  readyAt: timestamp('ready_at'),
+  supersededBy: integer('superseded_by'),
+  supersededAt: timestamp('superseded_at'),
+  supersessionReason: text('supersession_reason'),
+  cancelledBy: integer('cancelled_by').references(() => users.id),
+  cancelledAt: timestamp('cancelled_at'),
+  cancelReason: text('cancel_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertWoPreparationRecordSchema = createInsertSchema(woPreparationRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertWoPreparationRecord = z.infer<typeof insertWoPreparationRecordSchema>;
+export type WoPreparationRecord = typeof woPreparationRecords.$inferSelect;
+
 // Create insert schemas for project management tables
 export const insertCustomerSchema = createInsertSchema(customers);
 

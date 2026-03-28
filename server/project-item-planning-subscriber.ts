@@ -278,9 +278,15 @@ async function supersedePlanningRecords(params: {
                   supersession_reason = ${reason}, updated_at = NOW()
               WHERE production_exec_id = ${(prodRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
         );
+        await db.execute(
+          sql`UPDATE wo_preparation_records 
+              SET status = 'superseded', superseded_at = NOW(),
+                  supersession_reason = ${reason}, updated_at = NOW()
+              WHERE execution_record_id = ${(prodRow as any).id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
+        );
       }
       if (prodCascade.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) + quality plans for superseded planning record ${supId}`);
+        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) + quality plans + WO preps for superseded planning record ${supId}`);
       }
     }
   }
