@@ -21,6 +21,18 @@ import {
 import { format, getMonth, getYear } from "date-fns";
 import { useLocation } from "wouter";
 
+const SCENARIO_LABELS: Record<string, string> = {
+  less_than_minimum_hours: 'Less Than Minimum Required Working Hours',
+  no_checkin_checkout: 'No Check-In & Check-Out',
+  missed_checkout: 'Missed Check-Out',
+  late_checkin: 'Late Check-In',
+  early_checkout: 'Early Check-Out',
+  business_travel: 'Business Travel',
+  outdoor_work: 'Outdoor Work',
+  worked_weekly_off: 'Worked on Weekly Off',
+  worked_holiday: 'Worked on Holiday',
+};
+
 const REQUEST_TYPE_LABELS: Record<string, string> = {
   outdoor_duty: 'Outdoor Duty',
   missed_checkin: 'Missed Check-In',
@@ -32,7 +44,27 @@ const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   approved: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
+  cancelled: 'bg-gray-100 text-gray-800',
 };
+
+const GROUP_A_SCENARIOS_BY_STATE: Record<string, string[]> = {
+  no_record: ['no_checkin_checkout', 'business_travel', 'outdoor_work'],
+  absent: ['no_checkin_checkout', 'business_travel', 'outdoor_work', 'less_than_minimum_hours'],
+  missing_checkout: ['missed_checkout', 'early_checkout'],
+  half_day: ['less_than_minimum_hours', 'late_checkin', 'business_travel', 'outdoor_work'],
+};
+
+const GROUP_B_SCENARIOS_BY_STATE: Record<string, string[]> = {
+  weekly_off: ['worked_weekly_off'],
+  holiday: ['worked_holiday'],
+};
+
+function getDisplayLabel(req: any): string {
+  if (req.businessScenario && SCENARIO_LABELS[req.businessScenario]) {
+    return SCENARIO_LABELS[req.businessScenario];
+  }
+  return REQUEST_TYPE_LABELS[req.requestType] || req.requestType;
+}
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -42,16 +74,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function RequestTypeBadge({ type }: { type: string }) {
-  const colors: Record<string, string> = {
-    outdoor_duty: 'bg-blue-100 text-blue-800',
-    missed_checkin: 'bg-orange-100 text-orange-800',
-    missed_checkout: 'bg-purple-100 text-purple-800',
-    full_day_regularization: 'bg-indigo-100 text-indigo-800',
-  };
+function ScenarioBadge({ req }: { req: any }) {
+  const scenario = req.businessScenario;
+  const isGroupB = scenario === 'worked_weekly_off' || scenario === 'worked_holiday';
+  const color = isGroupB
+    ? 'bg-emerald-100 text-emerald-800'
+    : scenario === 'missed_checkout' || scenario === 'early_checkout'
+    ? 'bg-purple-100 text-purple-800'
+    : 'bg-blue-100 text-blue-800';
   return (
-    <Badge className={`${colors[type] || 'bg-gray-100 text-gray-800'} font-medium`}>
-      {REQUEST_TYPE_LABELS[type] || type}
+    <Badge className={`${color} font-medium`}>
+      {getDisplayLabel(req)}
     </Badge>
   );
 }
@@ -73,7 +106,7 @@ export default function AttendanceRegularizationPage() {
   const [filterStatus, setFilterStatus] = useState('all');
 
   const [selectedAbsentDay, setSelectedAbsentDay] = useState<any>(null);
-  const [newRequestType, setNewRequestType] = useState('');
+  const [selectedScenario, setSelectedScenario] = useState('');
   const [newRequestReason, setNewRequestReason] = useState('');
   const [approveRemarks, setApproveRemarks] = useState('');
   const [rejectReason, setRejectReason] = useState('');
@@ -138,7 +171,7 @@ export default function AttendanceRegularizationPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/attendance/regularization/absent-days'] });
       setShowNewDialog(false);
       setSelectedAbsentDay(null);
-      setNewRequestType('');
+      setSelectedScenario('');
       setNewRequestReason('');
     },
     onError: (error: any) => {
@@ -321,10 +354,13 @@ export default function AttendanceRegularizationPage() {
                         <TableCell className="font-medium">
                           {format(new Date(req.requestDate), 'dd MMM yyyy')}
                         </TableCell>
-                        <TableCell><RequestTypeBadge type={req.requestType} /></TableCell>
+                        <TableCell><ScenarioBadge req={req} /></TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {req.status === 'approved' ? (
-                            <span className="text-green-700">Applied from duty schedule</span>
+                            <div>
+                              <span className="text-green-700">Applied from duty schedule</span>
+                              {req.clCredited && <Badge className="ml-1 bg-emerald-100 text-emerald-800 text-[10px]">+1 CL</Badge>}
+                            </div>
                           ) : (
                             <span>Auto from duty schedule</span>
                           )}
@@ -396,7 +432,7 @@ export default function AttendanceRegularizationPage() {
                             <TableCell className="font-medium">
                               {format(new Date(req.requestDate), 'dd MMM yyyy')}
                             </TableCell>
-                            <TableCell><RequestTypeBadge type={req.requestType} /></TableCell>
+                            <TableCell><ScenarioBadge req={req} /></TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               Auto from duty schedule
                             </TableCell>
@@ -492,12 +528,15 @@ export default function AttendanceRegularizationPage() {
                             <div className="text-xs text-muted-foreground">{req.employeeCode}</div>
                           </TableCell>
                           <TableCell className="font-medium">{format(new Date(req.requestDate), 'dd MMM yyyy')}</TableCell>
-                          <TableCell><RequestTypeBadge type={req.requestType} /></TableCell>
+                          <TableCell><ScenarioBadge req={req} /></TableCell>
                           <TableCell className="max-w-[200px] truncate text-sm">{req.reason}</TableCell>
                           <TableCell><StatusBadge status={req.status} /></TableCell>
                           <TableCell>
                             {req.appliedToAttendance ? (
-                              <Badge className="bg-green-100 text-green-800">Yes</Badge>
+                              <div className="flex items-center gap-1">
+                                <Badge className="bg-green-100 text-green-800">Yes</Badge>
+                                {req.clCredited && <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">+1 CL</Badge>}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground text-sm">No</span>
                             )}
@@ -554,47 +593,60 @@ export default function AttendanceRegularizationPage() {
                   <CalendarX className="h-4 w-4 text-red-500" />
                   Absent Days This Month ({absentDays.length})
                 </Label>
-                <div className="border rounded-lg divide-y max-h-[240px] overflow-y-auto">
-                  {absentDays.map((day: any) => {
-                    const isSelected = selectedAbsentDay?.date === day.date;
-                    return (
-                      <div
-                        key={day.date}
-                        onClick={() => {
-                          setSelectedAbsentDay(day);
-                          if (day.attendanceState === 'missing_checkout') {
-                            setNewRequestType('missed_checkout');
-                          } else {
-                            setNewRequestType('outdoor_duty');
-                          }
-                        }}
-                        className={`cursor-pointer flex items-center justify-between px-3 py-2.5 transition-all ${
-                          isSelected
-                            ? 'bg-blue-50 border-l-4 border-l-blue-500'
-                            : 'hover:bg-gray-50 border-l-4 border-l-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Calendar className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
-                          <div>
-                            <span className="text-sm font-medium">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</span>
-                            <span className="text-xs text-muted-foreground ml-2">{day.dayName}</span>
+                {(() => {
+                  const groupADays = absentDays.filter((d: any) => d.outcomeGroup === 'A');
+                  const groupBDays = absentDays.filter((d: any) => d.outcomeGroup === 'B');
+                  return (
+                    <div className="space-y-3">
+                      {groupADays.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-gray-500 uppercase mb-1">Attendance Issues</div>
+                          <div className="border rounded-lg divide-y max-h-[160px] overflow-y-auto">
+                            {groupADays.map((day: any) => {
+                              const isSelected = selectedAbsentDay?.date === day.date;
+                              return (
+                                <div key={day.date} onClick={() => { setSelectedAbsentDay(day); setSelectedScenario(''); }}
+                                  className={`cursor-pointer flex items-center justify-between px-3 py-2 transition-all ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className={`h-3.5 w-3.5 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
+                                    <span className="text-sm font-medium">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</span>
+                                    <span className="text-xs text-muted-foreground">{day.dayName}</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-[10px] shrink-0 bg-amber-50 text-amber-700 border-amber-200">
+                                    {day.reason}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                        <Badge variant="outline" className={`text-[10px] shrink-0 ${
-                          day.attendanceState === 'missing_checkout'
-                            ? 'bg-orange-50 text-orange-700 border-orange-200'
-                            : day.attendanceState === 'absent'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          {day.reason}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
+                      )}
+                      {groupBDays.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-emerald-600 uppercase mb-1">Weekly Off & Holiday (Worked)</div>
+                          <div className="border border-emerald-200 rounded-lg divide-y max-h-[120px] overflow-y-auto">
+                            {groupBDays.map((day: any) => {
+                              const isSelected = selectedAbsentDay?.date === day.date;
+                              return (
+                                <div key={day.date} onClick={() => { setSelectedAbsentDay(day); setSelectedScenario(''); }}
+                                  className={`cursor-pointer flex items-center justify-between px-3 py-2 transition-all ${isSelected ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'}`}>
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className={`h-3.5 w-3.5 ${isSelected ? 'text-emerald-600' : 'text-gray-400'}`} />
+                                    <span className="text-sm font-medium">{format(new Date(day.date + 'T00:00:00'), 'dd MMM yyyy')}</span>
+                                    <span className="text-xs text-muted-foreground">{day.dayName}</span>
+                                  </div>
+                                  <Badge variant="outline" className="text-[10px] shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200">
+                                    {day.reason}
+                                  </Badge>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -607,16 +659,39 @@ export default function AttendanceRegularizationPage() {
                   <div className="text-xs text-muted-foreground mt-1">Status: {selectedAbsentDay.reason}</div>
                 </div>
 
-                {selectedAbsentDay.attendanceState === 'missing_checkout' ? (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-800">
-                    <div className="font-medium">Auto-classified: Missed Check-Out</div>
-                    <div className="text-xs mt-1">Check-in exists. Check-out will be auto-filled from your duty end time on approval.</div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                      <div className="font-medium">Auto-classified: Outdoor Duty</div>
-                      <div className="text-xs mt-1">Full day attendance from your duty schedule will be applied on approval. For full-day absences, please use the Leave Request module.</div>
+                <div>
+                  <Label className="text-sm font-medium">Regularization Scenario *</Label>
+                  <Select value={selectedScenario} onValueChange={setSelectedScenario}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select a scenario" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const state = selectedAbsentDay.attendanceState;
+                        const scenarios = selectedAbsentDay.outcomeGroup === 'B'
+                          ? (GROUP_B_SCENARIOS_BY_STATE[state] || [])
+                          : (GROUP_A_SCENARIOS_BY_STATE[state] || GROUP_A_SCENARIOS_BY_STATE['no_record'] || []);
+                        return scenarios.map((s: string) => (
+                          <SelectItem key={s} value={s}>{SCENARIO_LABELS[s]}</SelectItem>
+                        ));
+                      })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedScenario && (
+                  <div className={`rounded-lg p-3 text-sm border ${
+                    selectedAbsentDay.outcomeGroup === 'B'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-blue-50 border-blue-200 text-blue-800'
+                  }`}>
+                    <div className="font-medium">
+                      Expected Outcome: {selectedAbsentDay.outcomeGroup === 'B' ? 'Present + 1 Extra CL' : 'Present'}
+                    </div>
+                    <div className="text-xs mt-1">
+                      {selectedAbsentDay.outcomeGroup === 'B'
+                        ? 'On approval, attendance will be marked as present and 1 extra Casual Leave will be credited to your balance.'
+                        : 'On approval, full day attendance from your duty schedule will be applied.'}
                     </div>
                   </div>
                 )}
@@ -639,10 +714,10 @@ export default function AttendanceRegularizationPage() {
             <Button
               onClick={() => submitMutation.mutate({
                 requestDate: selectedAbsentDay?.date,
-                requestType: newRequestType,
+                businessScenario: selectedScenario,
                 reason: newRequestReason,
               })}
-              disabled={!selectedAbsentDay || !newRequestType || !newRequestReason.trim() || submitMutation.isPending}
+              disabled={!selectedAbsentDay || !selectedScenario || !newRequestReason.trim() || submitMutation.isPending}
             >
               {submitMutation.isPending ? 'Submitting...' : 'Submit Request'}
             </Button>
@@ -659,11 +734,20 @@ export default function AttendanceRegularizationPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-blue-50 p-3 rounded-lg text-sm space-y-1">
-              <div><span className="font-medium">Type:</span> {REQUEST_TYPE_LABELS[selectedRequest?.requestType] || selectedRequest?.requestType}</div>
-              <div><span className="font-medium">Reason:</span> {selectedRequest?.reason}</div>
-              <div className="text-blue-700 mt-1">Attendance will be auto-corrected using the employee's duty schedule.</div>
-            </div>
+            {(() => {
+              const isGroupB = selectedRequest?.businessScenario === 'worked_weekly_off' || selectedRequest?.businessScenario === 'worked_holiday';
+              return (
+                <div className={`p-3 rounded-lg text-sm space-y-1 ${isGroupB ? 'bg-emerald-50' : 'bg-blue-50'}`}>
+                  <div><span className="font-medium">Scenario:</span> {selectedRequest ? getDisplayLabel(selectedRequest) : ''}</div>
+                  <div><span className="font-medium">Reason:</span> {selectedRequest?.reason}</div>
+                  <div className={`mt-1 font-medium ${isGroupB ? 'text-emerald-700' : 'text-blue-700'}`}>
+                    {isGroupB
+                      ? 'Outcome: Attendance marked Present + 1 extra Casual Leave credited'
+                      : 'Outcome: Attendance marked Present (duty schedule applied)'}
+                  </div>
+                </div>
+              );
+            })()}
             <div>
               <Label>Remarks (Optional)</Label>
               <Textarea
@@ -697,7 +781,7 @@ export default function AttendanceRegularizationPage() {
             <div className="bg-red-50 p-3 rounded-lg text-sm space-y-1">
               <div><span className="font-medium">Employee:</span> {selectedRequest?.employeeName}</div>
               <div><span className="font-medium">Date:</span> {selectedRequest?.requestDate ? format(new Date(selectedRequest.requestDate), 'dd MMM yyyy') : ''}</div>
-              <div><span className="font-medium">Type:</span> {REQUEST_TYPE_LABELS[selectedRequest?.requestType] || selectedRequest?.requestType}</div>
+              <div><span className="font-medium">Scenario:</span> {selectedRequest ? getDisplayLabel(selectedRequest) : ''}</div>
             </div>
             <div>
               <Label>Rejection Reason *</Label>
@@ -732,7 +816,7 @@ export default function AttendanceRegularizationPage() {
           <div className="space-y-4">
             <div className="bg-gray-50 p-3 rounded-lg text-sm space-y-1">
               <div><span className="font-medium">Date:</span> {selectedRequest?.requestDate ? format(new Date(selectedRequest.requestDate), 'dd MMM yyyy') : ''}</div>
-              <div><span className="font-medium">Type:</span> {REQUEST_TYPE_LABELS[selectedRequest?.requestType] || selectedRequest?.requestType}</div>
+              <div><span className="font-medium">Scenario:</span> {selectedRequest ? getDisplayLabel(selectedRequest) : ''}</div>
               <div><span className="font-medium">Status:</span> <StatusBadge status={selectedRequest?.status || ''} /></div>
               {selectedRequest?.rejectionReason && (
                 <div className="mt-2 p-2 bg-red-50 rounded text-red-700">

@@ -1,7 +1,7 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays } from '@shared/schema';
+import { attendanceRecords, attendanceSettings, attendanceIssues, workLocations, users, dailyQuotes, dailyWorkReports, attendanceRegularizations, payrollPeriods, payrollLocks, leaveRequests, companyHolidays, leaveBalances, leaveTypes } from '@shared/schema';
 import { createNotification } from './notification-routes';
 import { eq, and, gte, lte, desc, asc, sql, isNull, inArray } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
@@ -17,6 +17,22 @@ const REQUEST_TYPE_LABELS: Record<string, string> = {
   missed_checkout: 'Missed Check-Out',
   full_day_regularization: 'Full Day Regularization',
 };
+
+const BUSINESS_SCENARIOS: Record<string, { internalType: string; outcomeGroup: 'A' | 'B'; label: string }> = {
+  less_than_minimum_hours: { internalType: 'outdoor_duty', outcomeGroup: 'A', label: 'Less Than Minimum Required Working Hours' },
+  no_checkin_checkout: { internalType: 'outdoor_duty', outcomeGroup: 'A', label: 'No Check-In & Check-Out' },
+  missed_checkout: { internalType: 'missed_checkout', outcomeGroup: 'A', label: 'Missed Check-Out' },
+  late_checkin: { internalType: 'outdoor_duty', outcomeGroup: 'A', label: 'Late Check-In' },
+  early_checkout: { internalType: 'missed_checkout', outcomeGroup: 'A', label: 'Early Check-Out' },
+  business_travel: { internalType: 'outdoor_duty', outcomeGroup: 'A', label: 'Business Travel' },
+  outdoor_work: { internalType: 'outdoor_duty', outcomeGroup: 'A', label: 'Outdoor Work' },
+  worked_weekly_off: { internalType: 'outdoor_duty', outcomeGroup: 'B', label: 'Worked on Weekly Off' },
+  worked_holiday: { internalType: 'outdoor_duty', outcomeGroup: 'B', label: 'Worked on Holiday' },
+};
+
+const SCENARIO_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(BUSINESS_SCENARIOS).map(([k, v]) => [k, v.label])
+);
 
 // Helper function to check if user has submitted DWAR for a given date
 export async function checkDwarCompletionStatus(userId: number, date: string): Promise<{
@@ -855,20 +871,42 @@ router.get('/daily-quote', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/regularization/scenarios', ensureAuthenticated, async (_req: Request, res: Response) => {
+  res.json(Object.entries(BUSINESS_SCENARIOS).map(([key, val]) => ({
+    key,
+    label: val.label,
+    outcomeGroup: val.outcomeGroup,
+    internalType: val.internalType,
+  })));
+});
+
 router.post('/regularization', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    const { requestDate, requestType, reason, correctedCheckOut } = req.body;
+    const { requestDate, reason, correctedCheckOut, businessScenario, requestType: legacyRequestType } = req.body;
 
-    if (!requestDate || !requestType || !reason) {
-      return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
+    if (!requestDate || !reason) {
+      return res.status(400).json({ error: 'requestDate and reason are required' });
     }
 
-    const validTypes = ['outdoor_duty', 'missed_checkout', 'full_day_regularization'];
-    if (!validTypes.includes(requestType)) {
-      return res.status(400).json({ error: 'Invalid request type. Use Leave Request for full-day absences.' });
+    let effectiveRequestType: string;
+    let scenarioKey: string | null = null;
+    let outcomeGroup: 'A' | 'B' = 'A';
+
+    if (businessScenario && BUSINESS_SCENARIOS[businessScenario]) {
+      const scenario = BUSINESS_SCENARIOS[businessScenario];
+      effectiveRequestType = scenario.internalType;
+      scenarioKey = businessScenario;
+      outcomeGroup = scenario.outcomeGroup;
+    } else if (legacyRequestType) {
+      const validTypes = ['outdoor_duty', 'missed_checkout', 'full_day_regularization'];
+      if (!validTypes.includes(legacyRequestType)) {
+        return res.status(400).json({ error: 'Invalid request type' });
+      }
+      effectiveRequestType = legacyRequestType === 'full_day_regularization' ? 'outdoor_duty' : legacyRequestType;
+    } else {
+      return res.status(400).json({ error: 'businessScenario is required' });
     }
-    const effectiveRequestType = requestType === 'full_day_regularization' ? 'outdoor_duty' : requestType;
 
     const [attendanceState] = await db.select({
       checkInTime: attendanceRecords.checkInTime,
@@ -882,13 +920,30 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     const hasCheckIn = !!attendanceState?.checkInTime;
     const hasCheckOut = !!attendanceState?.checkOutTime;
     const isMissingCheckout = hasCheckIn && !hasCheckOut;
-    const isNoRecord = !attendanceState || (!hasCheckIn && !hasCheckOut) || attendanceState.status === 'absent';
 
-    if (effectiveRequestType === 'missed_checkout' && !isMissingCheckout) {
-      return res.status(400).json({ error: 'Missed Check-Out is only valid when check-in exists but check-out is missing' });
-    }
-    if (effectiveRequestType === 'outdoor_duty' && isMissingCheckout) {
-      return res.status(400).json({ error: 'Outdoor Duty is not valid for a date with existing check-in. Use Missed Check-Out instead.' });
+    if (outcomeGroup === 'B') {
+      const [userRec] = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, user.id));
+      const weeklyOff = new Set<number>(userRec?.weeklyOffDays || [0]);
+      const reqDayOfWeek = new Date(requestDate).getDay();
+
+      const holidays = await db.select({ date: companyHolidays.date }).from(companyHolidays)
+        .where(eq(companyHolidays.date, requestDate));
+      const isHoliday = holidays.length > 0;
+      const isWeeklyOff = weeklyOff.has(reqDayOfWeek);
+
+      if (scenarioKey === 'worked_weekly_off' && !isWeeklyOff) {
+        return res.status(400).json({ error: 'This date is not a weekly off day for you' });
+      }
+      if (scenarioKey === 'worked_holiday' && !isHoliday) {
+        return res.status(400).json({ error: 'This date is not a company holiday' });
+      }
+    } else {
+      if (effectiveRequestType === 'missed_checkout' && !isMissingCheckout) {
+        return res.status(400).json({ error: 'Missed Check-Out is only valid when check-in exists but check-out is missing' });
+      }
+      if (effectiveRequestType === 'outdoor_duty' && isMissingCheckout) {
+        return res.status(400).json({ error: 'This scenario is not valid for a date with existing check-in but missing check-out. Use Missed Check-Out or Early Check-Out instead.' });
+      }
     }
 
     const lockCheck = await checkPayrollLock('attendance', requestDate, user.id);
@@ -938,13 +993,16 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
     } : { status: 'no_record' };
 
     const empName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
+    const scenarioLabel = scenarioKey ? SCENARIO_LABELS[scenarioKey] : (REQUEST_TYPE_LABELS[effectiveRequestType] || effectiveRequestType);
 
     const auditEntry = [{
       action: 'submitted',
       by: user.id,
       byName: empName,
       at: new Date().toISOString(),
-      details: `Regularization request submitted: ${effectiveRequestType}`,
+      details: `Regularization request submitted: ${scenarioLabel}`,
+      businessScenario: scenarioKey,
+      outcomeGroup,
     }];
 
     const [reg] = await db.insert(attendanceRegularizations).values({
@@ -952,6 +1010,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       attendanceRecordId: attendanceRec?.id || null,
       requestDate,
       requestType: effectiveRequestType,
+      businessScenario: scenarioKey,
       correctedCheckIn: null,
       correctedCheckOut: correctedCheckOut ? new Date(correctedCheckOut) : null,
       reason,
@@ -961,14 +1020,13 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       auditTrail: auditEntry,
     }).returning();
 
-    const typeLabel = REQUEST_TYPE_LABELS[effectiveRequestType] || effectiveRequestType;
-
     if (approverId) {
+      const expectedOutcome = outcomeGroup === 'B' ? 'Present + 1 Extra CL' : 'Present';
       await createNotification({
         userId: approverId,
         type: 'approval_request',
         title: `Attendance Regularization: ${empName}`,
-        message: `${empName} has submitted a ${typeLabel} regularization request for ${requestDate}. Reason: ${reason}`,
+        message: `${empName} has submitted a "${scenarioLabel}" regularization request for ${requestDate}. Expected outcome: ${expectedOutcome}. Reason: ${reason}`,
         link: '/attendance/regularization',
         sourceType: 'attendance_regularization',
         sourceId: reg.id,
@@ -1057,32 +1115,42 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
     const [userRecord] = await db.select({ weeklyOffDays: users.weeklyOffDays }).from(users).where(eq(users.id, user.id));
     const weeklyOff = new Set<number>(userRecord?.weeklyOffDays || [0]);
 
-    const absentDays: Array<{ date: string; dayName: string; reason: string }> = [];
+    const regularizableDays: Array<{ date: string; dayName: string; reason: string; attendanceState: string; dayType: string; outcomeGroup: 'A' | 'B' }> = [];
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
     for (let d = new Date(firstDay); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
       const dayOfWeek = d.getDay();
 
-      if (weeklyOff.has(dayOfWeek)) continue;
-      if (holidayDates.has(dateStr)) continue;
-      if (leaveDates.has(dateStr)) continue;
       if (excludedRegDates.has(dateStr)) continue;
+      if (leaveDates.has(dateStr)) continue;
+
+      const isWeeklyOffDay = weeklyOff.has(dayOfWeek);
+      const isHolidayDay = holidayDates.has(dateStr);
+
+      if (isWeeklyOffDay || isHolidayDay) {
+        const dayType = isHolidayDay ? 'holiday' : 'weekly_off';
+        const reason = isHolidayDay ? 'Company Holiday' : 'Weekly Off';
+        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason, attendanceState: dayType, dayType, outcomeGroup: 'B' });
+        continue;
+      }
 
       const record = attendanceMap.get(dateStr);
       if (!record) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-In & Out', attendanceState: 'no_record' });
+        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-In & Out', attendanceState: 'no_record', dayType: 'working', outcomeGroup: 'A' });
       } else if (record.checkInTime && !record.checkOutTime) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-Out', attendanceState: 'missing_checkout' });
+        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-Out', attendanceState: 'missing_checkout', dayType: 'working', outcomeGroup: 'A' });
       } else if (!record.checkInTime && !record.checkOutTime) {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-In & Out', attendanceState: 'no_record' });
+        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'No Check-In & Out', attendanceState: 'no_record', dayType: 'working', outcomeGroup: 'A' });
       } else if (record.status === 'absent') {
-        absentDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Absent', attendanceState: 'absent' });
+        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Absent', attendanceState: 'absent', dayType: 'working', outcomeGroup: 'A' });
+      } else if (record.status === 'half_day') {
+        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason: 'Half Day (Less Hours)', attendanceState: 'half_day', dayType: 'working', outcomeGroup: 'A' });
       }
     }
 
-    console.log('[absent-days] Found', absentDays.length, 'absent days');
-    res.json(absentDays);
+    console.log('[absent-days] Found', regularizableDays.length, 'regularizable days');
+    res.json(regularizableDays);
   } catch (error) {
     console.error('Error fetching absent days:', error);
     sendError(res, error);
@@ -1114,6 +1182,8 @@ router.get('/regularization/my-requests', ensureAuthenticated, async (req: Reque
       rejectedAt: attendanceRegularizations.rejectedAt,
       rejectionReason: attendanceRegularizations.rejectionReason,
       appliedToAttendance: attendanceRegularizations.appliedToAttendance,
+      businessScenario: attendanceRegularizations.businessScenario,
+      clCredited: attendanceRegularizations.clCredited,
       createdAt: attendanceRegularizations.createdAt,
       approverName: users.firstName,
     })
@@ -1143,6 +1213,7 @@ router.get('/regularization/pending-approvals', ensureAuthenticated, async (req:
       employeeId: attendanceRegularizations.employeeId,
       requestDate: attendanceRegularizations.requestDate,
       requestType: attendanceRegularizations.requestType,
+      businessScenario: attendanceRegularizations.businessScenario,
       correctedCheckIn: attendanceRegularizations.correctedCheckIn,
       correctedCheckOut: attendanceRegularizations.correctedCheckOut,
       reason: attendanceRegularizations.reason,
@@ -1358,24 +1429,72 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       }
     }
 
+    let clCredited = false;
+    const scenarioConfig = reg.businessScenario ? BUSINESS_SCENARIOS[reg.businessScenario] : null;
+
+    if (scenarioConfig?.outcomeGroup === 'B' && !reg.clCredited) {
+      const [clType] = await db.select({ id: leaveTypes.id }).from(leaveTypes)
+        .where(and(eq(leaveTypes.code, 'CL'), eq(leaveTypes.isActive, true)));
+
+      if (clType) {
+        const balanceYear = new Date(reg.requestDate).getFullYear();
+        const [existingBalance] = await db.select().from(leaveBalances)
+          .where(and(
+            eq(leaveBalances.userId, reg.employeeId),
+            eq(leaveBalances.leaveTypeId, clType.id),
+            eq(leaveBalances.year, balanceYear)
+          ));
+
+        if (existingBalance) {
+          await db.update(leaveBalances).set({
+            allocatedDays: sql`allocated_days + 1`,
+            lastUpdated: new Date(),
+            updatedBy: user.id,
+          }).where(eq(leaveBalances.id, existingBalance.id));
+        } else {
+          await db.insert(leaveBalances).values({
+            userId: reg.employeeId,
+            leaveTypeId: clType.id,
+            year: balanceYear,
+            allocatedDays: '1.00',
+            usedDays: '0.00',
+            pendingDays: '0.00',
+            carryoverDays: '0.00',
+            lastUpdated: new Date(),
+            updatedBy: user.id,
+          });
+        }
+        clCredited = true;
+        existingTrail.push({
+          action: 'cl_credited',
+          by: user.id,
+          byName: approverName,
+          at: new Date().toISOString(),
+          details: `1 extra CL credited for ${SCENARIO_LABELS[reg.businessScenario] || reg.businessScenario} on ${reg.requestDate}`,
+        });
+      }
+    }
+
     await db.update(attendanceRegularizations).set({
       status: 'approved',
       approverId: user.id,
       approvedAt: new Date(),
       approverRemarks: remarks || null,
       appliedToAttendance,
+      clCredited: clCredited || reg.clCredited || false,
       correctedCheckIn: dutyCheckIn,
       correctedCheckOut: dutyCheckOut,
       auditTrail: existingTrail,
       updatedAt: new Date(),
     }).where(eq(attendanceRegularizations.id, regId));
 
-    const typeLabel = REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType;
+    const scenarioLabel = reg.businessScenario ? (SCENARIO_LABELS[reg.businessScenario] || reg.businessScenario) : (REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType);
+    const clMsg = clCredited ? ' Additionally, 1 extra Casual Leave has been credited to your balance.' : '';
     await createNotification({
       userId: reg.employeeId,
       type: 'approval_decision',
-      title: `Regularization Approved: ${typeLabel}`,
-      message: `Your attendance regularization for ${reg.requestDate} (${typeLabel}) has been approved by ${approverName}.${remarks ? ` Remarks: ${remarks}` : ''} Your attendance record has been updated.`,
+      title: `Regularization Approved: ${scenarioLabel}`,
+      message: `Your attendance regularization for ${reg.requestDate} (${scenarioLabel}) has been approved by ${approverName}.${remarks ? ` Remarks: ${remarks}` : ''} Your attendance record has been updated.${clMsg}`,
       link: '/attendance/regularization',
       sourceType: 'attendance_regularization',
       sourceId: reg.id,
@@ -1478,7 +1597,7 @@ router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, r
         userId: reg.approverId,
         type: 'info',
         title: `Regularization Cancelled`,
-        message: `${cancellerName} has cancelled their ${REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType} regularization request for ${reg.requestDate}.`,
+        message: `${cancellerName} has cancelled their ${reg.businessScenario ? (SCENARIO_LABELS[reg.businessScenario] || reg.businessScenario) : (REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType)} regularization request for ${reg.requestDate}.`,
         link: '/attendance/regularization',
         sourceType: 'attendance_regularization',
         sourceId: reg.id,
@@ -1524,6 +1643,8 @@ router.get('/regularization/all', ensureAuthenticated, async (req: Request, res:
       rejectedAt: attendanceRegularizations.rejectedAt,
       rejectionReason: attendanceRegularizations.rejectionReason,
       appliedToAttendance: attendanceRegularizations.appliedToAttendance,
+      businessScenario: attendanceRegularizations.businessScenario,
+      clCredited: attendanceRegularizations.clCredited,
       originalData: attendanceRegularizations.originalData,
       auditTrail: attendanceRegularizations.auditTrail,
       createdAt: attendanceRegularizations.createdAt,

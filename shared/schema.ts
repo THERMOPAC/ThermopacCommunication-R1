@@ -9759,6 +9759,8 @@ export const attendanceRegularizations = pgTable('attendance_regularizations', {
   rejectedBy: integer('rejected_by').references(() => users.id),
   rejectedAt: timestamp('rejected_at'),
   rejectionReason: text('rejection_reason'),
+  businessScenario: varchar('business_scenario', { length: 40 }),
+  clCredited: boolean('cl_credited').default(false),
   appliedToAttendance: boolean('applied_to_attendance').default(false),
   originalData: jsonb('original_data'),
   auditTrail: jsonb('audit_trail'),
