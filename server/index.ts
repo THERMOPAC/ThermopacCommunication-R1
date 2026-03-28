@@ -430,6 +430,9 @@ app.use((req, res, next) => {
 
 
 
+  const { registerProjectEventSubscribers } = await import('./project-event-subscriber');
+  registerProjectEventSubscribers();
+
   const server = await registerRoutes(app);
 
   // Add a special middleware to ensure all API routes return JSON even for errors

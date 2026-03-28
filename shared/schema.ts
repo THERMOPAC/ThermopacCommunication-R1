@@ -10660,3 +10660,18 @@ export const l1Actions = pgTable("l1_actions", {
 export const insertL1ActionSchema = createInsertSchema(l1Actions).omit({ id: true, createdAt: true });
 export type InsertL1Action = z.infer<typeof insertL1ActionSchema>;
 export type L1Action = typeof l1Actions.$inferSelect;
+
+export const projectWorkflowEvents = pgTable('project_workflow_events', {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  eventName: varchar("event_name", { length: 200 }).notNull(),
+  eventPayload: jsonb("event_payload").notNull(),
+  emittedBy: varchar("emitted_by", { length: 200 }).notNull(),
+  emittedAt: timestamp("emitted_at").notNull().defaultNow(),
+  processed: boolean("processed").notNull().default(false),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertProjectWorkflowEventSchema = createInsertSchema(projectWorkflowEvents).omit({ id: true });
+export type InsertProjectWorkflowEvent = z.infer<typeof insertProjectWorkflowEventSchema>;
+export type ProjectWorkflowEvent = typeof projectWorkflowEvents.$inferSelect;
