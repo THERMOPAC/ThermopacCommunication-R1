@@ -1552,6 +1552,7 @@ export const projects = pgTable('projects', {
   name: text('name').notNull(),
   description: text('description').notNull(),
   code: text('code').notNull().unique(), // Project code for easy reference
+  projectType: text('project_type'), // CPS System, Equipment, Grease Plant, Lube Blending Plant, Re-refining Plant, Spares
   status: text('status').notNull().default('planning'), // planning, active, completed, on_hold, canceled
   priority: text('priority').notNull().default('Medium'), // Low, Medium, High
   financialYear: text('financial_year').notNull(), // e.g., "FY25-26"

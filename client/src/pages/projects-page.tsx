@@ -85,6 +85,7 @@ export default function ProjectsPage() {
     description: "",
     code: "",
     customerId: "",
+    projectType: "",
     financialYear: currentFY,
     startDate: new Date().toISOString().split("T")[0],
     targetEndDate: "",
@@ -127,7 +128,7 @@ export default function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects/next-code", currentFY] });
       setNewProjectDialogOpen(false);
       setNewProjectData({
-        name: "", description: "", code: "", customerId: "",
+        name: "", description: "", code: "", customerId: "", projectType: "",
         financialYear: currentFY,
         startDate: new Date().toISOString().split("T")[0],
         targetEndDate: "", priority: "Medium", status: "planning",
@@ -423,6 +424,22 @@ export default function ProjectsPage() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="np-type">Project Type *</Label>
+                <Select value={newProjectData.projectType} onValueChange={(v) => setNewProjectData(d => ({ ...d, projectType: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CPS System">CPS System</SelectItem>
+                    <SelectItem value="Equipment">Equipment</SelectItem>
+                    <SelectItem value="Grease Plant">Grease Plant</SelectItem>
+                    <SelectItem value="Lube Blending Plant">Lube Blending Plant</SelectItem>
+                    <SelectItem value="Re-refining Plant">Re-refining Plant</SelectItem>
+                    <SelectItem value="Spares">Spares</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="np-desc">Description *</Label>
                 <Textarea id="np-desc" value={newProjectData.description} onChange={(e) => setNewProjectData(d => ({ ...d, description: e.target.value }))} placeholder="Brief project description" rows={2} />
               </div>
@@ -452,7 +469,7 @@ export default function ProjectsPage() {
               <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
               <Button
                 onClick={() => createProjectMutation.mutate(newProjectData)}
-                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.name || !newProjectData.code || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
+                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.name || !newProjectData.code || !newProjectData.projectType || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
               >
                 {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Project
