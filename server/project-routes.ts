@@ -16,6 +16,7 @@ import {
   projectWorkflowEvents,
   itemPlanningRecords,
   procurementExecutionRecords,
+  productionExecutionRecords,
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -1916,6 +1917,53 @@ export function setupProjectRoutes(app: express.Express) {
           projectItemId: record.project_item_id, releasedBy: userId, releaseNote,
         })}::jsonb, NOW())`);
 
+      let productionExecId: number | null = null;
+
+      if (record.planning_type === 'production') {
+        const existingExec = await db.execute(
+          sql`SELECT id FROM production_execution_records 
+              WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')`
+        );
+        if (existingExec.rows.length === 0) {
+          const itemSnapshot = await db.execute(
+            sql`SELECT mi.item_code, mi.description, mi.specification, mi.uom, mi.drawing_no,
+                       mi.latest_revision, mi.standard_cost, mi.make_or_buy,
+                       pi.quantity, pi.estimated_cost as project_estimated_cost
+                FROM project_items pi
+                JOIN master_items mi ON pi.item_id = mi.id
+                WHERE pi.id = ${record.project_item_id}`
+          );
+          const snap = (itemSnapshot.rows[0] as any) || {};
+          const qty = parseFloat(snap.quantity || '0');
+          const unitCost = parseFloat(snap.standard_cost || snap.project_estimated_cost || '0');
+
+          const [newExec] = await db.insert(productionExecutionRecords).values({
+            projectId: record.project_id,
+            projectItemId: record.project_item_id,
+            planningRecordId: id,
+            masterItemId: record.master_item_id,
+            itemCode: snap.item_code || null,
+            itemDescription: snap.description || null,
+            itemSpecification: snap.specification || null,
+            uom: snap.uom || null,
+            drawingNo: snap.drawing_no || null,
+            drawingRevision: snap.latest_revision || null,
+            quantity: String(qty),
+            estimatedUnitCost: unitCost > 0 ? String(unitCost) : null,
+            estimatedTotalCost: unitCost > 0 && qty > 0 ? String(unitCost * qty) : null,
+            makeClassification: snap.make_or_buy || 'Make',
+            status: 'draft',
+            assignedTo: record.assigned_to,
+            createdBy: userId,
+          }).returning();
+          productionExecId = newExec.id;
+          console.log(`[PlanningLifecycle] Created production execution record ${newExec.id} from released planning record ${id}`);
+        } else {
+          productionExecId = (existingExec.rows[0] as any).id;
+          console.log(`[PlanningLifecycle] Production execution record ${productionExecId} already exists for planning record ${id}`);
+        }
+      }
+
       if (procurementExecId) {
         await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
           VALUES (${record.project_id}, 'procurement_execution.created_from_release', ${JSON.stringify({
@@ -1924,8 +1972,16 @@ export function setupProjectRoutes(app: express.Express) {
           })}::jsonb, NOW())`);
       }
 
+      if (productionExecId) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+          VALUES (${record.project_id}, 'production_execution.created_from_release', ${JSON.stringify({
+            productionExecId, planningRecordId: id,
+            projectItemId: record.project_item_id, createdBy: userId,
+          })}::jsonb, NOW())`);
+      }
+
       console.log(`[PlanningLifecycle] Record ${id} released by user ${userId}`);
-      res.json({ success: true, message: 'Planning record released', id, newStatus: 'released', procurementExecId });
+      res.json({ success: true, message: 'Planning record released', id, newStatus: 'released', procurementExecId, productionExecId });
     } catch (error) {
       sendError(res, error);
     }
@@ -1955,7 +2011,8 @@ export function setupProjectRoutes(app: express.Express) {
         })
         .where(eq(itemPlanningRecords.id, id));
 
-      let cascadedExecIds: number[] = [];
+      let cascadedProcExecIds: number[] = [];
+      let cascadedProdExecIds: number[] = [];
       if (record.planning_type === 'procurement') {
         const cascadeResult = await db.execute(
           sql`UPDATE procurement_execution_records 
@@ -1964,9 +2021,22 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_po')
               RETURNING id`
         );
-        cascadedExecIds = cascadeResult.rows.map((r: any) => r.id);
-        if (cascadedExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedExecIds.length} procurement execution record(s) for planning record ${id}`);
+        cascadedProcExecIds = cascadeResult.rows.map((r: any) => r.id);
+        if (cascadedProcExecIds.length > 0) {
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) for planning record ${id}`);
+        }
+      }
+      if (record.planning_type === 'production') {
+        const cascadeResult = await db.execute(
+          sql`UPDATE production_execution_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')
+              RETURNING id`
+        );
+        cascadedProdExecIds = cascadeResult.rows.map((r: any) => r.id);
+        if (cascadedProdExecIds.length > 0) {
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) for planning record ${id}`);
         }
       }
 
@@ -1974,11 +2044,10 @@ export function setupProjectRoutes(app: express.Express) {
         VALUES (${record.project_id}, 'planning_record.cancelled', ${JSON.stringify({
           planningRecordId: id, planningType: record.planning_type,
           projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
-          cascadedProcurementExecIds: [],
         })}::jsonb, NOW())`);
 
       console.log(`[PlanningLifecycle] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Planning record cancelled', id, newStatus: 'cancelled', cascadedExecIds });
+      res.json({ success: true, message: 'Planning record cancelled', id, newStatus: 'cancelled', cascadedProcExecIds, cascadedProdExecIds });
     } catch (error) {
       sendError(res, error);
     }
@@ -2311,6 +2380,229 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[ProcurementExec] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── Production Execution Record Lifecycle Routes ──────────────────────────
+
+  app.get('/api/projects/:projectId/production-executions', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT per.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                             u3.username as prepared_by_name
+                      FROM production_execution_records per
+                      LEFT JOIN users u1 ON per.assigned_to = u1.id
+                      LEFT JOIN users u2 ON per.created_by = u2.id
+                      LEFT JOIN users u3 ON per.prepared_by = u3.id
+                      WHERE per.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND per.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND per.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY per.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/production-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
+
+      const result = await db.execute(
+        sql`SELECT per.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                   u3.username as prepared_by_name
+            FROM production_execution_records per
+            LEFT JOIN users u1 ON per.assigned_to = u1.id
+            LEFT JOIN users u2 ON per.created_by = u2.id
+            LEFT JOIN users u3 ON per.prepared_by = u3.id
+            WHERE per.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/production-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
+
+      const existing = await db.execute(sql`SELECT * FROM production_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
+      }
+      if (record.status === 'ready_for_wo') {
+        return sendBusinessError(res, 'Cannot edit: record is already ready for WO. Revert to under_preparation first.');
+      }
+
+      const { quantity, estimatedUnitCost, drawingNo, drawingRevision, manufacturingNotes } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (quantity !== undefined) updates.quantity = String(quantity);
+      if (estimatedUnitCost !== undefined) {
+        updates.estimatedUnitCost = estimatedUnitCost ? String(estimatedUnitCost) : null;
+        const qty = quantity !== undefined ? parseFloat(String(quantity)) : parseFloat(record.quantity || '0');
+        const uc = parseFloat(String(estimatedUnitCost));
+        updates.estimatedTotalCost = uc > 0 && qty > 0 ? String(uc * qty) : null;
+      }
+      if (drawingNo !== undefined) updates.drawingNo = drawingNo || null;
+      if (drawingRevision !== undefined) updates.drawingRevision = drawingRevision || null;
+      if (manufacturingNotes !== undefined) updates.manufacturingNotes = manufacturingNotes || null;
+
+      await db.update(productionExecutionRecords).set(updates).where(eq(productionExecutionRecords.id, id));
+      res.json({ success: true, message: 'Production execution record updated', id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/production-executions/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM production_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'draft') {
+        return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
+      }
+
+      await db.update(productionExecutionRecords)
+        .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
+        .where(eq(productionExecutionRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'production_execution.preparation_started', ${JSON.stringify({
+          productionExecId: id, projectItemId: record.project_item_id,
+          planningRecordId: record.planning_record_id, startedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[ProductionExec] Record ${id} preparation started by user ${userId}`);
+      res.json({ success: true, message: 'Production preparation started', id, newStatus: 'under_preparation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/production-executions/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
+      const userId = (req.user as any)?.id;
+      const { preparationNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM production_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_preparation') {
+        return sendBusinessError(res, `Cannot mark ready: record is in '${record.status}' status. Only 'under_preparation' records can be marked ready.`);
+      }
+
+      const qty = parseFloat(record.quantity || '0');
+      if (qty <= 0) {
+        return sendBusinessError(res, 'Cannot mark ready: quantity must be greater than zero.');
+      }
+
+      await db.update(productionExecutionRecords)
+        .set({ status: 'ready_for_wo', preparationNote: preparationNote || null, updatedAt: new Date() })
+        .where(eq(productionExecutionRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'production_execution.ready_for_wo', ${JSON.stringify({
+          productionExecId: id, projectItemId: record.project_item_id,
+          planningRecordId: record.planning_record_id, markedBy: userId,
+          quantity: record.quantity, drawingNo: record.drawing_no,
+          estimatedTotalCost: record.estimated_total_cost, preparationNote,
+        })}::jsonb, NOW())`);
+
+      console.log(`[ProductionExec] Record ${id} marked ready for WO by user ${userId}`);
+      res.json({ success: true, message: 'Production execution record marked ready for WO', id, newStatus: 'ready_for_wo' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/production-executions/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM production_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'ready_for_wo') {
+        return sendBusinessError(res, `Cannot revert: only 'ready_for_wo' records can be reverted. Current status: '${record.status}'.`);
+      }
+
+      await db.update(productionExecutionRecords)
+        .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
+        .where(eq(productionExecutionRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'production_execution.reverted_to_preparation', ${JSON.stringify({
+          productionExecId: id, projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[ProductionExec] Record ${id} reverted to preparation by user ${userId}`);
+      res.json({ success: true, message: 'Reverted to under_preparation', id, newStatus: 'under_preparation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/production-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM production_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
+      }
+
+      await db.update(productionExecutionRecords)
+        .set({
+          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+          cancelReason, updatedAt: new Date(),
+        })
+        .where(eq(productionExecutionRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
+          productionExecId: id, projectItemId: record.project_item_id,
+          planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[ProductionExec] Record ${id} cancelled by user ${userId}`);
+      res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled' });
     } catch (error) {
       sendError(res, error);
     }

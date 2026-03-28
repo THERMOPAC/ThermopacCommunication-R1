@@ -1,6 +1,6 @@
 import { agentEventBus } from './agents/framework/event-bus';
 import { db } from './db';
-import { projectWorkflowEvents, tasks as tasksTable, itemPlanningRecords, procurementExecutionRecords } from '@shared/schema';
+import { projectWorkflowEvents, tasks as tasksTable, itemPlanningRecords, procurementExecutionRecords, productionExecutionRecords } from '@shared/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import type { AgentEvent } from './agents/framework/types';
 
@@ -240,15 +240,25 @@ async function supersedePlanningRecords(params: {
     console.log(`${LOG_PREFIX} Superseded ${count} planning record(s) for item ${projectItemId}, replaced by record ${newRecordId}`);
 
     for (const supId of supersededIds) {
-      const cascadeResult = await db.execute(
+      const procCascade = await db.execute(
         sql`UPDATE procurement_execution_records 
             SET status = 'superseded', superseded_at = NOW(),
                 supersession_reason = ${reason}, updated_at = NOW()
             WHERE planning_record_id = ${supId} AND status IN ('draft', 'under_preparation', 'ready_for_po')
             RETURNING id`
       );
-      if (cascadeResult.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${cascadeResult.rows.length} procurement execution record(s) for superseded planning record ${supId}`);
+      if (procCascade.rows.length > 0) {
+        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) for superseded planning record ${supId}`);
+      }
+      const prodCascade = await db.execute(
+        sql`UPDATE production_execution_records 
+            SET status = 'superseded', superseded_at = NOW(),
+                supersession_reason = ${reason}, updated_at = NOW()
+            WHERE planning_record_id = ${supId} AND status IN ('draft', 'under_preparation', 'ready_for_wo')
+            RETURNING id`
+      );
+      if (prodCascade.rows.length > 0) {
+        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) for superseded planning record ${supId}`);
       }
     }
   }
