@@ -68,16 +68,44 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
 
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
+
+  const getIndianFinancialYear = () => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const startYear = month >= 3 ? year : year - 1;
+    const endYear = startYear + 1;
+    return `FY${String(startYear).slice(2)}-${String(endYear).slice(2)}`;
+  };
+
+  const currentFY = getIndianFinancialYear();
+
   const [newProjectData, setNewProjectData] = useState({
     name: "",
     description: "",
     code: "",
-    financialYear: new Date().getFullYear().toString(),
+    financialYear: currentFY,
     startDate: new Date().toISOString().split("T")[0],
     targetEndDate: "",
     priority: "Medium",
     status: "planning",
   });
+
+  const { data: nextCodeData, isFetching: codeFetching } = useQuery<{ nextCode: string }>({
+    queryKey: ["/api/projects/next-code", currentFY],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/next-code/${encodeURIComponent(currentFY)}`);
+      if (!res.ok) throw new Error("Failed to fetch next code");
+      return res.json();
+    },
+    enabled: newProjectDialogOpen,
+  });
+
+  useEffect(() => {
+    if (nextCodeData?.nextCode && newProjectDialogOpen) {
+      setNewProjectData(d => ({ ...d, code: nextCodeData.nextCode }));
+    }
+  }, [nextCodeData, newProjectDialogOpen]);
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof newProjectData) => {
@@ -87,10 +115,11 @@ export default function ProjectsPage() {
     onSuccess: (project) => {
       toast({ title: "Project created", description: `Project ${project.code} created successfully.` });
       queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects/next-code", currentFY] });
       setNewProjectDialogOpen(false);
       setNewProjectData({
         name: "", description: "", code: "",
-        financialYear: new Date().getFullYear().toString(),
+        financialYear: currentFY,
         startDate: new Date().toISOString().split("T")[0],
         targetEndDate: "", priority: "Medium", status: "planning",
       });
@@ -354,11 +383,11 @@ export default function ProjectsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="np-code">Project Code *</Label>
-                  <Input id="np-code" value={newProjectData.code} onChange={(e) => setNewProjectData(d => ({ ...d, code: e.target.value }))} placeholder="e.g. 2026-15" />
+                  <Input id="np-code" value={codeFetching ? "Loading..." : newProjectData.code} readOnly className="bg-muted" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="np-fy">Financial Year *</Label>
-                  <Input id="np-fy" value={newProjectData.financialYear} onChange={(e) => setNewProjectData(d => ({ ...d, financialYear: e.target.value }))} placeholder="e.g. 2026" />
+                  <Input id="np-fy" value={newProjectData.financialYear} readOnly className="bg-muted" />
                 </div>
               </div>
               <div className="space-y-2">
