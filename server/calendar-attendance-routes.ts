@@ -283,9 +283,42 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const [targetUser] = await db.select({
+      id: users.id,
+      userType: users.userType,
+      isActive: users.isActive,
+    }).from(users).where(eq(users.id, userId));
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const effectiveUserType = targetUser.userType || 'system_user';
+    if (effectiveUserType !== 'non_system_user') {
+      return res.status(403).json({ error: 'Calendar attendance can only be saved for non-system users.' });
+    }
+
+    if (!targetUser.isActive) {
+      return res.status(400).json({ error: 'Cannot save attendance for an inactive employee.' });
+    }
+
+    const ALLOWED_STATUSES = ['present', 'half_day', 'absent'];
+
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+    for (const entry of attendance) {
+      if (!entry.date || !entry.status) {
+        return res.status(400).json({ error: `Each attendance entry must have date and status.` });
+      }
+      if (!ALLOWED_STATUSES.includes(entry.status)) {
+        return res.status(400).json({ error: `Invalid status "${entry.status}" for date ${entry.date}. Allowed: ${ALLOWED_STATUSES.join(', ')}` });
+      }
+      if (entry.date < monthStart || entry.date > monthEnd) {
+        return res.status(400).json({ error: `Date ${entry.date} is outside the specified month (${monthStart} to ${monthEnd}).` });
+      }
+    }
 
     const existingPayroll = await db.select({
       id: payrollRecords.id,
@@ -304,6 +337,27 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
       return res.status(400).json({ error: 'Attendance is locked — payroll already verified/transferred for this period.' });
     }
 
+    const requestedDates = attendance.map((e: { date: string }) => e.date);
+
+    const conflictingRecords = await db.select({
+      id: attendanceRecords.id,
+      date: attendanceRecords.date,
+      source: attendanceRecords.source,
+    }).from(attendanceRecords)
+      .where(and(
+        eq(attendanceRecords.userId, userId),
+        inArray(attendanceRecords.date, requestedDates),
+        sql`${attendanceRecords.source} IS DISTINCT FROM 'manual_calendar'`,
+      ));
+
+    if (conflictingRecords.length > 0) {
+      const conflictDates = conflictingRecords.map(r => `${r.date} (source: ${r.source || 'system'})`).join(', ');
+      return res.status(409).json({ 
+        error: `Cannot overwrite existing non-calendar attendance records. Conflicts: ${conflictDates}`,
+        conflictDates: conflictingRecords.map(r => r.date),
+      });
+    }
+
     await db.delete(attendanceRecords).where(and(
       eq(attendanceRecords.userId, userId),
       gte(attendanceRecords.date, monthStart),
@@ -316,10 +370,11 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
       userId,
       date: entry.date,
       status: entry.status,
-      source: 'manual_calendar',
+      source: 'manual_calendar' as const,
       statusSource: 'manual_calendar',
       workingHours: entry.status === 'present' ? '8.00' : entry.status === 'half_day' ? '4.00' : '0',
       adminNotes: `Marked via calendar by ${adminUser.username}`,
+      adjustedBy: adminUser.id,
       createdAt: new Date(),
       updatedAt: new Date(),
     }));
@@ -336,6 +391,7 @@ router.post('/save-attendance', ensurePayrollAdmin, async (req: Request, res: Re
               statusSource: 'manual_calendar',
               workingHours: record.workingHours,
               adminNotes: record.adminNotes,
+              adjustedBy: record.adjustedBy,
               updatedAt: new Date(),
             },
           });
