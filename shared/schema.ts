@@ -1860,6 +1860,43 @@ export const insertItemPlanningRecordSchema = createInsertSchema(itemPlanningRec
 export type InsertItemPlanningRecord = z.infer<typeof insertItemPlanningRecordSchema>;
 export type ItemPlanningRecord = typeof itemPlanningRecords.$inferSelect;
 
+export const procurementExecutionRecords = pgTable('procurement_execution_records', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  planningRecordId: integer('planning_record_id').notNull().references(() => itemPlanningRecords.id),
+  masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
+  itemCode: varchar('item_code', { length: 100 }),
+  itemDescription: text('item_description'),
+  itemSpecification: text('item_specification'),
+  uom: varchar('uom', { length: 30 }),
+  drawingNo: varchar('drawing_no', { length: 100 }),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  estimatedUnitCost: decimal('estimated_unit_cost', { precision: 12, scale: 2 }),
+  estimatedTotalCost: decimal('estimated_total_cost', { precision: 14, scale: 2 }),
+  preferredVendorId: integer('preferred_vendor_id').references(() => vendors.id),
+  preferredVendorName: varchar('preferred_vendor_name', { length: 255 }),
+  procurementNotes: text('procurement_notes'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  preparedBy: integer('prepared_by').references(() => users.id),
+  preparedAt: timestamp('prepared_at'),
+  preparationNote: text('preparation_note'),
+  supersededBy: integer('superseded_by'),
+  supersededAt: timestamp('superseded_at'),
+  supersessionReason: text('supersession_reason'),
+  cancelledBy: integer('cancelled_by').references(() => users.id),
+  cancelledAt: timestamp('cancelled_at'),
+  cancelReason: text('cancel_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertProcurementExecutionRecordSchema = createInsertSchema(procurementExecutionRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertProcurementExecutionRecord = z.infer<typeof insertProcurementExecutionRecordSchema>;
+export type ProcurementExecutionRecord = typeof procurementExecutionRecords.$inferSelect;
+
 // Create insert schemas for project management tables
 export const insertCustomerSchema = createInsertSchema(customers);
 
