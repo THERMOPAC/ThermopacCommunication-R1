@@ -3,7 +3,7 @@ import { Router, Request, Response } from "express";
 import { ensureAuthenticated } from "./auth-middleware";
 import { db } from "./db";
 import { leaveTypes, leaveBalances, leaveRequests, companyHolidays, users } from "@shared/schema";
-import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import { checkModulePermission } from "./utils/permission-utils";
 import { checkPayrollLock } from './payroll-lock-service';
 import { createNotification } from './notification-routes';
@@ -302,22 +302,56 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    if (totalDays === undefined || totalDays === null || isNaN(parseFloat(totalDays)) || parseFloat(totalDays) <= 0) {
+      return res.status(400).json({ error: 'totalDays is required and must be a positive number' });
+    }
+
+    const effectiveEndDate = endDate || startDate;
+    if (effectiveEndDate < startDate) {
+      return res.status(400).json({ error: 'End date cannot be before start date' });
+    }
+
     const lockCheck = await checkPayrollLock('leave', startDate, userId);
     if (lockCheck.isLocked) {
       return res.status(403).json({ error: `Leave modifications are locked for this period: ${lockCheck.message}` });
     }
 
-    const [leaveType] = await db.select().from(leaveTypes).where(eq(leaveTypes.id, leaveTypeId));
+    const [leaveType] = await db.select().from(leaveTypes).where(and(eq(leaveTypes.id, leaveTypeId), eq(leaveTypes.isActive, true)));
     if (!leaveType) {
-      return res.status(400).json({ error: 'Invalid leave type' });
+      return res.status(400).json({ error: 'Invalid or inactive leave type' });
     }
 
+    if (isHalfDay && !leaveType.canBeHalfDay) {
+      return res.status(400).json({ error: `${leaveType.name} does not allow half-day requests` });
+    }
+
+    const [currentUser] = await db
+      .select({ reportingManagerId: users.reportingManagerId })
+      .from(users)
+      .where(eq(users.id, userId));
+
+    const managerId = currentUser?.reportingManagerId || null;
+    if (!managerId) {
+      return res.status(400).json({ error: 'Cannot submit leave request: no reporting manager assigned. Please contact HR to update your reporting manager.' });
+    }
+
+    const overlapping = await db.select({ id: leaveRequests.id }).from(leaveRequests)
+      .where(and(
+        eq(leaveRequests.employeeId, userId),
+        inArray(leaveRequests.status, ['pending', 'approved']),
+        lte(leaveRequests.startDate, effectiveEndDate),
+        gte(leaveRequests.endDate, startDate)
+      )).limit(1);
+    if (overlapping.length > 0) {
+      return res.status(409).json({ error: 'A pending or approved leave request already exists for overlapping dates' });
+    }
+
+    const balanceYear = new Date(startDate).getFullYear();
     if (leaveType.isPaid) {
-      const currentYear = new Date(startDate).getFullYear();
       const [balance] = await db.select().from(leaveBalances).where(and(
         eq(leaveBalances.userId, userId),
         eq(leaveBalances.leaveTypeId, leaveTypeId),
-        eq(leaveBalances.year, currentYear)
+        eq(leaveBalances.year, balanceYear)
       ));
 
       const allocated = parseFloat(balance?.allocatedDays || '0');
@@ -338,20 +372,13 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
       }
     }
 
-    const [currentUser] = await db
-      .select({ reportingManagerId: users.reportingManagerId })
-      .from(users)
-      .where(eq(users.id, userId));
-
-    const managerId = currentUser?.reportingManagerId || null;
-
     const [newRequest] = await db
       .insert(leaveRequests)
       .values({
         employeeId: userId,
         leaveTypeId,
         startDate,
-        endDate: endDate || startDate,
+        endDate: effectiveEndDate,
         totalDays: totalDays.toString(),
         isHalfDay: isHalfDay || false,
         halfDayPeriod: isHalfDay ? halfDayPeriod : null,
@@ -360,11 +387,10 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
         workHandoverNotes: workHandoverNotes || null,
         status: 'pending',
         managerId,
-        managerApprovalStatus: managerId ? 'pending' : null
+        managerApprovalStatus: 'pending'
       })
       .returning();
 
-    const balanceYear = new Date(startDate).getFullYear();
     const [existingBalance] = await db.select().from(leaveBalances).where(and(
       eq(leaveBalances.userId, userId),
       eq(leaveBalances.leaveTypeId, leaveTypeId),
@@ -391,21 +417,18 @@ router.post('/request', ensureAuthenticated, async (req: Request, res: Response)
         .where(eq(leaveBalances.id, existingBalance.id));
     }
 
-    if (managerId) {
-      const user = req.user as any;
-      const [leaveType] = await db.select({ name: leaveTypes.name }).from(leaveTypes).where(eq(leaveTypes.id, leaveTypeId));
-      const leaveTypeName = leaveType?.name || 'Leave';
-      await createNotification({
-        userId: managerId,
-        type: 'approval_request',
-        title: `Leave Request: ${user.fullName || user.username}`,
-        message: `${user.fullName || user.username} has applied for ${leaveTypeName} from ${startDate} to ${endDate || startDate} (${totalDays} day${totalDays > 1 ? 's' : ''}). Reason: ${reason}`,
-        link: '/leave-request',
-        sourceType: 'leave_request',
-        sourceId: newRequest.id,
-        createdBy: userId,
-      });
-    }
+    const user = req.user as any;
+    const leaveTypeName = leaveType.name;
+    await createNotification({
+      userId: managerId,
+      type: 'approval_request',
+      title: `Leave Request: ${user.fullName || user.username}`,
+      message: `${user.fullName || user.username} has applied for ${leaveTypeName} from ${startDate} to ${effectiveEndDate} (${totalDays} day${parseFloat(totalDays) > 1 ? 's' : ''}). Reason: ${reason}`,
+      link: '/leave-request',
+      sourceType: 'leave_request',
+      sourceId: newRequest.id,
+      createdBy: userId,
+    });
 
     res.status(201).json(newRequest);
   } catch (error) {
@@ -443,7 +466,7 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
       })
       .where(eq(leaveRequests.id, requestId));
 
-    const currentYear = new Date().getFullYear();
+    const balanceYear = new Date(existingRequest.startDate).getFullYear();
     await db
       .update(leaveBalances)
       .set({
@@ -453,7 +476,7 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
       .where(and(
         eq(leaveBalances.userId, userId),
         eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-        eq(leaveBalances.year, currentYear)
+        eq(leaveBalances.year, balanceYear)
       ));
 
     res.json({ success: true, message: 'Request cancelled successfully' });
@@ -560,17 +583,17 @@ router.post('/request/:id/approve', ensureAuthenticated, async (req: Request, re
       })
       .where(eq(leaveRequests.id, requestId));
 
-    const currentYear = new Date().getFullYear();
+    const balanceYear = new Date(existingRequest.startDate).getFullYear();
     const [approvalBalance] = await db.select().from(leaveBalances).where(and(
       eq(leaveBalances.userId, existingRequest.employeeId),
       eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-      eq(leaveBalances.year, currentYear)
+      eq(leaveBalances.year, balanceYear)
     ));
     if (!approvalBalance) {
       await db.insert(leaveBalances).values({
         userId: existingRequest.employeeId,
         leaveTypeId: existingRequest.leaveTypeId,
-        year: currentYear,
+        year: balanceYear,
         allocatedDays: '0.00',
         usedDays: existingRequest.totalDays.toString(),
         pendingDays: '0.00',
@@ -646,11 +669,11 @@ router.post('/request/:id/reject', ensureAuthenticated, async (req: Request, res
       })
       .where(eq(leaveRequests.id, requestId));
 
-    const currentYear = new Date().getFullYear();
+    const balanceYear = new Date(existingRequest.startDate).getFullYear();
     const [rejectionBalance] = await db.select().from(leaveBalances).where(and(
       eq(leaveBalances.userId, existingRequest.employeeId),
       eq(leaveBalances.leaveTypeId, existingRequest.leaveTypeId),
-      eq(leaveBalances.year, currentYear)
+      eq(leaveBalances.year, balanceYear)
     ));
     if (rejectionBalance) {
       await db
