@@ -910,10 +910,11 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       .where(and(
         eq(attendanceRegularizations.employeeId, user.id),
         eq(attendanceRegularizations.requestDate, requestDate),
-        eq(attendanceRegularizations.requestType, effectiveRequestType)
+        eq(attendanceRegularizations.requestType, effectiveRequestType),
+        inArray(attendanceRegularizations.status, ['pending', 'approved'])
       ));
     if (existing.length > 0) {
-      return res.status(409).json({ error: 'A regularization request already exists for this date and type' });
+      return res.status(409).json({ error: 'A pending or approved regularization request already exists for this date and type' });
     }
 
     const [attendanceRec] = await db.select().from(attendanceRecords)
@@ -924,6 +925,10 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
 
     const [empUser] = await db.select({ reportingManagerId: users.reportingManagerId }).from(users).where(eq(users.id, user.id));
     const approverId = empUser?.reportingManagerId || null;
+
+    if (!approverId) {
+      return res.status(400).json({ error: 'Cannot submit regularization: no reporting manager assigned. Please contact HR to update your reporting manager.' });
+    }
 
     const originalData = attendanceRec ? {
       checkInTime: attendanceRec.checkInTime,
@@ -1195,6 +1200,11 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       dutyTimeIn: users.dutyTimeIn,
       dutyTimeOut: users.dutyTimeOut,
       minimumDailyHours: users.minimumDailyHours,
+      halfDayMinimumHours: users.halfDayMinimumHours,
+      weeklyOffDays: users.weeklyOffDays,
+      workTimePolicy: users.workTimePolicy,
+      allowedLateMinutes: users.allowedLateMinutes,
+      earlyExitMinutes: users.earlyExitMinutes,
     }).from(users).where(eq(users.id, reg.employeeId));
 
     const dutyIn = employee?.dutyTimeIn || '09:00';
@@ -1230,14 +1240,34 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       };
     }
 
+    const employeeUserConfig = {
+      minimumDailyHours: employee?.minimumDailyHours,
+      halfDayMinimumHours: employee?.halfDayMinimumHours,
+      weeklyOffDays: employee?.weeklyOffDays,
+      dutyTimeIn: employee?.dutyTimeIn,
+      dutyTimeOut: employee?.dutyTimeOut,
+      allowedLateMinutes: employee?.allowedLateMinutes,
+      earlyExitMinutes: employee?.earlyExitMinutes,
+      workTimePolicy: employee?.workTimePolicy,
+    };
+
     if (reg.requestType === 'outdoor_duty') {
+      const odStatusResult = await determineAttendanceStatus({
+        userId: reg.employeeId,
+        date: reg.requestDate,
+        checkInTime: dutyCheckIn,
+        checkOutTime: dutyCheckOut,
+        userConfig: employeeUserConfig,
+        workLocationId: existingAttendance?.workLocationId,
+      });
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
-          status: 'present',
+          status: odStatusResult.status,
           statusSource: 'regularization',
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
-          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
+          workingHours: odStatusResult.workingHours.toFixed(2),
+          netWorkingHours: odStatusResult.netWorkingHours.toFixed(2),
           originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1252,8 +1282,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           date: reg.requestDate,
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
-          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
-          status: 'present',
+          workingHours: odStatusResult.workingHours.toFixed(2),
+          netWorkingHours: odStatusResult.netWorkingHours.toFixed(2),
+          status: odStatusResult.status,
           statusSource: 'regularization',
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1311,11 +1342,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           date: reg.requestDate,
           checkInTime: actualCheckIn,
           checkOutTime: resolvedCheckOut,
-          userConfig: {
-            minimumDailyHours: employee?.minimumDailyHours,
-            halfDayMinimumHours: null,
-            weeklyOffDays: null,
-          },
+          userConfig: employeeUserConfig,
           workLocationId: existingAttendance.workLocationId,
         });
         await db.update(attendanceRecords).set({
@@ -1337,13 +1364,22 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         }).where(eq(attendanceRecords.id, existingAttendance.id));
         appliedToAttendance = true;
       } else {
+        const mcFallbackResult = await determineAttendanceStatus({
+          userId: reg.employeeId,
+          date: reg.requestDate,
+          checkInTime: dutyCheckIn,
+          checkOutTime: dutyCheckOut,
+          userConfig: employeeUserConfig,
+          workLocationId: null,
+        });
         await db.insert(attendanceRecords).values({
           userId: reg.employeeId,
           date: reg.requestDate,
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
-          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
-          status: 'present',
+          workingHours: mcFallbackResult.workingHours.toFixed(2),
+          netWorkingHours: mcFallbackResult.netWorkingHours.toFixed(2),
+          status: mcFallbackResult.status,
           statusSource: 'regularization',
           adminNotes: `Regularized: Missed check-out (no existing record, full day applied) - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1354,13 +1390,22 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         appliedToAttendance = true;
       }
     } else if (reg.requestType === 'full_day_regularization') {
+      const fdStatusResult = await determineAttendanceStatus({
+        userId: reg.employeeId,
+        date: reg.requestDate,
+        checkInTime: dutyCheckIn,
+        checkOutTime: dutyCheckOut,
+        userConfig: employeeUserConfig,
+        workLocationId: existingAttendance?.workLocationId,
+      });
       if (existingAttendance) {
         await db.update(attendanceRecords).set({
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
-          status: 'present',
+          status: fdStatusResult.status,
           statusSource: 'regularization',
-          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
+          workingHours: fdStatusResult.workingHours.toFixed(2),
+          netWorkingHours: fdStatusResult.netWorkingHours.toFixed(2),
           isIncomplete: false,
           originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Full day - ${reg.reason}`,
@@ -1376,8 +1421,9 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           date: reg.requestDate,
           checkInTime: dutyCheckIn,
           checkOutTime: dutyCheckOut,
-          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
-          status: 'present',
+          workingHours: fdStatusResult.workingHours.toFixed(2),
+          netWorkingHours: fdStatusResult.netWorkingHours.toFixed(2),
+          status: fdStatusResult.status,
           statusSource: 'regularization',
           adminNotes: `Regularized: Full day - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
@@ -1489,7 +1535,34 @@ router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, r
     if (reg.employeeId !== user.id) return res.status(403).json({ error: 'You can only cancel your own requests' });
     if (reg.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be cancelled' });
 
-    await db.delete(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
+    const cancellerName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
+    const existingTrail = (reg.auditTrail as any[]) || [];
+    existingTrail.push({
+      action: 'cancelled',
+      by: user.id,
+      byName: cancellerName,
+      at: new Date().toISOString(),
+    });
+
+    await db.update(attendanceRegularizations).set({
+      status: 'cancelled',
+      auditTrail: existingTrail,
+      updatedAt: new Date(),
+    }).where(eq(attendanceRegularizations.id, regId));
+
+    if (reg.approverId) {
+      await createNotification({
+        userId: reg.approverId,
+        type: 'info',
+        title: `Regularization Cancelled`,
+        message: `${cancellerName} has cancelled their ${REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType} regularization request for ${reg.requestDate}.`,
+        link: '/attendance/regularization',
+        sourceType: 'attendance_regularization',
+        sourceId: reg.id,
+        createdBy: user.id,
+      });
+    }
+
     res.json({ message: 'Request cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling regularization:', error);
