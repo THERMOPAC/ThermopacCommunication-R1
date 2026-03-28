@@ -28,6 +28,8 @@ const KICKOFF_TASKS = [
   { title: 'Define Project Schedule & Milestones', phase: 'Engineering & Design' },
   { title: 'Initiate GA Drawing', phase: 'Engineering & Design' },
   { title: 'Prepare Preliminary BOM', phase: 'Engineering & Design' },
+  { title: 'Import Project Items from Order', phase: 'Engineering & Design' },
+  { title: 'Review Make/Buy Classification', phase: 'Procurement' },
   { title: 'Identify Critical Procurement Items', phase: 'Procurement' },
   { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Assurance' },
 ];
@@ -36,6 +38,7 @@ const STARTER_DELIVERABLES = [
   { name: 'General Arrangement Drawing', phase: 'Engineering & Design' },
   { name: 'Bill of Materials', phase: 'Engineering & Design' },
   { name: 'Project Execution Plan', phase: 'Engineering & Design' },
+  { name: 'Project Item List (Confirmed)', phase: 'Engineering & Design' },
   { name: 'Quality Assurance Plan', phase: 'Quality Assurance' },
 ];
 
