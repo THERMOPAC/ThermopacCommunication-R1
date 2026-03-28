@@ -123,8 +123,7 @@ export default function ProjectsPage() {
         ...data,
         customerId: data.customerId ? parseInt(data.customerId) : undefined,
       };
-      const res = await apiRequest("POST", "/api/projects", payload);
-      return res.json();
+      return await apiRequest("POST", "/api/projects", payload);
     },
     onSuccess: (project) => {
       toast({ title: "Project created", description: `Project ${project.code} created successfully.` });
