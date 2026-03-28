@@ -142,8 +142,16 @@ export function setupProjectRoutes(app: express.Express) {
         isActive: true
       });
       
-      // Create default phases
-      const phaseNames = ['Design', 'Procurement', 'Manufacturing', 'Quality'];
+      // Create default EPC lifecycle phases (7 phases)
+      const phaseNames = [
+        'Engineering & Design',
+        'Procurement',
+        'Production / Manufacturing',
+        'Quality Assurance',
+        'Dispatch & Shipping',
+        'Project Commissioning',
+        'After-Sales & Warranty',
+      ];
       let startDate = new Date(project.startDate);
       
       const projectDuration = new Date(project.targetEndDate).getTime() - startDate.getTime();
