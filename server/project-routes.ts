@@ -12,7 +12,8 @@ import {
   insertProjectItemSchema,
   insertCustomerSchema,
   workOrders,
-  inspectionOrders
+  inspectionOrders,
+  projectWorkflowEvents
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -1051,6 +1052,25 @@ export function setupProjectRoutes(app: express.Express) {
       });
       
       const item = await storage.createProjectItem(itemData);
+
+      const eventPayload = {
+        projectId,
+        projectItemId: item.id,
+        masterItemId: item.itemId,
+        changedBy: userId,
+        timestamp: new Date().toISOString(),
+      };
+      agentEventBus.emit('project.item.added', eventPayload, 'project-routes');
+      db.insert(projectWorkflowEvents).values({
+        projectId,
+        eventName: 'project.item.added',
+        eventPayload,
+        emittedBy: 'project-routes',
+        emittedAt: new Date(),
+        processed: false,
+      }).then(() => console.log(`[ProjectItemEvent] project.item.added logged for project ${projectId}`))
+        .catch(err => console.error(`[ProjectItemEvent] Failed to log project.item.added:`, err));
+
       res.status(201).json(item);
     } catch (error) {
       console.error(`Error creating item for project ${req.params.projectId}:`, error);
@@ -1102,10 +1122,10 @@ export function setupProjectRoutes(app: express.Express) {
       
       console.log(`Extracted fields for update - itemCode: ${itemCode}, description: ${description}, quantity: ${quantity}, uom: ${uom}, makeOrBuy: ${effectiveMakeOrBuy}, drawingNo: ${effectiveDrawingNo}`);
       
-      // If itemCode is provided, we need to update the master item
+      const oldMakeOrBuy = await storage.getMasterItem(item.itemId).then(mi => mi?.makeOrBuy || null);
+
       if (itemCode) {
         try {
-          // First, get the master item associated with this project item
           console.log(`Getting master item for item ID: ${item.itemId}`);
           const masterItem = await storage.getMasterItem(item.itemId);
           
@@ -1299,9 +1319,49 @@ export function setupProjectRoutes(app: express.Express) {
         }
       }
       
-      // Return the full updated item with master item data
       const fullUpdatedItem = await storage.getProjectItem(itemId);
       console.log(`Returning full updated item:`, fullUpdatedItem);
+
+      const updateEventPayload = {
+        projectId: item.projectId,
+        projectItemId: itemId,
+        masterItemId: item.itemId,
+        changedBy: userId,
+        timestamp: new Date().toISOString(),
+      };
+      agentEventBus.emit('project.item.updated', updateEventPayload, 'project-routes');
+      db.insert(projectWorkflowEvents).values({
+        projectId: item.projectId,
+        eventName: 'project.item.updated',
+        eventPayload: updateEventPayload,
+        emittedBy: 'project-routes',
+        emittedAt: new Date(),
+        processed: false,
+      }).then(() => console.log(`[ProjectItemEvent] project.item.updated logged for item ${itemId}`))
+        .catch(err => console.error(`[ProjectItemEvent] Failed to log project.item.updated:`, err));
+
+      if (effectiveMakeOrBuy && oldMakeOrBuy && effectiveMakeOrBuy !== oldMakeOrBuy) {
+        const classEventPayload = {
+          projectId: item.projectId,
+          projectItemId: itemId,
+          masterItemId: item.itemId,
+          oldClassification: oldMakeOrBuy,
+          newClassification: effectiveMakeOrBuy,
+          changedBy: userId,
+          timestamp: new Date().toISOString(),
+        };
+        agentEventBus.emit('project.item.classification_changed', classEventPayload, 'project-routes');
+        db.insert(projectWorkflowEvents).values({
+          projectId: item.projectId,
+          eventName: 'project.item.classification_changed',
+          eventPayload: classEventPayload,
+          emittedBy: 'project-routes',
+          emittedAt: new Date(),
+          processed: false,
+        }).then(() => console.log(`[ProjectItemEvent] project.item.classification_changed logged: ${oldMakeOrBuy} → ${effectiveMakeOrBuy} for item ${itemId}`))
+          .catch(err => console.error(`[ProjectItemEvent] Failed to log classification change:`, err));
+      }
+
       res.json(fullUpdatedItem);
     } catch (error) {
       console.error(`Error updating project item ${req.params.id}:`, error);

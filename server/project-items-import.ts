@@ -2,8 +2,10 @@ import multer from 'multer';
 import { Router, Request, Response } from 'express';
 import { read, utils } from 'xlsx';
 import { storage } from './storage';
-import { insertProjectItemSchema, insertMasterItemSchema } from '@shared/schema';
+import { insertProjectItemSchema, insertMasterItemSchema, projectWorkflowEvents } from '@shared/schema';
 import { z } from 'zod';
+import { db } from './db';
+import { agentEventBus } from './agents/framework/event-bus';
 // No need to import Express type, we'll use any for MulterFile
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
@@ -345,6 +347,28 @@ export function setupProjectItemsImportRoutes(app: Router) {
       }
 
       console.log(`Project items import completed: ${results.imported} imported, ${results.skipped} skipped`);
+
+      if (results.imported > 0) {
+        const userId = (req as any).user?.id;
+        const eventPayload = {
+          projectId,
+          itemsImported: results.imported,
+          itemsSkipped: results.skipped,
+          changedBy: userId,
+          timestamp: new Date().toISOString(),
+        };
+        agentEventBus.emit('project.items.imported', eventPayload, 'project-items-import');
+        db.insert(projectWorkflowEvents).values({
+          projectId,
+          eventName: 'project.items.imported',
+          eventPayload,
+          emittedBy: 'project-items-import',
+          emittedAt: new Date(),
+          processed: false,
+        }).then(() => console.log(`[ProjectItemEvent] project.items.imported logged for project ${projectId}: ${results.imported} items`))
+          .catch(err => console.error(`[ProjectItemEvent] Failed to log project.items.imported:`, err));
+      }
+
       res.status(200).json({ results });
       
     } catch (error) {
