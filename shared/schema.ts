@@ -9764,9 +9764,7 @@ export const attendanceRegularizations = pgTable('attendance_regularizations', {
   auditTrail: jsonb('audit_trail'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  uniqueEmployeeDate: uniqueIndex('reg_employee_date_type').on(table.employeeId, table.requestDate, table.requestType),
-}));
+});
 
 export const insertAttendanceRegularizationSchema = createInsertSchema(attendanceRegularizations)
   .omit({ id: true, createdAt: true, updatedAt: true });

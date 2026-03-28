@@ -858,7 +858,7 @@ router.get('/daily-quote', async (req: Request, res: Response) => {
 router.post('/regularization', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    const { requestDate, requestType, reason } = req.body;
+    const { requestDate, requestType, reason, correctedCheckOut } = req.body;
 
     if (!requestDate || !requestType || !reason) {
       return res.status(400).json({ error: 'requestDate, requestType, and reason are required' });
@@ -953,7 +953,7 @@ router.post('/regularization', ensureAuthenticated, async (req: Request, res: Re
       requestDate,
       requestType: effectiveRequestType,
       correctedCheckIn: null,
-      correctedCheckOut: null,
+      correctedCheckOut: correctedCheckOut ? new Date(correctedCheckOut) : null,
       reason,
       status: 'pending',
       approverId,
@@ -1268,6 +1268,7 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
           checkOutTime: dutyCheckOut,
           workingHours: odStatusResult.workingHours.toFixed(2),
           netWorkingHours: odStatusResult.netWorkingHours.toFixed(2),
+          isIncomplete: false,
           originalPunchData: buildOriginalPunchData(existingAttendance),
           adminNotes: `Regularized: Outdoor duty - ${reg.reason}`,
           adminAdjustment: { type: 'regularization', regularizationId: reg.id },
