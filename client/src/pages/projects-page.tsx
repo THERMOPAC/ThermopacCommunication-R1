@@ -571,9 +571,34 @@ export default function ProjectsPage() {
                         <p className="text-sm text-gray-600 mt-2">{selectedProject.description}</p>
                       )}
                     </div>
-                    <Badge className={getStatusColor(selectedProject.status)}>
-                      {selectedProject.status}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                      <Select
+                        value={selectedProject.status}
+                        onValueChange={async (newStatus) => {
+                          try {
+                            await apiRequest("PUT", `/api/projects/${selectedProject.id}`, { status: newStatus });
+                            queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
+                            toast({ title: "Status updated", description: `Project status changed to ${newStatus}` });
+                          } catch (err: any) {
+                            toast({ title: "Failed to update status", description: err.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="planning">Planning</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="on_hold">On Hold</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="canceled">Canceled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(selectedProject)}>
+                        <ArrowRight className="mr-1 h-4 w-4" /> View Details
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
