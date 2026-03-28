@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, ArrowRight } from "lucide-react";
+import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, ArrowRight, Plus } from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Project {
   id: number;
@@ -65,6 +66,39 @@ export default function ProjectsPage() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({
+    name: "",
+    description: "",
+    code: "",
+    financialYear: new Date().getFullYear().toString(),
+    startDate: new Date().toISOString().split("T")[0],
+    targetEndDate: "",
+    priority: "Medium",
+    status: "planning",
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: typeof newProjectData) => {
+      const res = await apiRequest("POST", "/api/projects", data);
+      return res.json();
+    },
+    onSuccess: (project) => {
+      toast({ title: "Project created", description: `Project ${project.code} created successfully.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
+      setNewProjectDialogOpen(false);
+      setNewProjectData({
+        name: "", description: "", code: "",
+        financialYear: new Date().getFullYear().toString(),
+        startDate: new Date().toISOString().split("T")[0],
+        targetEndDate: "", priority: "Medium", status: "planning",
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to create project", description: error.message, variant: "destructive" });
+    },
+  });
 
   // Parse URL parameters on component mount
   useEffect(() => {
@@ -301,7 +335,70 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight pl-4">Projects</h1>
+          <Button onClick={() => setNewProjectDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New Project
+          </Button>
         </div>
+
+        <Dialog open={newProjectDialogOpen} onOpenChange={setNewProjectDialogOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Create New Project</DialogTitle>
+              <DialogDescription>Fill in the details to create a new project. Default phases will be created automatically.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="np-name">Project Name *</Label>
+                <Input id="np-name" value={newProjectData.name} onChange={(e) => setNewProjectData(d => ({ ...d, name: e.target.value }))} placeholder="e.g. Thermal Oil Heater - ABC Corp" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="np-code">Project Code *</Label>
+                  <Input id="np-code" value={newProjectData.code} onChange={(e) => setNewProjectData(d => ({ ...d, code: e.target.value }))} placeholder="e.g. 2026-15" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="np-fy">Financial Year *</Label>
+                  <Input id="np-fy" value={newProjectData.financialYear} onChange={(e) => setNewProjectData(d => ({ ...d, financialYear: e.target.value }))} placeholder="e.g. 2026" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="np-desc">Description *</Label>
+                <Textarea id="np-desc" value={newProjectData.description} onChange={(e) => setNewProjectData(d => ({ ...d, description: e.target.value }))} placeholder="Brief project description" rows={2} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="np-start">Start Date *</Label>
+                  <Input id="np-start" type="date" value={newProjectData.startDate} onChange={(e) => setNewProjectData(d => ({ ...d, startDate: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="np-end">Target End Date *</Label>
+                  <Input id="np-end" type="date" value={newProjectData.targetEndDate} onChange={(e) => setNewProjectData(d => ({ ...d, targetEndDate: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="np-priority">Priority</Label>
+                <Select value={newProjectData.priority} onValueChange={(v) => setNewProjectData(d => ({ ...d, priority: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
+              <Button
+                onClick={() => createProjectMutation.mutate(newProjectData)}
+                disabled={createProjectMutation.isPending || !newProjectData.name || !newProjectData.code || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
+              >
+                {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Project
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         
         {/* Available Projects Section */}
         <Card>
