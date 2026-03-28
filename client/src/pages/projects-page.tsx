@@ -92,7 +92,7 @@ export default function ProjectsPage() {
     status: "planning",
   });
 
-  const { data: customers } = useQuery<{ id: number; name: string; code: string }[]>({
+  const { data: customers } = useQuery<{ id: number; bpName: string; bpCode: string }[]>({
     queryKey: ["/api/customers"],
   });
 
@@ -391,7 +391,7 @@ export default function ProjectsPage() {
                     {customers && customers.length > 0 ? (
                       customers.map((c) => (
                         <SelectItem key={c.id} value={c.id.toString()}>
-                          {c.name} ({c.code})
+                          {c.bpName} ({c.bpCode})
                         </SelectItem>
                       ))
                     ) : (
