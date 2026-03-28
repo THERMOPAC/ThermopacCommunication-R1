@@ -84,11 +84,16 @@ export default function ProjectsPage() {
     name: "",
     description: "",
     code: "",
+    customerId: "",
     financialYear: currentFY,
     startDate: new Date().toISOString().split("T")[0],
     targetEndDate: "",
     priority: "Medium",
     status: "planning",
+  });
+
+  const { data: customers } = useQuery<{ id: number; name: string; code: string }[]>({
+    queryKey: ["/api/customers"],
   });
 
   const { data: nextCodeData, isFetching: codeFetching } = useQuery<{ nextCode: string }>({
@@ -118,7 +123,7 @@ export default function ProjectsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects/next-code", currentFY] });
       setNewProjectDialogOpen(false);
       setNewProjectData({
-        name: "", description: "", code: "",
+        name: "", description: "", code: "", customerId: "",
         financialYear: currentFY,
         startDate: new Date().toISOString().split("T")[0],
         targetEndDate: "", priority: "Medium", status: "planning",
@@ -377,6 +382,25 @@ export default function ProjectsPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="np-customer">Select Customer *</Label>
+                <Select value={newProjectData.customerId} onValueChange={(v) => setNewProjectData(d => ({ ...d, customerId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a customer..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers && customers.length > 0 ? (
+                      customers.map((c) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          {c.name} ({c.code})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No customers available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="np-name">Project Name *</Label>
                 <Input id="np-name" value={newProjectData.name} onChange={(e) => setNewProjectData(d => ({ ...d, name: e.target.value }))} placeholder="e.g. Thermal Oil Heater - ABC Corp" />
               </div>
@@ -420,7 +444,7 @@ export default function ProjectsPage() {
               <Button variant="outline" onClick={() => setNewProjectDialogOpen(false)}>Cancel</Button>
               <Button
                 onClick={() => createProjectMutation.mutate(newProjectData)}
-                disabled={createProjectMutation.isPending || !newProjectData.name || !newProjectData.code || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
+                disabled={createProjectMutation.isPending || !newProjectData.customerId || !newProjectData.name || !newProjectData.code || !newProjectData.description || !newProjectData.startDate || !newProjectData.targetEndDate}
               >
                 {createProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Project
