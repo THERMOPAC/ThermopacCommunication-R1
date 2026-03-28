@@ -1374,13 +1374,11 @@ export function setupProjectRoutes(app: express.Express) {
       const itemId = parseInt(req.params.id);
       const userId = req.user!.id;
       
-      // Check if item exists
       const item = await storage.getProjectItem(itemId);
       if (!item) {
         return res.status(404).json({ error: 'Project item not found' });
       }
       
-      // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(item.projectId);
       const userMember = projectMembers.find(member => 
         member.userId === userId && (member.role === 'project_manager' || canManage(req.user!.role, 'Manager'))
@@ -1389,8 +1387,72 @@ export function setupProjectRoutes(app: express.Express) {
       if (!userMember) {
         return res.status(403).json({ error: 'Not authorized to delete this project item' });
       }
-      
+
+      const poItems = await db.execute(
+        sql`SELECT id FROM purchase_order_items WHERE project_item_id = ${itemId} LIMIT 5`
+      );
+      const woItems = await db.execute(
+        sql`SELECT id FROM work_order_items WHERE project_item_id = ${itemId} LIMIT 5`
+      );
+      const ioItems = await db.execute(
+        sql`SELECT id FROM inspection_orders WHERE project_item_id = ${itemId} LIMIT 5`
+      );
+
+      const dependencies: Record<string, number> = {};
+      if (poItems.rows.length > 0) dependencies.purchase_order_items = poItems.rows.length;
+      if (woItems.rows.length > 0) dependencies.work_order_items = woItems.rows.length;
+      if (ioItems.rows.length > 0) dependencies.inspection_orders = ioItems.rows.length;
+
+      const hasDependencies = Object.keys(dependencies).length > 0;
+
+      if (hasDependencies) {
+        const eventPayload = {
+          projectId: item.projectId,
+          projectItemId: itemId,
+          masterItemId: item.itemId,
+          changedBy: userId,
+          deletionBlocked: true,
+          downstreamDependencies: dependencies,
+          timestamp: new Date().toISOString(),
+        };
+        agentEventBus.emit('project.item.removed', eventPayload, 'project-routes');
+        db.insert(projectWorkflowEvents).values({
+          projectId: item.projectId,
+          eventName: 'project.item.removed',
+          eventPayload,
+          emittedBy: 'project-routes',
+          emittedAt: new Date(),
+          processed: false,
+        }).catch(err => console.error(`[ProjectItemEvent] Failed to log project.item.removed:`, err));
+
+        return res.status(409).json({
+          error: 'Cannot delete project item with downstream dependencies',
+          dependencies,
+          message: 'An impact review task has been created for the project manager to evaluate this deletion request.',
+        });
+      }
+
       await storage.deleteProjectItem(itemId);
+
+      const eventPayload = {
+        projectId: item.projectId,
+        projectItemId: itemId,
+        masterItemId: item.itemId,
+        changedBy: userId,
+        deletionBlocked: false,
+        downstreamDependencies: {},
+        timestamp: new Date().toISOString(),
+      };
+      agentEventBus.emit('project.item.removed', eventPayload, 'project-routes');
+      db.insert(projectWorkflowEvents).values({
+        projectId: item.projectId,
+        eventName: 'project.item.removed',
+        eventPayload,
+        emittedBy: 'project-routes',
+        emittedAt: new Date(),
+        processed: false,
+      }).catch(err => console.error(`[ProjectItemEvent] Failed to log project.item.removed:`, err));
+
       res.status(204).send();
     } catch (error) {
       console.error(`Error deleting project item ${req.params.id}:`, error);

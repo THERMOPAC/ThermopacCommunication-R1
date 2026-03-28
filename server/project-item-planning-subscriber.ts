@@ -159,36 +159,46 @@ async function handleItemAdded(event: AgentEvent): Promise<void> {
 
   try {
     const classification = await getMasterItemClassification(masterItemId);
-    if (!classification) {
-      console.log(`${LOG_PREFIX} No classification for master item ${masterItemId}, skipping`);
-      return;
-    }
-
     const ctx = await getProjectContext(projectId);
     const itemDesc = await getItemDescription(projectItemId);
 
     let taskId: number | null = null;
+    let taskContext: string;
 
     if (classification === 'Buy') {
+      taskContext = 'procurement_plan';
       taskId = await createPlanningTask({
         projectId,
         projectItemId,
         title: `Plan procurement for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext: 'procurement_plan',
+        taskContext,
         assignTo: ctx.procurementLeadId || ctx.managerId,
         changedBy,
         phaseId: ctx.procurementPhaseId,
         itemDesc,
       });
     } else if (classification === 'Make') {
+      taskContext = 'production_plan';
       taskId = await createPlanningTask({
         projectId,
         projectItemId,
         title: `Plan manufacturing for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext: 'production_plan',
+        taskContext,
         assignTo: ctx.productionLeadId || ctx.managerId,
         changedBy,
         phaseId: ctx.productionPhaseId,
+        itemDesc,
+      });
+    } else {
+      taskContext = 'classification_review';
+      taskId = await createPlanningTask({
+        projectId,
+        projectItemId,
+        title: `Review Make/Buy classification for ${itemDesc} (${ctx.projectCode || 'Project'})`,
+        taskContext,
+        assignTo: ctx.managerId,
+        changedBy,
+        phaseId: null,
         itemDesc,
       });
     }
@@ -197,9 +207,9 @@ async function handleItemAdded(event: AgentEvent): Promise<void> {
       await logSubscriberEvent(projectId, 'project_item_planning.task_created', {
         trigger: 'project.item.added',
         projectItemId,
-        classification,
+        classification: classification || 'unclassified',
         taskId,
-        taskContext: classification === 'Buy' ? 'procurement_plan' : 'production_plan',
+        taskContext,
       });
     }
   } catch (err) {
@@ -213,33 +223,46 @@ async function handleItemUpdated(event: AgentEvent): Promise<void> {
 
   try {
     const classification = await getMasterItemClassification(masterItemId);
-    if (!classification) return;
-
     const ctx = await getProjectContext(projectId);
     const itemDesc = await getItemDescription(projectItemId);
 
     let taskId: number | null = null;
+    let taskContext: string;
 
     if (classification === 'Buy') {
+      taskContext = 'procurement_plan';
       taskId = await createPlanningTask({
         projectId,
         projectItemId,
         title: `Plan procurement for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext: 'procurement_plan',
+        taskContext,
         assignTo: ctx.procurementLeadId || ctx.managerId,
         changedBy,
         phaseId: ctx.procurementPhaseId,
         itemDesc,
       });
     } else if (classification === 'Make') {
+      taskContext = 'production_plan';
       taskId = await createPlanningTask({
         projectId,
         projectItemId,
         title: `Plan manufacturing for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext: 'production_plan',
+        taskContext,
         assignTo: ctx.productionLeadId || ctx.managerId,
         changedBy,
         phaseId: ctx.productionPhaseId,
+        itemDesc,
+      });
+    } else {
+      taskContext = 'classification_review';
+      taskId = await createPlanningTask({
+        projectId,
+        projectItemId,
+        title: `Review Make/Buy classification for ${itemDesc} (${ctx.projectCode || 'Project'})`,
+        taskContext,
+        assignTo: ctx.managerId,
+        changedBy,
+        phaseId: null,
         itemDesc,
       });
     }
@@ -248,9 +271,9 @@ async function handleItemUpdated(event: AgentEvent): Promise<void> {
       await logSubscriberEvent(projectId, 'project_item_planning.task_created', {
         trigger: 'project.item.updated',
         projectItemId,
-        classification,
+        classification: classification || 'unclassified',
         taskId,
-        taskContext: classification === 'Buy' ? 'procurement_plan' : 'production_plan',
+        taskContext,
       });
     }
   } catch (err) {
@@ -316,9 +339,56 @@ async function handleClassificationChanged(event: AgentEvent): Promise<void> {
   }
 }
 
+async function handleItemRemoved(event: AgentEvent): Promise<void> {
+  const { projectId, projectItemId, masterItemId, changedBy, deletionBlocked, downstreamDependencies } = event.payload;
+  if (!projectId || !projectItemId) return;
+
+  try {
+    if (!deletionBlocked) {
+      await logSubscriberEvent(projectId, 'project_item_planning.item_removed', {
+        trigger: 'project.item.removed',
+        projectItemId,
+        masterItemId,
+        deletionBlocked: false,
+        removedBy: changedBy,
+      });
+      console.log(`${LOG_PREFIX} Item ${projectItemId} removed cleanly from project ${projectId}`);
+      return;
+    }
+
+    const ctx = await getProjectContext(projectId);
+    const itemDesc = await getItemDescription(projectItemId);
+
+    const taskId = await createPlanningTask({
+      projectId,
+      projectItemId,
+      title: `Review impact of project item deletion: ${itemDesc} (${ctx.projectCode || 'Project'})`,
+      taskContext: 'deletion_impact_review',
+      assignTo: ctx.managerId,
+      changedBy,
+      phaseId: null,
+      itemDesc,
+    });
+
+    if (taskId) {
+      await logSubscriberEvent(projectId, 'project_item_planning.deletion_blocked', {
+        trigger: 'project.item.removed',
+        projectItemId,
+        masterItemId,
+        deletionBlocked: true,
+        downstreamDependencies,
+        impactReviewTaskId: taskId,
+      });
+    }
+  } catch (err) {
+    console.error(`${LOG_PREFIX} Error handling item.removed for item ${projectItemId}:`, err);
+  }
+}
+
 export function registerProjectItemPlanningSubscriber(): void {
   agentEventBus.subscribe('project.item.added', handleItemAdded);
   agentEventBus.subscribe('project.item.updated', handleItemUpdated);
   agentEventBus.subscribe('project.item.classification_changed', handleClassificationChanged);
-  console.log(`${LOG_PREFIX} Registered planning subscriber for project.item.added, project.item.updated, project.item.classification_changed`);
+  agentEventBus.subscribe('project.item.removed', handleItemRemoved);
+  console.log(`${LOG_PREFIX} Registered planning subscriber for project.item.added, project.item.updated, project.item.classification_changed, project.item.removed`);
 }
