@@ -1,7 +1,7 @@
 import { agentEventBus } from './agents/framework/event-bus';
 import { db } from './db';
-import { projectWorkflowEvents, tasks as tasksTable } from '@shared/schema';
-import { sql } from 'drizzle-orm';
+import { projectWorkflowEvents, tasks as tasksTable, itemPlanningRecords } from '@shared/schema';
+import { sql, eq, and } from 'drizzle-orm';
 import type { AgentEvent } from './agents/framework/types';
 
 const SOURCE_AGENT = 'project_item_planning';
@@ -153,6 +153,94 @@ async function logSubscriberEvent(
   }
 }
 
+function planningTypeFromClassification(classification: string | null): string {
+  if (classification === 'Buy') return 'procurement';
+  if (classification === 'Make') return 'production';
+  return 'review';
+}
+
+async function upsertPlanningRecord(params: {
+  projectId: number;
+  projectItemId: number;
+  masterItemId: number;
+  planningType: string;
+  classification: string | null;
+  assignTo: number | null;
+  changedBy: number | null;
+  linkedTaskId: number | null;
+}): Promise<{ id: number; wasCreated: boolean }> {
+  const { projectId, projectItemId, masterItemId, planningType, classification, assignTo, changedBy, linkedTaskId } = params;
+
+  const existing = await db.execute(
+    sql`SELECT id, linked_task_id FROM item_planning_records 
+        WHERE project_id = ${projectId} 
+          AND project_item_id = ${projectItemId} 
+          AND planning_type = ${planningType} 
+          AND status = 'active' 
+        LIMIT 1`
+  );
+
+  if (existing.rows.length > 0) {
+    const record = existing.rows[0] as any;
+    const updates: any = { updatedAt: new Date() };
+    if (classification) updates.classificationSnapshot = classification;
+    if (linkedTaskId && !record.linked_task_id) updates.linkedTaskId = linkedTaskId;
+
+    await db.update(itemPlanningRecords)
+      .set(updates)
+      .where(eq(itemPlanningRecords.id, record.id));
+
+    console.log(`${LOG_PREFIX} Updated planning record ${record.id} (${planningType}) for item ${projectItemId}`);
+    return { id: record.id, wasCreated: false };
+  }
+
+  const [newRecord] = await db.insert(itemPlanningRecords).values({
+    projectId,
+    projectItemId,
+    masterItemId,
+    planningType,
+    status: 'active',
+    classificationSnapshot: classification,
+    linkedTaskId,
+    assignedTo: assignTo,
+    createdBy: changedBy,
+    notes: `Auto-created ${planningType} planning record`,
+  }).returning();
+
+  console.log(`${LOG_PREFIX} Created planning record ${newRecord.id} (${planningType}) for item ${projectItemId}`);
+  return { id: newRecord.id, wasCreated: true };
+}
+
+async function supersedePlanningRecords(params: {
+  projectId: number;
+  projectItemId: number;
+  excludePlanningType: string;
+  newRecordId: number;
+  reason: string;
+}): Promise<number> {
+  const { projectId, projectItemId, excludePlanningType, newRecordId, reason } = params;
+
+  const result = await db.execute(
+    sql`UPDATE item_planning_records 
+        SET status = 'superseded', 
+            superseded_by = ${newRecordId}, 
+            superseded_at = NOW(), 
+            supersession_reason = ${reason},
+            updated_at = NOW()
+        WHERE project_id = ${projectId} 
+          AND project_item_id = ${projectItemId} 
+          AND planning_type != ${excludePlanningType} 
+          AND status = 'active'
+        RETURNING id`
+  );
+
+  const count = result.rows.length;
+  if (count > 0) {
+    console.log(`${LOG_PREFIX} Superseded ${count} planning record(s) for item ${projectItemId}, replaced by record ${newRecordId}`);
+  }
+  return count;
+}
+
 async function handleItemAdded(event: AgentEvent): Promise<void> {
   const { projectId, projectItemId, masterItemId, changedBy } = event.payload;
   if (!projectId || !projectItemId || !masterItemId) return;
@@ -161,6 +249,12 @@ async function handleItemAdded(event: AgentEvent): Promise<void> {
     const classification = await getMasterItemClassification(masterItemId);
     const ctx = await getProjectContext(projectId);
     const itemDesc = await getItemDescription(projectItemId);
+    const planType = planningTypeFromClassification(classification);
+    const assignTo = classification === 'Buy'
+      ? (ctx.procurementLeadId || ctx.managerId)
+      : classification === 'Make'
+        ? (ctx.productionLeadId || ctx.managerId)
+        : ctx.managerId;
 
     let taskId: number | null = null;
     let taskContext: string;
@@ -168,50 +262,44 @@ async function handleItemAdded(event: AgentEvent): Promise<void> {
     if (classification === 'Buy') {
       taskContext = 'procurement_plan';
       taskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Plan procurement for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext,
-        assignTo: ctx.procurementLeadId || ctx.managerId,
-        changedBy,
-        phaseId: ctx.procurementPhaseId,
-        itemDesc,
+        taskContext, assignTo, changedBy,
+        phaseId: ctx.procurementPhaseId, itemDesc,
       });
     } else if (classification === 'Make') {
       taskContext = 'production_plan';
       taskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Plan manufacturing for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext,
-        assignTo: ctx.productionLeadId || ctx.managerId,
-        changedBy,
-        phaseId: ctx.productionPhaseId,
-        itemDesc,
+        taskContext, assignTo, changedBy,
+        phaseId: ctx.productionPhaseId, itemDesc,
       });
     } else {
       taskContext = 'classification_review';
       taskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Review Make/Buy classification for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext,
-        assignTo: ctx.managerId,
-        changedBy,
-        phaseId: null,
-        itemDesc,
+        taskContext, assignTo: ctx.managerId, changedBy,
+        phaseId: null, itemDesc,
       });
     }
 
-    if (taskId) {
-      await logSubscriberEvent(projectId, 'project_item_planning.task_created', {
-        trigger: 'project.item.added',
-        projectItemId,
-        classification: classification || 'unclassified',
-        taskId,
-        taskContext,
-      });
-    }
+    const planRecord = await upsertPlanningRecord({
+      projectId, projectItemId, masterItemId,
+      planningType: planType,
+      classification, assignTo, changedBy,
+      linkedTaskId: taskId,
+    });
+
+    await logSubscriberEvent(projectId, 'project_item_planning.record_created', {
+      trigger: 'project.item.added',
+      projectItemId, classification: classification || 'unclassified',
+      planningType: planType,
+      planningRecordId: planRecord.id,
+      wasNewRecord: planRecord.wasCreated,
+      taskId, taskContext,
+    });
   } catch (err) {
     console.error(`${LOG_PREFIX} Error handling item.added for item ${projectItemId}:`, err);
   }
@@ -225,6 +313,12 @@ async function handleItemUpdated(event: AgentEvent): Promise<void> {
     const classification = await getMasterItemClassification(masterItemId);
     const ctx = await getProjectContext(projectId);
     const itemDesc = await getItemDescription(projectItemId);
+    const planType = planningTypeFromClassification(classification);
+    const assignTo = classification === 'Buy'
+      ? (ctx.procurementLeadId || ctx.managerId)
+      : classification === 'Make'
+        ? (ctx.productionLeadId || ctx.managerId)
+        : ctx.managerId;
 
     let taskId: number | null = null;
     let taskContext: string;
@@ -232,50 +326,44 @@ async function handleItemUpdated(event: AgentEvent): Promise<void> {
     if (classification === 'Buy') {
       taskContext = 'procurement_plan';
       taskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Plan procurement for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext,
-        assignTo: ctx.procurementLeadId || ctx.managerId,
-        changedBy,
-        phaseId: ctx.procurementPhaseId,
-        itemDesc,
+        taskContext, assignTo, changedBy,
+        phaseId: ctx.procurementPhaseId, itemDesc,
       });
     } else if (classification === 'Make') {
       taskContext = 'production_plan';
       taskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Plan manufacturing for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext,
-        assignTo: ctx.productionLeadId || ctx.managerId,
-        changedBy,
-        phaseId: ctx.productionPhaseId,
-        itemDesc,
+        taskContext, assignTo, changedBy,
+        phaseId: ctx.productionPhaseId, itemDesc,
       });
     } else {
       taskContext = 'classification_review';
       taskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Review Make/Buy classification for ${itemDesc} (${ctx.projectCode || 'Project'})`,
-        taskContext,
-        assignTo: ctx.managerId,
-        changedBy,
-        phaseId: null,
-        itemDesc,
+        taskContext, assignTo: ctx.managerId, changedBy,
+        phaseId: null, itemDesc,
       });
     }
 
-    if (taskId) {
-      await logSubscriberEvent(projectId, 'project_item_planning.task_created', {
-        trigger: 'project.item.updated',
-        projectItemId,
-        classification: classification || 'unclassified',
-        taskId,
-        taskContext,
-      });
-    }
+    const planRecord = await upsertPlanningRecord({
+      projectId, projectItemId, masterItemId,
+      planningType: planType,
+      classification, assignTo, changedBy,
+      linkedTaskId: taskId,
+    });
+
+    await logSubscriberEvent(projectId, 'project_item_planning.record_updated', {
+      trigger: 'project.item.updated',
+      projectItemId, classification: classification || 'unclassified',
+      planningType: planType,
+      planningRecordId: planRecord.id,
+      wasNewRecord: planRecord.wasCreated,
+      taskId, taskContext,
+    });
   } catch (err) {
     console.error(`${LOG_PREFIX} Error handling item.updated for item ${projectItemId}:`, err);
   }
@@ -288,51 +376,64 @@ async function handleClassificationChanged(event: AgentEvent): Promise<void> {
   try {
     const ctx = await getProjectContext(projectId);
     const itemDesc = await getItemDescription(projectItemId);
+    const newPlanType = planningTypeFromClassification(newClassification);
+    const newAssignTo = newClassification === 'Buy'
+      ? (ctx.procurementLeadId || ctx.managerId)
+      : newClassification === 'Make'
+        ? (ctx.productionLeadId || ctx.managerId)
+        : ctx.managerId;
 
     const reviewTaskId = await createPlanningTask({
-      projectId,
-      projectItemId,
+      projectId, projectItemId,
       title: `Revalidate downstream planning after classification change: ${itemDesc} (${oldClassification} → ${newClassification})`,
       taskContext: `revalidate_${oldClassification}_to_${newClassification}`,
-      assignTo: ctx.managerId,
-      changedBy,
-      phaseId: null,
-      itemDesc,
+      assignTo: ctx.managerId, changedBy,
+      phaseId: null, itemDesc,
     });
 
     let newPlanTaskId: number | null = null;
 
     if (newClassification === 'Buy') {
       newPlanTaskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Plan procurement for ${itemDesc} (${ctx.projectCode || 'Project'})`,
         taskContext: 'procurement_plan',
-        assignTo: ctx.procurementLeadId || ctx.managerId,
-        changedBy,
-        phaseId: ctx.procurementPhaseId,
-        itemDesc,
+        assignTo: ctx.procurementLeadId || ctx.managerId, changedBy,
+        phaseId: ctx.procurementPhaseId, itemDesc,
       });
     } else if (newClassification === 'Make') {
       newPlanTaskId = await createPlanningTask({
-        projectId,
-        projectItemId,
+        projectId, projectItemId,
         title: `Plan manufacturing for ${itemDesc} (${ctx.projectCode || 'Project'})`,
         taskContext: 'production_plan',
-        assignTo: ctx.productionLeadId || ctx.managerId,
-        changedBy,
-        phaseId: ctx.productionPhaseId,
-        itemDesc,
+        assignTo: ctx.productionLeadId || ctx.managerId, changedBy,
+        phaseId: ctx.productionPhaseId, itemDesc,
       });
     }
+
+    const newRecord = await upsertPlanningRecord({
+      projectId, projectItemId, masterItemId: masterItemId || 0,
+      planningType: newPlanType,
+      classification: newClassification,
+      assignTo: newAssignTo, changedBy,
+      linkedTaskId: newPlanTaskId,
+    });
+
+    const supersededCount = await supersedePlanningRecords({
+      projectId, projectItemId,
+      excludePlanningType: newPlanType,
+      newRecordId: newRecord.id,
+      reason: `Classification changed from ${oldClassification} to ${newClassification}`,
+    });
 
     await logSubscriberEvent(projectId, 'project_item_planning.classification_change_handled', {
       trigger: 'project.item.classification_changed',
       projectItemId,
-      oldClassification,
-      newClassification,
-      reviewTaskId,
-      newPlanTaskId,
+      oldClassification, newClassification,
+      newPlanningType: newPlanType,
+      newPlanningRecordId: newRecord.id,
+      supersededRecords: supersededCount,
+      reviewTaskId, newPlanTaskId,
     });
   } catch (err) {
     console.error(`${LOG_PREFIX} Error handling classification_changed for item ${projectItemId}:`, err);

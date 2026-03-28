@@ -1828,6 +1828,29 @@ export const projectItems = pgTable('project_items', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const itemPlanningRecords = pgTable('item_planning_records', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
+  planningType: varchar('planning_type', { length: 30 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('active'),
+  classificationSnapshot: varchar('classification_snapshot', { length: 20 }),
+  supersededBy: integer('superseded_by'),
+  supersededAt: timestamp('superseded_at'),
+  supersessionReason: text('supersession_reason'),
+  linkedTaskId: integer('linked_task_id').references(() => tasks.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  notes: text('notes'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertItemPlanningRecordSchema = createInsertSchema(itemPlanningRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertItemPlanningRecord = z.infer<typeof insertItemPlanningRecordSchema>;
+export type ItemPlanningRecord = typeof itemPlanningRecords.$inferSelect;
+
 // Create insert schemas for project management tables
 export const insertCustomerSchema = createInsertSchema(customers);
 
