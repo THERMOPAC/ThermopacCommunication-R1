@@ -1294,40 +1294,6 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         });
       }
       appliedToAttendance = true;
-    } else if (reg.requestType === 'missed_checkin') {
-      if (existingAttendance) {
-        await db.update(attendanceRecords).set({
-          checkInTime: dutyCheckIn,
-          status: existingAttendance.checkOutTime ? 'present' : existingAttendance.status,
-          statusSource: 'regularization',
-          workingHours: calculateWorkingHours(dutyCheckIn, existingAttendance.checkOutTime),
-          isIncomplete: false,
-          originalPunchData: buildOriginalPunchData(existingAttendance),
-          adminNotes: `Regularized: Missed check-in - ${reg.reason}`,
-          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
-          adjustedBy: user.id,
-          adjustmentReason: `Missed check-in regularization approved`,
-          adjustmentDate: new Date(),
-          updatedAt: new Date(),
-        }).where(eq(attendanceRecords.id, existingAttendance.id));
-        appliedToAttendance = true;
-      } else {
-        await db.insert(attendanceRecords).values({
-          userId: reg.employeeId,
-          date: reg.requestDate,
-          checkInTime: dutyCheckIn,
-          checkOutTime: dutyCheckOut,
-          workingHours: calculateWorkingHours(dutyCheckIn, dutyCheckOut),
-          status: 'present',
-          statusSource: 'regularization',
-          adminNotes: `Regularized: Missed check-in (no existing record, full day applied) - ${reg.reason}`,
-          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
-          adjustedBy: user.id,
-          adjustmentReason: `Missed check-in regularization approved - no existing record, full day from duty schedule`,
-          adjustmentDate: new Date(),
-        });
-        appliedToAttendance = true;
-      }
     } else if (reg.requestType === 'missed_checkout') {
       if (existingAttendance && existingAttendance.checkInTime) {
         const actualCheckIn = new Date(existingAttendance.checkInTime);
@@ -1389,50 +1355,6 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
         });
         appliedToAttendance = true;
       }
-    } else if (reg.requestType === 'full_day_regularization') {
-      const fdStatusResult = await determineAttendanceStatus({
-        userId: reg.employeeId,
-        date: reg.requestDate,
-        checkInTime: dutyCheckIn,
-        checkOutTime: dutyCheckOut,
-        userConfig: employeeUserConfig,
-        workLocationId: existingAttendance?.workLocationId,
-      });
-      if (existingAttendance) {
-        await db.update(attendanceRecords).set({
-          checkInTime: dutyCheckIn,
-          checkOutTime: dutyCheckOut,
-          status: fdStatusResult.status,
-          statusSource: 'regularization',
-          workingHours: fdStatusResult.workingHours.toFixed(2),
-          netWorkingHours: fdStatusResult.netWorkingHours.toFixed(2),
-          isIncomplete: false,
-          originalPunchData: buildOriginalPunchData(existingAttendance),
-          adminNotes: `Regularized: Full day - ${reg.reason}`,
-          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
-          adjustedBy: user.id,
-          adjustmentReason: `Full day regularization approved`,
-          adjustmentDate: new Date(),
-          updatedAt: new Date(),
-        }).where(eq(attendanceRecords.id, existingAttendance.id));
-      } else {
-        await db.insert(attendanceRecords).values({
-          userId: reg.employeeId,
-          date: reg.requestDate,
-          checkInTime: dutyCheckIn,
-          checkOutTime: dutyCheckOut,
-          workingHours: fdStatusResult.workingHours.toFixed(2),
-          netWorkingHours: fdStatusResult.netWorkingHours.toFixed(2),
-          status: fdStatusResult.status,
-          statusSource: 'regularization',
-          adminNotes: `Regularized: Full day - ${reg.reason}`,
-          adminAdjustment: { type: 'regularization', regularizationId: reg.id },
-          adjustedBy: user.id,
-          adjustmentReason: `Full day regularization approved`,
-          adjustmentDate: new Date(),
-        });
-      }
-      appliedToAttendance = true;
     }
 
     await db.update(attendanceRegularizations).set({
