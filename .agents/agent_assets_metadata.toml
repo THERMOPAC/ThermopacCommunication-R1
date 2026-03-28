@@ -48,3 +48,9 @@ id = "CfE1qjZurYT70GVR-2bj7"
 uri = "file://attached_assets/ATTENDANCE_POST_IMPLEMENTATION_REVIEW.md"
 type = "text"
 title = "Attendance System — Post-Implementation Expert Review"
+
+[[outputs]]
+id = "KIkeNZaMRr0zCVG9Gec4t"
+uri = "file://.local/full-system-audit.md"
+type = "text"
+title = "Full Technical System Audit — THERMOPAC QMS"
