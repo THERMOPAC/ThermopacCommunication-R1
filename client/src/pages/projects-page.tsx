@@ -379,7 +379,7 @@ export default function ProjectsPage() {
         </div>
 
         <Dialog open={newProjectDialogOpen} onOpenChange={setNewProjectDialogOpen}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Project</DialogTitle>
               <DialogDescription>Fill in the details to create a new project. Default phases will be created automatically.</DialogDescription>
