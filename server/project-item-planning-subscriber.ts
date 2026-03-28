@@ -254,9 +254,15 @@ async function supersedePlanningRecords(params: {
                   supersession_reason = ${reason}, updated_at = NOW()
               WHERE procurement_exec_id = ${(procRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
         );
+        await db.execute(
+          sql`UPDATE po_preparation_records 
+              SET status = 'superseded', superseded_at = NOW(),
+                  supersession_reason = ${reason}, updated_at = NOW()
+              WHERE execution_record_id = ${(procRow as any).id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
+        );
       }
       if (procCascade.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) + quality plans for superseded planning record ${supId}`);
+        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) + quality plans + PO preps for superseded planning record ${supId}`);
       }
       const prodCascade = await db.execute(
         sql`UPDATE production_execution_records 

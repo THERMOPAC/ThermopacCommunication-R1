@@ -18,6 +18,7 @@ import {
   procurementExecutionRecords,
   productionExecutionRecords,
   qualityPlanningRecords,
+  poPreparationRecords,
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2030,9 +2031,15 @@ export function setupProjectRoutes(app: express.Express) {
                     cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
                 WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
           );
+          await db.execute(
+            sql`UPDATE po_preparation_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE execution_record_id = ${procId} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
+          );
         }
         if (cascadedProcExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) + quality plans for planning record ${id}`);
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) + quality plans + PO preps for planning record ${id}`);
         }
       }
       if (record.planning_type === 'production') {
@@ -2363,8 +2370,47 @@ export function setupProjectRoutes(app: express.Express) {
         qualityPlanId = (existingQP.rows[0] as any).id;
       }
 
+      let poPrepId: number | null = null;
+      const existingPOPrep = await db.execute(
+        sql`SELECT id FROM po_preparation_records 
+            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
+      );
+      if (existingPOPrep.rows.length === 0) {
+        const [poPrepRec] = await db.insert(poPreparationRecords).values({
+          projectId: record.project_id,
+          projectItemId: record.project_item_id,
+          planningRecordId: record.planning_record_id,
+          executionRecordId: id,
+          qualityPlanId: qualityPlanId,
+          masterItemId: record.master_item_id,
+          itemCode: record.item_code || null,
+          itemDescription: record.item_description || null,
+          itemSpecification: record.item_specification || null,
+          uom: record.uom || null,
+          drawingNo: record.drawing_no || null,
+          quantity: record.quantity,
+          estimatedUnitCost: record.estimated_unit_cost || null,
+          estimatedTotalCost: record.estimated_total_cost || null,
+          preferredVendorId: record.preferred_vendor_id || null,
+          preferredVendorName: record.preferred_vendor_name || null,
+          procurementNotes: record.procurement_notes || null,
+          status: 'draft',
+          assignedTo: record.assigned_to,
+          createdBy: userId,
+        }).returning();
+        poPrepId = poPrepRec.id;
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+          VALUES (${record.project_id}, 'po_preparation.created', ${JSON.stringify({
+            poPrepId: poPrepRec.id, executionRecordId: id, qualityPlanId,
+            projectItemId: record.project_item_id, createdBy: userId,
+          })}::jsonb, NOW())`);
+        console.log(`[ProcurementExec] Created PO preparation record ${poPrepRec.id} from execution ${id}`);
+      } else {
+        poPrepId = (existingPOPrep.rows[0] as any).id;
+      }
+
       console.log(`[ProcurementExec] Record ${id} marked ready for PO by user ${userId}`);
-      res.json({ success: true, message: 'Procurement execution record marked ready for PO', id, newStatus: 'ready_for_po', qualityPlanId });
+      res.json({ success: true, message: 'Procurement execution record marked ready for PO', id, newStatus: 'ready_for_po', qualityPlanId, poPrepId });
     } catch (error) {
       sendError(res, error);
     }
@@ -2432,15 +2478,27 @@ export function setupProjectRoutes(app: express.Express) {
             RETURNING id`
       );
 
+      const poPrepCascade = await db.execute(
+        sql`UPDATE po_preparation_records 
+            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')
+            RETURNING id`
+      );
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'procurement_execution.cancelled', ${JSON.stringify({
           procurementExecId: id, projectItemId: record.project_item_id,
           planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
           cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
+          cascadedPoPrepIds: poPrepCascade.rows.map((r: any) => r.id),
         })}::jsonb, NOW())`);
 
       console.log(`[ProcurementExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled', cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id) });
+      res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled',
+        cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
+        cascadedPoPrepIds: poPrepCascade.rows.map((r: any) => r.id),
+      });
     } catch (error) {
       sendError(res, error);
     }
@@ -2922,6 +2980,256 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[QualityPlan] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Quality planning record cancelled', id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── PO Preparation Record Lifecycle Routes ──────────────────────────────
+
+  app.get('/api/projects/:projectId/po-preparations', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT pp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                             u3.username as reviewed_by_name, u4.username as ready_by_name
+                      FROM po_preparation_records pp
+                      LEFT JOIN users u1 ON pp.assigned_to = u1.id
+                      LEFT JOIN users u2 ON pp.created_by = u2.id
+                      LEFT JOIN users u3 ON pp.reviewed_by = u3.id
+                      LEFT JOIN users u4 ON pp.ready_by = u4.id
+                      WHERE pp.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND pp.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND pp.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY pp.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/po-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+
+      const result = await db.execute(
+        sql`SELECT pp.*, u1.username as assigned_to_name, u2.username as created_by_name,
+                   u3.username as reviewed_by_name, u4.username as ready_by_name
+            FROM po_preparation_records pp
+            LEFT JOIN users u1 ON pp.assigned_to = u1.id
+            LEFT JOIN users u2 ON pp.created_by = u2.id
+            LEFT JOIN users u3 ON pp.reviewed_by = u3.id
+            LEFT JOIN users u4 ON pp.ready_by = u4.id
+            WHERE pp.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/po-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
+      }
+      if (record.status === 'ready_for_po_creation') {
+        return sendBusinessError(res, 'Cannot edit: record is already ready for PO creation. Revert to under_review first.');
+      }
+
+      const { quantity, estimatedUnitCost, estimatedTotalCost, preferredVendorId,
+              preferredVendorName, procurementNotes, reviewNotes } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (quantity !== undefined) updates.quantity = String(quantity);
+      if (estimatedUnitCost !== undefined) updates.estimatedUnitCost = estimatedUnitCost ? String(estimatedUnitCost) : null;
+      if (estimatedTotalCost !== undefined) updates.estimatedTotalCost = estimatedTotalCost ? String(estimatedTotalCost) : null;
+      if (preferredVendorId !== undefined) updates.preferredVendorId = preferredVendorId || null;
+      if (preferredVendorName !== undefined) updates.preferredVendorName = preferredVendorName || null;
+      if (procurementNotes !== undefined) updates.procurementNotes = procurementNotes || null;
+      if (reviewNotes !== undefined) updates.reviewNotes = reviewNotes || null;
+
+      await db.update(poPreparationRecords).set(updates).where(eq(poPreparationRecords.id, id));
+      res.json({ success: true, message: 'PO preparation record updated', id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/po-preparations/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'draft') {
+        return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
+      }
+
+      await db.update(poPreparationRecords)
+        .set({ status: 'under_review', updatedAt: new Date() })
+        .where(eq(poPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'po_preparation.submitted_for_review', ${JSON.stringify({
+          poPrepId: id, executionRecordId: record.execution_record_id,
+          projectItemId: record.project_item_id, submittedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[POPrep] Record ${id} submitted for review by user ${userId}`);
+      res.json({ success: true, message: 'PO preparation submitted for review', id, newStatus: 'under_review' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/po-preparations/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+      const userId = (req.user as any)?.id;
+      const { reviewNotes } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot approve: record is in '${record.status}' status. Only 'under_review' records can be approved.`);
+      }
+
+      await db.update(poPreparationRecords)
+        .set({
+          status: 'ready_for_po_creation', reviewedBy: userId, reviewedAt: new Date(),
+          readyBy: userId, readyAt: new Date(),
+          reviewNotes: reviewNotes || null, updatedAt: new Date(),
+        })
+        .where(eq(poPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'po_preparation.ready_for_po_creation', ${JSON.stringify({
+          poPrepId: id, executionRecordId: record.execution_record_id,
+          projectItemId: record.project_item_id, approvedBy: userId, reviewNotes,
+        })}::jsonb, NOW())`);
+
+      console.log(`[POPrep] Record ${id} approved and ready for PO creation by user ${userId}`);
+      res.json({ success: true, message: 'PO preparation approved — ready for PO creation', id, newStatus: 'ready_for_po_creation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/po-preparations/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot revert to draft: only 'under_review' records can be reverted. Current status: '${record.status}'.`);
+      }
+
+      await db.update(poPreparationRecords)
+        .set({ status: 'draft', reviewedBy: null, reviewedAt: null, reviewNotes: null, updatedAt: new Date() })
+        .where(eq(poPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'po_preparation.reverted_to_draft', ${JSON.stringify({
+          poPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[POPrep] Record ${id} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: 'Reverted to draft', id, newStatus: 'draft' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/po-preparations/:id/revert-to-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'ready_for_po_creation') {
+        return sendBusinessError(res, `Cannot revert to review: only 'ready_for_po_creation' records can be reverted. Current status: '${record.status}'.`);
+      }
+
+      await db.update(poPreparationRecords)
+        .set({ status: 'under_review', readyBy: null, readyAt: null, updatedAt: new Date() })
+        .where(eq(poPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'po_preparation.reverted_to_review', ${JSON.stringify({
+          poPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[POPrep] Record ${id} reverted to under_review by user ${userId}`);
+      res.json({ success: true, message: 'Reverted to under_review', id, newStatus: 'under_review' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/po-preparations/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status === 'superseded' || record.status === 'cancelled') {
+        return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
+      }
+
+      await db.update(poPreparationRecords)
+        .set({
+          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+          cancelReason, updatedAt: new Date(),
+        })
+        .where(eq(poPreparationRecords.id, id));
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'po_preparation.cancelled', ${JSON.stringify({
+          poPrepId: id, executionRecordId: record.execution_record_id,
+          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[POPrep] Record ${id} cancelled by user ${userId}`);
+      res.json({ success: true, message: 'PO preparation record cancelled', id, newStatus: 'cancelled' });
     } catch (error) {
       sendError(res, error);
     }
