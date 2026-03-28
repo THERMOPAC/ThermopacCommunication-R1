@@ -119,7 +119,11 @@ export default function ProjectsPage() {
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof newProjectData) => {
-      const res = await apiRequest("POST", "/api/projects", data);
+      const payload = {
+        ...data,
+        customerId: data.customerId ? parseInt(data.customerId) : undefined,
+      };
+      const res = await apiRequest("POST", "/api/projects", payload);
       return res.json();
     },
     onSuccess: (project) => {
