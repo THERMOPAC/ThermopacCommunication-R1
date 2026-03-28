@@ -54,3 +54,9 @@ id = "KIkeNZaMRr0zCVG9Gec4t"
 uri = "file://.local/full-system-audit.md"
 type = "text"
 title = "Full Technical System Audit — THERMOPAC QMS"
+
+[[outputs]]
+id = "uwa9IumI5jyVNOcJZaf7u"
+uri = "file://.local/epc-kickoff-automation-plan.md"
+type = "text"
+title = "EPC Project Kickoff — First Automation Slice Design"
