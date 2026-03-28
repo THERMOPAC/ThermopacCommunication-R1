@@ -38,7 +38,7 @@ const STARTER_DELIVERABLES = [
   { name: 'General Arrangement Drawing', phase: 'Engineering & Design' },
   { name: 'Bill of Materials', phase: 'Engineering & Design' },
   { name: 'Project Execution Plan', phase: 'Engineering & Design' },
-  { name: 'Project Item List (Confirmed)', phase: 'Engineering & Design' },
+  { name: 'Project Item List (Initial Baseline Confirmed)', phase: 'Engineering & Design' },
   { name: 'Quality Assurance Plan', phase: 'Quality Assurance' },
 ];
 
