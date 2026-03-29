@@ -22,12 +22,25 @@ import {
   woPreparationRecords,
   inspectionExecutionRecords,
 } from '@shared/schema';
-import { canManage } from '@shared/roles';
+import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { checkModulePermission } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
+
+function requireMinRole(req: Request, res: Response, minRole: string): boolean {
+  const userRole = (req.user as any)?.role;
+  if (!userRole || roleHierarchy[userRole] === undefined || roleHierarchy[minRole] === undefined) {
+    sendPermissionError(res, `Insufficient permissions. Required role: ${minRole} or above.`);
+    return false;
+  }
+  if (roleHierarchy[userRole] > roleHierarchy[minRole]) {
+    sendPermissionError(res, `Insufficient permissions. Required role: ${minRole} or above. Your role: ${userRole}.`);
+    return false;
+  }
+  return true;
+}
 
 // Helper function to validate a user is authenticated
 function ensureAuthenticated(req: Request, res: Response, next: express.NextFunction) {
@@ -1796,15 +1809,17 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
       }
 
-      await db.update(itemPlanningRecords)
-        .set({ status: 'under_review', updatedAt: new Date() })
-        .where(eq(itemPlanningRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(itemPlanningRecords)
+          .set({ status: 'under_review', updatedAt: new Date() })
+          .where(eq(itemPlanningRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'planning_record.submitted_for_review', ${JSON.stringify({
-          planningRecordId: id, planningType: record.planning_type,
-          projectItemId: record.project_item_id, submittedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'planning_record.submitted_for_review', ${JSON.stringify({
+            planningRecordId: id, planningType: record.planning_type,
+            projectItemId: record.project_item_id, submittedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[PlanningLifecycle] Record ${id} submitted for review by user ${userId}`);
       res.json({ success: true, message: 'Planning record submitted for review', id, newStatus: 'under_review' });
@@ -1815,6 +1830,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/planning-records/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
@@ -1828,18 +1844,24 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot review: record is in '${record.status}' status. Only 'under_review' records can be reviewed.`);
       }
 
-      await db.update(itemPlanningRecords)
-        .set({
-          reviewedBy: userId, reviewedAt: new Date(),
-          reviewNote: reviewNote || null, updatedAt: new Date(),
-        })
-        .where(eq(itemPlanningRecords.id, id));
+      if (record.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator/submitter cannot also review the same planning record.');
+      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'planning_record.reviewed', ${JSON.stringify({
-          planningRecordId: id, planningType: record.planning_type,
-          projectItemId: record.project_item_id, reviewedBy: userId, reviewNote,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(itemPlanningRecords)
+          .set({
+            reviewedBy: userId, reviewedAt: new Date(),
+            reviewNote: reviewNote || null, updatedAt: new Date(),
+          })
+          .where(eq(itemPlanningRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'planning_record.reviewed', ${JSON.stringify({
+            planningRecordId: id, planningType: record.planning_type,
+            projectItemId: record.project_item_id, reviewedBy: userId, reviewNote,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[PlanningLifecycle] Record ${id} reviewed by user ${userId}`);
       res.json({ success: true, message: 'Planning record reviewed', id, reviewedBy: userId });
@@ -1850,6 +1872,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/planning-records/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
@@ -1866,6 +1889,14 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot release: record has not been reviewed yet. Please review first.');
       }
 
+      if (record.reviewed_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the reviewer cannot also release the same planning record. A different authorized user must release it.');
+      }
+
+      if (record.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator/submitter cannot also release the same planning record.');
+      }
+
       const conflicting = await db.execute(
         sql`SELECT id FROM item_planning_records 
             WHERE project_id = ${record.project_id}
@@ -1877,129 +1908,126 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot release: another released planning record (ID ${(conflicting.rows[0] as any).id}) already exists for this item and planning type. Supersede it first.`);
       }
 
-      await db.update(itemPlanningRecords)
-        .set({
-          status: 'released', releasedBy: userId, releasedAt: new Date(),
-          releaseNote: releaseNote || null, updatedAt: new Date(),
-        })
-        .where(eq(itemPlanningRecords.id, id));
-
       let procurementExecId: number | null = null;
-
-      if (record.planning_type === 'procurement') {
-        const existingExec = await db.execute(
-          sql`SELECT id FROM procurement_execution_records 
-              WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_po')`
-        );
-        if (existingExec.rows.length === 0) {
-          const itemSnapshot = await db.execute(
-            sql`SELECT mi.item_code, mi.description, mi.specification, mi.uom, mi.drawing_no,
-                       mi.preferred_vendor_id, mi.estimated_cost, v.name as vendor_name,
-                       pi.quantity, pi.estimated_cost as project_estimated_cost
-                FROM project_items pi
-                JOIN master_items mi ON pi.item_id = mi.id
-                LEFT JOIN vendors v ON mi.preferred_vendor_id = v.id
-                WHERE pi.id = ${record.project_item_id}`
-          );
-          const snap = (itemSnapshot.rows[0] as any) || {};
-          const qty = parseFloat(snap.quantity || '0');
-          const unitCost = parseFloat(snap.estimated_cost || snap.project_estimated_cost || '0');
-
-          const [newExec] = await db.insert(procurementExecutionRecords).values({
-            projectId: record.project_id,
-            projectItemId: record.project_item_id,
-            planningRecordId: id,
-            masterItemId: record.master_item_id,
-            itemCode: snap.item_code || null,
-            itemDescription: snap.description || null,
-            itemSpecification: snap.specification || null,
-            uom: snap.uom || null,
-            drawingNo: snap.drawing_no || null,
-            quantity: String(qty),
-            estimatedUnitCost: unitCost > 0 ? String(unitCost) : null,
-            estimatedTotalCost: unitCost > 0 && qty > 0 ? String(unitCost * qty) : null,
-            preferredVendorId: snap.preferred_vendor_id || null,
-            preferredVendorName: snap.vendor_name || null,
-            status: 'draft',
-            assignedTo: record.assigned_to,
-            createdBy: userId,
-          }).returning();
-          procurementExecId = newExec.id;
-          console.log(`[PlanningLifecycle] Created procurement execution record ${newExec.id} from released planning record ${id}`);
-        } else {
-          procurementExecId = (existingExec.rows[0] as any).id;
-          console.log(`[PlanningLifecycle] Procurement execution record ${procurementExecId} already exists for planning record ${id}`);
-        }
-      }
-
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'planning_record.released', ${JSON.stringify({
-          planningRecordId: id, planningType: record.planning_type,
-          projectItemId: record.project_item_id, releasedBy: userId, releaseNote,
-        })}::jsonb, NOW())`);
-
       let productionExecId: number | null = null;
 
-      if (record.planning_type === 'production') {
-        const existingExec = await db.execute(
-          sql`SELECT id FROM production_execution_records 
-              WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')`
-        );
-        if (existingExec.rows.length === 0) {
-          const itemSnapshot = await db.execute(
-            sql`SELECT mi.item_code, mi.description, mi.specification, mi.uom, mi.drawing_no,
-                       mi.latest_revision, mi.standard_cost, mi.make_or_buy,
-                       pi.quantity, pi.estimated_cost as project_estimated_cost
-                FROM project_items pi
-                JOIN master_items mi ON pi.item_id = mi.id
-                WHERE pi.id = ${record.project_item_id}`
+      await db.transaction(async (tx) => {
+        await tx.update(itemPlanningRecords)
+          .set({
+            status: 'released', releasedBy: userId, releasedAt: new Date(),
+            releaseNote: releaseNote || null, updatedAt: new Date(),
+          })
+          .where(eq(itemPlanningRecords.id, id));
+
+        if (record.planning_type === 'procurement') {
+          const existingExec = await tx.execute(
+            sql`SELECT id FROM procurement_execution_records 
+                WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_po')`
           );
-          const snap = (itemSnapshot.rows[0] as any) || {};
-          const qty = parseFloat(snap.quantity || '0');
-          const unitCost = parseFloat(snap.standard_cost || snap.project_estimated_cost || '0');
+          if (existingExec.rows.length === 0) {
+            const itemSnapshot = await tx.execute(
+              sql`SELECT mi.item_code, mi.description, mi.specification, mi.uom, mi.drawing_no,
+                         mi.preferred_vendor_id, mi.estimated_cost, v.name as vendor_name,
+                         pi.quantity, pi.estimated_cost as project_estimated_cost
+                  FROM project_items pi
+                  JOIN master_items mi ON pi.item_id = mi.id
+                  LEFT JOIN vendors v ON mi.preferred_vendor_id = v.id
+                  WHERE pi.id = ${record.project_item_id}`
+            );
+            const snap = (itemSnapshot.rows[0] as any) || {};
+            const qty = parseFloat(snap.quantity || '0');
+            const unitCost = parseFloat(snap.estimated_cost || snap.project_estimated_cost || '0');
 
-          const [newExec] = await db.insert(productionExecutionRecords).values({
-            projectId: record.project_id,
-            projectItemId: record.project_item_id,
-            planningRecordId: id,
-            masterItemId: record.master_item_id,
-            itemCode: snap.item_code || null,
-            itemDescription: snap.description || null,
-            itemSpecification: snap.specification || null,
-            uom: snap.uom || null,
-            drawingNo: snap.drawing_no || null,
-            drawingRevision: snap.latest_revision || null,
-            quantity: String(qty),
-            estimatedUnitCost: unitCost > 0 ? String(unitCost) : null,
-            estimatedTotalCost: unitCost > 0 && qty > 0 ? String(unitCost * qty) : null,
-            makeClassification: snap.make_or_buy || 'Make',
-            status: 'draft',
-            assignedTo: record.assigned_to,
-            createdBy: userId,
-          }).returning();
-          productionExecId = newExec.id;
-          console.log(`[PlanningLifecycle] Created production execution record ${newExec.id} from released planning record ${id}`);
-        } else {
-          productionExecId = (existingExec.rows[0] as any).id;
-          console.log(`[PlanningLifecycle] Production execution record ${productionExecId} already exists for planning record ${id}`);
+            const [newExec] = await tx.insert(procurementExecutionRecords).values({
+              projectId: record.project_id,
+              projectItemId: record.project_item_id,
+              planningRecordId: id,
+              masterItemId: record.master_item_id,
+              itemCode: snap.item_code || null,
+              itemDescription: snap.description || null,
+              itemSpecification: snap.specification || null,
+              uom: snap.uom || null,
+              drawingNo: snap.drawing_no || null,
+              quantity: String(qty),
+              estimatedUnitCost: unitCost > 0 ? String(unitCost) : null,
+              estimatedTotalCost: unitCost > 0 && qty > 0 ? String(unitCost * qty) : null,
+              preferredVendorId: snap.preferred_vendor_id || null,
+              preferredVendorName: snap.vendor_name || null,
+              status: 'draft',
+              assignedTo: record.assigned_to,
+              createdBy: userId,
+            }).returning();
+            procurementExecId = newExec.id;
+          } else {
+            procurementExecId = (existingExec.rows[0] as any).id;
+          }
         }
-      }
 
-      if (procurementExecId) {
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'procurement_execution.created_from_release', ${JSON.stringify({
-            procurementExecId, planningRecordId: id,
-            projectItemId: record.project_item_id, createdBy: userId,
-          })}::jsonb, NOW())`);
-      }
+        if (record.planning_type === 'production') {
+          const existingExec = await tx.execute(
+            sql`SELECT id FROM production_execution_records 
+                WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')`
+          );
+          if (existingExec.rows.length === 0) {
+            const itemSnapshot = await tx.execute(
+              sql`SELECT mi.item_code, mi.description, mi.specification, mi.uom, mi.drawing_no,
+                         mi.latest_revision, mi.standard_cost, mi.make_or_buy,
+                         pi.quantity, pi.estimated_cost as project_estimated_cost
+                  FROM project_items pi
+                  JOIN master_items mi ON pi.item_id = mi.id
+                  WHERE pi.id = ${record.project_item_id}`
+            );
+            const snap = (itemSnapshot.rows[0] as any) || {};
+            const qty = parseFloat(snap.quantity || '0');
+            const unitCost = parseFloat(snap.standard_cost || snap.project_estimated_cost || '0');
 
-      if (productionExecId) {
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'production_execution.created_from_release', ${JSON.stringify({
-            productionExecId, planningRecordId: id,
-            projectItemId: record.project_item_id, createdBy: userId,
-          })}::jsonb, NOW())`);
-      }
+            const [newExec] = await tx.insert(productionExecutionRecords).values({
+              projectId: record.project_id,
+              projectItemId: record.project_item_id,
+              planningRecordId: id,
+              masterItemId: record.master_item_id,
+              itemCode: snap.item_code || null,
+              itemDescription: snap.description || null,
+              itemSpecification: snap.specification || null,
+              uom: snap.uom || null,
+              drawingNo: snap.drawing_no || null,
+              drawingRevision: snap.latest_revision || null,
+              quantity: String(qty),
+              estimatedUnitCost: unitCost > 0 ? String(unitCost) : null,
+              estimatedTotalCost: unitCost > 0 && qty > 0 ? String(unitCost * qty) : null,
+              makeClassification: snap.make_or_buy || 'Make',
+              status: 'draft',
+              assignedTo: record.assigned_to,
+              createdBy: userId,
+            }).returning();
+            productionExecId = newExec.id;
+          } else {
+            productionExecId = (existingExec.rows[0] as any).id;
+          }
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'planning_record.released', ${JSON.stringify({
+            planningRecordId: id, planningType: record.planning_type,
+            projectItemId: record.project_item_id, releasedBy: userId, releaseNote,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+
+        if (procurementExecId) {
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'procurement_execution.created_from_release', ${JSON.stringify({
+              procurementExecId, planningRecordId: id,
+              projectItemId: record.project_item_id, createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        }
+
+        if (productionExecId) {
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'production_execution.created_from_release', ${JSON.stringify({
+              productionExecId, planningRecordId: id,
+              projectItemId: record.project_item_id, createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        }
+      });
 
       console.log(`[PlanningLifecycle] Record ${id} released by user ${userId}`);
       res.json({ success: true, message: 'Planning record released', id, newStatus: 'released', procurementExecId, productionExecId });
@@ -2010,6 +2038,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/planning-records/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
@@ -2025,93 +2054,90 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.update(itemPlanningRecords)
-        .set({
-          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
-          cancelReason, updatedAt: new Date(),
-        })
-        .where(eq(itemPlanningRecords.id, id));
-
       let cascadedProcExecIds: number[] = [];
       let cascadedProdExecIds: number[] = [];
-      if (record.planning_type === 'procurement') {
-        const cascadeResult = await db.execute(
-          sql`UPDATE procurement_execution_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
-              WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_po')
-              RETURNING id`
-        );
-        cascadedProcExecIds = cascadeResult.rows.map((r: any) => r.id);
-        for (const procId of cascadedProcExecIds) {
-          const cancelledQPs = await db.execute(
-            sql`UPDATE quality_planning_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
-                RETURNING id`
-          );
-          for (const qpRow of cancelledQPs.rows) {
-            await db.execute(
-              sql`UPDATE inspection_execution_records 
-                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                  WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
-            );
-          }
-          await db.execute(
-            sql`UPDATE po_preparation_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE execution_record_id = ${procId} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
-          );
-        }
-        if (cascadedProcExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) + quality plans + inspections + PO preps for planning record ${id}`);
-        }
-      }
-      if (record.planning_type === 'production') {
-        const cascadeResult = await db.execute(
-          sql`UPDATE production_execution_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
-              WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')
-              RETURNING id`
-        );
-        cascadedProdExecIds = cascadeResult.rows.map((r: any) => r.id);
-        for (const prodId of cascadedProdExecIds) {
-          const cancelledQPs = await db.execute(
-            sql`UPDATE quality_planning_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
-                RETURNING id`
-          );
-          for (const qpRow of cancelledQPs.rows) {
-            await db.execute(
-              sql`UPDATE inspection_execution_records 
-                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                  WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
-            );
-          }
-          await db.execute(
-            sql`UPDATE wo_preparation_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE execution_record_id = ${prodId} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
-          );
-        }
-        if (cascadedProdExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) + quality plans + inspections + WO preps for planning record ${id}`);
-        }
-      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'planning_record.cancelled', ${JSON.stringify({
-          planningRecordId: id, planningType: record.planning_type,
-          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(itemPlanningRecords)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(itemPlanningRecords.id, id));
+
+        if (record.planning_type === 'procurement') {
+          const cascadeResult = await tx.execute(
+            sql`UPDATE procurement_execution_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_po')
+                RETURNING id`
+          );
+          cascadedProcExecIds = cascadeResult.rows.map((r: any) => r.id);
+          for (const procId of cascadedProcExecIds) {
+            const cancelledQPs = await tx.execute(
+              sql`UPDATE quality_planning_records 
+                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+                  RETURNING id`
+            );
+            for (const qpRow of cancelledQPs.rows) {
+              await tx.execute(
+                sql`UPDATE inspection_execution_records 
+                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                    WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+              );
+            }
+            await tx.execute(
+              sql`UPDATE po_preparation_records 
+                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  WHERE execution_record_id = ${procId} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
+            );
+          }
+        }
+        if (record.planning_type === 'production') {
+          const cascadeResult = await tx.execute(
+            sql`UPDATE production_execution_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')
+                RETURNING id`
+          );
+          cascadedProdExecIds = cascadeResult.rows.map((r: any) => r.id);
+          for (const prodId of cascadedProdExecIds) {
+            const cancelledQPs = await tx.execute(
+              sql`UPDATE quality_planning_records 
+                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+                  RETURNING id`
+            );
+            for (const qpRow of cancelledQPs.rows) {
+              await tx.execute(
+                sql`UPDATE inspection_execution_records 
+                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                    WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+              );
+            }
+            await tx.execute(
+              sql`UPDATE wo_preparation_records 
+                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  WHERE execution_record_id = ${prodId} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
+            );
+          }
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'planning_record.cancelled', ${JSON.stringify({
+            planningRecordId: id, planningType: record.planning_type,
+            projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[PlanningLifecycle] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Planning record cancelled', id, newStatus: 'cancelled', cascadedProcExecIds, cascadedProdExecIds });
@@ -2122,6 +2148,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/planning-records/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
@@ -2134,17 +2161,19 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert: only 'under_review' records can be reverted to draft. Current status: '${record.status}'.`);
       }
 
-      await db.update(itemPlanningRecords)
-        .set({
-          status: 'draft', reviewedBy: null, reviewedAt: null, reviewNote: null, updatedAt: new Date(),
-        })
-        .where(eq(itemPlanningRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(itemPlanningRecords)
+          .set({
+            status: 'draft', reviewedBy: null, reviewedAt: null, reviewNote: null, updatedAt: new Date(),
+          })
+          .where(eq(itemPlanningRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'planning_record.reverted_to_draft', ${JSON.stringify({
-          planningRecordId: id, planningType: record.planning_type,
-          projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'planning_record.reverted_to_draft', ${JSON.stringify({
+            planningRecordId: id, planningType: record.planning_type,
+            projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[PlanningLifecycle] Record ${id} reverted to draft by user ${userId}`);
       res.json({ success: true, message: 'Planning record reverted to draft', id, newStatus: 'draft' });
@@ -2187,33 +2216,37 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       const newClassification = targetType === 'procurement' ? 'Buy' : 'Make';
-      const [newRecord] = await db.insert(itemPlanningRecords).values({
-        projectId: record.project_id,
-        projectItemId: record.project_item_id,
-        masterItemId: record.master_item_id,
-        planningType: targetType,
-        status: 'draft',
-        classificationSnapshot: newClassification,
-        linkedTaskId: record.linked_task_id,
-        assignedTo: record.assigned_to,
-        createdBy: userId,
-        notes: note || `Converted from review record #${id}`,
-      }).returning();
+      let newRecord: any;
+      await db.transaction(async (tx) => {
+        const [created] = await tx.insert(itemPlanningRecords).values({
+          projectId: record.project_id,
+          projectItemId: record.project_item_id,
+          masterItemId: record.master_item_id,
+          planningType: targetType,
+          status: 'draft',
+          classificationSnapshot: newClassification,
+          linkedTaskId: record.linked_task_id,
+          assignedTo: record.assigned_to,
+          createdBy: userId,
+          notes: note || `Converted from review record #${id}`,
+        }).returning();
+        newRecord = created;
 
-      await db.update(itemPlanningRecords)
-        .set({
-          status: 'superseded', supersededBy: newRecord.id, supersededAt: new Date(),
-          supersessionReason: `Converted to ${targetType} planning record #${newRecord.id}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(itemPlanningRecords.id, id));
+        await tx.update(itemPlanningRecords)
+          .set({
+            status: 'superseded', supersededBy: newRecord.id, supersededAt: new Date(),
+            supersessionReason: `Converted to ${targetType} planning record #${newRecord.id}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(itemPlanningRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'planning_record.converted', ${JSON.stringify({
-          originalRecordId: id, newRecordId: newRecord.id,
-          fromType: 'review', toType: targetType,
-          projectItemId: record.project_item_id, convertedBy: userId, note,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'planning_record.converted', ${JSON.stringify({
+            originalRecordId: id, newRecordId: 0,
+            fromType: 'review', toType: targetType,
+            projectItemId: record.project_item_id, convertedBy: userId, note,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[PlanningLifecycle] Review record ${id} converted to ${targetType} record ${newRecord.id} by user ${userId}`);
       res.json({
@@ -2327,15 +2360,17 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
       }
 
-      await db.update(procurementExecutionRecords)
-        .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
-        .where(eq(procurementExecutionRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(procurementExecutionRecords)
+          .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
+          .where(eq(procurementExecutionRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'procurement_execution.preparation_started', ${JSON.stringify({
-          procurementExecId: id, projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id, startedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.preparation_started', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id, startedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[ProcurementExec] Record ${id} preparation started by user ${userId}`);
       res.json({ success: true, message: 'Procurement preparation started', id, newStatus: 'under_preparation' });
@@ -2346,6 +2381,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/procurement-executions/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid procurement execution ID');
       const userId = (req.user as any)?.id;
@@ -2364,93 +2400,94 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot mark ready: quantity must be greater than zero.');
       }
 
-      await db.update(procurementExecutionRecords)
-        .set({
-          status: 'ready_for_po', preparationNote: preparationNote || null, updatedAt: new Date(),
-        })
-        .where(eq(procurementExecutionRecords.id, id));
-
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'procurement_execution.ready_for_po', ${JSON.stringify({
-          procurementExecId: id, projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id, markedBy: userId,
-          quantity: record.quantity, estimatedTotalCost: record.estimated_total_cost,
-          preferredVendorName: record.preferred_vendor_name, preparationNote,
-        })}::jsonb, NOW())`);
-
       let qualityPlanId: number | null = null;
-      const existingQP = await db.execute(
-        sql`SELECT id FROM quality_planning_records 
-            WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
-      );
-      if (existingQP.rows.length === 0) {
-        const [qpRec] = await db.insert(qualityPlanningRecords).values({
-          projectId: record.project_id,
-          projectItemId: record.project_item_id,
-          masterItemId: record.master_item_id,
-          sourceContext: 'procurement',
-          procurementExecId: id,
-          planningRecordId: record.planning_record_id,
-          itemCode: record.item_code || null,
-          itemDescription: record.item_description || null,
-          itemSpecification: record.item_specification || null,
-          uom: record.uom || null,
-          drawingNo: record.drawing_no || null,
-          quantity: record.quantity,
-          qualityRequirementType: 'incoming_inspection',
-          status: 'draft',
-          assignedTo: record.assigned_to,
-          createdBy: userId,
-        }).returning();
-        qualityPlanId = qpRec.id;
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'quality_planning.created_from_procurement', ${JSON.stringify({
-            qualityPlanId: qpRec.id, procurementExecId: id,
-            projectItemId: record.project_item_id, qualityType: 'incoming_inspection', createdBy: userId,
-          })}::jsonb, NOW())`);
-        console.log(`[ProcurementExec] Created quality planning record ${qpRec.id} (incoming_inspection) from procurement exec ${id}`);
-      } else {
-        qualityPlanId = (existingQP.rows[0] as any).id;
-      }
-
       let poPrepId: number | null = null;
-      const existingPOPrep = await db.execute(
-        sql`SELECT id FROM po_preparation_records 
-            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
-      );
-      if (existingPOPrep.rows.length === 0) {
-        const [poPrepRec] = await db.insert(poPreparationRecords).values({
-          projectId: record.project_id,
-          projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id,
-          executionRecordId: id,
-          qualityPlanId: qualityPlanId,
-          masterItemId: record.master_item_id,
-          itemCode: record.item_code || null,
-          itemDescription: record.item_description || null,
-          itemSpecification: record.item_specification || null,
-          uom: record.uom || null,
-          drawingNo: record.drawing_no || null,
-          quantity: record.quantity,
-          estimatedUnitCost: record.estimated_unit_cost || null,
-          estimatedTotalCost: record.estimated_total_cost || null,
-          preferredVendorId: record.preferred_vendor_id || null,
-          preferredVendorName: record.preferred_vendor_name || null,
-          procurementNotes: record.procurement_notes || null,
-          status: 'draft',
-          assignedTo: record.assigned_to,
-          createdBy: userId,
-        }).returning();
-        poPrepId = poPrepRec.id;
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'po_preparation.created', ${JSON.stringify({
-            poPrepId: poPrepRec.id, executionRecordId: id, qualityPlanId,
-            projectItemId: record.project_item_id, createdBy: userId,
-          })}::jsonb, NOW())`);
-        console.log(`[ProcurementExec] Created PO preparation record ${poPrepRec.id} from execution ${id}`);
-      } else {
-        poPrepId = (existingPOPrep.rows[0] as any).id;
-      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(procurementExecutionRecords)
+          .set({
+            status: 'ready_for_po', preparationNote: preparationNote || null, updatedAt: new Date(),
+          })
+          .where(eq(procurementExecutionRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.ready_for_po', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id, markedBy: userId,
+            quantity: record.quantity, estimatedTotalCost: record.estimated_total_cost,
+            preferredVendorName: record.preferred_vendor_name, preparationNote,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const existingQP = await tx.execute(
+          sql`SELECT id FROM quality_planning_records 
+              WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+        );
+        if (existingQP.rows.length === 0) {
+          const [qpRec] = await tx.insert(qualityPlanningRecords).values({
+            projectId: record.project_id,
+            projectItemId: record.project_item_id,
+            masterItemId: record.master_item_id,
+            sourceContext: 'procurement',
+            procurementExecId: id,
+            planningRecordId: record.planning_record_id,
+            itemCode: record.item_code || null,
+            itemDescription: record.item_description || null,
+            itemSpecification: record.item_specification || null,
+            uom: record.uom || null,
+            drawingNo: record.drawing_no || null,
+            quantity: record.quantity,
+            qualityRequirementType: 'incoming_inspection',
+            status: 'draft',
+            assignedTo: record.assigned_to,
+            createdBy: userId,
+          }).returning();
+          qualityPlanId = qpRec.id;
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'quality_planning.created_from_procurement', ${JSON.stringify({
+              qualityPlanId: qpRec.id, procurementExecId: id,
+              projectItemId: record.project_item_id, qualityType: 'incoming_inspection', createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        } else {
+          qualityPlanId = (existingQP.rows[0] as any).id;
+        }
+
+        const existingPOPrep = await tx.execute(
+          sql`SELECT id FROM po_preparation_records 
+              WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
+        );
+        if (existingPOPrep.rows.length === 0) {
+          const [poPrepRec] = await tx.insert(poPreparationRecords).values({
+            projectId: record.project_id,
+            projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id,
+            executionRecordId: id,
+            qualityPlanId: qualityPlanId,
+            masterItemId: record.master_item_id,
+            itemCode: record.item_code || null,
+            itemDescription: record.item_description || null,
+            itemSpecification: record.item_specification || null,
+            uom: record.uom || null,
+            drawingNo: record.drawing_no || null,
+            quantity: record.quantity,
+            estimatedUnitCost: record.estimated_unit_cost || null,
+            estimatedTotalCost: record.estimated_total_cost || null,
+            preferredVendorId: record.preferred_vendor_id || null,
+            preferredVendorName: record.preferred_vendor_name || null,
+            procurementNotes: record.procurement_notes || null,
+            status: 'draft',
+            assignedTo: record.assigned_to,
+            createdBy: userId,
+          }).returning();
+          poPrepId = poPrepRec.id;
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'po_preparation.created', ${JSON.stringify({
+              poPrepId: poPrepRec.id, executionRecordId: id, qualityPlanId,
+              projectItemId: record.project_item_id, createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        } else {
+          poPrepId = (existingPOPrep.rows[0] as any).id;
+        }
+      });
 
       console.log(`[ProcurementExec] Record ${id} marked ready for PO by user ${userId}`);
       res.json({ success: true, message: 'Procurement execution record marked ready for PO', id, newStatus: 'ready_for_po', qualityPlanId, poPrepId });
@@ -2461,6 +2498,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/procurement-executions/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid procurement execution ID');
       const userId = (req.user as any)?.id;
@@ -2473,14 +2511,25 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert: only 'ready_for_po' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(procurementExecutionRecords)
-        .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
-        .where(eq(procurementExecutionRecords.id, id));
+      const activeDownstream = await db.execute(
+        sql`SELECT 'quality_plan' AS type, id, status FROM quality_planning_records WHERE procurement_exec_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+            UNION ALL
+            SELECT 'po_preparation' AS type, id, status FROM po_preparation_records WHERE execution_record_id = ${id} AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (activeDownstream.rows.length > 0) {
+        return sendBusinessError(res, `Cannot revert: ${activeDownstream.rows.length} active downstream record(s) exist. Cancel them first or use the cancel action instead.`);
+      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'procurement_execution.reverted_to_preparation', ${JSON.stringify({
-          procurementExecId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(procurementExecutionRecords)
+          .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
+          .where(eq(procurementExecutionRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.reverted_to_preparation', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[ProcurementExec] Record ${id} reverted to preparation by user ${userId}`);
       res.json({ success: true, message: 'Reverted to under_preparation', id, newStatus: 'under_preparation' });
@@ -2491,6 +2540,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/procurement-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid procurement execution ID');
       const userId = (req.user as any)?.id;
@@ -2506,50 +2556,54 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.update(procurementExecutionRecords)
-        .set({
-          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
-          cancelReason, updatedAt: new Date(),
-        })
-        .where(eq(procurementExecutionRecords.id, id));
+      let cascadedQualityPlanIds: number[] = [];
+      let cascadedPoPrepIds: number[] = [];
 
-      const qpCascade = await db.execute(
-        sql`UPDATE quality_planning_records 
-            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
-            WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
-            RETURNING id`
-      );
+      await db.transaction(async (tx) => {
+        await tx.update(procurementExecutionRecords)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(procurementExecutionRecords.id, id));
 
-      const poPrepCascade = await db.execute(
-        sql`UPDATE po_preparation_records 
-            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
-            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')
-            RETURNING id`
-      );
-
-      for (const qpRow of qpCascade.rows) {
-        await db.execute(
-          sql`UPDATE inspection_execution_records 
+        const qpCascade = await tx.execute(
+          sql`UPDATE quality_planning_records 
               SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                   cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
-              WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+              WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+              RETURNING id`
         );
-      }
+        cascadedQualityPlanIds = qpCascade.rows.map((r: any) => r.id);
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'procurement_execution.cancelled', ${JSON.stringify({
-          procurementExecId: id, projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
-          cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
-          cascadedPoPrepIds: poPrepCascade.rows.map((r: any) => r.id),
-        })}::jsonb, NOW())`);
+        const poPrepCascade = await tx.execute(
+          sql`UPDATE po_preparation_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')
+              RETURNING id`
+        );
+        cascadedPoPrepIds = poPrepCascade.rows.map((r: any) => r.id);
+
+        for (const qpRow of qpCascade.rows) {
+          await tx.execute(
+            sql`UPDATE inspection_execution_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+          );
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.cancelled', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[ProcurementExec] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled',
-        cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
-        cascadedPoPrepIds: poPrepCascade.rows.map((r: any) => r.id),
+        cascadedQualityPlanIds, cascadedPoPrepIds,
       });
     } catch (error) {
       sendError(res, error);
@@ -2656,15 +2710,17 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
       }
 
-      await db.update(productionExecutionRecords)
-        .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
-        .where(eq(productionExecutionRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(productionExecutionRecords)
+          .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
+          .where(eq(productionExecutionRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'production_execution.preparation_started', ${JSON.stringify({
-          productionExecId: id, projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id, startedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.preparation_started', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id, startedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[ProductionExec] Record ${id} preparation started by user ${userId}`);
       res.json({ success: true, message: 'Production preparation started', id, newStatus: 'under_preparation' });
@@ -2675,6 +2731,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/production-executions/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
       const userId = (req.user as any)?.id;
@@ -2693,92 +2750,93 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot mark ready: quantity must be greater than zero.');
       }
 
-      await db.update(productionExecutionRecords)
-        .set({ status: 'ready_for_wo', preparationNote: preparationNote || null, updatedAt: new Date() })
-        .where(eq(productionExecutionRecords.id, id));
-
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'production_execution.ready_for_wo', ${JSON.stringify({
-          productionExecId: id, projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id, markedBy: userId,
-          quantity: record.quantity, drawingNo: record.drawing_no,
-          estimatedTotalCost: record.estimated_total_cost, preparationNote,
-        })}::jsonb, NOW())`);
-
       let qualityPlanId: number | null = null;
-      const existingQP = await db.execute(
-        sql`SELECT id FROM quality_planning_records 
-            WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
-      );
-      if (existingQP.rows.length === 0) {
-        const [qpRec] = await db.insert(qualityPlanningRecords).values({
-          projectId: record.project_id,
-          projectItemId: record.project_item_id,
-          masterItemId: record.master_item_id,
-          sourceContext: 'production',
-          productionExecId: id,
-          planningRecordId: record.planning_record_id,
-          itemCode: record.item_code || null,
-          itemDescription: record.item_description || null,
-          itemSpecification: record.item_specification || null,
-          uom: record.uom || null,
-          drawingNo: record.drawing_no || null,
-          drawingRevision: record.drawing_revision || null,
-          quantity: record.quantity,
-          qualityRequirementType: 'in_process_final_inspection',
-          status: 'draft',
-          assignedTo: record.assigned_to,
-          createdBy: userId,
-        }).returning();
-        qualityPlanId = qpRec.id;
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'quality_planning.created_from_production', ${JSON.stringify({
-            qualityPlanId: qpRec.id, productionExecId: id,
-            projectItemId: record.project_item_id, qualityType: 'in_process_final_inspection', createdBy: userId,
-          })}::jsonb, NOW())`);
-        console.log(`[ProductionExec] Created quality planning record ${qpRec.id} (in_process_final_inspection) from production exec ${id}`);
-      } else {
-        qualityPlanId = (existingQP.rows[0] as any).id;
-      }
-
       let woPrepId: number | null = null;
-      const existingWOPrep = await db.execute(
-        sql`SELECT id FROM wo_preparation_records 
-            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
-      );
-      if (existingWOPrep.rows.length === 0) {
-        const [woPrepRec] = await db.insert(woPreparationRecords).values({
-          projectId: record.project_id,
-          projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id,
-          executionRecordId: id,
-          qualityPlanId: qualityPlanId,
-          masterItemId: record.master_item_id,
-          itemCode: record.item_code || null,
-          itemDescription: record.item_description || null,
-          itemSpecification: record.item_specification || null,
-          uom: record.uom || null,
-          drawingNo: record.drawing_no || null,
-          drawingRevision: record.drawing_revision || null,
-          quantity: record.quantity,
-          estimatedUnitCost: record.estimated_unit_cost || null,
-          estimatedTotalCost: record.estimated_total_cost || null,
-          makeClassification: record.make_classification || null,
-          manufacturingNotes: record.manufacturing_notes || null,
-          status: 'draft',
-          assignedTo: record.assigned_to,
-          createdBy: userId,
-        }).returning();
-        woPrepId = woPrepRec.id;
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'wo_preparation.created', ${JSON.stringify({
-            woPrepId: woPrepRec.id, executionRecordId: id, qualityPlanId,
-            projectItemId: record.project_item_id, createdBy: userId,
-          })}::jsonb, NOW())`);
-        console.log(`[ProductionExec] Created WO preparation record ${woPrepRec.id} from execution ${id}`);
-      } else {
-        woPrepId = (existingWOPrep.rows[0] as any).id;
-      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(productionExecutionRecords)
+          .set({ status: 'ready_for_wo', preparationNote: preparationNote || null, updatedAt: new Date() })
+          .where(eq(productionExecutionRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.ready_for_wo', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id, markedBy: userId,
+            quantity: record.quantity, drawingNo: record.drawing_no,
+            estimatedTotalCost: record.estimated_total_cost, preparationNote,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const existingQP = await tx.execute(
+          sql`SELECT id FROM quality_planning_records 
+              WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+        );
+        if (existingQP.rows.length === 0) {
+          const [qpRec] = await tx.insert(qualityPlanningRecords).values({
+            projectId: record.project_id,
+            projectItemId: record.project_item_id,
+            masterItemId: record.master_item_id,
+            sourceContext: 'production',
+            productionExecId: id,
+            planningRecordId: record.planning_record_id,
+            itemCode: record.item_code || null,
+            itemDescription: record.item_description || null,
+            itemSpecification: record.item_specification || null,
+            uom: record.uom || null,
+            drawingNo: record.drawing_no || null,
+            drawingRevision: record.drawing_revision || null,
+            quantity: record.quantity,
+            qualityRequirementType: 'in_process_final_inspection',
+            status: 'draft',
+            assignedTo: record.assigned_to,
+            createdBy: userId,
+          }).returning();
+          qualityPlanId = qpRec.id;
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'quality_planning.created_from_production', ${JSON.stringify({
+              qualityPlanId: qpRec.id, productionExecId: id,
+              projectItemId: record.project_item_id, qualityType: 'in_process_final_inspection', createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        } else {
+          qualityPlanId = (existingQP.rows[0] as any).id;
+        }
+
+        const existingWOPrep = await tx.execute(
+          sql`SELECT id FROM wo_preparation_records 
+              WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
+        );
+        if (existingWOPrep.rows.length === 0) {
+          const [woPrepRec] = await tx.insert(woPreparationRecords).values({
+            projectId: record.project_id,
+            projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id,
+            executionRecordId: id,
+            qualityPlanId: qualityPlanId,
+            masterItemId: record.master_item_id,
+            itemCode: record.item_code || null,
+            itemDescription: record.item_description || null,
+            itemSpecification: record.item_specification || null,
+            uom: record.uom || null,
+            drawingNo: record.drawing_no || null,
+            drawingRevision: record.drawing_revision || null,
+            quantity: record.quantity,
+            estimatedUnitCost: record.estimated_unit_cost || null,
+            estimatedTotalCost: record.estimated_total_cost || null,
+            makeClassification: record.make_classification || null,
+            manufacturingNotes: record.manufacturing_notes || null,
+            status: 'draft',
+            assignedTo: record.assigned_to,
+            createdBy: userId,
+          }).returning();
+          woPrepId = woPrepRec.id;
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            Values (${record.project_id}, 'wo_preparation.created', ${JSON.stringify({
+              woPrepId: woPrepRec.id, executionRecordId: id, qualityPlanId,
+              projectItemId: record.project_item_id, createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        } else {
+          woPrepId = (existingWOPrep.rows[0] as any).id;
+        }
+      });
 
       console.log(`[ProductionExec] Record ${id} marked ready for WO by user ${userId}`);
       res.json({ success: true, message: 'Production execution record marked ready for WO', id, newStatus: 'ready_for_wo', qualityPlanId, woPrepId });
@@ -2789,6 +2847,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/production-executions/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
       const userId = (req.user as any)?.id;
@@ -2801,14 +2860,25 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert: only 'ready_for_wo' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(productionExecutionRecords)
-        .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
-        .where(eq(productionExecutionRecords.id, id));
+      const activeDownstream = await db.execute(
+        sql`SELECT 'quality_plan' AS type, id, status FROM quality_planning_records WHERE production_exec_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+            UNION ALL
+            SELECT 'wo_preparation' AS type, id, status FROM wo_preparation_records WHERE execution_record_id = ${id} AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (activeDownstream.rows.length > 0) {
+        return sendBusinessError(res, `Cannot revert: ${activeDownstream.rows.length} active downstream record(s) exist. Cancel them first or use the cancel action instead.`);
+      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'production_execution.reverted_to_preparation', ${JSON.stringify({
-          productionExecId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(productionExecutionRecords)
+          .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
+          .where(eq(productionExecutionRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.reverted_to_preparation', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[ProductionExec] Record ${id} reverted to preparation by user ${userId}`);
       res.json({ success: true, message: 'Reverted to under_preparation', id, newStatus: 'under_preparation' });
@@ -2819,6 +2889,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/production-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
       const userId = (req.user as any)?.id;
@@ -2834,50 +2905,54 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.update(productionExecutionRecords)
-        .set({
-          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
-          cancelReason, updatedAt: new Date(),
-        })
-        .where(eq(productionExecutionRecords.id, id));
+      let cascadedQualityPlanIds: number[] = [];
+      let cascadedWoPrepIds: number[] = [];
 
-      const qpCascade = await db.execute(
-        sql`UPDATE quality_planning_records 
-            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
-            WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
-            RETURNING id`
-      );
+      await db.transaction(async (tx) => {
+        await tx.update(productionExecutionRecords)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(productionExecutionRecords.id, id));
 
-      const woPrepCascade = await db.execute(
-        sql`UPDATE wo_preparation_records 
-            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
-            WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')
-            RETURNING id`
-      );
-
-      for (const qpRow of qpCascade.rows) {
-        await db.execute(
-          sql`UPDATE inspection_execution_records 
+        const qpCascade = await tx.execute(
+          sql`UPDATE quality_planning_records 
               SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                   cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
-              WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+              WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+              RETURNING id`
         );
-      }
+        cascadedQualityPlanIds = qpCascade.rows.map((r: any) => r.id);
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
-          productionExecId: id, projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
-          cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
-          cascadedWoPrepIds: woPrepCascade.rows.map((r: any) => r.id),
-        })}::jsonb, NOW())`);
+        const woPrepCascade = await tx.execute(
+          sql`UPDATE wo_preparation_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')
+              RETURNING id`
+        );
+        cascadedWoPrepIds = woPrepCascade.rows.map((r: any) => r.id);
+
+        for (const qpRow of qpCascade.rows) {
+          await tx.execute(
+            sql`UPDATE inspection_execution_records 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+          );
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[ProductionExec] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled',
-        cascadedQualityPlanIds: qpCascade.rows.map((r: any) => r.id),
-        cascadedWoPrepIds: woPrepCascade.rows.map((r: any) => r.id),
+        cascadedQualityPlanIds, cascadedWoPrepIds,
       });
     } catch (error) {
       sendError(res, error);
@@ -2979,16 +3054,18 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
       }
 
-      await db.update(qualityPlanningRecords)
-        .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
-        .where(eq(qualityPlanningRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(qualityPlanningRecords)
+          .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), updatedAt: new Date() })
+          .where(eq(qualityPlanningRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'quality_planning.preparation_started', ${JSON.stringify({
-          qualityPlanId: id, sourceContext: record.source_context,
-          qualityRequirementType: record.quality_requirement_type,
-          projectItemId: record.project_item_id, startedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'quality_planning.preparation_started', ${JSON.stringify({
+            qualityPlanId: id, sourceContext: record.source_context,
+            qualityRequirementType: record.quality_requirement_type,
+            projectItemId: record.project_item_id, startedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[QualityPlan] Record ${id} preparation started by user ${userId}`);
       res.json({ success: true, message: 'Quality preparation started', id, newStatus: 'under_preparation' });
@@ -2999,6 +3076,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/quality-plans/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
@@ -3012,55 +3090,57 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot mark ready: record is in '${record.status}' status. Only 'under_preparation' records can be marked ready.`);
       }
 
-      await db.update(qualityPlanningRecords)
-        .set({ status: 'ready_for_inspection_setup', preparationNote: preparationNote || null, updatedAt: new Date() })
-        .where(eq(qualityPlanningRecords.id, id));
-
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'quality_planning.ready_for_inspection_setup', ${JSON.stringify({
-          qualityPlanId: id, sourceContext: record.source_context,
-          qualityRequirementType: record.quality_requirement_type,
-          projectItemId: record.project_item_id, markedBy: userId, preparationNote,
-        })}::jsonb, NOW())`);
-
       let inspExecId: number | null = null;
-      const existingIE = await db.execute(
-        sql`SELECT id FROM inspection_execution_records 
-            WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')`
-      );
-      if (existingIE.rows.length === 0) {
-        const inspType = record.source_context === 'procurement' ? 'incoming_inspection'
-          : (record.quality_requirement_type === 'in_process_final_inspection' ? 'in_process_final_inspection' : record.quality_requirement_type);
-        const [ieRec] = await db.insert(inspectionExecutionRecords).values({
-          projectId: record.project_id,
-          projectItemId: record.project_item_id,
-          planningRecordId: record.planning_record_id || null,
-          executionRecordId: record.procurement_exec_id || record.production_exec_id || null,
-          qualityPlanId: id,
-          masterItemId: record.master_item_id,
-          sourceContext: record.source_context,
-          inspectionType: inspType,
-          itemCode: record.item_code || null,
-          itemDescription: record.item_description || null,
-          itemSpecification: record.item_specification || null,
-          uom: record.uom || null,
-          drawingNo: record.drawing_no || null,
-          drawingRevision: record.drawing_revision || null,
-          quantity: record.quantity,
-          status: 'draft',
-          assignedTo: record.assigned_to,
-          createdBy: userId,
-        }).returning();
-        inspExecId = ieRec.id;
-        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-          VALUES (${record.project_id}, 'inspection_execution.created', ${JSON.stringify({
-            inspExecId: ieRec.id, qualityPlanId: id, sourceContext: record.source_context,
-            inspectionType: inspType, projectItemId: record.project_item_id, createdBy: userId,
-          })}::jsonb, NOW())`);
-        console.log(`[QualityPlan] Created inspection execution record ${ieRec.id} (${inspType}) from quality plan ${id}`);
-      } else {
-        inspExecId = (existingIE.rows[0] as any).id;
-      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(qualityPlanningRecords)
+          .set({ status: 'ready_for_inspection_setup', preparationNote: preparationNote || null, updatedAt: new Date() })
+          .where(eq(qualityPlanningRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'quality_planning.ready_for_inspection_setup', ${JSON.stringify({
+            qualityPlanId: id, sourceContext: record.source_context,
+            qualityRequirementType: record.quality_requirement_type,
+            projectItemId: record.project_item_id, markedBy: userId, preparationNote,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const existingIE = await tx.execute(
+          sql`SELECT id FROM inspection_execution_records 
+              WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')`
+        );
+        if (existingIE.rows.length === 0) {
+          const inspType = record.source_context === 'procurement' ? 'incoming_inspection'
+            : (record.quality_requirement_type === 'in_process_final_inspection' ? 'in_process_final_inspection' : record.quality_requirement_type);
+          const [ieRec] = await tx.insert(inspectionExecutionRecords).values({
+            projectId: record.project_id,
+            projectItemId: record.project_item_id,
+            planningRecordId: record.planning_record_id || null,
+            executionRecordId: record.procurement_exec_id || record.production_exec_id || null,
+            qualityPlanId: id,
+            masterItemId: record.master_item_id,
+            sourceContext: record.source_context,
+            inspectionType: inspType,
+            itemCode: record.item_code || null,
+            itemDescription: record.item_description || null,
+            itemSpecification: record.item_specification || null,
+            uom: record.uom || null,
+            drawingNo: record.drawing_no || null,
+            drawingRevision: record.drawing_revision || null,
+            quantity: record.quantity,
+            status: 'draft',
+            assignedTo: record.assigned_to,
+            createdBy: userId,
+          }).returning();
+          inspExecId = ieRec.id;
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'inspection_execution.created', ${JSON.stringify({
+              inspExecId: ieRec.id, qualityPlanId: id, sourceContext: record.source_context,
+              inspectionType: inspType, projectItemId: record.project_item_id, createdBy: userId,
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        } else {
+          inspExecId = (existingIE.rows[0] as any).id;
+        }
+      });
 
       console.log(`[QualityPlan] Record ${id} marked ready for inspection setup by user ${userId}`);
       res.json({ success: true, message: 'Quality planning record marked ready for inspection setup', id, newStatus: 'ready_for_inspection_setup', inspExecId });
@@ -3071,6 +3151,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/quality-plans/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
@@ -3083,14 +3164,23 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert: only 'ready_for_inspection_setup' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(qualityPlanningRecords)
-        .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
-        .where(eq(qualityPlanningRecords.id, id));
+      const activeInspections = await db.execute(
+        sql`SELECT id, status FROM inspection_execution_records WHERE quality_plan_id = ${id} AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (activeInspections.rows.length > 0) {
+        return sendBusinessError(res, `Cannot revert: ${activeInspections.rows.length} active inspection record(s) exist. Cancel them first or use the cancel action instead.`);
+      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'quality_planning.reverted_to_preparation', ${JSON.stringify({
-          qualityPlanId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(qualityPlanningRecords)
+          .set({ status: 'under_preparation', preparationNote: null, updatedAt: new Date() })
+          .where(eq(qualityPlanningRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'quality_planning.reverted_to_preparation', ${JSON.stringify({
+            qualityPlanId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[QualityPlan] Record ${id} reverted to preparation by user ${userId}`);
       res.json({ success: true, message: 'Reverted to under_preparation', id, newStatus: 'under_preparation' });
@@ -3101,6 +3191,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/quality-plans/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
@@ -3116,31 +3207,35 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.update(qualityPlanningRecords)
-        .set({
-          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
-          cancelReason, updatedAt: new Date(),
-        })
-        .where(eq(qualityPlanningRecords.id, id));
+      let cascadedInspExecIds: number[] = [];
 
-      const ieCascade = await db.execute(
-        sql`UPDATE inspection_execution_records 
-            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                cancel_reason = ${'Upstream quality plan cancelled: ' + cancelReason}, updated_at = NOW()
-            WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')
-            RETURNING id`
-      );
+      await db.transaction(async (tx) => {
+        await tx.update(qualityPlanningRecords)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(qualityPlanningRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'quality_planning.cancelled', ${JSON.stringify({
-          qualityPlanId: id, sourceContext: record.source_context,
-          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
-          cascadedInspExecIds: ieCascade.rows.map((r: any) => r.id),
-        })}::jsonb, NOW())`);
+        const ieCascade = await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream quality plan cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')
+              RETURNING id`
+        );
+        cascadedInspExecIds = ieCascade.rows.map((r: any) => r.id);
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'quality_planning.cancelled', ${JSON.stringify({
+            qualityPlanId: id, sourceContext: record.source_context,
+            projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[QualityPlan] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Quality planning record cancelled', id, newStatus: 'cancelled',
-        cascadedInspExecIds: ieCascade.rows.map((r: any) => r.id),
+        cascadedInspExecIds,
       });
     } catch (error) {
       sendError(res, error);
@@ -3214,28 +3309,18 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot edit: record is in terminal status '${record.status}'.`);
       }
 
-      const { inspector_id, inspection_type, inspection_method, acceptance_criteria,
-        sampling_plan, instruments_required, environmental_conditions, notes, priority } = req.body;
+      const { assignedTo, inspectionType, inspectionNotes, quantity } = req.body || {};
 
-      const hasUpdates = [inspector_id, inspection_type, inspection_method, acceptance_criteria,
-        sampling_plan, instruments_required, environmental_conditions, notes, priority].some(v => v !== undefined);
-
+      const hasUpdates = [assignedTo, inspectionType, inspectionNotes, quantity].some(v => v !== undefined);
       if (!hasUpdates) return sendValidationError(res, 'No valid fields to update');
 
-      await db.execute(
-        sql`UPDATE inspection_execution_records SET
-            inspector_id = COALESCE(${inspector_id ?? null}, inspector_id),
-            inspection_type = COALESCE(${inspection_type ?? null}, inspection_type),
-            inspection_method = COALESCE(${inspection_method ?? null}, inspection_method),
-            acceptance_criteria = COALESCE(${acceptance_criteria ?? null}, acceptance_criteria),
-            sampling_plan = COALESCE(${sampling_plan ?? null}, sampling_plan),
-            instruments_required = COALESCE(${instruments_required ?? null}, instruments_required),
-            environmental_conditions = COALESCE(${environmental_conditions ?? null}, environmental_conditions),
-            notes = COALESCE(${notes ?? null}, notes),
-            priority = COALESCE(${priority ?? null}, priority),
-            updated_at = NOW()
-            WHERE id = ${id}`
-      );
+      const updates: any = { updatedAt: new Date() };
+      if (assignedTo !== undefined) updates.assignedTo = assignedTo || null;
+      if (inspectionType !== undefined) updates.inspectionType = inspectionType;
+      if (inspectionNotes !== undefined) updates.inspectionNotes = inspectionNotes || null;
+      if (quantity !== undefined) updates.quantity = String(quantity);
+
+      await db.update(inspectionExecutionRecords).set(updates).where(eq(inspectionExecutionRecords.id, id));
 
       const result = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
       res.json(result.rows[0]);
@@ -3261,18 +3346,21 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot schedule: record status is '${record.status}', expected 'draft'.`);
       }
 
-      await db.execute(
-        sql`UPDATE inspection_execution_records 
-            SET status = 'scheduled', scheduled_date = ${scheduledDate}, scheduled_by = ${userId},
-                inspector_id = COALESCE(${inspectorId || null}, inspector_id), updated_at = NOW()
-            WHERE id = ${id}`
-      );
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'scheduled', scheduled_date = ${scheduledDate}, scheduled_at = NOW(),
+                  scheduled_by = ${userId},
+                  assigned_to = COALESCE(${inspectorId || null}, assigned_to), updated_at = NOW()
+              WHERE id = ${id}`
+        );
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'inspection_execution.scheduled', ${JSON.stringify({
-          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
-          projectItemId: record.project_item_id, scheduledBy: userId, scheduledDate,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.scheduled', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, scheduledBy: userId, scheduledDate,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[InspectionExec] Record ${id} scheduled for ${scheduledDate} by user ${userId}`);
       res.json({ success: true, message: 'Inspection execution record scheduled', id, newStatus: 'scheduled' });
@@ -3295,17 +3383,19 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot start: record status is '${record.status}', expected 'scheduled'.`);
       }
 
-      await db.execute(
-        sql`UPDATE inspection_execution_records 
-            SET status = 'in_progress', started_at = NOW(), updated_at = NOW()
-            WHERE id = ${id}`
-      );
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'in_progress', started_at = NOW(), updated_at = NOW()
+              WHERE id = ${id}`
+        );
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'inspection_execution.started', ${JSON.stringify({
-          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
-          projectItemId: record.project_item_id, startedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.started', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, startedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[InspectionExec] Record ${id} started by user ${userId}`);
       res.json({ success: true, message: 'Inspection execution started', id, newStatus: 'in_progress' });
@@ -3333,19 +3423,21 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot complete: record status is '${record.status}', expected 'in_progress'.`);
       }
 
-      await db.execute(
-        sql`UPDATE inspection_execution_records 
-            SET status = 'completed', result = ${result}, completed_by = ${userId}, completed_at = NOW(),
-                findings = ${findings || null}, measurement_data = ${measurementData ? JSON.stringify(measurementData) : null}::jsonb,
-                updated_at = NOW()
-            WHERE id = ${id}`
-      );
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'completed', result = ${result}, completed_by = ${userId}, completed_at = NOW(),
+                  findings = ${findings || null}, measurement_data = ${measurementData ? JSON.stringify(measurementData) : null}::jsonb,
+                  updated_at = NOW()
+              WHERE id = ${id}`
+        );
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'inspection_execution.completed', ${JSON.stringify({
-          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
-          projectItemId: record.project_item_id, completedBy: userId, result,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.completed', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, completedBy: userId, result,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[InspectionExec] Record ${id} completed with result '${result}' by user ${userId}`);
       res.json({ success: true, message: 'Inspection execution completed', id, newStatus: 'completed', result });
@@ -3371,18 +3463,20 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot fail: record status is '${record.status}', expected 'in_progress'.`);
       }
 
-      await db.execute(
-        sql`UPDATE inspection_execution_records 
-            SET status = 'failed', result = 'fail', completed_by = ${userId}, completed_at = NOW(),
-                findings = ${findings || failureReason}, cancel_reason = ${failureReason}, updated_at = NOW()
-            WHERE id = ${id}`
-      );
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'failed', result = 'fail', failed_by = ${userId}, failed_at = NOW(),
+                  findings = ${findings || null}, failure_reason = ${failureReason}, updated_at = NOW()
+              WHERE id = ${id}`
+        );
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'inspection_execution.failed', ${JSON.stringify({
-          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
-          projectItemId: record.project_item_id, failedBy: userId, failureReason,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.failed', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, failedBy: userId, failureReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[InspectionExec] Record ${id} failed by user ${userId}: ${failureReason}`);
       res.json({ success: true, message: 'Inspection execution marked as failed', id, newStatus: 'failed' });
@@ -3393,6 +3487,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/inspection-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
@@ -3408,18 +3503,20 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.execute(
-        sql`UPDATE inspection_execution_records 
-            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                cancel_reason = ${cancelReason}, updated_at = NOW()
-            WHERE id = ${id}`
-      );
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${cancelReason}, updated_at = NOW()
+              WHERE id = ${id}`
+        );
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'inspection_execution.cancelled', ${JSON.stringify({
-          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
-          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.cancelled', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[InspectionExec] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'Inspection execution record cancelled', id, newStatus: 'cancelled' });
@@ -3528,15 +3625,17 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
       }
 
-      await db.update(poPreparationRecords)
-        .set({ status: 'under_review', updatedAt: new Date() })
-        .where(eq(poPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(poPreparationRecords)
+          .set({ status: 'under_review', updatedAt: new Date() })
+          .where(eq(poPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'po_preparation.submitted_for_review', ${JSON.stringify({
-          poPrepId: id, executionRecordId: record.execution_record_id,
-          projectItemId: record.project_item_id, submittedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'po_preparation.submitted_for_review', ${JSON.stringify({
+            poPrepId: id, executionRecordId: record.execution_record_id,
+            projectItemId: record.project_item_id, submittedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[POPrep] Record ${id} submitted for review by user ${userId}`);
       res.json({ success: true, message: 'PO preparation submitted for review', id, newStatus: 'under_review' });
@@ -3547,6 +3646,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/po-preparations/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3560,19 +3660,25 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot approve: record is in '${record.status}' status. Only 'under_review' records can be approved.`);
       }
 
-      await db.update(poPreparationRecords)
-        .set({
-          status: 'ready_for_po_creation', reviewedBy: userId, reviewedAt: new Date(),
-          readyBy: userId, readyAt: new Date(),
-          reviewNotes: reviewNotes || null, updatedAt: new Date(),
-        })
-        .where(eq(poPreparationRecords.id, id));
+      if (record.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the same PO preparation record.');
+      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'po_preparation.ready_for_po_creation', ${JSON.stringify({
-          poPrepId: id, executionRecordId: record.execution_record_id,
-          projectItemId: record.project_item_id, approvedBy: userId, reviewNotes,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(poPreparationRecords)
+          .set({
+            status: 'ready_for_po_creation', reviewedBy: userId, reviewedAt: new Date(),
+            readyBy: userId, readyAt: new Date(),
+            reviewNotes: reviewNotes || null, updatedAt: new Date(),
+          })
+          .where(eq(poPreparationRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'po_preparation.ready_for_po_creation', ${JSON.stringify({
+            poPrepId: id, executionRecordId: record.execution_record_id,
+            projectItemId: record.project_item_id, approvedBy: userId, reviewNotes,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[POPrep] Record ${id} approved and ready for PO creation by user ${userId}`);
       res.json({ success: true, message: 'PO preparation approved — ready for PO creation', id, newStatus: 'ready_for_po_creation' });
@@ -3583,6 +3689,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/po-preparations/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3595,14 +3702,16 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert to draft: only 'under_review' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(poPreparationRecords)
-        .set({ status: 'draft', reviewedBy: null, reviewedAt: null, reviewNotes: null, updatedAt: new Date() })
-        .where(eq(poPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(poPreparationRecords)
+          .set({ status: 'draft', reviewedBy: null, reviewedAt: null, reviewNotes: null, updatedAt: new Date() })
+          .where(eq(poPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'po_preparation.reverted_to_draft', ${JSON.stringify({
-          poPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'po_preparation.reverted_to_draft', ${JSON.stringify({
+            poPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[POPrep] Record ${id} reverted to draft by user ${userId}`);
       res.json({ success: true, message: 'Reverted to draft', id, newStatus: 'draft' });
@@ -3613,6 +3722,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/po-preparations/:id/revert-to-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3625,14 +3735,16 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert to review: only 'ready_for_po_creation' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(poPreparationRecords)
-        .set({ status: 'under_review', readyBy: null, readyAt: null, updatedAt: new Date() })
-        .where(eq(poPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(poPreparationRecords)
+          .set({ status: 'under_review', readyBy: null, readyAt: null, updatedAt: new Date() })
+          .where(eq(poPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'po_preparation.reverted_to_review', ${JSON.stringify({
-          poPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'po_preparation.reverted_to_review', ${JSON.stringify({
+            poPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[POPrep] Record ${id} reverted to under_review by user ${userId}`);
       res.json({ success: true, message: 'Reverted to under_review', id, newStatus: 'under_review' });
@@ -3643,6 +3755,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/po-preparations/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3658,18 +3771,20 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.update(poPreparationRecords)
-        .set({
-          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
-          cancelReason, updatedAt: new Date(),
-        })
-        .where(eq(poPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(poPreparationRecords)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(poPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'po_preparation.cancelled', ${JSON.stringify({
-          poPrepId: id, executionRecordId: record.execution_record_id,
-          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'po_preparation.cancelled', ${JSON.stringify({
+            poPrepId: id, executionRecordId: record.execution_record_id,
+            projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[POPrep] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'PO preparation record cancelled', id, newStatus: 'cancelled' });
@@ -3779,15 +3894,17 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot submit for review: record is in '${record.status}' status. Only 'draft' records can be submitted.`);
       }
 
-      await db.update(woPreparationRecords)
-        .set({ status: 'under_review', updatedAt: new Date() })
-        .where(eq(woPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(woPreparationRecords)
+          .set({ status: 'under_review', updatedAt: new Date() })
+          .where(eq(woPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'wo_preparation.submitted_for_review', ${JSON.stringify({
-          woPrepId: id, executionRecordId: record.execution_record_id,
-          projectItemId: record.project_item_id, submittedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'wo_preparation.submitted_for_review', ${JSON.stringify({
+            woPrepId: id, executionRecordId: record.execution_record_id,
+            projectItemId: record.project_item_id, submittedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[WOPrep] Record ${id} submitted for review by user ${userId}`);
       res.json({ success: true, message: 'WO preparation submitted for review', id, newStatus: 'under_review' });
@@ -3798,6 +3915,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/wo-preparations/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3811,19 +3929,25 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot approve: record is in '${record.status}' status. Only 'under_review' records can be approved.`);
       }
 
-      await db.update(woPreparationRecords)
-        .set({
-          status: 'ready_for_wo_creation', reviewedBy: userId, reviewedAt: new Date(),
-          readyBy: userId, readyAt: new Date(),
-          reviewNotes: reviewNotes || null, updatedAt: new Date(),
-        })
-        .where(eq(woPreparationRecords.id, id));
+      if (record.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the same WO preparation record.');
+      }
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'wo_preparation.ready_for_wo_creation', ${JSON.stringify({
-          woPrepId: id, executionRecordId: record.execution_record_id,
-          projectItemId: record.project_item_id, approvedBy: userId, reviewNotes,
-        })}::jsonb, NOW())`);
+      await db.transaction(async (tx) => {
+        await tx.update(woPreparationRecords)
+          .set({
+            status: 'ready_for_wo_creation', reviewedBy: userId, reviewedAt: new Date(),
+            readyBy: userId, readyAt: new Date(),
+            reviewNotes: reviewNotes || null, updatedAt: new Date(),
+          })
+          .where(eq(woPreparationRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'wo_preparation.ready_for_wo_creation', ${JSON.stringify({
+            woPrepId: id, executionRecordId: record.execution_record_id,
+            projectItemId: record.project_item_id, approvedBy: userId, reviewNotes,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[WOPrep] Record ${id} approved and ready for WO creation by user ${userId}`);
       res.json({ success: true, message: 'WO preparation approved — ready for WO creation', id, newStatus: 'ready_for_wo_creation' });
@@ -3834,6 +3958,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/wo-preparations/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3846,14 +3971,16 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert to draft: only 'under_review' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(woPreparationRecords)
-        .set({ status: 'draft', reviewedBy: null, reviewedAt: null, reviewNotes: null, updatedAt: new Date() })
-        .where(eq(woPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(woPreparationRecords)
+          .set({ status: 'draft', reviewedBy: null, reviewedAt: null, reviewNotes: null, updatedAt: new Date() })
+          .where(eq(woPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'wo_preparation.reverted_to_draft', ${JSON.stringify({
-          woPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'wo_preparation.reverted_to_draft', ${JSON.stringify({
+            woPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[WOPrep] Record ${id} reverted to draft by user ${userId}`);
       res.json({ success: true, message: 'Reverted to draft', id, newStatus: 'draft' });
@@ -3864,6 +3991,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/wo-preparations/:id/revert-to-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3876,14 +4004,16 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot revert to review: only 'ready_for_wo_creation' records can be reverted. Current status: '${record.status}'.`);
       }
 
-      await db.update(woPreparationRecords)
-        .set({ status: 'under_review', readyBy: null, readyAt: null, updatedAt: new Date() })
-        .where(eq(woPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(woPreparationRecords)
+          .set({ status: 'under_review', readyBy: null, readyAt: null, updatedAt: new Date() })
+          .where(eq(woPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'wo_preparation.reverted_to_review', ${JSON.stringify({
-          woPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'wo_preparation.reverted_to_review', ${JSON.stringify({
+            woPrepId: id, projectItemId: record.project_item_id, revertedBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[WOPrep] Record ${id} reverted to under_review by user ${userId}`);
       res.json({ success: true, message: 'Reverted to under_review', id, newStatus: 'under_review' });
@@ -3894,6 +4024,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/wo-preparations/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
@@ -3909,18 +4040,20 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
-      await db.update(woPreparationRecords)
-        .set({
-          status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
-          cancelReason, updatedAt: new Date(),
-        })
-        .where(eq(woPreparationRecords.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(woPreparationRecords)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(woPreparationRecords.id, id));
 
-      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
-        VALUES (${record.project_id}, 'wo_preparation.cancelled', ${JSON.stringify({
-          woPrepId: id, executionRecordId: record.execution_record_id,
-          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
-        })}::jsonb, NOW())`);
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'wo_preparation.cancelled', ${JSON.stringify({
+            woPrepId: id, executionRecordId: record.execution_record_id,
+            projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
 
       console.log(`[WOPrep] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'WO preparation record cancelled', id, newStatus: 'cancelled' });
