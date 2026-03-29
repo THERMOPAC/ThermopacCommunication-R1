@@ -21,6 +21,8 @@ import {
   poPreparationRecords,
   woPreparationRecords,
   inspectionExecutionRecords,
+  epcPurchaseOrders,
+  epcPurchaseOrderItems,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2090,12 +2092,21 @@ export function setupProjectRoutes(app: express.Express) {
                     WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
               );
             }
-            await tx.execute(
+            const cancelledPOPreps = await tx.execute(
               sql`UPDATE po_preparation_records 
                   SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                       cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                  WHERE execution_record_id = ${procId} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
+                  WHERE execution_record_id = ${procId} AND status IN ('draft', 'under_review', 'ready_for_po_creation')
+                  RETURNING id`
             );
+            for (const ppRow of cancelledPOPreps.rows) {
+              await tx.execute(
+                sql`UPDATE epc_purchase_orders 
+                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                    WHERE po_preparation_id = ${(ppRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
+              );
+            }
           }
         }
         if (record.planning_type === 'production') {
@@ -2591,6 +2602,15 @@ export function setupProjectRoutes(app: express.Express) {
                 SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                     cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
                 WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+          );
+        }
+
+        for (const poPrepRow of poPrepCascade.rows) {
+          await tx.execute(
+            sql`UPDATE epc_purchase_orders 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE po_preparation_id = ${(poPrepRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
           );
         }
 
@@ -3771,6 +3791,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
+      let cascadedEpcPoIds: number[] = [];
+
       await db.transaction(async (tx) => {
         await tx.update(poPreparationRecords)
           .set({
@@ -3779,15 +3801,32 @@ export function setupProjectRoutes(app: express.Express) {
           })
           .where(eq(poPreparationRecords.id, id));
 
+        const epcPoCascade = await tx.execute(
+          sql`UPDATE epc_purchase_orders 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream PO preparation cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE po_preparation_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+              RETURNING id, po_number`
+        );
+        cascadedEpcPoIds = epcPoCascade.rows.map((r: any) => r.id);
+
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${record.project_id}, 'po_preparation.cancelled', ${JSON.stringify({
             poPrepId: id, executionRecordId: record.execution_record_id,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        for (const poRow of epcPoCascade.rows) {
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'epc_purchase_order.cancelled_by_upstream', ${JSON.stringify({
+              epcPoId: (poRow as any).id, poNumber: (poRow as any).po_number,
+              poPrepId: id, cancelledBy: userId, reason: 'Upstream PO preparation cancelled',
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        }
       });
 
-      console.log(`[POPrep] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'PO preparation record cancelled', id, newStatus: 'cancelled' });
+      console.log(`[POPrep] Record ${id} cancelled by user ${userId}. Cascaded EPC POs: ${cascadedEpcPoIds}`);
+      res.json({ success: true, message: 'PO preparation record cancelled', id, newStatus: 'cancelled', cascadedEpcPoIds });
     } catch (error) {
       sendError(res, error);
     }
@@ -4057,6 +4096,345 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[WOPrep] Record ${id} cancelled by user ${userId}`);
       res.json({ success: true, message: 'WO preparation record cancelled', id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── EPC Purchase Order Routes ──────────────────────────────────────────
+
+  app.get('/api/projects/:projectId/epc-purchase-orders', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT epo.*, u1.username as created_by_name, u2.username as approved_by_name,
+                             u3.username as issued_by_name, v.name as vendor_display_name
+                      FROM epc_purchase_orders epo
+                      LEFT JOIN users u1 ON epo.created_by = u1.id
+                      LEFT JOIN users u2 ON epo.approved_by = u2.id
+                      LEFT JOIN users u3 ON epo.issued_by = u3.id
+                      LEFT JOIN vendors v ON epo.vendor_id = v.id
+                      WHERE epo.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND epo.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND epo.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY epo.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/epc-purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
+
+      const result = await db.execute(
+        sql`SELECT epo.*, u1.username as created_by_name, u2.username as approved_by_name,
+                   u3.username as issued_by_name, v.name as vendor_display_name
+            FROM epc_purchase_orders epo
+            LEFT JOIN users u1 ON epo.created_by = u1.id
+            LEFT JOIN users u2 ON epo.approved_by = u2.id
+            LEFT JOIN users u3 ON epo.issued_by = u3.id
+            LEFT JOIN vendors v ON epo.vendor_id = v.id
+            WHERE epo.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
+
+      const items = await db.execute(
+        sql`SELECT * FROM epc_purchase_order_items WHERE epc_purchase_order_id = ${id} ORDER BY line_number`
+      );
+
+      res.json({ ...(result.rows[0] as any), items: items.rows });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/po-preparations/:id/create-purchase-order', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const poPrepId = parseInt(req.params.id);
+      if (isNaN(poPrepId)) return sendValidationError(res, 'Invalid PO preparation ID');
+      const userId = (req.user as any)?.id;
+      const { paymentTerms, deliveryTerms, poNotes } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${poPrepId}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
+      const prep = existing.rows[0] as any;
+
+      if (prep.status !== 'ready_for_po_creation') {
+        return sendBusinessError(res, `Cannot create PO: PO preparation status is '${prep.status}', expected 'ready_for_po_creation'.`);
+      }
+
+      const existingPO = await db.execute(
+        sql`SELECT id, po_number, status FROM epc_purchase_orders 
+            WHERE po_preparation_id = ${poPrepId} AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingPO.rows.length > 0) {
+        const ePO = existingPO.rows[0] as any;
+        return sendBusinessError(res, `PO already exists for this preparation record: ${ePO.po_number} (ID ${ePO.id}, status: ${ePO.status}). Only one active PO per PO prep record is allowed.`);
+      }
+
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(po_number FROM 'EPC-PO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_purchase_orders`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq || 1;
+      const year = new Date().getFullYear();
+      const poNumber = `EPC-PO-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      let newPoId: number;
+
+      await db.transaction(async (tx) => {
+        const [newPO] = await tx.insert(epcPurchaseOrders).values({
+          poNumber,
+          projectId: prep.project_id,
+          projectItemId: prep.project_item_id,
+          planningRecordId: prep.planning_record_id,
+          executionRecordId: prep.execution_record_id,
+          poPreparationId: poPrepId,
+          qualityPlanId: prep.quality_plan_id || null,
+          masterItemId: prep.master_item_id,
+          vendorId: prep.preferred_vendor_id || null,
+          vendorName: prep.preferred_vendor_name || null,
+          totalAmount: prep.estimated_total_cost || null,
+          currency: 'INR',
+          paymentTerms: paymentTerms || null,
+          deliveryTerms: deliveryTerms || null,
+          poNotes: poNotes || null,
+          status: 'draft',
+          createdBy: userId,
+        }).returning();
+        newPoId = newPO.id;
+
+        await tx.insert(epcPurchaseOrderItems).values({
+          epcPurchaseOrderId: newPO.id,
+          lineNumber: 1,
+          masterItemId: prep.master_item_id,
+          itemCode: prep.item_code || null,
+          itemDescription: prep.item_description || null,
+          itemSpecification: prep.item_specification || null,
+          uom: prep.uom || null,
+          drawingNo: prep.drawing_no || null,
+          quantity: prep.quantity,
+          unitCost: prep.estimated_unit_cost || null,
+          totalCost: prep.estimated_total_cost || null,
+          procurementNotes: prep.procurement_notes || null,
+        });
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${prep.project_id}, 'epc_purchase_order.created', ${JSON.stringify({
+            epcPoId: newPO.id, poNumber, poPrepId, executionRecordId: prep.execution_record_id,
+            planningRecordId: prep.planning_record_id, projectItemId: prep.project_item_id,
+            vendorName: prep.preferred_vendor_name, totalAmount: prep.estimated_total_cost,
+            createdBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-PO] Purchase order ${poNumber} created from PO prep ${poPrepId} by user ${userId}`);
+      res.json({ success: true, message: `Purchase order ${poNumber} created`, id: newPoId!, poNumber, poPrepId, status: 'draft' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/epc-purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
+      const po = existing.rows[0] as any;
+
+      if (['cancelled', 'superseded', 'issued'].includes(po.status)) {
+        return sendBusinessError(res, `Cannot edit: PO is in terminal status '${po.status}'.`);
+      }
+
+      const { vendorId, vendorName, paymentTerms, deliveryTerms, poNotes, totalAmount } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (vendorId !== undefined) updates.vendorId = vendorId || null;
+      if (vendorName !== undefined) updates.vendorName = vendorName || null;
+      if (paymentTerms !== undefined) updates.paymentTerms = paymentTerms || null;
+      if (deliveryTerms !== undefined) updates.deliveryTerms = deliveryTerms || null;
+      if (poNotes !== undefined) updates.poNotes = poNotes || null;
+      if (totalAmount !== undefined) updates.totalAmount = totalAmount ? String(totalAmount) : null;
+
+      await db.update(epcPurchaseOrders).set(updates).where(eq(epcPurchaseOrders.id, id));
+      res.json({ success: true, message: 'EPC purchase order updated', id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-purchase-orders/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
+      const userId = (req.user as any)?.id;
+      const { approvalNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
+      const po = existing.rows[0] as any;
+
+      if (po.status !== 'draft') {
+        return sendBusinessError(res, `Cannot approve: PO status is '${po.status}', expected 'draft'.`);
+      }
+
+      if (po.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the same purchase order.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcPurchaseOrders)
+          .set({
+            status: 'approved', approvedBy: userId, approvedAt: new Date(),
+            approvalNote: approvalNote || null, updatedAt: new Date(),
+          })
+          .where(eq(epcPurchaseOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${po.project_id}, 'epc_purchase_order.approved', ${JSON.stringify({
+            epcPoId: id, poNumber: po.po_number, approvedBy: userId, approvalNote,
+            projectItemId: po.project_item_id, poPrepId: po.po_preparation_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-PO] Purchase order ${po.po_number} approved by user ${userId}`);
+      res.json({ success: true, message: `Purchase order ${po.po_number} approved`, id, newStatus: 'approved' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-purchase-orders/:id/issue', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
+      const userId = (req.user as any)?.id;
+      const { issueNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
+      const po = existing.rows[0] as any;
+
+      if (po.status !== 'approved') {
+        return sendBusinessError(res, `Cannot issue: PO status is '${po.status}', expected 'approved'.`);
+      }
+
+      if (po.approved_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the approver cannot also issue the same purchase order. A different authorized user must issue it.');
+      }
+
+      if (po.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also issue the same purchase order.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcPurchaseOrders)
+          .set({
+            status: 'issued', issuedBy: userId, issuedAt: new Date(),
+            issueNote: issueNote || null, updatedAt: new Date(),
+          })
+          .where(eq(epcPurchaseOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${po.project_id}, 'epc_purchase_order.issued', ${JSON.stringify({
+            epcPoId: id, poNumber: po.po_number, issuedBy: userId, issueNote,
+            projectItemId: po.project_item_id, poPrepId: po.po_preparation_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-PO] Purchase order ${po.po_number} issued by user ${userId}`);
+      res.json({ success: true, message: `Purchase order ${po.po_number} issued`, id, newStatus: 'issued' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-purchase-orders/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
+      const po = existing.rows[0] as any;
+
+      if (['cancelled', 'superseded'].includes(po.status)) {
+        return sendBusinessError(res, `Cannot cancel: PO is already '${po.status}'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcPurchaseOrders)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(epcPurchaseOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${po.project_id}, 'epc_purchase_order.cancelled', ${JSON.stringify({
+            epcPoId: id, poNumber: po.po_number, cancelledBy: userId, cancelReason,
+            previousStatus: po.status, projectItemId: po.project_item_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-PO] Purchase order ${po.po_number} cancelled by user ${userId}`);
+      res.json({ success: true, message: `Purchase order ${po.po_number} cancelled`, id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-purchase-orders/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
+      const po = existing.rows[0] as any;
+
+      if (po.status !== 'approved') {
+        return sendBusinessError(res, `Cannot revert to draft: only 'approved' POs can be reverted. Current status: '${po.status}'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcPurchaseOrders)
+          .set({
+            status: 'draft', approvedBy: null, approvedAt: null,
+            approvalNote: null, updatedAt: new Date(),
+          })
+          .where(eq(epcPurchaseOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${po.project_id}, 'epc_purchase_order.reverted_to_draft', ${JSON.stringify({
+            epcPoId: id, poNumber: po.po_number, revertedBy: userId,
+            projectItemId: po.project_item_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-PO] Purchase order ${po.po_number} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: `Purchase order ${po.po_number} reverted to draft`, id, newStatus: 'draft' });
     } catch (error) {
       sendError(res, error);
     }

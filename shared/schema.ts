@@ -10946,3 +10946,64 @@ export const projectWorkflowEvents = pgTable('project_workflow_events', {
 export const insertProjectWorkflowEventSchema = createInsertSchema(projectWorkflowEvents).omit({ id: true });
 export type InsertProjectWorkflowEvent = z.infer<typeof insertProjectWorkflowEventSchema>;
 export type ProjectWorkflowEvent = typeof projectWorkflowEvents.$inferSelect;
+
+export const epcPurchaseOrders = pgTable('epc_purchase_orders', {
+  id: serial("id").primaryKey(),
+  poNumber: varchar("po_number", { length: 50 }).notNull().unique(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer("project_item_id").notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  planningRecordId: integer("planning_record_id").references(() => itemPlanningRecords.id),
+  executionRecordId: integer("execution_record_id").references(() => procurementExecutionRecords.id),
+  poPreparationId: integer("po_preparation_id").notNull().references(() => poPreparationRecords.id),
+  qualityPlanId: integer("quality_plan_id").references(() => qualityPlanningRecords.id),
+  masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
+  vendorId: integer("vendor_id").references(() => vendors.id),
+  vendorName: varchar("vendor_name", { length: 255 }),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }),
+  currency: varchar("currency", { length: 10 }).default('INR'),
+  paymentTerms: text("payment_terms"),
+  deliveryTerms: text("delivery_terms"),
+  poNotes: text("po_notes"),
+  status: varchar("status", { length: 30 }).notNull().default('draft'),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  approvalNote: text("approval_note"),
+  issuedBy: integer("issued_by").references(() => users.id),
+  issuedAt: timestamp("issued_at"),
+  issueNote: text("issue_note"),
+  cancelledBy: integer("cancelled_by").references(() => users.id),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelReason: text("cancel_reason"),
+  supersededById: integer("superseded_by_id"),
+  supersededAt: timestamp("superseded_at"),
+  supersessionReason: text("supersession_reason"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const epcPurchaseOrderItems = pgTable('epc_purchase_order_items', {
+  id: serial("id").primaryKey(),
+  epcPurchaseOrderId: integer("epc_purchase_order_id").notNull().references(() => epcPurchaseOrders.id, { onDelete: 'cascade' }),
+  lineNumber: integer("line_number").notNull().default(1),
+  masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
+  itemCode: varchar("item_code", { length: 100 }),
+  itemDescription: text("item_description"),
+  itemSpecification: text("item_specification"),
+  uom: varchar("uom", { length: 30 }),
+  drawingNo: varchar("drawing_no", { length: 100 }),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unitCost: decimal("unit_cost", { precision: 12, scale: 2 }),
+  totalCost: decimal("total_cost", { precision: 12, scale: 2 }),
+  procurementNotes: text("procurement_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEpcPurchaseOrderSchema = createInsertSchema(epcPurchaseOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcPurchaseOrder = z.infer<typeof insertEpcPurchaseOrderSchema>;
+export type EpcPurchaseOrder = typeof epcPurchaseOrders.$inferSelect;
+
+export const insertEpcPurchaseOrderItemSchema = createInsertSchema(epcPurchaseOrderItems).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcPurchaseOrderItem = z.infer<typeof insertEpcPurchaseOrderItemSchema>;
+export type EpcPurchaseOrderItem = typeof epcPurchaseOrderItems.$inferSelect;
