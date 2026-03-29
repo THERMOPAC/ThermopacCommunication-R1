@@ -18,7 +18,7 @@ import {
   Loader2, Search, Filter, AlertTriangle, Clock, CheckCircle2, XCircle,
   ChevronDown, ChevronRight, RefreshCw, FileText, Package, ClipboardCheck,
   ShoppingCart, Factory, Eye, Truck, Wrench, Receipt, DollarSign,
-  ArrowRight, Minus,
+  ArrowRight, Minus, PenTool, List,
 } from "lucide-react";
 
 type PipelineRecord = {
@@ -427,6 +427,18 @@ export default function ExecutionControlDashboard() {
     enabled: !!projectId,
   });
 
+  const { data: drawingControls = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "drawing-controls"],
+    queryFn: () => fetch(`/api/projects/${projectId}/drawing-controls`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
+  const { data: bomHeaders = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects", projectId, "bom-headers"],
+    queryFn: () => fetch(`/api/projects/${projectId}/bom-headers`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
   const actionMutation = useMutation({
     mutationFn: async ({ endpoint, body }: { endpoint: string; body: any }) => {
       return apiRequest("POST", endpoint, body);
@@ -448,7 +460,7 @@ export default function ExecutionControlDashboard() {
       "planning-records", "procurement-executions", "production-executions",
       "quality-plans", "po-preparations", "wo-preparations", "inspection-executions",
       "dispatch-readiness", "dispatch-records", "commissioning-readiness",
-      "billing-readiness", "epc-invoices",
+      "billing-readiness", "epc-invoices", "drawing-controls", "bom-headers",
     ];
     keys.forEach(k => queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, k] }));
   }
@@ -458,6 +470,45 @@ export default function ExecutionControlDashboard() {
     return records.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
       || records.find((r) => r.project_item_id === itemId)
       || null;
+  }
+
+  function findActiveDc(records: any[], itemId: number) {
+    if (!Array.isArray(records)) return null;
+    return records.find((r: any) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
+      || records.find((r: any) => r.project_item_id === itemId)
+      || null;
+  }
+
+  function getEngineeringWarnings(dc: any, bom: any, classification: string | null) {
+    const warnings: { type: string; label: string }[] = [];
+    const isBuy = classification === "Buy";
+    const isMake = classification === "Make";
+
+    if (!dc) {
+      warnings.push({ type: "eng_missing", label: "No drawing control" });
+    } else if (dc.status !== "released") {
+      if (isBuy && !dc.released_for_procurement) {
+        warnings.push({ type: "eng_gate", label: "DWG not released for procurement" });
+      }
+      if (isMake && !dc.released_for_manufacturing) {
+        warnings.push({ type: "eng_gate", label: "DWG not released for manufacturing" });
+      }
+      if (!isBuy && !isMake && dc.status !== "released") {
+        warnings.push({ type: "eng_gate", label: `DWG: ${dc.status.replace(/_/g, " ")}` });
+      }
+    }
+
+    if (!bom) {
+      warnings.push({ type: "eng_missing", label: "No BOM" });
+    } else if (bom.status !== "released") {
+      if (bom.status === "approved") {
+        warnings.push({ type: "eng_gate", label: "BOM approved, not released" });
+      } else {
+        warnings.push({ type: "eng_gate", label: `BOM: ${bom.status.replace(/_/g, " ")}` });
+      }
+    }
+
+    return warnings;
   }
 
   const pipelineRows = useMemo(() => {
@@ -479,18 +530,23 @@ export default function ExecutionControlDashboard() {
       const bill = findActive(billingReadiness, itemId);
       const inv = findActive(epcInvoices, itemId);
 
+      const dc = findActiveDc(drawingControls, itemId);
+      const bom = findActiveDc(bomHeaders, itemId);
+      const engWarnings = getEngineeringWarnings(dc, bom, classification);
+
       const itemCode = plan?.item_code || exec?.item_code || item.masterItem?.item_code || `Item #${itemId}`;
       const itemDesc = plan?.item_description || exec?.item_description || item.masterItem?.description || "";
 
       const row = {
         itemId, item, plan, exec, qp, prep, insp, disp, dispRec, comm, bill, inv,
+        dc, bom, engWarnings,
         classification, isBuy, itemCode, itemDesc,
         exceptions: [] as any[],
       };
       row.exceptions = getExceptions(row);
       return row;
     });
-  }, [projectItems, planningRecords, procExecs, prodExecs, qualityPlans, poPreps, woPreps, inspExecs, dispatchReadiness, dispatchRecords, commissioningReadiness, billingReadiness, epcInvoices]);
+  }, [projectItems, planningRecords, procExecs, prodExecs, qualityPlans, poPreps, woPreps, inspExecs, dispatchReadiness, dispatchRecords, commissioningReadiness, billingReadiness, epcInvoices, drawingControls, bomHeaders]);
 
   const filteredRows = useMemo(() => {
     return pipelineRows.filter((row) => {
@@ -504,6 +560,7 @@ export default function ExecutionControlDashboard() {
         if (exceptionFilter === "pending" && !row.exceptions.some((e: any) => e.type === "pending")) return false;
         if (exceptionFilter === "blocked" && !row.exceptions.some((e: any) => e.type === "blocked")) return false;
         if (exceptionFilter === "quality_fail" && !row.exceptions.some((e: any) => e.type === "quality_fail")) return false;
+        if (exceptionFilter === "eng_warning" && row.engWarnings.length === 0) return false;
         if (exceptionFilter === "none" && row.exceptions.length > 0) return false;
       }
       if (layerStatusFilter !== "all") {
@@ -535,7 +592,10 @@ export default function ExecutionControlDashboard() {
     const commissionedCount = pipelineRows.filter(r => ["commissioned", "handed_over"].includes(r.comm?.status || "")).length;
     const invoicedCount = pipelineRows.filter(r => ["issued", "partially_paid", "paid"].includes(r.inv?.status || "")).length;
     const paidCount = pipelineRows.filter(r => r.inv?.status === "paid").length;
-    return { total, withExceptions, buyCount, makeCount, completedInsp, dispatchedCount, commissionedCount, invoicedCount, paidCount };
+    const engWarningCount = pipelineRows.filter(r => r.engWarnings.length > 0).length;
+    const dwgReleasedCount = pipelineRows.filter(r => r.dc?.status === "released").length;
+    const bomReleasedCount = pipelineRows.filter(r => r.bom?.status === "released").length;
+    return { total, withExceptions, buyCount, makeCount, completedInsp, dispatchedCount, commissionedCount, invoicedCount, paidCount, engWarningCount, dwgReleasedCount, bomReleasedCount };
   }, [pipelineRows]);
 
   function openActionDialog(action: any, layer: string, record: PipelineRecord, itemDesc: string) {
@@ -588,6 +648,97 @@ export default function ExecutionControlDashboard() {
           </div>
         )}
       </div>
+    );
+  }
+
+  function renderDwgCell(dc: any, classification: string | null) {
+    if (!dc) return <span className="text-[10px] text-muted-foreground">—</span>;
+    const isBuy = classification === "Buy";
+    const isMake = classification === "Make";
+
+    const statusStyle = dc.status === "released" ? "bg-green-100 text-green-700 border-green-300"
+      : dc.status === "approved" ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+      : dc.status === "under_review" ? "bg-blue-100 text-blue-700 border-blue-300"
+      : "bg-gray-100 text-gray-700 border-gray-300";
+
+    const hasGateWarning = dc.status === "released" && (
+      (isBuy && !dc.released_for_procurement) ||
+      (isMake && !dc.released_for_manufacturing)
+    );
+
+    return (
+      <Tooltip>
+        <TooltipTrigger>
+          <div className="flex flex-col items-center gap-0.5">
+            <Badge variant="outline" className={`${statusStyle} text-[10px] font-medium px-1.5 py-0.5 whitespace-nowrap border`}>
+              {dc.status.replace(/_/g, " ")}
+            </Badge>
+            {dc.dwg_control_number && (
+              <span className="text-[8px] text-muted-foreground font-mono">{dc.dwg_control_number}</span>
+            )}
+            {dc.status === "released" && !hasGateWarning && (
+              <div className="flex gap-0.5">
+                {dc.released_for_procurement && <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-green-50 text-green-600 border-green-200">P</Badge>}
+                {dc.released_for_manufacturing && <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-green-50 text-green-600 border-green-200">M</Badge>}
+              </div>
+            )}
+            {hasGateWarning && (
+              <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-orange-50 text-orange-600 border-orange-200">
+                <AlertTriangle className="h-2 w-2 mr-0.5" />
+                {isBuy ? "P gate" : "M gate"}
+              </Badge>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs max-w-[200px]">
+          <p className="font-medium">{dc.dwg_control_number}</p>
+          <p>Status: {dc.status.replace(/_/g, " ")}</p>
+          {dc.drawing_number && <p>Drawing: {dc.drawing_number} Rev {dc.drawing_revision || "—"}</p>}
+          <p>Procurement: {dc.released_for_procurement ? "Released" : "Not released"}</p>
+          <p>Manufacturing: {dc.released_for_manufacturing ? "Released" : "Not released"}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  function renderBomCell(bom: any) {
+    if (!bom) return <span className="text-[10px] text-muted-foreground">—</span>;
+
+    const statusStyle = bom.status === "released" ? "bg-green-100 text-green-700 border-green-300"
+      : bom.status === "approved" ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+      : bom.status === "under_review" ? "bg-blue-100 text-blue-700 border-blue-300"
+      : "bg-gray-100 text-gray-700 border-gray-300";
+
+    const typeLabel = bom.bom_type === "procurement" ? "Proc"
+      : bom.bom_type === "manufacturing" ? "Mfg"
+      : "Assy";
+
+    return (
+      <Tooltip>
+        <TooltipTrigger>
+          <div className="flex flex-col items-center gap-0.5">
+            <Badge variant="outline" className={`${statusStyle} text-[10px] font-medium px-1.5 py-0.5 whitespace-nowrap border`}>
+              {bom.status.replace(/_/g, " ")}
+            </Badge>
+            {bom.bom_number && (
+              <span className="text-[8px] text-muted-foreground font-mono">{bom.bom_number}</span>
+            )}
+            <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-slate-50 text-slate-600 border-slate-200">
+              {typeLabel}
+            </Badge>
+            {bom.total_line_count > 0 && (
+              <span className="text-[7px] text-muted-foreground">{bom.total_line_count} lines</span>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs max-w-[200px]">
+          <p className="font-medium">{bom.bom_number} (Rev {bom.bom_revision || "A"})</p>
+          <p>Type: {bom.bom_type}</p>
+          <p>Status: {bom.status.replace(/_/g, " ")}</p>
+          <p>Lines: {bom.total_line_count}</p>
+          {bom.total_estimated_cost && <p>Est. Cost: {parseFloat(bom.total_estimated_cost).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}</p>}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
@@ -699,11 +850,96 @@ export default function ExecutionControlDashboard() {
 
     return (
       <TableRow className="bg-muted/30">
-        <TableCell colSpan={12} className="p-3">
+        <TableCell colSpan={14} className="p-3">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold">Full Pipeline:</span>
               <PipelineProgressBar row={row} />
+            </div>
+            {row.engWarnings.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-semibold text-orange-700">Engineering Warnings:</span>
+                {row.engWarnings.map((w: any, i: number) => (
+                  <Badge key={i} variant="outline" className="text-[9px] px-1.5 py-0 bg-orange-50 text-orange-700 border-orange-200 gap-0.5">
+                    <AlertTriangle className="h-2.5 w-2.5" />
+                    {w.label}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              {[
+                { key: "drawing_control", record: row.dc, label: "Drawing Control", icon: PenTool, isEng: true },
+                { key: "bom", record: row.bom, label: "BOM", icon: List, isEng: true },
+              ].map(({ key, record, label, icon: Icon, isEng }) => (
+                <Card key={key} className={`shadow-sm ${!record ? "opacity-50" : ""}`}>
+                  <CardHeader className="py-1.5 px-2.5">
+                    <CardTitle className="text-[10px] font-medium flex items-center gap-1">
+                      <Icon className="h-3 w-3" /> {label}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-2.5 pb-2 space-y-0.5">
+                    {!record ? (
+                      <p className="text-[10px] text-muted-foreground italic">Not created</p>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] text-muted-foreground">Status</span>
+                          <StatusBadge status={record.status} />
+                        </div>
+                        {(record.dwg_control_number || record.bom_number) && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">Ref</span>
+                            <span className="text-[9px] font-mono">{record.dwg_control_number || record.bom_number}</span>
+                          </div>
+                        )}
+                        {record.drawing_number && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">Drawing</span>
+                            <span className="text-[9px] font-mono truncate ml-1">{record.drawing_number}</span>
+                          </div>
+                        )}
+                        {record.bom_type && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">Type</span>
+                            <span className="text-[9px]">{record.bom_type}</span>
+                          </div>
+                        )}
+                        {record.bom_revision && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">Rev</span>
+                            <span className="text-[9px]">{record.bom_revision}</span>
+                          </div>
+                        )}
+                        {record.total_line_count > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">Lines</span>
+                            <span className="text-[9px]">{record.total_line_count}</span>
+                          </div>
+                        )}
+                        {record.total_estimated_cost && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">Est. Cost</span>
+                            <span className="text-[9px] font-mono">{parseFloat(record.total_estimated_cost).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                          </div>
+                        )}
+                        {record.released_for_procurement !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">P-Release</span>
+                            <span className={`text-[9px] ${record.released_for_procurement ? "text-green-600" : "text-gray-400"}`}>{record.released_for_procurement ? "Yes" : "No"}</span>
+                          </div>
+                        )}
+                        {record.released_for_manufacturing !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-[9px] text-muted-foreground">M-Release</span>
+                            <span className={`text-[9px] ${record.released_for_manufacturing ? "text-green-600" : "text-gray-400"}`}>{record.released_for_manufacturing ? "Yes" : "No"}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {layers.map(({ key, record, label, icon: Icon }) => {
@@ -882,6 +1118,7 @@ export default function ExecutionControlDashboard() {
                       <SelectItem value="pending">Pending Review</SelectItem>
                       <SelectItem value="blocked">Missing Classification</SelectItem>
                       <SelectItem value="quality_fail">Quality Failed</SelectItem>
+                      <SelectItem value="eng_warning">Engineering Warnings</SelectItem>
                       <SelectItem value="none">No Exceptions</SelectItem>
                     </SelectContent>
                   </Select>
@@ -907,11 +1144,14 @@ export default function ExecutionControlDashboard() {
         </Card>
 
         {projectId && pipelineRows.length > 0 && (
-          <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+          <div className="grid grid-cols-4 md:grid-cols-12 gap-2">
             {[
               { label: "Total", value: summaryStats.total, color: "" },
               { label: "Buy", value: summaryStats.buyCount, color: "text-blue-600" },
               { label: "Make", value: summaryStats.makeCount, color: "text-violet-600" },
+              { label: "DWG Released", value: summaryStats.dwgReleasedCount, color: "text-cyan-600" },
+              { label: "BOM Released", value: summaryStats.bomReleasedCount, color: "text-sky-600" },
+              { label: "Eng Warnings", value: summaryStats.engWarningCount, color: "text-orange-600" },
               { label: "Inspected", value: summaryStats.completedInsp, color: "text-green-600" },
               { label: "Dispatched", value: summaryStats.dispatchedCount, color: "text-teal-600" },
               { label: "Commissioned", value: summaryStats.commissionedCount, color: "text-emerald-600" },
@@ -965,6 +1205,12 @@ export default function ExecutionControlDashboard() {
                         <TableHead className="w-6 px-1"></TableHead>
                         <TableHead className="text-[10px] font-semibold min-w-[140px] sticky left-0 bg-muted/50 z-10">Item</TableHead>
                         <TableHead className="text-[10px] font-semibold text-center w-[50px]">Class</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[80px]">
+                          <div className="flex items-center justify-center gap-0.5"><PenTool className="h-3 w-3" /> DWG</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[80px]">
+                          <div className="flex items-center justify-center gap-0.5"><List className="h-3 w-3" /> BOM</div>
+                        </TableHead>
                         <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
                           <div className="flex items-center justify-center gap-0.5"><FileText className="h-3 w-3" /> Plan</div>
                         </TableHead>
@@ -1017,12 +1263,33 @@ export default function ExecutionControlDashboard() {
                                       ))}
                                     </div>
                                   )}
+                                  {row.engWarnings.length > 0 && (
+                                    <div className="flex flex-wrap gap-0.5">
+                                      {row.engWarnings.slice(0, 2).map((w: any, i: number) => (
+                                        <Badge key={`ew-${i}`} variant="outline" className="text-[8px] px-1 py-0 bg-orange-50 text-orange-600 border-orange-200 gap-0.5">
+                                          <AlertTriangle className="h-2 w-2" />
+                                          {w.label.length > 20 ? w.label.substring(0, 18) + "..." : w.label}
+                                        </Badge>
+                                      ))}
+                                      {row.engWarnings.length > 2 && (
+                                        <Badge variant="outline" className="text-[8px] px-1 py-0 bg-orange-50 text-orange-600 border-orange-200">
+                                          +{row.engWarnings.length - 2}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">
                                 <Badge variant="outline" className={`text-[9px] px-1 ${row.classification === "Buy" ? "bg-blue-50 text-blue-700 border-blue-200" : row.classification === "Make" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
                                   {row.classification || "—"}
                                 </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {renderDwgCell(row.dc, row.classification)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {renderBomCell(row.bom)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                                 {renderLayerCell("planning", row.plan, row.itemCode)}
