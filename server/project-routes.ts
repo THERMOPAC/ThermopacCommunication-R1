@@ -29,6 +29,8 @@ import {
   epcDispatchRecords,
   epcCommissioningReadiness,
   epcDrawingControls,
+  epcBomHeaders,
+  epcBomLines,
   epcBillingReadiness,
   epcInvoices,
 } from '@shared/schema';
@@ -7889,6 +7891,646 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} updated by user ${userId}`);
       res.json({ success: true, message: `${rec.dwg_control_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC BOM CONTROL LAYER ====================
+
+  async function generateBomNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `BOM-${year}-`;
+    const result = await db.execute(sql`
+      SELECT bom_number FROM epc_bom_headers 
+      WHERE bom_number LIKE ${prefix + '%'} 
+      ORDER BY bom_number DESC LIMIT 1
+    `);
+    let seq = 1;
+    if (result.rows.length > 0) {
+      const last = (result.rows[0] as any).bom_number;
+      const parts = last.split('-');
+      seq = parseInt(parts[2]) + 1;
+    }
+    return `${prefix}${String(seq).padStart(4, '0')}`;
+  }
+
+  app.get('/api/projects/:projectId/bom-headers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const { bomType, status, projectItemId } = req.query;
+      let query = `SELECT bh.*, u1.username as created_by_name, u2.username as submitted_by_name,
+        u3.username as reviewed_by_name, u4.username as approved_by_name, u5.username as released_by_name
+        FROM epc_bom_headers bh
+        LEFT JOIN users u1 ON bh.created_by = u1.id
+        LEFT JOIN users u2 ON bh.submitted_by = u2.id
+        LEFT JOIN users u3 ON bh.reviewed_by = u3.id
+        LEFT JOIN users u4 ON bh.approved_by = u4.id
+        LEFT JOIN users u5 ON bh.released_by = u5.id
+        WHERE bh.project_id = ${projectId}`;
+      if (bomType) query += ` AND bh.bom_type = '${bomType}'`;
+      if (status) query += ` AND bh.status = '${status}'`;
+      if (projectItemId) query += ` AND bh.project_item_id = ${parseInt(projectItemId as string)}`;
+      query += ` ORDER BY bh.created_at DESC`;
+      const results = await db.execute(sql.raw(query));
+      res.json(results.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/bom-headers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const results = await db.execute(sql`
+        SELECT bh.*, u1.username as created_by_name, u2.username as submitted_by_name,
+          u3.username as reviewed_by_name, u4.username as approved_by_name, u5.username as released_by_name
+        FROM epc_bom_headers bh
+        LEFT JOIN users u1 ON bh.created_by = u1.id
+        LEFT JOIN users u2 ON bh.submitted_by = u2.id
+        LEFT JOIN users u3 ON bh.reviewed_by = u3.id
+        LEFT JOIN users u4 ON bh.approved_by = u4.id
+        LEFT JOIN users u5 ON bh.released_by = u5.id
+        WHERE bh.id = ${id}
+      `);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      res.json(results.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/projects/:projectId/bom-headers', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const { projectItemId, masterItemId, drawingControlId, bomType, bomRevision, bomTitle, bomDescription, notes } = req.body;
+
+      if (!projectItemId || !masterItemId) {
+        return sendValidationError(res, 'projectItemId and masterItemId are required');
+      }
+
+      const validBomType = bomType || 'assembly';
+      if (!['procurement', 'manufacturing', 'assembly'].includes(validBomType)) {
+        return sendValidationError(res, 'bomType must be procurement, manufacturing, or assembly');
+      }
+
+      const existingCheck = await db.execute(sql`
+        SELECT id, bom_number FROM epc_bom_headers 
+        WHERE project_item_id = ${projectItemId} AND bom_type = ${validBomType}
+        AND status NOT IN ('superseded', 'cancelled')
+      `);
+      if (existingCheck.rows.length > 0) {
+        return sendBusinessError(res, `Active BOM (${(existingCheck.rows[0] as any).bom_number}) already exists for this project item with type '${validBomType}'. Supersede it to create a new one.`);
+      }
+
+      const itemResult = await db.execute(sql`SELECT description, item_code, make_or_buy FROM master_items WHERE id = ${masterItemId}`);
+      if (itemResult.rows.length === 0) return sendNotFound(res, 'Master item not found');
+      const item = itemResult.rows[0] as any;
+
+      let drawingNumber: string | null = null;
+      let drawingRevisionSnap: string | null = null;
+      if (drawingControlId) {
+        const dcResult = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${drawingControlId}`);
+        if (dcResult.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+        const dc = dcResult.rows[0] as any;
+        if (dc.project_item_id !== projectItemId) {
+          return sendBusinessError(res, 'Drawing control does not belong to the same project item');
+        }
+        drawingNumber = dc.drawing_number;
+        drawingRevisionSnap = dc.drawing_revision;
+      }
+
+      const bomNumber = await generateBomNumber();
+
+      const [created] = await db.insert(epcBomHeaders).values({
+        projectId,
+        projectItemId,
+        masterItemId,
+        drawingControlId: drawingControlId || null,
+        bomNumber,
+        bomRevision: bomRevision || 'A',
+        bomType: validBomType,
+        bomTitle: bomTitle || `${item.description} - ${validBomType} BOM`,
+        bomDescription: bomDescription || null,
+        itemCode: item.item_code,
+        itemDescription: item.description,
+        classificationSnapshot: item.make_or_buy,
+        drawingNumber,
+        drawingRevision: drawingRevisionSnap,
+        notes: notes || null,
+        createdBy: userId,
+      }).returning();
+
+      console.log(`[BOM] ${bomNumber} created for project ${projectId}, item ${masterItemId}, type ${validBomType} by user ${userId}`);
+      res.status(201).json({ success: true, data: created, message: `BOM ${bomNumber} created` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/bom-headers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'draft') {
+        return sendBusinessError(res, `Cannot update: status is '${rec.status}'. Only 'draft' records can be edited.`);
+      }
+
+      const allowedFields = ['bomTitle', 'bomDescription', 'bomRevision', 'drawingControlId', 'notes'];
+      const updates: any = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updates[field] = req.body[field];
+      }
+
+      if (updates.drawingControlId) {
+        const dcResult = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${updates.drawingControlId}`);
+        if (dcResult.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+        const dc = dcResult.rows[0] as any;
+        updates.drawingNumber = dc.drawing_number;
+        updates.drawingRevision = dc.drawing_revision;
+      }
+
+      await db.update(epcBomHeaders).set(updates).where(eq(epcBomHeaders.id, id));
+      console.log(`[BOM] ${rec.bom_number} updated by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { submissionNote } = req.body;
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'draft') {
+        return sendBusinessError(res, `Cannot submit: current status is '${rec.status}'. Must be 'draft'.`);
+      }
+
+      const lineCheck = await db.execute(sql`SELECT COUNT(*) as cnt FROM epc_bom_lines WHERE bom_header_id = ${id}`);
+      if (parseInt((lineCheck.rows[0] as any).cnt) === 0) {
+        return sendBusinessError(res, 'Cannot submit: BOM has no lines. Add at least one component.');
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'under_review',
+        submittedBy: userId,
+        submittedAt: new Date(),
+        submissionNote: submissionNote || null,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} submitted for review by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} submitted for review` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { reviewNote, recommendation } = req.body;
+
+      if (!recommendation || !['approve', 'reject', 'approve_with_comments'].includes(recommendation)) {
+        return sendValidationError(res, 'recommendation is required: approve, reject, or approve_with_comments');
+      }
+
+      const managerRoles = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+      if (!managerRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Manager or above required to review');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot review: current status is '${rec.status}'. Must be 'under_review'.`);
+      }
+
+      if (rec.submitted_by === userId) {
+        return sendBusinessError(res, 'Self-review not allowed: submitter cannot be reviewer.');
+      }
+
+      await db.update(epcBomHeaders).set({
+        reviewedBy: userId,
+        reviewedAt: new Date(),
+        reviewNote: reviewNote || null,
+        reviewRecommendation: recommendation,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} reviewed by user ${userId}, recommendation: ${recommendation}`);
+      res.json({ success: true, message: `${rec.bom_number} reviewed (${recommendation})` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { approvalNote } = req.body;
+
+      const seniorRoles = ['Senior Manager', 'General Manager', 'Superuser'];
+      if (!seniorRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Senior Manager or above required to approve');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot approve: current status is '${rec.status}'. Must be 'under_review'.`);
+      }
+
+      if (!rec.reviewed_by) {
+        return sendBusinessError(res, 'Cannot approve: BOM has not been reviewed yet.');
+      }
+
+      if (rec.review_recommendation === 'reject') {
+        return sendBusinessError(res, 'Cannot approve: review recommendation is "reject". Revert to draft first.');
+      }
+
+      if (rec.created_by === userId) {
+        return sendBusinessError(res, 'Self-approval not allowed: creator cannot be approver.');
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'approved',
+        approvedBy: userId,
+        approvedAt: new Date(),
+        approvalNote: approvalNote || null,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} approved by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} approved` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { releaseNote } = req.body;
+
+      const seniorRoles = ['Senior Manager', 'General Manager', 'Superuser'];
+      if (!seniorRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Senior Manager or above required to release');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'approved') {
+        return sendBusinessError(res, `Cannot release: current status is '${rec.status}'. Must be 'approved'.`);
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'released',
+        releasedBy: userId,
+        releasedAt: new Date(),
+        releaseNote: releaseNote || null,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} released by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} released` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body;
+
+      if (!cancelReason) return sendValidationError(res, 'cancelReason is required');
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status === 'released') {
+        return sendBusinessError(res, 'Cannot cancel a released BOM. Supersede it instead.');
+      }
+      if (['superseded', 'cancelled'].includes(rec.status)) {
+        return sendBusinessError(res, `BOM is already ${rec.status}.`);
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'cancelled',
+        cancelledBy: userId,
+        cancelledAt: new Date(),
+        cancelReason,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} cancelled by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} cancelled` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { supersessionReason, newBomRevision } = req.body;
+
+      const seniorRoles = ['Senior Manager', 'General Manager', 'Superuser'];
+      if (!seniorRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Senior Manager or above required to supersede');
+      }
+
+      if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required');
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (['superseded', 'cancelled'].includes(rec.status)) {
+        return sendBusinessError(res, `Cannot supersede: BOM is already ${rec.status}.`);
+      }
+
+      const newBomNumber = await generateBomNumber();
+      const nextRevision = newBomRevision || String.fromCharCode(rec.bom_revision.charCodeAt(rec.bom_revision.length - 1) + 1);
+
+      const [newBom] = await db.insert(epcBomHeaders).values({
+        projectId: rec.project_id,
+        projectItemId: rec.project_item_id,
+        masterItemId: rec.master_item_id,
+        drawingControlId: rec.drawing_control_id,
+        bomNumber: newBomNumber,
+        bomRevision: nextRevision,
+        bomType: rec.bom_type,
+        bomTitle: rec.bom_title,
+        bomDescription: rec.bom_description,
+        itemCode: rec.item_code,
+        itemDescription: rec.item_description,
+        classificationSnapshot: rec.classification_snapshot,
+        drawingNumber: rec.drawing_number,
+        drawingRevision: rec.drawing_revision,
+        notes: `Superseded from ${rec.bom_number} (Rev ${rec.bom_revision}). Reason: ${supersessionReason}`,
+        createdBy: userId,
+      }).returning();
+
+      const existingLines = await db.execute(sql`SELECT * FROM epc_bom_lines WHERE bom_header_id = ${id} ORDER BY line_number`);
+      for (const line of existingLines.rows as any[]) {
+        await db.insert(epcBomLines).values({
+          bomHeaderId: newBom.id,
+          lineNumber: line.line_number,
+          componentItemId: line.component_item_id,
+          componentItemCode: line.component_item_code,
+          componentDescription: line.component_description,
+          componentSpecification: line.component_specification,
+          componentUom: line.component_uom,
+          componentMakeOrBuy: line.component_make_or_buy,
+          quantityPerUnit: line.quantity_per_unit,
+          componentDrawingNo: line.component_drawing_no,
+          estimatedUnitCost: line.estimated_unit_cost,
+          estimatedTotalCost: line.estimated_total_cost,
+          procurementLeadTimeDays: line.procurement_lead_time_days,
+          preferredVendor: line.preferred_vendor,
+          notes: line.notes,
+        });
+      }
+
+      const lineCount = existingLines.rows.length;
+      if (lineCount > 0) {
+        await db.update(epcBomHeaders).set({ totalLineCount: lineCount }).where(eq(epcBomHeaders.id, newBom.id));
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'superseded',
+        supersededBy: newBom.id,
+        supersededAt: new Date(),
+        supersessionReason,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNumber} (user ${userId})`);
+      res.status(201).json({
+        success: true,
+        message: `${rec.bom_number} superseded. New BOM: ${newBomNumber} (Rev ${nextRevision})`,
+        oldBomId: id,
+        newBom,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot revert: current status is '${rec.status}'. Must be 'under_review'.`);
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'draft',
+        submittedBy: null,
+        submittedAt: null,
+        submissionNote: null,
+        reviewedBy: null,
+        reviewedAt: null,
+        reviewNote: null,
+        reviewRecommendation: null,
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} reverted to draft` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== BOM LINES ====================
+
+  app.get('/api/bom-headers/:bomHeaderId/lines', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const bomHeaderId = parseInt(req.params.bomHeaderId);
+      const headerCheck = await db.execute(sql`SELECT id FROM epc_bom_headers WHERE id = ${bomHeaderId}`);
+      if (headerCheck.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+
+      const results = await db.execute(sql`
+        SELECT bl.*, mi.description as master_item_description, mi.item_code as master_item_code
+        FROM epc_bom_lines bl
+        LEFT JOIN master_items mi ON bl.component_item_id = mi.id
+        WHERE bl.bom_header_id = ${bomHeaderId}
+        ORDER BY bl.line_number
+      `);
+      res.json(results.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:bomHeaderId/lines', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const bomHeaderId = parseInt(req.params.bomHeaderId);
+      const userId = (req.user as any)?.id;
+
+      const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${bomHeaderId}`);
+      if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const header = headerResult.rows[0] as any;
+
+      if (header.status !== 'draft') {
+        return sendBusinessError(res, `Cannot add lines: BOM status is '${header.status}'. Only 'draft' BOMs can be modified.`);
+      }
+
+      const { componentItemId, quantityPerUnit, componentDrawingNo, estimatedUnitCost, procurementLeadTimeDays, preferredVendor, notes, componentSpecification } = req.body;
+
+      if (!componentItemId) return sendValidationError(res, 'componentItemId is required');
+
+      const itemResult = await db.execute(sql`SELECT * FROM master_items WHERE id = ${componentItemId}`);
+      if (itemResult.rows.length === 0) return sendNotFound(res, 'Component item not found');
+      const item = itemResult.rows[0] as any;
+
+      const maxLineResult = await db.execute(sql`SELECT COALESCE(MAX(line_number), 0) as max_line FROM epc_bom_lines WHERE bom_header_id = ${bomHeaderId}`);
+      const nextLine = parseInt((maxLineResult.rows[0] as any).max_line) + 1;
+
+      const qty = parseFloat(quantityPerUnit) || 1;
+      const unitCost = estimatedUnitCost ? parseFloat(estimatedUnitCost) : null;
+      const totalCost = unitCost !== null ? (unitCost * qty).toFixed(2) : null;
+
+      const [created] = await db.insert(epcBomLines).values({
+        bomHeaderId,
+        lineNumber: nextLine,
+        componentItemId,
+        componentItemCode: item.item_code,
+        componentDescription: item.description,
+        componentSpecification: componentSpecification || null,
+        componentUom: item.uom || null,
+        componentMakeOrBuy: item.make_or_buy || null,
+        quantityPerUnit: String(qty),
+        componentDrawingNo: componentDrawingNo || null,
+        estimatedUnitCost: unitCost !== null ? String(unitCost) : null,
+        estimatedTotalCost: totalCost,
+        procurementLeadTimeDays: procurementLeadTimeDays || null,
+        preferredVendor: preferredVendor || null,
+        notes: notes || null,
+      }).returning();
+
+      const countResult = await db.execute(sql`SELECT COUNT(*) as cnt, COALESCE(SUM(CAST(estimated_total_cost AS DECIMAL)), 0) as total_cost FROM epc_bom_lines WHERE bom_header_id = ${bomHeaderId}`);
+      const lineCount = parseInt((countResult.rows[0] as any).cnt);
+      const totalEstCost = parseFloat((countResult.rows[0] as any).total_cost) || 0;
+
+      await db.update(epcBomHeaders).set({
+        totalLineCount: lineCount,
+        totalEstimatedCost: String(totalEstCost),
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, bomHeaderId));
+
+      console.log(`[BOM] Line ${nextLine} added to ${header.bom_number} (component: ${item.item_code}) by user ${userId}`);
+      res.status(201).json({ success: true, data: created, message: `Line ${nextLine} added` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/bom-lines/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id WHERE bl.id = ${id}`);
+      if (lineResult.rows.length === 0) return sendNotFound(res, 'BOM line not found');
+      const line = lineResult.rows[0] as any;
+
+      if (line.header_status !== 'draft') {
+        return sendBusinessError(res, `Cannot update line: BOM status is '${line.header_status}'. Only 'draft' BOMs can be modified.`);
+      }
+
+      const allowedFields = ['quantityPerUnit', 'componentDrawingNo', 'estimatedUnitCost', 'procurementLeadTimeDays', 'preferredVendor', 'notes', 'componentSpecification'];
+      const updates: any = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updates[field] = req.body[field];
+      }
+
+      if (updates.quantityPerUnit !== undefined || updates.estimatedUnitCost !== undefined) {
+        const qty = updates.quantityPerUnit !== undefined ? parseFloat(updates.quantityPerUnit) : parseFloat(line.quantity_per_unit);
+        const unitCost = updates.estimatedUnitCost !== undefined ? parseFloat(updates.estimatedUnitCost) : (line.estimated_unit_cost ? parseFloat(line.estimated_unit_cost) : null);
+        if (unitCost !== null) {
+          updates.estimatedTotalCost = String((unitCost * qty).toFixed(2));
+        }
+        if (updates.quantityPerUnit !== undefined) updates.quantityPerUnit = String(qty);
+        if (updates.estimatedUnitCost !== undefined) updates.estimatedUnitCost = unitCost !== null ? String(unitCost) : null;
+      }
+
+      await db.update(epcBomLines).set(updates).where(eq(epcBomLines.id, id));
+
+      const countResult = await db.execute(sql`SELECT COUNT(*) as cnt, COALESCE(SUM(CAST(estimated_total_cost AS DECIMAL)), 0) as total_cost FROM epc_bom_lines WHERE bom_header_id = ${line.bom_header_id}`);
+      await db.update(epcBomHeaders).set({
+        totalEstimatedCost: String(parseFloat((countResult.rows[0] as any).total_cost) || 0),
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, line.bom_header_id));
+
+      console.log(`[BOM] Line ${line.line_number} updated on ${line.bom_number} by user ${userId}`);
+      res.json({ success: true, message: `Line ${line.line_number} updated` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.delete('/api/bom-lines/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number, bh.id as header_id FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id WHERE bl.id = ${id}`);
+      if (lineResult.rows.length === 0) return sendNotFound(res, 'BOM line not found');
+      const line = lineResult.rows[0] as any;
+
+      if (line.header_status !== 'draft') {
+        return sendBusinessError(res, `Cannot delete line: BOM status is '${line.header_status}'. Only 'draft' BOMs can be modified.`);
+      }
+
+      await db.delete(epcBomLines).where(eq(epcBomLines.id, id));
+
+      const countResult = await db.execute(sql`SELECT COUNT(*) as cnt, COALESCE(SUM(CAST(estimated_total_cost AS DECIMAL)), 0) as total_cost FROM epc_bom_lines WHERE bom_header_id = ${line.header_id}`);
+      await db.update(epcBomHeaders).set({
+        totalLineCount: parseInt((countResult.rows[0] as any).cnt),
+        totalEstimatedCost: String(parseFloat((countResult.rows[0] as any).total_cost) || 0),
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, line.header_id));
+
+      console.log(`[BOM] Line ${line.line_number} deleted from ${line.bom_number} by user ${userId}`);
+      res.json({ success: true, message: `Line ${line.line_number} deleted` });
     } catch (error) {
       sendError(res, error);
     }

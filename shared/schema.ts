@@ -11480,3 +11480,76 @@ export const epcDrawingControls = pgTable('epc_drawing_controls', {
 export const insertEpcDrawingControlSchema = createInsertSchema(epcDrawingControls).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertEpcDrawingControl = z.infer<typeof insertEpcDrawingControlSchema>;
 export type EpcDrawingControl = typeof epcDrawingControls.$inferSelect;
+
+export const epcBomHeaders = pgTable('epc_bom_headers', {
+  id: serial('id').primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer("project_item_id").notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
+  drawingControlId: integer("drawing_control_id").references(() => epcDrawingControls.id, { onDelete: 'set null' }),
+  bomNumber: varchar("bom_number", { length: 30 }).notNull().unique(),
+  bomRevision: varchar("bom_revision", { length: 20 }).notNull().default('A'),
+  bomType: varchar("bom_type", { length: 30 }).notNull().default('assembly'),
+  bomTitle: varchar("bom_title", { length: 255 }),
+  bomDescription: text("bom_description"),
+  itemCode: varchar("item_code", { length: 100 }),
+  itemDescription: text("item_description"),
+  classificationSnapshot: varchar("classification_snapshot", { length: 20 }),
+  drawingNumber: varchar("drawing_number", { length: 100 }),
+  drawingRevision: varchar("drawing_revision", { length: 20 }),
+  totalLineCount: integer("total_line_count").notNull().default(0),
+  totalEstimatedCost: decimal("total_estimated_cost", { precision: 14, scale: 2 }),
+  status: varchar("status", { length: 30 }).notNull().default('draft'),
+  submittedBy: integer("submitted_by").references(() => users.id),
+  submittedAt: timestamp("submitted_at"),
+  submissionNote: text("submission_note"),
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNote: text("review_note"),
+  reviewRecommendation: varchar("review_recommendation", { length: 30 }),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  approvalNote: text("approval_note"),
+  releasedBy: integer("released_by").references(() => users.id),
+  releasedAt: timestamp("released_at"),
+  releaseNote: text("release_note"),
+  supersededBy: integer("superseded_by"),
+  supersededAt: timestamp("superseded_at"),
+  supersessionReason: text("supersession_reason"),
+  cancelledBy: integer("cancelled_by").references(() => users.id),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelReason: text("cancel_reason"),
+  notes: text("notes"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEpcBomHeaderSchema = createInsertSchema(epcBomHeaders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcBomHeader = z.infer<typeof insertEpcBomHeaderSchema>;
+export type EpcBomHeader = typeof epcBomHeaders.$inferSelect;
+
+export const epcBomLines = pgTable('epc_bom_lines', {
+  id: serial('id').primaryKey(),
+  bomHeaderId: integer("bom_header_id").notNull().references(() => epcBomHeaders.id, { onDelete: 'cascade' }),
+  lineNumber: integer("line_number").notNull(),
+  componentItemId: integer("component_item_id").notNull().references(() => masterItems.id),
+  componentItemCode: varchar("component_item_code", { length: 100 }),
+  componentDescription: text("component_description"),
+  componentSpecification: text("component_specification"),
+  componentUom: varchar("component_uom", { length: 30 }),
+  componentMakeOrBuy: varchar("component_make_or_buy", { length: 20 }),
+  quantityPerUnit: decimal("quantity_per_unit", { precision: 10, scale: 2 }).notNull().default('1'),
+  componentDrawingNo: varchar("component_drawing_no", { length: 100 }),
+  estimatedUnitCost: decimal("estimated_unit_cost", { precision: 12, scale: 2 }),
+  estimatedTotalCost: decimal("estimated_total_cost", { precision: 14, scale: 2 }),
+  procurementLeadTimeDays: integer("procurement_lead_time_days"),
+  preferredVendor: varchar("preferred_vendor", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEpcBomLineSchema = createInsertSchema(epcBomLines).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcBomLine = z.infer<typeof insertEpcBomLineSchema>;
+export type EpcBomLine = typeof epcBomLines.$inferSelect;

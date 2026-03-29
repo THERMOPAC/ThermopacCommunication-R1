@@ -454,6 +454,7 @@ export default function ExecutionControlDashboard() {
   }
 
   function findActive(records: PipelineRecord[], itemId: number) {
+    if (!Array.isArray(records)) return null;
     return records.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
       || records.find((r) => r.project_item_id === itemId)
       || null;
