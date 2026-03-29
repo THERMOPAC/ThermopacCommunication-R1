@@ -2054,6 +2054,51 @@ export const insertWoPreparationRecordSchema = createInsertSchema(woPreparationR
 export type InsertWoPreparationRecord = z.infer<typeof insertWoPreparationRecordSchema>;
 export type WoPreparationRecord = typeof woPreparationRecords.$inferSelect;
 
+export const inspectionExecutionRecords = pgTable('inspection_execution_records', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  planningRecordId: integer('planning_record_id').references(() => itemPlanningRecords.id),
+  executionRecordId: integer('execution_record_id'),
+  qualityPlanId: integer('quality_plan_id').notNull().references(() => qualityPlanningRecords.id),
+  masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
+  sourceContext: varchar('source_context', { length: 30 }).notNull(),
+  inspectionType: varchar('inspection_type', { length: 50 }).notNull(),
+  itemCode: varchar('item_code', { length: 100 }),
+  itemDescription: text('item_description'),
+  itemSpecification: text('item_specification'),
+  uom: varchar('uom', { length: 30 }),
+  drawingNo: varchar('drawing_no', { length: 100 }),
+  drawingRevision: integer('drawing_revision'),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  inspectionNotes: text('inspection_notes'),
+  resultNotes: text('result_notes'),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  scheduledBy: integer('scheduled_by').references(() => users.id),
+  scheduledAt: timestamp('scheduled_at'),
+  startedBy: integer('started_by').references(() => users.id),
+  startedAt: timestamp('started_at'),
+  completedBy: integer('completed_by').references(() => users.id),
+  completedAt: timestamp('completed_at'),
+  failedBy: integer('failed_by').references(() => users.id),
+  failedAt: timestamp('failed_at'),
+  failureReason: text('failure_reason'),
+  supersededBy: integer('superseded_by'),
+  supersededAt: timestamp('superseded_at'),
+  supersessionReason: text('supersession_reason'),
+  cancelledBy: integer('cancelled_by').references(() => users.id),
+  cancelledAt: timestamp('cancelled_at'),
+  cancelReason: text('cancel_reason'),
+  createdBy: integer('created_by').references(() => users.id),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertInspectionExecutionRecordSchema = createInsertSchema(inspectionExecutionRecords).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertInspectionExecutionRecord = z.infer<typeof insertInspectionExecutionRecordSchema>;
+export type InspectionExecutionRecord = typeof inspectionExecutionRecords.$inferSelect;
+
 // Create insert schemas for project management tables
 export const insertCustomerSchema = createInsertSchema(customers);
 

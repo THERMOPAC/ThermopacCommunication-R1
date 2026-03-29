@@ -248,12 +248,21 @@ async function supersedePlanningRecords(params: {
             RETURNING id`
       );
       for (const procRow of procCascade.rows) {
-        await db.execute(
+        const supersededQPs = await db.execute(
           sql`UPDATE quality_planning_records 
               SET status = 'superseded', superseded_at = NOW(),
                   supersession_reason = ${reason}, updated_at = NOW()
-              WHERE procurement_exec_id = ${(procRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+              WHERE procurement_exec_id = ${(procRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+              RETURNING id`
         );
+        for (const qpRow of supersededQPs.rows) {
+          await db.execute(
+            sql`UPDATE inspection_execution_records 
+                SET status = 'superseded', superseded_at = NOW(),
+                    supersession_reason = ${reason}, updated_at = NOW()
+                WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+          );
+        }
         await db.execute(
           sql`UPDATE po_preparation_records 
               SET status = 'superseded', superseded_at = NOW(),
@@ -262,7 +271,7 @@ async function supersedePlanningRecords(params: {
         );
       }
       if (procCascade.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) + quality plans + PO preps for superseded planning record ${supId}`);
+        console.log(`${LOG_PREFIX} Cascade-superseded ${procCascade.rows.length} procurement execution record(s) + quality plans + inspections + PO preps for superseded planning record ${supId}`);
       }
       const prodCascade = await db.execute(
         sql`UPDATE production_execution_records 
@@ -272,12 +281,21 @@ async function supersedePlanningRecords(params: {
             RETURNING id`
       );
       for (const prodRow of prodCascade.rows) {
-        await db.execute(
+        const supersededQPs = await db.execute(
           sql`UPDATE quality_planning_records 
               SET status = 'superseded', superseded_at = NOW(),
                   supersession_reason = ${reason}, updated_at = NOW()
-              WHERE production_exec_id = ${(prodRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+              WHERE production_exec_id = ${(prodRow as any).id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+              RETURNING id`
         );
+        for (const qpRow of supersededQPs.rows) {
+          await db.execute(
+            sql`UPDATE inspection_execution_records 
+                SET status = 'superseded', superseded_at = NOW(),
+                    supersession_reason = ${reason}, updated_at = NOW()
+                WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+          );
+        }
         await db.execute(
           sql`UPDATE wo_preparation_records 
               SET status = 'superseded', superseded_at = NOW(),
@@ -286,7 +304,7 @@ async function supersedePlanningRecords(params: {
         );
       }
       if (prodCascade.rows.length > 0) {
-        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) + quality plans + WO preps for superseded planning record ${supId}`);
+        console.log(`${LOG_PREFIX} Cascade-superseded ${prodCascade.rows.length} production execution record(s) + quality plans + inspections + WO preps for superseded planning record ${supId}`);
       }
     }
   }

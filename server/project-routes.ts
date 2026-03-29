@@ -20,6 +20,7 @@ import {
   qualityPlanningRecords,
   poPreparationRecords,
   woPreparationRecords,
+  inspectionExecutionRecords,
 } from '@shared/schema';
 import { canManage } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2026,12 +2027,21 @@ export function setupProjectRoutes(app: express.Express) {
         );
         cascadedProcExecIds = cascadeResult.rows.map((r: any) => r.id);
         for (const procId of cascadedProcExecIds) {
-          await db.execute(
+          const cancelledQPs = await db.execute(
             sql`UPDATE quality_planning_records 
                 SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                     cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+                WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+                RETURNING id`
           );
+          for (const qpRow of cancelledQPs.rows) {
+            await db.execute(
+              sql`UPDATE inspection_execution_records 
+                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+            );
+          }
           await db.execute(
             sql`UPDATE po_preparation_records 
                 SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
@@ -2040,7 +2050,7 @@ export function setupProjectRoutes(app: express.Express) {
           );
         }
         if (cascadedProcExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) + quality plans + PO preps for planning record ${id}`);
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProcExecIds.length} procurement execution record(s) + quality plans + inspections + PO preps for planning record ${id}`);
         }
       }
       if (record.planning_type === 'production') {
@@ -2053,12 +2063,21 @@ export function setupProjectRoutes(app: express.Express) {
         );
         cascadedProdExecIds = cascadeResult.rows.map((r: any) => r.id);
         for (const prodId of cascadedProdExecIds) {
-          await db.execute(
+          const cancelledQPs = await db.execute(
             sql`UPDATE quality_planning_records 
                 SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                     cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
+                WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
+                RETURNING id`
           );
+          for (const qpRow of cancelledQPs.rows) {
+            await db.execute(
+              sql`UPDATE inspection_execution_records 
+                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+            );
+          }
           await db.execute(
             sql`UPDATE wo_preparation_records 
                 SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
@@ -2067,7 +2086,7 @@ export function setupProjectRoutes(app: express.Express) {
           );
         }
         if (cascadedProdExecIds.length > 0) {
-          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) + quality plans + WO preps for planning record ${id}`);
+          console.log(`[PlanningLifecycle] Cascade-cancelled ${cascadedProdExecIds.length} production execution record(s) + quality plans + inspections + WO preps for planning record ${id}`);
         }
       }
 
@@ -2493,6 +2512,15 @@ export function setupProjectRoutes(app: express.Express) {
             RETURNING id`
       );
 
+      for (const qpRow of qpCascade.rows) {
+        await db.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+        );
+      }
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'procurement_execution.cancelled', ${JSON.stringify({
           procurementExecId: id, projectItemId: record.project_item_id,
@@ -2812,6 +2840,15 @@ export function setupProjectRoutes(app: express.Express) {
             RETURNING id`
       );
 
+      for (const qpRow of qpCascade.rows) {
+        await db.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+        );
+      }
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
           productionExecId: id, projectItemId: record.project_item_id,
@@ -2969,8 +3006,47 @@ export function setupProjectRoutes(app: express.Express) {
           projectItemId: record.project_item_id, markedBy: userId, preparationNote,
         })}::jsonb, NOW())`);
 
+      let inspExecId: number | null = null;
+      const existingIE = await db.execute(
+        sql`SELECT id FROM inspection_execution_records 
+            WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')`
+      );
+      if (existingIE.rows.length === 0) {
+        const inspType = record.source_context === 'procurement' ? 'incoming_inspection'
+          : (record.quality_requirement_type === 'in_process_final_inspection' ? 'in_process_final_inspection' : record.quality_requirement_type);
+        const [ieRec] = await db.insert(inspectionExecutionRecords).values({
+          projectId: record.project_id,
+          projectItemId: record.project_item_id,
+          planningRecordId: record.planning_record_id || null,
+          executionRecordId: record.procurement_exec_id || record.production_exec_id || null,
+          qualityPlanId: id,
+          masterItemId: record.master_item_id,
+          sourceContext: record.source_context,
+          inspectionType: inspType,
+          itemCode: record.item_code || null,
+          itemDescription: record.item_description || null,
+          itemSpecification: record.item_specification || null,
+          uom: record.uom || null,
+          drawingNo: record.drawing_no || null,
+          drawingRevision: record.drawing_revision || null,
+          quantity: record.quantity,
+          status: 'draft',
+          assignedTo: record.assigned_to,
+          createdBy: userId,
+        }).returning();
+        inspExecId = ieRec.id;
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+          VALUES (${record.project_id}, 'inspection_execution.created', ${JSON.stringify({
+            inspExecId: ieRec.id, qualityPlanId: id, sourceContext: record.source_context,
+            inspectionType: inspType, projectItemId: record.project_item_id, createdBy: userId,
+          })}::jsonb, NOW())`);
+        console.log(`[QualityPlan] Created inspection execution record ${ieRec.id} (${inspType}) from quality plan ${id}`);
+      } else {
+        inspExecId = (existingIE.rows[0] as any).id;
+      }
+
       console.log(`[QualityPlan] Record ${id} marked ready for inspection setup by user ${userId}`);
-      res.json({ success: true, message: 'Quality planning record marked ready for inspection setup', id, newStatus: 'ready_for_inspection_setup' });
+      res.json({ success: true, message: 'Quality planning record marked ready for inspection setup', id, newStatus: 'ready_for_inspection_setup', inspExecId });
     } catch (error) {
       sendError(res, error);
     }
@@ -3030,14 +3106,306 @@ export function setupProjectRoutes(app: express.Express) {
         })
         .where(eq(qualityPlanningRecords.id, id));
 
+      const ieCascade = await db.execute(
+        sql`UPDATE inspection_execution_records 
+            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                cancel_reason = ${'Upstream quality plan cancelled: ' + cancelReason}, updated_at = NOW()
+            WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')
+            RETURNING id`
+      );
+
       await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
         VALUES (${record.project_id}, 'quality_planning.cancelled', ${JSON.stringify({
           qualityPlanId: id, sourceContext: record.source_context,
           projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+          cascadedInspExecIds: ieCascade.rows.map((r: any) => r.id),
         })}::jsonb, NOW())`);
 
       console.log(`[QualityPlan] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Quality planning record cancelled', id, newStatus: 'cancelled' });
+      res.json({ success: true, message: 'Quality planning record cancelled', id, newStatus: 'cancelled',
+        cascadedInspExecIds: ieCascade.rows.map((r: any) => r.id),
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── Inspection Execution Record Lifecycle Routes ──────────────────────────
+
+  app.get('/api/projects/:projectId/inspection-executions', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+      const typeFilter = req.query.inspectionType as string | undefined;
+
+      let query = sql`SELECT ie.*, u1.username as inspector_name, u2.username as created_by_name,
+                             u3.username as scheduled_by_name, u4.username as completed_by_name
+                      FROM inspection_execution_records ie
+                      LEFT JOIN users u1 ON ie.inspector_id = u1.id
+                      LEFT JOIN users u2 ON ie.created_by = u2.id
+                      LEFT JOIN users u3 ON ie.scheduled_by = u3.id
+                      LEFT JOIN users u4 ON ie.completed_by = u4.id
+                      WHERE ie.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND ie.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND ie.project_item_id = ${itemFilter}`;
+      if (typeFilter) query = sql`${query} AND ie.inspection_type = ${typeFilter}`;
+      query = sql`${query} ORDER BY ie.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/inspection-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+
+      const result = await db.execute(
+        sql`SELECT ie.*, u1.username as inspector_name, u2.username as created_by_name,
+                   u3.username as scheduled_by_name, u4.username as completed_by_name
+            FROM inspection_execution_records ie
+            LEFT JOIN users u1 ON ie.inspector_id = u1.id
+            LEFT JOIN users u2 ON ie.created_by = u2.id
+            LEFT JOIN users u3 ON ie.scheduled_by = u3.id
+            LEFT JOIN users u4 ON ie.completed_by = u4.id
+            WHERE ie.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/inspection-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (['completed', 'failed', 'superseded', 'cancelled'].includes(record.status)) {
+        return sendBusinessError(res, `Cannot edit: record is in terminal status '${record.status}'.`);
+      }
+
+      const { inspector_id, inspection_type, inspection_method, acceptance_criteria,
+        sampling_plan, instruments_required, environmental_conditions, notes, priority } = req.body;
+
+      const hasUpdates = [inspector_id, inspection_type, inspection_method, acceptance_criteria,
+        sampling_plan, instruments_required, environmental_conditions, notes, priority].some(v => v !== undefined);
+
+      if (!hasUpdates) return sendValidationError(res, 'No valid fields to update');
+
+      await db.execute(
+        sql`UPDATE inspection_execution_records SET
+            inspector_id = COALESCE(${inspector_id ?? null}, inspector_id),
+            inspection_type = COALESCE(${inspection_type ?? null}, inspection_type),
+            inspection_method = COALESCE(${inspection_method ?? null}, inspection_method),
+            acceptance_criteria = COALESCE(${acceptance_criteria ?? null}, acceptance_criteria),
+            sampling_plan = COALESCE(${sampling_plan ?? null}, sampling_plan),
+            instruments_required = COALESCE(${instruments_required ?? null}, instruments_required),
+            environmental_conditions = COALESCE(${environmental_conditions ?? null}, environmental_conditions),
+            notes = COALESCE(${notes ?? null}, notes),
+            priority = COALESCE(${priority ?? null}, priority),
+            updated_at = NOW()
+            WHERE id = ${id}`
+      );
+
+      const result = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/inspection-executions/:id/schedule', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+      const { scheduledDate, inspectorId } = req.body || {};
+
+      if (!scheduledDate) return sendValidationError(res, 'Scheduled date is required');
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'draft') {
+        return sendBusinessError(res, `Cannot schedule: record status is '${record.status}', expected 'draft'.`);
+      }
+
+      await db.execute(
+        sql`UPDATE inspection_execution_records 
+            SET status = 'scheduled', scheduled_date = ${scheduledDate}, scheduled_by = ${userId},
+                inspector_id = COALESCE(${inspectorId || null}, inspector_id), updated_at = NOW()
+            WHERE id = ${id}`
+      );
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'inspection_execution.scheduled', ${JSON.stringify({
+          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+          projectItemId: record.project_item_id, scheduledBy: userId, scheduledDate,
+        })}::jsonb, NOW())`);
+
+      console.log(`[InspectionExec] Record ${id} scheduled for ${scheduledDate} by user ${userId}`);
+      res.json({ success: true, message: 'Inspection execution record scheduled', id, newStatus: 'scheduled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/inspection-executions/:id/start', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'scheduled') {
+        return sendBusinessError(res, `Cannot start: record status is '${record.status}', expected 'scheduled'.`);
+      }
+
+      await db.execute(
+        sql`UPDATE inspection_execution_records 
+            SET status = 'in_progress', started_at = NOW(), updated_at = NOW()
+            WHERE id = ${id}`
+      );
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'inspection_execution.started', ${JSON.stringify({
+          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+          projectItemId: record.project_item_id, startedBy: userId,
+        })}::jsonb, NOW())`);
+
+      console.log(`[InspectionExec] Record ${id} started by user ${userId}`);
+      res.json({ success: true, message: 'Inspection execution started', id, newStatus: 'in_progress' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/inspection-executions/:id/complete', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+      const { result, findings, measurementData } = req.body || {};
+
+      if (!result || !['pass', 'conditional_pass', 'fail'].includes(result)) {
+        return sendValidationError(res, 'Result is required: pass, conditional_pass, or fail');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'in_progress') {
+        return sendBusinessError(res, `Cannot complete: record status is '${record.status}', expected 'in_progress'.`);
+      }
+
+      await db.execute(
+        sql`UPDATE inspection_execution_records 
+            SET status = 'completed', result = ${result}, completed_by = ${userId}, completed_at = NOW(),
+                findings = ${findings || null}, measurement_data = ${measurementData ? JSON.stringify(measurementData) : null}::jsonb,
+                updated_at = NOW()
+            WHERE id = ${id}`
+      );
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'inspection_execution.completed', ${JSON.stringify({
+          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+          projectItemId: record.project_item_id, completedBy: userId, result,
+        })}::jsonb, NOW())`);
+
+      console.log(`[InspectionExec] Record ${id} completed with result '${result}' by user ${userId}`);
+      res.json({ success: true, message: 'Inspection execution completed', id, newStatus: 'completed', result });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/inspection-executions/:id/fail', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+      const { failureReason, findings } = req.body || {};
+
+      if (!failureReason) return sendValidationError(res, 'Failure reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'in_progress') {
+        return sendBusinessError(res, `Cannot fail: record status is '${record.status}', expected 'in_progress'.`);
+      }
+
+      await db.execute(
+        sql`UPDATE inspection_execution_records 
+            SET status = 'failed', result = 'fail', completed_by = ${userId}, completed_at = NOW(),
+                findings = ${findings || failureReason}, cancel_reason = ${failureReason}, updated_at = NOW()
+            WHERE id = ${id}`
+      );
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'inspection_execution.failed', ${JSON.stringify({
+          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+          projectItemId: record.project_item_id, failedBy: userId, failureReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[InspectionExec] Record ${id} failed by user ${userId}: ${failureReason}`);
+      res.json({ success: true, message: 'Inspection execution marked as failed', id, newStatus: 'failed' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/inspection-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (['completed', 'failed', 'superseded', 'cancelled'].includes(record.status)) {
+        return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
+      }
+
+      await db.execute(
+        sql`UPDATE inspection_execution_records 
+            SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                cancel_reason = ${cancelReason}, updated_at = NOW()
+            WHERE id = ${id}`
+      );
+
+      await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, created_at)
+        VALUES (${record.project_id}, 'inspection_execution.cancelled', ${JSON.stringify({
+          inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+          projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
+        })}::jsonb, NOW())`);
+
+      console.log(`[InspectionExec] Record ${id} cancelled by user ${userId}`);
+      res.json({ success: true, message: 'Inspection execution record cancelled', id, newStatus: 'cancelled' });
     } catch (error) {
       sendError(res, error);
     }
