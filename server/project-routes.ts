@@ -8502,6 +8502,7 @@ export function setupProjectRoutes(app: express.Express) {
           estimatedTotalCost: line.estimated_total_cost,
           procurementLeadTimeDays: line.procurement_lead_time_days,
           preferredVendor: line.preferred_vendor,
+          planningRequired: line.planning_required ?? true,
           notes: line.notes,
         });
       }
@@ -8519,12 +8520,41 @@ export function setupProjectRoutes(app: express.Express) {
         updatedAt: new Date(),
       }).where(eq(epcBomHeaders.id, id));
 
-      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNumber} (user ${userId})`);
+      const childPlanningResults = await db.execute(sql`
+        SELECT id, status FROM item_planning_records
+        WHERE source_bom_header_id = ${id} AND source = 'bom_explosion'
+          AND status NOT IN ('cancelled', 'superseded')
+      `);
+      let autoCancelled = 0, flaggedForReview = 0;
+      for (const child of childPlanningResults.rows as any[]) {
+        if (child.status === 'draft') {
+          await db.execute(sql`
+            UPDATE item_planning_records SET status = 'cancelled', cancel_reason = ${'Parent BOM superseded: ' + supersessionReason},
+              cancelled_by = ${userId}, cancelled_at = NOW(), updated_at = NOW()
+            WHERE id = ${child.id}
+          `);
+          autoCancelled++;
+        } else {
+          await db.execute(sql`
+            UPDATE item_planning_records SET supersession_reason = ${'Parent BOM superseded — review required: ' + supersessionReason},
+              updated_at = NOW()
+            WHERE id = ${child.id}
+          `);
+          flaggedForReview++;
+        }
+      }
+      await db.execute(sql`
+        UPDATE bom_explosion_logs SET status = 'superseded', superseded_at = NOW()
+        WHERE bom_header_id = ${id} AND status = 'created'
+      `);
+
+      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNumber} (user ${userId}). Child planning: ${autoCancelled} auto-cancelled, ${flaggedForReview} flagged for review.`);
       res.status(201).json({
         success: true,
         message: `${rec.bom_number} superseded. New BOM: ${newBomNumber} (Rev ${nextRevision})`,
         oldBomId: id,
         newBom,
+        childPlanningImpact: { autoCancelled, flaggedForReview },
       });
     } catch (error) {
       sendError(res, error);
@@ -8558,6 +8588,472 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[BOM] ${rec.bom_number} reverted to draft by user ${userId}`);
       res.json({ success: true, message: `${rec.bom_number} reverted to draft` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== BOM EXPLOSION ====================
+
+  app.get('/api/bom-headers/:id/explosion-preview', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const header = headerResult.rows[0] as any;
+
+      if (header.status !== 'released') {
+        return sendBusinessError(res, `BOM must be released to preview explosion. Current status: '${header.status}'.`);
+      }
+
+      const parentItemResult = await db.execute(sql`SELECT * FROM project_items WHERE id = ${header.project_item_id}`);
+      const parentItem = parentItemResult.rows[0] as any;
+      const parentQty = parentItem ? parseFloat(parentItem.quantity) : 1;
+
+      const linesResult = await db.execute(sql`
+        SELECT bl.*, mi.item_code as master_item_code, mi.description as master_description, mi.make_or_buy as master_make_or_buy, mi.uom as master_uom
+        FROM epc_bom_lines bl
+        LEFT JOIN master_items mi ON mi.id = bl.component_item_id
+        WHERE bl.bom_header_id = ${id}
+        ORDER BY bl.line_number
+      `);
+
+      const preview = [];
+      for (const line of linesResult.rows as any[]) {
+        const lineQty = parseFloat(line.quantity_per_unit || '1');
+        const computedQty = parentQty * lineQty;
+        const classification = line.component_make_or_buy || line.master_make_or_buy || null;
+
+        if (!line.planning_required) {
+          preview.push({
+            lineId: line.id,
+            lineNumber: line.line_number,
+            componentItemId: line.component_item_id,
+            componentItemCode: line.component_item_code || line.master_item_code,
+            componentDescription: line.component_description || line.master_description,
+            classification,
+            quantityPerUnit: lineQty,
+            computedQuantity: computedQty,
+            uom: line.component_uom || line.master_uom,
+            action: 'skipped_not_required',
+            reason: 'planning_required is false',
+          });
+          continue;
+        }
+
+        if (!classification) {
+          const existingChild = await db.execute(sql`
+            SELECT pi.id FROM project_items pi
+            WHERE pi.project_id = ${header.project_id}
+              AND pi.parent_project_item_id = ${header.project_item_id}
+              AND pi.item_id = ${line.component_item_id}
+              AND pi.source_bom_line_id = ${line.id}
+              AND pi.source = 'bom_explosion'
+              AND pi.status != 'Cancelled'
+          `);
+          preview.push({
+            lineId: line.id,
+            lineNumber: line.line_number,
+            componentItemId: line.component_item_id,
+            componentItemCode: line.component_item_code || line.master_item_code,
+            componentDescription: line.component_description || line.master_description,
+            classification: null,
+            quantityPerUnit: lineQty,
+            computedQuantity: computedQty,
+            uom: line.component_uom || line.master_uom,
+            action: existingChild.rows.length > 0 ? 'reuse' : 'needs_review',
+            reason: 'Unknown classification — will create review planning record',
+          });
+          continue;
+        }
+
+        const existingChild = await db.execute(sql`
+          SELECT pi.id FROM project_items pi
+          WHERE pi.project_id = ${header.project_id}
+            AND pi.parent_project_item_id = ${header.project_item_id}
+            AND pi.item_id = ${line.component_item_id}
+            AND pi.source_bom_line_id = ${line.id}
+            AND pi.source = 'bom_explosion'
+            AND pi.status != 'Cancelled'
+        `);
+
+        if (existingChild.rows.length > 0) {
+          const childId = (existingChild.rows[0] as any).id;
+          const existingPlanning = await db.execute(sql`
+            SELECT id, status FROM item_planning_records
+            WHERE project_item_id = ${childId}
+              AND source_bom_line_id = ${line.id}
+              AND source = 'bom_explosion'
+              AND status NOT IN ('cancelled', 'superseded')
+          `);
+          if (existingPlanning.rows.length > 0) {
+            preview.push({
+              lineId: line.id,
+              lineNumber: line.line_number,
+              componentItemId: line.component_item_id,
+              componentItemCode: line.component_item_code || line.master_item_code,
+              componentDescription: line.component_description || line.master_description,
+              classification,
+              quantityPerUnit: lineQty,
+              computedQuantity: computedQty,
+              uom: line.component_uom || line.master_uom,
+              action: 'skip_existing',
+              reason: `Active planning record already exists (ID: ${(existingPlanning.rows[0] as any).id}, status: ${(existingPlanning.rows[0] as any).status})`,
+              existingProjectItemId: childId,
+              existingPlanningRecordId: (existingPlanning.rows[0] as any).id,
+            });
+          } else {
+            preview.push({
+              lineId: line.id,
+              lineNumber: line.line_number,
+              componentItemId: line.component_item_id,
+              componentItemCode: line.component_item_code || line.master_item_code,
+              componentDescription: line.component_description || line.master_description,
+              classification,
+              quantityPerUnit: lineQty,
+              computedQuantity: computedQty,
+              uom: line.component_uom || line.master_uom,
+              action: 'reuse',
+              reason: `Child project item exists (ID: ${childId}), new planning record will be created`,
+              existingProjectItemId: childId,
+            });
+          }
+        } else {
+          preview.push({
+            lineId: line.id,
+            lineNumber: line.line_number,
+            componentItemId: line.component_item_id,
+            componentItemCode: line.component_item_code || line.master_item_code,
+            componentDescription: line.component_description || line.master_description,
+            classification,
+            quantityPerUnit: lineQty,
+            computedQuantity: computedQty,
+            uom: line.component_uom || line.master_uom,
+            action: 'create',
+            reason: `New child project item + ${classification === 'Buy' ? 'procurement' : classification === 'Make' ? 'production' : 'review'} planning record`,
+          });
+        }
+      }
+
+      const totalLines = preview.length;
+      const explodableLines = preview.filter(p => ['create', 'reuse', 'needs_review'].includes(p.action)).length;
+      const skipExisting = preview.filter(p => p.action === 'skip_existing').length;
+      const skippedNotRequired = preview.filter(p => p.action === 'skipped_not_required').length;
+
+      let explosionState: string;
+      if (skipExisting === 0 && explodableLines === 0 && skippedNotRequired === totalLines) {
+        explosionState = 'not_exploded';
+      } else if (skipExisting > 0 && explodableLines === 0) {
+        explosionState = 'fully_exploded';
+      } else if (skipExisting > 0 && explodableLines > 0) {
+        explosionState = 'partially_exploded';
+      } else {
+        explosionState = 'not_exploded';
+      }
+
+      res.json({
+        success: true,
+        bomHeaderId: id,
+        bomNumber: header.bom_number,
+        parentProjectItemId: header.project_item_id,
+        parentQuantity: parentQty,
+        explosionState,
+        summary: { totalLines, explodableLines, skipExisting, skippedNotRequired },
+        lines: preview,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/bom-headers/:id/explode', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { lineIds, confirm } = req.body;
+
+      if (!confirm) {
+        return sendValidationError(res, 'Manual confirmation required. Set confirm: true to proceed.');
+      }
+      if (!lineIds || !Array.isArray(lineIds) || lineIds.length === 0) {
+        return sendValidationError(res, 'lineIds array is required and must not be empty.');
+      }
+
+      const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const header = headerResult.rows[0] as any;
+
+      if (header.status !== 'released') {
+        return sendBusinessError(res, `BOM must be released to explode. Current status: '${header.status}'.`);
+      }
+
+      const parentItemResult = await db.execute(sql`SELECT * FROM project_items WHERE id = ${header.project_item_id}`);
+      if (parentItemResult.rows.length === 0) return sendNotFound(res, 'Parent project item not found');
+      const parentItem = parentItemResult.rows[0] as any;
+      const parentQty = parseFloat(parentItem.quantity || '1');
+
+      const projectResult = await db.execute(sql`SELECT project_code FROM projects WHERE id = ${header.project_id}`);
+      const projectCode = (projectResult.rows[0] as any)?.project_code || '';
+
+      const results: any[] = [];
+
+      for (const lineId of lineIds) {
+        const lineResult = await db.execute(sql`
+          SELECT bl.*, mi.item_code as master_item_code, mi.description as master_description, mi.make_or_buy as master_make_or_buy, mi.uom as master_uom
+          FROM epc_bom_lines bl
+          LEFT JOIN master_items mi ON mi.id = bl.component_item_id
+          WHERE bl.id = ${lineId} AND bl.bom_header_id = ${id}
+        `);
+        if (lineResult.rows.length === 0) {
+          results.push({ lineId, action: 'error', reason: 'BOM line not found or does not belong to this BOM' });
+          continue;
+        }
+        const line = lineResult.rows[0] as any;
+
+        if (!line.planning_required) {
+          results.push({ lineId, lineNumber: line.line_number, action: 'skipped_not_required', reason: 'planning_required is false' });
+          continue;
+        }
+
+        const lineQty = parseFloat(line.quantity_per_unit || '1');
+        const computedQty = parentQty * lineQty;
+        const classification = line.component_make_or_buy || line.master_make_or_buy || null;
+        const planningType = classification === 'Buy' ? 'procurement' : classification === 'Make' ? 'production' : 'review';
+        const componentCode = line.component_item_code || line.master_item_code || '';
+        const componentDesc = line.component_description || line.master_description || '';
+        const componentUom = line.component_uom || line.master_uom || '';
+
+        let childProjectItemId: number;
+        let childAction: string;
+
+        const existingChild = await db.execute(sql`
+          SELECT id FROM project_items
+          WHERE project_id = ${header.project_id}
+            AND parent_project_item_id = ${header.project_item_id}
+            AND item_id = ${line.component_item_id}
+            AND source_bom_line_id = ${line.id}
+            AND source = 'bom_explosion'
+            AND status != 'Cancelled'
+        `);
+
+        if (existingChild.rows.length > 0) {
+          childProjectItemId = (existingChild.rows[0] as any).id;
+          childAction = 'reused';
+          await db.execute(sql`
+            UPDATE project_items SET required_quantity = ${computedQty.toString()}, updated_at = NOW()
+            WHERE id = ${childProjectItemId}
+          `);
+        } else {
+          try {
+            const insertResult = await db.execute(sql`
+              INSERT INTO project_items (project_id, project_code, item_id, quantity, required_quantity,
+                parent_project_item_id, source_bom_header_id, source_bom_line_id, source, status, created_at, updated_at)
+              VALUES (${header.project_id}, ${projectCode}, ${line.component_item_id}, ${computedQty.toString()},
+                ${computedQty.toString()}, ${header.project_item_id}, ${id}, ${line.id}, 'bom_explosion', 'Not Started', NOW(), NOW())
+              RETURNING id
+            `);
+            childProjectItemId = (insertResult.rows[0] as any).id;
+            childAction = 'created';
+          } catch (insertErr: any) {
+            if (insertErr.code === '23505') {
+              const retryChild = await db.execute(sql`
+                SELECT id FROM project_items
+                WHERE project_id = ${header.project_id}
+                  AND parent_project_item_id = ${header.project_item_id}
+                  AND item_id = ${line.component_item_id}
+                  AND source_bom_line_id = ${line.id}
+                  AND source = 'bom_explosion'
+                  AND status != 'Cancelled'
+              `);
+              if (retryChild.rows.length > 0) {
+                childProjectItemId = (retryChild.rows[0] as any).id;
+                childAction = 'reused';
+              } else {
+                results.push({ lineId, lineNumber: line.line_number, action: 'error', reason: 'Unique constraint conflict but no reusable item found' });
+                continue;
+              }
+            } else {
+              throw insertErr;
+            }
+          }
+        }
+
+        const existingPlanning = await db.execute(sql`
+          SELECT id, status FROM item_planning_records
+          WHERE project_item_id = ${childProjectItemId}
+            AND source_bom_line_id = ${line.id}
+            AND source = 'bom_explosion'
+            AND status NOT IN ('cancelled', 'superseded')
+        `);
+
+        if (existingPlanning.rows.length > 0) {
+          results.push({
+            lineId, lineNumber: line.line_number, action: 'skip_existing',
+            reason: `Active planning record already exists (ID: ${(existingPlanning.rows[0] as any).id})`,
+            childProjectItemId, planningRecordId: (existingPlanning.rows[0] as any).id,
+          });
+          continue;
+        }
+
+        const planningResult = await db.execute(sql`
+          INSERT INTO item_planning_records (project_id, project_item_id, master_item_id, planning_type,
+            classification_snapshot, source, source_bom_header_id, source_bom_line_id, parent_project_item_id,
+            quantity, status, created_by, created_at, updated_at)
+          VALUES (${header.project_id}, ${childProjectItemId}, ${line.component_item_id}, ${planningType},
+            ${classification}, 'bom_explosion', ${id}, ${line.id}, ${header.project_item_id},
+            ${computedQty.toString()}, 'draft', ${userId}, NOW(), NOW())
+          RETURNING id
+        `);
+        const planningRecordId = (planningResult.rows[0] as any).id;
+
+        await db.execute(sql`
+          INSERT INTO bom_explosion_logs (bom_header_id, bom_line_id, project_item_id, planning_record_id,
+            component_item_id, classification_used, quantity_computed, status, exploded_by, exploded_at)
+          VALUES (${id}, ${line.id}, ${childProjectItemId}, ${planningRecordId},
+            ${line.component_item_id}, ${classification}, ${computedQty.toString()}, 'created', ${userId}, NOW())
+        `);
+
+        await db.execute(sql`
+          INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+          VALUES (${header.project_id}, 'bom_explosion.child_created', ${JSON.stringify({
+            bomHeaderId: id, bomNumber: header.bom_number, bomLineId: line.id, lineNumber: line.line_number,
+            componentItemCode: componentCode, componentDescription: componentDesc,
+            classification, planningType, computedQuantity: computedQty,
+            childProjectItemId, planningRecordId, childItemAction: childAction,
+          })}, ${userId}, NOW())
+        `);
+
+        results.push({
+          lineId, lineNumber: line.line_number,
+          action: childAction === 'created' ? 'created' : 'reused_and_created',
+          childProjectItemId, childProjectItemAction: childAction,
+          planningRecordId, planningType, classification,
+          computedQuantity: computedQty,
+          componentItemCode: componentCode,
+          componentDescription: componentDesc,
+        });
+      }
+
+      const created = results.filter(r => ['created', 'reused_and_created'].includes(r.action)).length;
+      const skipped = results.filter(r => r.action === 'skip_existing').length;
+      const errors = results.filter(r => r.action === 'error').length;
+
+      console.log(`[BOM EXPLOSION] ${header.bom_number}: ${created} created, ${skipped} skipped, ${errors} errors (user ${userId})`);
+      res.status(201).json({
+        success: true,
+        message: `BOM ${header.bom_number} explosion complete: ${created} child records created, ${skipped} skipped, ${errors} errors.`,
+        bomHeaderId: id,
+        bomNumber: header.bom_number,
+        summary: { created, skipped, errors, total: results.length },
+        results,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/bom-headers/:id/explosion-status', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const header = headerResult.rows[0] as any;
+
+      const linesResult = await db.execute(sql`
+        SELECT id, line_number, component_item_id, component_item_code, component_description,
+          component_make_or_buy, quantity_per_unit, planning_required
+        FROM epc_bom_lines WHERE bom_header_id = ${id} ORDER BY line_number
+      `);
+
+      const logsResult = await db.execute(sql`
+        SELECT bel.*, ipr.status as planning_status, ipr.planning_type
+        FROM bom_explosion_logs bel
+        LEFT JOIN item_planning_records ipr ON ipr.id = bel.planning_record_id
+        WHERE bel.bom_header_id = ${id}
+        ORDER BY bel.exploded_at
+      `);
+
+      const logsByLine = new Map<number, any>();
+      for (const log of logsResult.rows as any[]) {
+        if (!logsByLine.has(log.bom_line_id) || log.status === 'created') {
+          logsByLine.set(log.bom_line_id, log);
+        }
+      }
+
+      const lineStatuses = [];
+      let explodedCount = 0;
+      let eligibleCount = 0;
+
+      for (const line of linesResult.rows as any[]) {
+        const log = logsByLine.get(line.id);
+        const isEligible = line.planning_required;
+        if (isEligible) eligibleCount++;
+
+        if (!isEligible) {
+          lineStatuses.push({
+            lineId: line.id, lineNumber: line.line_number,
+            componentItemCode: line.component_item_code,
+            componentDescription: line.component_description,
+            planningRequired: false,
+            exploded: false, explosionStatus: 'not_required',
+          });
+        } else if (log && log.status === 'created') {
+          explodedCount++;
+          lineStatuses.push({
+            lineId: line.id, lineNumber: line.line_number,
+            componentItemCode: line.component_item_code,
+            componentDescription: line.component_description,
+            planningRequired: true,
+            exploded: true, explosionStatus: 'exploded',
+            childProjectItemId: log.project_item_id,
+            planningRecordId: log.planning_record_id,
+            planningStatus: log.planning_status,
+            planningType: log.planning_type,
+            classificationUsed: log.classification_used,
+            quantityComputed: log.quantity_computed,
+            explodedBy: log.exploded_by,
+            explodedAt: log.exploded_at,
+          });
+        } else if (log && log.status === 'superseded') {
+          lineStatuses.push({
+            lineId: line.id, lineNumber: line.line_number,
+            componentItemCode: line.component_item_code,
+            componentDescription: line.component_description,
+            planningRequired: true,
+            exploded: false, explosionStatus: 'superseded',
+            supersededAt: log.superseded_at,
+          });
+        } else {
+          lineStatuses.push({
+            lineId: line.id, lineNumber: line.line_number,
+            componentItemCode: line.component_item_code,
+            componentDescription: line.component_description,
+            planningRequired: true,
+            exploded: false, explosionStatus: 'pending',
+          });
+        }
+      }
+
+      let explosionState: string;
+      if (eligibleCount === 0) {
+        explosionState = 'not_exploded';
+      } else if (explodedCount === 0) {
+        explosionState = 'not_exploded';
+      } else if (explodedCount >= eligibleCount) {
+        explosionState = 'fully_exploded';
+      } else {
+        explosionState = 'partially_exploded';
+      }
+
+      res.json({
+        success: true,
+        bomHeaderId: id,
+        bomNumber: header.bom_number,
+        bomStatus: header.status,
+        explosionState,
+        summary: { totalLines: linesResult.rows.length, eligibleCount, explodedCount },
+        lines: lineStatuses,
+      });
     } catch (error) {
       sendError(res, error);
     }

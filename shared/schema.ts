@@ -1811,19 +1811,22 @@ export const masterItems = pgTable('master_items', {
 export const projectItems = pgTable('project_items', {
   id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  projectCode: text('project_code').notNull(), // Reference to the project code for quicker lookups
+  projectCode: text('project_code').notNull(),
   itemId: integer('item_id').notNull().references(() => masterItems.id),
   
-  // Project-specific details
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
   estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
   actualCost: decimal('actual_cost', { precision: 12, scale: 2 }),
   notes: text('notes'),
   
-  // Item status in the project
-  status: text('status').default('Not Started'), // Not Started, Drawing Received, Material Received, Under Construction, Completed, On Hold, Cancelled
+  status: text('status').default('Not Started'),
   
-  // Tracking
+  parentProjectItemId: integer('parent_project_item_id'),
+  sourceBomHeaderId: integer('source_bom_header_id'),
+  sourceBomLineId: integer('source_bom_line_id'),
+  source: varchar('source', { length: 30 }),
+  requiredQuantity: decimal('required_quantity', { precision: 12, scale: 2 }),
+  
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -1852,6 +1855,11 @@ export const itemPlanningRecords = pgTable('item_planning_records', {
   cancelledBy: integer('cancelled_by').references(() => users.id),
   cancelledAt: timestamp('cancelled_at'),
   cancelReason: text('cancel_reason'),
+  source: varchar('source', { length: 30 }),
+  sourceBomHeaderId: integer('source_bom_header_id'),
+  sourceBomLineId: integer('source_bom_line_id'),
+  parentProjectItemId: integer('parent_project_item_id'),
+  quantity: decimal('quantity', { precision: 12, scale: 2 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -11545,6 +11553,7 @@ export const epcBomLines = pgTable('epc_bom_lines', {
   estimatedTotalCost: decimal("estimated_total_cost", { precision: 14, scale: 2 }),
   procurementLeadTimeDays: integer("procurement_lead_time_days"),
   preferredVendor: varchar("preferred_vendor", { length: 255 }),
+  planningRequired: boolean("planning_required").notNull().default(true),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -11553,3 +11562,24 @@ export const epcBomLines = pgTable('epc_bom_lines', {
 export const insertEpcBomLineSchema = createInsertSchema(epcBomLines).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertEpcBomLine = z.infer<typeof insertEpcBomLineSchema>;
 export type EpcBomLine = typeof epcBomLines.$inferSelect;
+
+export const bomExplosionLogs = pgTable('bom_explosion_logs', {
+  id: serial('id').primaryKey(),
+  bomHeaderId: integer("bom_header_id").notNull(),
+  bomLineId: integer("bom_line_id").notNull(),
+  projectItemId: integer("project_item_id"),
+  planningRecordId: integer("planning_record_id"),
+  componentItemId: integer("component_item_id").notNull(),
+  classificationUsed: varchar("classification_used", { length: 20 }),
+  quantityComputed: decimal("quantity_computed", { precision: 12, scale: 2 }),
+  status: varchar("status", { length: 20 }).notNull().default('created'),
+  explodedBy: integer("exploded_by"),
+  explodedAt: timestamp("exploded_at").notNull().defaultNow(),
+  supersededAt: timestamp("superseded_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBomExplosionLogSchema = createInsertSchema(bomExplosionLogs).omit({ id: true, createdAt: true });
+export type InsertBomExplosionLog = z.infer<typeof insertBomExplosionLogSchema>;
+export type BomExplosionLog = typeof bomExplosionLogs.$inferSelect;

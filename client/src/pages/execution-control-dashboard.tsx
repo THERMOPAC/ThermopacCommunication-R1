@@ -328,6 +328,10 @@ export default function ExecutionControlDashboard() {
     itemDesc: "", needsNote: false, noteLabel: "", endpoint: "", bodyKey: "",
   });
   const [actionNote, setActionNote] = useState("");
+  const [explosionDialog, setExplosionDialog] = useState<{ open: boolean; bomHeaderId: number | null; bomNumber: string }>({ open: false, bomHeaderId: null, bomNumber: "" });
+  const [explosionPreview, setExplosionPreview] = useState<any>(null);
+  const [explosionLoading, setExplosionLoading] = useState(false);
+  const [selectedExplosionLines, setSelectedExplosionLines] = useState<number[]>([]);
 
   const { data: projects = [], isLoading: loadingProjects } = useQuery<any[]>({
     queryKey: ["/api/projects"],
@@ -466,6 +470,49 @@ export default function ExecutionControlDashboard() {
       "billing-readiness", "epc-invoices", "drawing-controls", "bom-headers",
     ];
     keys.forEach(k => queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, k] }));
+    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "items"] });
+  }
+
+  async function openExplosionDialog(bomHeaderId: number, bomNumber: string) {
+    setExplosionDialog({ open: true, bomHeaderId, bomNumber });
+    setExplosionLoading(true);
+    setExplosionPreview(null);
+    setSelectedExplosionLines([]);
+    try {
+      const resp = await fetch(`/api/bom-headers/${bomHeaderId}/explosion-preview`);
+      const data = await resp.json();
+      if (!resp.ok) {
+        toast({ title: "Preview failed", description: data.message || "Could not load explosion preview", variant: "destructive" });
+        setExplosionDialog({ open: false, bomHeaderId: null, bomNumber: "" });
+        return;
+      }
+      setExplosionPreview(data);
+      const explodable = (data.lines || []).filter((l: any) => ['create', 'reuse', 'needs_review'].includes(l.action)).map((l: any) => l.lineId);
+      setSelectedExplosionLines(explodable);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+      setExplosionDialog({ open: false, bomHeaderId: null, bomNumber: "" });
+    } finally {
+      setExplosionLoading(false);
+    }
+  }
+
+  async function executeExplosion() {
+    if (!explosionDialog.bomHeaderId || selectedExplosionLines.length === 0) return;
+    setExplosionLoading(true);
+    try {
+      const data: any = await apiRequest("POST", `/api/bom-headers/${explosionDialog.bomHeaderId}/explode`, {
+        lineIds: selectedExplosionLines, confirm: true,
+      });
+      toast({ title: "Explosion complete", description: data.message || `${data.summary?.created || 0} child records created` });
+      setExplosionDialog({ open: false, bomHeaderId: null, bomNumber: "" });
+      setExplosionPreview(null);
+      invalidateAll();
+    } catch (e: any) {
+      toast({ title: "Explosion failed", description: e.message, variant: "destructive" });
+    } finally {
+      setExplosionLoading(false);
+    }
   }
 
   function findActive(records: PipelineRecord[], itemId: number) {
@@ -766,6 +813,16 @@ export default function ExecutionControlDashboard() {
             </Badge>
             {bom.total_line_count > 0 && (
               <span className="text-[7px] text-muted-foreground">{bom.total_line_count} lines</span>
+            )}
+            {bom.status === "released" && bom.total_line_count > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-4 text-[7px] px-1 py-0 bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100"
+                onClick={(e) => { e.stopPropagation(); openExplosionDialog(bom.id, bom.bom_number); }}
+              >
+                Explode
+              </Button>
             )}
           </div>
         </TooltipTrigger>
@@ -1412,6 +1469,117 @@ export default function ExecutionControlDashboard() {
                 {actionMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                 Confirm
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={explosionDialog.open} onOpenChange={(open) => { if (!open) { setExplosionDialog({ open: false, bomHeaderId: null, bomNumber: "" }); setExplosionPreview(null); } }}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>BOM Explosion — {explosionDialog.bomNumber}</DialogTitle>
+              <DialogDescription>
+                Preview and confirm child planning record creation from BOM lines.
+              </DialogDescription>
+            </DialogHeader>
+            {explosionLoading && !explosionPreview && (
+              <div className="py-8 text-center">
+                <Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground mt-2">Loading explosion preview...</p>
+              </div>
+            )}
+            {explosionPreview && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <Badge variant="outline" className={
+                    explosionPreview.explosionState === "fully_exploded" ? "bg-green-50 text-green-700 border-green-300"
+                    : explosionPreview.explosionState === "partially_exploded" ? "bg-amber-50 text-amber-700 border-amber-300"
+                    : "bg-slate-50 text-slate-600 border-slate-300"
+                  }>
+                    {explosionPreview.explosionState.replace(/_/g, " ")}
+                  </Badge>
+                  <span className="text-muted-foreground">Parent Qty: <strong>{explosionPreview.parentQuantity}</strong></span>
+                  <span className="text-muted-foreground">Lines: <strong>{explosionPreview.summary.totalLines}</strong></span>
+                  <span className="text-green-600">Explodable: <strong>{explosionPreview.summary.explodableLines}</strong></span>
+                  <span className="text-blue-600">Existing: <strong>{explosionPreview.summary.skipExisting}</strong></span>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8 text-[10px]">Sel</TableHead>
+                      <TableHead className="text-[10px]">#</TableHead>
+                      <TableHead className="text-[10px]">Component</TableHead>
+                      <TableHead className="text-[10px] text-center">Class</TableHead>
+                      <TableHead className="text-[10px] text-right">Qty/Unit</TableHead>
+                      <TableHead className="text-[10px] text-right">Total Qty</TableHead>
+                      <TableHead className="text-[10px] text-center">Action</TableHead>
+                      <TableHead className="text-[10px]">Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(explosionPreview.lines || []).map((line: any) => {
+                      const isSelectable = ['create', 'reuse', 'needs_review'].includes(line.action);
+                      const isSelected = selectedExplosionLines.includes(line.lineId);
+                      const actionColor = line.action === 'create' ? 'bg-green-50 text-green-700 border-green-300'
+                        : line.action === 'reuse' ? 'bg-blue-50 text-blue-700 border-blue-300'
+                        : line.action === 'skip_existing' ? 'bg-gray-50 text-gray-500 border-gray-300'
+                        : line.action === 'skipped_not_required' ? 'bg-slate-50 text-slate-400 border-slate-200'
+                        : line.action === 'needs_review' ? 'bg-amber-50 text-amber-700 border-amber-300'
+                        : 'bg-red-50 text-red-700 border-red-300';
+                      return (
+                        <TableRow key={line.lineId} className={!isSelectable ? "opacity-60" : ""}>
+                          <TableCell className="text-center">
+                            {isSelectable && (
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedExplosionLines(prev => [...prev, line.lineId]);
+                                  } else {
+                                    setSelectedExplosionLines(prev => prev.filter(id => id !== line.lineId));
+                                  }
+                                }}
+                                className="h-3 w-3"
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell className="text-[10px] font-mono">{line.lineNumber}</TableCell>
+                          <TableCell>
+                            <div className="text-[10px] font-medium">{line.componentItemCode}</div>
+                            <div className="text-[9px] text-muted-foreground truncate max-w-[200px]">{line.componentDescription}</div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className={`text-[8px] px-1 py-0 ${
+                              line.classification === 'Buy' ? 'bg-blue-50 text-blue-700' : line.classification === 'Make' ? 'bg-violet-50 text-violet-700' : 'bg-amber-50 text-amber-700'
+                            }`}>
+                              {line.classification || "?"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-[10px] font-mono">{line.quantityPerUnit}</TableCell>
+                          <TableCell className="text-right text-[10px] font-mono font-semibold">{line.computedQuantity} {line.uom || ""}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className={`text-[8px] px-1.5 py-0 ${actionColor}`}>
+                              {line.action.replace(/_/g, " ")}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-[9px] text-muted-foreground max-w-[180px] truncate">{line.reason}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setExplosionDialog({ open: false, bomHeaderId: null, bomNumber: "" }); setExplosionPreview(null); }}>
+                Cancel
+              </Button>
+              {explosionPreview && selectedExplosionLines.length > 0 && (
+                <Button onClick={executeExplosion} disabled={explosionLoading}>
+                  {explosionLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                  Confirm Explosion ({selectedExplosionLines.length} lines)
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
