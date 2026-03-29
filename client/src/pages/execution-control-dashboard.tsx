@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -228,7 +228,22 @@ export default function ExecutionControlDashboard() {
     queryKey: ["/api/projects"],
   });
 
-  const activeProjects = useMemo(() => projects.filter((p: any) => p.status === "active" || p.status === "planning"), [projects]);
+  const { data: itemCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: ["/api/projects/item-counts"],
+  });
+
+  const activeProjects = useMemo(() => {
+    const filtered = projects.filter((p: any) => p.status === "active" || p.status === "planning");
+    filtered.sort((a: any, b: any) => ((itemCounts[b.id] || 0) - (itemCounts[a.id] || 0)));
+    return filtered;
+  }, [projects, itemCounts]);
+
+  useEffect(() => {
+    if (!selectedProjectId && activeProjects.length > 0) {
+      const withItems = activeProjects.find((p: any) => (itemCounts[p.id] || 0) > 0);
+      if (withItems) setSelectedProjectId(String(withItems.id));
+    }
+  }, [activeProjects, itemCounts, selectedProjectId]);
 
   const projectId = selectedProjectId ? parseInt(selectedProjectId) : null;
 
@@ -534,11 +549,14 @@ export default function ExecutionControlDashboard() {
                     <SelectValue placeholder="Select a project..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {activeProjects.map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.name || p.code} ({p.status})
-                      </SelectItem>
-                    ))}
+                    {activeProjects.map((p: any) => {
+                      const count = itemCounts[p.id] || 0;
+                      return (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name || p.code} — {count} item{count !== 1 ? "s" : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

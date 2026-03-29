@@ -50,6 +50,23 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
   
+  app.get('/api/projects/item-counts', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT project_id, COUNT(*)::int as item_count 
+        FROM project_items 
+        GROUP BY project_id
+      `);
+      const counts: Record<number, number> = {};
+      for (const row of rows.rows) {
+        counts[row.project_id as number] = row.item_count as number;
+      }
+      res.json(counts);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
   // Get next project number for a financial year
   app.get('/api/projects/next-code/:financialYear', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
