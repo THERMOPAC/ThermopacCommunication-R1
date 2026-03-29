@@ -1738,7 +1738,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       let query = sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                               u3.username as reviewed_by_name, u4.username as released_by_name,
-                              mi.name as item_name, mi.item_code
+                              mi.description as item_description, mi.item_code
                        FROM item_planning_records ipr
                        LEFT JOIN users u1 ON ipr.assigned_to = u1.id
                        LEFT JOIN users u2 ON ipr.created_by = u2.id
@@ -1766,7 +1766,7 @@ export function setupProjectRoutes(app: express.Express) {
       const result = await db.execute(
         sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                    u3.username as reviewed_by_name, u4.username as released_by_name,
-                   mi.name as item_name, mi.item_code
+                   mi.description as item_description, mi.item_code
             FROM item_planning_records ipr
             LEFT JOIN users u1 ON ipr.assigned_to = u1.id
             LEFT JOIN users u2 ON ipr.created_by = u2.id
@@ -3158,10 +3158,10 @@ export function setupProjectRoutes(app: express.Express) {
       const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
       const typeFilter = req.query.inspectionType as string | undefined;
 
-      let query = sql`SELECT ie.*, u1.username as inspector_name, u2.username as created_by_name,
+      let query = sql`SELECT ie.*, u1.username as assigned_to_name, u2.username as created_by_name,
                              u3.username as scheduled_by_name, u4.username as completed_by_name
                       FROM inspection_execution_records ie
-                      LEFT JOIN users u1 ON ie.inspector_id = u1.id
+                      LEFT JOIN users u1 ON ie.assigned_to = u1.id
                       LEFT JOIN users u2 ON ie.created_by = u2.id
                       LEFT JOIN users u3 ON ie.scheduled_by = u3.id
                       LEFT JOIN users u4 ON ie.completed_by = u4.id
@@ -3185,10 +3185,10 @@ export function setupProjectRoutes(app: express.Express) {
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
 
       const result = await db.execute(
-        sql`SELECT ie.*, u1.username as inspector_name, u2.username as created_by_name,
+        sql`SELECT ie.*, u1.username as assigned_to_name, u2.username as created_by_name,
                    u3.username as scheduled_by_name, u4.username as completed_by_name
             FROM inspection_execution_records ie
-            LEFT JOIN users u1 ON ie.inspector_id = u1.id
+            LEFT JOIN users u1 ON ie.assigned_to = u1.id
             LEFT JOIN users u2 ON ie.created_by = u2.id
             LEFT JOIN users u3 ON ie.scheduled_by = u3.id
             LEFT JOIN users u4 ON ie.completed_by = u4.id
