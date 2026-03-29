@@ -135,25 +135,28 @@ function ExceptionBadge({ type, label }: { type: "stuck" | "pending" | "blocked"
 }
 
 function PipelineProgressBar({ row }: { row: any }) {
+  const execAppKey = row.isBuy ? "procurement_execution" : "production_execution";
+  const prepAppKey = row.isBuy ? "po_preparation" : "wo_preparation";
   const layers = [
-    { key: "plan", terminal: ["released", "completed"] },
-    { key: "exec", terminal: ["ready_for_po", "ready_for_wo", "completed"] },
-    { key: "qp", terminal: ["ready_for_inspection_setup", "completed"] },
-    { key: "prep", terminal: ["ready_for_po_creation", "ready_for_wo_creation", "completed"] },
-    { key: "insp", terminal: ["completed"] },
-    { key: "disp", terminal: ["dispatched"] },
-    { key: "comm", terminal: ["handed_over", "commissioned"] },
-    { key: "bill", terminal: ["ready_for_invoice", "invoiced"] },
-    { key: "inv", terminal: ["issued", "paid"] },
+    { key: "plan", terminal: ["released", "completed"], appKey: "planning" },
+    { key: "exec", terminal: ["ready_for_po", "ready_for_wo", "completed"], appKey: execAppKey },
+    { key: "qp", terminal: ["ready_for_inspection_setup", "completed"], appKey: "quality" },
+    { key: "prep", terminal: ["ready_for_po_creation", "ready_for_wo_creation", "completed"], appKey: prepAppKey },
+    { key: "insp", terminal: ["completed"], appKey: "inspection" },
+    { key: "disp", terminal: ["dispatched"], appKey: "dispatch" },
+    { key: "comm", terminal: ["handed_over", "commissioned"], appKey: "commissioning" },
+    { key: "bill", terminal: ["ready_for_invoice", "invoiced"], appKey: "billing" },
+    { key: "inv", terminal: ["issued", "paid"], appKey: "invoice" },
   ];
-  const total = layers.length;
+  const applicableLayers = layers.filter(l => row.applicability?.[l.appKey]?.applicable !== false);
+  const total = applicableLayers.length;
   let done = 0;
-  for (const l of layers) {
+  for (const l of applicableLayers) {
     const rec = row[l.key];
     if (rec && l.terminal.includes(rec.status)) done++;
     else break;
   }
-  const pct = Math.round((done / total) * 100);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -479,6 +482,28 @@ export default function ExecutionControlDashboard() {
       || null;
   }
 
+  function getStepApplicability(classification: string | null): Record<string, { applicable: boolean; reason?: string }> {
+    const isBuy = classification === "Buy";
+    const isMake = classification === "Make";
+    return {
+      planning: { applicable: true },
+      procurement_execution: { applicable: isBuy || (!isBuy && !isMake), reason: isMake ? "Make items use Production Execution" : undefined },
+      production_execution: { applicable: isMake || (!isBuy && !isMake), reason: isBuy ? "Buy items use Procurement Execution" : undefined },
+      execution: { applicable: true },
+      quality: { applicable: true },
+      po_preparation: { applicable: isBuy || (!isBuy && !isMake), reason: isMake ? "Make items use WO Preparation" : undefined },
+      wo_preparation: { applicable: isMake || (!isBuy && !isMake), reason: isBuy ? "Buy items use PO Preparation" : undefined },
+      epc_po: { applicable: isBuy || (!isBuy && !isMake), reason: isMake ? "Make items use Work Orders" : undefined },
+      epc_wo: { applicable: isMake || (!isBuy && !isMake), reason: isBuy ? "Buy items use Purchase Orders" : undefined },
+      inspection: { applicable: true },
+      dispatch: { applicable: true },
+      dispatch_record: { applicable: true },
+      commissioning: { applicable: true },
+      billing: { applicable: true },
+      invoice: { applicable: true },
+    };
+  }
+
   function getEngineeringWarnings(dc: any, bom: any, classification: string | null) {
     const warnings: { type: string; label: string }[] = [];
     const isBuy = classification === "Buy";
@@ -533,13 +558,14 @@ export default function ExecutionControlDashboard() {
       const dc = findActiveDc(drawingControls, itemId);
       const bom = findActiveDc(bomHeaders, itemId);
       const engWarnings = getEngineeringWarnings(dc, bom, classification);
+      const applicability = getStepApplicability(classification);
 
       const itemCode = plan?.item_code || exec?.item_code || item.masterItem?.item_code || `Item #${itemId}`;
       const itemDesc = plan?.item_description || exec?.item_description || item.masterItem?.description || "";
 
       const row = {
         itemId, item, plan, exec, qp, prep, insp, disp, dispRec, comm, bill, inv,
-        dc, bom, engWarnings,
+        dc, bom, engWarnings, applicability,
         classification, isBuy, itemCode, itemDesc,
         exceptions: [] as any[],
       };
@@ -626,7 +652,19 @@ export default function ExecutionControlDashboard() {
     });
   }
 
-  function renderLayerCell(layer: string, record: PipelineRecord | null, itemDesc: string) {
+  function renderLayerCell(layer: string, record: PipelineRecord | null, itemDesc: string, isApplicable: boolean = true) {
+    if (!isApplicable) {
+      return (
+        <Tooltip>
+          <TooltipTrigger>
+            <Badge variant="outline" className="text-[8px] px-1.5 py-0.5 bg-slate-50 text-slate-400 border-slate-200">
+              N/A
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">Not applicable for this item's classification</TooltipContent>
+        </Tooltip>
+      );
+    }
     if (!record) return <span className="text-[10px] text-muted-foreground">—</span>;
     const actions = getAvailableActions(layer, record.status, record);
     return (
@@ -835,17 +873,19 @@ export default function ExecutionControlDashboard() {
   }
 
   function renderExpandedDetails(row: typeof pipelineRows[0]) {
+    const execApplicabilityKey = row.isBuy ? "procurement_execution" : "production_execution";
+    const prepApplicabilityKey = row.isBuy ? "po_preparation" : "wo_preparation";
     const layers = [
-      { key: "planning", record: row.plan, label: "Planning", icon: FileText },
-      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package },
-      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck },
-      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart },
-      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye },
-      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck },
-      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck },
-      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench },
-      { key: "billing", record: row.bill, label: "Billing", icon: Receipt },
-      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign },
+      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning" },
+      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package, applicabilityKey: execApplicabilityKey },
+      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck, applicabilityKey: "quality" },
+      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart, applicabilityKey: prepApplicabilityKey },
+      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye, applicabilityKey: "inspection" },
+      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch" },
+      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record" },
+      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning" },
+      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing" },
+      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice" },
     ];
 
     return (
@@ -942,17 +982,21 @@ export default function ExecutionControlDashboard() {
               ))}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {layers.map(({ key, record, label, icon: Icon }) => {
-                const actions = record ? getAvailableActions(key, record.status, record) : [];
+              {layers.map(({ key, record, label, icon: Icon, applicabilityKey }) => {
+                const stepApplicable = row.applicability[applicabilityKey]?.applicable !== false;
+                const actions = record && stepApplicable ? getAvailableActions(key, record.status, record) : [];
                 return (
-                  <Card key={key} className={`shadow-sm ${!record ? "opacity-50" : ""}`}>
+                  <Card key={key} className={`shadow-sm ${!stepApplicable ? "opacity-40 border-dashed" : !record ? "opacity-50" : ""}`}>
                     <CardHeader className="py-1.5 px-2.5">
                       <CardTitle className="text-[10px] font-medium flex items-center gap-1">
                         <Icon className="h-3 w-3" /> {label}
+                        {!stepApplicable && <Badge variant="outline" className="text-[7px] px-1 py-0 ml-1 bg-slate-50 text-slate-400 border-slate-200">N/A</Badge>}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="px-2.5 pb-2 space-y-0.5">
-                      {!record ? (
+                      {!stepApplicable ? (
+                        <p className="text-[9px] text-slate-400 italic">{row.applicability[applicabilityKey]?.reason || "Not applicable"}</p>
+                      ) : !record ? (
                         <p className="text-[10px] text-muted-foreground italic">Not created</p>
                       ) : (
                         <>
@@ -1292,25 +1336,25 @@ export default function ExecutionControlDashboard() {
                                 {renderBomCell(row.bom)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                {renderLayerCell("planning", row.plan, row.itemCode)}
+                                {renderLayerCell("planning", row.plan, row.itemCode, row.applicability.planning.applicable)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                {renderLayerCell("execution", row.exec, row.itemCode)}
+                                {renderLayerCell("execution", row.exec, row.itemCode, row.isBuy ? row.applicability.procurement_execution.applicable : row.applicability.production_execution.applicable)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                {renderLayerCell("quality", row.qp, row.itemCode)}
+                                {renderLayerCell("quality", row.qp, row.itemCode, row.applicability.quality.applicable)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                {renderLayerCell(row.isBuy ? "po_preparation" : "wo_preparation", row.prep, row.itemCode)}
+                                {renderLayerCell(row.isBuy ? "po_preparation" : "wo_preparation", row.prep, row.itemCode, row.isBuy ? row.applicability.po_preparation.applicable : row.applicability.wo_preparation.applicable)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                {renderLayerCell("inspection", row.insp, row.itemCode)}
+                                {renderLayerCell("inspection", row.insp, row.itemCode, row.applicability.inspection.applicable)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                                 {renderDispatchCell(row)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                                {renderLayerCell("commissioning", row.comm, row.itemCode)}
+                                {renderLayerCell("commissioning", row.comm, row.itemCode, row.applicability.commissioning.applicable)}
                               </TableCell>
                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                                 {renderFinancialCell("billing", row.bill, row.itemCode)}
