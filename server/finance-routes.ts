@@ -734,7 +734,7 @@ router.post('/allocations', ensureAuthenticated, async (req: Request, res: Respo
       parseInt(paymentId),
       parseInt(invoiceId),
       parseFloat(amount),
-      req.user?.id || 1
+      req.user?.id
     );
     
     // Return the created allocation
@@ -1073,7 +1073,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       invoice.sapInvoiceNo || null,
       invoice.invoiceType || 'Product',
       invoice.notes || null,
-      req.user?.id || 1
+      req.user?.id
     ];
     
     console.log('Executing SQL with values:', invoiceValues);
@@ -1142,7 +1142,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
               paymentId: allocation.paymentId,
               amountToApply: parseFloat(allocation.amountToApply)
             })),
-            req.user?.id || 1
+            req.user?.id
           );
           
           console.log('Applied advance payments:', result);
@@ -1202,7 +1202,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
             invoiceId,
             invoice.customerId,
             advanceAllocations,
-            req.user?.id || 1
+            req.user?.id
           );
           
           console.log('Auto-applied advance payments:', result);
@@ -1235,7 +1235,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       invoiceType: invoice.invoiceType || 'Product',
       status: totalAdvanceAmount >= parseFloat(totalAmount.toString()) ? 'Paid' : 'Pending',
       notes: invoice.notes || null,
-      createdBy: req.user?.id || 1,
+      createdBy: req.user?.id,
       createdAt: newInvoice.createdAt,
       updatedAt: newInvoice.updatedAt,
       // Include advance payment information in the response
@@ -3262,7 +3262,8 @@ router.get('/unallocated-advances', ensureAuthenticated, async (req: Request, re
 router.post('/invoices/:id/apply-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const invoiceId = parseInt(req.params.id);
-    const userId = req.user?.id || 1;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     
     if (isNaN(invoiceId)) {
       return res.status(400).json({ error: 'Invalid invoice ID' });
@@ -3355,7 +3356,8 @@ router.post('/invoices/:id/apply-advances', ensureAuthenticated, async (req: Req
 router.post('/customers/:id/apply-advances', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const customerId = parseInt(req.params.id);
-    const userId = req.user?.id || 1;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     
     if (isNaN(customerId)) {
       return res.status(400).json({ error: 'Invalid customer ID' });
@@ -3962,7 +3964,7 @@ router.post('/invoices/:id/write-off', ensureAuthenticated, async (req: Request,
       parseInt(id),
       parseFloat(amount),
       reason,
-      req.user?.id || 1,
+      req.user?.id,
       {
         glAccount
       }
@@ -4001,7 +4003,7 @@ router.post('/payments/:id/write-off', ensureAuthenticated, async (req: Request,
       parseInt(id),
       parseFloat(amount),
       reason,
-      req.user?.id || 1,
+      req.user?.id,
       {
         glAccount
       }
@@ -4435,7 +4437,7 @@ router.post('/brc', ensureAuthenticated, async (req: Request, res: Response) => 
       parseFloat(amountRealized),
       currency,
       notes,
-      req.user?.id || 1
+      req.user?.id
     ]);
     
     res.status(201).json(result.rows[0]);

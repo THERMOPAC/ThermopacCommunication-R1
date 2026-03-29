@@ -184,7 +184,7 @@ router.post('/', ensureAuthenticated, async (req, res) => {
         reason,
         notes: notes || null,
         dateCreated: new Date(),
-        createdBy: req.user?.id || 3, // From authenticated user with fallback
+        createdBy: req.user?.id,
         status: 'Pending',
         approvedBy: null,
         approvalDate: null

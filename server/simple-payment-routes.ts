@@ -68,7 +68,8 @@ router.post('/create-simple-payment', ensureAuthenticated, async (req: Request, 
     `;
     
     const now = new Date();
-    const createdBy = req.user?.id || 1; // Default to user ID 1 if not available
+    const createdBy = req.user?.id;
+    if (!createdBy) return res.status(401).json({ error: 'Authentication required' });
     
     const result = await pool.query(insertQuery, [
       payDate,

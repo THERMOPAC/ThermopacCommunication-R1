@@ -212,7 +212,7 @@ export async function generateWorkOrdersForNewComponents(req: Request, res: Resp
         status: 'planned',
         priority: 'medium',
         quantity: component.quantity,
-        createdBy: req.user?.id || 1
+        createdBy: req.user?.id
       }).returning();
       
       // Add to project items if the component doesn't exist as a project item

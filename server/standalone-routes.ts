@@ -3,18 +3,19 @@ import { pool } from './db';
 import { format } from 'date-fns';
 import multer from 'multer';
 import { uploadCalibrationCertificate } from './utils/calibration-certificate-upload';
+import { ensureAuthenticated } from './auth-middleware';
 
-// Configure multer for memory storage (does not write to disk)
-const storage = multer.memoryStorage();
+const multerStorage = multer.memoryStorage();
 const upload = multer({ 
-  storage,
+  storage: multerStorage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 10 * 1024 * 1024,
   }
 });
 
-// Create standalone Express router for routes that need to bypass middleware
 const router = express.Router();
+
+router.use(ensureAuthenticated);
 
 /**
  * Calculate next calibration date based on frequency

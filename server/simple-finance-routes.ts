@@ -16,8 +16,8 @@ router.post('/approve-writeoff/:id', ensureAuthenticated, async (req: Request, r
     // Set JSON content type immediately
     res.setHeader('Content-Type', 'application/json');
     
-    // Get user from session
-    const userId = req.user?.id || 3; // fallback to user 3 for testing
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     
     const updateQuery = `
       UPDATE write_offs 
@@ -82,8 +82,8 @@ router.post('/reject-writeoff/:id', ensureAuthenticated, async (req: Request, re
     // Set JSON content type immediately
     res.setHeader('Content-Type', 'application/json');
     
-    // Get user from session
-    const userId = req.user?.id || 3; // fallback to user 3 for testing
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Authentication required' });
     
     const updateQuery = `
       UPDATE write_offs 
@@ -310,7 +310,7 @@ router.post('/invoices', ensureAuthenticated, async (req: Request, res: Response
       shippingBillNumber: invoice.shippingBillNumber || null,
       isExport: invoice.isExport || false,
       brcRequired: invoice.brcRequired !== undefined ? invoice.brcRequired : true,
-      createdBy: req.user?.id || 1
+      createdBy: req.user?.id
     };
     
     // Prepare invoice items

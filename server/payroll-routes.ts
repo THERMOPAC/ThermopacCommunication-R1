@@ -1,5 +1,6 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { ensureAuthenticated } from './auth-middleware';
 import { db } from './db';
 import { 
   employeeSalaries, 
@@ -61,6 +62,30 @@ import {
 } from './tds-calculation-service';
 
 const router = Router();
+
+router.use(ensureAuthenticated);
+
+function requireUserId(req: Request, res: Response): number | null {
+  const userId = (req.user as any)?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Authentication required — no user ID in session' });
+    return null;
+  }
+  return userId;
+}
+
+const PAYROLL_ADMIN_ROLES = ['Admin', 'HR', 'Finance', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+
+function requirePayrollRole(req: Request, res: Response): number | null {
+  const userId = requireUserId(req, res);
+  if (!userId) return null;
+  const userRole = (req.user as any)?.role;
+  if (!userRole || !PAYROLL_ADMIN_ROLES.includes(userRole)) {
+    res.status(403).json({ error: `Insufficient permissions. Payroll operations require one of: ${PAYROLL_ADMIN_ROLES.join(', ')}. Your role: ${userRole || 'none'}` });
+    return null;
+  }
+  return userId;
+}
 
 // Employee Salary Management
 router.get('/employee-salaries', async (req, res) => {
@@ -494,8 +519,9 @@ router.get('/pipeline-steps', (_req, res) => {
 
 router.post('/run/start', async (req, res) => {
   try {
+    const executedBy = requirePayrollRole(req, res);
+    if (!executedBy) return;
     const { periodId } = req.body;
-    const executedBy = req.user?.id || 1;
     const result = await startPayrollRun(periodId, executedBy);
     res.json(result);
   } catch (error: any) {
@@ -505,8 +531,9 @@ router.post('/run/start', async (req, res) => {
 
 router.post('/run/step', async (req, res) => {
   try {
+    const executedBy = requirePayrollRole(req, res);
+    if (!executedBy) return;
     const { periodId, runNumber, step, includeNonSystem } = req.body;
-    const executedBy = req.user?.id || 1;
     const result = await executeStep(periodId, runNumber, step, executedBy, includeNonSystem === true);
 
     if (step === 'tds_calculation' && result.success) {
@@ -527,8 +554,9 @@ router.post('/run/step', async (req, res) => {
 
 router.post('/run/transition', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const { periodId, newStatus } = req.body;
-    const userId = req.user?.id || 1;
     const result = await transitionPeriodStatus(periodId, newStatus, userId);
     res.json(result);
   } catch (error: any) {
@@ -538,8 +566,9 @@ router.post('/run/transition', async (req, res) => {
 
 router.post('/run/reset', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const { periodId, reason } = req.body;
-    const userId = req.user?.id || 1;
     const result = await resetPayrollRun(periodId, userId, reason);
     res.json(result);
   } catch (error: any) {
@@ -549,8 +578,9 @@ router.post('/run/reset', async (req, res) => {
 
 router.post('/run/single-user', async (req, res) => {
   try {
+    const executedBy = requirePayrollRole(req, res);
+    if (!executedBy) return;
     const { periodId, userId } = req.body;
-    const executedBy = req.user?.id || 1;
 
     if (!periodId || !userId) {
       return res.status(400).json({ error: 'periodId and userId are required' });
@@ -967,9 +997,10 @@ router.get('/run/exceptions/:periodId', async (req, res) => {
 
 router.post('/run/exceptions/:id/resolve', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
     const { resolution, notes } = req.body;
-    const userId = req.user?.id || 1;
     const result = await resolveException(id, userId, resolution, notes);
     res.json(result);
   } catch (error: any) {
@@ -1015,8 +1046,9 @@ router.get('/locks/:periodId', async (req, res) => {
 
 router.post('/locks', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const { periodId, lockType, lockReason } = req.body;
-    const userId = req.user?.id || 1;
     const lock = await createPayrollLock(periodId, lockType, userId, lockReason);
     res.json(lock);
   } catch (error: any) {
@@ -1026,9 +1058,10 @@ router.post('/locks', async (req, res) => {
 
 router.post('/locks/:id/unlock', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
     const { reason } = req.body;
-    const userId = req.user?.id || 1;
     const result = await unlockPayrollLock(id, userId, reason);
     res.json(result);
   } catch (error: any) {
@@ -1058,8 +1091,9 @@ router.get('/locks/:lockId/exceptions', async (req, res) => {
 
 router.post('/locks/exceptions', async (req, res) => {
   try {
+    const requestedBy = requirePayrollRole(req, res);
+    if (!requestedBy) return;
     const { lockId, userId, reason } = req.body;
-    const requestedBy = req.user?.id || 1;
     const result = await createLockException({ lockId, userId, reason, requestedBy });
     res.json(result);
   } catch (error: any) {
@@ -1069,9 +1103,10 @@ router.post('/locks/exceptions', async (req, res) => {
 
 router.post('/locks/exceptions/:id/approve', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
     const { expiresAt } = req.body;
-    const userId = req.user?.id || 1;
     const result = await approveLockException(id, userId, expiresAt ? new Date(expiresAt) : undefined);
     res.json(result);
   } catch (error: any) {
@@ -1081,8 +1116,9 @@ router.post('/locks/exceptions/:id/approve', async (req, res) => {
 
 router.post('/locks/exceptions/:id/reject', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
-    const userId = req.user?.id || 1;
     const result = await rejectLockException(id, userId);
     res.json(result);
   } catch (error: any) {
@@ -1092,9 +1128,10 @@ router.post('/locks/exceptions/:id/reject', async (req, res) => {
 
 router.post('/locks/exceptions/:id/close', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
     const { changesDescription } = req.body;
-    const userId = req.user?.id || 1;
     const result = await closeLockException(id, userId, changesDescription);
     res.json(result);
   } catch (error: any) {
@@ -1250,8 +1287,9 @@ router.put('/tax-declarations/:id', async (req, res) => {
 
 router.post('/tax-declarations/:id/approve', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
-    const userId = req.user?.id || 1;
     const { remarks } = req.body;
 
     const [updated] = await db.update(employeeTaxDeclarations).set({
@@ -1270,8 +1308,9 @@ router.post('/tax-declarations/:id/approve', async (req, res) => {
 
 router.post('/tax-declarations/:id/reject', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
-    const userId = req.user?.id || 1;
     const { remarks } = req.body;
 
     const [updated] = await db.update(employeeTaxDeclarations).set({
@@ -1311,8 +1350,9 @@ router.post('/investment-proofs', async (req, res) => {
 
 router.post('/investment-proofs/:id/verify', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const id = parseInt(req.params.id);
-    const userId = req.user?.id || 1;
     const { proofStatus, proofAmount, verificationNotes } = req.body;
 
     const [updated] = await db.update(employeeInvestmentProofs).set({
@@ -1331,8 +1371,9 @@ router.post('/investment-proofs/:id/verify', async (req, res) => {
 
 router.post('/tds/compute/:periodId', async (req, res) => {
   try {
+    const userId = requirePayrollRole(req, res);
+    if (!userId) return;
     const periodId = parseInt(req.params.periodId);
-    const userId = req.user?.id || 1;
     const result = await computeAndSaveTdsForPeriod(periodId, userId);
     res.json(result);
   } catch (error: any) {

@@ -159,7 +159,7 @@ export const createWriteOff = async (req: Request, res: Response) => {
         reason: validatedData.reason,
         notes: validatedData.notes,
         dateCreated: new Date(),
-        createdBy: req.user?.id || 1, // From authenticated user or fallback
+        createdBy: req.user?.id,
         status: 'Pending',
         approvedBy: null,
         approvalDate: null

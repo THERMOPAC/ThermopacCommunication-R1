@@ -62,7 +62,7 @@ router.post('/invoices/direct', async (req: Request, res: Response) => {
         parseFloat(invoice.exchangeRate || '1.0000'),
         'Pending',
         invoice.notes || null,
-        req.user?.id || 1,
+        req.user?.id,
         invoice.sapInvoiceNo && invoice.sapInvoiceNo !== '' ? invoice.sapInvoiceNo : null,
         invoice.invoiceType || 'Product',
         invoice.isExport || false,

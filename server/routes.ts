@@ -506,7 +506,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   setupAuth(app);
-  
+
+  // PRIORITY ENDPOINTS — previously in index.ts before auth (B-02 fix), now behind auth
+  app.get('/api/quality/final-dossier/test', ensureAuthenticated, (req: any, res: any) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json({ message: 'Final Dossier API routes are working correctly', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/api/quality/final-dossier/check/:inspectionOrderNumber', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { checkExistingFinalDossier } = await import('./utils/final-dossier-generator');
+      const result = await checkExistingFinalDossier(req.params.inspectionOrderNumber);
+      res.json(result);
+    } catch (error: any) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ error: 'Failed to check final dossier', message: error.message });
+    }
+  });
+
+  app.post('/api/quality/final-dossier/generate/:inspectionOrderId', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const inspectionOrderId = parseInt(req.params.inspectionOrderId);
+      res.setHeader('Content-Type', 'application/json');
+      const { generateFinalDossier } = await import('./utils/final-dossier-generator');
+      const result = await generateFinalDossier(inspectionOrderId);
+      res.json({ success: true, message: 'Final dossier generated successfully', url: result.url, path: result.path });
+    } catch (error: any) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ error: 'Failed to generate final dossier', message: error.message });
+    }
+  });
+
+  app.get('/api/quality/final-dossier/migration/status', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { checkMigrationStatus } = await import('./utils/final-dossier-migration');
+      const result = await checkMigrationStatus();
+      res.json(result);
+    } catch (error: any) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ error: 'Failed to check migration status', message: error.message });
+    }
+  });
+
+  app.post('/api/quality/final-dossier/migration/execute', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+      const { migrateFinalDossierFiles } = await import('./utils/final-dossier-migration');
+      const result = await migrateFinalDossierFiles();
+      res.json({ success: true, message: 'Migration completed', summary: result });
+    } catch (error: any) {
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ error: 'Failed to execute migration', message: error.message });
+    }
+  });
+
+  app.get('/api/finance/write-offs/invoice/:invoiceId', ensureAuthenticated, async (req: any, res: any) => {
+    try {
+      const { invoiceId } = req.params;
+      const { pool } = await import('./db');
+      const query = `
+        SELECT wo.id, wo.invoice_id as "invoiceId", i.invoice_number as "invoiceNumber",
+          c.bp_name as "customerName", wo.amount, i.total_amount as "originalInvoiceAmount",
+          wo.reason, wo.notes, wo.date_created as "dateCreated", wo.created_by,
+          u.username as "createdByName", wo.status, wo.approved_by,
+          wo.approval_date as "approvalDate", i.currency
+        FROM write_offs wo
+        LEFT JOIN invoices i ON wo.invoice_id = i.id
+        LEFT JOIN customers c ON i.customer_id = c.id
+        LEFT JOIN users u ON wo.created_by = u.id
+        WHERE wo.invoice_id = $1
+        ORDER BY wo.date_created DESC
+      `;
+      const result = await pool.query(query, [parseInt(invoiceId)]);
+      const formattedResults = result.rows.map((row: any) => ({
+        id: row.id, invoiceId: row.invoiceId,
+        invoiceNumber: row.invoiceNumber || 'Unknown',
+        customerName: row.customerName || 'Unknown Customer',
+        amount: row.amount, originalInvoiceAmount: row.originalInvoiceAmount || '0',
+        reason: row.reason, notes: row.notes, dateCreated: row.dateCreated,
+        createdBy: { id: row.created_by, name: row.createdByName || 'Unknown' },
+        status: row.status,
+        approvedBy: row.approved_by ? { id: row.approved_by, name: 'Approver' } : null,
+        approvalDate: row.approvalDate, currency: row.currency || 'USD'
+      }));
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200).json(formattedResults);
+    } catch (error) {
+      console.error('Error fetching write-offs for invoice:', error);
+      res.status(500).json({ error: 'Failed to fetch write-offs for invoice' });
+    }
+  });
+
+  console.log('🔒 SECURITY: Priority endpoints registered after setupAuth with ensureAuthenticated');
+
   // Set up Gmail integration routes
   setupGmailRoutes(app);
   
@@ -629,8 +723,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { db } = await import('./db');
   const { plantCosts } = await import('@shared/schema');
   const { eq } = await import('drizzle-orm');
-  const { ensureAuthenticated } = await import('./auth-middleware');
-
   // GET all plant costs
   app.get('/api/plant-costs', ensureAuthenticated, async (req: any, res: any) => {
     try {
@@ -654,7 +746,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Direct plant costs PUT route hit for ID:', req.params.id);
       const { capacity, priceUSD } = req.body;
-      const userId = req.user?.id || 3;
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       
       const [updatedCost] = await db
         .update(plantCosts)
@@ -680,7 +773,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Direct plant costs POST route hit');
       const { capacity, priceUSD } = req.body;
-      const userId = req.user?.id || 3;
+      const userId = req.user?.id;
+      if (!userId) return res.status(401).json({ error: 'Authentication required' });
       
       const [newCost] = await db
         .insert(plantCosts)
@@ -854,59 +948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   console.log('Business trip management routes registered at /api/trips');
 
-  // DIRECT WRITE-OFF APPROVAL ENDPOINT - COMPLETELY SEPARATE FROM FINANCE ROUTES
-  app.post('/api/approve-writeoff/:id', async (req: any, res: any) => {
-    try {
-      console.log(`🚀 DIRECT WRITEOFF APPROVAL ENDPOINT HIT! ID: ${req.params.id}`);
-      
-      // Get user from session - simple approach
-      const userId = req.session?.passport?.user || 3; // fallback to user 3 for testing
-      
-      const { pool } = await import('./db');
-      const updateQuery = `
-        UPDATE write_offs 
-        SET status = 'Approved', 
-            approved_by = $1, 
-            approval_date = NOW(), 
-            updated_at = NOW()
-        WHERE id = $2 AND status = 'Pending'
-        RETURNING *
-      `;
-      
-      console.log(`📝 Executing direct approval query for write-off ${req.params.id} by user ${userId}`);
-      const result = await pool.query(updateQuery, [userId, req.params.id]);
-      
-      if (result.rows.length === 0) {
-        console.log(`❌ Write-off ${req.params.id} not found or already processed`);
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Write-off not found or already processed' 
-        });
-      }
-      
-      console.log(`✅ Write-off ${req.params.id} approved successfully!`);
-      res.json({ 
-        success: true, 
-        message: 'Write-off approved successfully',
-        writeOff: result.rows[0] 
-      });
-    } catch (error: any) {
-      console.error('❌ Direct writeoff approval error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: 'Failed to approve write-off',
-        message: error.message 
-      });
-    }
-  });
-  
-  // Debug middleware to log all incoming requests
-  app.use('/api/finance/write-offs', (req: any, res: any, next: any) => {
-    console.log(`🔍 Request intercepted: ${req.method} ${req.originalUrl}`);
-    console.log(`🔍 Route path: ${req.route?.path || 'no route'}`);
-    console.log(`🔍 Headers: ${JSON.stringify(req.headers, null, 2)}`);
-    next();
-  });
+  // Write-off approval now handled by /api/finance/write-offs/:id/approve below with proper auth
 
   // Set up direct approval endpoints to bypass routing conflicts
   app.post('/api/finance/write-offs/:id/approve', ensureAuthenticated, async (req: any, res: any) => {
