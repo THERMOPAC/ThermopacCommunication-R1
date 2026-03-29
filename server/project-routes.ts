@@ -28,6 +28,7 @@ import {
   epcDispatchReadiness,
   epcDispatchRecords,
   epcCommissioningReadiness,
+  epcDrawingControls,
   epcBillingReadiness,
   epcInvoices,
 } from '@shared/schema';
@@ -7207,6 +7208,687 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[INV] ${inv.invoice_number} updated by user ${userId}`);
       res.json({ success: true, message: `${inv.invoice_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC DRAWING CONTROL LAYER ====================
+
+  app.get('/api/projects/:projectId/drawing-controls', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const results = await db.execute(
+        sql`SELECT * FROM epc_drawing_controls WHERE project_id = ${projectId} ORDER BY created_at DESC`
+      );
+      res.json(results.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/drawing-controls/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      res.json(results.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const {
+        projectItemId, masterItemId, designDrawingId,
+        drawingNumber, drawingTitle, drawingRevision, drawingCategory, disciplineCode,
+        drawingPurpose, notes,
+        clientApprovalRequired,
+        procurementReleaseRequired, manufacturingReleaseRequired,
+      } = req.body;
+
+      if (!projectItemId || !masterItemId) {
+        return sendValidationError(res, 'projectItemId and masterItemId are required.');
+      }
+
+      const validPurposes = ['procurement', 'manufacturing', 'construction', 'general'];
+      if (drawingPurpose && !validPurposes.includes(drawingPurpose)) {
+        return sendValidationError(res, `drawingPurpose must be one of: ${validPurposes.join(', ')}`);
+      }
+
+      const existingCheck = await db.execute(
+        sql`SELECT id, dwg_control_number FROM epc_drawing_controls 
+            WHERE project_item_id = ${projectItemId} 
+              AND project_id = ${projectId}
+              AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingCheck.rows.length > 0) {
+        const existing = existingCheck.rows[0] as any;
+        return sendBusinessError(res, `Active drawing control ${existing.dwg_control_number} already exists for this project item (id: ${existing.id}). Cancel or supersede it first.`);
+      }
+
+      const miResult = await db.execute(sql`SELECT item_code, description, make_or_buy FROM master_items WHERE id = ${masterItemId}`);
+      if (miResult.rows.length === 0) return sendNotFound(res, 'Master item not found');
+      const mi = miResult.rows[0] as any;
+      const classification = mi.make_or_buy || null;
+
+      let snapDrawingNumber = drawingNumber || null;
+      let snapDrawingTitle = drawingTitle || null;
+      let snapDrawingRevision = drawingRevision || null;
+      let snapDrawingCategory = drawingCategory || null;
+      let snapDisciplineCode = disciplineCode || null;
+
+      if (designDrawingId) {
+        const ddResult = await db.execute(sql`SELECT * FROM design_drawings WHERE id = ${designDrawingId}`);
+        if (ddResult.rows.length === 0) return sendNotFound(res, 'Design drawing not found');
+        const dd = ddResult.rows[0] as any;
+        snapDrawingNumber = snapDrawingNumber || dd.drawing_number;
+        snapDrawingTitle = snapDrawingTitle || dd.drawing_title;
+        snapDrawingRevision = snapDrawingRevision || dd.current_revision;
+        snapDrawingCategory = snapDrawingCategory || dd.category;
+        snapDisciplineCode = snapDisciplineCode || dd.discipline_code;
+      }
+
+      const purpose = drawingPurpose || 'general';
+      let procReq = procurementReleaseRequired;
+      let mfgReq = manufacturingReleaseRequired;
+      if (procReq === undefined || procReq === null) {
+        procReq = classification === 'Buy' || purpose === 'procurement' || purpose === 'general';
+      }
+      if (mfgReq === undefined || mfgReq === null) {
+        mfgReq = classification === 'Make' || purpose === 'manufacturing' || purpose === 'general';
+      }
+
+      const year = new Date().getFullYear();
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dwg_control_number FROM 'DWG-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_drawing_controls WHERE dwg_control_number LIKE ${`DWG-${year}-%`}`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq;
+      const dwgControlNumber = `DWG-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(epcDrawingControls).values({
+          dwgControlNumber,
+          projectId,
+          projectItemId,
+          masterItemId,
+          designDrawingId: designDrawingId || null,
+          drawingNumber: snapDrawingNumber,
+          drawingTitle: snapDrawingTitle,
+          drawingRevision: snapDrawingRevision,
+          drawingCategory: snapDrawingCategory,
+          disciplineCode: snapDisciplineCode,
+          itemCode: mi.item_code,
+          itemDescription: mi.description,
+          classificationSnapshot: classification,
+          drawingPurpose: purpose,
+          procurementReleaseRequired: procReq,
+          manufacturingReleaseRequired: mfgReq,
+          clientApprovalRequired: clientApprovalRequired || false,
+          clientApprovalStatus: clientApprovalRequired ? 'pending' : 'not_required',
+          status: 'draft',
+          notes: notes || null,
+          createdBy: userId,
+        }).returning();
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, 'drawing_control.created', ${JSON.stringify({
+            dwgId: inserted[0].id, dwgControlNumber, projectItemId, masterItemId,
+            designDrawingId, drawingPurpose: purpose, classification,
+            procurementReleaseRequired: procReq, manufacturingReleaseRequired: mfgReq,
+            createdBy: userId,
+          })}::jsonb, 'drawing_control', NOW())`);
+
+        console.log(`[DWG-CTRL] ${dwgControlNumber} created for project ${projectId}, item ${projectItemId} by user ${userId}`);
+        res.status(201).json({ success: true, message: `Drawing control ${dwgControlNumber} created`, record: inserted[0] });
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { submissionNote } = req.body;
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'draft') {
+        return sendBusinessError(res, `Cannot submit: current status is '${rec.status}'. Must be 'draft'.`);
+      }
+
+      if (!rec.drawing_number) {
+        return sendBusinessError(res, 'Cannot submit: drawing number is required before review submission.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDrawingControls).set({
+          status: 'under_review',
+          submittedBy: userId,
+          submittedAt: new Date(),
+          submissionNote: submissionNote || null,
+          updatedAt: new Date(),
+        }).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.submitted', ${JSON.stringify({
+            dwgId: id, dwgControlNumber: rec.dwg_control_number, submittedBy: userId,
+          })}::jsonb, 'drawing_control', NOW())`);
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} submitted for review by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} submitted for review` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { reviewNote, recommendation } = req.body;
+
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to review drawing controls.');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot review: current status is '${rec.status}'. Must be 'under_review'.`);
+      }
+
+      if (rec.submitted_by === userId) {
+        return sendBusinessError(res, 'Self-review not allowed: submitter cannot review their own submission.');
+      }
+
+      const validRecs = ['approve', 'reject', 'approve_with_comments'];
+      if (!recommendation || !validRecs.includes(recommendation)) {
+        return sendValidationError(res, `recommendation is required and must be one of: ${validRecs.join(', ')}`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDrawingControls).set({
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          reviewNote: reviewNote || null,
+          reviewRecommendation: recommendation,
+          updatedAt: new Date(),
+        }).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.reviewed', ${JSON.stringify({
+            dwgId: id, dwgControlNumber: rec.dwg_control_number, reviewedBy: userId, recommendation,
+          })}::jsonb, 'drawing_control', NOW())`);
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} reviewed (${recommendation}) by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} reviewed with recommendation: ${recommendation}` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { approvalNote } = req.body;
+
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to approve drawing controls.');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot approve: current status is '${rec.status}'. Must be 'under_review'.`);
+      }
+
+      if (!rec.reviewed_by) {
+        return sendBusinessError(res, 'Cannot approve: record must be reviewed first.');
+      }
+
+      if (rec.review_recommendation === 'reject') {
+        return sendBusinessError(res, 'Cannot approve: review recommendation is "reject". Revert to draft or supersede.');
+      }
+
+      if (rec.created_by === userId) {
+        return sendBusinessError(res, 'Self-approval not allowed: creator cannot approve their own drawing control.');
+      }
+
+      if (rec.client_approval_required && rec.client_approval_status !== 'approved') {
+        return sendBusinessError(res, `Cannot approve: client approval is required but status is '${rec.client_approval_status}'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDrawingControls).set({
+          status: 'approved',
+          approvedBy: userId,
+          approvedAt: new Date(),
+          approvalNote: approvalNote || null,
+          updatedAt: new Date(),
+        }).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.approved', ${JSON.stringify({
+            dwgId: id, dwgControlNumber: rec.dwg_control_number, approvedBy: userId,
+          })}::jsonb, 'drawing_control', NOW())`);
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} approved by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} approved` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { releaseNote, releaseForProcurement, releaseForManufacturing } = req.body;
+
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to release drawing controls.');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'approved') {
+        return sendBusinessError(res, `Cannot release: current status is '${rec.status}'. Must be 'approved'.`);
+      }
+
+      const updates: any = {
+        status: 'released',
+        releasedBy: userId,
+        releasedAt: new Date(),
+        releaseNote: releaseNote || null,
+        updatedAt: new Date(),
+      };
+
+      if (releaseForProcurement === true && rec.procurement_release_required) {
+        updates.releasedForProcurement = true;
+        updates.releasedForProcurementAt = new Date();
+        updates.releasedForProcurementBy = userId;
+      } else if (rec.procurement_release_required && !rec.released_for_procurement) {
+        updates.releasedForProcurement = true;
+        updates.releasedForProcurementAt = new Date();
+        updates.releasedForProcurementBy = userId;
+      }
+
+      if (releaseForManufacturing === true && rec.manufacturing_release_required) {
+        updates.releasedForManufacturing = true;
+        updates.releasedForManufacturingAt = new Date();
+        updates.releasedForManufacturingBy = userId;
+      } else if (rec.manufacturing_release_required && !rec.released_for_manufacturing) {
+        updates.releasedForManufacturing = true;
+        updates.releasedForManufacturingAt = new Date();
+        updates.releasedForManufacturingBy = userId;
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDrawingControls).set(updates).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.released', ${JSON.stringify({
+            dwgId: id, dwgControlNumber: rec.dwg_control_number, releasedBy: userId,
+            releasedForProcurement: updates.releasedForProcurement || rec.released_for_procurement,
+            releasedForManufacturing: updates.releasedForManufacturing || rec.released_for_manufacturing,
+          })}::jsonb, 'drawing_control', NOW())`);
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} released by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} released` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/release-gate', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { gateType } = req.body;
+
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to toggle release gates.');
+      }
+
+      const validGates = ['procurement', 'manufacturing'];
+      if (!gateType || !validGates.includes(gateType)) {
+        return sendValidationError(res, `gateType is required and must be one of: ${validGates.join(', ')}`);
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'released') {
+        return sendBusinessError(res, `Cannot set release gate: status must be 'released'. Current: '${rec.status}'.`);
+      }
+
+      const updates: any = { updatedAt: new Date() };
+
+      if (gateType === 'procurement') {
+        if (!rec.procurement_release_required) {
+          return sendBusinessError(res, 'Procurement release is not required for this drawing control.');
+        }
+        if (rec.released_for_procurement) {
+          return sendBusinessError(res, 'Already released for procurement.');
+        }
+        updates.releasedForProcurement = true;
+        updates.releasedForProcurementAt = new Date();
+        updates.releasedForProcurementBy = userId;
+      }
+
+      if (gateType === 'manufacturing') {
+        if (!rec.manufacturing_release_required) {
+          return sendBusinessError(res, 'Manufacturing release is not required for this drawing control.');
+        }
+        if (rec.released_for_manufacturing) {
+          return sendBusinessError(res, 'Already released for manufacturing.');
+        }
+        updates.releasedForManufacturing = true;
+        updates.releasedForManufacturingAt = new Date();
+        updates.releasedForManufacturingBy = userId;
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDrawingControls).set(updates).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.release_gate', ${JSON.stringify({
+            dwgId: id, dwgControlNumber: rec.dwg_control_number, gateType, releasedBy: userId,
+          })}::jsonb, 'drawing_control', NOW())`);
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} release gate '${gateType}' set by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} released for ${gateType}` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/client-approval', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { status, clientApprovedBy, notes } = req.body;
+
+      const validStatuses = ['approved', 'rejected'];
+      if (!status || !validStatuses.includes(status)) {
+        return sendValidationError(res, `status is required and must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (!rec.client_approval_required) {
+        return sendBusinessError(res, 'Client approval is not required for this drawing control.');
+      }
+
+      if (!['draft', 'under_review'].includes(rec.status)) {
+        return sendBusinessError(res, `Cannot update client approval: drawing control status is '${rec.status}'.`);
+      }
+
+      await db.update(epcDrawingControls).set({
+        clientApprovalStatus: status,
+        clientApprovedAt: new Date(),
+        clientApprovedBy: clientApprovedBy || null,
+        clientApprovalNotes: notes || null,
+        updatedAt: new Date(),
+      }).where(eq(epcDrawingControls.id, id));
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} client approval: ${status} by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} client approval: ${status}` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body;
+
+      if (!cancelReason?.trim()) {
+        return sendValidationError(res, 'cancelReason is required.');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (['cancelled', 'superseded'].includes(rec.status)) {
+        return sendBusinessError(res, `Already ${rec.status}.`);
+      }
+      if (rec.status === 'released') {
+        return sendBusinessError(res, 'Cannot cancel a released drawing control. Supersede it instead.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDrawingControls).set({
+          status: 'cancelled',
+          cancelledBy: userId,
+          cancelledAt: new Date(),
+          cancelReason,
+          updatedAt: new Date(),
+        }).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.cancelled', ${JSON.stringify({
+            dwgId: id, dwgControlNumber: rec.dwg_control_number, cancelledBy: userId, cancelReason,
+          })}::jsonb, 'drawing_control', NOW())`);
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} cancelled by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} cancelled` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { supersessionReason, newDrawingRevision, newDesignDrawingId } = req.body;
+
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to supersede drawing controls.');
+      }
+
+      if (!supersessionReason?.trim()) {
+        return sendValidationError(res, 'supersessionReason is required.');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (['cancelled', 'superseded'].includes(rec.status)) {
+        return sendBusinessError(res, `Already ${rec.status}.`);
+      }
+
+      let newSnapNumber = rec.drawing_number;
+      let newSnapTitle = rec.drawing_title;
+      let newSnapRevision = newDrawingRevision || rec.drawing_revision;
+      let newSnapCategory = rec.drawing_category;
+      let newSnapDiscipline = rec.discipline_code;
+      let newDesignId = newDesignDrawingId || rec.design_drawing_id;
+
+      if (newDesignDrawingId) {
+        const ddResult = await db.execute(sql`SELECT * FROM design_drawings WHERE id = ${newDesignDrawingId}`);
+        if (ddResult.rows.length === 0) return sendNotFound(res, 'New design drawing not found');
+        const dd = ddResult.rows[0] as any;
+        newSnapNumber = dd.drawing_number;
+        newSnapTitle = dd.drawing_title;
+        newSnapRevision = newDrawingRevision || dd.current_revision;
+        newSnapCategory = dd.category;
+        newSnapDiscipline = dd.discipline_code;
+      }
+
+      const year = new Date().getFullYear();
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dwg_control_number FROM 'DWG-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_drawing_controls WHERE dwg_control_number LIKE ${`DWG-${year}-%`}`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq;
+      const newDwgNumber = `DWG-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(epcDrawingControls).values({
+          dwgControlNumber: newDwgNumber,
+          projectId: rec.project_id,
+          projectItemId: rec.project_item_id,
+          masterItemId: rec.master_item_id,
+          designDrawingId: newDesignId,
+          drawingNumber: newSnapNumber,
+          drawingTitle: newSnapTitle,
+          drawingRevision: newSnapRevision,
+          drawingCategory: newSnapCategory,
+          disciplineCode: newSnapDiscipline,
+          itemCode: rec.item_code,
+          itemDescription: rec.item_description,
+          classificationSnapshot: rec.classification_snapshot,
+          drawingPurpose: rec.drawing_purpose,
+          procurementReleaseRequired: rec.procurement_release_required,
+          manufacturingReleaseRequired: rec.manufacturing_release_required,
+          clientApprovalRequired: rec.client_approval_required,
+          clientApprovalStatus: rec.client_approval_required ? 'pending' : 'not_required',
+          status: 'draft',
+          notes: `Supersedes ${rec.dwg_control_number}. Reason: ${supersessionReason}`,
+          createdBy: userId,
+        }).returning();
+
+        await tx.update(epcDrawingControls).set({
+          status: 'superseded',
+          supersededBy: inserted[0].id,
+          supersededAt: new Date(),
+          supersessionReason,
+          updatedAt: new Date(),
+        }).where(eq(epcDrawingControls.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${rec.project_id}, 'drawing_control.superseded', ${JSON.stringify({
+            oldDwgId: id, oldDwgNumber: rec.dwg_control_number,
+            newDwgId: inserted[0].id, newDwgNumber,
+            supersessionReason, supersededBy: userId,
+          })}::jsonb, 'drawing_control', NOW())`);
+
+        console.log(`[DWG-CTRL] ${rec.dwg_control_number} superseded by ${newDwgNumber}, user ${userId}`);
+        res.status(201).json({
+          success: true,
+          message: `${rec.dwg_control_number} superseded → new ${newDwgNumber} created`,
+          oldRecord: { id, dwgControlNumber: rec.dwg_control_number, status: 'superseded' },
+          newRecord: inserted[0],
+        });
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/drawing-controls/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot revert: current status is '${rec.status}'. Must be 'under_review'.`);
+      }
+
+      await db.update(epcDrawingControls).set({
+        status: 'draft',
+        submittedBy: null,
+        submittedAt: null,
+        submissionNote: null,
+        reviewedBy: null,
+        reviewedAt: null,
+        reviewNote: null,
+        reviewRecommendation: null,
+        updatedAt: new Date(),
+      }).where(eq(epcDrawingControls.id, id));
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} reverted to draft` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/drawing-controls/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'draft') {
+        return sendBusinessError(res, `Cannot update: status is '${rec.status}'. Only 'draft' records can be edited.`);
+      }
+
+      const allowedFields = [
+        'drawingNumber', 'drawingTitle', 'drawingRevision', 'drawingCategory',
+        'disciplineCode', 'drawingPurpose', 'notes', 'designDrawingId',
+        'procurementReleaseRequired', 'manufacturingReleaseRequired',
+        'clientApprovalRequired',
+      ];
+      const updates: any = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+
+      if (updates.clientApprovalRequired !== undefined) {
+        updates.clientApprovalStatus = updates.clientApprovalRequired ? 'pending' : 'not_required';
+      }
+
+      if (updates.designDrawingId) {
+        const ddResult = await db.execute(sql`SELECT * FROM design_drawings WHERE id = ${updates.designDrawingId}`);
+        if (ddResult.rows.length === 0) return sendNotFound(res, 'Design drawing not found');
+        const dd = ddResult.rows[0] as any;
+        if (!updates.drawingNumber) updates.drawingNumber = dd.drawing_number;
+        if (!updates.drawingTitle) updates.drawingTitle = dd.drawing_title;
+        if (!updates.drawingRevision) updates.drawingRevision = dd.current_revision;
+        if (!updates.drawingCategory) updates.drawingCategory = dd.category;
+        if (!updates.disciplineCode) updates.disciplineCode = dd.discipline_code;
+      }
+
+      await db.update(epcDrawingControls).set(updates).where(eq(epcDrawingControls.id, id));
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} updated by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} updated`, id });
     } catch (error) {
       sendError(res, error);
     }
