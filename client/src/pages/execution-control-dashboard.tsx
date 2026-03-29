@@ -13,7 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Search, Filter, AlertTriangle, Clock, CheckCircle2, XCircle, ChevronDown, ChevronRight, RefreshCw, FileText, Package, ClipboardCheck, ShoppingCart, Factory, Eye } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import {
+  Loader2, Search, Filter, AlertTriangle, Clock, CheckCircle2, XCircle,
+  ChevronDown, ChevronRight, RefreshCw, FileText, Package, ClipboardCheck,
+  ShoppingCart, Factory, Eye, Truck, Wrench, Receipt, DollarSign,
+  ArrowRight, Minus,
+} from "lucide-react";
 
 type PipelineRecord = {
   id: number;
@@ -25,6 +31,16 @@ type PipelineRecord = {
   item_code?: string;
   item_description?: string;
   quality_requirement_type?: string;
+  dr_number?: string;
+  dispatch_number?: string;
+  cr_number?: string;
+  br_number?: string;
+  invoice_number?: string;
+  billing_basis?: string;
+  gross_amount?: string;
+  amount_paid?: string;
+  amount_outstanding?: string;
+  total_amount?: string;
   [key: string]: any;
 };
 
@@ -49,14 +65,14 @@ type ActionDialogState = {
   noteLabel: string;
   endpoint: string;
   bodyKey: string;
+  extraBody?: Record<string, any>;
 };
 
-const LAYER_CONFIG = {
-  planning: { label: "Planning", icon: FileText, color: "blue" },
-  execution: { label: "Execution", icon: Package, color: "violet" },
-  quality: { label: "Quality Plan", icon: ClipboardCheck, color: "emerald" },
-  preparation: { label: "PO/WO Prep", icon: ShoppingCart, color: "amber" },
-  inspection: { label: "Inspection", icon: Eye, color: "rose" },
+const PHASE_GROUPS = {
+  engineering: { label: "Engineering", phases: ["planning", "execution", "quality"] },
+  procurement: { label: "Procurement/Production", phases: ["preparation", "inspection"] },
+  logistics: { label: "Logistics", phases: ["dispatch", "commissioning"] },
+  commercial: { label: "Commercial", phases: ["billing", "invoice"] },
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -75,6 +91,20 @@ const STATUS_STYLES: Record<string, string> = {
   failed: "bg-red-100 text-red-700 border-red-300",
   superseded: "bg-orange-100 text-orange-600 border-orange-300",
   cancelled: "bg-red-50 text-red-500 border-red-200",
+  ready_for_dispatch: "bg-cyan-100 text-cyan-700 border-cyan-300",
+  dispatched: "bg-teal-100 text-teal-700 border-teal-300",
+  confirmed: "bg-blue-100 text-blue-700 border-blue-300",
+  shipped: "bg-indigo-100 text-indigo-700 border-indigo-300",
+  delivered: "bg-green-100 text-green-700 border-green-300",
+  ready_for_commissioning: "bg-cyan-100 text-cyan-700 border-cyan-300",
+  commissioned: "bg-emerald-100 text-emerald-700 border-emerald-300",
+  handed_over: "bg-green-100 text-green-700 border-green-300",
+  ready_for_invoice: "bg-lime-100 text-lime-700 border-lime-300",
+  invoiced: "bg-green-100 text-green-700 border-green-300",
+  approved: "bg-emerald-100 text-emerald-700 border-emerald-300",
+  issued: "bg-blue-100 text-blue-700 border-blue-300",
+  partially_paid: "bg-amber-100 text-amber-700 border-amber-300",
+  paid: "bg-green-100 text-green-700 border-green-300",
 };
 
 function StatusBadge({ status }: { status: string | null }) {
@@ -87,50 +117,81 @@ function StatusBadge({ status }: { status: string | null }) {
   );
 }
 
-function ExceptionBadge({ type, label }: { type: "stuck" | "pending" | "blocked"; label: string }) {
-  const styles = {
+function ExceptionBadge({ type, label }: { type: "stuck" | "pending" | "blocked" | "quality_fail"; label: string }) {
+  const styles: Record<string, string> = {
     stuck: "bg-red-50 text-red-600 border-red-200",
     pending: "bg-amber-50 text-amber-600 border-amber-200",
     blocked: "bg-orange-50 text-orange-600 border-orange-200",
+    quality_fail: "bg-red-50 text-red-700 border-red-300",
   };
-  const icons = { stuck: Clock, pending: AlertTriangle, blocked: XCircle };
-  const Icon = icons[type];
+  const icons: Record<string, any> = { stuck: Clock, pending: AlertTriangle, blocked: XCircle, quality_fail: XCircle };
+  const Icon = icons[type] || AlertTriangle;
   return (
-    <Badge variant="outline" className={`${styles[type]} text-[9px] px-1 py-0 border gap-0.5`}>
+    <Badge variant="outline" className={`${styles[type] || styles.blocked} text-[9px] px-1 py-0 border gap-0.5`}>
       <Icon className="h-2.5 w-2.5" />
       {label}
     </Badge>
   );
 }
 
-function getExceptions(
-  planning: PipelineRecord | null,
-  execution: PipelineRecord | null,
-  classification: string | null
-) {
-  const exceptions: { type: "stuck" | "pending" | "blocked"; label: string; layer: string }[] = [];
+function PipelineProgressBar({ row }: { row: any }) {
+  const layers = [
+    { key: "plan", terminal: ["released", "completed"] },
+    { key: "exec", terminal: ["ready_for_po", "ready_for_wo", "completed"] },
+    { key: "qp", terminal: ["ready_for_inspection_setup", "completed"] },
+    { key: "prep", terminal: ["ready_for_po_creation", "ready_for_wo_creation", "completed"] },
+    { key: "insp", terminal: ["completed"] },
+    { key: "disp", terminal: ["dispatched"] },
+    { key: "comm", terminal: ["handed_over", "commissioned"] },
+    { key: "bill", terminal: ["ready_for_invoice", "invoiced"] },
+    { key: "inv", terminal: ["issued", "paid"] },
+  ];
+  const total = layers.length;
+  let done = 0;
+  for (const l of layers) {
+    const rec = row[l.key];
+    if (rec && l.terminal.includes(rec.status)) done++;
+    else break;
+  }
+  const pct = Math.round((done / total) * 100);
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[9px] text-muted-foreground">{pct}%</span>
+    </div>
+  );
+}
+
+function getExceptions(row: any) {
+  const exceptions: { type: "stuck" | "pending" | "blocked" | "quality_fail"; label: string; layer: string }[] = [];
+  const { plan, exec, insp, classification } = row;
   if (!classification || classification === "unclassified") {
     exceptions.push({ type: "blocked", label: "No classification", layer: "planning" });
   }
-  if (planning?.status === "draft") {
-    const created = planning.created_at ? new Date(planning.created_at) : null;
+  if (plan?.status === "draft") {
+    const created = plan.created_at ? new Date(plan.created_at) : null;
     if (created && (Date.now() - created.getTime()) > 3 * 24 * 60 * 60 * 1000) {
       exceptions.push({ type: "stuck", label: "Stuck in draft", layer: "planning" });
     }
   }
-  if (planning?.status === "under_review" && !planning.reviewed_by) {
+  if (plan?.status === "under_review" && !plan.reviewed_by) {
     exceptions.push({ type: "pending", label: "Awaiting review", layer: "planning" });
+  }
+  if (insp?.status === "failed") {
+    exceptions.push({ type: "quality_fail", label: "Inspection failed", layer: "inspection" });
   }
   return exceptions;
 }
 
-function getAvailableActions(layer: string, status: string | null, record: PipelineRecord | null): { label: string; action: string; variant: "default" | "outline" | "destructive"; endpoint: string; needsNote: boolean; noteLabel: string; bodyKey: string }[] {
+function getAvailableActions(layer: string, status: string | null, record: PipelineRecord | null): { label: string; action: string; variant: "default" | "outline" | "destructive"; endpoint: string; needsNote: boolean; noteLabel: string; bodyKey: string; extraBody?: Record<string, any> }[] {
   if (!status || !record) return [];
   const id = record.id;
 
   if (layer === "planning") {
     if (status === "draft") return [
-      { label: "Submit for Review", action: "submit", variant: "default", endpoint: `/api/planning-records/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "" },
+      { label: "Submit", action: "submit", variant: "default", endpoint: `/api/planning-records/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "" },
     ];
     if (status === "under_review" && !record.reviewed_by) return [
       { label: "Review", action: "review", variant: "default", endpoint: `/api/planning-records/${id}/review`, needsNote: true, noteLabel: "Review Note", bodyKey: "reviewNote" },
@@ -147,48 +208,29 @@ function getAvailableActions(layer: string, status: string | null, record: Pipel
     const isProc = record.planning_type === "procurement" || record.source_context === "procurement" || !record.drawing_revision;
     const prefix = isProc ? "procurement-executions" : "production-executions";
     if (status === "draft") return [
-      { label: "Start Preparation", action: "prepare", variant: "default", endpoint: `/api/${prefix}/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+      { label: "Start Prep", action: "prepare", variant: "default", endpoint: `/api/${prefix}/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
     ];
     if (status === "under_preparation") return [
-      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/${prefix}/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/${prefix}/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
-    ];
-    if (status === "ready_for_po" || status === "ready_for_wo") return [
-      { label: "Revert", action: "revert", variant: "outline", endpoint: `/api/${prefix}/${id}/revert-to-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/${prefix}/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
+      { label: "Ready", action: "mark-ready", variant: "default", endpoint: `/api/${prefix}/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote" },
     ];
   }
 
   if (layer === "quality") {
     if (status === "draft") return [
-      { label: "Start Preparation", action: "start-prep", variant: "default", endpoint: `/api/quality-plans/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/quality-plans/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
     ];
     if (status === "under_preparation") return [
-      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/quality-plans/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/quality-plans/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
-    ];
-    if (status === "ready_for_inspection_setup") return [
-      { label: "Revert", action: "revert", variant: "outline", endpoint: `/api/quality-plans/${id}/revert-to-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/quality-plans/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
+      { label: "Ready", action: "mark-ready", variant: "default", endpoint: `/api/quality-plans/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote" },
     ];
   }
 
   if (layer === "po_preparation" || layer === "wo_preparation") {
     const prefix = layer === "po_preparation" ? "po-preparations" : "wo-preparations";
     if (status === "draft") return [
-      { label: "Submit for Review", action: "submit", variant: "default", endpoint: `/api/${prefix}/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "" },
+      { label: "Submit", action: "submit", variant: "default", endpoint: `/api/${prefix}/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "" },
     ];
     if (status === "under_review") return [
       { label: "Approve", action: "approve", variant: "default", endpoint: `/api/${prefix}/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "" },
-      { label: "Revert to Draft", action: "revert", variant: "outline", endpoint: `/api/${prefix}/${id}/revert-to-draft`, needsNote: false, noteLabel: "", bodyKey: "" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/${prefix}/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
-    ];
-    if (status === "ready_for_po_creation" || status === "ready_for_wo_creation") return [
-      { label: "Revert to Review", action: "revert-review", variant: "outline", endpoint: `/api/${prefix}/${id}/revert-to-review`, needsNote: false, noteLabel: "", bodyKey: "" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/${prefix}/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
-    ];
-    if (!["cancelled", "superseded"].includes(status)) return [
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/${prefix}/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
     ];
   }
 
@@ -198,11 +240,70 @@ function getAvailableActions(layer: string, status: string | null, record: Pipel
     ];
     if (status === "scheduled") return [
       { label: "Start", action: "start", variant: "default", endpoint: `/api/inspection-executions/${id}/start`, needsNote: false, noteLabel: "", bodyKey: "" },
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/inspection-executions/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
     ];
     if (status === "in_progress") return [
-      { label: "Complete (Pass)", action: "complete-pass", variant: "default", endpoint: `/api/inspection-executions/${id}/complete`, needsNote: false, noteLabel: "", bodyKey: "" },
+      { label: "Pass", action: "complete-pass", variant: "default", endpoint: `/api/inspection-executions/${id}/complete`, needsNote: false, noteLabel: "", bodyKey: "", extraBody: { result: "pass" } },
       { label: "Fail", action: "fail", variant: "destructive", endpoint: `/api/inspection-executions/${id}/fail`, needsNote: true, noteLabel: "Failure Reason", bodyKey: "failureReason" },
+    ];
+  }
+
+  if (layer === "dispatch") {
+    if (status === "draft") return [
+      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/dispatch-readiness/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "under_preparation") return [
+      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/dispatch-readiness/${id}/mark-ready`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "ready_for_dispatch") return [
+      { label: "Dispatch", action: "dispatch", variant: "default", endpoint: `/api/dispatch-readiness/${id}/dispatch`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+  }
+
+  if (layer === "dispatch_record") {
+    if (status === "draft") return [
+      { label: "Confirm", action: "confirm", variant: "default", endpoint: `/api/dispatch-records/${id}/confirm`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "confirmed") return [
+      { label: "Ship", action: "ship", variant: "default", endpoint: `/api/dispatch-records/${id}/ship`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "shipped") return [
+      { label: "Deliver", action: "deliver", variant: "default", endpoint: `/api/dispatch-records/${id}/deliver`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+  }
+
+  if (layer === "commissioning") {
+    if (status === "draft") return [
+      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/commissioning-readiness/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "under_preparation") return [
+      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/commissioning-readiness/${id}/mark-ready`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "ready_for_commissioning") return [
+      { label: "Commission", action: "commission", variant: "default", endpoint: `/api/commissioning-readiness/${id}/commission`, needsNote: true, noteLabel: "Commissioning Note", bodyKey: "commissioningNote" },
+    ];
+    if (status === "commissioned") return [
+      { label: "Handover", action: "handover", variant: "default", endpoint: `/api/commissioning-readiness/${id}/handover`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+  }
+
+  if (layer === "billing") {
+    if (status === "draft") return [
+      { label: "Submit Review", action: "submit-review", variant: "default", endpoint: `/api/billing-readiness/${id}/submit-review`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "under_review") return [
+      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/billing-readiness/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+  }
+
+  if (layer === "invoice") {
+    if (status === "draft") return [
+      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/epc-invoices/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "approved") return [
+      { label: "Issue", action: "issue", variant: "default", endpoint: `/api/epc-invoices/${id}/issue`, needsNote: false, noteLabel: "", bodyKey: "" },
+    ];
+    if (status === "issued" || status === "partially_paid") return [
+      { label: "Record Payment", action: "record-payment", variant: "default", endpoint: `/api/epc-invoices/${id}/record-payment`, needsNote: true, noteLabel: "Payment Amount", bodyKey: "paymentAmount" },
     ];
   }
 
@@ -216,6 +317,7 @@ export default function ExecutionControlDashboard() {
   const [classificationFilter, setClassificationFilter] = useState<string>("all");
   const [layerStatusFilter, setLayerStatusFilter] = useState<string>("all");
   const [exceptionFilter, setExceptionFilter] = useState<string>("all");
+  const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [actionDialog, setActionDialog] = useState<ActionDialogState>({
@@ -295,6 +397,36 @@ export default function ExecutionControlDashboard() {
     enabled: !!projectId,
   });
 
+  const { data: dispatchReadiness = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "dispatch-readiness"],
+    queryFn: () => fetch(`/api/projects/${projectId}/dispatch-readiness`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
+  const { data: dispatchRecords = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "dispatch-records"],
+    queryFn: () => fetch(`/api/projects/${projectId}/dispatch-records`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
+  const { data: commissioningReadiness = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "commissioning-readiness"],
+    queryFn: () => fetch(`/api/projects/${projectId}/commissioning-readiness`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
+  const { data: billingReadiness = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "billing-readiness"],
+    queryFn: () => fetch(`/api/projects/${projectId}/billing-readiness`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
+  const { data: epcInvoices = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "epc-invoices"],
+    queryFn: () => fetch(`/api/projects/${projectId}/epc-invoices`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
   const actionMutation = useMutation({
     mutationFn: async ({ endpoint, body }: { endpoint: string; body: any }) => {
       return apiRequest("POST", endpoint, body);
@@ -312,13 +444,19 @@ export default function ExecutionControlDashboard() {
 
   function invalidateAll() {
     if (!projectId) return;
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "planning-records"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "procurement-executions"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "production-executions"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "quality-plans"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "po-preparations"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "wo-preparations"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "inspection-executions"] });
+    const keys = [
+      "planning-records", "procurement-executions", "production-executions",
+      "quality-plans", "po-preparations", "wo-preparations", "inspection-executions",
+      "dispatch-readiness", "dispatch-records", "commissioning-readiness",
+      "billing-readiness", "epc-invoices",
+    ];
+    keys.forEach(k => queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, k] }));
+  }
+
+  function findActive(records: PipelineRecord[], itemId: number) {
+    return records.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
+      || records.find((r) => r.project_item_id === itemId)
+      || null;
   }
 
   const pipelineRows = useMemo(() => {
@@ -326,40 +464,32 @@ export default function ExecutionControlDashboard() {
 
     return projectItems.map((item: any) => {
       const itemId = item.id;
-      const plan = planningRecords.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-        || planningRecords.find((r) => r.project_item_id === itemId);
+      const plan = findActive(planningRecords, itemId);
       const classification = plan?.classification_snapshot || item.masterItem?.make_or_buy || null;
       const isBuy = classification === "Buy";
 
-      const exec = isBuy
-        ? procExecs.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-          || procExecs.find((r) => r.project_item_id === itemId)
-        : prodExecs.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-          || prodExecs.find((r) => r.project_item_id === itemId);
+      const exec = isBuy ? findActive(procExecs, itemId) : findActive(prodExecs, itemId);
+      const qp = findActive(qualityPlans, itemId);
+      const prep = isBuy ? findActive(poPreps, itemId) : findActive(woPreps, itemId);
+      const insp = findActive(inspExecs, itemId);
+      const disp = findActive(dispatchReadiness, itemId);
+      const dispRec = findActive(dispatchRecords, itemId);
+      const comm = findActive(commissioningReadiness, itemId);
+      const bill = findActive(billingReadiness, itemId);
+      const inv = findActive(epcInvoices, itemId);
 
-      const qp = qualityPlans.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-        || qualityPlans.find((r) => r.project_item_id === itemId);
-
-      const prep = isBuy
-        ? poPreps.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-          || poPreps.find((r) => r.project_item_id === itemId)
-        : woPreps.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-          || woPreps.find((r) => r.project_item_id === itemId);
-
-      const insp = inspExecs.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
-        || inspExecs.find((r) => r.project_item_id === itemId);
-
-      const exceptions = getExceptions(plan || null, exec || null, classification);
       const itemCode = plan?.item_code || exec?.item_code || item.masterItem?.item_code || `Item #${itemId}`;
       const itemDesc = plan?.item_description || exec?.item_description || item.masterItem?.description || "";
 
-      return {
-        itemId, item, plan: plan || null, exec: exec || null, qp: qp || null,
-        prep: prep || null, insp: insp || null,
-        classification, isBuy, exceptions, itemCode, itemDesc,
+      const row = {
+        itemId, item, plan, exec, qp, prep, insp, disp, dispRec, comm, bill, inv,
+        classification, isBuy, itemCode, itemDesc,
+        exceptions: [] as any[],
       };
+      row.exceptions = getExceptions(row);
+      return row;
     });
-  }, [projectItems, planningRecords, procExecs, prodExecs, qualityPlans, poPreps, woPreps, inspExecs]);
+  }, [projectItems, planningRecords, procExecs, prodExecs, qualityPlans, poPreps, woPreps, inspExecs, dispatchReadiness, dispatchRecords, commissioningReadiness, billingReadiness, epcInvoices]);
 
   const filteredRows = useMemo(() => {
     return pipelineRows.filter((row) => {
@@ -369,18 +499,30 @@ export default function ExecutionControlDashboard() {
       }
       if (classificationFilter !== "all" && row.classification !== classificationFilter) return false;
       if (exceptionFilter !== "all") {
-        if (exceptionFilter === "stuck" && !row.exceptions.some(e => e.type === "stuck")) return false;
-        if (exceptionFilter === "pending" && !row.exceptions.some(e => e.type === "pending")) return false;
-        if (exceptionFilter === "blocked" && !row.exceptions.some(e => e.type === "blocked")) return false;
+        if (exceptionFilter === "stuck" && !row.exceptions.some((e: any) => e.type === "stuck")) return false;
+        if (exceptionFilter === "pending" && !row.exceptions.some((e: any) => e.type === "pending")) return false;
+        if (exceptionFilter === "blocked" && !row.exceptions.some((e: any) => e.type === "blocked")) return false;
+        if (exceptionFilter === "quality_fail" && !row.exceptions.some((e: any) => e.type === "quality_fail")) return false;
         if (exceptionFilter === "none" && row.exceptions.length > 0) return false;
       }
       if (layerStatusFilter !== "all") {
-        const allStatuses = [row.plan?.status, row.exec?.status, row.qp?.status, row.prep?.status, row.insp?.status].filter(Boolean);
+        const allStatuses = [
+          row.plan?.status, row.exec?.status, row.qp?.status, row.prep?.status, row.insp?.status,
+          row.disp?.status, row.dispRec?.status, row.comm?.status, row.bill?.status, row.inv?.status,
+        ].filter(Boolean);
         if (!allStatuses.includes(layerStatusFilter)) return false;
+      }
+      if (phaseFilter !== "all") {
+        if (phaseFilter === "no_planning" && row.plan) return false;
+        if (phaseFilter === "no_dispatch" && row.disp) return false;
+        if (phaseFilter === "no_invoice" && row.inv) return false;
+        if (phaseFilter === "dispatched" && row.disp?.status !== "dispatched") return false;
+        if (phaseFilter === "commissioned" && !["commissioned", "handed_over"].includes(row.comm?.status || "")) return false;
+        if (phaseFilter === "invoiced" && !["issued", "partially_paid", "paid"].includes(row.inv?.status || "")) return false;
       }
       return true;
     });
-  }, [pipelineRows, searchQuery, classificationFilter, layerStatusFilter, exceptionFilter]);
+  }, [pipelineRows, searchQuery, classificationFilter, layerStatusFilter, exceptionFilter, phaseFilter]);
 
   const summaryStats = useMemo(() => {
     const total = pipelineRows.length;
@@ -388,25 +530,27 @@ export default function ExecutionControlDashboard() {
     const buyCount = pipelineRows.filter(r => r.classification === "Buy").length;
     const makeCount = pipelineRows.filter(r => r.classification === "Make").length;
     const completedInsp = pipelineRows.filter(r => r.insp?.status === "completed").length;
-    return { total, withExceptions, buyCount, makeCount, completedInsp };
+    const dispatchedCount = pipelineRows.filter(r => r.disp?.status === "dispatched" || r.dispRec).length;
+    const commissionedCount = pipelineRows.filter(r => ["commissioned", "handed_over"].includes(r.comm?.status || "")).length;
+    const invoicedCount = pipelineRows.filter(r => ["issued", "partially_paid", "paid"].includes(r.inv?.status || "")).length;
+    const paidCount = pipelineRows.filter(r => r.inv?.status === "paid").length;
+    return { total, withExceptions, buyCount, makeCount, completedInsp, dispatchedCount, commissionedCount, invoicedCount, paidCount };
   }, [pipelineRows]);
 
-  function openActionDialog(action: { label: string; action: string; endpoint: string; needsNote: boolean; noteLabel: string; bodyKey: string }, layer: string, record: PipelineRecord, itemDesc: string) {
+  function openActionDialog(action: any, layer: string, record: PipelineRecord, itemDesc: string) {
     setActionDialog({
       open: true, action: action.label, layer, recordId: record.id,
       recordStatus: record.status, itemDesc, needsNote: action.needsNote,
       noteLabel: action.noteLabel, endpoint: action.endpoint, bodyKey: action.bodyKey,
+      extraBody: action.extraBody,
     });
     setActionNote("");
   }
 
   function executeAction() {
-    const body: any = {};
+    const body: any = { ...(actionDialog.extraBody || {}) };
     if (actionDialog.bodyKey && actionNote) {
       body[actionDialog.bodyKey] = actionNote;
-    }
-    if (actionDialog.action === "Complete (Pass)") {
-      body.result = "pass";
     }
     actionMutation.mutate({ endpoint: actionDialog.endpoint, body });
   }
@@ -422,21 +566,111 @@ export default function ExecutionControlDashboard() {
   }
 
   function renderLayerCell(layer: string, record: PipelineRecord | null, itemDesc: string) {
-    if (!record) return <span className="text-xs text-muted-foreground italic">—</span>;
-
+    if (!record) return <span className="text-[10px] text-muted-foreground">—</span>;
     const actions = getAvailableActions(layer, record.status, record);
-
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col items-center gap-0.5">
         <StatusBadge status={record.status} />
         {actions.length > 0 && (
-          <div className="flex flex-wrap gap-0.5 mt-0.5">
-            {actions.map((a) => (
+          <div className="flex flex-wrap justify-center gap-0.5">
+            {actions.slice(0, 2).map((a) => (
               <Button
                 key={a.action}
                 size="sm"
                 variant={a.variant}
-                className="h-5 text-[9px] px-1.5 py-0"
+                className="h-5 text-[8px] px-1 py-0"
+                onClick={(e) => { e.stopPropagation(); openActionDialog(a, layer, record, itemDesc); }}
+              >
+                {a.label}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderDispatchCell(row: any) {
+    const dr = row.disp;
+    const rec = row.dispRec;
+    if (!dr && !rec) return <span className="text-[10px] text-muted-foreground">—</span>;
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        {dr && (
+          <Tooltip>
+            <TooltipTrigger>
+              <StatusBadge status={dr.status} />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              <p>DR: {dr.dr_number || `#${dr.id}`}</p>
+              <p>Status: {dr.status?.replace(/_/g, " ")}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {rec && (
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge variant="outline" className="text-[8px] px-1 py-0 bg-teal-50 text-teal-700 border-teal-200">
+                {rec.status?.replace(/_/g, " ")}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              <p>Dispatch: {rec.dispatch_number || `#${rec.id}`}</p>
+              <p>Status: {rec.status?.replace(/_/g, " ")}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {dr && !rec && getAvailableActions("dispatch", dr.status, dr).slice(0, 1).map((a) => (
+          <Button
+            key={a.action}
+            size="sm"
+            variant={a.variant}
+            className="h-5 text-[8px] px-1 py-0"
+            onClick={(e) => { e.stopPropagation(); openActionDialog(a, "dispatch", dr, row.itemCode); }}
+          >
+            {a.label}
+          </Button>
+        ))}
+        {rec && getAvailableActions("dispatch_record", rec.status, rec).slice(0, 1).map((a) => (
+          <Button
+            key={a.action}
+            size="sm"
+            variant={a.variant}
+            className="h-5 text-[8px] px-1 py-0"
+            onClick={(e) => { e.stopPropagation(); openActionDialog(a, "dispatch_record", rec, row.itemCode); }}
+          >
+            {a.label}
+          </Button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderFinancialCell(layer: string, record: PipelineRecord | null, itemDesc: string) {
+    if (!record) return <span className="text-[10px] text-muted-foreground">—</span>;
+    const actions = getAvailableActions(layer, record.status, record);
+    const amt = record.gross_amount || record.total_amount;
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <StatusBadge status={record.status} />
+        {amt && (
+          <span className="text-[8px] text-muted-foreground font-mono">
+            {parseFloat(amt).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+          </span>
+        )}
+        {layer === "invoice" && record.status === "partially_paid" && record.amount_outstanding && (
+          <span className="text-[8px] text-amber-600 font-mono">
+            Due: {parseFloat(record.amount_outstanding).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+          </span>
+        )}
+        {actions.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-0.5">
+            {actions.slice(0, 1).map((a) => (
+              <Button
+                key={a.action}
+                size="sm"
+                variant={a.variant}
+                className="h-5 text-[8px] px-1 py-0"
                 onClick={(e) => { e.stopPropagation(); openActionDialog(a, layer, record, itemDesc); }}
               >
                 {a.label}
@@ -450,70 +684,97 @@ export default function ExecutionControlDashboard() {
 
   function renderExpandedDetails(row: typeof pipelineRows[0]) {
     const layers = [
-      { key: "planning", record: row.plan, label: "Planning Record" },
-      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement Execution" : "Production Execution" },
-      { key: "quality", record: row.qp, label: "Quality Plan" },
-      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Preparation" : "WO Preparation" },
-      { key: "inspection", record: row.insp, label: "Inspection Execution" },
+      { key: "planning", record: row.plan, label: "Planning", icon: FileText },
+      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package },
+      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck },
+      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart },
+      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye },
+      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck },
+      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck },
+      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench },
+      { key: "billing", record: row.bill, label: "Billing", icon: Receipt },
+      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign },
     ];
 
     return (
       <TableRow className="bg-muted/30">
-        <TableCell colSpan={8} className="p-3">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            {layers.map(({ key, record, label }) => (
-              <Card key={key} className="shadow-sm">
-                <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-xs font-medium">{label}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-3 pb-2 space-y-1">
-                  {!record ? (
-                    <p className="text-xs text-muted-foreground italic">Not created yet</p>
-                  ) : (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-[10px] text-muted-foreground">ID</span>
-                        <span className="text-[10px] font-mono">{record.id}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[10px] text-muted-foreground">Status</span>
-                        <StatusBadge status={record.status} />
-                      </div>
-                      {record.item_code && (
-                        <div className="flex justify-between">
-                          <span className="text-[10px] text-muted-foreground">Item</span>
-                          <span className="text-[10px] font-mono truncate ml-2">{record.item_code}</span>
-                        </div>
+        <TableCell colSpan={12} className="p-3">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold">Full Pipeline:</span>
+              <PipelineProgressBar row={row} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {layers.map(({ key, record, label, icon: Icon }) => {
+                const actions = record ? getAvailableActions(key, record.status, record) : [];
+                return (
+                  <Card key={key} className={`shadow-sm ${!record ? "opacity-50" : ""}`}>
+                    <CardHeader className="py-1.5 px-2.5">
+                      <CardTitle className="text-[10px] font-medium flex items-center gap-1">
+                        <Icon className="h-3 w-3" /> {label}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-2.5 pb-2 space-y-0.5">
+                      {!record ? (
+                        <p className="text-[10px] text-muted-foreground italic">Not created</p>
+                      ) : (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-[9px] text-muted-foreground">Status</span>
+                            <StatusBadge status={record.status} />
+                          </div>
+                          {(record.dr_number || record.dispatch_number || record.cr_number || record.br_number || record.invoice_number) && (
+                            <div className="flex justify-between">
+                              <span className="text-[9px] text-muted-foreground">Ref</span>
+                              <span className="text-[9px] font-mono">{record.dr_number || record.dispatch_number || record.cr_number || record.br_number || record.invoice_number}</span>
+                            </div>
+                          )}
+                          {record.item_code && (
+                            <div className="flex justify-between">
+                              <span className="text-[9px] text-muted-foreground">Item</span>
+                              <span className="text-[9px] font-mono truncate ml-1">{record.item_code}</span>
+                            </div>
+                          )}
+                          {record.quantity && (
+                            <div className="flex justify-between">
+                              <span className="text-[9px] text-muted-foreground">Qty</span>
+                              <span className="text-[9px]">{record.quantity} {record.uom || ""}</span>
+                            </div>
+                          )}
+                          {record.gross_amount && (
+                            <div className="flex justify-between">
+                              <span className="text-[9px] text-muted-foreground">Amount</span>
+                              <span className="text-[9px] font-mono">{parseFloat(record.gross_amount).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+                            </div>
+                          )}
+                          {record.billing_basis && (
+                            <div className="flex justify-between">
+                              <span className="text-[9px] text-muted-foreground">Basis</span>
+                              <span className="text-[9px]">{record.billing_basis}</span>
+                            </div>
+                          )}
+                          {actions.length > 0 && (
+                            <div className="flex flex-wrap gap-0.5 mt-1 pt-1 border-t">
+                              {actions.map((a) => (
+                                <Button
+                                  key={a.action}
+                                  size="sm"
+                                  variant={a.variant}
+                                  className="h-5 text-[8px] px-1.5 py-0"
+                                  onClick={() => openActionDialog(a, key, record, row.itemCode)}
+                                >
+                                  {a.label}
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
-                      {record.quantity && (
-                        <div className="flex justify-between">
-                          <span className="text-[10px] text-muted-foreground">Qty</span>
-                          <span className="text-[10px]">{record.quantity} {record.uom || ""}</span>
-                        </div>
-                      )}
-                      {record.assigned_to_name && (
-                        <div className="flex justify-between">
-                          <span className="text-[10px] text-muted-foreground">Assigned</span>
-                          <span className="text-[10px]">{record.assigned_to_name}</span>
-                        </div>
-                      )}
-                      {record.inspection_type && (
-                        <div className="flex justify-between">
-                          <span className="text-[10px] text-muted-foreground">Type</span>
-                          <span className="text-[10px]">{record.inspection_type.replace(/_/g, " ")}</span>
-                        </div>
-                      )}
-                      {key === "planning" && record.reviewed_by && (
-                        <div className="flex justify-between">
-                          <span className="text-[10px] text-muted-foreground">Reviewed</span>
-                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        </div>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         </TableCell>
       </TableRow>
@@ -527,7 +788,7 @@ export default function ExecutionControlDashboard() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-foreground">Execution Control Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Monitor and control the full EPC pipeline for each project item</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Full EPC pipeline: Planning through Invoice for each project item</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
@@ -575,20 +836,20 @@ export default function ExecutionControlDashboard() {
             </div>
 
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 border-t">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Classification</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Make / Buy</label>
                   <Select value={classificationFilter} onValueChange={setClassificationFilter}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Classifications</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
                       <SelectItem value="Buy">Buy</SelectItem>
                       <SelectItem value="Make">Make</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Layer Status</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
                   <Select value={layerStatusFilter} onValueChange={setLayerStatusFilter}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -597,12 +858,15 @@ export default function ExecutionControlDashboard() {
                       <SelectItem value="under_review">Under Review</SelectItem>
                       <SelectItem value="released">Released</SelectItem>
                       <SelectItem value="under_preparation">Under Preparation</SelectItem>
-                      <SelectItem value="ready_for_po">Ready for PO</SelectItem>
-                      <SelectItem value="ready_for_wo">Ready for WO</SelectItem>
-                      <SelectItem value="ready_for_inspection_setup">Ready for Inspection</SelectItem>
-                      <SelectItem value="scheduled">Scheduled</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="ready_for_dispatch">Ready for Dispatch</SelectItem>
+                      <SelectItem value="shipped">Shipped</SelectItem>
+                      <SelectItem value="delivered">Delivered</SelectItem>
+                      <SelectItem value="commissioned">Commissioned</SelectItem>
+                      <SelectItem value="handed_over">Handed Over</SelectItem>
+                      <SelectItem value="ready_for_invoice">Ready for Invoice</SelectItem>
+                      <SelectItem value="issued">Issued</SelectItem>
+                      <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>
                     </SelectContent>
                   </Select>
@@ -616,7 +880,23 @@ export default function ExecutionControlDashboard() {
                       <SelectItem value="stuck">Stuck in Draft</SelectItem>
                       <SelectItem value="pending">Pending Review</SelectItem>
                       <SelectItem value="blocked">Missing Classification</SelectItem>
+                      <SelectItem value="quality_fail">Quality Failed</SelectItem>
                       <SelectItem value="none">No Exceptions</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Phase</label>
+                  <Select value={phaseFilter} onValueChange={setPhaseFilter}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Phases</SelectItem>
+                      <SelectItem value="no_planning">No Planning Yet</SelectItem>
+                      <SelectItem value="no_dispatch">Not Dispatched</SelectItem>
+                      <SelectItem value="dispatched">Dispatched</SelectItem>
+                      <SelectItem value="commissioned">Commissioned / Handed Over</SelectItem>
+                      <SelectItem value="invoiced">Invoiced</SelectItem>
+                      <SelectItem value="no_invoice">No Invoice</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -626,37 +906,25 @@ export default function ExecutionControlDashboard() {
         </Card>
 
         {projectId && pipelineRows.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card className="shadow-sm">
-              <CardContent className="pt-3 pb-2 px-3 text-center">
-                <div className="text-2xl font-bold">{summaryStats.total}</div>
-                <div className="text-[10px] text-muted-foreground">Total Items</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="pt-3 pb-2 px-3 text-center">
-                <div className="text-2xl font-bold text-blue-600">{summaryStats.buyCount}</div>
-                <div className="text-[10px] text-muted-foreground">Buy Items</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="pt-3 pb-2 px-3 text-center">
-                <div className="text-2xl font-bold text-violet-600">{summaryStats.makeCount}</div>
-                <div className="text-[10px] text-muted-foreground">Make Items</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="pt-3 pb-2 px-3 text-center">
-                <div className="text-2xl font-bold text-green-600">{summaryStats.completedInsp}</div>
-                <div className="text-[10px] text-muted-foreground">Inspections Done</div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardContent className="pt-3 pb-2 px-3 text-center">
-                <div className="text-2xl font-bold text-amber-600">{summaryStats.withExceptions}</div>
-                <div className="text-[10px] text-muted-foreground">With Exceptions</div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+            {[
+              { label: "Total", value: summaryStats.total, color: "" },
+              { label: "Buy", value: summaryStats.buyCount, color: "text-blue-600" },
+              { label: "Make", value: summaryStats.makeCount, color: "text-violet-600" },
+              { label: "Inspected", value: summaryStats.completedInsp, color: "text-green-600" },
+              { label: "Dispatched", value: summaryStats.dispatchedCount, color: "text-teal-600" },
+              { label: "Commissioned", value: summaryStats.commissionedCount, color: "text-emerald-600" },
+              { label: "Invoiced", value: summaryStats.invoicedCount, color: "text-indigo-600" },
+              { label: "Paid", value: summaryStats.paidCount, color: "text-green-700" },
+              { label: "Exceptions", value: summaryStats.withExceptions, color: "text-amber-600" },
+            ].map(({ label, value, color }) => (
+              <Card key={label} className="shadow-sm">
+                <CardContent className="pt-2 pb-1.5 px-2 text-center">
+                  <div className={`text-lg font-bold ${color}`}>{value}</div>
+                  <div className="text-[9px] text-muted-foreground">{label}</div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
@@ -689,81 +957,107 @@ export default function ExecutionControlDashboard() {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="w-8"></TableHead>
-                      <TableHead className="text-xs font-semibold min-w-[180px]">Item</TableHead>
-                      <TableHead className="text-xs font-semibold text-center w-[70px]">Class</TableHead>
-                      <TableHead className="text-xs font-semibold text-center min-w-[110px]">
-                        <div className="flex items-center justify-center gap-1"><FileText className="h-3 w-3" /> Planning</div>
-                      </TableHead>
-                      <TableHead className="text-xs font-semibold text-center min-w-[110px]">
-                        <div className="flex items-center justify-center gap-1"><Package className="h-3 w-3" /> Execution</div>
-                      </TableHead>
-                      <TableHead className="text-xs font-semibold text-center min-w-[110px]">
-                        <div className="flex items-center justify-center gap-1"><ClipboardCheck className="h-3 w-3" /> Quality</div>
-                      </TableHead>
-                      <TableHead className="text-xs font-semibold text-center min-w-[110px]">
-                        <div className="flex items-center justify-center gap-1"><ShoppingCart className="h-3 w-3" /> PO/WO Prep</div>
-                      </TableHead>
-                      <TableHead className="text-xs font-semibold text-center min-w-[110px]">
-                        <div className="flex items-center justify-center gap-1"><Eye className="h-3 w-3" /> Inspection</div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRows.map((row) => {
-                      const isExpanded = expandedRows.has(row.itemId);
-                      return (
-                        <TooltipProvider key={row.itemId}>
-                          <TableRow
-                            className="cursor-pointer hover:bg-muted/30 transition-colors"
-                            onClick={() => toggleRow(row.itemId)}
-                          >
-                            <TableCell className="w-8 pr-0">
-                              {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-0.5">
-                                <div className="text-xs font-medium truncate max-w-[200px]">{row.itemCode}</div>
-                                <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{row.itemDesc}</div>
-                                {row.exceptions.length > 0 && (
-                                  <div className="flex flex-wrap gap-0.5 mt-0.5">
-                                    {row.exceptions.map((ex, i) => (
-                                      <ExceptionBadge key={i} type={ex.type} label={ex.label} />
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="outline" className={`text-[10px] px-1.5 ${row.classification === "Buy" ? "bg-blue-50 text-blue-700 border-blue-200" : row.classification === "Make" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
-                                {row.classification || "—"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                              {renderLayerCell("planning", row.plan, row.itemCode)}
-                            </TableCell>
-                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                              {renderLayerCell("execution", row.exec, row.itemCode)}
-                            </TableCell>
-                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                              {renderLayerCell("quality", row.qp, row.itemCode)}
-                            </TableCell>
-                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                              {renderLayerCell(row.isBuy ? "po_preparation" : "wo_preparation", row.prep, row.itemCode)}
-                            </TableCell>
-                            <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                              {renderLayerCell("inspection", row.insp, row.itemCode)}
-                            </TableCell>
-                          </TableRow>
-                          {isExpanded && renderExpandedDetails(row)}
-                        </TooltipProvider>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <TooltipProvider>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-6 px-1"></TableHead>
+                        <TableHead className="text-[10px] font-semibold min-w-[140px] sticky left-0 bg-muted/50 z-10">Item</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center w-[50px]">Class</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><FileText className="h-3 w-3" /> Plan</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><Package className="h-3 w-3" /> Exec</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><ClipboardCheck className="h-3 w-3" /> Quality</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><ShoppingCart className="h-3 w-3" /> Prep</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><Eye className="h-3 w-3" /> Inspect</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><Truck className="h-3 w-3" /> Dispatch</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><Wrench className="h-3 w-3" /> Comm</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><Receipt className="h-3 w-3" /> Billing</div>
+                        </TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[90px]">
+                          <div className="flex items-center justify-center gap-0.5"><DollarSign className="h-3 w-3" /> Invoice</div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRows.map((row) => {
+                        const isExpanded = expandedRows.has(row.itemId);
+                        return (
+                          <TooltipProvider key={row.itemId}>
+                            <TableRow
+                              className="cursor-pointer hover:bg-muted/30 transition-colors"
+                              onClick={() => toggleRow(row.itemId)}
+                            >
+                              <TableCell className="w-6 px-1">
+                                {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </TableCell>
+                              <TableCell className="sticky left-0 bg-background z-10">
+                                <div className="space-y-0.5">
+                                  <div className="text-[10px] font-medium truncate max-w-[160px]">{row.itemCode}</div>
+                                  <div className="text-[9px] text-muted-foreground truncate max-w-[160px]">{row.itemDesc}</div>
+                                  {row.exceptions.length > 0 && (
+                                    <div className="flex flex-wrap gap-0.5">
+                                      {row.exceptions.map((ex: any, i: number) => (
+                                        <ExceptionBadge key={i} type={ex.type} label={ex.label} />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className={`text-[9px] px-1 ${row.classification === "Buy" ? "bg-blue-50 text-blue-700 border-blue-200" : row.classification === "Make" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                                  {row.classification || "—"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderLayerCell("planning", row.plan, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderLayerCell("execution", row.exec, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderLayerCell("quality", row.qp, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderLayerCell(row.isBuy ? "po_preparation" : "wo_preparation", row.prep, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderLayerCell("inspection", row.insp, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderDispatchCell(row)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderLayerCell("commissioning", row.comm, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderFinancialCell("billing", row.bill, row.itemCode)}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                {renderFinancialCell("invoice", row.inv, row.itemCode)}
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && renderExpandedDetails(row)}
+                          </TooltipProvider>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TooltipProvider>
               </div>
             </CardContent>
           </Card>
@@ -774,7 +1068,7 @@ export default function ExecutionControlDashboard() {
             <DialogHeader>
               <DialogTitle>{actionDialog.action}</DialogTitle>
               <DialogDescription>
-                {actionDialog.layer} record for: {actionDialog.itemDesc}
+                {actionDialog.layer.replace(/_/g, " ")} record for: {actionDialog.itemDesc}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
