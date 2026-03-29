@@ -23,6 +23,8 @@ import {
   inspectionExecutionRecords,
   epcPurchaseOrders,
   epcPurchaseOrderItems,
+  epcWorkOrders,
+  epcWorkOrderItems,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -2134,12 +2136,21 @@ export function setupProjectRoutes(app: express.Express) {
                     WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
               );
             }
-            await tx.execute(
+            const cancelledWOPreps = await tx.execute(
               sql`UPDATE wo_preparation_records 
                   SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                       cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                  WHERE execution_record_id = ${prodId} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
+                  WHERE execution_record_id = ${prodId} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')
+                  RETURNING id`
             );
+            for (const wpRow of cancelledWOPreps.rows) {
+              await tx.execute(
+                sql`UPDATE epc_work_orders 
+                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                    WHERE wo_preparation_id = ${(wpRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
+              );
+            }
           }
         }
 
@@ -2960,6 +2971,15 @@ export function setupProjectRoutes(app: express.Express) {
                 SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
                     cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
                 WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
+          );
+        }
+
+        for (const woPrepRow of woPrepCascade.rows) {
+          await tx.execute(
+            sql`UPDATE epc_work_orders 
+                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+                WHERE wo_preparation_id = ${(woPrepRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
           );
         }
 
@@ -4079,6 +4099,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
+      let cascadedEpcWoIds: number[] = [];
+
       await db.transaction(async (tx) => {
         await tx.update(woPreparationRecords)
           .set({
@@ -4087,15 +4109,32 @@ export function setupProjectRoutes(app: express.Express) {
           })
           .where(eq(woPreparationRecords.id, id));
 
+        const epcWoCascade = await tx.execute(
+          sql`UPDATE epc_work_orders 
+              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream WO preparation cancelled: ' + cancelReason}, updated_at = NOW()
+              WHERE wo_preparation_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+              RETURNING id, wo_number`
+        );
+        cascadedEpcWoIds = epcWoCascade.rows.map((r: any) => r.id);
+
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${record.project_id}, 'wo_preparation.cancelled', ${JSON.stringify({
             woPrepId: id, executionRecordId: record.execution_record_id,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        for (const woRow of epcWoCascade.rows) {
+          await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${record.project_id}, 'epc_work_order.cancelled_by_upstream', ${JSON.stringify({
+              epcWoId: (woRow as any).id, woNumber: (woRow as any).wo_number,
+              woPrepId: id, cancelledBy: userId, reason: 'Upstream WO preparation cancelled',
+            })}::jsonb, 'lifecycle_action', NOW())`);
+        }
       });
 
-      console.log(`[WOPrep] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'WO preparation record cancelled', id, newStatus: 'cancelled' });
+      console.log(`[WOPrep] Record ${id} cancelled by user ${userId}. Cascaded EPC WOs: ${cascadedEpcWoIds}`);
+      res.json({ success: true, message: 'WO preparation record cancelled', id, newStatus: 'cancelled', cascadedEpcWoIds });
     } catch (error) {
       sendError(res, error);
     }
@@ -4435,6 +4474,349 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[EPC-PO] Purchase order ${po.po_number} reverted to draft by user ${userId}`);
       res.json({ success: true, message: `Purchase order ${po.po_number} reverted to draft`, id, newStatus: 'draft' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ─── EPC Work Order Routes ──────────────────────────────────────────────
+
+  app.get('/api/projects/:projectId/epc-work-orders', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
+
+      const statusFilter = req.query.status as string | undefined;
+      const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+
+      let query = sql`SELECT ewo.*, u1.username as created_by_name, u2.username as approved_by_name,
+                             u3.username as released_by_name
+                      FROM epc_work_orders ewo
+                      LEFT JOIN users u1 ON ewo.created_by = u1.id
+                      LEFT JOIN users u2 ON ewo.approved_by = u2.id
+                      LEFT JOIN users u3 ON ewo.released_by = u3.id
+                      WHERE ewo.project_id = ${projectId}`;
+
+      if (statusFilter) query = sql`${query} AND ewo.status = ${statusFilter}`;
+      if (itemFilter) query = sql`${query} AND ewo.project_item_id = ${itemFilter}`;
+      query = sql`${query} ORDER BY ewo.created_at DESC`;
+
+      const result = await db.execute(query);
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/epc-work-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
+
+      const result = await db.execute(
+        sql`SELECT ewo.*, u1.username as created_by_name, u2.username as approved_by_name,
+                   u3.username as released_by_name
+            FROM epc_work_orders ewo
+            LEFT JOIN users u1 ON ewo.created_by = u1.id
+            LEFT JOIN users u2 ON ewo.approved_by = u2.id
+            LEFT JOIN users u3 ON ewo.released_by = u3.id
+            WHERE ewo.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
+
+      const items = await db.execute(
+        sql`SELECT * FROM epc_work_order_items WHERE epc_work_order_id = ${id} ORDER BY line_number`
+      );
+
+      res.json({ ...(result.rows[0] as any), items: items.rows });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/wo-preparations/:id/create-work-order', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const woPrepId = parseInt(req.params.id);
+      if (isNaN(woPrepId)) return sendValidationError(res, 'Invalid WO preparation ID');
+      const userId = (req.user as any)?.id;
+      const { woNotes } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${woPrepId}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
+      const prep = existing.rows[0] as any;
+
+      if (prep.status !== 'ready_for_wo_creation') {
+        return sendBusinessError(res, `Cannot create WO: WO preparation status is '${prep.status}', expected 'ready_for_wo_creation'.`);
+      }
+
+      const existingWO = await db.execute(
+        sql`SELECT id, wo_number, status FROM epc_work_orders 
+            WHERE wo_preparation_id = ${woPrepId} AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingWO.rows.length > 0) {
+        const eWO = existingWO.rows[0] as any;
+        return sendBusinessError(res, `WO already exists for this preparation record: ${eWO.wo_number} (ID ${eWO.id}, status: ${eWO.status}). Only one active WO per WO prep record is allowed.`);
+      }
+
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(wo_number FROM 'EPC-WO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_work_orders`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq || 1;
+      const year = new Date().getFullYear();
+      const woNumber = `EPC-WO-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      let newWoId: number;
+
+      await db.transaction(async (tx) => {
+        const [newWO] = await tx.insert(epcWorkOrders).values({
+          woNumber,
+          projectId: prep.project_id,
+          projectItemId: prep.project_item_id,
+          planningRecordId: prep.planning_record_id,
+          executionRecordId: prep.execution_record_id,
+          woPreparationId: woPrepId,
+          qualityPlanId: prep.quality_plan_id || null,
+          masterItemId: prep.master_item_id,
+          itemCode: prep.item_code || null,
+          itemDescription: prep.item_description || null,
+          itemSpecification: prep.item_specification || null,
+          uom: prep.uom || null,
+          drawingNo: prep.drawing_no || null,
+          drawingRevision: prep.drawing_revision || null,
+          quantity: prep.quantity,
+          estimatedUnitCost: prep.estimated_unit_cost || null,
+          estimatedTotalCost: prep.estimated_total_cost || null,
+          makeClassification: prep.make_classification || null,
+          manufacturingNotes: prep.manufacturing_notes || null,
+          woNotes: woNotes || null,
+          status: 'draft',
+          createdBy: userId,
+        }).returning();
+        newWoId = newWO.id;
+
+        await tx.insert(epcWorkOrderItems).values({
+          epcWorkOrderId: newWO.id,
+          lineNumber: 1,
+          masterItemId: prep.master_item_id,
+          itemCode: prep.item_code || null,
+          itemDescription: prep.item_description || null,
+          itemSpecification: prep.item_specification || null,
+          uom: prep.uom || null,
+          drawingNo: prep.drawing_no || null,
+          drawingRevision: prep.drawing_revision || null,
+          quantity: prep.quantity,
+          unitCost: prep.estimated_unit_cost || null,
+          totalCost: prep.estimated_total_cost || null,
+          manufacturingNotes: prep.manufacturing_notes || null,
+        });
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${prep.project_id}, 'epc_work_order.created', ${JSON.stringify({
+            epcWoId: 0, woNumber, woPrepId, executionRecordId: prep.execution_record_id,
+            planningRecordId: prep.planning_record_id, projectItemId: prep.project_item_id,
+            makeClassification: prep.make_classification, estimatedTotalCost: prep.estimated_total_cost,
+            createdBy: userId,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-WO] Work order ${woNumber} created from WO prep ${woPrepId} by user ${userId}`);
+      res.json({ success: true, message: `Work order ${woNumber} created`, id: newWoId!, woNumber, woPrepId, status: 'draft' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/epc-work-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
+      const wo = existing.rows[0] as any;
+
+      if (['cancelled', 'superseded', 'released'].includes(wo.status)) {
+        return sendBusinessError(res, `Cannot edit: WO is in terminal status '${wo.status}'.`);
+      }
+
+      const { manufacturingNotes, woNotes, estimatedUnitCost, estimatedTotalCost, drawingNo, drawingRevision } = req.body || {};
+      const updates: any = { updatedAt: new Date() };
+      if (manufacturingNotes !== undefined) updates.manufacturingNotes = manufacturingNotes || null;
+      if (woNotes !== undefined) updates.woNotes = woNotes || null;
+      if (estimatedUnitCost !== undefined) updates.estimatedUnitCost = estimatedUnitCost ? String(estimatedUnitCost) : null;
+      if (estimatedTotalCost !== undefined) updates.estimatedTotalCost = estimatedTotalCost ? String(estimatedTotalCost) : null;
+      if (drawingNo !== undefined) updates.drawingNo = drawingNo || null;
+      if (drawingRevision !== undefined) updates.drawingRevision = drawingRevision || null;
+
+      await db.update(epcWorkOrders).set(updates).where(eq(epcWorkOrders.id, id));
+      res.json({ success: true, message: 'EPC work order updated', id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-work-orders/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
+      const userId = (req.user as any)?.id;
+      const { approvalNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
+      const wo = existing.rows[0] as any;
+
+      if (wo.status !== 'draft') {
+        return sendBusinessError(res, `Cannot approve: WO status is '${wo.status}', expected 'draft'.`);
+      }
+
+      if (wo.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the same work order.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcWorkOrders)
+          .set({
+            status: 'approved', approvedBy: userId, approvedAt: new Date(),
+            approvalNote: approvalNote || null, updatedAt: new Date(),
+          })
+          .where(eq(epcWorkOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${wo.project_id}, 'epc_work_order.approved', ${JSON.stringify({
+            epcWoId: id, woNumber: wo.wo_number, approvedBy: userId, approvalNote,
+            projectItemId: wo.project_item_id, woPrepId: wo.wo_preparation_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-WO] Work order ${wo.wo_number} approved by user ${userId}`);
+      res.json({ success: true, message: `Work order ${wo.wo_number} approved`, id, newStatus: 'approved' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-work-orders/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
+      const userId = (req.user as any)?.id;
+      const { releaseNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
+      const wo = existing.rows[0] as any;
+
+      if (wo.status !== 'approved') {
+        return sendBusinessError(res, `Cannot release: WO status is '${wo.status}', expected 'approved'.`);
+      }
+
+      if (wo.approved_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the approver cannot also release the same work order. A different authorized user must release it.');
+      }
+
+      if (wo.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also release the same work order.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcWorkOrders)
+          .set({
+            status: 'released', releasedBy: userId, releasedAt: new Date(),
+            releaseNote: releaseNote || null, updatedAt: new Date(),
+          })
+          .where(eq(epcWorkOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${wo.project_id}, 'epc_work_order.released', ${JSON.stringify({
+            epcWoId: id, woNumber: wo.wo_number, releasedBy: userId, releaseNote,
+            projectItemId: wo.project_item_id, woPrepId: wo.wo_preparation_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-WO] Work order ${wo.wo_number} released by user ${userId}`);
+      res.json({ success: true, message: `Work order ${wo.wo_number} released`, id, newStatus: 'released' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-work-orders/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'Cancel reason is required');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
+      const wo = existing.rows[0] as any;
+
+      if (['cancelled', 'superseded'].includes(wo.status)) {
+        return sendBusinessError(res, `Cannot cancel: WO is already '${wo.status}'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcWorkOrders)
+          .set({
+            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            cancelReason, updatedAt: new Date(),
+          })
+          .where(eq(epcWorkOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${wo.project_id}, 'epc_work_order.cancelled', ${JSON.stringify({
+            epcWoId: id, woNumber: wo.wo_number, cancelledBy: userId, cancelReason,
+            previousStatus: wo.status, projectItemId: wo.project_item_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-WO] Work order ${wo.wo_number} cancelled by user ${userId}`);
+      res.json({ success: true, message: `Work order ${wo.wo_number} cancelled`, id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-work-orders/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
+      const wo = existing.rows[0] as any;
+
+      if (wo.status !== 'approved') {
+        return sendBusinessError(res, `Cannot revert to draft: only 'approved' WOs can be reverted. Current status: '${wo.status}'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcWorkOrders)
+          .set({
+            status: 'draft', approvedBy: null, approvedAt: null,
+            approvalNote: null, updatedAt: new Date(),
+          })
+          .where(eq(epcWorkOrders.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${wo.project_id}, 'epc_work_order.reverted_to_draft', ${JSON.stringify({
+            epcWoId: id, woNumber: wo.wo_number, revertedBy: userId,
+            projectItemId: wo.project_item_id,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[EPC-WO] Work order ${wo.wo_number} reverted to draft by user ${userId}`);
+      res.json({ success: true, message: `Work order ${wo.wo_number} reverted to draft`, id, newStatus: 'draft' });
     } catch (error) {
       sendError(res, error);
     }

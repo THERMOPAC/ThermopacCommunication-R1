@@ -11007,3 +11007,70 @@ export type EpcPurchaseOrder = typeof epcPurchaseOrders.$inferSelect;
 export const insertEpcPurchaseOrderItemSchema = createInsertSchema(epcPurchaseOrderItems).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertEpcPurchaseOrderItem = z.infer<typeof insertEpcPurchaseOrderItemSchema>;
 export type EpcPurchaseOrderItem = typeof epcPurchaseOrderItems.$inferSelect;
+
+export const epcWorkOrders = pgTable('epc_work_orders', {
+  id: serial("id").primaryKey(),
+  woNumber: varchar("wo_number", { length: 50 }).notNull().unique(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer("project_item_id").notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  planningRecordId: integer("planning_record_id").references(() => itemPlanningRecords.id),
+  executionRecordId: integer("execution_record_id").references(() => productionExecutionRecords.id),
+  woPreparationId: integer("wo_preparation_id").notNull().references(() => woPreparationRecords.id),
+  qualityPlanId: integer("quality_plan_id").references(() => qualityPlanningRecords.id),
+  masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
+  itemCode: varchar("item_code", { length: 100 }),
+  itemDescription: text("item_description"),
+  itemSpecification: text("item_specification"),
+  uom: varchar("uom", { length: 30 }),
+  drawingNo: varchar("drawing_no", { length: 100 }),
+  drawingRevision: integer("drawing_revision"),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  estimatedUnitCost: decimal("estimated_unit_cost", { precision: 12, scale: 2 }),
+  estimatedTotalCost: decimal("estimated_total_cost", { precision: 12, scale: 2 }),
+  makeClassification: varchar("make_classification", { length: 50 }),
+  manufacturingNotes: text("manufacturing_notes"),
+  woNotes: text("wo_notes"),
+  status: varchar("status", { length: 30 }).notNull().default('draft'),
+  approvedBy: integer("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  approvalNote: text("approval_note"),
+  releasedBy: integer("released_by").references(() => users.id),
+  releasedAt: timestamp("released_at"),
+  releaseNote: text("release_note"),
+  cancelledBy: integer("cancelled_by").references(() => users.id),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelReason: text("cancel_reason"),
+  supersededById: integer("superseded_by_id"),
+  supersededAt: timestamp("superseded_at"),
+  supersessionReason: text("supersession_reason"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const epcWorkOrderItems = pgTable('epc_work_order_items', {
+  id: serial("id").primaryKey(),
+  epcWorkOrderId: integer("epc_work_order_id").notNull().references(() => epcWorkOrders.id, { onDelete: 'cascade' }),
+  lineNumber: integer("line_number").notNull().default(1),
+  masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
+  itemCode: varchar("item_code", { length: 100 }),
+  itemDescription: text("item_description"),
+  itemSpecification: text("item_specification"),
+  uom: varchar("uom", { length: 30 }),
+  drawingNo: varchar("drawing_no", { length: 100 }),
+  drawingRevision: integer("drawing_revision"),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unitCost: decimal("unit_cost", { precision: 12, scale: 2 }),
+  totalCost: decimal("total_cost", { precision: 12, scale: 2 }),
+  manufacturingNotes: text("manufacturing_notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEpcWorkOrderSchema = createInsertSchema(epcWorkOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcWorkOrder = z.infer<typeof insertEpcWorkOrderSchema>;
+export type EpcWorkOrder = typeof epcWorkOrders.$inferSelect;
+
+export const insertEpcWorkOrderItemSchema = createInsertSchema(epcWorkOrderItems).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcWorkOrderItem = z.infer<typeof insertEpcWorkOrderItemSchema>;
+export type EpcWorkOrderItem = typeof epcWorkOrderItems.$inferSelect;
