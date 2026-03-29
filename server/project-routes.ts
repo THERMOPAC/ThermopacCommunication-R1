@@ -29,6 +29,7 @@ import {
   epcDispatchRecords,
   epcCommissioningReadiness,
   epcBillingReadiness,
+  epcInvoices,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -6733,6 +6734,479 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[BR] ${br.br_number} updated by user ${userId}`);
       res.json({ success: true, message: `${br.br_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC ACTUAL INVOICE BRIDGE ====================
+
+  app.get('/api/projects/:projectId/epc-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const result = await db.execute(
+        sql`SELECT i.*,
+              u1.username AS created_by_name, u2.username AS approved_by_name,
+              u3.username AS issued_by_name, u4.username AS cancelled_by_name,
+              pi.description AS project_item_description,
+              br.br_number AS linked_br_number,
+              d.dispatch_number AS linked_dispatch_number,
+              cr.cr_number AS linked_cr_number,
+              po.po_number, wo.wo_number
+            FROM epc_invoices i
+            LEFT JOIN users u1 ON i.created_by = u1.id
+            LEFT JOIN users u2 ON i.approved_by = u2.id
+            LEFT JOIN users u3 ON i.issued_by = u3.id
+            LEFT JOIN users u4 ON i.cancelled_by = u4.id
+            LEFT JOIN project_items pi ON i.project_item_id = pi.id
+            LEFT JOIN epc_billing_readiness br ON i.billing_readiness_id = br.id
+            LEFT JOIN epc_dispatch_records d ON i.dispatch_record_id = d.id
+            LEFT JOIN epc_commissioning_readiness cr ON i.commissioning_readiness_id = cr.id
+            LEFT JOIN epc_purchase_orders po ON i.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON i.epc_work_order_id = wo.id
+            WHERE i.project_id = ${projectId}
+            ORDER BY i.created_at DESC`
+      );
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/epc-invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await db.execute(
+        sql`SELECT i.*,
+              u1.username AS created_by_name, u2.username AS approved_by_name,
+              u3.username AS issued_by_name, u4.username AS cancelled_by_name,
+              pi.description AS project_item_description,
+              br.br_number AS linked_br_number,
+              d.dispatch_number AS linked_dispatch_number,
+              cr.cr_number AS linked_cr_number,
+              po.po_number, wo.wo_number
+            FROM epc_invoices i
+            LEFT JOIN users u1 ON i.created_by = u1.id
+            LEFT JOIN users u2 ON i.approved_by = u2.id
+            LEFT JOIN users u3 ON i.issued_by = u3.id
+            LEFT JOIN users u4 ON i.cancelled_by = u4.id
+            LEFT JOIN project_items pi ON i.project_item_id = pi.id
+            LEFT JOIN epc_billing_readiness br ON i.billing_readiness_id = br.id
+            LEFT JOIN epc_dispatch_records d ON i.dispatch_record_id = d.id
+            LEFT JOIN epc_commissioning_readiness cr ON i.commissioning_readiness_id = cr.id
+            LEFT JOIN epc_purchase_orders po ON i.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON i.epc_work_order_id = wo.id
+            WHERE i.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/projects/:projectId/epc-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const {
+        billingReadinessId, invoiceDate, dueDate, paymentTerms,
+        invoiceNotes, internalNotes, discountAmount, discountNote,
+      } = req.body;
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can create invoices.');
+      }
+
+      if (!billingReadinessId) return sendValidationError(res, 'billingReadinessId is required.');
+
+      const brResult = await db.execute(
+        sql`SELECT * FROM epc_billing_readiness WHERE id = ${billingReadinessId} AND project_id = ${projectId}`
+      );
+      if (brResult.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found in this project.');
+      const br = brResult.rows[0] as any;
+
+      if (br.status !== 'ready_for_invoice') {
+        return sendBusinessError(res, `Cannot create invoice: billing readiness status is '${br.status}', expected 'ready_for_invoice'.`);
+      }
+
+      const existingCheck = await db.execute(
+        sql`SELECT id, invoice_number FROM epc_invoices
+            WHERE billing_readiness_id = ${billingReadinessId}
+              AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingCheck.rows.length > 0) {
+        const existing = existingCheck.rows[0] as any;
+        return sendBusinessError(res, `Active invoice ${existing.invoice_number} already exists for this billing readiness (id: ${existing.id}).`);
+      }
+
+      const totalAmt = parseFloat(br.total_amount || '0');
+      const disc = parseFloat(discountAmount || '0');
+      const taxAmt = parseFloat(br.tax_amount || '0');
+      const computedGross = totalAmt - disc + taxAmt;
+      const grossAmt = computedGross > 0 ? computedGross : parseFloat(br.gross_amount || '0');
+
+      const year = new Date().getFullYear();
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_number FROM 'EPC-INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_invoices WHERE invoice_number LIKE ${`EPC-INV-${year}-%`}`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq;
+      const invoiceNumber = `EPC-INV-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(epcInvoices).values({
+          invoiceNumber,
+          projectId,
+          projectItemId: br.project_item_id || null,
+          billingReadinessId,
+          dispatchRecordId: br.dispatch_record_id || null,
+          commissioningReadinessId: br.commissioning_readiness_id || null,
+          dispatchReadinessId: br.dispatch_readiness_id || null,
+          epcPurchaseOrderId: br.epc_purchase_order_id || null,
+          epcWorkOrderId: br.epc_work_order_id || null,
+          inspectionExecutionId: br.inspection_execution_id || null,
+          qualityPlanId: br.quality_plan_id || null,
+          masterItemId: br.master_item_id || null,
+          billingBasis: br.billing_basis,
+          milestoneName: br.milestone_name || null,
+          milestoneDescription: br.milestone_description || null,
+          itemCode: br.item_code || null,
+          itemDescription: br.item_description || null,
+          itemSpecification: br.item_specification || null,
+          uom: br.uom || null,
+          quantity: br.quantity || null,
+          unitPrice: br.unit_price || null,
+          totalAmount: br.total_amount || '0',
+          currency: br.currency || 'INR',
+          taxApplicable: br.tax_applicable !== false,
+          taxPercentage: br.tax_percentage || null,
+          taxAmount: br.tax_amount || null,
+          grossAmount: String(grossAmt),
+          amountPaid: '0',
+          amountOutstanding: String(grossAmt),
+          discountAmount: discountAmount ? String(disc) : '0',
+          discountNote: discountNote || null,
+          customerName: br.customer_name || null,
+          customerAddress: br.customer_address || null,
+          customerGst: br.customer_gst || null,
+          customerPoNumber: br.customer_po_number || null,
+          customerPoDate: br.customer_po_date || null,
+          billingAddress: br.billing_address || null,
+          shippingAddress: br.shipping_address || null,
+          dispatchNumber: br.dispatch_number || null,
+          dispatchDate: br.dispatch_date || null,
+          deliveryDate: br.delivery_date || null,
+          crNumber: br.cr_number || null,
+          commissioningDate: br.commissioning_date || null,
+          handoverDate: br.handover_date || null,
+          brNumber: br.br_number,
+          invoiceDate: invoiceDate ? new Date(invoiceDate) : new Date(),
+          dueDate: dueDate ? new Date(dueDate) : null,
+          paymentTerms: paymentTerms || null,
+          invoiceNotes: invoiceNotes || null,
+          internalNotes: internalNotes || null,
+          sourceType: br.source_type || 'purchase_order',
+          status: 'draft',
+          createdBy: userId,
+        }).returning();
+
+        await tx.update(epcBillingReadiness)
+          .set({ status: 'invoiced', invoicedBy: userId, invoicedAt: new Date(), invoiceReference: invoiceNumber, updatedAt: new Date() })
+          .where(eq(epcBillingReadiness.id, billingReadinessId));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, 'epc_invoice.created', ${JSON.stringify({
+            invoiceId: inserted[0].id, invoiceNumber, billingReadinessId, brNumber: br.br_number,
+            billingBasis: br.billing_basis, totalAmount: br.total_amount, grossAmount: String(grossAmt),
+            projectItemId: br.project_item_id, createdBy: userId,
+          })}::jsonb, 'invoice', NOW())`);
+
+        console.log(`[INV] Invoice ${invoiceNumber} created from BR ${br.br_number} by user ${userId}`);
+        res.status(201).json({ success: true, message: `Invoice ${invoiceNumber} created`, record: inserted[0] });
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-invoices/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { approvalNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Senior Manager level and above can approve invoices.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      const inv = existing.rows[0] as any;
+
+      if (inv.status !== 'draft') {
+        return sendBusinessError(res, `Cannot approve: status is '${inv.status}', expected 'draft'.`);
+      }
+
+      if (inv.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the invoice.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcInvoices)
+          .set({ status: 'approved', approvedBy: userId, approvedAt: new Date(), approvalNote: approvalNote || null, updatedAt: new Date() })
+          .where(eq(epcInvoices.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${inv.project_id}, 'epc_invoice.approved', ${JSON.stringify({
+            invoiceId: id, invoiceNumber: inv.invoice_number, approvedBy: userId,
+            grossAmount: inv.gross_amount, billingBasis: inv.billing_basis,
+          })}::jsonb, 'invoice', NOW())`);
+      });
+
+      console.log(`[INV] ${inv.invoice_number} approved by user ${userId}`);
+      res.json({ success: true, message: `${inv.invoice_number} approved`, id, newStatus: 'approved' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-invoices/:id/issue', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { issueNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Senior Manager level and above can issue invoices.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      const inv = existing.rows[0] as any;
+
+      if (inv.status !== 'approved') {
+        return sendBusinessError(res, `Cannot issue: status is '${inv.status}', expected 'approved'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcInvoices)
+          .set({ status: 'issued', issuedBy: userId, issuedAt: new Date(), issueNote: issueNote || null, updatedAt: new Date() })
+          .where(eq(epcInvoices.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${inv.project_id}, 'epc_invoice.issued', ${JSON.stringify({
+            invoiceId: id, invoiceNumber: inv.invoice_number, issuedBy: userId,
+            grossAmount: inv.gross_amount, billingBasis: inv.billing_basis,
+          })}::jsonb, 'invoice', NOW())`);
+      });
+
+      console.log(`[INV] ${inv.invoice_number} issued by user ${userId}`);
+      res.json({ success: true, message: `${inv.invoice_number} issued`, id, newStatus: 'issued' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-invoices/:id/record-payment', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { paymentAmount, paymentNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can record payments.');
+      }
+
+      if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+        return sendValidationError(res, 'paymentAmount is required and must be greater than zero.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      const inv = existing.rows[0] as any;
+
+      if (inv.status !== 'issued' && inv.status !== 'partially_paid') {
+        return sendBusinessError(res, `Cannot record payment: status is '${inv.status}', expected 'issued' or 'partially_paid'.`);
+      }
+
+      const payment = parseFloat(paymentAmount);
+      const currentPaid = parseFloat(inv.amount_paid || '0');
+      const gross = parseFloat(inv.gross_amount || '0');
+      const newPaid = currentPaid + payment;
+
+      if (newPaid > gross) {
+        return sendBusinessError(res, `Payment of ${payment} would exceed gross amount ${gross}. Current paid: ${currentPaid}, remaining: ${gross - currentPaid}.`);
+      }
+
+      const newOutstanding = gross - newPaid;
+      const newStatus = newPaid >= gross ? 'paid' : 'partially_paid';
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcInvoices)
+          .set({
+            status: newStatus, amountPaid: String(newPaid), amountOutstanding: String(newOutstanding),
+            updatedAt: new Date(),
+          })
+          .where(eq(epcInvoices.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${inv.project_id}, 'epc_invoice.payment_recorded', ${JSON.stringify({
+            invoiceId: id, invoiceNumber: inv.invoice_number, recordedBy: userId,
+            paymentAmount: payment, totalPaid: newPaid, outstanding: newOutstanding,
+            newStatus, billingBasis: inv.billing_basis, paymentNote: paymentNote || null,
+          })}::jsonb, 'invoice', NOW())`);
+      });
+
+      console.log(`[INV] ${inv.invoice_number} payment ${payment} recorded by user ${userId}, new status: ${newStatus}`);
+      res.json({
+        success: true, message: `Payment of ${payment} recorded on ${inv.invoice_number}`,
+        id, newStatus, amountPaid: newPaid, amountOutstanding: newOutstanding,
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-invoices/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'cancelReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      const inv = existing.rows[0] as any;
+
+      if (inv.status === 'cancelled' || inv.status === 'superseded' || inv.status === 'paid') {
+        return sendBusinessError(res, `Cannot cancel: status is '${inv.status}' (terminal state).`);
+      }
+
+      if (inv.status === 'partially_paid') {
+        return sendBusinessError(res, 'Cannot cancel a partially paid invoice. Reverse payments first or supersede.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcInvoices)
+          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .where(eq(epcInvoices.id, id));
+
+        if (inv.status === 'draft') {
+          const otherActive = await tx.execute(
+            sql`SELECT id FROM epc_invoices WHERE billing_readiness_id = ${inv.billing_readiness_id} AND id != ${id} AND status NOT IN ('cancelled', 'superseded')`
+          );
+          if (otherActive.rows.length === 0) {
+            await tx.update(epcBillingReadiness)
+              .set({ status: 'ready_for_invoice', invoicedBy: null, invoicedAt: null, invoiceReference: null, updatedAt: new Date() })
+              .where(eq(epcBillingReadiness.id, inv.billing_readiness_id));
+          }
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${inv.project_id}, 'epc_invoice.cancelled', ${JSON.stringify({
+            invoiceId: id, invoiceNumber: inv.invoice_number, cancelledBy: userId, cancelReason,
+            previousStatus: inv.status, billingBasis: inv.billing_basis,
+          })}::jsonb, 'invoice', NOW())`);
+      });
+
+      console.log(`[INV] ${inv.invoice_number} cancelled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${inv.invoice_number} cancelled`, id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/epc-invoices/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { supersessionReason, newInvoiceId } = req.body || {};
+
+      if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      const inv = existing.rows[0] as any;
+
+      if (inv.status === 'cancelled' || inv.status === 'superseded' || inv.status === 'paid') {
+        return sendBusinessError(res, `Cannot supersede: status is '${inv.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcInvoices)
+          .set({
+            status: 'superseded', supersededById: newInvoiceId || null, supersededAt: new Date(),
+            supersessionReason, updatedAt: new Date(),
+          })
+          .where(eq(epcInvoices.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${inv.project_id}, 'epc_invoice.superseded', ${JSON.stringify({
+            invoiceId: id, invoiceNumber: inv.invoice_number, supersededBy: userId,
+            supersessionReason, newInvoiceId: newInvoiceId || null,
+            previousStatus: inv.status, billingBasis: inv.billing_basis,
+          })}::jsonb, 'invoice', NOW())`);
+      });
+
+      console.log(`[INV] ${inv.invoice_number} superseded by user ${userId}: ${supersessionReason}`);
+      res.json({ success: true, message: `${inv.invoice_number} superseded`, id, newStatus: 'superseded' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/epc-invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
+      const inv = existing.rows[0] as any;
+
+      if (inv.status !== 'draft') {
+        return sendBusinessError(res, `Cannot update: only draft invoices can be edited. Current status: '${inv.status}'.`);
+      }
+
+      const allowedFields = [
+        'invoiceDate', 'dueDate', 'paymentTerms', 'invoiceNotes', 'internalNotes',
+        'discountAmount', 'discountNote', 'customerName', 'customerAddress',
+        'customerGst', 'customerPoNumber', 'customerPoDate', 'billingAddress', 'shippingAddress',
+      ];
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          if (field === 'invoiceDate' || field === 'dueDate' || field === 'customerPoDate') {
+            updates[field] = req.body[field] ? new Date(req.body[field]) : null;
+          } else {
+            updates[field] = req.body[field];
+          }
+        }
+      }
+
+      if (req.body.discountAmount !== undefined) {
+        const totalAmt = parseFloat(inv.total_amount || '0');
+        const disc = parseFloat(req.body.discountAmount || '0');
+        const taxAmt = parseFloat(inv.tax_amount || '0');
+        const newGross = totalAmt - disc + taxAmt;
+        updates.grossAmount = String(newGross);
+        updates.amountOutstanding = String(newGross - parseFloat(inv.amount_paid || '0'));
+      }
+
+      await db.update(epcInvoices).set(updates).where(eq(epcInvoices.id, id));
+
+      console.log(`[INV] ${inv.invoice_number} updated by user ${userId}`);
+      res.json({ success: true, message: `${inv.invoice_number} updated`, id });
     } catch (error) {
       sendError(res, error);
     }
