@@ -2430,6 +2430,98 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot mark ready: quantity must be greater than zero.');
       }
 
+      const classResult = await db.execute(sql`SELECT make_or_buy FROM master_items WHERE id = ${record.master_item_id}`);
+      const classification = classResult.rows.length > 0 ? (classResult.rows[0] as any).make_or_buy : null;
+      const isBuy = classification === 'Buy';
+      const isMake = classification === 'Make';
+
+      const dcResult = await db.execute(
+        sql`SELECT id, status, released_for_procurement, released_for_manufacturing, dwg_control_number
+            FROM epc_drawing_controls
+            WHERE project_item_id = ${record.project_item_id}
+              AND status NOT IN ('superseded', 'cancelled')
+            ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
+            LIMIT 1`
+      );
+      const dc = dcResult.rows.length > 0 ? (dcResult.rows[0] as any) : null;
+
+      if (!dc) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_control', reason: 'No drawing control exists', blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, 'Cannot mark ready: no drawing control exists for this item. Create and release a drawing control first.', 
+          { action: 'Create a Drawing Control for this project item, then progress it through review → approval → release.' });
+      }
+
+      if (isBuy && !dc.released_for_procurement) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_procurement_release', reason: 'Drawing not released for procurement',
+            dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for procurement. Release the drawing for procurement first.`,
+          { action: `Release drawing ${dc.dwg_control_number} for procurement (set released_for_procurement = true).` });
+      }
+
+      if (isMake && !dc.released_for_manufacturing) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_manufacturing_release', reason: 'Drawing not released for manufacturing',
+            dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for manufacturing. Release the drawing for manufacturing first.`,
+          { action: `Release drawing ${dc.dwg_control_number} for manufacturing (set released_for_manufacturing = true).` });
+      }
+
+      if (!isBuy && !isMake && dc.status !== 'released') {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_release', reason: 'Drawing not released',
+            dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
+          { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
+      }
+
+      const bomTypes = isBuy ? ['procurement', 'assembly'] : isMake ? ['manufacturing', 'assembly'] : ['procurement', 'manufacturing', 'assembly'];
+      const bomResult = await db.execute(
+        sql`SELECT id, status, bom_number, bom_type
+            FROM epc_bom_headers
+            WHERE project_item_id = ${record.project_item_id}
+              AND bom_type = ANY(${bomTypes})
+              AND status NOT IN ('superseded', 'cancelled')
+            ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
+            LIMIT 1`
+      );
+      const bom = bomResult.rows.length > 0 ? (bomResult.rows[0] as any) : null;
+
+      if (!bom) {
+        const expectedType = isBuy ? 'procurement or assembly' : isMake ? 'manufacturing or assembly' : 'any';
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            gate: 'bom_missing', reason: `No ${expectedType} BOM exists`, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: no ${expectedType} BOM exists for this item. Create and release a BOM first.`,
+          { action: `Create a ${expectedType} BOM for this project item, then progress it through review → approval → release.` });
+      }
+
+      if (bom.status !== 'released') {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
+            procurementExecId: id, projectItemId: record.project_item_id,
+            gate: 'bom_not_released', reason: `BOM ${bom.bom_number} is in '${bom.status}' status`,
+            bomNumber: bom.bom_number, bomStatus: bom.status, bomType: bom.bom_type, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: BOM ${bom.bom_number} (${bom.bom_type}) is in '${bom.status}' status. It must be released first.`,
+          { action: `Progress BOM ${bom.bom_number} through review → approval → release.` });
+      }
+
       let qualityPlanId: number | null = null;
       let poPrepId: number | null = null;
 
@@ -2787,6 +2879,98 @@ export function setupProjectRoutes(app: express.Express) {
       const qty = parseFloat(record.quantity || '0');
       if (qty <= 0) {
         return sendBusinessError(res, 'Cannot mark ready: quantity must be greater than zero.');
+      }
+
+      const classResult = await db.execute(sql`SELECT make_or_buy FROM master_items WHERE id = ${record.master_item_id}`);
+      const classification = classResult.rows.length > 0 ? (classResult.rows[0] as any).make_or_buy : null;
+      const isBuy = classification === 'Buy';
+      const isMake = classification === 'Make';
+
+      const dcResult = await db.execute(
+        sql`SELECT id, status, released_for_procurement, released_for_manufacturing, dwg_control_number
+            FROM epc_drawing_controls
+            WHERE project_item_id = ${record.project_item_id}
+              AND status NOT IN ('superseded', 'cancelled')
+            ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
+            LIMIT 1`
+      );
+      const dc = dcResult.rows.length > 0 ? (dcResult.rows[0] as any) : null;
+
+      if (!dc) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_control', reason: 'No drawing control exists', blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, 'Cannot mark ready: no drawing control exists for this item. Create and release a drawing control first.',
+          { action: 'Create a Drawing Control for this project item, then progress it through review → approval → release.' });
+      }
+
+      if (isMake && !dc.released_for_manufacturing) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_manufacturing_release', reason: 'Drawing not released for manufacturing',
+            dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for manufacturing. Release the drawing for manufacturing first.`,
+          { action: `Release drawing ${dc.dwg_control_number} for manufacturing (set released_for_manufacturing = true).` });
+      }
+
+      if (isBuy && !dc.released_for_procurement) {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_procurement_release', reason: 'Drawing not released for procurement',
+            dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for procurement. Release the drawing for procurement first.`,
+          { action: `Release drawing ${dc.dwg_control_number} for procurement (set released_for_procurement = true).` });
+      }
+
+      if (!isBuy && !isMake && dc.status !== 'released') {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            gate: 'drawing_release', reason: 'Drawing not released',
+            dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
+          { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
+      }
+
+      const bomTypes2 = isMake ? ['manufacturing', 'assembly'] : isBuy ? ['procurement', 'assembly'] : ['procurement', 'manufacturing', 'assembly'];
+      const bomResult = await db.execute(
+        sql`SELECT id, status, bom_number, bom_type
+            FROM epc_bom_headers
+            WHERE project_item_id = ${record.project_item_id}
+              AND bom_type = ANY(${bomTypes2})
+              AND status NOT IN ('superseded', 'cancelled')
+            ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
+            LIMIT 1`
+      );
+      const bom = bomResult.rows.length > 0 ? (bomResult.rows[0] as any) : null;
+
+      if (!bom) {
+        const expectedType = isMake ? 'manufacturing or assembly' : isBuy ? 'procurement or assembly' : 'any';
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            gate: 'bom_missing', reason: `No ${expectedType} BOM exists`, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: no ${expectedType} BOM exists for this item. Create and release a BOM first.`,
+          { action: `Create a ${expectedType} BOM for this project item, then progress it through review → approval → release.` });
+      }
+
+      if (bom.status !== 'released') {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
+            productionExecId: id, projectItemId: record.project_item_id,
+            gate: 'bom_not_released', reason: `BOM ${bom.bom_number} is in '${bom.status}' status`,
+            bomNumber: bom.bom_number, bomStatus: bom.status, bomType: bom.bom_type, blockedBy: userId,
+          })}::jsonb, 'gate_enforcement', NOW())`);
+        return sendBusinessError(res, `Cannot mark ready: BOM ${bom.bom_number} (${bom.bom_type}) is in '${bom.status}' status. It must be released first.`,
+          { action: `Progress BOM ${bom.bom_number} through review → approval → release.` });
       }
 
       let qualityPlanId: number | null = null;
