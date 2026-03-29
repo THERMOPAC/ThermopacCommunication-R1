@@ -3463,6 +3463,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot complete: record status is '${record.status}', expected 'in_progress'.`);
       }
 
+      let qualityLinkage: any = { linkedPOs: 0, linkedWOs: 0 };
+
       await db.transaction(async (tx) => {
         await tx.execute(
           sql`UPDATE inspection_execution_records 
@@ -3472,15 +3474,70 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE id = ${id}`
         );
 
+        if (result === 'pass' || result === 'conditional_pass') {
+          const qpResult = await tx.execute(
+            sql`SELECT qp.procurement_exec_id, qp.production_exec_id, qp.source_context
+                FROM quality_planning_records qp WHERE qp.id = ${record.quality_plan_id}`
+          );
+          const qp = qpResult.rows[0] as any;
+
+          if (qp) {
+            if (qp.procurement_exec_id) {
+              const poUpdate = await tx.execute(
+                sql`UPDATE epc_purchase_orders 
+                    SET quality_status = 'inspection_cleared', quality_cleared_by = ${userId}, quality_cleared_at = NOW(),
+                        quality_cleared_inspection_id = ${id}, quality_failure_reason = NULL, quality_failed_inspection_id = NULL, updated_at = NOW()
+                    WHERE execution_record_id = ${qp.procurement_exec_id}
+                      AND project_item_id = ${record.project_item_id}
+                      AND status NOT IN ('cancelled', 'superseded')
+                      AND quality_status != 'inspection_cleared'
+                    RETURNING id, po_number`
+              );
+              qualityLinkage.linkedPOs = poUpdate.rows.length;
+              for (const poRow of poUpdate.rows) {
+                await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+                  VALUES (${record.project_id}, 'epc_purchase_order.quality_cleared', ${JSON.stringify({
+                    epcPoId: (poRow as any).id, poNumber: (poRow as any).po_number,
+                    inspectionExecId: id, result, inspectionType: record.inspection_type,
+                    qualityPlanId: record.quality_plan_id, clearedBy: userId,
+                  })}::jsonb, 'quality_linkage', NOW())`);
+              }
+            }
+
+            if (qp.production_exec_id) {
+              const woUpdate = await tx.execute(
+                sql`UPDATE epc_work_orders 
+                    SET quality_status = 'inspection_cleared', quality_cleared_by = ${userId}, quality_cleared_at = NOW(),
+                        quality_cleared_inspection_id = ${id}, quality_failure_reason = NULL, quality_failed_inspection_id = NULL, updated_at = NOW()
+                    WHERE execution_record_id = ${qp.production_exec_id}
+                      AND project_item_id = ${record.project_item_id}
+                      AND status NOT IN ('cancelled', 'superseded')
+                      AND quality_status != 'inspection_cleared'
+                    RETURNING id, wo_number`
+              );
+              qualityLinkage.linkedWOs = woUpdate.rows.length;
+              for (const woRow of woUpdate.rows) {
+                await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+                  VALUES (${record.project_id}, 'epc_work_order.quality_cleared', ${JSON.stringify({
+                    epcWoId: (woRow as any).id, woNumber: (woRow as any).wo_number,
+                    inspectionExecId: id, result, inspectionType: record.inspection_type,
+                    qualityPlanId: record.quality_plan_id, clearedBy: userId,
+                  })}::jsonb, 'quality_linkage', NOW())`);
+              }
+            }
+          }
+        }
+
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${record.project_id}, 'inspection_execution.completed', ${JSON.stringify({
             inspectionExecId: id, qualityPlanId: record.quality_plan_id,
             projectItemId: record.project_item_id, completedBy: userId, result,
+            qualityLinkage,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[InspectionExec] Record ${id} completed with result '${result}' by user ${userId}`);
-      res.json({ success: true, message: 'Inspection execution completed', id, newStatus: 'completed', result });
+      console.log(`[InspectionExec] Record ${id} completed with result '${result}' by user ${userId}. Quality linkage: POs=${qualityLinkage.linkedPOs}, WOs=${qualityLinkage.linkedWOs}`);
+      res.json({ success: true, message: 'Inspection execution completed', id, newStatus: 'completed', result, qualityLinkage });
     } catch (error) {
       sendError(res, error);
     }
@@ -3503,6 +3560,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot fail: record status is '${record.status}', expected 'in_progress'.`);
       }
 
+      let qualityLinkage: any = { blockedPOs: 0, blockedWOs: 0, ncrTaskId: null };
+
       await db.transaction(async (tx) => {
         await tx.execute(
           sql`UPDATE inspection_execution_records 
@@ -3511,15 +3570,90 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE id = ${id}`
         );
 
+        const qpResult = await tx.execute(
+          sql`SELECT qp.procurement_exec_id, qp.production_exec_id, qp.source_context
+              FROM quality_planning_records qp WHERE qp.id = ${record.quality_plan_id}`
+        );
+        const qp = qpResult.rows[0] as any;
+
+        if (qp) {
+          if (qp.procurement_exec_id) {
+            const poBlock = await tx.execute(
+              sql`UPDATE epc_purchase_orders 
+                  SET quality_status = 'inspection_failed', quality_failure_reason = ${failureReason},
+                      quality_failed_inspection_id = ${id}, updated_at = NOW()
+                  WHERE execution_record_id = ${qp.procurement_exec_id}
+                    AND project_item_id = ${record.project_item_id}
+                    AND status NOT IN ('cancelled', 'superseded')
+                    AND quality_status != 'inspection_failed'
+                  RETURNING id, po_number`
+            );
+            qualityLinkage.blockedPOs = poBlock.rows.length;
+            for (const poRow of poBlock.rows) {
+              await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+                VALUES (${record.project_id}, 'epc_purchase_order.quality_blocked', ${JSON.stringify({
+                  epcPoId: (poRow as any).id, poNumber: (poRow as any).po_number,
+                  inspectionExecId: id, failureReason, inspectionType: record.inspection_type,
+                  qualityPlanId: record.quality_plan_id, blockedBy: userId,
+                })}::jsonb, 'quality_linkage', NOW())`);
+            }
+          }
+
+          if (qp.production_exec_id) {
+            const woBlock = await tx.execute(
+              sql`UPDATE epc_work_orders 
+                  SET quality_status = 'inspection_failed', quality_failure_reason = ${failureReason},
+                      quality_failed_inspection_id = ${id}, updated_at = NOW()
+                  WHERE execution_record_id = ${qp.production_exec_id}
+                    AND project_item_id = ${record.project_item_id}
+                    AND status NOT IN ('cancelled', 'superseded')
+                    AND quality_status != 'inspection_failed'
+                  RETURNING id, wo_number`
+            );
+            qualityLinkage.blockedWOs = woBlock.rows.length;
+            for (const woRow of woBlock.rows) {
+              await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+                VALUES (${record.project_id}, 'epc_work_order.quality_blocked', ${JSON.stringify({
+                  epcWoId: (woRow as any).id, woNumber: (woRow as any).wo_number,
+                  inspectionExecId: id, failureReason, inspectionType: record.inspection_type,
+                  qualityPlanId: record.quality_plan_id, blockedBy: userId,
+                })}::jsonb, 'quality_linkage', NOW())`);
+            }
+          }
+        }
+
+        const existingNcr = await tx.execute(
+          sql`SELECT id FROM tasks 
+              WHERE source_type = 'inspection_ncr' AND source_id = ${id}
+              LIMIT 1`
+        );
+        if (existingNcr.rows.length === 0) {
+          const itemDesc = record.item_description || record.item_code || 'Unknown Item';
+          const inspType = record.inspection_type || 'general';
+          const ncrTitle = `[NCR] Inspection Failed: ${itemDesc} (${inspType})`;
+          const ncrDesc = `Non-Conformance Report for failed inspection execution #${id}.\n\nItem: ${itemDesc}\nInspection Type: ${inspType}\nFailure Reason: ${failureReason}\n${findings ? `Findings: ${findings}` : ''}\n\nProject Item ID: ${record.project_item_id}\nQuality Plan ID: ${record.quality_plan_id}`;
+
+          const ncrResult = await tx.execute(
+            sql`INSERT INTO tasks (title, description, status, priority, category, source_type, source_id, source_agent, created_by, created_at, due_date)
+                VALUES (${ncrTitle}, ${ncrDesc}, 'pending', 'high', 'Quality', 'inspection_ncr', ${id}, 'quality_linkage', ${userId}, NOW(), ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]})
+                RETURNING id`
+          );
+          qualityLinkage.ncrTaskId = (ncrResult.rows[0] as any).id;
+        } else {
+          qualityLinkage.ncrTaskId = (existingNcr.rows[0] as any).id;
+          qualityLinkage.ncrAlreadyExists = true;
+        }
+
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${record.project_id}, 'inspection_execution.failed', ${JSON.stringify({
             inspectionExecId: id, qualityPlanId: record.quality_plan_id,
             projectItemId: record.project_item_id, failedBy: userId, failureReason,
+            qualityLinkage,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[InspectionExec] Record ${id} failed by user ${userId}: ${failureReason}`);
-      res.json({ success: true, message: 'Inspection execution marked as failed', id, newStatus: 'failed' });
+      console.log(`[InspectionExec] Record ${id} failed by user ${userId}: ${failureReason}. Quality linkage: POs=${qualityLinkage.blockedPOs}, WOs=${qualityLinkage.blockedWOs}, NCR task=${qualityLinkage.ncrTaskId}`);
+      res.json({ success: true, message: 'Inspection execution marked as failed', id, newStatus: 'failed', qualityLinkage });
     } catch (error) {
       sendError(res, error);
     }
@@ -4372,6 +4506,14 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot issue: PO status is '${po.status}', expected 'approved'.`);
       }
 
+      if (po.quality_status === 'inspection_failed') {
+        return sendBusinessError(res, `Cannot issue: PO has failed quality inspection. Resolve the NCR before issuing.`);
+      }
+
+      if (po.quality_status === 'pending_inspection') {
+        return sendBusinessError(res, `Cannot issue: PO is pending quality inspection clearance.`);
+      }
+
       if (po.approved_by === userId) {
         return sendBusinessError(res, 'Self-action prevented: the approver cannot also issue the same purchase order. A different authorized user must issue it.');
       }
@@ -4713,6 +4855,14 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (wo.status !== 'approved') {
         return sendBusinessError(res, `Cannot release: WO status is '${wo.status}', expected 'approved'.`);
+      }
+
+      if (wo.quality_status === 'inspection_failed') {
+        return sendBusinessError(res, `Cannot release: WO has failed quality inspection. Resolve the NCR before releasing.`);
+      }
+
+      if (wo.quality_status === 'pending_inspection') {
+        return sendBusinessError(res, `Cannot release: WO is pending quality inspection clearance.`);
       }
 
       if (wo.approved_by === userId) {
