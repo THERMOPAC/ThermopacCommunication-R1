@@ -26,6 +26,7 @@ import {
   epcWorkOrders,
   epcWorkOrderItems,
   epcDispatchReadiness,
+  epcDispatchRecords,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -5390,6 +5391,442 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[DR] ${dr.dr_number} updated by user ${userId}`);
       res.json({ success: true, message: `${dr.dr_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC DISPATCH RECORDS BRIDGE ====================
+
+  app.get('/api/projects/:projectId/dispatch-records', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const result = await db.execute(
+        sql`SELECT d.*, 
+              u1.username AS created_by_name, u2.username AS confirmed_by_name,
+              u3.username AS shipped_by_name, u4.username AS delivered_by_name,
+              u5.username AS cancelled_by_name, u6.username AS delivery_confirmed_by_name,
+              pi.description AS project_item_description,
+              dr.dr_number, po.po_number, wo.wo_number
+            FROM epc_dispatch_records d
+            LEFT JOIN users u1 ON d.created_by = u1.id
+            LEFT JOIN users u2 ON d.confirmed_by = u2.id
+            LEFT JOIN users u3 ON d.shipped_by = u3.id
+            LEFT JOIN users u4 ON d.delivered_by = u4.id
+            LEFT JOIN users u5 ON d.cancelled_by = u5.id
+            LEFT JOIN users u6 ON d.delivery_confirmed_by = u6.id
+            LEFT JOIN project_items pi ON d.project_item_id = pi.id
+            LEFT JOIN epc_dispatch_readiness dr ON d.dispatch_readiness_id = dr.id
+            LEFT JOIN epc_purchase_orders po ON d.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON d.epc_work_order_id = wo.id
+            WHERE d.project_id = ${projectId}
+            ORDER BY d.created_at DESC`
+      );
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/dispatch-records/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await db.execute(
+        sql`SELECT d.*, 
+              u1.username AS created_by_name, u2.username AS confirmed_by_name,
+              u3.username AS shipped_by_name, u4.username AS delivered_by_name,
+              u5.username AS cancelled_by_name, u6.username AS delivery_confirmed_by_name,
+              pi.description AS project_item_description,
+              dr.dr_number, po.po_number, wo.wo_number
+            FROM epc_dispatch_records d
+            LEFT JOIN users u1 ON d.created_by = u1.id
+            LEFT JOIN users u2 ON d.confirmed_by = u2.id
+            LEFT JOIN users u3 ON d.shipped_by = u3.id
+            LEFT JOIN users u4 ON d.delivered_by = u4.id
+            LEFT JOIN users u5 ON d.cancelled_by = u5.id
+            LEFT JOIN users u6 ON d.delivery_confirmed_by = u6.id
+            LEFT JOIN project_items pi ON d.project_item_id = pi.id
+            LEFT JOIN epc_dispatch_readiness dr ON d.dispatch_readiness_id = dr.id
+            LEFT JOIN epc_purchase_orders po ON d.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON d.epc_work_order_id = wo.id
+            WHERE d.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/projects/:projectId/dispatch-records', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const {
+        dispatchReadinessId, dispatchDate, transporterName, transporterContact,
+        vehicleNumber, trackingNumber, lrNumber, lrDate, logisticsNotes,
+        deliveryAddress, expectedDeliveryDate, dispatchNotes,
+      } = req.body;
+
+      if (!dispatchReadinessId) {
+        return sendValidationError(res, 'dispatchReadinessId is required.');
+      }
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can create dispatch records.');
+      }
+
+      const drResult = await db.execute(
+        sql`SELECT * FROM epc_dispatch_readiness WHERE id = ${dispatchReadinessId} AND project_id = ${projectId}`
+      );
+      if (drResult.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found in this project');
+      const dr = drResult.rows[0] as any;
+
+      if (dr.status !== 'ready_for_dispatch' && dr.status !== 'dispatched') {
+        return sendBusinessError(res, `Cannot create dispatch record: readiness status is '${dr.status}', expected 'ready_for_dispatch' or 'dispatched'.`);
+      }
+
+      const existingCheck = await db.execute(
+        sql`SELECT id, dispatch_number FROM epc_dispatch_records 
+            WHERE dispatch_readiness_id = ${dispatchReadinessId}
+              AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingCheck.rows.length > 0) {
+        const existing = existingCheck.rows[0] as any;
+        return sendBusinessError(res, `Active dispatch record ${existing.dispatch_number} already exists for this readiness record (id: ${existing.id}). Cancel or supersede it first.`);
+      }
+
+      const year = new Date().getFullYear();
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dispatch_number FROM 'DISP-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_dispatch_records WHERE dispatch_number LIKE ${`DISP-${year}-%`}`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq;
+      const dispatchNumber = `DISP-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(epcDispatchRecords).values({
+          dispatchNumber,
+          projectId,
+          projectItemId: dr.project_item_id,
+          dispatchReadinessId,
+          epcPurchaseOrderId: dr.epc_purchase_order_id || null,
+          epcWorkOrderId: dr.epc_work_order_id || null,
+          inspectionExecutionId: dr.inspection_execution_id || null,
+          qualityPlanId: dr.quality_plan_id || null,
+          masterItemId: dr.master_item_id,
+          itemCode: dr.item_code,
+          itemDescription: dr.item_description,
+          itemSpecification: dr.item_specification,
+          uom: dr.uom,
+          quantity: dr.quantity,
+          dispatchQuantity: dr.dispatch_quantity || dr.quantity,
+          packagingType: dr.packaging_type,
+          packagingNotes: dr.packaging_notes,
+          shippingMethod: dr.shipping_method,
+          shippingNotes: dr.shipping_notes,
+          dispatchNotes: dispatchNotes || dr.dispatch_notes,
+          specialHandling: dr.special_handling,
+          destinationAddress: dr.destination_address,
+          qualityClearanceDate: dr.quality_clearance_date,
+          qualityClearanceReference: dr.quality_clearance_reference,
+          sourceType: dr.source_type,
+          dispatchDate: dispatchDate ? new Date(dispatchDate) : null,
+          transporterName: transporterName || null,
+          transporterContact: transporterContact || null,
+          vehicleNumber: vehicleNumber || null,
+          trackingNumber: trackingNumber || null,
+          lrNumber: lrNumber || null,
+          lrDate: lrDate ? new Date(lrDate) : null,
+          logisticsNotes: logisticsNotes || null,
+          deliveryAddress: deliveryAddress || dr.destination_address,
+          expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
+          status: 'draft',
+          createdBy: userId,
+        }).returning();
+
+        if (dr.status === 'ready_for_dispatch') {
+          await tx.update(epcDispatchReadiness)
+            .set({ status: 'dispatched', dispatchedBy: userId, dispatchedAt: new Date(), dispatchReference: dispatchNumber, updatedAt: new Date() })
+            .where(eq(epcDispatchReadiness.id, dispatchReadinessId));
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, 'dispatch_record.created', ${JSON.stringify({
+            dispatchId: inserted[0].id, dispatchNumber, dispatchReadinessId, drNumber: dr.dr_number,
+            projectItemId: dr.project_item_id, masterItemId: dr.master_item_id,
+            sourceType: dr.source_type, quantity: dr.dispatch_quantity || dr.quantity,
+            createdBy: userId,
+          })}::jsonb, 'dispatch_execution', NOW())`);
+
+        console.log(`[DISP] Dispatch record ${dispatchNumber} created from readiness ${dr.dr_number} by user ${userId}`);
+        res.status(201).json({ success: true, message: `Dispatch record ${dispatchNumber} created`, record: inserted[0] });
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/dispatch-records/:id/confirm', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { confirmationNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can confirm dispatch records.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      const d = existing.rows[0] as any;
+
+      if (d.status !== 'draft') {
+        return sendBusinessError(res, `Cannot confirm: status is '${d.status}', expected 'draft'.`);
+      }
+
+      if (d.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also confirm the same dispatch record.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDispatchRecords)
+          .set({ status: 'confirmed', confirmedBy: userId, confirmedAt: new Date(), confirmationNote: confirmationNote || null, updatedAt: new Date() })
+          .where(eq(epcDispatchRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${d.project_id}, 'dispatch_record.confirmed', ${JSON.stringify({
+            dispatchId: id, dispatchNumber: d.dispatch_number, confirmedBy: userId,
+            projectItemId: d.project_item_id,
+          })}::jsonb, 'dispatch_execution', NOW())`);
+      });
+
+      console.log(`[DISP] ${d.dispatch_number} confirmed by user ${userId}`);
+      res.json({ success: true, message: `${d.dispatch_number} confirmed`, id, newStatus: 'confirmed' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/dispatch-records/:id/ship', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { shipmentNote, transporterName, vehicleNumber, trackingNumber, lrNumber, lrDate } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can mark dispatch as shipped.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      const d = existing.rows[0] as any;
+
+      if (d.status !== 'confirmed') {
+        return sendBusinessError(res, `Cannot ship: status is '${d.status}', expected 'confirmed'.`);
+      }
+
+      const updateFields: Record<string, any> = {
+        status: 'shipped', shippedBy: userId, shippedAt: new Date(),
+        shipmentNote: shipmentNote || null, updatedAt: new Date(),
+        dispatchDate: d.dispatch_date || new Date(),
+      };
+      if (transporterName) updateFields.transporterName = transporterName;
+      if (vehicleNumber) updateFields.vehicleNumber = vehicleNumber;
+      if (trackingNumber) updateFields.trackingNumber = trackingNumber;
+      if (lrNumber) updateFields.lrNumber = lrNumber;
+      if (lrDate) updateFields.lrDate = new Date(lrDate);
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDispatchRecords).set(updateFields).where(eq(epcDispatchRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${d.project_id}, 'dispatch_record.shipped', ${JSON.stringify({
+            dispatchId: id, dispatchNumber: d.dispatch_number, shippedBy: userId,
+            projectItemId: d.project_item_id, transporterName: transporterName || d.transporter_name,
+            vehicleNumber: vehicleNumber || d.vehicle_number,
+          })}::jsonb, 'dispatch_execution', NOW())`);
+      });
+
+      console.log(`[DISP] ${d.dispatch_number} shipped by user ${userId}`);
+      res.json({ success: true, message: `${d.dispatch_number} marked as shipped`, id, newStatus: 'shipped' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/dispatch-records/:id/deliver', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { deliveryNote, actualDeliveryDate } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can confirm delivery.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      const d = existing.rows[0] as any;
+
+      if (d.status !== 'shipped') {
+        return sendBusinessError(res, `Cannot mark delivered: status is '${d.status}', expected 'shipped'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDispatchRecords)
+          .set({
+            status: 'delivered', deliveredBy: userId, deliveredAt: new Date(),
+            deliveryNote: deliveryNote || null,
+            actualDeliveryDate: actualDeliveryDate ? new Date(actualDeliveryDate) : new Date(),
+            deliveryConfirmedBy: userId,
+            updatedAt: new Date(),
+          })
+          .where(eq(epcDispatchRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${d.project_id}, 'dispatch_record.delivered', ${JSON.stringify({
+            dispatchId: id, dispatchNumber: d.dispatch_number, deliveredBy: userId,
+            projectItemId: d.project_item_id,
+            actualDeliveryDate: actualDeliveryDate || new Date().toISOString(),
+          })}::jsonb, 'dispatch_execution', NOW())`);
+      });
+
+      console.log(`[DISP] ${d.dispatch_number} delivered, confirmed by user ${userId}`);
+      res.json({ success: true, message: `${d.dispatch_number} marked as delivered`, id, newStatus: 'delivered' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/dispatch-records/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'cancelReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      const d = existing.rows[0] as any;
+
+      if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
+        return sendBusinessError(res, `Cannot cancel: status is '${d.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDispatchRecords)
+          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .where(eq(epcDispatchRecords.id, id));
+
+        if (d.status !== 'shipped') {
+          const otherActive = await tx.execute(
+            sql`SELECT id FROM epc_dispatch_records 
+                WHERE dispatch_readiness_id = ${d.dispatch_readiness_id} 
+                  AND id != ${id} AND status NOT IN ('cancelled', 'superseded')`
+          );
+          if (otherActive.rows.length === 0) {
+            await tx.update(epcDispatchReadiness)
+              .set({ status: 'ready_for_dispatch', dispatchedBy: null, dispatchedAt: null, dispatchReference: null, updatedAt: new Date() })
+              .where(eq(epcDispatchReadiness.id, d.dispatch_readiness_id));
+          }
+        }
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${d.project_id}, 'dispatch_record.cancelled', ${JSON.stringify({
+            dispatchId: id, dispatchNumber: d.dispatch_number, cancelledBy: userId,
+            cancelReason, previousStatus: d.status, projectItemId: d.project_item_id,
+          })}::jsonb, 'dispatch_execution', NOW())`);
+      });
+
+      console.log(`[DISP] ${d.dispatch_number} cancelled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${d.dispatch_number} cancelled`, id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/dispatch-records/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { supersessionReason, newDispatchId } = req.body || {};
+
+      if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      const d = existing.rows[0] as any;
+
+      if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
+        return sendBusinessError(res, `Cannot supersede: status is '${d.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcDispatchRecords)
+          .set({
+            status: 'superseded', supersededById: newDispatchId || null, supersededAt: new Date(),
+            supersessionReason, updatedAt: new Date(),
+          })
+          .where(eq(epcDispatchRecords.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${d.project_id}, 'dispatch_record.superseded', ${JSON.stringify({
+            dispatchId: id, dispatchNumber: d.dispatch_number, supersededBy: userId,
+            supersessionReason, newDispatchId: newDispatchId || null,
+            previousStatus: d.status, projectItemId: d.project_item_id,
+          })}::jsonb, 'dispatch_execution', NOW())`);
+      });
+
+      console.log(`[DISP] ${d.dispatch_number} superseded by user ${userId}: ${supersessionReason}`);
+      res.json({ success: true, message: `${d.dispatch_number} superseded`, id, newStatus: 'superseded' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/dispatch-records/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
+      const d = existing.rows[0] as any;
+
+      if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
+        return sendBusinessError(res, `Cannot update: status is '${d.status}' (terminal state).`);
+      }
+
+      const allowedFields = [
+        'dispatchDate', 'transporterName', 'transporterContact', 'vehicleNumber',
+        'trackingNumber', 'lrNumber', 'lrDate', 'logisticsNotes', 'deliveryAddress',
+        'expectedDeliveryDate', 'dispatchNotes', 'shippingNotes', 'specialHandling',
+      ];
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          if (['dispatchDate', 'lrDate', 'expectedDeliveryDate'].includes(field)) {
+            updates[field] = req.body[field] ? new Date(req.body[field]) : null;
+          } else {
+            updates[field] = req.body[field];
+          }
+        }
+      }
+
+      await db.update(epcDispatchRecords).set(updates).where(eq(epcDispatchRecords.id, id));
+
+      console.log(`[DISP] ${d.dispatch_number} updated by user ${userId}`);
+      res.json({ success: true, message: `${d.dispatch_number} updated`, id });
     } catch (error) {
       sendError(res, error);
     }
