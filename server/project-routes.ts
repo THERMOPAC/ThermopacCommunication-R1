@@ -27,6 +27,7 @@ import {
   epcWorkOrderItems,
   epcDispatchReadiness,
   epcDispatchRecords,
+  epcCommissioningReadiness,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -5827,6 +5828,458 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[DISP] ${d.dispatch_number} updated by user ${userId}`);
       res.json({ success: true, message: `${d.dispatch_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC COMMISSIONING / HANDOVER READINESS BRIDGE ====================
+
+  app.get('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const result = await db.execute(
+        sql`SELECT c.*,
+              u1.username AS created_by_name, u2.username AS prepared_by_name,
+              u3.username AS ready_marked_by_name, u4.username AS commissioned_by_name,
+              u5.username AS handed_over_by_name, u6.username AS cancelled_by_name,
+              pi.description AS project_item_description,
+              d.dispatch_number AS linked_dispatch_number, po.po_number, wo.wo_number
+            FROM epc_commissioning_readiness c
+            LEFT JOIN users u1 ON c.created_by = u1.id
+            LEFT JOIN users u2 ON c.prepared_by = u2.id
+            LEFT JOIN users u3 ON c.ready_marked_by = u3.id
+            LEFT JOIN users u4 ON c.commissioned_by = u4.id
+            LEFT JOIN users u5 ON c.handed_over_by = u5.id
+            LEFT JOIN users u6 ON c.cancelled_by = u6.id
+            LEFT JOIN project_items pi ON c.project_item_id = pi.id
+            LEFT JOIN epc_dispatch_records d ON c.dispatch_record_id = d.id
+            LEFT JOIN epc_purchase_orders po ON c.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON c.epc_work_order_id = wo.id
+            WHERE c.project_id = ${projectId}
+            ORDER BY c.created_at DESC`
+      );
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/commissioning-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await db.execute(
+        sql`SELECT c.*,
+              u1.username AS created_by_name, u2.username AS prepared_by_name,
+              u3.username AS ready_marked_by_name, u4.username AS commissioned_by_name,
+              u5.username AS handed_over_by_name, u6.username AS cancelled_by_name,
+              pi.description AS project_item_description,
+              d.dispatch_number AS linked_dispatch_number, po.po_number, wo.wo_number
+            FROM epc_commissioning_readiness c
+            LEFT JOIN users u1 ON c.created_by = u1.id
+            LEFT JOIN users u2 ON c.prepared_by = u2.id
+            LEFT JOIN users u3 ON c.ready_marked_by = u3.id
+            LEFT JOIN users u4 ON c.commissioned_by = u4.id
+            LEFT JOIN users u5 ON c.handed_over_by = u5.id
+            LEFT JOIN users u6 ON c.cancelled_by = u6.id
+            LEFT JOIN project_items pi ON c.project_item_id = pi.id
+            LEFT JOIN epc_dispatch_records d ON c.dispatch_record_id = d.id
+            LEFT JOIN epc_purchase_orders po ON c.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON c.epc_work_order_id = wo.id
+            WHERE c.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const {
+        dispatchRecordId, siteName, siteAddress, siteContactPerson, siteContactPhone,
+        installationRequired, installationNotes, trainingRequired, trainingNotes,
+        commissioningNotes,
+      } = req.body;
+
+      if (!dispatchRecordId) {
+        return sendValidationError(res, 'dispatchRecordId is required.');
+      }
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can create commissioning readiness records.');
+      }
+
+      const dispResult = await db.execute(
+        sql`SELECT * FROM epc_dispatch_records WHERE id = ${dispatchRecordId} AND project_id = ${projectId}`
+      );
+      if (dispResult.rows.length === 0) return sendNotFound(res, 'Dispatch record not found in this project');
+      const disp = dispResult.rows[0] as any;
+
+      if (disp.status !== 'shipped' && disp.status !== 'delivered') {
+        return sendBusinessError(res, `Cannot create commissioning readiness: dispatch status is '${disp.status}', expected 'shipped' or 'delivered'.`);
+      }
+
+      const existingCheck = await db.execute(
+        sql`SELECT id, cr_number FROM epc_commissioning_readiness
+            WHERE dispatch_record_id = ${dispatchRecordId}
+              AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingCheck.rows.length > 0) {
+        const existing = existingCheck.rows[0] as any;
+        return sendBusinessError(res, `Active commissioning readiness ${existing.cr_number} already exists for this dispatch record (id: ${existing.id}).`);
+      }
+
+      const year = new Date().getFullYear();
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(cr_number FROM 'CR-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_commissioning_readiness WHERE cr_number LIKE ${`CR-${year}-%`}`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq;
+      const crNumber = `CR-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(epcCommissioningReadiness).values({
+          crNumber,
+          projectId,
+          projectItemId: disp.project_item_id,
+          dispatchRecordId,
+          dispatchReadinessId: disp.dispatch_readiness_id || null,
+          epcPurchaseOrderId: disp.epc_purchase_order_id || null,
+          epcWorkOrderId: disp.epc_work_order_id || null,
+          inspectionExecutionId: disp.inspection_execution_id || null,
+          qualityPlanId: disp.quality_plan_id || null,
+          masterItemId: disp.master_item_id,
+          itemCode: disp.item_code,
+          itemDescription: disp.item_description,
+          itemSpecification: disp.item_specification,
+          uom: disp.uom,
+          quantity: disp.dispatch_quantity || disp.quantity,
+          dispatchNumber: disp.dispatch_number,
+          dispatchDate: disp.dispatch_date,
+          deliveryDate: disp.actual_delivery_date || disp.expected_delivery_date,
+          siteName: siteName || null,
+          siteAddress: siteAddress || disp.delivery_address,
+          siteContactPerson: siteContactPerson || null,
+          siteContactPhone: siteContactPhone || null,
+          installationRequired: installationRequired !== undefined ? installationRequired : true,
+          installationNotes: installationNotes || null,
+          trainingRequired: trainingRequired !== undefined ? trainingRequired : false,
+          trainingNotes: trainingNotes || null,
+          commissioningNotes: commissioningNotes || null,
+          qualityClearanceReference: disp.quality_clearance_reference,
+          sourceType: disp.source_type,
+          status: 'draft',
+          createdBy: userId,
+        }).returning();
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, 'commissioning_readiness.created', ${JSON.stringify({
+            crId: inserted[0].id, crNumber, dispatchRecordId, dispatchNumber: disp.dispatch_number,
+            projectItemId: disp.project_item_id, masterItemId: disp.master_item_id,
+            sourceType: disp.source_type, createdBy: userId,
+          })}::jsonb, 'commissioning', NOW())`);
+
+        console.log(`[CR] Commissioning readiness ${crNumber} created from dispatch ${disp.dispatch_number} by user ${userId}`);
+        res.status(201).json({ success: true, message: `Commissioning readiness ${crNumber} created`, record: inserted[0] });
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { preparationNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'draft') {
+        return sendBusinessError(res, `Cannot start preparation: status is '${cr.status}', expected 'draft'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({ status: 'under_preparation', preparedBy: userId, preparedAt: new Date(), preparationNote: preparationNote || null, updatedAt: new Date() })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.preparation_started', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, preparedBy: userId, projectItemId: cr.project_item_id,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} moved to under_preparation by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} preparation started`, id, newStatus: 'under_preparation' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { readyNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can mark commissioning as ready.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'under_preparation') {
+        return sendBusinessError(res, `Cannot mark ready: status is '${cr.status}', expected 'under_preparation'.`);
+      }
+
+      if (!cr.site_readiness_confirmed) {
+        return sendBusinessError(res, 'Cannot mark ready: site readiness has not been confirmed. Update site_readiness_confirmed first.');
+      }
+
+      if (!cr.documentation_complete) {
+        return sendBusinessError(res, 'Cannot mark ready: documentation is not complete. Update documentation_complete first.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({ status: 'ready_for_commissioning', readyMarkedBy: userId, readyMarkedAt: new Date(), readyNote: readyNote || null, updatedAt: new Date() })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.marked_ready', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, readyMarkedBy: userId, projectItemId: cr.project_item_id,
+            siteReadinessConfirmed: true, documentationComplete: true,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} marked ready_for_commissioning by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} is ready for commissioning`, id, newStatus: 'ready_for_commissioning' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/commission', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { commissioningNote, commissioningDate } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can commission items.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'ready_for_commissioning') {
+        return sendBusinessError(res, `Cannot commission: status is '${cr.status}', expected 'ready_for_commissioning'.`);
+      }
+
+      if (cr.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also commission the same record.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({
+            status: 'commissioned', commissionedBy: userId, commissionedAt: new Date(),
+            commissioningNote: commissioningNote || null,
+            commissioningDate: commissioningDate ? new Date(commissioningDate) : new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.commissioned', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, commissionedBy: userId, projectItemId: cr.project_item_id,
+            commissioningDate: commissioningDate || new Date().toISOString(),
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} commissioned by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} commissioned`, id, newStatus: 'commissioned' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/handover', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { handoverNotes, handoverDate, handoverAcceptedBy, handoverAcceptanceNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Senior Manager level and above can execute handover.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'commissioned') {
+        return sendBusinessError(res, `Cannot handover: status is '${cr.status}', expected 'commissioned'.`);
+      }
+
+      if (!cr.test_certificates_available) {
+        return sendBusinessError(res, 'Cannot handover: test certificates are not available.');
+      }
+
+      if (cr.training_required && !cr.training_notes) {
+        return sendBusinessError(res, 'Cannot handover: training is required but no training notes/confirmation provided.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({
+            status: 'handed_over', handedOverBy: userId, handedOverAt: new Date(),
+            handoverDate: handoverDate ? new Date(handoverDate) : new Date(),
+            handoverNotes: handoverNotes || cr.handover_notes,
+            handoverAcceptedBy: handoverAcceptedBy || null,
+            handoverAcceptanceNote: handoverAcceptanceNote || null,
+            updatedAt: new Date(),
+          })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.handed_over', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, handedOverBy: userId, projectItemId: cr.project_item_id,
+            handoverDate: handoverDate || new Date().toISOString(),
+            handoverAcceptedBy: handoverAcceptedBy || null,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} handed over by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} handed over`, id, newStatus: 'handed_over' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'cancelReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over') {
+        return sendBusinessError(res, `Cannot cancel: status is '${cr.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.cancelled', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, cancelledBy: userId, cancelReason,
+            previousStatus: cr.status, projectItemId: cr.project_item_id,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} cancelled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${cr.cr_number} cancelled`, id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { supersessionReason, newCrId } = req.body || {};
+
+      if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over') {
+        return sendBusinessError(res, `Cannot supersede: status is '${cr.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({
+            status: 'superseded', supersededById: newCrId || null, supersededAt: new Date(),
+            supersessionReason, updatedAt: new Date(),
+          })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.superseded', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, supersededBy: userId, supersessionReason,
+            newCrId: newCrId || null, previousStatus: cr.status, projectItemId: cr.project_item_id,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} superseded by user ${userId}: ${supersessionReason}`);
+      res.json({ success: true, message: `${cr.cr_number} superseded`, id, newStatus: 'superseded' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/commissioning-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over') {
+        return sendBusinessError(res, `Cannot update: status is '${cr.status}' (terminal state).`);
+      }
+
+      const allowedFields = [
+        'siteName', 'siteAddress', 'siteContactPerson', 'siteContactPhone',
+        'siteReadinessConfirmed', 'siteReadinessNote', 'installationRequired', 'installationNotes',
+        'utilitiesConfirmed', 'utilitiesNote', 'documentationComplete', 'documentationNote',
+        'testCertificatesAvailable', 'warrantyDocumentsAvailable', 'operationManualAvailable',
+        'sparePartsListAvailable', 'trainingRequired', 'trainingNotes',
+        'commissioningNotes', 'handoverNotes',
+      ];
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+
+      await db.update(epcCommissioningReadiness).set(updates).where(eq(epcCommissioningReadiness.id, id));
+
+      console.log(`[CR] ${cr.cr_number} updated by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} updated`, id });
     } catch (error) {
       sendError(res, error);
     }
