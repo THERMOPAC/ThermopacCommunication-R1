@@ -16,3 +16,4 @@ export const ProcurementTrackingPage = lazyWithRetry(() => import("@/pages/procu
 export const ProjectCommissioningPage = lazyWithRetry(() => import("@/pages/project-commissioning-page"));
 export const DispatchShippingPage = lazyWithRetry(() => import("@/pages/dispatch-shipping-page"));
 export const AfterSalesPage = lazyWithRetry(() => import("@/pages/after-sales-page"));
+export const ExecutionControlDashboard = lazyWithRetry(() => import("@/pages/execution-control-dashboard"));

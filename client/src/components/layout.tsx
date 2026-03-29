@@ -385,7 +385,8 @@ function Layout({ children }: LayoutProps) {
         { icon: BarChart4, label: "Project Dashboard", href: "/project-dashboard" },
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
-        { icon: Palette, label: "Design Tools", href: "/design-tools" }
+        { icon: Palette, label: "Design Tools", href: "/design-tools" },
+        { icon: ClipboardCheck, label: "Execution Control", href: "/execution-control" }
       ]
     }] : []),
     ...(hasViewPermission("Design Management") ? [{ 
