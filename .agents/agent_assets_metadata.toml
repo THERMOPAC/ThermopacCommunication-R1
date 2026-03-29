@@ -60,3 +60,9 @@ id = "uwa9IumI5jyVNOcJZaf7u"
 uri = "file://.local/epc-kickoff-automation-plan.md"
 type = "text"
 title = "EPC Project Kickoff — First Automation Slice Design"
+
+[[outputs]]
+id = "-UkquMaE1p4bIDvH7XIcP"
+uri = "file://.local/zero-trust-audit-report.md"
+type = "text"
+title = "Zero-Trust Production Readiness Audit Report"
