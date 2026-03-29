@@ -66,3 +66,9 @@ id = "-UkquMaE1p4bIDvH7XIcP"
 uri = "file://.local/zero-trust-audit-report.md"
 type = "text"
 title = "Zero-Trust Audit Report — Full System + EPC 8-Point Deep Verification"
+
+[[outputs]]
+id = "SUY2V8QH0KLwRAJDzJHXL"
+uri = "file://.local/epc-zero-trust-production-readiness-audit.md"
+type = "text"
+title = "EPC Zero-Trust Production Readiness Audit Report"
