@@ -11086,3 +11086,55 @@ export type EpcWorkOrder = typeof epcWorkOrders.$inferSelect;
 export const insertEpcWorkOrderItemSchema = createInsertSchema(epcWorkOrderItems).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertEpcWorkOrderItem = z.infer<typeof insertEpcWorkOrderItemSchema>;
 export type EpcWorkOrderItem = typeof epcWorkOrderItems.$inferSelect;
+
+export const epcDispatchReadiness = pgTable('epc_dispatch_readiness', {
+  id: serial("id").primaryKey(),
+  drNumber: varchar("dr_number", { length: 50 }).notNull().unique(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer("project_item_id").notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  epcPurchaseOrderId: integer("epc_purchase_order_id").references(() => epcPurchaseOrders.id),
+  epcWorkOrderId: integer("epc_work_order_id").references(() => epcWorkOrders.id),
+  inspectionExecutionId: integer("inspection_execution_id").references(() => inspectionExecutionRecords.id),
+  qualityPlanId: integer("quality_plan_id").references(() => qualityPlanningRecords.id),
+  masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
+  itemCode: varchar("item_code", { length: 100 }),
+  itemDescription: text("item_description"),
+  itemSpecification: text("item_specification"),
+  uom: varchar("uom", { length: 30 }),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  dispatchQuantity: decimal("dispatch_quantity", { precision: 10, scale: 2 }),
+  packagingType: varchar("packaging_type", { length: 50 }),
+  packagingNotes: text("packaging_notes"),
+  shippingMethod: varchar("shipping_method", { length: 50 }),
+  shippingNotes: text("shipping_notes"),
+  dispatchNotes: text("dispatch_notes"),
+  specialHandling: text("special_handling"),
+  destinationAddress: text("destination_address"),
+  estimatedDispatchDate: timestamp("estimated_dispatch_date"),
+  qualityClearanceDate: timestamp("quality_clearance_date"),
+  qualityClearanceReference: text("quality_clearance_reference"),
+  sourceType: varchar("source_type", { length: 30 }).notNull().default('purchase_order'),
+  status: varchar("status", { length: 30 }).notNull().default('draft'),
+  preparedBy: integer("prepared_by").references(() => users.id),
+  preparedAt: timestamp("prepared_at"),
+  preparationNote: text("preparation_note"),
+  readyMarkedBy: integer("ready_marked_by").references(() => users.id),
+  readyMarkedAt: timestamp("ready_marked_at"),
+  readyNote: text("ready_note"),
+  dispatchedBy: integer("dispatched_by").references(() => users.id),
+  dispatchedAt: timestamp("dispatched_at"),
+  dispatchReference: text("dispatch_reference"),
+  cancelledBy: integer("cancelled_by").references(() => users.id),
+  cancelledAt: timestamp("cancelled_at"),
+  cancelReason: text("cancel_reason"),
+  supersededById: integer("superseded_by_id"),
+  supersededAt: timestamp("superseded_at"),
+  supersessionReason: text("supersession_reason"),
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertEpcDispatchReadinessSchema = createInsertSchema(epcDispatchReadiness).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEpcDispatchReadiness = z.infer<typeof insertEpcDispatchReadinessSchema>;
+export type EpcDispatchReadiness = typeof epcDispatchReadiness.$inferSelect;
