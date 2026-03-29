@@ -28,6 +28,7 @@ import {
   epcDispatchReadiness,
   epcDispatchRecords,
   epcCommissioningReadiness,
+  epcBillingReadiness,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -6280,6 +6281,458 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[CR] ${cr.cr_number} updated by user ${userId}`);
       res.json({ success: true, message: `${cr.cr_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC INVOICE TRIGGER / BILLING READINESS BRIDGE ====================
+
+  app.get('/api/projects/:projectId/billing-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const result = await db.execute(
+        sql`SELECT b.*,
+              u1.username AS created_by_name, u2.username AS reviewed_by_name,
+              u3.username AS ready_marked_by_name, u4.username AS invoiced_by_name,
+              u5.username AS cancelled_by_name,
+              pi.description AS project_item_description,
+              d.dispatch_number AS linked_dispatch_number,
+              cr.cr_number AS linked_cr_number,
+              po.po_number, wo.wo_number
+            FROM epc_billing_readiness b
+            LEFT JOIN users u1 ON b.created_by = u1.id
+            LEFT JOIN users u2 ON b.reviewed_by = u2.id
+            LEFT JOIN users u3 ON b.ready_marked_by = u3.id
+            LEFT JOIN users u4 ON b.invoiced_by = u4.id
+            LEFT JOIN users u5 ON b.cancelled_by = u5.id
+            LEFT JOIN project_items pi ON b.project_item_id = pi.id
+            LEFT JOIN epc_dispatch_records d ON b.dispatch_record_id = d.id
+            LEFT JOIN epc_commissioning_readiness cr ON b.commissioning_readiness_id = cr.id
+            LEFT JOIN epc_purchase_orders po ON b.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON b.epc_work_order_id = wo.id
+            WHERE b.project_id = ${projectId}
+            ORDER BY b.created_at DESC`
+      );
+      res.json(result.rows);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.get('/api/billing-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const result = await db.execute(
+        sql`SELECT b.*,
+              u1.username AS created_by_name, u2.username AS reviewed_by_name,
+              u3.username AS ready_marked_by_name, u4.username AS invoiced_by_name,
+              u5.username AS cancelled_by_name,
+              pi.description AS project_item_description,
+              d.dispatch_number AS linked_dispatch_number,
+              cr.cr_number AS linked_cr_number,
+              po.po_number, wo.wo_number
+            FROM epc_billing_readiness b
+            LEFT JOIN users u1 ON b.created_by = u1.id
+            LEFT JOIN users u2 ON b.reviewed_by = u2.id
+            LEFT JOIN users u3 ON b.ready_marked_by = u3.id
+            LEFT JOIN users u4 ON b.invoiced_by = u4.id
+            LEFT JOIN users u5 ON b.cancelled_by = u5.id
+            LEFT JOIN project_items pi ON b.project_item_id = pi.id
+            LEFT JOIN epc_dispatch_records d ON b.dispatch_record_id = d.id
+            LEFT JOIN epc_commissioning_readiness cr ON b.commissioning_readiness_id = cr.id
+            LEFT JOIN epc_purchase_orders po ON b.epc_purchase_order_id = po.id
+            LEFT JOIN epc_work_orders wo ON b.epc_work_order_id = wo.id
+            WHERE b.id = ${id}`
+      );
+      if (result.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      res.json(result.rows[0]);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/projects/:projectId/billing-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const {
+        billingBasis, dispatchRecordId, commissioningReadinessId,
+        milestoneName, milestoneDescription, unitPrice, totalAmount,
+        taxApplicable, taxPercentage, taxAmount, grossAmount, currency,
+        customerName, customerAddress, customerGst, customerPoNumber, customerPoDate,
+        billingAddress, shippingAddress, billingNotes, exceptionNotes,
+      } = req.body;
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Manager level and above can create billing readiness records.');
+      }
+
+      if (!billingBasis || !['dispatch', 'commissioning', 'handover'].includes(billingBasis)) {
+        return sendValidationError(res, 'billingBasis is required and must be one of: dispatch, commissioning, handover.');
+      }
+
+      let sourceRecord: any = null;
+      let idempotencyField = '';
+      let idempotencyValue: number | null = null;
+
+      if (billingBasis === 'dispatch') {
+        if (!dispatchRecordId) return sendValidationError(res, 'dispatchRecordId is required for dispatch-based billing.');
+        const dispResult = await db.execute(
+          sql`SELECT * FROM epc_dispatch_records WHERE id = ${dispatchRecordId} AND project_id = ${projectId}`
+        );
+        if (dispResult.rows.length === 0) return sendNotFound(res, 'Dispatch record not found in this project.');
+        sourceRecord = dispResult.rows[0] as any;
+        if (sourceRecord.status !== 'shipped' && sourceRecord.status !== 'delivered') {
+          return sendBusinessError(res, `Cannot create billing readiness: dispatch status is '${sourceRecord.status}', expected 'shipped' or 'delivered'.`);
+        }
+        idempotencyField = 'dispatch_record_id';
+        idempotencyValue = dispatchRecordId;
+      } else if (billingBasis === 'commissioning') {
+        if (!commissioningReadinessId) return sendValidationError(res, 'commissioningReadinessId is required for commissioning-based billing.');
+        const crResult = await db.execute(
+          sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${commissioningReadinessId} AND project_id = ${projectId}`
+        );
+        if (crResult.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found in this project.');
+        sourceRecord = crResult.rows[0] as any;
+        if (sourceRecord.status !== 'commissioned' && sourceRecord.status !== 'handed_over') {
+          return sendBusinessError(res, `Cannot create billing readiness: commissioning status is '${sourceRecord.status}', expected 'commissioned' or 'handed_over'.`);
+        }
+        idempotencyField = 'commissioning_readiness_id';
+        idempotencyValue = commissioningReadinessId;
+      } else if (billingBasis === 'handover') {
+        if (!commissioningReadinessId) return sendValidationError(res, 'commissioningReadinessId is required for handover-based billing.');
+        const crResult = await db.execute(
+          sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${commissioningReadinessId} AND project_id = ${projectId}`
+        );
+        if (crResult.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found in this project.');
+        sourceRecord = crResult.rows[0] as any;
+        if (sourceRecord.status !== 'handed_over') {
+          return sendBusinessError(res, `Cannot create billing readiness: commissioning status is '${sourceRecord.status}', expected 'handed_over'.`);
+        }
+        idempotencyField = 'commissioning_readiness_id';
+        idempotencyValue = commissioningReadinessId;
+      }
+
+      const existingCheck = await db.execute(
+        sql`SELECT id, br_number FROM epc_billing_readiness
+            WHERE ${sql.raw(idempotencyField)} = ${idempotencyValue}
+              AND billing_basis = ${billingBasis}
+              AND status NOT IN ('cancelled', 'superseded')`
+      );
+      if (existingCheck.rows.length > 0) {
+        const existing = existingCheck.rows[0] as any;
+        return sendBusinessError(res, `Active billing readiness ${existing.br_number} already exists for this ${billingBasis} context (id: ${existing.id}).`);
+      }
+
+      const year = new Date().getFullYear();
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(br_number FROM 'BR-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
+            FROM epc_billing_readiness WHERE br_number LIKE ${`BR-${year}-%`}`
+      );
+      const nextSeq = (seqResult.rows[0] as any).next_seq;
+      const brNumber = `BR-${year}-${String(nextSeq).padStart(4, '0')}`;
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx.insert(epcBillingReadiness).values({
+          brNumber,
+          projectId,
+          projectItemId: sourceRecord.project_item_id || null,
+          dispatchRecordId: billingBasis === 'dispatch' ? dispatchRecordId : (sourceRecord.dispatch_record_id || null),
+          commissioningReadinessId: (billingBasis === 'commissioning' || billingBasis === 'handover') ? commissioningReadinessId : null,
+          dispatchReadinessId: sourceRecord.dispatch_readiness_id || null,
+          epcPurchaseOrderId: sourceRecord.epc_purchase_order_id || null,
+          epcWorkOrderId: sourceRecord.epc_work_order_id || null,
+          inspectionExecutionId: sourceRecord.inspection_execution_id || null,
+          qualityPlanId: sourceRecord.quality_plan_id || null,
+          masterItemId: sourceRecord.master_item_id || null,
+          billingBasis,
+          milestoneName: milestoneName || null,
+          milestoneDescription: milestoneDescription || null,
+          itemCode: sourceRecord.item_code || null,
+          itemDescription: sourceRecord.item_description || null,
+          itemSpecification: sourceRecord.item_specification || null,
+          uom: sourceRecord.uom || null,
+          quantity: sourceRecord.quantity || sourceRecord.dispatch_quantity || null,
+          unitPrice: unitPrice || null,
+          totalAmount: totalAmount || null,
+          currency: currency || 'INR',
+          taxApplicable: taxApplicable !== undefined ? taxApplicable : true,
+          taxPercentage: taxPercentage || null,
+          taxAmount: taxAmount || null,
+          grossAmount: grossAmount || null,
+          dispatchNumber: sourceRecord.dispatch_number || null,
+          dispatchDate: sourceRecord.dispatch_date || null,
+          deliveryDate: sourceRecord.actual_delivery_date || sourceRecord.delivery_date || null,
+          crNumber: sourceRecord.cr_number || null,
+          commissioningDate: sourceRecord.commissioning_date || null,
+          handoverDate: sourceRecord.handover_date || null,
+          customerName: customerName || null,
+          customerAddress: customerAddress || null,
+          customerGst: customerGst || null,
+          customerPoNumber: customerPoNumber || null,
+          customerPoDate: customerPoDate ? new Date(customerPoDate) : null,
+          billingAddress: billingAddress || null,
+          shippingAddress: shippingAddress || sourceRecord.delivery_address || sourceRecord.site_address || null,
+          billingNotes: billingNotes || null,
+          exceptionNotes: exceptionNotes || null,
+          sourceType: sourceRecord.source_type || 'purchase_order',
+          status: 'draft',
+          createdBy: userId,
+        }).returning();
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, 'billing_readiness.created', ${JSON.stringify({
+            brId: inserted[0].id, brNumber, billingBasis,
+            dispatchRecordId: billingBasis === 'dispatch' ? dispatchRecordId : null,
+            commissioningReadinessId: (billingBasis === 'commissioning' || billingBasis === 'handover') ? commissioningReadinessId : null,
+            projectItemId: sourceRecord.project_item_id, createdBy: userId,
+          })}::jsonb, 'billing', NOW())`);
+
+        console.log(`[BR] Billing readiness ${brNumber} created (basis: ${billingBasis}) by user ${userId}`);
+        res.status(201).json({ success: true, message: `Billing readiness ${brNumber} created`, record: inserted[0] });
+      });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/billing-readiness/:id/submit-review', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      const br = existing.rows[0] as any;
+
+      if (br.status !== 'draft') {
+        return sendBusinessError(res, `Cannot submit for review: status is '${br.status}', expected 'draft'.`);
+      }
+
+      if (!br.total_amount && !br.unit_price) {
+        return sendBusinessError(res, 'Cannot submit for review: total_amount or unit_price must be set before review.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcBillingReadiness)
+          .set({ status: 'under_review', updatedAt: new Date() })
+          .where(eq(epcBillingReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${br.project_id}, 'billing_readiness.submitted_for_review', ${JSON.stringify({
+            brId: id, brNumber: br.br_number, submittedBy: userId, billingBasis: br.billing_basis,
+          })}::jsonb, 'billing', NOW())`);
+      });
+
+      console.log(`[BR] ${br.br_number} submitted for review by user ${userId}`);
+      res.json({ success: true, message: `${br.br_number} submitted for review`, id, newStatus: 'under_review' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/billing-readiness/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { reviewNote, readyNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Senior Manager level and above can approve billing readiness.');
+      }
+
+      const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      const br = existing.rows[0] as any;
+
+      if (br.status !== 'under_review') {
+        return sendBusinessError(res, `Cannot approve: status is '${br.status}', expected 'under_review'.`);
+      }
+
+      if (br.created_by === userId) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the billing readiness.');
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcBillingReadiness)
+          .set({
+            status: 'ready_for_invoice',
+            reviewedBy: userId, reviewedAt: new Date(), reviewNote: reviewNote || null,
+            readyMarkedBy: userId, readyMarkedAt: new Date(), readyNote: readyNote || null,
+            updatedAt: new Date(),
+          })
+          .where(eq(epcBillingReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${br.project_id}, 'billing_readiness.approved', ${JSON.stringify({
+            brId: id, brNumber: br.br_number, approvedBy: userId, billingBasis: br.billing_basis,
+            totalAmount: br.total_amount, grossAmount: br.gross_amount,
+          })}::jsonb, 'billing', NOW())`);
+      });
+
+      console.log(`[BR] ${br.br_number} approved (ready_for_invoice) by user ${userId}`);
+      res.json({ success: true, message: `${br.br_number} approved and ready for invoice`, id, newStatus: 'ready_for_invoice' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/billing-readiness/:id/mark-invoiced', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const { invoiceReference, invoiceNote } = req.body || {};
+
+      const allowedRoles = ['Superuser', 'General Manager', 'Senior Manager'];
+      if (!allowedRoles.includes(userRole)) {
+        return sendPermissionError(res, 'Only Senior Manager level and above can mark billing as invoiced.');
+      }
+
+      if (!invoiceReference) return sendValidationError(res, 'invoiceReference is required to mark as invoiced.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      const br = existing.rows[0] as any;
+
+      if (br.status !== 'ready_for_invoice') {
+        return sendBusinessError(res, `Cannot mark invoiced: status is '${br.status}', expected 'ready_for_invoice'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcBillingReadiness)
+          .set({
+            status: 'invoiced', invoicedBy: userId, invoicedAt: new Date(),
+            invoiceReference, invoiceNote: invoiceNote || null, updatedAt: new Date(),
+          })
+          .where(eq(epcBillingReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${br.project_id}, 'billing_readiness.invoiced', ${JSON.stringify({
+            brId: id, brNumber: br.br_number, invoicedBy: userId, invoiceReference,
+            billingBasis: br.billing_basis, totalAmount: br.total_amount, grossAmount: br.gross_amount,
+          })}::jsonb, 'billing', NOW())`);
+      });
+
+      console.log(`[BR] ${br.br_number} marked invoiced (ref: ${invoiceReference}) by user ${userId}`);
+      res.json({ success: true, message: `${br.br_number} marked as invoiced`, id, newStatus: 'invoiced', invoiceReference });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/billing-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { cancelReason } = req.body || {};
+
+      if (!cancelReason) return sendValidationError(res, 'cancelReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      const br = existing.rows[0] as any;
+
+      if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
+        return sendBusinessError(res, `Cannot cancel: status is '${br.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcBillingReadiness)
+          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .where(eq(epcBillingReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${br.project_id}, 'billing_readiness.cancelled', ${JSON.stringify({
+            brId: id, brNumber: br.br_number, cancelledBy: userId, cancelReason,
+            previousStatus: br.status, billingBasis: br.billing_basis,
+          })}::jsonb, 'billing', NOW())`);
+      });
+
+      console.log(`[BR] ${br.br_number} cancelled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${br.br_number} cancelled`, id, newStatus: 'cancelled' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/billing-readiness/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { supersessionReason, newBrId } = req.body || {};
+
+      if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required.');
+
+      const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      const br = existing.rows[0] as any;
+
+      if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
+        return sendBusinessError(res, `Cannot supersede: status is '${br.status}' (terminal state).`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcBillingReadiness)
+          .set({
+            status: 'superseded', supersededById: newBrId || null, supersededAt: new Date(),
+            supersessionReason, updatedAt: new Date(),
+          })
+          .where(eq(epcBillingReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${br.project_id}, 'billing_readiness.superseded', ${JSON.stringify({
+            brId: id, brNumber: br.br_number, supersededBy: userId, supersessionReason,
+            newBrId: newBrId || null, previousStatus: br.status, billingBasis: br.billing_basis,
+          })}::jsonb, 'billing', NOW())`);
+      });
+
+      console.log(`[BR] ${br.br_number} superseded by user ${userId}: ${supersessionReason}`);
+      res.json({ success: true, message: `${br.br_number} superseded`, id, newStatus: 'superseded' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.patch('/api/billing-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+
+      const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
+      const br = existing.rows[0] as any;
+
+      if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
+        return sendBusinessError(res, `Cannot update: status is '${br.status}' (terminal state).`);
+      }
+
+      const allowedFields = [
+        'milestoneName', 'milestoneDescription', 'unitPrice', 'totalAmount',
+        'taxApplicable', 'taxPercentage', 'taxAmount', 'grossAmount', 'currency',
+        'customerName', 'customerAddress', 'customerGst', 'customerPoNumber', 'customerPoDate',
+        'billingAddress', 'shippingAddress', 'billingNotes', 'exceptionNotes', 'supportingDocuments',
+      ];
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          if (field === 'customerPoDate') {
+            updates[field] = req.body[field] ? new Date(req.body[field]) : null;
+          } else {
+            updates[field] = req.body[field];
+          }
+        }
+      }
+
+      await db.update(epcBillingReadiness).set(updates).where(eq(epcBillingReadiness.id, id));
+
+      console.log(`[BR] ${br.br_number} updated by user ${userId}`);
+      res.json({ success: true, message: `${br.br_number} updated`, id });
     } catch (error) {
       sendError(res, error);
     }
