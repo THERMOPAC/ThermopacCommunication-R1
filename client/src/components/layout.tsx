@@ -400,6 +400,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Package, label: "EPC Procurement & Production", href: "/epc/execution-control" },
         { icon: ShieldCheck, label: "EPC Quality & Inspection", href: "/epc/quality-inspection" },
         { icon: Truck, label: "EPC Dispatch & Logistics", href: "/epc/dispatch-logistics" },
+        { icon: Wrench, label: "EPC Commissioning & Handover", href: "/epc/commissioning-handover" },
         { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]

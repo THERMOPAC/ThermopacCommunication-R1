@@ -174,6 +174,7 @@ function Router() {
       <ProtectedRoute path="/epc/execution-control" component={() => <ProjectsProduction.EpcExecutionControlPage />} />
       <ProtectedRoute path="/epc/quality-inspection" component={() => <ProjectsProduction.EpcQualityInspectionPage />} />
       <ProtectedRoute path="/epc/dispatch-logistics" component={() => <ProjectsProduction.EpcDispatchLogisticsPage />} />
+      <ProtectedRoute path="/epc/commissioning-handover" component={() => <ProjectsProduction.EpcCommissioningHandoverPage />} />
       <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
       <ProtectedRoute path="/projects/:id" component={() => <ProjectsProduction.ProjectDetailPage />} />
       <ProtectedRoute path="/customers" component={() => <ProjectsProduction.CustomersPage />} />

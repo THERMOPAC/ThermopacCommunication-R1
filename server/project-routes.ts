@@ -6675,8 +6675,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
-      if (cr.status !== 'commissioned') {
-        return sendBusinessError(res, `Cannot handover: status is '${cr.status}', expected 'commissioned'.`);
+      if (cr.status !== 'commissioned' && cr.status !== 'ready_for_handover') {
+        return sendBusinessError(res, `Cannot handover: status is '${cr.status}', expected 'commissioned' or 'ready_for_handover'.`);
       }
 
       if (!cr.test_certificates_available) {
@@ -6726,7 +6726,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
-      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over') {
+      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot cancel: status is '${cr.status}' (terminal state).`);
       }
 
@@ -6761,7 +6761,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
-      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over') {
+      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot supersede: status is '${cr.status}' (terminal state).`);
       }
 
@@ -6796,7 +6796,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
-      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over') {
+      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot update: status is '${cr.status}' (terminal state).`);
       }
 
@@ -6819,6 +6819,108 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[CR] ${cr.cr_number} updated by user ${userId}`);
       res.json({ success: true, message: `${cr.cr_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/open-punch-list', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { punchListNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'commissioned') {
+        return sendBusinessError(res, `Cannot open punch list: status is '${cr.status}', expected 'commissioned'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({ status: 'punch_list_open', commissioningNote: punchListNote || cr.commissioning_note, updatedAt: new Date() })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.punch_list_opened', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, openedBy: userId, projectItemId: cr.project_item_id,
+            punchListNote: punchListNote || null,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} punch list opened by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} punch list opened`, id, newStatus: 'punch_list_open' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/resolve-punch-list', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { resolutionNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'punch_list_open') {
+        return sendBusinessError(res, `Cannot resolve punch list: status is '${cr.status}', expected 'punch_list_open'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({ status: 'ready_for_handover', readyNote: resolutionNote || cr.ready_note, updatedAt: new Date() })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.punch_list_resolved', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, resolvedBy: userId, projectItemId: cr.project_item_id,
+            resolutionNote: resolutionNote || null,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} punch list resolved, ready for handover by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} ready for handover`, id, newStatus: 'ready_for_handover' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/commissioning-readiness/:id/close', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const { closingNote } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
+      const cr = existing.rows[0] as any;
+
+      if (cr.status !== 'handed_over') {
+        return sendBusinessError(res, `Cannot close: status is '${cr.status}', expected 'handed_over'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.update(epcCommissioningReadiness)
+          .set({ status: 'closed', handoverNotes: closingNote || cr.handover_notes, updatedAt: new Date() })
+          .where(eq(epcCommissioningReadiness.id, id));
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${cr.project_id}, 'commissioning_readiness.closed', ${JSON.stringify({
+            crId: id, crNumber: cr.cr_number, closedBy: userId, projectItemId: cr.project_item_id,
+            closingNote: closingNote || null,
+          })}::jsonb, 'commissioning', NOW())`);
+      });
+
+      console.log(`[CR] ${cr.cr_number} closed by user ${userId}`);
+      res.json({ success: true, message: `${cr.cr_number} closed`, id, newStatus: 'closed' });
     } catch (error) {
       sendError(res, error);
     }

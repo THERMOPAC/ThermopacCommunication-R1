@@ -959,7 +959,7 @@ export default function ExecutionControlDashboard() {
       { key: "inspection", record: row.insp, label: "Inspection", icon: Eye, applicabilityKey: "inspection", docType: "INS", deepLink: "/epc/quality-inspection" },
       { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch", docType: "DR", deepLink: "/epc/dispatch-logistics" },
       { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record", docType: "DSP", deepLink: "/epc/dispatch-logistics" },
-      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning", docType: "CR", deepLink: "" },
+      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning", docType: "CR", deepLink: "/epc/commissioning-handover" },
       { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing", docType: "BR", deepLink: "" },
       { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice", docType: "INV", deepLink: "/epc/invoices" },
     ];
