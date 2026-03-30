@@ -286,6 +286,10 @@ function Layout({ children }: LayoutProps) {
       icon: Zap,
       label: "Worker Agents Dashboard",
       href: "/worker-agents"
+    }, {
+      icon: Shield,
+      label: "EPC Risks",
+      href: "/epc-risks"
     }] : []),
     { icon: Mail, label: "Emails", href: "/emails" },
     ...(hasViewPermission("Meetings & Commitments") ? [{ 
@@ -521,7 +525,7 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/appraisals' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/worker-agents' || item.href === '/alerts' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/appraisals' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/worker-agents' || item.href === '/epc-risks' || item.href === '/alerts' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   

@@ -90,6 +90,7 @@ import { default as leadGenerationRoutes } from "./lead-generation-routes";
 import { default as radarRoutes } from "./radar-routes";
 import { default as googleAdsRoutes } from "./google-ads-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
+import { default as epcRisksRoutes } from "./epc-risks-routes";
 import { default as llmRoutes } from "./llm-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
@@ -849,6 +850,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Set up Multi-Agent Intelligence Layer routes
   app.use('/api/agents', ensureAuthenticated, agentRoutes);
+
+  app.use('/api/epc-risks', ensureAuthenticated, epcRisksRoutes);
 
   // L1 Worker Agents routes
   app.use('/api/l1-workers', l1WorkerRoutes);

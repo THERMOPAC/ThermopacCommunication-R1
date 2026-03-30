@@ -100,6 +100,7 @@ function Router() {
       {/* Agent Dashboard */}
       <ProtectedRoute path="/agent-dashboard" component={() => <Agents.AgentDashboardPage />} />
       <ProtectedRoute path="/worker-agents" component={() => <Agents.WorkerAgentsPage />} />
+      <ProtectedRoute path="/epc-risks" component={() => <Agents.EpcRisksDashboardPage />} />
       
       {/* Finance Module Routes */}
       <ProtectedRoute path="/finance" component={() => <Finance.FinanceDashboardPage />} />
