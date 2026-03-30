@@ -160,11 +160,14 @@ export default function EpcRisksDashboard() {
     return p.toString();
   }, [filterProject, filterSeverity, filterAgent, filterStatus]);
 
-  const { data, isLoading, isRefetching } = useQuery<DashboardData>({
+  const { data, isLoading, isRefetching, isError, error } = useQuery<DashboardData>({
     queryKey: ['/api/epc-risks/dashboard', queryParams],
     queryFn: async () => {
       const res = await fetch(`/api/epc-risks/dashboard?${queryParams}`);
-      if (!res.ok) throw new Error('Failed to load');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Server error (${res.status})`);
+      }
       return res.json();
     },
     refetchInterval: 60000,
@@ -515,6 +518,15 @@ export default function EpcRisksDashboard() {
                   <div className="flex items-center justify-center py-16">
                     <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                     <span className="ml-2 text-sm text-muted-foreground">Loading findings...</span>
+                  </div>
+                ) : isError ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-destructive">
+                    <AlertCircle className="h-10 w-10 mb-2" />
+                    <p className="text-sm font-medium">Failed to load EPC risks data</p>
+                    <p className="text-xs mt-1 text-muted-foreground">{(error as Error)?.message || 'Unknown error'}</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/epc-risks/dashboard'] })}>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" /> Retry
+                    </Button>
                   </div>
                 ) : findings.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">

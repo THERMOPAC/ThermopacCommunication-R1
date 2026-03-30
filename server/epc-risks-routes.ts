@@ -1,26 +1,54 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
 
 const router = Router();
 
-router.get('/dashboard', async (req, res) => {
+function requireSuperuser(req: Request, res: Response, next: Function) {
+  if (!req.user || (req.user as any).role !== 'Superuser') {
+    return res.status(403).json({ error: 'Access denied. Superuser role required.' });
+  }
+  next();
+}
+
+router.use(requireSuperuser);
+
+const VALID_SEVERITIES = ['critical', 'risk', 'warning'];
+const VALID_AGENTS = ['project_control', 'production_management', 'quality_management', 'finance'];
+const VALID_STATUSES = ['active', 'resolved'];
+
+router.get('/dashboard', async (req: Request, res: Response) => {
   try {
     const { project, severity, agent, status, findingCode } = req.query;
 
-    let whereClause = 'WHERE 1=1';
-    if (project) whereClause += ` AND f.project_id = ${Number(project)}`;
-    if (severity) whereClause += ` AND f.severity = '${String(severity).replace(/'/g, "''")}'`;
-    if (agent) whereClause += ` AND f.agent_key = '${String(agent).replace(/'/g, "''")}'`;
-    if (status === 'active') whereClause += ` AND f.status = 'active'`;
-    else if (status === 'resolved') whereClause += ` AND f.status = 'resolved'`;
-    if (findingCode) whereClause += ` AND f.finding_code = '${String(findingCode).replace(/'/g, "''")}'`;
+    const conditions: ReturnType<typeof sql>[] = [];
 
-    const findingsQuery = `
+    if (project) {
+      const projectId = Number(project);
+      if (!isNaN(projectId)) conditions.push(sql`f.project_id = ${projectId}`);
+    }
+    if (severity && VALID_SEVERITIES.includes(String(severity))) {
+      conditions.push(sql`f.severity = ${String(severity)}`);
+    }
+    if (agent && VALID_AGENTS.includes(String(agent))) {
+      conditions.push(sql`f.agent_key = ${String(agent)}`);
+    }
+    if (status && VALID_STATUSES.includes(String(status))) {
+      conditions.push(sql`f.status = ${String(status)}`);
+    }
+    if (findingCode && /^EPC-[A-Z]{2}\d+$/.test(String(findingCode))) {
+      conditions.push(sql`f.finding_code = ${String(findingCode)}`);
+    }
+
+    const whereFragment = conditions.length > 0
+      ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+      : sql``;
+
+    const findings = await db.execute(sql`
       SELECT f.*,
         p.name as project_name,
-        pi.item_code as project_item_code,
-        pi.description as project_item_description,
+        mi.item_code as project_item_code,
+        mi.description as project_item_description,
         (
           SELECT json_build_object(
             'id', t.id, 'title', t.title, 'status', t.status,
@@ -37,15 +65,14 @@ router.get('/dashboard', async (req, res) => {
       FROM epc_agent_findings f
       LEFT JOIN projects p ON f.project_id = p.id
       LEFT JOIN project_items pi ON f.project_item_id = pi.id
-      ${whereClause}
+      LEFT JOIN master_items mi ON pi.item_id = mi.id
+      ${whereFragment}
       ORDER BY
         CASE f.status WHEN 'active' THEN 0 ELSE 1 END,
         CASE f.severity WHEN 'critical' THEN 0 WHEN 'risk' THEN 1 WHEN 'warning' THEN 2 ELSE 3 END,
         f.last_detected_at DESC
       LIMIT 500
-    `;
-
-    const findings = await db.execute(sql.raw(findingsQuery));
+    `);
 
     const countsResult = await db.execute(sql`
       SELECT
@@ -94,17 +121,18 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-router.get('/finding/:id', async (req, res) => {
+router.get('/finding/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await db.execute(sql`
       SELECT f.*,
         p.name as project_name,
-        pi.item_code as project_item_code,
-        pi.description as project_item_description
+        mi.item_code as project_item_code,
+        mi.description as project_item_description
       FROM epc_agent_findings f
       LEFT JOIN projects p ON f.project_id = p.id
       LEFT JOIN project_items pi ON f.project_item_id = pi.id
+      LEFT JOIN master_items mi ON pi.item_id = mi.id
       WHERE f.id = ${Number(id)}
     `);
     const finding = (result.rows as any[])[0];
