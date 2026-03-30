@@ -235,6 +235,19 @@ export async function resolveContextualRevision(
   }
 
   if (docType === 'BOM') {
+    if (consumerContext === 'inspection' && snapshotRevision) {
+      const r = await txOrDb.execute(
+        sql`SELECT id, revision_code, is_current FROM epc_bom_headers
+            WHERE bom_number = ${documentNumber} AND revision_code = ${snapshotRevision}
+            LIMIT 1`
+      );
+      if (r.rows.length > 0) {
+        const row = r.rows[0] as any;
+        return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+      }
+      return null;
+    }
+
     if (consumerContext === 'procurement' || consumerContext === 'manufacturing') {
       let r = await txOrDb.execute(
         sql`SELECT id, revision_code, is_current FROM epc_bom_headers
