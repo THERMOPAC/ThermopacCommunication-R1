@@ -66,7 +66,8 @@ import {
   Landmark,
   Building2,
   Star,
-  PenTool
+  PenTool,
+  Layers
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -389,6 +390,7 @@ function Layout({ children }: LayoutProps) {
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
         { icon: ClipboardCheck, label: "Execution Control", href: "/execution-control" },
+        { icon: Layers, label: "EPC BOM Controls", href: "/epc/bom-controls" },
         { icon: PenTool, label: "EPC Drawing Controls", href: "/epc/drawing-controls" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]

@@ -8467,6 +8467,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to create BOMs.');
+      }
       const { projectItemId, masterItemId, drawingControlId, bomType, bomRevision, bomTitle, bomDescription, notes } = req.body;
 
       if (!projectItemId || !masterItemId) {
@@ -8541,6 +8545,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to edit BOMs.');
+      }
 
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
@@ -8576,6 +8584,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to submit BOMs for review.');
+      }
       const { submissionNote } = req.body;
 
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
@@ -8766,10 +8778,43 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  app.post('/api/bom-headers/:id/lock', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to lock BOMs.');
+      }
+
+      const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
+      if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      const rec = results.rows[0] as any;
+
+      if (rec.status !== 'released') {
+        return sendBusinessError(res, `Cannot lock: current status is '${rec.status}'. Must be 'released'.`);
+      }
+
+      await db.update(epcBomHeaders).set({
+        status: 'locked',
+        updatedAt: new Date(),
+      }).where(eq(epcBomHeaders.id, id));
+
+      console.log(`[BOM] ${rec.bom_number} locked by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} locked` });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
   app.post('/api/bom-headers/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to cancel BOMs.');
+      }
       const { cancelReason } = req.body;
 
       if (!cancelReason) return sendValidationError(res, 'cancelReason is required');
@@ -8931,7 +8976,7 @@ export function setupProjectRoutes(app: express.Express) {
         await createEpcTask({
           projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'supersession_review',
           title: `Review child planning records after BOM ${rec.bom_number} supersession`,
-          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been superseded by ${newBomNumber} on ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-cancelled, ${flaggedForReview} flagged for review.`,
+          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been superseded by ${newBom.bomNumber} on ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-cancelled, ${flaggedForReview} flagged for review.`,
           assignedTo: bomSupDesignLead || bomSupPM, createdBy: userId, priority: 'High', dueDays: 2, tx,
         });
 
@@ -8940,17 +8985,18 @@ export function setupProjectRoutes(app: express.Express) {
         return { newBom, autoCancelled, flaggedForReview, bomSupAlertRecipients, bomSupProjectCode };
       });
 
+      const newBomNum = txResult.newBom.bomNumber;
       await createEpcAlertMulti(txResult.bomSupAlertRecipients, {
         type: 'epc_supersession', title: `BOM ${rec.bom_number} superseded`,
-        message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNumber} on project ${txResult.bomSupProjectCode}. Reason: ${supersessionReason}. ${txResult.autoCancelled} draft planning records auto-cancelled, ${txResult.flaggedForReview} flagged for review.`,
+        message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNum} on project ${txResult.bomSupProjectCode}. Reason: ${supersessionReason}. ${txResult.autoCancelled} draft planning records auto-cancelled, ${txResult.flaggedForReview} flagged for review.`,
         link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
         entityType: 'bom_header', recordId: id, actionCode: 'superseded',
       });
 
-      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNumber} (user ${userId}). Child planning: ${txResult.autoCancelled} auto-cancelled, ${txResult.flaggedForReview} flagged for review.`);
+      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNum} (user ${userId}). Child planning: ${txResult.autoCancelled} auto-cancelled, ${txResult.flaggedForReview} flagged for review.`);
       res.status(201).json({
         success: true,
-        message: `${rec.bom_number} superseded. New BOM: ${newBomNumber} (Rev ${nextRevision})`,
+        message: `${rec.bom_number} superseded. New BOM: ${newBomNum} (Rev ${nextRevisionCode})`,
         oldBomId: id,
         newBom: txResult.newBom,
         childPlanningImpact: { autoCancelled: txResult.autoCancelled, flaggedForReview: txResult.flaggedForReview },
@@ -8964,6 +9010,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to revert BOMs to draft.');
+      }
 
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
@@ -9488,6 +9538,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const bomHeaderId = parseInt(req.params.bomHeaderId);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to add BOM lines.');
+      }
 
       const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${bomHeaderId}`);
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
@@ -9551,6 +9605,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to edit BOM lines.');
+      }
 
       const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id WHERE bl.id = ${id}`);
       if (lineResult.rows.length === 0) return sendNotFound(res, 'BOM line not found');
@@ -9595,6 +9653,10 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to delete BOM lines.');
+      }
 
       const lineResult = await db.execute(sql`SELECT bl.*, bh.status as header_status, bh.bom_number, bh.id as header_id FROM epc_bom_lines bl JOIN epc_bom_headers bh ON bl.bom_header_id = bh.id WHERE bl.id = ${id}`);
       if (lineResult.rows.length === 0) return sendNotFound(res, 'BOM line not found');
