@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -20,7 +21,7 @@ import {
   Loader2, Search, Filter, AlertTriangle, Clock, CheckCircle2, XCircle,
   ChevronDown, ChevronRight, RefreshCw, FileText, Package, ClipboardCheck,
   ShoppingCart, Factory, Eye, Truck, Wrench, Receipt, DollarSign,
-  ArrowRight, Minus, PenTool, List,
+  ArrowRight, Minus, PenTool, List, ExternalLink,
 } from "lucide-react";
 import { roleHierarchy } from "@shared/roles";
 
@@ -324,6 +325,7 @@ function getAvailableActions(layer: string, status: string | null, record: Pipel
 export default function ExecutionControlDashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const userRole = user?.role || "Viewer";
   const userLevel = roleHierarchy[userRole] ?? 99;
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -950,16 +952,16 @@ export default function ExecutionControlDashboard() {
       commissioning: "CR", billing: "BR", invoice: "INV",
     };
     const layers = [
-      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning", docType: "PLN" },
-      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package, applicabilityKey: execApplicabilityKey, docType: row.isBuy ? "BUY" : "MFG" },
-      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck, applicabilityKey: "quality", docType: "QPL" },
-      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart, applicabilityKey: prepApplicabilityKey, docType: row.isBuy ? "POP" : "WOP" },
-      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye, applicabilityKey: "inspection", docType: "INS" },
-      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch", docType: "DR" },
-      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record", docType: "DSP" },
-      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning", docType: "CR" },
-      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing", docType: "BR" },
-      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice", docType: "INV" },
+      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning", docType: "PLN", deepLink: "" },
+      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package, applicabilityKey: execApplicabilityKey, docType: row.isBuy ? "BUY" : "MFG", deepLink: "" },
+      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck, applicabilityKey: "quality", docType: "QPL", deepLink: "" },
+      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart, applicabilityKey: prepApplicabilityKey, docType: row.isBuy ? "POP" : "WOP", deepLink: row.isBuy ? "/epc/purchase-orders" : "/epc/work-orders" },
+      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye, applicabilityKey: "inspection", docType: "INS", deepLink: "" },
+      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch", docType: "DR", deepLink: "" },
+      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record", docType: "DSP", deepLink: "" },
+      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning", docType: "CR", deepLink: "" },
+      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing", docType: "BR", deepLink: "" },
+      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice", docType: "INV", deepLink: "/epc/invoices" },
     ];
 
     return (
@@ -983,13 +985,23 @@ export default function ExecutionControlDashboard() {
             )}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
               {[
-                { key: "drawing_control", record: row.dc, label: "Drawing Control", icon: PenTool, isEng: true },
-                { key: "bom", record: row.bom, label: "BOM", icon: List, isEng: true },
-              ].map(({ key, record, label, icon: Icon, isEng }) => (
+                { key: "drawing_control", record: row.dc, label: "Drawing Control", icon: PenTool, isEng: true, deepLink: "/epc/drawing-controls" },
+                { key: "bom", record: row.bom, label: "BOM", icon: List, isEng: true, deepLink: "/epc/bom-controls" },
+              ].map(({ key, record, label, icon: Icon, isEng, deepLink }) => (
                 <Card key={key} className={`shadow-sm ${!record ? "opacity-50" : ""}`}>
                   <CardHeader className="py-1.5 px-2.5">
                     <CardTitle className="text-[10px] font-medium flex items-center gap-1">
                       <Icon className="h-3 w-3" /> {label}
+                      {record && deepLink && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-4 w-4 p-0 ml-auto" onClick={(e) => { e.stopPropagation(); navigate(deepLink); }}>
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-[9px]">Open {label} page</TooltipContent>
+                        </Tooltip>
+                      )}
                       {record?.revision_code && (
                         <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-blue-50 text-blue-600 border-blue-200 ml-auto">
                           Rev {record.revision_code}
@@ -1090,7 +1102,7 @@ export default function ExecutionControlDashboard() {
               </div>
             )}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {layers.map(({ key, record, label, icon: Icon, applicabilityKey, docType }) => {
+              {layers.map(({ key, record, label, icon: Icon, applicabilityKey, docType, deepLink }) => {
                 const stepApplicable = row.applicability[applicabilityKey]?.applicable !== false;
                 const actions = record && stepApplicable ? getAvailableActions(key, record.status, record, userLevel) : [];
                 const refNum = record?.planning_number || record?.procurement_number || record?.production_number || record?.quality_plan_number || record?.po_prep_number || record?.wo_prep_number || record?.inspection_number || record?.dr_number || record?.dispatch_number || record?.cr_number || record?.br_number || record?.invoice_number;
@@ -1100,6 +1112,16 @@ export default function ExecutionControlDashboard() {
                       <CardTitle className="text-[10px] font-medium flex items-center gap-1">
                         <Icon className="h-3 w-3" /> {label}
                         {!stepApplicable && <Badge variant="outline" className="text-[7px] px-1 py-0 ml-1 bg-slate-50 text-slate-400 border-slate-200">N/A</Badge>}
+                        {record && deepLink && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button size="sm" variant="ghost" className="h-4 w-4 p-0 ml-auto" onClick={(e) => { e.stopPropagation(); navigate(deepLink); }}>
+                                <ExternalLink className="h-2.5 w-2.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[9px]">Open {label} page</TooltipContent>
+                          </Tooltip>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="px-2.5 pb-2 space-y-0.5">

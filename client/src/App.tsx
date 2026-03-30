@@ -168,6 +168,8 @@ function Router() {
       <ProtectedRoute path="/epc/bom-controls" component={() => <ProjectsProduction.EpcBomControlPage />} />
       <ProtectedRoute path="/epc/drawing-controls" component={() => <ProjectsProduction.EpcDrawingControlPage />} />
       <ProtectedRoute path="/epc/purchase-orders" component={() => <ProjectsProduction.EpcPurchaseOrdersPage />} />
+      <ProtectedRoute path="/epc/work-orders" component={() => <ProjectsProduction.EpcWorkOrdersPage />} />
+      <ProtectedRoute path="/epc/invoices" component={() => <ProjectsProduction.EpcInvoicesPage />} />
       <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
       <ProtectedRoute path="/projects/:id" component={() => <ProjectsProduction.ProjectDetailPage />} />
       <ProtectedRoute path="/customers" component={() => <ProjectsProduction.CustomersPage />} />

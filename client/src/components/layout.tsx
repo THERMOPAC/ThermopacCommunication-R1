@@ -394,6 +394,8 @@ function Layout({ children }: LayoutProps) {
         { icon: Layers, label: "EPC BOM Controls", href: "/epc/bom-controls" },
         { icon: PenTool, label: "EPC Drawing Controls", href: "/epc/drawing-controls" },
         { icon: ShoppingCart, label: "EPC Purchase Orders", href: "/epc/purchase-orders" },
+        { icon: Wrench, label: "EPC Work Orders", href: "/epc/work-orders" },
+        { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]
     }] : []),
