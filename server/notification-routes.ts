@@ -236,6 +236,11 @@ function deriveAlertPriority(type: string): string {
     case 'approval_decision': return 'medium';
     case 'task_assigned': return 'high';
     case 'task_completed': return 'low';
+    case 'epc_gate_blocked': return 'critical';
+    case 'epc_inspection_failed': return 'critical';
+    case 'epc_supersession': return 'high';
+    case 'epc_lifecycle': return 'medium';
+    case 'epc_release': return 'medium';
     default: return 'medium';
   }
 }
@@ -244,6 +249,7 @@ function deriveAlertCategory(type: string, sourceType?: string): string {
   if (sourceType === 'leave_request') return 'leave';
   if (sourceType === 'attendance_regularization') return 'attendance';
   if (sourceType === 'task') return 'task';
+  if (sourceType === 'epc_automation') return 'epc';
   
   switch (type) {
     case 'approval_request':
@@ -252,6 +258,12 @@ function deriveAlertCategory(type: string, sourceType?: string): string {
     case 'task_assigned':
     case 'task_completed':
       return 'task';
+    case 'epc_gate_blocked':
+    case 'epc_inspection_failed':
+    case 'epc_supersession':
+    case 'epc_lifecycle':
+    case 'epc_release':
+      return 'epc';
     default:
       return 'general';
   }

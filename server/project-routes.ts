@@ -38,6 +38,7 @@ import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
+import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
 import { checkModulePermission } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 
@@ -2445,12 +2446,28 @@ export function setupProjectRoutes(app: express.Express) {
       );
       const dc = dcResult.rows.length > 0 ? (dcResult.rows[0] as any) : null;
 
+      const procGateItemCode = record.item_code || record.item_description || `Item #${record.project_item_id}`;
+
       if (!dc) {
         await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${record.project_id}, 'procurement_execution.gate_blocked', ${JSON.stringify({
             procurementExecId: id, projectItemId: record.project_item_id,
             gate: 'drawing_control', reason: 'No drawing control exists', blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const gateDesignLead = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const gatePM = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing gate block for ${procGateItemCode}`,
+          description: `Procurement execution #${id} is blocked: no drawing control exists for this item. Create and release a drawing control to unblock.`,
+          assignedTo: gateDesignLead, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const gateAlertRecipients = [gateDesignLead, gatePM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(gateAlertRecipients, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — no drawing for ${procGateItemCode}`,
+          message: `Procurement execution for ${procGateItemCode} is blocked. No drawing control exists. Action required.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, 'Cannot mark ready: no drawing control exists for this item. Create and release a drawing control first.', 
           { action: 'Create a Drawing Control for this project item, then progress it through review → approval → release.' });
       }
@@ -2462,6 +2479,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'drawing_procurement_release', reason: 'Drawing not released for procurement',
             dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const gateDesignLead2 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const gatePM2 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing release gate for ${procGateItemCode}`,
+          description: `Procurement execution #${id} blocked: drawing ${dc.dwg_control_number} is not released for procurement.`,
+          assignedTo: gateDesignLead2, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const gateAlertRecipients2 = [gateDesignLead2, gatePM2].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(gateAlertRecipients2, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — drawing not released for ${procGateItemCode}`,
+          message: `Drawing ${dc.dwg_control_number} is not released for procurement. Procurement for ${procGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for procurement. Release the drawing for procurement first.`,
           { action: `Release drawing ${dc.dwg_control_number} for procurement (set released_for_procurement = true).` });
       }
@@ -2473,6 +2504,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'drawing_manufacturing_release', reason: 'Drawing not released for manufacturing',
             dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const gateDesignLead3 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const gatePM3 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing release gate for ${procGateItemCode}`,
+          description: `Procurement execution #${id} blocked: drawing ${dc.dwg_control_number} is not released for manufacturing.`,
+          assignedTo: gateDesignLead3, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const gateAlertRecipients3 = [gateDesignLead3, gatePM3].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(gateAlertRecipients3, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — drawing not released for ${procGateItemCode}`,
+          message: `Drawing ${dc.dwg_control_number} is not released for manufacturing. Procurement for ${procGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for manufacturing. Release the drawing for manufacturing first.`,
           { action: `Release drawing ${dc.dwg_control_number} for manufacturing (set released_for_manufacturing = true).` });
       }
@@ -2484,6 +2529,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'drawing_release', reason: 'Drawing not released',
             dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const gateDesignLead4 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const gatePM4 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing release gate for ${procGateItemCode}`,
+          description: `Procurement execution #${id} blocked: drawing ${dc.dwg_control_number} is in '${dc.status}' status, not released.`,
+          assignedTo: gateDesignLead4, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const gateAlertRecipients4 = [gateDesignLead4, gatePM4].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(gateAlertRecipients4, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — drawing not released for ${procGateItemCode}`,
+          message: `Drawing ${dc.dwg_control_number} is in '${dc.status}' status. Procurement for ${procGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
           { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
       }
@@ -2507,6 +2566,20 @@ export function setupProjectRoutes(app: express.Express) {
             procurementExecId: id, projectItemId: record.project_item_id,
             gate: 'bom_missing', reason: `No ${expectedType} BOM exists`, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const gateDesignLead5 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const gatePM5 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve BOM gate block for ${procGateItemCode}`,
+          description: `Procurement execution #${id} blocked: no ${expectedType} BOM exists. Create and release a BOM to unblock.`,
+          assignedTo: gateDesignLead5, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const gateAlertRecipients5 = [gateDesignLead5, gatePM5].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(gateAlertRecipients5, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — no BOM for ${procGateItemCode}`,
+          message: `No ${expectedType} BOM exists for ${procGateItemCode}. Procurement is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: no ${expectedType} BOM exists for this item. Create and release a BOM first.`,
           { action: `Create a ${expectedType} BOM for this project item, then progress it through review → approval → release.` });
       }
@@ -2518,6 +2591,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'bom_not_released', reason: `BOM ${bom.bom_number} is in '${bom.status}' status`,
             bomNumber: bom.bom_number, bomStatus: bom.status, bomType: bom.bom_type, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const gateDesignLead6 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const gatePM6 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve BOM release gate for ${procGateItemCode}`,
+          description: `Procurement execution #${id} blocked: BOM ${bom.bom_number} is in '${bom.status}' status, not released.`,
+          assignedTo: gateDesignLead6, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const gateAlertRecipients6 = [gateDesignLead6, gatePM6].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(gateAlertRecipients6, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — BOM not released for ${procGateItemCode}`,
+          message: `BOM ${bom.bom_number} is in '${bom.status}' status. Procurement for ${procGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: BOM ${bom.bom_number} (${bom.bom_type}) is in '${bom.status}' status. It must be released first.`,
           { action: `Progress BOM ${bom.bom_number} through review → approval → release.` });
       }
@@ -2896,12 +2983,28 @@ export function setupProjectRoutes(app: express.Express) {
       );
       const dc = dcResult.rows.length > 0 ? (dcResult.rows[0] as any) : null;
 
+      const prodGateItemCode = record.item_code || record.item_description || `Item #${record.project_item_id}`;
+
       if (!dc) {
         await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${record.project_id}, 'production_execution.gate_blocked', ${JSON.stringify({
             productionExecId: id, projectItemId: record.project_item_id,
             gate: 'drawing_control', reason: 'No drawing control exists', blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const pGateDesign = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const pGatePM = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing gate block for ${prodGateItemCode}`,
+          description: `Production execution #${id} is blocked: no drawing control exists. Create and release a drawing control to unblock.`,
+          assignedTo: pGateDesign, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const pGateRecipients = [pGateDesign, pGatePM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(pGateRecipients, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — no drawing for ${prodGateItemCode}`,
+          message: `Production execution for ${prodGateItemCode} is blocked. No drawing control exists.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, 'Cannot mark ready: no drawing control exists for this item. Create and release a drawing control first.',
           { action: 'Create a Drawing Control for this project item, then progress it through review → approval → release.' });
       }
@@ -2913,6 +3016,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'drawing_manufacturing_release', reason: 'Drawing not released for manufacturing',
             dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const pGateDesign2 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const pGatePM2 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing release gate for ${prodGateItemCode}`,
+          description: `Production execution #${id} blocked: drawing ${dc.dwg_control_number} not released for manufacturing.`,
+          assignedTo: pGateDesign2, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const pGateRecipients2 = [pGateDesign2, pGatePM2].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(pGateRecipients2, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — drawing not released for ${prodGateItemCode}`,
+          message: `Drawing ${dc.dwg_control_number} not released for manufacturing. Production for ${prodGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for manufacturing. Release the drawing for manufacturing first.`,
           { action: `Release drawing ${dc.dwg_control_number} for manufacturing (set released_for_manufacturing = true).` });
       }
@@ -2924,6 +3041,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'drawing_procurement_release', reason: 'Drawing not released for procurement',
             dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const pGateDesign3 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const pGatePM3 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing release gate for ${prodGateItemCode}`,
+          description: `Production execution #${id} blocked: drawing ${dc.dwg_control_number} not released for procurement.`,
+          assignedTo: pGateDesign3, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const pGateRecipients3 = [pGateDesign3, pGatePM3].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(pGateRecipients3, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — drawing not released for ${prodGateItemCode}`,
+          message: `Drawing ${dc.dwg_control_number} not released for procurement. Production for ${prodGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for procurement. Release the drawing for procurement first.`,
           { action: `Release drawing ${dc.dwg_control_number} for procurement (set released_for_procurement = true).` });
       }
@@ -2935,6 +3066,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'drawing_release', reason: 'Drawing not released',
             dwgControlNumber: dc.dwg_control_number, dwgStatus: dc.status, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const pGateDesign4 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const pGatePM4 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve drawing release gate for ${prodGateItemCode}`,
+          description: `Production execution #${id} blocked: drawing ${dc.dwg_control_number} is in '${dc.status}' status, not released.`,
+          assignedTo: pGateDesign4, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const pGateRecipients4 = [pGateDesign4, pGatePM4].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(pGateRecipients4, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — drawing not released for ${prodGateItemCode}`,
+          message: `Drawing ${dc.dwg_control_number} is in '${dc.status}' status. Production for ${prodGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
           { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
       }
@@ -2958,6 +3103,20 @@ export function setupProjectRoutes(app: express.Express) {
             productionExecId: id, projectItemId: record.project_item_id,
             gate: 'bom_missing', reason: `No ${expectedType} BOM exists`, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const pGateDesign5 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const pGatePM5 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve BOM gate block for ${prodGateItemCode}`,
+          description: `Production execution #${id} blocked: no ${expectedType} BOM exists. Create and release a BOM to unblock.`,
+          assignedTo: pGateDesign5, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const pGateRecipients5 = [pGateDesign5, pGatePM5].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(pGateRecipients5, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — no BOM for ${prodGateItemCode}`,
+          message: `No ${expectedType} BOM exists for ${prodGateItemCode}. Production is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: no ${expectedType} BOM exists for this item. Create and release a BOM first.`,
           { action: `Create a ${expectedType} BOM for this project item, then progress it through review → approval → release.` });
       }
@@ -2969,6 +3128,20 @@ export function setupProjectRoutes(app: express.Express) {
             gate: 'bom_not_released', reason: `BOM ${bom.bom_number} is in '${bom.status}' status`,
             bomNumber: bom.bom_number, bomStatus: bom.status, bomType: bom.bom_type, blockedBy: userId,
           })}::jsonb, 'gate_enforcement', NOW())`);
+        const pGateDesign6 = await resolveAssignee(record.project_id, 'Engineering', userId);
+        const pGatePM6 = await resolveManagerId(record.project_id);
+        await createEpcTask({
+          projectId: record.project_id, entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
+          title: `Resolve BOM release gate for ${prodGateItemCode}`,
+          description: `Production execution #${id} blocked: BOM ${bom.bom_number} is in '${bom.status}' status, not released.`,
+          assignedTo: pGateDesign6, createdBy: userId, priority: 'High', dueDays: 2,
+        });
+        const pGateRecipients6 = [pGateDesign6, pGatePM6].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(pGateRecipients6, {
+          type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — BOM not released for ${prodGateItemCode}`,
+          message: `BOM ${bom.bom_number} is in '${bom.status}' status. Production for ${prodGateItemCode} is blocked.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
         return sendBusinessError(res, `Cannot mark ready: BOM ${bom.bom_number} (${bom.bom_type}) is in '${bom.status}' status. It must be released first.`,
           { action: `Progress BOM ${bom.bom_number} through review → approval → release.` });
       }
@@ -3842,6 +4015,20 @@ export function setupProjectRoutes(app: express.Express) {
             projectItemId: record.project_item_id, failedBy: userId, failureReason,
             qualityLinkage,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const inspItemDesc = record.item_description || record.item_code || 'Unknown Item';
+        const inspQualityLead = await resolveAssignee(record.project_id, 'Quality', userId, tx);
+        const inspProcLead = await resolveAssignee(record.project_id, 'Procurement', userId, tx);
+        const inspProdLead = await resolveAssignee(record.project_id, 'Production', userId, tx);
+        const inspPM = await resolveManagerId(record.project_id, tx);
+        const inspAlertRecipients = [inspQualityLead, inspProcLead, inspProdLead, inspPM]
+          .filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(inspAlertRecipients, {
+          type: 'epc_inspection_failed',
+          title: `CRITICAL: Inspection failed for ${inspItemDesc}`,
+          message: `Inspection for ${inspItemDesc} (${record.inspection_type || 'general'}) has failed. Reason: ${failureReason}. ${qualityLinkage.blockedPOs > 0 ? `${qualityLinkage.blockedPOs} PO(s) blocked. ` : ''}${qualityLinkage.blockedWOs > 0 ? `${qualityLinkage.blockedWOs} WO(s) blocked. ` : ''}NCR task #${qualityLinkage.ncrTaskId} created.`,
+          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
       });
 
       console.log(`[InspectionExec] Record ${id} failed by user ${userId}: ${failureReason}. Quality linkage: POs=${qualityLinkage.blockedPOs}, WOs=${qualityLinkage.blockedWOs}, NCR task=${qualityLinkage.ncrTaskId}`);
@@ -4602,6 +4789,15 @@ export function setupProjectRoutes(app: express.Express) {
             vendorName: prep.preferred_vendor_name, totalAmount: prep.estimated_total_cost,
             createdBy: userId,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const poApproveAssignee = await resolveAssignee(prep.project_id, 'Procurement', userId, tx);
+        const poProjectCode = await resolveProjectCode(prep.project_id, tx);
+        await createEpcTask({
+          projectId: prep.project_id, entityType: 'purchase_order', recordId: newPO.id, actionCode: 'approve',
+          title: `Approve EPC PO ${poNumber} for ${poProjectCode}`,
+          description: `Purchase order ${poNumber} has been created and requires Manager approval. Vendor: ${prep.preferred_vendor_name || 'TBD'}. Amount: ${prep.estimated_total_cost || 'TBD'}.`,
+          assignedTo: poApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+        });
       });
 
       console.log(`[EPC-PO] Purchase order ${poNumber} created from PO prep ${poPrepId} by user ${userId}`);
@@ -4674,6 +4870,15 @@ export function setupProjectRoutes(app: express.Express) {
             epcPoId: id, poNumber: po.po_number, approvedBy: userId, approvalNote,
             projectItemId: po.project_item_id, poPrepId: po.po_preparation_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const poIssueAssignee = await resolveAssignee(po.project_id, 'Procurement', userId, tx);
+        const poIssProjectCode = await resolveProjectCode(po.project_id, tx);
+        await createEpcTask({
+          projectId: po.project_id, entityType: 'purchase_order', recordId: id, actionCode: 'issue',
+          title: `Issue EPC PO ${po.po_number} for ${poIssProjectCode}`,
+          description: `Purchase order ${po.po_number} has been approved and is ready to be issued by a Senior Manager.`,
+          assignedTo: poIssueAssignee, createdBy: userId, priority: 'High', dueDays: 1, tx,
+        });
       });
 
       console.log(`[EPC-PO] Purchase order ${po.po_number} approved by user ${userId}`);
@@ -4768,6 +4973,8 @@ export function setupProjectRoutes(app: express.Express) {
             epcPoId: id, poNumber: po.po_number, cancelledBy: userId, cancelReason,
             previousStatus: po.status, projectItemId: po.project_item_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        await markTasksObsolete('purchase_order', id, 'po_cancelled', tx);
       });
 
       console.log(`[EPC-PO] Purchase order ${po.po_number} cancelled by user ${userId}`);
@@ -4949,11 +5156,20 @@ export function setupProjectRoutes(app: express.Express) {
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${prep.project_id}, 'epc_work_order.created', ${JSON.stringify({
-            epcWoId: 0, woNumber, woPrepId, executionRecordId: prep.execution_record_id,
+            epcWoId: newWO.id, woNumber, woPrepId, executionRecordId: prep.execution_record_id,
             planningRecordId: prep.planning_record_id, projectItemId: prep.project_item_id,
             makeClassification: prep.make_classification, estimatedTotalCost: prep.estimated_total_cost,
             createdBy: userId,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const woApproveAssignee = await resolveAssignee(prep.project_id, 'Production', userId, tx);
+        const woProjectCode = await resolveProjectCode(prep.project_id, tx);
+        await createEpcTask({
+          projectId: prep.project_id, entityType: 'work_order', recordId: newWO.id, actionCode: 'approve',
+          title: `Approve EPC WO ${woNumber} for ${woProjectCode}`,
+          description: `Work order ${woNumber} has been created and requires Manager approval. Classification: ${prep.make_classification || 'N/A'}.`,
+          assignedTo: woApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+        });
       });
 
       console.log(`[EPC-WO] Work order ${woNumber} created from WO prep ${woPrepId} by user ${userId}`);
@@ -5026,6 +5242,15 @@ export function setupProjectRoutes(app: express.Express) {
             epcWoId: id, woNumber: wo.wo_number, approvedBy: userId, approvalNote,
             projectItemId: wo.project_item_id, woPrepId: wo.wo_preparation_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        const woReleaseAssignee = await resolveAssignee(wo.project_id, 'Production', userId, tx);
+        const woRelProjectCode = await resolveProjectCode(wo.project_id, tx);
+        await createEpcTask({
+          projectId: wo.project_id, entityType: 'work_order', recordId: id, actionCode: 'release',
+          title: `Release EPC WO ${wo.wo_number} for ${woRelProjectCode}`,
+          description: `Work order ${wo.wo_number} has been approved and is ready to be released by a Senior Manager.`,
+          assignedTo: woReleaseAssignee, createdBy: userId, priority: 'High', dueDays: 1, tx,
+        });
       });
 
       console.log(`[EPC-WO] Work order ${wo.wo_number} approved by user ${userId}`);
@@ -5120,6 +5345,8 @@ export function setupProjectRoutes(app: express.Express) {
             epcWoId: id, woNumber: wo.wo_number, cancelledBy: userId, cancelReason,
             previousStatus: wo.status, projectItemId: wo.project_item_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
+
+        await markTasksObsolete('work_order', id, 'wo_cancelled', tx);
       });
 
       console.log(`[EPC-WO] Work order ${wo.wo_number} cancelled by user ${userId}`);
@@ -7577,6 +7804,15 @@ export function setupProjectRoutes(app: express.Express) {
           VALUES (${rec.project_id}, 'drawing_control.submitted', ${JSON.stringify({
             dwgId: id, dwgControlNumber: rec.dwg_control_number, submittedBy: userId,
           })}::jsonb, 'drawing_control', NOW())`);
+
+        const dwgReviewAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
+        await createEpcTask({
+          projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'review',
+          title: `Review Drawing ${rec.dwg_control_number} for ${dwgProjectCode}`,
+          description: `Drawing ${rec.dwg_control_number} has been submitted for review. Please review and provide your recommendation (approve/reject).`,
+          assignedTo: dwgReviewAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+        });
       });
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} submitted for review by user ${userId}`);
@@ -7627,6 +7863,17 @@ export function setupProjectRoutes(app: express.Express) {
           VALUES (${rec.project_id}, 'drawing_control.reviewed', ${JSON.stringify({
             dwgId: id, dwgControlNumber: rec.dwg_control_number, reviewedBy: userId, recommendation,
           })}::jsonb, 'drawing_control', NOW())`);
+
+        if (recommendation === 'approve' || recommendation === 'approve_with_comments') {
+          const dwgApproveAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+          const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
+          await createEpcTask({
+            projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'approve',
+            title: `Approve Drawing ${rec.dwg_control_number} for ${dwgProjectCode}`,
+            description: `Drawing ${rec.dwg_control_number} has been reviewed with recommendation: ${recommendation}. Senior Manager approval is needed.`,
+            assignedTo: dwgApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+          });
+        }
       });
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} reviewed (${recommendation}) by user ${userId}`);
@@ -7684,6 +7931,15 @@ export function setupProjectRoutes(app: express.Express) {
           VALUES (${rec.project_id}, 'drawing_control.approved', ${JSON.stringify({
             dwgId: id, dwgControlNumber: rec.dwg_control_number, approvedBy: userId,
           })}::jsonb, 'drawing_control', NOW())`);
+
+        const dwgReleaseAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
+        await createEpcTask({
+          projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'release',
+          title: `Release Drawing ${rec.dwg_control_number} for ${dwgProjectCode}`,
+          description: `Drawing ${rec.dwg_control_number} has been approved. It is now pending release by a Senior Manager.`,
+          assignedTo: dwgReleaseAssignee, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
+        });
       });
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} approved by user ${userId}`);
@@ -7896,6 +8152,8 @@ export function setupProjectRoutes(app: express.Express) {
           VALUES (${rec.project_id}, 'drawing_control.cancelled', ${JSON.stringify({
             dwgId: id, dwgControlNumber: rec.dwg_control_number, cancelledBy: userId, cancelReason,
           })}::jsonb, 'drawing_control', NOW())`);
+
+        await markTasksObsolete('drawing_control', id, 'drawing_cancelled', tx);
       });
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} cancelled by user ${userId}`);
@@ -7993,6 +8251,25 @@ export function setupProjectRoutes(app: express.Express) {
             newDwgId: inserted[0].id, newDwgNumber,
             supersessionReason, supersededBy: userId,
           })}::jsonb, 'drawing_control', NOW())`);
+
+        await markTasksObsolete('drawing_control', id, `drawing_superseded_by_${inserted[0].id}`, tx);
+
+        const dwgSupDesignLead = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const dwgSupPM = await resolveManagerId(rec.project_id, tx);
+        const dwgSupProjectCode = await resolveProjectCode(rec.project_id, tx);
+        await createEpcTask({
+          projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'supersession_review',
+          title: `Review downstream impact of superseded Drawing ${rec.dwg_control_number}`,
+          description: `Drawing ${rec.dwg_control_number} has been superseded by ${newDwgNumber} on ${dwgSupProjectCode}. Reason: ${supersessionReason}. Review downstream execution records and BOMs that may reference the old revision.`,
+          assignedTo: dwgSupDesignLead || dwgSupPM, createdBy: userId, priority: 'High', dueDays: 3, tx,
+        });
+
+        const dwgSupAlertRecipients = [dwgSupDesignLead, dwgSupPM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(dwgSupAlertRecipients, {
+          type: 'epc_supersession', title: `Drawing ${rec.dwg_control_number} superseded`,
+          message: `Drawing ${rec.dwg_control_number} has been superseded by ${newDwgNumber} on project ${dwgSupProjectCode}. Reason: ${supersessionReason}. Downstream execution records may reference the old revision.`,
+          link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
 
         console.log(`[DWG-CTRL] ${rec.dwg_control_number} superseded by ${newDwgNumber}, user ${userId}`);
         res.status(201).json({
@@ -8276,13 +8553,24 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot submit: BOM has no lines. Add at least one component.');
       }
 
-      await db.update(epcBomHeaders).set({
-        status: 'under_review',
-        submittedBy: userId,
-        submittedAt: new Date(),
-        submissionNote: submissionNote || null,
-        updatedAt: new Date(),
-      }).where(eq(epcBomHeaders.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(epcBomHeaders).set({
+          status: 'under_review',
+          submittedBy: userId,
+          submittedAt: new Date(),
+          submissionNote: submissionNote || null,
+          updatedAt: new Date(),
+        }).where(eq(epcBomHeaders.id, id));
+
+        const bomReviewAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const bomProjectCode = await resolveProjectCode(rec.project_id, tx);
+        await createEpcTask({
+          projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'review',
+          title: `Review BOM ${rec.bom_number} for ${bomProjectCode}`,
+          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been submitted for review. Please review and provide your recommendation.`,
+          assignedTo: bomReviewAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+        });
+      });
 
       console.log(`[BOM] ${rec.bom_number} submitted for review by user ${userId}`);
       res.json({ success: true, message: `${rec.bom_number} submitted for review` });
@@ -8319,13 +8607,26 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Self-review not allowed: submitter cannot be reviewer.');
       }
 
-      await db.update(epcBomHeaders).set({
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        reviewNote: reviewNote || null,
-        reviewRecommendation: recommendation,
-        updatedAt: new Date(),
-      }).where(eq(epcBomHeaders.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(epcBomHeaders).set({
+          reviewedBy: userId,
+          reviewedAt: new Date(),
+          reviewNote: reviewNote || null,
+          reviewRecommendation: recommendation,
+          updatedAt: new Date(),
+        }).where(eq(epcBomHeaders.id, id));
+
+        if (recommendation === 'approve' || recommendation === 'approve_with_comments') {
+          const bomApproveAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+          const bomProjectCode = await resolveProjectCode(rec.project_id, tx);
+          await createEpcTask({
+            projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'approve',
+            title: `Approve BOM ${rec.bom_number} for ${bomProjectCode}`,
+            description: `BOM ${rec.bom_number} (${rec.bom_type}) has been reviewed with recommendation: ${recommendation}. Senior Manager approval is needed.`,
+            assignedTo: bomApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+          });
+        }
+      });
 
       console.log(`[BOM] ${rec.bom_number} reviewed by user ${userId}, recommendation: ${recommendation}`);
       res.json({ success: true, message: `${rec.bom_number} reviewed (${recommendation})` });
@@ -8366,13 +8667,24 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Self-approval not allowed: creator cannot be approver.');
       }
 
-      await db.update(epcBomHeaders).set({
-        status: 'approved',
-        approvedBy: userId,
-        approvedAt: new Date(),
-        approvalNote: approvalNote || null,
-        updatedAt: new Date(),
-      }).where(eq(epcBomHeaders.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(epcBomHeaders).set({
+          status: 'approved',
+          approvedBy: userId,
+          approvedAt: new Date(),
+          approvalNote: approvalNote || null,
+          updatedAt: new Date(),
+        }).where(eq(epcBomHeaders.id, id));
+
+        const bomReleaseAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const bomProjectCode = await resolveProjectCode(rec.project_id, tx);
+        await createEpcTask({
+          projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'release',
+          title: `Release BOM ${rec.bom_number} for ${bomProjectCode}`,
+          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been approved. It is now pending release by a Senior Manager.`,
+          assignedTo: bomReleaseAssignee, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
+        });
+      });
 
       console.log(`[BOM] ${rec.bom_number} approved by user ${userId}`);
       res.json({ success: true, message: `${rec.bom_number} approved` });
@@ -8435,13 +8747,17 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `BOM is already ${rec.status}.`);
       }
 
-      await db.update(epcBomHeaders).set({
-        status: 'cancelled',
-        cancelledBy: userId,
-        cancelledAt: new Date(),
-        cancelReason,
-        updatedAt: new Date(),
-      }).where(eq(epcBomHeaders.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(epcBomHeaders).set({
+          status: 'cancelled',
+          cancelledBy: userId,
+          cancelledAt: new Date(),
+          cancelReason,
+          updatedAt: new Date(),
+        }).where(eq(epcBomHeaders.id, id));
+
+        await markTasksObsolete('bom_header', id, 'bom_cancelled', tx);
+      });
 
       console.log(`[BOM] ${rec.bom_number} cancelled by user ${userId}`);
       res.json({ success: true, message: `${rec.bom_number} cancelled` });
@@ -8557,6 +8873,25 @@ export function setupProjectRoutes(app: express.Express) {
           UPDATE bom_explosion_logs SET status = 'superseded', superseded_at = NOW()
           WHERE bom_header_id = ${id} AND status = 'created'
         `);
+
+        await markTasksObsolete('bom_header', id, `bom_superseded_by_${newBom.id}`, tx);
+
+        const bomSupDesignLead = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const bomSupPM = await resolveManagerId(rec.project_id, tx);
+        const bomSupProjectCode = await resolveProjectCode(rec.project_id, tx);
+        await createEpcTask({
+          projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'supersession_review',
+          title: `Review child planning records after BOM ${rec.bom_number} supersession`,
+          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been superseded by ${newBomNumber} on ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-cancelled, ${flaggedForReview} flagged for review.`,
+          assignedTo: bomSupDesignLead || bomSupPM, createdBy: userId, priority: 'High', dueDays: 2, tx,
+        });
+
+        const bomSupAlertRecipients = [bomSupDesignLead, bomSupPM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        await createEpcAlertMulti(bomSupAlertRecipients, {
+          type: 'epc_supersession', title: `BOM ${rec.bom_number} superseded`,
+          message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNumber} on project ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-cancelled, ${flaggedForReview} flagged for review.`,
+          link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        });
 
         return { newBom, autoCancelled, flaggedForReview };
       });
