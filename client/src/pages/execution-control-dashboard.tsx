@@ -952,7 +952,7 @@ export default function ExecutionControlDashboard() {
       commissioning: "CR", billing: "BR", invoice: "INV",
     };
     const layers = [
-      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning", docType: "PLN", deepLink: "" },
+      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning", docType: "PLN", deepLink: "/epc/planning-control" },
       { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package, applicabilityKey: execApplicabilityKey, docType: row.isBuy ? "BUY" : "MFG", deepLink: "" },
       { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck, applicabilityKey: "quality", docType: "QPL", deepLink: "" },
       { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart, applicabilityKey: prepApplicabilityKey, docType: row.isBuy ? "POP" : "WOP", deepLink: row.isBuy ? "/epc/purchase-orders" : "/epc/work-orders" },

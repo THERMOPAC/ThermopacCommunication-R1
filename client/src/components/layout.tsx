@@ -67,7 +67,8 @@ import {
   Building2,
   Star,
   PenTool,
-  Layers
+  Layers,
+  ClipboardList
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -395,6 +396,7 @@ function Layout({ children }: LayoutProps) {
         { icon: PenTool, label: "EPC Drawing Controls", href: "/epc/drawing-controls" },
         { icon: ShoppingCart, label: "EPC Purchase Orders", href: "/epc/purchase-orders" },
         { icon: Wrench, label: "EPC Work Orders", href: "/epc/work-orders" },
+        { icon: ClipboardList, label: "EPC Planning Control", href: "/epc/planning-control" },
         { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]
