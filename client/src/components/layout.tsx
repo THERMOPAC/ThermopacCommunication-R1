@@ -397,6 +397,7 @@ function Layout({ children }: LayoutProps) {
         { icon: ShoppingCart, label: "EPC Purchase Orders", href: "/epc/purchase-orders" },
         { icon: Wrench, label: "EPC Work Orders", href: "/epc/work-orders" },
         { icon: ClipboardList, label: "EPC Planning Control", href: "/epc/planning-control" },
+        { icon: Package, label: "EPC Procurement & Production", href: "/epc/execution-control" },
         { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]
