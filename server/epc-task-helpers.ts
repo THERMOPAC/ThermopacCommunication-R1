@@ -27,6 +27,9 @@ export interface EpcAlertParams {
   sourceType?: string;
   sourceId?: number;
   createdBy?: number;
+  entityType?: string;
+  recordId?: number;
+  actionCode?: string;
 }
 
 function computeBusinessDayDue(days: number): string {
@@ -92,6 +95,23 @@ export async function createEpcTask(params: EpcTaskParams): Promise<number | nul
 
 export async function createEpcAlert(params: EpcAlertParams): Promise<void> {
   try {
+    if (params.entityType && params.recordId && params.actionCode) {
+      const alertKey = buildAutomationKey(params.entityType, params.recordId, params.actionCode);
+      const existing = await db.execute(
+        sql`SELECT id FROM notifications
+            WHERE user_id = ${params.userId}
+              AND source_type = 'epc_automation'
+              AND message LIKE ${'%' + alertKey + '%'}
+              AND status IN ('new', 'unread')
+            LIMIT 1`
+      );
+      if (existing.rows.length > 0) {
+        console.log(`[EPC-Alert] Idempotent skip: alert already exists for user ${params.userId}, ${alertKey}`);
+        return;
+      }
+      params.message = `${params.message}\n${alertKey}`;
+    }
+
     await createNotification({
       userId: params.userId,
       type: params.type || 'epc_lifecycle',

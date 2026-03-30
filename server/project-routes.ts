@@ -2467,6 +2467,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — no drawing for ${procGateItemCode}`,
           message: `Procurement execution for ${procGateItemCode} is blocked. No drawing control exists. Action required.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, 'Cannot mark ready: no drawing control exists for this item. Create and release a drawing control first.', 
           { action: 'Create a Drawing Control for this project item, then progress it through review → approval → release.' });
@@ -2492,6 +2493,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — drawing not released for ${procGateItemCode}`,
           message: `Drawing ${dc.dwg_control_number} is not released for procurement. Procurement for ${procGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for procurement. Release the drawing for procurement first.`,
           { action: `Release drawing ${dc.dwg_control_number} for procurement (set released_for_procurement = true).` });
@@ -2517,6 +2519,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — drawing not released for ${procGateItemCode}`,
           message: `Drawing ${dc.dwg_control_number} is not released for manufacturing. Procurement for ${procGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for manufacturing. Release the drawing for manufacturing first.`,
           { action: `Release drawing ${dc.dwg_control_number} for manufacturing (set released_for_manufacturing = true).` });
@@ -2542,6 +2545,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — drawing not released for ${procGateItemCode}`,
           message: `Drawing ${dc.dwg_control_number} is in '${dc.status}' status. Procurement for ${procGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
           { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
@@ -2579,6 +2583,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — no BOM for ${procGateItemCode}`,
           message: `No ${expectedType} BOM exists for ${procGateItemCode}. Procurement is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: no ${expectedType} BOM exists for this item. Create and release a BOM first.`,
           { action: `Create a ${expectedType} BOM for this project item, then progress it through review → approval → release.` });
@@ -2604,6 +2609,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Procurement gate blocked — BOM not released for ${procGateItemCode}`,
           message: `BOM ${bom.bom_number} is in '${bom.status}' status. Procurement for ${procGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'procurement_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: BOM ${bom.bom_number} (${bom.bom_type}) is in '${bom.status}' status. It must be released first.`,
           { action: `Progress BOM ${bom.bom_number} through review → approval → release.` });
@@ -3004,6 +3010,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — no drawing for ${prodGateItemCode}`,
           message: `Production execution for ${prodGateItemCode} is blocked. No drawing control exists.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, 'Cannot mark ready: no drawing control exists for this item. Create and release a drawing control first.',
           { action: 'Create a Drawing Control for this project item, then progress it through review → approval → release.' });
@@ -3029,6 +3036,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — drawing not released for ${prodGateItemCode}`,
           message: `Drawing ${dc.dwg_control_number} not released for manufacturing. Production for ${prodGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for manufacturing. Release the drawing for manufacturing first.`,
           { action: `Release drawing ${dc.dwg_control_number} for manufacturing (set released_for_manufacturing = true).` });
@@ -3054,6 +3062,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — drawing not released for ${prodGateItemCode}`,
           message: `Drawing ${dc.dwg_control_number} not released for procurement. Production for ${prodGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is not released for procurement. Release the drawing for procurement first.`,
           { action: `Release drawing ${dc.dwg_control_number} for procurement (set released_for_procurement = true).` });
@@ -3079,6 +3088,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — drawing not released for ${prodGateItemCode}`,
           message: `Drawing ${dc.dwg_control_number} is in '${dc.status}' status. Production for ${prodGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
           { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
@@ -3116,6 +3126,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — no BOM for ${prodGateItemCode}`,
           message: `No ${expectedType} BOM exists for ${prodGateItemCode}. Production is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: no ${expectedType} BOM exists for this item. Create and release a BOM first.`,
           { action: `Create a ${expectedType} BOM for this project item, then progress it through review → approval → release.` });
@@ -3141,6 +3152,7 @@ export function setupProjectRoutes(app: express.Express) {
           type: 'epc_gate_blocked', title: `CRITICAL: Production gate blocked — BOM not released for ${prodGateItemCode}`,
           message: `BOM ${bom.bom_number} is in '${bom.status}' status. Production for ${prodGateItemCode} is blocked.`,
           link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+          entityType: 'production_execution', recordId: id, actionCode: 'gate_blocked',
         });
         return sendBusinessError(res, `Cannot mark ready: BOM ${bom.bom_number} (${bom.bom_type}) is in '${bom.status}' status. It must be released first.`,
           { action: `Progress BOM ${bom.bom_number} through review → approval → release.` });
@@ -3927,7 +3939,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       let qualityLinkage: any = { blockedPOs: 0, blockedWOs: 0, ncrTaskId: null };
 
-      await db.transaction(async (tx) => {
+      const txInspResult = await db.transaction(async (tx) => {
         await tx.execute(
           sql`UPDATE inspection_execution_records 
               SET status = 'failed', result = 'fail', failed_by = ${userId}, failed_at = NOW(),
@@ -4021,14 +4033,17 @@ export function setupProjectRoutes(app: express.Express) {
         const inspProcLead = await resolveAssignee(record.project_id, 'Procurement', userId, tx);
         const inspProdLead = await resolveAssignee(record.project_id, 'Production', userId, tx);
         const inspPM = await resolveManagerId(record.project_id, tx);
-        const inspAlertRecipients = [inspQualityLead, inspProcLead, inspProdLead, inspPM]
-          .filter((v, i, a) => v && a.indexOf(v) === i) as number[];
-        await createEpcAlertMulti(inspAlertRecipients, {
-          type: 'epc_inspection_failed',
-          title: `CRITICAL: Inspection failed for ${inspItemDesc}`,
-          message: `Inspection for ${inspItemDesc} (${record.inspection_type || 'general'}) has failed. Reason: ${failureReason}. ${qualityLinkage.blockedPOs > 0 ? `${qualityLinkage.blockedPOs} PO(s) blocked. ` : ''}${qualityLinkage.blockedWOs > 0 ? `${qualityLinkage.blockedWOs} WO(s) blocked. ` : ''}NCR task #${qualityLinkage.ncrTaskId} created.`,
-          link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
-        });
+        return { inspItemDesc, inspQualityLead, inspProcLead, inspProdLead, inspPM };
+      });
+
+      const inspAlertRecipients = [txInspResult.inspQualityLead, txInspResult.inspProcLead, txInspResult.inspProdLead, txInspResult.inspPM]
+        .filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+      await createEpcAlertMulti(inspAlertRecipients, {
+        type: 'epc_inspection_failed',
+        title: `CRITICAL: Inspection failed for ${txInspResult.inspItemDesc}`,
+        message: `Inspection for ${txInspResult.inspItemDesc} (${record.inspection_type || 'general'}) has failed. Reason: ${failureReason}. ${qualityLinkage.blockedPOs > 0 ? `${qualityLinkage.blockedPOs} PO(s) blocked. ` : ''}${qualityLinkage.blockedWOs > 0 ? `${qualityLinkage.blockedWOs} WO(s) blocked. ` : ''}NCR task #${qualityLinkage.ncrTaskId} created.`,
+        link: `/epc/execution-control`, priority: 'critical', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        entityType: 'inspection_execution', recordId: id, actionCode: 'failed',
       });
 
       console.log(`[InspectionExec] Record ${id} failed by user ${userId}: ${failureReason}. Quality linkage: POs=${qualityLinkage.blockedPOs}, WOs=${qualityLinkage.blockedWOs}, NCR task=${qualityLinkage.ncrTaskId}`);
@@ -8212,7 +8227,7 @@ export function setupProjectRoutes(app: express.Express) {
       const nextSeq = (seqResult.rows[0] as any).next_seq;
       const newDwgNumber = `DWG-${year}-${String(nextSeq).padStart(4, '0')}`;
 
-      await db.transaction(async (tx) => {
+      const dwgTxResult = await db.transaction(async (tx) => {
         const inserted = await tx.insert(epcDrawingControls).values({
           dwgControlNumber: newDwgNumber,
           projectId: rec.project_id,
@@ -8265,19 +8280,23 @@ export function setupProjectRoutes(app: express.Express) {
         });
 
         const dwgSupAlertRecipients = [dwgSupDesignLead, dwgSupPM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
-        await createEpcAlertMulti(dwgSupAlertRecipients, {
-          type: 'epc_supersession', title: `Drawing ${rec.dwg_control_number} superseded`,
-          message: `Drawing ${rec.dwg_control_number} has been superseded by ${newDwgNumber} on project ${dwgSupProjectCode}. Reason: ${supersessionReason}. Downstream execution records may reference the old revision.`,
-          link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
-        });
 
-        console.log(`[DWG-CTRL] ${rec.dwg_control_number} superseded by ${newDwgNumber}, user ${userId}`);
-        res.status(201).json({
-          success: true,
-          message: `${rec.dwg_control_number} superseded → new ${newDwgNumber} created`,
-          oldRecord: { id, dwgControlNumber: rec.dwg_control_number, status: 'superseded' },
-          newRecord: inserted[0],
-        });
+        return { inserted: inserted[0], dwgSupAlertRecipients, dwgSupProjectCode };
+      });
+
+      await createEpcAlertMulti(dwgTxResult.dwgSupAlertRecipients, {
+        type: 'epc_supersession', title: `Drawing ${rec.dwg_control_number} superseded`,
+        message: `Drawing ${rec.dwg_control_number} has been superseded by ${newDwgNumber} on project ${dwgTxResult.dwgSupProjectCode}. Reason: ${supersessionReason}. Downstream execution records may reference the old revision.`,
+        link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        entityType: 'drawing_control', recordId: id, actionCode: 'superseded',
+      });
+
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} superseded by ${newDwgNumber}, user ${userId}`);
+      res.status(201).json({
+        success: true,
+        message: `${rec.dwg_control_number} superseded → new ${newDwgNumber} created`,
+        oldRecord: { id, dwgControlNumber: rec.dwg_control_number, status: 'superseded' },
+        newRecord: dwgTxResult.inserted,
       });
     } catch (error) {
       sendError(res, error);
@@ -8887,13 +8906,15 @@ export function setupProjectRoutes(app: express.Express) {
         });
 
         const bomSupAlertRecipients = [bomSupDesignLead, bomSupPM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
-        await createEpcAlertMulti(bomSupAlertRecipients, {
-          type: 'epc_supersession', title: `BOM ${rec.bom_number} superseded`,
-          message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNumber} on project ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-cancelled, ${flaggedForReview} flagged for review.`,
-          link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
-        });
 
-        return { newBom, autoCancelled, flaggedForReview };
+        return { newBom, autoCancelled, flaggedForReview, bomSupAlertRecipients, bomSupProjectCode };
+      });
+
+      await createEpcAlertMulti(txResult.bomSupAlertRecipients, {
+        type: 'epc_supersession', title: `BOM ${rec.bom_number} superseded`,
+        message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNumber} on project ${txResult.bomSupProjectCode}. Reason: ${supersessionReason}. ${txResult.autoCancelled} draft planning records auto-cancelled, ${txResult.flaggedForReview} flagged for review.`,
+        link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        entityType: 'bom_header', recordId: id, actionCode: 'superseded',
       });
 
       console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNumber} (user ${userId}). Child planning: ${txResult.autoCancelled} auto-cancelled, ${txResult.flaggedForReview} flagged for review.`);

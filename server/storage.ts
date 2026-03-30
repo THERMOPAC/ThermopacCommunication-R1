@@ -405,15 +405,20 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`Getting tasks for user: ${user.username} (${user.role}, ID: ${userId})`);
 
-    // Rule 1: Superuser sees all tasks (excluding archived)
+    // Rule 1: Superuser sees all tasks (excluding archived and obsolete)
     if (user.role === 'Superuser') {
-      const tasks = await db.select().from(tasksTable).where(eq(tasksTable.isArchived, false));
+      const tasks = await db.select().from(tasksTable).where(
+        and(
+          eq(tasksTable.isArchived, false),
+          sql`${tasksTable.status} != 'obsolete'`
+        )
+      );
       console.log(`Found ${tasks.length} tasks total for Superuser ${user.username}`);
       return tasks as Task[];
     }
 
     // Rule 2: Regular users see ONLY tasks where they are:
-    // a) The assignee OR b) The creator 
+    // a) The assignee OR b) The creator (excluding obsolete)
     console.log(`Getting tasks for ${user.username} where userId=${userId} is either assignee or creator`);
 
     const tasks = await db
@@ -422,6 +427,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(tasksTable.isArchived, false),
+          sql`${tasksTable.status} != 'obsolete'`,
           or(
             eq(tasksTable.assignedTo, userId),
             eq(tasksTable.createdBy, userId)
