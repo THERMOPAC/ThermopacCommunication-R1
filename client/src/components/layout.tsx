@@ -398,6 +398,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Wrench, label: "EPC Work Orders", href: "/epc/work-orders" },
         { icon: ClipboardList, label: "EPC Planning Control", href: "/epc/planning-control" },
         { icon: Package, label: "EPC Procurement & Production", href: "/epc/execution-control" },
+        { icon: ShieldCheck, label: "EPC Quality & Inspection", href: "/epc/quality-inspection" },
         { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]

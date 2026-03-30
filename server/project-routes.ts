@@ -4152,6 +4152,81 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
+  app.post('/api/inspection-executions/:id/mark-rework-required', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+      const { reworkNotes } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (record.status !== 'failed') {
+        return sendBusinessError(res, `Cannot mark rework required: record status is '${record.status}', expected 'failed'.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'rework_required', result_notes = ${reworkNotes || null}, updated_at = NOW()
+              WHERE id = ${id}`
+        );
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.rework_required', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, markedBy: userId, reworkNotes,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[InspectionExec] Record ${id} marked rework required by user ${userId}`);
+      res.json({ success: true, message: 'Inspection marked as rework required', id, newStatus: 'rework_required' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.post('/api/inspection-executions/:id/close', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
+      const userId = (req.user as any)?.id;
+      const { closingNotes } = req.body || {};
+
+      const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
+      if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
+      const record = existing.rows[0] as any;
+
+      if (!['completed', 'rework_required'].includes(record.status)) {
+        return sendBusinessError(res, `Cannot close: record status is '${record.status}'. Only 'completed' or 'rework_required' records can be closed.`);
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`UPDATE inspection_execution_records 
+              SET status = 'closed', result_notes = COALESCE(result_notes || E'\n', '') || ${closingNotes ? 'Closing notes: ' + closingNotes : ''}, updated_at = NOW()
+              WHERE id = ${id}`
+        );
+
+        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${record.project_id}, 'inspection_execution.closed', ${JSON.stringify({
+            inspectionExecId: id, qualityPlanId: record.quality_plan_id,
+            projectItemId: record.project_item_id, closedBy: userId, closingNotes,
+            previousStatus: record.status,
+          })}::jsonb, 'lifecycle_action', NOW())`);
+      });
+
+      console.log(`[InspectionExec] Record ${id} closed by user ${userId}`);
+      res.json({ success: true, message: 'Inspection record closed', id, newStatus: 'closed' });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
   // ─── PO Preparation Record Lifecycle Routes ──────────────────────────────
 
   app.get('/api/projects/:projectId/po-preparations', ensureAuthenticated, async (req: Request, res: Response) => {

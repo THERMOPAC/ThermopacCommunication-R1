@@ -24,3 +24,4 @@ export const EpcWorkOrdersPage = lazyWithRetry(() => import("@/pages/epc-work-or
 export const EpcInvoicesPage = lazyWithRetry(() => import("@/pages/epc-invoices-page"));
 export const EpcPlanningControlPage = lazyWithRetry(() => import("@/pages/epc-planning-control-page"));
 export const EpcExecutionControlPage = lazyWithRetry(() => import("@/pages/epc-execution-control-page"));
+export const EpcQualityInspectionPage = lazyWithRetry(() => import("@/pages/epc-quality-inspection-page"));
