@@ -11631,3 +11631,53 @@ export const epcAgentFindings = pgTable('epc_agent_findings', {
 export const insertEpcAgentFindingSchema = createInsertSchema(epcAgentFindings).omit({ id: true, firstDetectedAt: true, lastDetectedAt: true });
 export type InsertEpcAgentFinding = z.infer<typeof insertEpcAgentFindingSchema>;
 export type EpcAgentFinding = typeof epcAgentFindings.$inferSelect;
+
+export const epcDocumentAttachments = pgTable('epc_document_attachments', {
+  id: serial('id').primaryKey(),
+  parentEntityType: varchar('parent_entity_type', { length: 30 }).notNull(),
+  parentEntityId: integer('parent_entity_id').notNull(),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  docType: varchar('doc_type', { length: 3 }).notNull(),
+  documentNumber: varchar('document_number', { length: 40 }).notNull(),
+  isRevisionControlled: boolean('is_revision_controlled').notNull().default(false),
+  revisionCode: varchar('revision_code', { length: 4 }),
+  attachmentLabel: varchar('attachment_label', { length: 100 }).notNull(),
+  attachmentSeq: integer('attachment_seq').notNull().default(1),
+  gcsBucket: varchar('gcs_bucket', { length: 100 }).notNull().default('thermopac_storage'),
+  gcsObjectPath: varchar('gcs_object_path', { length: 500 }).notNull(),
+  originalFileName: varchar('original_file_name', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }).notNull(),
+  fileSizeBytes: integer('file_size_bytes').notNull(),
+  checksumSha256: varchar('checksum_sha256', { length: 64 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('active'),
+  isCurrent: boolean('is_current').notNull().default(true),
+  uploadedBy: integer('uploaded_by').notNull().references(() => users.id),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+  supersededAt: timestamp('superseded_at', { withTimezone: true }),
+  supersededBy: integer('superseded_by').references(() => users.id),
+  withdrawnAt: timestamp('withdrawn_at', { withTimezone: true }),
+  withdrawnBy: integer('withdrawn_by').references(() => users.id),
+  withdrawReason: text('withdraw_reason'),
+});
+
+export const insertEpcDocumentAttachmentSchema = createInsertSchema(epcDocumentAttachments).omit({ id: true, uploadedAt: true });
+export type InsertEpcDocumentAttachment = z.infer<typeof insertEpcDocumentAttachmentSchema>;
+export type EpcDocumentAttachment = typeof epcDocumentAttachments.$inferSelect;
+
+export const epcDocumentAccessLog = pgTable('epc_document_access_log', {
+  id: serial('id').primaryKey(),
+  attachmentId: integer('attachment_id').notNull().references(() => epcDocumentAttachments.id),
+  documentNumber: varchar('document_number', { length: 40 }).notNull(),
+  revisionCode: varchar('revision_code', { length: 4 }),
+  docType: varchar('doc_type', { length: 3 }).notNull(),
+  projectId: integer('project_id').notNull(),
+  action: varchar('action', { length: 20 }).notNull(),
+  accessedBy: integer('accessed_by').notNull().references(() => users.id),
+  accessedAt: timestamp('accessed_at', { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: varchar('user_agent', { length: 500 }),
+});
+
+export const insertEpcDocumentAccessLogSchema = createInsertSchema(epcDocumentAccessLog).omit({ id: true, accessedAt: true });
+export type InsertEpcDocumentAccessLog = z.infer<typeof insertEpcDocumentAccessLogSchema>;
+export type EpcDocumentAccessLog = typeof epcDocumentAccessLog.$inferSelect;

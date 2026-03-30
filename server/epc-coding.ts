@@ -138,3 +138,134 @@ export async function generateDocumentNumber(
   const nextSeq = (seqResult.rows[0] as any).next_seq;
   return `${prefix}${String(nextSeq).padStart(4, '0')}`;
 }
+
+export const REVISION_CONTROLLED_TYPES = new Set(['DWG', 'BOM']);
+
+export function buildEpcGcsPath(
+  operationalCode: string,
+  docType: string,
+  documentNumber: string,
+  revisionCode: string | null,
+  attachmentSeq: number,
+  attachmentLabel: string,
+  originalFileName: string
+): string {
+  const revSlot = revisionCode ? `rev-${revisionCode}` : 'rev-na';
+  const seq = String(attachmentSeq).padStart(3, '0');
+  const label = attachmentLabel
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'file';
+  const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
+  return `EPC/${operationalCode}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
+}
+
+export async function resolveContextualRevision(
+  documentNumber: string,
+  docType: 'DWG' | 'BOM',
+  consumerContext: 'procurement' | 'manufacturing' | 'inspection' | 'general',
+  txOrDb: any,
+  snapshotRevision?: string
+): Promise<{ revisionCode: string; parentEntityId: number; isCurrent: boolean } | null> {
+  if (docType === 'DWG') {
+    if (consumerContext === 'inspection' && snapshotRevision) {
+      const r = await txOrDb.execute(
+        sql`SELECT id, revision_code, is_current FROM epc_drawing_controls
+            WHERE dwg_control_number = ${documentNumber} AND revision_code = ${snapshotRevision}
+            LIMIT 1`
+      );
+      if (r.rows.length > 0) {
+        const row = r.rows[0] as any;
+        return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+      }
+      return null;
+    }
+
+    if (consumerContext === 'procurement') {
+      let r = await txOrDb.execute(
+        sql`SELECT id, revision_code, is_current FROM epc_drawing_controls
+            WHERE dwg_control_number = ${documentNumber} AND is_current = TRUE AND released_for_procurement = TRUE
+            LIMIT 1`
+      );
+      if (r.rows.length === 0) {
+        r = await txOrDb.execute(
+          sql`SELECT id, revision_code, is_current FROM epc_drawing_controls
+              WHERE dwg_control_number = ${documentNumber} AND released_for_procurement = TRUE
+              ORDER BY released_for_procurement_at DESC NULLS LAST LIMIT 1`
+        );
+      }
+      if (r.rows.length > 0) {
+        const row = r.rows[0] as any;
+        return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+      }
+      return null;
+    }
+
+    if (consumerContext === 'manufacturing') {
+      let r = await txOrDb.execute(
+        sql`SELECT id, revision_code, is_current FROM epc_drawing_controls
+            WHERE dwg_control_number = ${documentNumber} AND is_current = TRUE AND released_for_manufacturing = TRUE
+            LIMIT 1`
+      );
+      if (r.rows.length === 0) {
+        r = await txOrDb.execute(
+          sql`SELECT id, revision_code, is_current FROM epc_drawing_controls
+              WHERE dwg_control_number = ${documentNumber} AND released_for_manufacturing = TRUE
+              ORDER BY released_for_manufacturing_at DESC NULLS LAST LIMIT 1`
+        );
+      }
+      if (r.rows.length > 0) {
+        const row = r.rows[0] as any;
+        return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+      }
+      return null;
+    }
+
+    const r = await txOrDb.execute(
+      sql`SELECT id, revision_code, is_current FROM epc_drawing_controls
+          WHERE dwg_control_number = ${documentNumber} AND is_current = TRUE
+          LIMIT 1`
+    );
+    if (r.rows.length > 0) {
+      const row = r.rows[0] as any;
+      return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+    }
+    return null;
+  }
+
+  if (docType === 'BOM') {
+    if (consumerContext === 'procurement' || consumerContext === 'manufacturing') {
+      let r = await txOrDb.execute(
+        sql`SELECT id, revision_code, is_current FROM epc_bom_headers
+            WHERE bom_number = ${documentNumber} AND is_current = TRUE AND status = 'released'
+            LIMIT 1`
+      );
+      if (r.rows.length === 0) {
+        r = await txOrDb.execute(
+          sql`SELECT id, revision_code, is_current FROM epc_bom_headers
+              WHERE bom_number = ${documentNumber} AND status = 'released'
+              ORDER BY released_at DESC NULLS LAST LIMIT 1`
+        );
+      }
+      if (r.rows.length > 0) {
+        const row = r.rows[0] as any;
+        return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+      }
+      return null;
+    }
+
+    const r = await txOrDb.execute(
+      sql`SELECT id, revision_code, is_current FROM epc_bom_headers
+          WHERE bom_number = ${documentNumber} AND is_current = TRUE
+          LIMIT 1`
+    );
+    if (r.rows.length > 0) {
+      const row = r.rows[0] as any;
+      return { revisionCode: row.revision_code, parentEntityId: row.id, isCurrent: row.is_current };
+    }
+    return null;
+  }
+
+  return null;
+}

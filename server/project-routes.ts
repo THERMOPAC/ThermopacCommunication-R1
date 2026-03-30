@@ -44,6 +44,7 @@ import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, 
 import { checkModulePermission } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
+import { markAttachmentsSuperseded } from './epc-document-routes';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -8271,6 +8272,8 @@ export function setupProjectRoutes(app: express.Express) {
 
         await markTasksObsolete('drawing_control', id, `drawing_superseded_by_${inserted[0].id}`, tx);
 
+        await markAttachmentsSuperseded(rec.dwg_control_number, rec.revision_code, userId, rec.project_id, tx);
+
         const dwgSupDesignLead = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
         const dwgSupPM = await resolveManagerId(rec.project_id, tx);
         const dwgSupProjectCode = await resolveProjectCode(rec.project_id, tx);
@@ -8895,6 +8898,8 @@ export function setupProjectRoutes(app: express.Express) {
         `);
 
         await markTasksObsolete('bom_header', id, `bom_superseded_by_${newBom.id}`, tx);
+
+        await markAttachmentsSuperseded(rec.bom_number, rec.revision_code, userId, rec.project_id, tx);
 
         const bomSupDesignLead = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
         const bomSupPM = await resolveManagerId(rec.project_id, tx);
