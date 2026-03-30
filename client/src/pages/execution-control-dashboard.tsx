@@ -103,6 +103,9 @@ const STATUS_STYLES: Record<string, string> = {
   ready_for_commissioning: "bg-cyan-100 text-cyan-700 border-cyan-300",
   commissioned: "bg-emerald-100 text-emerald-700 border-emerald-300",
   handed_over: "bg-green-100 text-green-700 border-green-300",
+  punch_list_open: "bg-orange-100 text-orange-700 border-orange-300",
+  ready_for_handover: "bg-indigo-100 text-indigo-700 border-indigo-300",
+  closed: "bg-violet-100 text-violet-700 border-violet-300",
   ready_for_invoice: "bg-lime-100 text-lime-700 border-lime-300",
   invoiced: "bg-green-100 text-green-700 border-green-300",
   approved: "bg-emerald-100 text-emerald-700 border-emerald-300",
@@ -121,14 +124,16 @@ function StatusBadge({ status }: { status: string | null }) {
   );
 }
 
-function ExceptionBadge({ type, label }: { type: "stuck" | "pending" | "blocked" | "quality_fail"; label: string }) {
+function ExceptionBadge({ type, label }: { type: string; label: string }) {
   const styles: Record<string, string> = {
     stuck: "bg-red-50 text-red-600 border-red-200",
     pending: "bg-amber-50 text-amber-600 border-amber-200",
     blocked: "bg-orange-50 text-orange-600 border-orange-200",
     quality_fail: "bg-red-50 text-red-700 border-red-300",
+    overdue: "bg-red-100 text-red-800 border-red-300",
+    gap: "bg-purple-50 text-purple-600 border-purple-200",
   };
-  const icons: Record<string, any> = { stuck: Clock, pending: AlertTriangle, blocked: XCircle, quality_fail: XCircle };
+  const icons: Record<string, any> = { stuck: Clock, pending: AlertTriangle, blocked: XCircle, quality_fail: XCircle, overdue: Clock, gap: ArrowRight };
   const Icon = icons[type] || AlertTriangle;
   return (
     <Badge variant="outline" className={`${styles[type] || styles.blocked} text-[9px] px-1 py-0 border gap-0.5`}>
@@ -148,7 +153,7 @@ function PipelineProgressBar({ row }: { row: any }) {
     { key: "prep", terminal: ["ready_for_po_creation", "ready_for_wo_creation", "completed"], appKey: prepAppKey },
     { key: "insp", terminal: ["completed"], appKey: "inspection" },
     { key: "disp", terminal: ["dispatched"], appKey: "dispatch" },
-    { key: "comm", terminal: ["handed_over", "commissioned"], appKey: "commissioning" },
+    { key: "comm", terminal: ["handed_over", "closed"], appKey: "commissioning" },
     { key: "bill", terminal: ["ready_for_invoice", "invoiced"], appKey: "billing" },
     { key: "inv", terminal: ["issued", "paid"], appKey: "invoice" },
   ];
@@ -171,23 +176,63 @@ function PipelineProgressBar({ row }: { row: any }) {
   );
 }
 
+const AGING_THRESHOLD_DAYS = 3;
+const OVERDUE_THRESHOLD_DAYS = 7;
+
+function daysSince(d: any): number {
+  if (!d) return 0;
+  return Math.floor((Date.now() - new Date(d).getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function getExceptions(row: any) {
-  const exceptions: { type: "stuck" | "pending" | "blocked" | "quality_fail"; label: string; layer: string }[] = [];
-  const { plan, exec, insp, classification } = row;
+  const exceptions: { type: "stuck" | "pending" | "blocked" | "quality_fail" | "overdue" | "gap"; label: string; layer: string }[] = [];
+  const { plan, exec, insp, disp, dispRec, comm, bill, inv, classification } = row;
   if (!classification || classification === "unclassified") {
     exceptions.push({ type: "blocked", label: "No classification", layer: "planning" });
   }
   if (plan?.status === "draft") {
-    const created = plan.created_at ? new Date(plan.created_at) : null;
-    if (created && (Date.now() - created.getTime()) > 3 * 24 * 60 * 60 * 1000) {
+    const age = daysSince(plan.created_at);
+    if (age > OVERDUE_THRESHOLD_DAYS) {
+      exceptions.push({ type: "overdue", label: `Plan draft ${age}d`, layer: "planning" });
+    } else if (age > AGING_THRESHOLD_DAYS) {
       exceptions.push({ type: "stuck", label: "Stuck in draft", layer: "planning" });
     }
   }
   if (plan?.status === "under_review" && !plan.reviewed_by) {
     exceptions.push({ type: "pending", label: "Awaiting review", layer: "planning" });
   }
+  if (exec?.status === "draft" && daysSince(exec.created_at) > OVERDUE_THRESHOLD_DAYS) {
+    exceptions.push({ type: "overdue", label: `Exec draft ${daysSince(exec.created_at)}d`, layer: "execution" });
+  }
   if (insp?.status === "failed") {
     exceptions.push({ type: "quality_fail", label: "Inspection failed", layer: "inspection" });
+  }
+  if (insp?.status === "scheduled" && daysSince(insp.scheduled_date) > AGING_THRESHOLD_DAYS) {
+    exceptions.push({ type: "stuck", label: "Inspection overdue", layer: "inspection" });
+  }
+  if (disp?.status === "ready_for_dispatch" && daysSince(disp.ready_marked_at || disp.updated_at) > OVERDUE_THRESHOLD_DAYS) {
+    exceptions.push({ type: "overdue", label: "Dispatch overdue", layer: "dispatch" });
+  }
+  if (dispRec?.status === "shipped" && daysSince(dispRec.shipped_at || dispRec.updated_at) > OVERDUE_THRESHOLD_DAYS * 2) {
+    exceptions.push({ type: "overdue", label: "Delivery overdue", layer: "dispatch_record" });
+  }
+  if (comm?.status === "punch_list_open") {
+    exceptions.push({ type: "blocked", label: "Punch list open", layer: "commissioning" });
+  }
+  if (comm?.status === "commissioned" && daysSince(comm.commissioned_at || comm.updated_at) > OVERDUE_THRESHOLD_DAYS) {
+    exceptions.push({ type: "pending", label: "Handover pending", layer: "commissioning" });
+  }
+  if (comm?.status === "handed_over" && !bill) {
+    exceptions.push({ type: "gap", label: "No billing after H/O", layer: "billing" });
+  }
+  if (dispRec && ["shipped", "delivered"].includes(dispRec.status) && !comm) {
+    exceptions.push({ type: "gap", label: "No commissioning", layer: "commissioning" });
+  }
+  if (bill?.status === "ready_for_invoice" && !inv) {
+    exceptions.push({ type: "gap", label: "No invoice created", layer: "invoice" });
+  }
+  if (inv?.status === "issued" && daysSince(inv.issued_at || inv.invoice_date) > 30) {
+    exceptions.push({ type: "overdue", label: "Payment overdue", layer: "invoice" });
   }
   return exceptions;
 }
@@ -294,7 +339,17 @@ function getAvailableActions(layer: string, status: string | null, record: Pipel
       { label: "Commission", action: "commission", variant: "default", endpoint: `/api/commissioning-readiness/${id}/commission`, needsNote: true, noteLabel: "Commissioning Note", bodyKey: "commissioningNote", minLevel: M },
     ];
     if (status === "commissioned") raw = [
+      { label: "Punch List", action: "open-punch-list", variant: "outline", endpoint: `/api/commissioning-readiness/${id}/open-punch-list`, needsNote: true, noteLabel: "Punch List Items", bodyKey: "punchListNote", minLevel: M },
       { label: "Handover", action: "handover", variant: "default", endpoint: `/api/commissioning-readiness/${id}/handover`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: SM },
+    ];
+    if (status === "punch_list_open") raw = [
+      { label: "Resolve", action: "resolve-punch-list", variant: "default", endpoint: `/api/commissioning-readiness/${id}/resolve-punch-list`, needsNote: true, noteLabel: "Resolution Note", bodyKey: "resolutionNote", minLevel: M },
+    ];
+    if (status === "ready_for_handover") raw = [
+      { label: "Handover", action: "handover", variant: "default", endpoint: `/api/commissioning-readiness/${id}/handover`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: SM },
+    ];
+    if (status === "handed_over") raw = [
+      { label: "Close", action: "close", variant: "outline", endpoint: `/api/commissioning-readiness/${id}/close`, needsNote: true, noteLabel: "Closing Note", bodyKey: "closingNote", minLevel: SM },
     ];
   }
 
@@ -643,8 +698,10 @@ export default function ExecutionControlDashboard() {
       if (classificationFilter !== "all" && row.classification !== classificationFilter) return false;
       if (exceptionFilter !== "all") {
         if (exceptionFilter === "stuck" && !row.exceptions.some((e: any) => e.type === "stuck")) return false;
+        if (exceptionFilter === "overdue" && !row.exceptions.some((e: any) => e.type === "overdue")) return false;
         if (exceptionFilter === "pending" && !row.exceptions.some((e: any) => e.type === "pending")) return false;
         if (exceptionFilter === "blocked" && !row.exceptions.some((e: any) => e.type === "blocked")) return false;
+        if (exceptionFilter === "gap" && !row.exceptions.some((e: any) => e.type === "gap")) return false;
         if (exceptionFilter === "quality_fail" && !row.exceptions.some((e: any) => e.type === "quality_fail")) return false;
         if (exceptionFilter === "eng_warning" && row.engWarnings.length === 0) return false;
         if (exceptionFilter === "none" && row.exceptions.length > 0) return false;
@@ -661,7 +718,7 @@ export default function ExecutionControlDashboard() {
         if (phaseFilter === "no_dispatch" && row.disp) return false;
         if (phaseFilter === "no_invoice" && row.inv) return false;
         if (phaseFilter === "dispatched" && row.disp?.status !== "dispatched") return false;
-        if (phaseFilter === "commissioned" && !["commissioned", "handed_over"].includes(row.comm?.status || "")) return false;
+        if (phaseFilter === "commissioned" && !["commissioned", "punch_list_open", "ready_for_handover", "handed_over", "closed"].includes(row.comm?.status || "")) return false;
         if (phaseFilter === "invoiced" && !["issued", "partially_paid", "paid"].includes(row.inv?.status || "")) return false;
       }
       return true;
@@ -671,17 +728,26 @@ export default function ExecutionControlDashboard() {
   const summaryStats = useMemo(() => {
     const total = pipelineRows.length;
     const withExceptions = pipelineRows.filter(r => r.exceptions.length > 0).length;
+    const overdueCount = pipelineRows.filter(r => r.exceptions.some((e: any) => e.type === "overdue")).length;
+    const gapCount = pipelineRows.filter(r => r.exceptions.some((e: any) => e.type === "gap")).length;
+    const blockedCount = pipelineRows.filter(r => r.exceptions.some((e: any) => e.type === "blocked")).length;
     const buyCount = pipelineRows.filter(r => r.classification === "Buy").length;
     const makeCount = pipelineRows.filter(r => r.classification === "Make").length;
     const completedInsp = pipelineRows.filter(r => r.insp?.status === "completed").length;
+    const failedInsp = pipelineRows.filter(r => r.insp?.status === "failed").length;
     const dispatchedCount = pipelineRows.filter(r => r.disp?.status === "dispatched" || r.dispRec).length;
-    const commissionedCount = pipelineRows.filter(r => ["commissioned", "handed_over"].includes(r.comm?.status || "")).length;
+    const shippedCount = pipelineRows.filter(r => r.dispRec?.status === "shipped").length;
+    const deliveredCount = pipelineRows.filter(r => r.dispRec?.status === "delivered").length;
+    const commissionedCount = pipelineRows.filter(r => ["commissioned", "ready_for_handover", "handed_over", "closed"].includes(r.comm?.status || "")).length;
+    const punchListCount = pipelineRows.filter(r => r.comm?.status === "punch_list_open").length;
+    const handedOverCount = pipelineRows.filter(r => ["handed_over", "closed"].includes(r.comm?.status || "")).length;
     const invoicedCount = pipelineRows.filter(r => ["issued", "partially_paid", "paid"].includes(r.inv?.status || "")).length;
     const paidCount = pipelineRows.filter(r => r.inv?.status === "paid").length;
+    const outstandingAmount = pipelineRows.reduce((sum, r) => sum + (r.inv?.amount_outstanding ? parseFloat(r.inv.amount_outstanding) : 0), 0);
     const engWarningCount = pipelineRows.filter(r => r.engWarnings.length > 0).length;
     const dwgReleasedCount = pipelineRows.filter(r => r.dc?.status === "released").length;
     const bomReleasedCount = pipelineRows.filter(r => r.bom?.status === "released").length;
-    return { total, withExceptions, buyCount, makeCount, completedInsp, dispatchedCount, commissionedCount, invoicedCount, paidCount, engWarningCount, dwgReleasedCount, bomReleasedCount };
+    return { total, withExceptions, overdueCount, gapCount, blockedCount, buyCount, makeCount, completedInsp, failedInsp, dispatchedCount, shippedCount, deliveredCount, commissionedCount, punchListCount, handedOverCount, invoicedCount, paidCount, outstandingAmount, engWarningCount, dwgReleasedCount, bomReleasedCount };
   }, [pipelineRows]);
 
   function openActionDialog(action: any, layer: string, record: PipelineRecord, itemDesc: string) {
@@ -960,7 +1026,7 @@ export default function ExecutionControlDashboard() {
       { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch", docType: "DR", deepLink: "/epc/dispatch-logistics" },
       { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record", docType: "DSP", deepLink: "/epc/dispatch-logistics" },
       { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning", docType: "CR", deepLink: "/epc/commissioning-handover" },
-      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing", docType: "BR", deepLink: "" },
+      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing", docType: "BR", deepLink: "/epc/invoices" },
       { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice", docType: "INV", deepLink: "/epc/invoices" },
     ];
 
@@ -1287,7 +1353,10 @@ export default function ExecutionControlDashboard() {
                       <SelectItem value="shipped">Shipped</SelectItem>
                       <SelectItem value="delivered">Delivered</SelectItem>
                       <SelectItem value="commissioned">Commissioned</SelectItem>
+                      <SelectItem value="punch_list_open">Punch List Open</SelectItem>
+                      <SelectItem value="ready_for_handover">Ready for Handover</SelectItem>
                       <SelectItem value="handed_over">Handed Over</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
                       <SelectItem value="ready_for_invoice">Ready for Invoice</SelectItem>
                       <SelectItem value="issued">Issued</SelectItem>
                       <SelectItem value="partially_paid">Partially Paid</SelectItem>
@@ -1302,9 +1371,11 @@ export default function ExecutionControlDashboard() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Items</SelectItem>
-                      <SelectItem value="stuck">Stuck in Draft</SelectItem>
-                      <SelectItem value="pending">Pending Review</SelectItem>
-                      <SelectItem value="blocked">Missing Classification</SelectItem>
+                      <SelectItem value="stuck">Stuck / Aging</SelectItem>
+                      <SelectItem value="overdue">Overdue</SelectItem>
+                      <SelectItem value="pending">Pending Action</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                      <SelectItem value="gap">Cross-Stage Gap</SelectItem>
                       <SelectItem value="quality_fail">Quality Failed</SelectItem>
                       <SelectItem value="eng_warning">Engineering Warnings</SelectItem>
                       <SelectItem value="none">No Exceptions</SelectItem>
@@ -1332,28 +1403,67 @@ export default function ExecutionControlDashboard() {
         </Card>
 
         {projectId && pipelineRows.length > 0 && (
-          <div className="grid grid-cols-4 md:grid-cols-12 gap-2">
-            {[
-              { label: "Total", value: summaryStats.total, color: "" },
-              { label: "Buy", value: summaryStats.buyCount, color: "text-blue-600" },
-              { label: "Make", value: summaryStats.makeCount, color: "text-violet-600" },
-              { label: "DWG Released", value: summaryStats.dwgReleasedCount, color: "text-cyan-600" },
-              { label: "BOM Released", value: summaryStats.bomReleasedCount, color: "text-sky-600" },
-              { label: "Eng Warnings", value: summaryStats.engWarningCount, color: "text-orange-600" },
-              { label: "Inspected", value: summaryStats.completedInsp, color: "text-green-600" },
-              { label: "Dispatched", value: summaryStats.dispatchedCount, color: "text-teal-600" },
-              { label: "Commissioned", value: summaryStats.commissionedCount, color: "text-emerald-600" },
-              { label: "Invoiced", value: summaryStats.invoicedCount, color: "text-indigo-600" },
-              { label: "Paid", value: summaryStats.paidCount, color: "text-green-700" },
-              { label: "Exceptions", value: summaryStats.withExceptions, color: "text-amber-600" },
-            ].map(({ label, value, color }) => (
-              <Card key={label} className="shadow-sm">
-                <CardContent className="pt-2 pb-1.5 px-2 text-center">
-                  <div className={`text-lg font-bold ${color}`}>{value}</div>
-                  <div className="text-[9px] text-muted-foreground">{label}</div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="space-y-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-2">
+              {[
+                { label: "Total Items", value: summaryStats.total, color: "" },
+                { label: "Buy", value: summaryStats.buyCount, color: "text-blue-600" },
+                { label: "Make", value: summaryStats.makeCount, color: "text-violet-600" },
+                { label: "DWG Released", value: summaryStats.dwgReleasedCount, color: "text-cyan-600" },
+                { label: "BOM Released", value: summaryStats.bomReleasedCount, color: "text-sky-600" },
+                { label: "Inspected", value: summaryStats.completedInsp, color: "text-green-600" },
+                { label: "Dispatched", value: summaryStats.dispatchedCount, color: "text-teal-600" },
+                { label: "Delivered", value: summaryStats.deliveredCount, color: "text-emerald-600" },
+                { label: "Commissioned", value: summaryStats.commissionedCount, color: "text-blue-600" },
+                { label: "Handed Over", value: summaryStats.handedOverCount, color: "text-emerald-700" },
+                { label: "Invoiced", value: summaryStats.invoicedCount, color: "text-indigo-600" },
+                { label: "Paid", value: summaryStats.paidCount, color: "text-green-700" },
+              ].map(({ label, value, color }) => (
+                <Card key={label} className="shadow-sm">
+                  <CardContent className="pt-2 pb-1.5 px-2 text-center">
+                    <div className={`text-lg font-bold ${color}`}>{value}</div>
+                    <div className="text-[9px] text-muted-foreground">{label}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {(summaryStats.withExceptions > 0 || summaryStats.engWarningCount > 0) && (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {[
+                  { label: "Exceptions", value: summaryStats.withExceptions, color: "text-amber-600", bg: "border-amber-200 bg-amber-50/30" },
+                  { label: "Overdue", value: summaryStats.overdueCount, color: "text-red-600", bg: "border-red-200 bg-red-50/30" },
+                  { label: "Blocked", value: summaryStats.blockedCount, color: "text-orange-600", bg: "border-orange-200 bg-orange-50/30" },
+                  { label: "Gaps", value: summaryStats.gapCount, color: "text-purple-600", bg: "border-purple-200 bg-purple-50/30" },
+                  { label: "Eng Warnings", value: summaryStats.engWarningCount, color: "text-orange-600", bg: "border-orange-200 bg-orange-50/30" },
+                  { label: "Punch List", value: summaryStats.punchListCount, color: "text-orange-700", bg: "border-orange-200 bg-orange-50/30" },
+                ].filter(s => s.value > 0).map(({ label, value, color, bg }) => (
+                  <Card key={label} className={`shadow-sm ${bg}`}>
+                    <CardContent className="pt-2 pb-1.5 px-2 text-center">
+                      <div className={`text-lg font-bold ${color}`}>{value}</div>
+                      <div className="text-[9px] text-muted-foreground">{label}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {summaryStats.outstandingAmount > 0 && (
+                  <Card className="shadow-sm border-amber-200 bg-amber-50/30">
+                    <CardContent className="pt-2 pb-1.5 px-2 text-center">
+                      <div className="text-sm font-bold text-amber-700 font-mono">
+                        {summaryStats.outstandingAmount.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                      </div>
+                      <div className="text-[9px] text-muted-foreground">Outstanding</div>
+                    </CardContent>
+                  </Card>
+                )}
+                {summaryStats.failedInsp > 0 && (
+                  <Card className="shadow-sm border-red-200 bg-red-50/30">
+                    <CardContent className="pt-2 pb-1.5 px-2 text-center">
+                      <div className="text-lg font-bold text-red-600">{summaryStats.failedInsp}</div>
+                      <div className="text-[9px] text-muted-foreground">Insp. Failed</div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
           </div>
         )}
 
