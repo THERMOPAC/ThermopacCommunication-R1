@@ -149,6 +149,7 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any project-related page
   const isOnProjectsPage = location.startsWith('/project') || 
                          location === '/item-master' ||
+                         location.startsWith('/epc/') ||
                          location === '/epc-risks';
   
   // Check if we're on any procurement-related page
@@ -392,6 +393,7 @@ function Layout({ children }: LayoutProps) {
         { icon: ClipboardCheck, label: "Execution Control", href: "/execution-control" },
         { icon: Layers, label: "EPC BOM Controls", href: "/epc/bom-controls" },
         { icon: PenTool, label: "EPC Drawing Controls", href: "/epc/drawing-controls" },
+        { icon: ShoppingCart, label: "EPC Purchase Orders", href: "/epc/purchase-orders" },
         { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
       ]
     }] : []),
