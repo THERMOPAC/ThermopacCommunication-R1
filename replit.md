@@ -28,8 +28,9 @@ The system is a full-stack web application built with organized, hierarchical da
     - **Business Intelligence**: Utilizes an LLM Prompt Engine for analytics.
     - **Travel Management**: Manages business trips and visas.
     - **Design Management**: Provides a Drawing Registry for version control, CAD file management, and review/approval workflows.
-    - **EPC Drawing Control Layer**: Upstream governance layer linking design drawings to project items with a defined lifecycle.
-    - **EPC BOM Control Layer**: Bill of Materials governance linked to drawing controls and master items, with support for various BOM types and lifecycle management.
+    - **EPC Drawing Control Layer**: Upstream governance layer linking design drawings to project items with a defined lifecycle. Supports revision control (revision_code A→B→...Z→AA, is_current flag, partial unique index).
+    - **EPC BOM Control Layer**: Bill of Materials governance linked to drawing controls and master items, with support for various BOM types, lifecycle management, and revision control matching DWG model.
+    - **EPC Coding & Numbering Standard (v3)**: Project-scoped operational codes (`TP-{continent}-{country}-{customer_short_code}-{YYZZ}-{seq}`) and document numbers (`{operational_code}-{DOC_TYPE}-{seq}`) for all 16 EPC doc types (PLN, BUY, MFG, QPL, POP, WOP, DWG, BOM, PO, WO, INS, DR, DSP, CR, BR, INV). Generation logic in `server/epc-coding.ts`. Customer `short_code` is immutable once set. DWG and BOM use revision model (same doc number + incrementing revision_code); all other types use supersede/cancel lifecycle. All sequences generated inside `db.transaction()` with UNIQUE constraints as safety net.
     - **SAP B1 Integration**: Full integration for Purchase Module (dashboard, quotations, orders, goods receipt, invoices) and Customer/Business Partner sync, with real-time data and optimized search.
     - **Email Management System**: AI-powered Gmail integration for intelligent priority classification, analysis, and multi-style reply generation.
     - **Multi-Agent Intelligence & Automation Layer**: Features 11 agents (9 business, Master Control, Advisor) with conflict control, event bus, finding management, and audit logging, utilizing a dynamic, policy-based escalation framework.

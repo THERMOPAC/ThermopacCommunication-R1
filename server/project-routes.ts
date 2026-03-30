@@ -33,6 +33,8 @@ import {
   epcBomLines,
   epcBillingReadiness,
   epcInvoices,
+  projects,
+  customers,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -41,6 +43,7 @@ import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
 import { checkModulePermission } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
+import * as epcCoding from './epc-coding';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -172,17 +175,44 @@ export function setupProjectRoutes(app: express.Express) {
     async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
-      
-      const projectData = insertProjectSchema.parse({
-        ...req.body,
-        createdBy: userId,
-        managerId: userId, // Add managerId which is required in the schema
-        createdAt: new Date(), // Use Date objects instead of strings
-        updatedAt: new Date()
+      const { continentCode, countryCode, fyCode } = req.body;
+
+      if (!continentCode || !epcCoding.validateContinentCode(continentCode)) {
+        return res.status(400).json({ error: `Invalid continent_code. Must be one of: ${Object.keys(epcCoding.CONTINENT_CODES).join(', ')}` });
+      }
+      if (!countryCode || !epcCoding.validateCountryCode(countryCode)) {
+        return res.status(400).json({ error: `Invalid country_code. Must be a valid ISO 3166-1 alpha-2 code.` });
+      }
+      if (!fyCode || !epcCoding.validateFyCode(fyCode)) {
+        return res.status(400).json({ error: `Invalid fy_code. Must be 4-digit YYZZ format (e.g., 2526).` });
+      }
+      if (!req.body.customerId) {
+        return res.status(400).json({ error: 'customerId is required for project creation.' });
+      }
+
+      const project = await db.transaction(async (tx) => {
+        const { operationalCode, projectSeq } = await epcCoding.generateOperationalCode(
+          continentCode, countryCode, req.body.customerId, fyCode, tx
+        );
+
+        const projectData = insertProjectSchema.parse({
+          ...req.body,
+          code: operationalCode,
+          operationalCode,
+          continentCode,
+          countryCode,
+          fyCode,
+          projectSeq,
+          financialYear: fyCode,
+          createdBy: userId,
+          managerId: userId,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        const [created] = await tx.insert(projects).values(projectData).returning();
+        return created;
       });
-      
-      // Create the project
-      const project = await storage.createProject(projectData);
       
       // Add creator as a project manager
       await storage.addProjectMember({
@@ -1674,6 +1704,10 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(404).json({ error: 'Customer not found' });
       }
 
+      if (req.body.shortCode !== undefined && customer.shortCode && req.body.shortCode !== customer.shortCode) {
+        return res.status(400).json({ error: 'Customer short_code is immutable once set. It cannot be changed because existing project codes depend on it.' });
+      }
+
       if (req.body.email && req.body.email !== customer.email) {
         const { verifyEmailDomain } = await import('./email-verify');
         const emailCheck = await verifyEmailDomain(req.body.email);
@@ -1951,7 +1985,9 @@ export function setupProjectRoutes(app: express.Express) {
             const qty = parseFloat(snap.quantity || '0');
             const unitCost = parseFloat(snap.estimated_cost || snap.project_estimated_cost || '0');
 
+            const procurementNumber = await epcCoding.generateDocumentNumber(record.project_id, 'BUY', tx);
             const [newExec] = await tx.insert(procurementExecutionRecords).values({
+              procurementNumber,
               projectId: record.project_id,
               projectItemId: record.project_item_id,
               planningRecordId: id,
@@ -1994,7 +2030,9 @@ export function setupProjectRoutes(app: express.Express) {
             const qty = parseFloat(snap.quantity || '0');
             const unitCost = parseFloat(snap.standard_cost || snap.project_estimated_cost || '0');
 
+            const productionNumber = await epcCoding.generateDocumentNumber(record.project_id, 'MFG', tx);
             const [newExec] = await tx.insert(productionExecutionRecords).values({
+              productionNumber,
               projectId: record.project_id,
               projectItemId: record.project_item_id,
               planningRecordId: id,
@@ -2249,7 +2287,9 @@ export function setupProjectRoutes(app: express.Express) {
       const newClassification = targetType === 'procurement' ? 'Buy' : 'Make';
       let newRecord: any;
       await db.transaction(async (tx) => {
+        const planningNumber = await epcCoding.generateDocumentNumber(record.project_id, 'PLN', tx);
         const [created] = await tx.insert(itemPlanningRecords).values({
+          planningNumber,
           projectId: record.project_id,
           projectItemId: record.project_item_id,
           masterItemId: record.master_item_id,
@@ -2638,7 +2678,9 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
         );
         if (existingQP.rows.length === 0) {
+          const qualityPlanNumber = await epcCoding.generateDocumentNumber(record.project_id, 'QPL', tx);
           const [qpRec] = await tx.insert(qualityPlanningRecords).values({
+            qualityPlanNumber,
             projectId: record.project_id,
             projectItemId: record.project_item_id,
             masterItemId: record.master_item_id,
@@ -2671,7 +2713,9 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')`
         );
         if (existingPOPrep.rows.length === 0) {
+          const poPrepNumber = await epcCoding.generateDocumentNumber(record.project_id, 'POP', tx);
           const [poPrepRec] = await tx.insert(poPreparationRecords).values({
+            poPrepNumber,
             projectId: record.project_id,
             projectItemId: record.project_item_id,
             planningRecordId: record.planning_record_id,
@@ -3179,7 +3223,9 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')`
         );
         if (existingQP.rows.length === 0) {
+          const qualityPlanNumber = await epcCoding.generateDocumentNumber(record.project_id, 'QPL', tx);
           const [qpRec] = await tx.insert(qualityPlanningRecords).values({
+            qualityPlanNumber,
             projectId: record.project_id,
             projectItemId: record.project_item_id,
             masterItemId: record.master_item_id,
@@ -3213,7 +3259,9 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')`
         );
         if (existingWOPrep.rows.length === 0) {
+          const woPrepNumber = await epcCoding.generateDocumentNumber(record.project_id, 'WOP', tx);
           const [woPrepRec] = await tx.insert(woPreparationRecords).values({
+            woPrepNumber,
             projectId: record.project_id,
             projectItemId: record.project_item_id,
             planningRecordId: record.planning_record_id,
@@ -3528,7 +3576,9 @@ export function setupProjectRoutes(app: express.Express) {
         if (existingIE.rows.length === 0) {
           const inspType = record.source_context === 'procurement' ? 'incoming_inspection'
             : (record.quality_requirement_type === 'in_process_final_inspection' ? 'in_process_final_inspection' : record.quality_requirement_type);
+          const inspectionNumber = await epcCoding.generateDocumentNumber(record.project_id, 'INS', tx);
           const [ieRec] = await tx.insert(inspectionExecutionRecords).values({
+            inspectionNumber,
             projectId: record.project_id,
             projectItemId: record.project_item_id,
             planningRecordId: record.planning_record_id || null,
@@ -4750,17 +4800,10 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `PO already exists for this preparation record: ${ePO.po_number} (ID ${ePO.id}, status: ${ePO.status}). Only one active PO per PO prep record is allowed.`);
       }
 
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(po_number FROM 'EPC-PO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_purchase_orders`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq || 1;
-      const year = new Date().getFullYear();
-      const poNumber = `EPC-PO-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       let newPoId: number;
 
       await db.transaction(async (tx) => {
+        const poNumber = await epcCoding.generateDocumentNumber(prep.project_id, 'PO', tx);
         const [newPO] = await tx.insert(epcPurchaseOrders).values({
           poNumber,
           projectId: prep.project_id,
@@ -5116,17 +5159,10 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `WO already exists for this preparation record: ${eWO.wo_number} (ID ${eWO.id}, status: ${eWO.status}). Only one active WO per WO prep record is allowed.`);
       }
 
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(wo_number FROM 'EPC-WO-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_work_orders`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq || 1;
-      const year = new Date().getFullYear();
-      const woNumber = `EPC-WO-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       let newWoId: number;
 
       await db.transaction(async (tx) => {
+        const woNumber = await epcCoding.generateDocumentNumber(prep.project_id, 'WO', tx);
         const [newWO] = await tx.insert(epcWorkOrders).values({
           woNumber,
           projectId: prep.project_id,
@@ -5540,15 +5576,8 @@ export function setupProjectRoutes(app: express.Express) {
       const miResult = await db.execute(sql`SELECT item_code, description, uom FROM master_items WHERE id = ${masterItemId}`);
       const mi = miResult.rows[0] as any;
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dr_number FROM 'DR-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_dispatch_readiness WHERE dr_number LIKE ${`DR-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const drNumber = `DR-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       await db.transaction(async (tx) => {
+        const drNumber = await epcCoding.generateDocumentNumber(projectId, 'DR', tx);
         const inserted = await tx.insert(epcDispatchReadiness).values({
           drNumber,
           projectId,
@@ -5935,15 +5964,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Active dispatch record ${existing.dispatch_number} already exists for this readiness record (id: ${existing.id}). Cancel or supersede it first.`);
       }
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dispatch_number FROM 'DISP-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_dispatch_records WHERE dispatch_number LIKE ${`DISP-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const dispatchNumber = `DISP-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       await db.transaction(async (tx) => {
+        const dispatchNumber = await epcCoding.generateDocumentNumber(projectId, 'DSP', tx);
         const inserted = await tx.insert(epcDispatchRecords).values({
           dispatchNumber,
           projectId,
@@ -6371,15 +6393,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Active commissioning readiness ${existing.cr_number} already exists for this dispatch record (id: ${existing.id}).`);
       }
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(cr_number FROM 'CR-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_commissioning_readiness WHERE cr_number LIKE ${`CR-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const crNumber = `CR-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       await db.transaction(async (tx) => {
+        const crNumber = await epcCoding.generateDocumentNumber(projectId, 'CR', tx);
         const inserted = await tx.insert(epcCommissioningReadiness).values({
           crNumber,
           projectId,
@@ -6862,15 +6877,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Active billing readiness ${existing.br_number} already exists for this ${billingBasis} context (id: ${existing.id}).`);
       }
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(br_number FROM 'BR-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_billing_readiness WHERE br_number LIKE ${`BR-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const brNumber = `BR-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       await db.transaction(async (tx) => {
+        const brNumber = await epcCoding.generateDocumentNumber(projectId, 'BR', tx);
         const inserted = await tx.insert(epcBillingReadiness).values({
           brNumber,
           projectId,
@@ -7284,15 +7292,8 @@ export function setupProjectRoutes(app: express.Express) {
       const computedGross = totalAmt - disc + taxAmt;
       const grossAmt = computedGross > 0 ? computedGross : parseFloat(br.gross_amount || '0');
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_number FROM 'EPC-INV-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_invoices WHERE invoice_number LIKE ${`EPC-INV-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const invoiceNumber = `EPC-INV-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       await db.transaction(async (tx) => {
+        const invoiceNumber = await epcCoding.generateDocumentNumber(projectId, 'INV', tx);
         const inserted = await tx.insert(epcInvoices).values({
           invoiceNumber,
           projectId,
@@ -7739,17 +7740,14 @@ export function setupProjectRoutes(app: express.Express) {
         mfgReq = classification === 'Make' || purpose === 'manufacturing' || purpose === 'general';
       }
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dwg_control_number FROM 'DWG-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_drawing_controls WHERE dwg_control_number LIKE ${`DWG-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const dwgControlNumber = `DWG-${year}-${String(nextSeq).padStart(4, '0')}`;
-
       await db.transaction(async (tx) => {
+        const dwgControlNumber = await epcCoding.generateDocumentNumber(projectId, 'DWG', tx);
+
         const inserted = await tx.insert(epcDrawingControls).values({
           dwgControlNumber,
+          revisionCode: 'A',
+          isCurrent: true,
+          revisionStatus: 'draft',
           projectId,
           projectItemId,
           masterItemId,
@@ -8200,6 +8198,9 @@ export function setupProjectRoutes(app: express.Express) {
       if (['cancelled', 'superseded'].includes(rec.status)) {
         return sendBusinessError(res, `Already ${rec.status}.`);
       }
+      if (!rec.is_current) {
+        return sendBusinessError(res, 'Cannot supersede a non-current revision.');
+      }
 
       let newSnapNumber = rec.drawing_number;
       let newSnapTitle = rec.drawing_title;
@@ -8219,17 +8220,15 @@ export function setupProjectRoutes(app: express.Express) {
         newSnapDiscipline = dd.discipline_code;
       }
 
-      const year = new Date().getFullYear();
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(CAST(SUBSTRING(dwg_control_number FROM 'DWG-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 AS next_seq
-            FROM epc_drawing_controls WHERE dwg_control_number LIKE ${`DWG-${year}-%`}`
-      );
-      const nextSeq = (seqResult.rows[0] as any).next_seq;
-      const newDwgNumber = `DWG-${year}-${String(nextSeq).padStart(4, '0')}`;
+      const nextRevisionCode = epcCoding.incrementRevisionCode(rec.revision_code);
 
       const dwgTxResult = await db.transaction(async (tx) => {
         const inserted = await tx.insert(epcDrawingControls).values({
-          dwgControlNumber: newDwgNumber,
+          dwgControlNumber: rec.dwg_control_number,
+          revisionCode: nextRevisionCode,
+          isCurrent: true,
+          revisionStatus: 'draft',
+          supersedesId: id,
           projectId: rec.project_id,
           projectItemId: rec.project_item_id,
           masterItemId: rec.master_item_id,
@@ -8248,22 +8247,25 @@ export function setupProjectRoutes(app: express.Express) {
           clientApprovalRequired: rec.client_approval_required,
           clientApprovalStatus: rec.client_approval_required ? 'pending' : 'not_required',
           status: 'draft',
-          notes: `Supersedes ${rec.dwg_control_number}. Reason: ${supersessionReason}`,
+          notes: `Supersedes Rev ${rec.revision_code}. Reason: ${supersessionReason}`,
           createdBy: userId,
         }).returning();
 
         await tx.update(epcDrawingControls).set({
           status: 'superseded',
+          isCurrent: false,
+          revisionStatus: 'superseded',
           supersededBy: inserted[0].id,
           supersededAt: new Date(),
           supersessionReason,
           updatedAt: new Date(),
         }).where(eq(epcDrawingControls.id, id));
 
+        const newDwgNumber = rec.dwg_control_number;
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${rec.project_id}, 'drawing_control.superseded', ${JSON.stringify({
-            oldDwgId: id, oldDwgNumber: rec.dwg_control_number,
-            newDwgId: inserted[0].id, newDwgNumber,
+            oldDwgId: id, oldDwgNumber: rec.dwg_control_number, oldRevision: rec.revision_code,
+            newDwgId: inserted[0].id, newDwgNumber, newRevision: nextRevisionCode,
             supersessionReason, supersededBy: userId,
           })}::jsonb, 'drawing_control', NOW())`);
 
@@ -8387,22 +8389,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC BOM CONTROL LAYER ====================
 
-  async function generateBomNumber(): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `BOM-${year}-`;
-    const result = await db.execute(sql`
-      SELECT bom_number FROM epc_bom_headers 
-      WHERE bom_number LIKE ${prefix + '%'} 
-      ORDER BY bom_number DESC LIMIT 1
-    `);
-    let seq = 1;
-    if (result.rows.length > 0) {
-      const last = (result.rows[0] as any).bom_number;
-      const parts = last.split('-');
-      seq = parseInt(parts[2]) + 1;
-    }
-    return `${prefix}${String(seq).padStart(4, '0')}`;
-  }
+
 
   app.get('/api/projects/:projectId/bom-headers', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -8490,29 +8477,34 @@ export function setupProjectRoutes(app: express.Express) {
         drawingRevisionSnap = dc.drawing_revision;
       }
 
-      const bomNumber = await generateBomNumber();
+      const created = await db.transaction(async (tx) => {
+        const bomNumber = await epcCoding.generateDocumentNumber(projectId, 'BOM', tx);
+        const [bom] = await tx.insert(epcBomHeaders).values({
+          projectId,
+          projectItemId,
+          masterItemId,
+          drawingControlId: drawingControlId || null,
+          bomNumber,
+          revisionCode: 'A',
+          isCurrent: true,
+          revisionStatus: 'draft',
+          bomRevision: bomRevision || 'A',
+          bomType: validBomType,
+          bomTitle: bomTitle || `${item.description} - ${validBomType} BOM`,
+          bomDescription: bomDescription || null,
+          itemCode: item.item_code,
+          itemDescription: item.description,
+          classificationSnapshot: item.make_or_buy,
+          drawingNumber,
+          drawingRevision: drawingRevisionSnap,
+          notes: notes || null,
+          createdBy: userId,
+        }).returning();
+        return bom;
+      });
 
-      const [created] = await db.insert(epcBomHeaders).values({
-        projectId,
-        projectItemId,
-        masterItemId,
-        drawingControlId: drawingControlId || null,
-        bomNumber,
-        bomRevision: bomRevision || 'A',
-        bomType: validBomType,
-        bomTitle: bomTitle || `${item.description} - ${validBomType} BOM`,
-        bomDescription: bomDescription || null,
-        itemCode: item.item_code,
-        itemDescription: item.description,
-        classificationSnapshot: item.make_or_buy,
-        drawingNumber,
-        drawingRevision: drawingRevisionSnap,
-        notes: notes || null,
-        createdBy: userId,
-      }).returning();
-
-      console.log(`[BOM] ${bomNumber} created for project ${projectId}, item ${masterItemId}, type ${validBomType} by user ${userId}`);
-      res.status(201).json({ success: true, data: created, message: `BOM ${bomNumber} created` });
+      console.log(`[BOM] ${created.bomNumber} created for project ${projectId}, item ${masterItemId}, type ${validBomType} by user ${userId}`);
+      res.status(201).json({ success: true, data: created, message: `BOM ${created.bomNumber} created` });
     } catch (error) {
       sendError(res, error);
     }
@@ -8806,9 +8798,12 @@ export function setupProjectRoutes(app: express.Express) {
       if (['superseded', 'cancelled'].includes(rec.status)) {
         return sendBusinessError(res, `Cannot supersede: BOM is already ${rec.status}.`);
       }
+      if (!rec.is_current) {
+        return sendBusinessError(res, 'Cannot supersede a non-current revision.');
+      }
 
-      const newBomNumber = await generateBomNumber();
-      const nextRevision = newBomRevision || String.fromCharCode(rec.bom_revision.charCodeAt(rec.bom_revision.length - 1) + 1);
+      const nextRevisionCode = epcCoding.incrementRevisionCode(rec.revision_code);
+      const nextBomRevision = newBomRevision || epcCoding.incrementRevisionCode(rec.bom_revision);
 
       const txResult = await db.transaction(async (tx) => {
         const [newBom] = await tx.insert(epcBomHeaders).values({
@@ -8816,8 +8811,12 @@ export function setupProjectRoutes(app: express.Express) {
           projectItemId: rec.project_item_id,
           masterItemId: rec.master_item_id,
           drawingControlId: rec.drawing_control_id,
-          bomNumber: newBomNumber,
-          bomRevision: nextRevision,
+          bomNumber: rec.bom_number,
+          revisionCode: nextRevisionCode,
+          isCurrent: true,
+          revisionStatus: 'draft',
+          supersedesId: id,
+          bomRevision: nextBomRevision,
           bomType: rec.bom_type,
           bomTitle: rec.bom_title,
           bomDescription: rec.bom_description,
@@ -8826,7 +8825,7 @@ export function setupProjectRoutes(app: express.Express) {
           classificationSnapshot: rec.classification_snapshot,
           drawingNumber: rec.drawing_number,
           drawingRevision: rec.drawing_revision,
-          notes: `Superseded from ${rec.bom_number} (Rev ${rec.bom_revision}). Reason: ${supersessionReason}`,
+          notes: `Supersedes Rev ${rec.revision_code}. Reason: ${supersessionReason}`,
           createdBy: userId,
         }).returning();
 
@@ -8859,6 +8858,8 @@ export function setupProjectRoutes(app: express.Express) {
 
         await tx.update(epcBomHeaders).set({
           status: 'superseded',
+          isCurrent: false,
+          revisionStatus: 'superseded',
           supersededBy: newBom.id,
           supersededAt: new Date(),
           supersessionReason,
@@ -9265,13 +9266,14 @@ export function setupProjectRoutes(app: express.Express) {
             continue;
           }
 
+          const explosionPlanningNumber = await epcCoding.generateDocumentNumber(header.project_id, 'PLN', tx);
           const planningResult = await tx.execute(sql`
             INSERT INTO item_planning_records (project_id, project_item_id, master_item_id, planning_type,
               classification_snapshot, source, source_bom_header_id, source_bom_line_id, parent_project_item_id,
-              quantity, status, created_by, created_at, updated_at)
+              quantity, planning_number, status, created_by, created_at, updated_at)
             VALUES (${header.project_id}, ${childProjectItemId}, ${line.component_item_id}, ${planningType},
               ${classification}, 'bom_explosion', ${id}, ${line.id}, ${header.project_item_id},
-              ${computedQty.toString()}, 'draft', ${userId}, NOW(), NOW())
+              ${computedQty.toString()}, ${explosionPlanningNumber}, 'draft', ${userId}, NOW(), NOW())
             RETURNING id
           `);
           const planningRecordId = (planningResult.rows[0] as any).id;

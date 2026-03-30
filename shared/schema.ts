@@ -1543,7 +1543,8 @@ export const customers = pgTable('customers', {
   sapVatRegNumber: text('sap_vat_reg_number'),
   sapSyncedAt: timestamp('sap_synced_at'),
   sapLastModified: timestamp('sap_last_modified'),
-  sapSyncStatus: text('sap_sync_status').default('pending') // pending, synced, error
+  sapSyncStatus: text('sap_sync_status').default('pending'), // pending, synced, error
+  shortCode: varchar('short_code', { length: 5 }).notNull().unique(),
 });
 
 // Projects table
@@ -1587,6 +1588,14 @@ export const projects = pgTable('projects', {
   // Additional details
   notes: text('notes'),
   tags: text('tags').array(),
+
+  // EPC Coding System
+  continentCode: varchar('continent_code', { length: 2 }).notNull(),
+  countryCode: varchar('country_code', { length: 2 }).notNull(),
+  fyCode: varchar('fy_code', { length: 4 }).notNull(),
+  projectSeq: varchar('project_seq', { length: 3 }).notNull(),
+  operationalCode: varchar('operational_code', { length: 26 }).notNull().unique(),
+  legacyCode: varchar('legacy_code', { length: 20 }),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)
@@ -1833,6 +1842,7 @@ export const projectItems = pgTable('project_items', {
 
 export const itemPlanningRecords = pgTable('item_planning_records', {
   id: serial('id').primaryKey(),
+  planningNumber: varchar('planning_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
@@ -1870,6 +1880,7 @@ export type ItemPlanningRecord = typeof itemPlanningRecords.$inferSelect;
 
 export const procurementExecutionRecords = pgTable('procurement_execution_records', {
   id: serial('id').primaryKey(),
+  procurementNumber: varchar('procurement_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   planningRecordId: integer('planning_record_id').notNull().references(() => itemPlanningRecords.id),
@@ -1907,6 +1918,7 @@ export type ProcurementExecutionRecord = typeof procurementExecutionRecords.$inf
 
 export const productionExecutionRecords = pgTable('production_execution_records', {
   id: serial('id').primaryKey(),
+  productionNumber: varchar('production_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   planningRecordId: integer('planning_record_id').notNull().references(() => itemPlanningRecords.id),
@@ -1944,6 +1956,7 @@ export type ProductionExecutionRecord = typeof productionExecutionRecords.$infer
 
 export const qualityPlanningRecords = pgTable('quality_planning_records', {
   id: serial('id').primaryKey(),
+  qualityPlanNumber: varchar('quality_plan_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   masterItemId: integer('master_item_id').notNull().references(() => masterItems.id),
@@ -1982,6 +1995,7 @@ export type QualityPlanningRecord = typeof qualityPlanningRecords.$inferSelect;
 
 export const poPreparationRecords = pgTable('po_preparation_records', {
   id: serial('id').primaryKey(),
+  poPrepNumber: varchar('po_prep_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   planningRecordId: integer('planning_record_id').notNull().references(() => itemPlanningRecords.id),
@@ -2023,6 +2037,7 @@ export type PoPreparationRecord = typeof poPreparationRecords.$inferSelect;
 
 export const woPreparationRecords = pgTable('wo_preparation_records', {
   id: serial('id').primaryKey(),
+  woPrepNumber: varchar('wo_prep_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   planningRecordId: integer('planning_record_id').notNull().references(() => itemPlanningRecords.id),
@@ -2064,6 +2079,7 @@ export type WoPreparationRecord = typeof woPreparationRecords.$inferSelect;
 
 export const inspectionExecutionRecords = pgTable('inspection_execution_records', {
   id: serial('id').primaryKey(),
+  inspectionNumber: varchar('inspection_number', { length: 35 }).unique(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   planningRecordId: integer('planning_record_id').references(() => itemPlanningRecords.id),
@@ -11436,7 +11452,11 @@ export const epcDrawingControls = pgTable('epc_drawing_controls', {
   projectItemId: integer("project_item_id").notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
   designDrawingId: integer("design_drawing_id").references(() => designDrawings.id, { onDelete: 'set null' }),
-  dwgControlNumber: varchar("dwg_control_number", { length: 30 }).notNull().unique(),
+  dwgControlNumber: varchar("dwg_control_number", { length: 35 }).notNull(),
+  revisionCode: varchar("revision_code", { length: 5 }).notNull().default('A'),
+  isCurrent: boolean("is_current").notNull().default(true),
+  revisionStatus: varchar("revision_status", { length: 20 }).notNull().default('draft'),
+  supersedesId: integer("supersedes_id"),
   drawingNumber: varchar("drawing_number", { length: 100 }),
   drawingTitle: varchar("drawing_title", { length: 255 }),
   drawingRevision: varchar("drawing_revision", { length: 20 }),
@@ -11495,7 +11515,11 @@ export const epcBomHeaders = pgTable('epc_bom_headers', {
   projectItemId: integer("project_item_id").notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
   masterItemId: integer("master_item_id").notNull().references(() => masterItems.id),
   drawingControlId: integer("drawing_control_id").references(() => epcDrawingControls.id, { onDelete: 'set null' }),
-  bomNumber: varchar("bom_number", { length: 30 }).notNull().unique(),
+  bomNumber: varchar("bom_number", { length: 35 }).notNull(),
+  revisionCode: varchar("revision_code", { length: 5 }).notNull().default('A'),
+  isCurrent: boolean("is_current").notNull().default(true),
+  revisionStatus: varchar("revision_status", { length: 20 }).notNull().default('draft'),
+  supersedesId: integer("supersedes_id"),
   bomRevision: varchar("bom_revision", { length: 20 }).notNull().default('A'),
   bomType: varchar("bom_type", { length: 30 }).notNull().default('assembly'),
   bomTitle: varchar("bom_title", { length: 255 }),
