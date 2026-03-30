@@ -7679,6 +7679,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to create drawing controls.');
+      }
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
       const {
@@ -7789,6 +7793,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/drawing-controls/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to submit drawing controls for review.');
+      }
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { submissionNote } = req.body;
@@ -8035,8 +8043,8 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { gateType } = req.body;
 
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to toggle release gates.');
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to toggle release gates.');
       }
 
       const validGates = ['procurement', 'manufacturing'];
@@ -8096,6 +8104,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/drawing-controls/:id/client-approval', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to record client approval.');
+      }
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { status, clientApprovedBy, notes } = req.body;
@@ -8134,6 +8146,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/drawing-controls/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 2) {
+        return sendPermissionError(res, 'Senior Manager or above required to cancel drawing controls.');
+      }
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body;
@@ -8310,6 +8326,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/drawing-controls/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to revert drawing controls to draft.');
+      }
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
 
@@ -8342,6 +8362,10 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.patch('/api/drawing-controls/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      const userRole = (req.user as any)?.role;
+      if (roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to edit drawing controls.');
+      }
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
 

@@ -125,15 +125,15 @@ type ActionDef = {
 };
 
 const LIFECYCLE_ACTIONS: ActionDef[] = [
-  { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 4, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote" },
+  { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 3, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote" },
   { key: "review", label: "Review", icon: Eye, variant: "default", minRoleLevel: 3, statusRequired: ["under_review"], needsNote: true, noteLabel: "Review Note", noteKey: "reviewNote" },
   { key: "approve", label: "Approve", icon: CheckCircle2, variant: "default", minRoleLevel: 2, statusRequired: ["under_review"], extraCheck: (r) => !!r.reviewed_by },
   { key: "release", label: "Release", icon: ShieldCheck, variant: "default", minRoleLevel: 2, statusRequired: ["approved"], needsNote: true, noteLabel: "Release Note", noteKey: "releaseNote" },
-  { key: "release-gate-procurement", label: "Mark Released for Procurement", icon: Unlock, variant: "outline", minRoleLevel: 2, statusRequired: ["released"], extraCheck: (r) => r.procurement_release_required && !r.released_for_procurement },
-  { key: "release-gate-manufacturing", label: "Mark Released for Manufacturing", icon: Unlock, variant: "outline", minRoleLevel: 2, statusRequired: ["released"], extraCheck: (r) => r.manufacturing_release_required && !r.released_for_manufacturing },
-  { key: "client-approval", label: "Record Client Approval", icon: UserCheck, variant: "outline", minRoleLevel: 4, statusRequired: ["draft", "under_review"], extraCheck: (r) => r.client_approval_required && r.client_approval_status !== "approved" },
-  { key: "revert-to-draft", label: "Revert to Draft", icon: RotateCcw, variant: "secondary", minRoleLevel: 4, statusRequired: ["under_review"] },
-  { key: "cancel", label: "Cancel", icon: XCircle, variant: "destructive", minRoleLevel: 4, statusRequired: ["draft", "under_review", "approved"], needsNote: true, noteLabel: "Cancel Reason", noteKey: "cancelReason" },
+  { key: "release-gate-procurement", label: "Mark Released for Procurement", icon: Unlock, variant: "outline", minRoleLevel: 3, statusRequired: ["released"], extraCheck: (r) => r.procurement_release_required && !r.released_for_procurement },
+  { key: "release-gate-manufacturing", label: "Mark Released for Manufacturing", icon: Unlock, variant: "outline", minRoleLevel: 3, statusRequired: ["released"], extraCheck: (r) => r.manufacturing_release_required && !r.released_for_manufacturing },
+  { key: "client-approval", label: "Record Client Approval", icon: UserCheck, variant: "outline", minRoleLevel: 3, statusRequired: ["draft", "under_review"], extraCheck: (r) => r.client_approval_required && r.client_approval_status !== "approved" },
+  { key: "revert-to-draft", label: "Revert to Draft", icon: RotateCcw, variant: "secondary", minRoleLevel: 3, statusRequired: ["under_review"] },
+  { key: "cancel", label: "Cancel", icon: XCircle, variant: "destructive", minRoleLevel: 2, statusRequired: ["draft", "under_review", "approved"], needsNote: true, noteLabel: "Cancel Reason", noteKey: "cancelReason" },
   { key: "supersede", label: "Supersede", icon: ArrowUpDown, variant: "destructive", minRoleLevel: 2, statusRequired: ["draft", "under_review", "approved", "released"], extraCheck: (r) => r.is_current },
 ];
 
@@ -453,11 +453,13 @@ export default function EpcDrawingControlPage() {
                   <Switch id="allRevs" checked={showAllRevisions} onCheckedChange={setShowAllRevisions} className="scale-75" />
                   <Label htmlFor="allRevs" className="text-[10px] text-muted-foreground cursor-pointer">All Revisions</Label>
                 </div>
-                <div className="ml-auto">
-                  <Button size="sm" className="h-8 text-xs" onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> New DWG Control
-                  </Button>
-                </div>
+                {userLevel <= 3 && (
+                  <div className="ml-auto">
+                    <Button size="sm" className="h-8 text-xs" onClick={() => setCreateDialogOpen(true)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> New DWG Control
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <Card className="shadow-sm">
@@ -523,7 +525,7 @@ export default function EpcDrawingControlPage() {
                                         <CardHeader className="py-2 px-3">
                                           <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
                                             <FileText className="h-3.5 w-3.5" /> Details
-                                            {rec.status === "draft" && (
+                                            {rec.status === "draft" && userLevel <= 3 && (
                                               <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[8px] ml-auto" onClick={(e) => { e.stopPropagation(); openEditDialog(rec); }}>
                                                 <Edit className="h-2.5 w-2.5 mr-0.5" /> Edit
                                               </Button>
