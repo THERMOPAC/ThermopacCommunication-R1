@@ -185,6 +185,18 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         ? `This file content is identical to existing attachment '${(dupCheck.rows[0] as any).attachment_label}' (id ${(dupCheck.rows[0] as any).id}). Duplicate allowed under different label.`
         : undefined;
 
+      await db.insert(epcDocumentAccessLog).values({
+        attachmentId: txResult.inserted.id,
+        documentNumber,
+        revisionCode: revisionCode || null,
+        docType,
+        projectId,
+        action: 'upload',
+        accessedBy: userId,
+        ipAddress: (req.ip || req.socket.remoteAddress || '').substring(0, 45),
+        userAgent: (req.headers['user-agent'] || '').substring(0, 500),
+      });
+
       console.log(`[EPC-DOC] Uploaded ${documentNumber} ${docType} seq ${txResult.attachmentSeq} by user ${userId}`);
       res.status(201).json({
         success: true,
@@ -694,6 +706,18 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         })}::jsonb, 'epc_document_control', NOW())
       `);
 
+      await db.insert(epcDocumentAccessLog).values({
+        attachmentId,
+        documentNumber: attachment.document_number,
+        revisionCode: attachment.revision_code,
+        docType: attachment.doc_type,
+        projectId,
+        action: 'withdraw',
+        accessedBy: userId,
+        ipAddress: (req.ip || req.socket.remoteAddress || '').substring(0, 45),
+        userAgent: (req.headers['user-agent'] || '').substring(0, 500),
+      });
+
       console.log(`[EPC-DOC] Attachment ${attachmentId} withdrawn (${attachment.document_number}) by user ${userId}`);
       res.json({ success: true, message: 'Attachment withdrawn successfully' });
     } catch (error: any) {
@@ -768,6 +792,18 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         })}::jsonb, 'epc_document_control', NOW())
       `);
 
+      await db.insert(epcDocumentAccessLog).values({
+        attachmentId,
+        documentNumber: attachment.document_number,
+        revisionCode: attachment.revision_code,
+        docType: attachment.doc_type,
+        projectId,
+        action: 'reinstate',
+        accessedBy: userId,
+        ipAddress: (req.ip || req.socket.remoteAddress || '').substring(0, 45),
+        userAgent: (req.headers['user-agent'] || '').substring(0, 500),
+      });
+
       console.log(`[EPC-DOC] Attachment ${attachmentId} reinstated (${attachment.document_number}) by user ${userId}`);
       res.json({ success: true, message: 'Attachment reinstated successfully' });
     } catch (error: any) {
@@ -781,7 +817,6 @@ export function setupEpcDocumentRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       const documentNumber = req.params.documentNumber;
-      const userId = req.user!.id;
       const userRole = req.user!.role;
 
       if (!ACCESS_LOG_ROLES.includes(userRole)) {
@@ -790,42 +825,49 @@ export function setupEpcDocumentRoutes(app: express.Express) {
 
       const from = req.query.from ? new Date(req.query.from as string) : null;
       const to = req.query.to ? new Date(req.query.to as string) : null;
+      const actionFilter = req.query.action as string | undefined;
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(100, Math.max(10, parseInt(req.query.limit as string) || 50));
+      const offset = (page - 1) * limit;
 
-      let query;
-      if (from && to) {
-        query = await db.execute(
-          sql`SELECT eal.*, u.username AS accessed_by_name
-              FROM epc_document_access_log eal
-              LEFT JOIN users u ON u.id = eal.accessed_by
-              WHERE eal.document_number = ${documentNumber}
-              AND eal.project_id = ${projectId}
-              AND eal.accessed_at >= ${from}
-              AND eal.accessed_at <= ${to}
-              ORDER BY eal.accessed_at DESC
-              LIMIT 500`
-        );
-      } else {
-        query = await db.execute(
-          sql`SELECT eal.*, u.username AS accessed_by_name
-              FROM epc_document_access_log eal
-              LEFT JOIN users u ON u.id = eal.accessed_by
-              WHERE eal.document_number = ${documentNumber}
-              AND eal.project_id = ${projectId}
-              ORDER BY eal.accessed_at DESC
-              LIMIT 500`
-        );
-      }
+      const conditions = [
+        sql`eal.document_number = ${documentNumber}`,
+        sql`eal.project_id = ${projectId}`,
+      ];
+      if (from) conditions.push(sql`eal.accessed_at >= ${from}`);
+      if (to) conditions.push(sql`eal.accessed_at <= ${to}`);
+      if (actionFilter && actionFilter !== 'all') conditions.push(sql`eal.action = ${actionFilter}`);
+
+      const whereClause = sql.join(conditions, sql` AND `);
+
+      const countQuery = await db.execute(
+        sql`SELECT COUNT(*) AS total FROM epc_document_access_log eal WHERE ${whereClause}`
+      );
+      const totalEntries = parseInt((countQuery.rows[0] as any).total) || 0;
+
+      const query = await db.execute(
+        sql`SELECT eal.*, u.username AS accessed_by_name, u.role AS accessed_by_role
+            FROM epc_document_access_log eal
+            LEFT JOIN users u ON u.id = eal.accessed_by
+            WHERE ${whereClause}
+            ORDER BY eal.accessed_at DESC
+            LIMIT ${limit} OFFSET ${offset}`
+      );
 
       res.json({
         success: true,
         documentNumber,
-        totalEntries: query.rows.length,
+        totalEntries,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(totalEntries / limit),
         accessLog: (query.rows as any[]).map(row => ({
           id: row.id,
           attachmentId: row.attachment_id,
           revisionCode: row.revision_code,
           action: row.action,
           accessedBy: row.accessed_by_name,
+          accessedByRole: row.accessed_by_role,
           accessedAt: row.accessed_at,
           ipAddress: row.ip_address,
         })),

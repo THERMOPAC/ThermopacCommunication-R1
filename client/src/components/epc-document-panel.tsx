@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Upload, Download, History, Trash2, RotateCcw,
   Loader2, Shield, AlertTriangle,
-  Paperclip,
+  Paperclip, FileSearch, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 const UPLOAD_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
@@ -96,6 +96,9 @@ export default function EpcDocumentPanel({
   const [downloadContext, setDownloadContext] = useState<string>("general");
   const [uploadLabel, setUploadLabel] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [accessLogOpen, setAccessLogOpen] = useState(false);
+  const [accessLogActionFilter, setAccessLogActionFilter] = useState<string>("all");
+  const [accessLogPage, setAccessLogPage] = useState(1);
 
   const isRevControlled = REVISION_CONTROLLED_TYPES.has(docType.toUpperCase());
   const canUpload = UPLOAD_ROLES.includes(userRole);
@@ -127,6 +130,23 @@ export default function EpcDocumentPanel({
       return res.json();
     },
     enabled: historyDialogOpen && !!documentNumber,
+  });
+
+  const { data: accessLogData, isLoading: accessLogLoading } = useQuery({
+    queryKey: ["/api/projects", projectId, "epc-documents", documentNumber, "access-log", accessLogActionFilter, accessLogPage],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (accessLogActionFilter && accessLogActionFilter !== "all") params.set("action", accessLogActionFilter);
+      params.set("page", String(accessLogPage));
+      params.set("limit", "50");
+      const res = await fetch(`/api/projects/${projectId}/epc-documents/${documentNumber}/access-log?${params}`, { credentials: "include" });
+      if (!res.ok) {
+        if (res.status === 403) return { accessLog: [], totalEntries: 0, totalPages: 0, page: 1 };
+        throw new Error("Failed to load access log");
+      }
+      return res.json();
+    },
+    enabled: accessLogOpen && !!documentNumber && canViewAccessLog,
   });
 
   const uploadMutation = useMutation({
@@ -307,6 +327,106 @@ export default function EpcDocumentPanel({
     );
   }
 
+  function renderAccessLogDialog() {
+    const actionStyles: Record<string, string> = {
+      upload: "bg-blue-50 text-blue-700 border-blue-300",
+      download: "bg-green-50 text-green-700 border-green-300",
+      stream: "bg-teal-50 text-teal-700 border-teal-300",
+      withdraw: "bg-red-50 text-red-600 border-red-300",
+      reinstate: "bg-amber-50 text-amber-700 border-amber-300",
+    };
+    const logs = accessLogData?.accessLog || [];
+    const totalPages = accessLogData?.totalPages || 1;
+    const totalEntries = accessLogData?.totalEntries || 0;
+
+    return (
+      <Dialog open={accessLogOpen} onOpenChange={(open) => { setAccessLogOpen(open); if (!open) { setAccessLogActionFilter("all"); setAccessLogPage(1); } }}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSearch className="h-4 w-4" />
+              Document Access Log — {documentNumber}
+            </DialogTitle>
+            <DialogDescription>
+              {docType} • {totalEntries} record{totalEntries !== 1 ? "s" : ""} • GM/Superuser audit view
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-3 py-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Action:</span>
+              <Select value={accessLogActionFilter} onValueChange={(v) => { setAccessLogActionFilter(v); setAccessLogPage(1); }}>
+                <SelectTrigger className="h-7 text-xs w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All Actions</SelectItem>
+                  <SelectItem value="upload" className="text-xs">Upload</SelectItem>
+                  <SelectItem value="download" className="text-xs">Download</SelectItem>
+                  <SelectItem value="stream" className="text-xs">Stream</SelectItem>
+                  <SelectItem value="withdraw" className="text-xs">Withdraw</SelectItem>
+                  <SelectItem value="reinstate" className="text-xs">Reinstate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1 ml-auto">
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={accessLogPage <= 1} onClick={() => setAccessLogPage(p => p - 1)}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-xs text-muted-foreground px-1">
+                  {accessLogPage} / {totalPages}
+                </span>
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0" disabled={accessLogPage >= totalPages} onClick={() => setAccessLogPage(p => p + 1)}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {accessLogLoading ? (
+            <div className="py-8 text-center">
+              <Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" />
+            </div>
+          ) : logs.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-[10px]">Timestamp</TableHead>
+                  <TableHead className="text-[10px]">User</TableHead>
+                  <TableHead className="text-[10px]">Role</TableHead>
+                  <TableHead className="text-[10px] text-center">Action</TableHead>
+                  <TableHead className="text-[10px]">Rev</TableHead>
+                  <TableHead className="text-[10px]">IP Address</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.map((entry: any) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="text-[10px] py-1.5 whitespace-nowrap">
+                      {entry.accessedAt ? new Date(entry.accessedAt).toLocaleString() : "—"}
+                    </TableCell>
+                    <TableCell className="text-[10px] py-1.5 font-medium">{entry.accessedBy || "—"}</TableCell>
+                    <TableCell className="text-[10px] py-1.5 text-muted-foreground">{entry.accessedByRole || "—"}</TableCell>
+                    <TableCell className="text-center py-1.5">
+                      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border ${actionStyles[entry.action] || "bg-gray-50 text-gray-600 border-gray-300"}`}>
+                        {entry.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-[10px] py-1.5 font-mono">{entry.revisionCode || "—"}</TableCell>
+                    <TableCell className="text-[10px] py-1.5 text-muted-foreground font-mono">{entry.ipAddress || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-6">No access records found.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (compact) {
     return (
       <div className="flex items-center gap-1.5">
@@ -322,6 +442,11 @@ export default function EpcDocumentPanel({
         {hasAnyAttachments && documentNumber && (
           <Button size="sm" variant="ghost" className="h-5 px-1 text-[8px]" onClick={() => setHistoryDialogOpen(true)}>
             <History className="h-2.5 w-2.5 mr-0.5" /> History
+          </Button>
+        )}
+        {canViewAccessLog && documentNumber && (
+          <Button size="sm" variant="ghost" className="h-5 px-1 text-[8px]" onClick={() => setAccessLogOpen(true)}>
+            <FileSearch className="h-2.5 w-2.5 mr-0.5" /> Audit
           </Button>
         )}
 
@@ -355,6 +480,7 @@ export default function EpcDocumentPanel({
         </Dialog>
 
         {renderHistoryDialog()}
+        {canViewAccessLog && renderAccessLogDialog()}
       </div>
     );
   }
@@ -494,6 +620,16 @@ export default function EpcDocumentPanel({
                 </Tooltip>
               </>
             )}
+            {canViewAccessLog && documentNumber && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setAccessLogOpen(true)}>
+                    <FileSearch className="h-3 w-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">Access Log</TooltipContent>
+              </Tooltip>
+            )}
             {canUpload && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -632,6 +768,7 @@ export default function EpcDocumentPanel({
       </Dialog>
 
       {renderHistoryDialog()}
+      {canViewAccessLog && renderAccessLogDialog()}
     </Card>
   );
 }
