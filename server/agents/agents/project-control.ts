@@ -9,8 +9,12 @@ import {
   resolveProjectManager, resolveReportingManager, resolveDepartmentHead,
   severityFromLevel, priorityFromLevel,
   fpWithProject, fpGlobal, hasOpenTask as hasOpenTaskShared, hasCompletedTask as hasCompletedTaskShared,
+  resolveAssignment,
 } from './project-control-shared';
 import { fetchOpenPurchaseOrders, fetchRecentGRPOs, buildGRPOLookupByBasePO } from './sap-live-queries';
+import {
+  EPC_FINDING_DEFS, hasGracePassed, trackFinding, markAlerted, markTaskCreated, resolveFindings,
+} from './epc-findings-tracker';
 
 const SOURCE_AGENT = 'project_controller';
 const AGENT_KEY = 'project_control';
@@ -1038,6 +1042,11 @@ export class ProjectControlAgent implements IAgent {
         LEFT JOIN users u ON dd.assigned_to_id = u.id
         LEFT JOIN design_projects dp ON dd.design_project_id = dp.id
         WHERE dd.status NOT IN ('Approved', 'Issued', 'Superseded')
+          AND NOT EXISTS (
+            SELECT 1 FROM epc_drawing_controls edc
+            WHERE edc.design_drawing_id = dd.id
+              AND edc.status NOT IN ('superseded','cancelled')
+          )
         ORDER BY dd.id
       `);
       queriesRun++;
@@ -2052,6 +2061,381 @@ export class ProjectControlAgent implements IAgent {
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // MODULE 4: EPC LIFECYCLE MONITORING (EPC-DC3, DC4, BC4, PR2, PR3, PE2)
+    // ════════════════════════════════════════════════════════════════════════
+    let epcResolved = 0;
+    try {
+      const epcDC3Active = new Set<string>();
+      const epcDC4Active = new Set<string>();
+      const epcBC4Active = new Set<string>();
+      const epcPR2Active = new Set<string>();
+      const epcPR3Active = new Set<string>();
+      const epcPE2Active = new Set<string>();
+
+      // ── EPC-DC3: Drawing Approved Not Released ──
+      const dc3Rows = await db.execute(sql`
+        SELECT edc.id, edc.control_number, edc.status, edc.approved_at,
+          edc.project_item_id, edc.design_drawing_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM epc_drawing_controls edc
+        JOIN project_items pi ON edc.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE edc.status = 'approved'
+          AND edc.approved_at IS NOT NULL
+      `);
+      queriesRun++;
+      const dc3Def = EPC_FINDING_DEFS['EPC-DC3'];
+      for (const row of (dc3Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.approved_at, dc3Def)) continue;
+        const fingerprint = `[fp:pc_epc_dc3:p${row.project_id}:dwg_ctrl:${row.id}]`;
+        epcDC3Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.approved_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-DC3', agentKey: AGENT_KEY,
+          severity: dc3Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'epc_drawing_control',
+          entityId: row.id, cooldownHours: dc3Def.cooldownHours,
+          metadata: { controlNumber: row.control_number, daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-DC3 Drawing Approved Not Released: ${row.control_number} (${daysSince}d)`,
+          description: `EPC drawing control "${row.control_number}" has been approved for ${daysSince} days but not released. Blocks downstream procurement and production gates.\nProject: ${row.project_name}`,
+          logicType: 'rule_based',
+          dataSnapshot: { drawingControlId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'epc_drawing_control', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const engLead = await resolveAssignment(null, row.project_id, 'Design');
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-DC3 Drawing Approved Not Released: ${row.control_number}`,
+            actionType: 'create_task',
+            description: `Drawing approved ${daysSince}d ago but not released — blocks procurement/production.`,
+            actionPayload: {
+              title: `[Agent] EPC-DC3 Drawing Approved Not Released: ${row.control_number} (${daysSince}d)`,
+              description: `EPC drawing control "${row.control_number}" approved ${daysSince}d ago but not released.\nProject: ${row.project_name}\nagent_severity: ${dc3Def.severity}\n\nAction: Release the drawing to unblock downstream gates.`,
+              assignedTo: engLead, priority: 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.95,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-DC4: Released Drawing — No BOM ──
+      const dc4Rows = await db.execute(sql`
+        SELECT edc.id, edc.control_number, edc.status, edc.released_at,
+          edc.project_item_id, edc.design_drawing_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM epc_drawing_controls edc
+        JOIN project_items pi ON edc.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE edc.status = 'released'
+          AND edc.released_at IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM epc_bom_headers bh
+            WHERE bh.project_item_id = edc.project_item_id
+              AND bh.status NOT IN ('cancelled','superseded')
+          )
+      `);
+      queriesRun++;
+      const dc4Def = EPC_FINDING_DEFS['EPC-DC4'];
+      for (const row of (dc4Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.released_at, dc4Def)) continue;
+        const fingerprint = `[fp:pc_epc_dc4:p${row.project_id}:dwg_ctrl:${row.id}]`;
+        epcDC4Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.released_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-DC4', agentKey: AGENT_KEY,
+          severity: dc4Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'epc_drawing_control',
+          entityId: row.id, cooldownHours: dc4Def.cooldownHours,
+          metadata: { controlNumber: row.control_number, daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'medium',
+          title: `EPC-DC4 Released Drawing No BOM: ${row.control_number} (${daysSince}d)`,
+          description: `Drawing "${row.control_number}" released ${daysSince} days ago but no BOM exists for this project item.\nProject: ${row.project_name}\nEngineering output incomplete — procurement/production gates will block.`,
+          logicType: 'rule_based',
+          dataSnapshot: { drawingControlId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'epc_drawing_control', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const engLead = await resolveAssignment(null, row.project_id, 'Design');
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-DC4 Released Drawing No BOM: ${row.control_number}`,
+            actionType: 'create_task',
+            description: `Drawing released ${daysSince}d ago but no BOM created yet.`,
+            actionPayload: {
+              title: `[Agent] EPC-DC4 Released Drawing No BOM: ${row.control_number} (${daysSince}d)`,
+              description: `Drawing "${row.control_number}" released but no BOM exists.\nProject: ${row.project_name}\nagent_severity: ${dc4Def.severity}\n\nAction: Create BOM for the project item.`,
+              assignedTo: engLead, priority: 'Medium', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-BC4: Empty BOM Released (alert only) ──
+      const bc4Rows = await db.execute(sql`
+        SELECT bh.id, bh.bom_number, bh.status, bh.project_item_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM epc_bom_headers bh
+        JOIN project_items pi ON bh.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE bh.status = 'released'
+          AND NOT EXISTS (
+            SELECT 1 FROM epc_bom_lines bl
+            WHERE bl.bom_id = bh.id AND bl.status != 'cancelled'
+          )
+      `);
+      queriesRun++;
+      const bc4Def = EPC_FINDING_DEFS['EPC-BC4'];
+      for (const row of (bc4Rows.rows || []) as any[]) {
+        const fingerprint = `[fp:pc_epc_bc4:bom:${row.id}]`;
+        epcBC4Active.add(fingerprint);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-BC4', agentKey: AGENT_KEY,
+          severity: bc4Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'epc_bom_header',
+          entityId: row.id, cooldownHours: bc4Def.cooldownHours,
+          metadata: { bomNumber: row.bom_number },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'threshold_breach', severity: 'critical',
+          title: `EPC-BC4 Empty BOM Released: ${row.bom_number}`,
+          description: `BOM "${row.bom_number}" is released but has zero active lines. Data integrity violation — BOM explosion would produce nothing.\nProject: ${row.project_name}`,
+          logicType: 'rule_based',
+          dataSnapshot: { bomId: row.id, projectId: row.project_id },
+          relatedEntityType: 'epc_bom_header', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-PR2: Procurement Plan — No Execution Record ──
+      const pr2Rows = await db.execute(sql`
+        SELECT ipr.id, ipr.planning_type, ipr.status, ipr.updated_at,
+          ipr.project_item_id, pi.project_id, p.name as project_name, p.manager_id
+        FROM item_planning_records ipr
+        JOIN project_items pi ON ipr.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE ipr.planning_type = 'procurement'
+          AND ipr.status IN ('confirmed','active')
+          AND NOT EXISTS (
+            SELECT 1 FROM procurement_execution_records per
+            WHERE per.project_item_id = ipr.project_item_id
+          )
+      `);
+      queriesRun++;
+      const pr2Def = EPC_FINDING_DEFS['EPC-PR2'];
+      for (const row of (pr2Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, pr2Def)) continue;
+        const fingerprint = `[fp:pc_epc_pr2:p${row.project_id}:plan:${row.id}]`;
+        epcPR2Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-PR2', agentKey: AGENT_KEY,
+          severity: pr2Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'item_planning_record',
+          entityId: row.id, cooldownHours: pr2Def.cooldownHours,
+          metadata: { daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-PR2 Procurement Plan No Execution: Plan #${row.id} (${daysSince}d)`,
+          description: `Procurement planning record confirmed ${daysSince}d ago but no execution record exists.\nProject: ${row.project_name}\nHandoff from planning to execution is broken.`,
+          logicType: 'rule_based',
+          dataSnapshot: { planId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'item_planning_record', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const procLead = await resolveAssignment(null, row.project_id, 'Purchase');
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-PR2 Procurement Plan No Execution: Plan #${row.id}`,
+            actionType: 'create_task',
+            description: `Procurement plan confirmed ${daysSince}d ago, no execution record.`,
+            actionPayload: {
+              title: `[Agent] EPC-PR2 Procurement Plan No Execution Record (${daysSince}d)`,
+              description: `Procurement plan #${row.id} confirmed ${daysSince}d ago but no execution record created.\nProject: ${row.project_name}\nagent_severity: ${pr2Def.severity}\n\nAction: Create procurement execution record to proceed.`,
+              assignedTo: procLead, priority: 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-PR3: Production Plan — No Execution Record ──
+      const pr3Rows = await db.execute(sql`
+        SELECT ipr.id, ipr.planning_type, ipr.status, ipr.updated_at,
+          ipr.project_item_id, pi.project_id, p.name as project_name, p.manager_id
+        FROM item_planning_records ipr
+        JOIN project_items pi ON ipr.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE ipr.planning_type = 'production'
+          AND ipr.status IN ('confirmed','active')
+          AND NOT EXISTS (
+            SELECT 1 FROM production_execution_records per
+            WHERE per.project_item_id = ipr.project_item_id
+          )
+      `);
+      queriesRun++;
+      const pr3Def = EPC_FINDING_DEFS['EPC-PR3'];
+      for (const row of (pr3Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, pr3Def)) continue;
+        const fingerprint = `[fp:pc_epc_pr3:p${row.project_id}:plan:${row.id}]`;
+        epcPR3Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-PR3', agentKey: AGENT_KEY,
+          severity: pr3Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'item_planning_record',
+          entityId: row.id, cooldownHours: pr3Def.cooldownHours,
+          metadata: { daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-PR3 Production Plan No Execution: Plan #${row.id} (${daysSince}d)`,
+          description: `Production planning record confirmed ${daysSince}d ago but no execution record exists.\nProject: ${row.project_name}\nManufacturing will never start for this item.`,
+          logicType: 'rule_based',
+          dataSnapshot: { planId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'item_planning_record', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const prodMgr = await resolveAssignment(null, row.project_id, 'Production');
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-PR3 Production Plan No Execution: Plan #${row.id}`,
+            actionType: 'create_task',
+            description: `Production plan confirmed ${daysSince}d ago, no execution record.`,
+            actionPayload: {
+              title: `[Agent] EPC-PR3 Production Plan No Execution Record (${daysSince}d)`,
+              description: `Production plan #${row.id} confirmed ${daysSince}d ago but no execution record created.\nProject: ${row.project_name}\nagent_severity: ${pr3Def.severity}\n\nAction: Create production execution record.`,
+              assignedTo: prodMgr, priority: 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-PE2: Procurement Gate Block Unresolved ──
+      const pe2Rows = await db.execute(sql`
+        SELECT t.id, t.title, t.status, t.created_at, t.category,
+          t.assigned_to as assigned_to_id
+        FROM tasks t
+        WHERE t.source_type = 'epc_automation'
+          AND t.description LIKE '%[automation_key:epc:procurement_execution:%:gate_blocked]%'
+          AND t.status NOT IN ('completed','cancelled','obsolete')
+          AND t.created_at::timestamp < NOW() - INTERVAL '7 days'
+      `);
+      queriesRun++;
+      const pe2Def = EPC_FINDING_DEFS['EPC-PE2'];
+      for (const row of (pe2Rows.rows || []) as any[]) {
+        const fingerprint = `[fp:pc_epc_pe2:task:${row.id}]`;
+        epcPE2Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-PE2', agentKey: AGENT_KEY,
+          severity: pe2Def.severity, entityType: 'task',
+          entityId: row.id, cooldownHours: pe2Def.cooldownHours,
+          metadata: { taskTitle: row.title, daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-PE2 Procurement Gate Block Unresolved: Task #${row.id} (${daysSince}d)`,
+          description: `Procurement gate block task "${row.title}" has been open ${daysSince} days. Engineering is not responding to the dependency.`,
+          logicType: 'rule_based',
+          dataSnapshot: { taskId: row.id, daysSince },
+          relatedEntityType: 'task', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const engLead = await resolveDepartmentHead('Design');
+          const assignTo = await resolveEscalation(daysSince >= 14 ? 'L3' : 'L1', engLead);
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-PE2 Procurement Gate Block Unresolved (${daysSince}d)`,
+            actionType: 'create_task',
+            description: `Procurement gate block unresolved for ${daysSince} days.`,
+            actionPayload: {
+              title: `[Agent] EPC-PE2 Procurement Gate Block Unresolved — Task #${row.id} (${daysSince}d)`,
+              description: `Gate block task "${row.title}" unresolved for ${daysSince} days.\nagent_severity: ${pe2Def.severity}\n\nAction: Resolve engineering dependency to unblock procurement.`,
+              assignedTo: assignTo, priority: daysSince >= 14 ? 'Critical' : 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: daysSince >= 14 ? 'critical' : 'high', confidence: 0.95,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── Resolution pass for all PC EPC findings ──
+      const pcCodes: [string, Set<string>][] = [
+        ['EPC-DC3', epcDC3Active], ['EPC-DC4', epcDC4Active], ['EPC-BC4', epcBC4Active],
+        ['EPC-PR2', epcPR2Active], ['EPC-PR3', epcPR3Active], ['EPC-PE2', epcPE2Active],
+      ];
+      for (const [code, activeSet] of pcCodes) {
+        epcResolved += await resolveFindings({
+          findingCode: code, agentKey: AGENT_KEY, sourceAgent: SOURCE_AGENT, stillActiveFingerprints: activeSet,
+        });
+      }
+      console.log(`[ProjectControl] EPC Module: ${epcDC3Active.size + epcDC4Active.size + epcBC4Active.size + epcPR2Active.size + epcPR3Active.size + epcPE2Active.size} active findings, ${epcResolved} resolved`);
+    } catch (err: any) {
+      console.error(`[ProjectControl] EPC Lifecycle module error:`, err.message);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // AUTO-EXECUTE APPROVED RECOMMENDATIONS
     // ════════════════════════════════════════════════════════════════════════
     for (const recId of autoExecuteQueue) {
@@ -2107,7 +2491,8 @@ export class ProjectControlAgent implements IAgent {
       recommendations_generated: recommendationsCount,
       execution_time_ms: elapsed,
       queries_run: queriesRun,
-      modules: ['P1-P12', 'D1-D10', 'R1-R12'],
+      epc_resolved: epcResolved,
+      modules: ['P1-P12', 'D1-D10', 'R1-R12', 'EPC-DC3/DC4/BC4/PR2/PR3/PE2'],
     };
 
     try {

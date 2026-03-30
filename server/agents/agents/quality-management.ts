@@ -10,6 +10,9 @@ import {
   resolveReportingManager, resolveDepartmentHead, hasOpenTask as hasOpenTaskShared,
   hasCompletedTask as hasCompletedTaskShared,
 } from './project-control-shared';
+import {
+  EPC_FINDING_DEFS, hasGracePassed, trackFinding, markAlerted, markTaskCreated, resolveFindings,
+} from './epc-findings-tracker';
 
 let cachedQCHeadId: number | null = null;
 async function resolveQCHead(): Promise<number> {
@@ -1558,6 +1561,152 @@ export class QualityManagementAgent implements IAgent {
     }
 
     // ════════════════════════════════════════════════════════════════════════════════
+    // EPC QUALITY MONITORING (EPC-QP2, QP4)
+    // ════════════════════════════════════════════════════════════════════════════════
+    let epcResolved = 0;
+    try {
+      const epcQP2Active = new Set<string>();
+      const epcQP4Active = new Set<string>();
+      const qcHead = await resolveQCHead();
+
+      // ── EPC-QP2: Inspection Failed — No Re-Inspection Scheduled ──
+      const qp2Rows = await db.execute(sql`
+        SELECT ier.id, ier.result, ier.updated_at, ier.project_item_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM inspection_execution_records ier
+        JOIN project_items pi ON ier.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE ier.result = 'fail'
+          AND NOT EXISTS (
+            SELECT 1 FROM inspection_orders io
+            WHERE io.project_item_id = ier.project_item_id
+              AND io.created_at > ier.updated_at
+          )
+      `);
+      queriesRun++;
+      const qp2Def = EPC_FINDING_DEFS['EPC-QP2'];
+      for (const row of (qp2Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, qp2Def)) continue;
+        const fingerprint = `[fp:qm_epc_qp2:insp_exec:${row.id}]`;
+        epcQP2Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-QP2', agentKey: AGENT_KEY,
+          severity: qp2Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'inspection_execution_record',
+          entityId: row.id, cooldownHours: qp2Def.cooldownHours,
+          metadata: { daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'compliance_risk', severity: 'high',
+          title: `EPC-QP2 Inspection Failed No Re-Inspection: Record #${row.id} (${daysSince}d)`,
+          description: `Inspection execution failed ${daysSince}d ago but no re-inspection order created.\nProject: ${row.project_name}\nKnown quality defect unaddressed.`,
+          logicType: 'rule_based',
+          dataSnapshot: { inspExecId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'inspection_execution_record', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-QP2 Inspection Failed No Re-Inspection: Record #${row.id}`,
+            actionType: 'create_task',
+            description: `Failed inspection ${daysSince}d ago, no re-inspection scheduled.`,
+            actionPayload: {
+              title: `[Agent] EPC-QP2 Inspection Failed — No Re-Inspection (${daysSince}d)`,
+              description: `Inspection execution #${row.id} failed ${daysSince}d ago but no re-inspection order exists.\nProject: ${row.project_name}\nagent_severity: ${qp2Def.severity}\n\nAction: Schedule re-inspection.`,
+              assignedTo: qcHead, priority: 'High', category: `Quality ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.95,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-QP4: Inspection Failed — Execution Not Blocked ──
+      const qp4Rows = await db.execute(sql`
+        SELECT ier.id, ier.result, ier.updated_at, ier.project_item_id,
+          pi.project_id, p.name as project_name, p.manager_id,
+          (SELECT per.status FROM procurement_execution_records per WHERE per.project_item_id = ier.project_item_id LIMIT 1) as proc_status,
+          (SELECT pxr.status FROM production_execution_records pxr WHERE pxr.project_item_id = ier.project_item_id LIMIT 1) as prod_status
+        FROM inspection_execution_records ier
+        JOIN project_items pi ON ier.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE ier.result = 'fail'
+      `);
+      queriesRun++;
+      const qp4Def = EPC_FINDING_DEFS['EPC-QP4'];
+      for (const row of (qp4Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, qp4Def)) continue;
+        const procBlocked = !row.proc_status || ['blocked','on_hold','pending'].includes(row.proc_status);
+        const prodBlocked = !row.prod_status || ['blocked','on_hold','pending'].includes(row.prod_status);
+        if (procBlocked && prodBlocked) continue;
+
+        const fingerprint = `[fp:qm_epc_qp4:insp_exec:${row.id}]`;
+        epcQP4Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-QP4', agentKey: AGENT_KEY,
+          severity: qp4Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'inspection_execution_record',
+          entityId: row.id, cooldownHours: qp4Def.cooldownHours,
+          metadata: { daysSince, procStatus: row.proc_status, prodStatus: row.prod_status },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'compliance_risk', severity: 'critical',
+          title: `EPC-QP4 Inspection Failed — Execution Not Blocked: Record #${row.id} (${daysSince}d)`,
+          description: `Inspection failed ${daysSince}d ago but execution records are NOT blocked (proc: ${row.proc_status || 'N/A'}, prod: ${row.prod_status || 'N/A'}).\nProject: ${row.project_name}\nCOMPLIANCE/SAFETY RISK: Defective items could proceed to dispatch.`,
+          logicType: 'rule_based',
+          dataSnapshot: { inspExecId: row.id, daysSince, projectId: row.project_id, procStatus: row.proc_status, prodStatus: row.prod_status },
+          relatedEntityType: 'inspection_execution_record', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const engLead = await resolveDepartmentHead('Design');
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-QP4 Inspection Failed — Execution Not Blocked (CRITICAL)`,
+            actionType: 'create_task',
+            description: `Failed inspection but execution not blocked — compliance risk.`,
+            actionPayload: {
+              title: `[Agent] EPC-QP4 Inspection Failed — Execution Not Blocked (${daysSince}d) CRITICAL`,
+              description: `Inspection #${row.id} failed ${daysSince}d ago.\nProcurement status: ${row.proc_status || 'N/A'}\nProduction status: ${row.prod_status || 'N/A'}\nProject: ${row.project_name}\nagent_severity: critical\n\nIMMEDIATE ACTION: Block execution records for this item.`,
+              assignedTo: qcHead, priority: 'Critical', category: `Quality ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.99,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── Resolution pass ──
+      for (const [code, activeSet] of [['EPC-QP2', epcQP2Active], ['EPC-QP4', epcQP4Active]] as [string, Set<string>][]) {
+        epcResolved += await resolveFindings({
+          findingCode: code, agentKey: AGENT_KEY, sourceAgent: SOURCE_AGENT, stillActiveFingerprints: activeSet,
+        });
+      }
+      console.log(`[QualityAgent] EPC Module: ${epcQP2Active.size + epcQP4Active.size} active, ${epcResolved} resolved`);
+    } catch (err: any) {
+      console.error(`[QualityAgent] EPC Quality module error:`, err.message);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════
     // AUTO-EXECUTE APPROVED RECOMMENDATIONS
     // ════════════════════════════════════════════════════════════════════════════════
     for (const recId of autoExecuteQueue) {
@@ -1614,7 +1763,8 @@ export class QualityManagementAgent implements IAgent {
       insights_generated: insightsCount,
       execution_time_ms: elapsed,
       queries_run: queriesRun,
-      groups: ['Q1 Inspection Control', 'Q2 Calibration Control', 'Q3 Welding Qualification Control', 'Q4 Document/Procedure Control', 'Q5 Material Traceability Control'],
+      epc_resolved: epcResolved,
+      groups: ['Q1 Inspection Control', 'Q2 Calibration Control', 'Q3 Welding Qualification Control', 'Q4 Document/Procedure Control', 'Q5 Material Traceability Control', 'EPC-QP2/QP4'],
     };
 
     try {

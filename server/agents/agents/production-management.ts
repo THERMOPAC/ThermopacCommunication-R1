@@ -8,7 +8,11 @@ import { sql } from 'drizzle-orm';
 import {
   resolveProjectManager,
   resolveDepartmentHead, hasOpenTask as hasOpenTaskShared,
+  resolveAssignment,
 } from './project-control-shared';
+import {
+  EPC_FINDING_DEFS, hasGracePassed, trackFinding, markAlerted, markTaskCreated, resolveFindings,
+} from './epc-findings-tracker';
 
 const SOURCE_AGENT = 'production_manager';
 const AGENT_KEY = 'production_management';
@@ -186,6 +190,7 @@ export class ProductionManagementAgent implements IAgent {
         JOIN projects p ON wo.project_id = p.id
         WHERE wo.status = 'planned'
           AND wo.planned_start_date < CURRENT_DATE - INTERVAL '7 days'
+          AND NOT EXISTS (SELECT 1 FROM epc_work_orders ew WHERE ew.work_order_id = wo.id)
         ORDER BY wo.planned_start_date
       `);
       queriesRun++;
@@ -239,6 +244,7 @@ export class ProductionManagementAgent implements IAgent {
         LEFT JOIN users u ON wo.supervisor_id = u.id
         WHERE wo.status NOT IN ('completed', 'cancelled')
           AND wo.planned_end_date < CURRENT_DATE
+          AND NOT EXISTS (SELECT 1 FROM epc_work_orders ew WHERE ew.work_order_id = wo.id)
         ORDER BY (NOW() - wo.planned_end_date) DESC
       `);
       queriesRun++;
@@ -533,6 +539,7 @@ export class ProductionManagementAgent implements IAgent {
         LEFT JOIN users u ON wo.supervisor_id = u.id
         WHERE wo.status = 'in_progress'
           AND COALESCE(wo.actual_start_date, wo.planned_start_date) < CURRENT_DATE - INTERVAL '14 days'
+          AND NOT EXISTS (SELECT 1 FROM epc_work_orders ew WHERE ew.work_order_id = wo.id)
       `);
       queriesRun++;
       for (const wo of (p10Rows.rows || []) as any[]) {
@@ -1771,6 +1778,272 @@ export class ProductionManagementAgent implements IAgent {
     }
 
     // ════════════════════════════════════════════════════════════════════════════════
+    // EPC PRODUCTION MONITORING (EPC-PX2, PX3, PX4, WP2)
+    // ════════════════════════════════════════════════════════════════════════════════
+    let epcResolved = 0;
+    try {
+      const epcPX2Active = new Set<string>();
+      const epcPX3Active = new Set<string>();
+      const epcPX4Active = new Set<string>();
+      const epcWP2Active = new Set<string>();
+
+      // ── EPC-PX2: Production Gate Block Unresolved ──
+      const px2Rows = await db.execute(sql`
+        SELECT t.id, t.title, t.status, t.created_at, t.category,
+          t.assigned_to as assigned_to_id
+        FROM tasks t
+        WHERE t.source_type = 'epc_automation'
+          AND t.description LIKE '%[automation_key:epc:production_execution:%:gate_blocked]%'
+          AND t.status NOT IN ('completed','cancelled','obsolete')
+          AND t.created_at::timestamp < NOW() - INTERVAL '7 days'
+      `);
+      queriesRun++;
+      const px2Def = EPC_FINDING_DEFS['EPC-PX2'];
+      for (const row of (px2Rows.rows || []) as any[]) {
+        const fingerprint = `[fp:pm_epc_px2:task:${row.id}]`;
+        epcPX2Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.created_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-PX2', agentKey: AGENT_KEY,
+          severity: px2Def.severity, entityType: 'task',
+          entityId: row.id, cooldownHours: px2Def.cooldownHours,
+          metadata: { taskTitle: row.title, daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-PX2 Production Gate Block Unresolved: Task #${row.id} (${daysSince}d)`,
+          description: `Production gate block task "${row.title}" has been open ${daysSince} days. Engineering not responding to dependency.`,
+          logicType: 'rule_based',
+          dataSnapshot: { taskId: row.id, daysSince },
+          relatedEntityType: 'task', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const engLead = await resolveDepartmentHead('Design');
+          const assignTo = await resolveEscalation(daysSince >= 14 ? 'L3' : 'L1', engLead);
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-PX2 Production Gate Block Unresolved (${daysSince}d)`,
+            actionType: 'create_task',
+            description: `Production gate block unresolved for ${daysSince} days.`,
+            actionPayload: {
+              title: `[Agent] EPC-PX2 Production Gate Block Unresolved — Task #${row.id} (${daysSince}d)`,
+              description: `Gate block task "${row.title}" unresolved for ${daysSince} days.\nagent_severity: ${px2Def.severity}\n\nAction: Resolve engineering dependency to unblock production.`,
+              assignedTo: assignTo, priority: daysSince >= 14 ? 'Critical' : 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: daysSince >= 14 ? 'critical' : 'high', confidence: 0.95,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-PX3: Production Ready — No WO Prep ──
+      const px3Rows = await db.execute(sql`
+        SELECT per.id, per.status, per.updated_at, per.project_item_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM production_execution_records per
+        JOIN project_items pi ON per.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE per.status = 'ready'
+          AND NOT EXISTS (
+            SELECT 1 FROM wo_preparation_records wpr
+            WHERE wpr.project_item_id = per.project_item_id
+          )
+      `);
+      queriesRun++;
+      const px3Def = EPC_FINDING_DEFS['EPC-PX3'];
+      for (const row of (px3Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, px3Def)) continue;
+        const fingerprint = `[fp:pm_epc_px3:p${row.project_id}:prod_exec:${row.id}]`;
+        epcPX3Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-PX3', agentKey: AGENT_KEY,
+          severity: px3Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'production_execution_record',
+          entityId: row.id, cooldownHours: px3Def.cooldownHours,
+          metadata: { daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'medium',
+          title: `EPC-PX3 Production Ready No WO Prep: Record #${row.id} (${daysSince}d)`,
+          description: `Production execution record is ready but no WO preparation initiated for ${daysSince} days.\nProject: ${row.project_name}`,
+          logicType: 'rule_based',
+          dataSnapshot: { prodExecId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'production_execution_record', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const prodMgr = PROD_MANAGER_ID;
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-PX3 Production Ready No WO Prep: Record #${row.id}`,
+            actionType: 'create_task',
+            description: `Production ready ${daysSince}d ago but no WO preparation started.`,
+            actionPayload: {
+              title: `[Agent] EPC-PX3 Production Ready — No WO Prep (${daysSince}d)`,
+              description: `Production execution #${row.id} ready for ${daysSince}d but no WO preparation record created.\nProject: ${row.project_name}\nagent_severity: ${px3Def.severity}\n\nAction: Initiate WO preparation.`,
+              assignedTo: prodMgr, priority: 'Medium', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-PX4: EPC Execution — No Shop-Floor WO ──
+      const px4Rows = await db.execute(sql`
+        SELECT ew.id, ew.epc_work_order_number, ew.status, ew.updated_at,
+          ew.project_item_id, ew.work_order_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM epc_work_orders ew
+        JOIN project_items pi ON ew.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE ew.status IN ('released','in_progress')
+          AND (ew.work_order_id IS NULL OR NOT EXISTS (
+            SELECT 1 FROM work_orders wo WHERE wo.id = ew.work_order_id
+          ))
+      `);
+      queriesRun++;
+      const px4Def = EPC_FINDING_DEFS['EPC-PX4'];
+      for (const row of (px4Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, px4Def)) continue;
+        const fingerprint = `[fp:pm_epc_px4:p${row.project_id}:epc_wo:${row.id}]`;
+        epcPX4Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-PX4', agentKey: AGENT_KEY,
+          severity: px4Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'epc_work_order',
+          entityId: row.id, cooldownHours: px4Def.cooldownHours,
+          metadata: { epcWoNumber: row.epc_work_order_number, daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-PX4 EPC Execution No Shop-Floor WO: ${row.epc_work_order_number} (${daysSince}d)`,
+          description: `EPC work order "${row.epc_work_order_number}" is ${row.status} but no shop-floor work order exists.\nProject: ${row.project_name}\nPossible data gap or process bypass.`,
+          logicType: 'rule_based',
+          dataSnapshot: { epcWoId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'epc_work_order', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-PX4 EPC Execution No Shop-Floor WO: ${row.epc_work_order_number}`,
+            actionType: 'create_task',
+            description: `EPC WO ${row.status} for ${daysSince}d but no shop-floor WO.`,
+            actionPayload: {
+              title: `[Agent] EPC-PX4 EPC Execution No Shop-Floor WO — ${row.epc_work_order_number} (${daysSince}d)`,
+              description: `EPC work order "${row.epc_work_order_number}" is ${row.status} for ${daysSince}d but no shop-floor WO linked.\nProject: ${row.project_name}\nagent_severity: ${px4Def.severity}\n\nAction: Create shop-floor work order or link existing one.`,
+              assignedTo: PROD_MANAGER_ID, priority: 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── EPC-WP2: WO Prep Approved — No EPC WO ──
+      const wp2Rows = await db.execute(sql`
+        SELECT wpr.id, wpr.status, wpr.updated_at, wpr.project_item_id,
+          pi.project_id, p.name as project_name, p.manager_id
+        FROM wo_preparation_records wpr
+        JOIN project_items pi ON wpr.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        WHERE wpr.status = 'approved'
+          AND NOT EXISTS (
+            SELECT 1 FROM epc_work_orders ew
+            WHERE ew.project_item_id = wpr.project_item_id
+          )
+      `);
+      queriesRun++;
+      const wp2Def = EPC_FINDING_DEFS['EPC-WP2'];
+      for (const row of (wp2Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, wp2Def)) continue;
+        const fingerprint = `[fp:pm_epc_wp2:p${row.project_id}:wo_prep:${row.id}]`;
+        epcWP2Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-WP2', agentKey: AGENT_KEY,
+          severity: wp2Def.severity, projectId: row.project_id,
+          projectItemId: row.project_item_id, entityType: 'wo_preparation_record',
+          entityId: row.id, cooldownHours: wp2Def.cooldownHours,
+          metadata: { daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'high',
+          title: `EPC-WP2 WO Prep Approved No EPC WO: Record #${row.id} (${daysSince}d)`,
+          description: `WO preparation approved ${daysSince}d ago but no EPC work order created.\nProject: ${row.project_name}\nApproved preparation is going nowhere.`,
+          logicType: 'rule_based',
+          dataSnapshot: { woPrepId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'wo_preparation_record', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenTask(fingerprint)) {
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-WP2 WO Prep Approved No EPC WO: Record #${row.id}`,
+            actionType: 'create_task',
+            description: `WO prep approved ${daysSince}d ago, no EPC WO created.`,
+            actionPayload: {
+              title: `[Agent] EPC-WP2 WO Prep Approved — No EPC WO (${daysSince}d)`,
+              description: `WO preparation #${row.id} approved ${daysSince}d ago but no EPC work order created.\nProject: ${row.project_name}\nagent_severity: ${wp2Def.severity}\n\nAction: Create EPC work order.`,
+              assignedTo: PROD_MANAGER_ID, priority: 'High', category: `EPC ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'high', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      // ── Resolution pass ──
+      const pmCodes: [string, Set<string>][] = [
+        ['EPC-PX2', epcPX2Active], ['EPC-PX3', epcPX3Active], ['EPC-PX4', epcPX4Active], ['EPC-WP2', epcWP2Active],
+      ];
+      for (const [code, activeSet] of pmCodes) {
+        epcResolved += await resolveFindings({
+          findingCode: code, agentKey: AGENT_KEY, sourceAgent: SOURCE_AGENT, stillActiveFingerprints: activeSet,
+        });
+      }
+      console.log(`[ProductionAgent] EPC Module: ${epcPX2Active.size + epcPX3Active.size + epcPX4Active.size + epcWP2Active.size} active, ${epcResolved} resolved`);
+    } catch (err: any) {
+      console.error(`[ProductionAgent] EPC Production module error:`, err.message);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════════
     // AUTO-EXECUTE APPROVED RECOMMENDATIONS
     // ════════════════════════════════════════════════════════════════════════════════
     for (const recId of autoExecuteQueue) {
@@ -1827,7 +2100,8 @@ export class ProductionManagementAgent implements IAgent {
       insights_generated: insightsCount,
       execution_time_ms: elapsed,
       queries_run: queriesRun,
-      groups: ['P1-P10 Planning', 'P11-P16 Material', 'P17-P26 Shop Floor', 'P27-P34 Efficiency', 'P35-P39 Workforce', 'P40-P45 Compliance', 'R1-R10 Risk Intelligence'],
+      epc_resolved: epcResolved,
+      groups: ['P1-P10 Planning', 'P11-P16 Material', 'P17-P26 Shop Floor', 'P27-P34 Efficiency', 'P35-P39 Workforce', 'P40-P45 Compliance', 'R1-R10 Risk Intelligence', 'EPC-PX2/PX3/PX4/WP2'],
     };
 
     try {

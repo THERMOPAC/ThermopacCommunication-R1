@@ -11583,3 +11583,27 @@ export const bomExplosionLogs = pgTable('bom_explosion_logs', {
 export const insertBomExplosionLogSchema = createInsertSchema(bomExplosionLogs).omit({ id: true, createdAt: true });
 export type InsertBomExplosionLog = z.infer<typeof insertBomExplosionLogSchema>;
 export type BomExplosionLog = typeof bomExplosionLogs.$inferSelect;
+
+export const epcAgentFindings = pgTable('epc_agent_findings', {
+  id: serial('id').primaryKey(),
+  fingerprint: varchar("fingerprint", { length: 255 }).notNull().unique(),
+  projectId: integer("project_id"),
+  projectItemId: integer("project_item_id"),
+  findingCode: varchar("finding_code", { length: 20 }).notNull(),
+  agentKey: varchar("agent_key", { length: 50 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default('active'),
+  severity: varchar("severity", { length: 20 }).notNull().default('warning'),
+  entityType: varchar("entity_type", { length: 50 }),
+  entityId: integer("entity_id"),
+  firstDetectedAt: timestamp("first_detected_at").notNull().defaultNow(),
+  lastDetectedAt: timestamp("last_detected_at").notNull().defaultNow(),
+  lastAlertedAt: timestamp("last_alerted_at"),
+  lastTaskCreatedAt: timestamp("last_task_created_at"),
+  resolvedAt: timestamp("resolved_at"),
+  cooldownHours: integer("cooldown_hours").notNull().default(24),
+  metadata: jsonb("metadata"),
+});
+
+export const insertEpcAgentFindingSchema = createInsertSchema(epcAgentFindings).omit({ id: true, firstDetectedAt: true, lastDetectedAt: true });
+export type InsertEpcAgentFinding = z.infer<typeof insertEpcAgentFindingSchema>;
+export type EpcAgentFinding = typeof epcAgentFindings.$inferSelect;

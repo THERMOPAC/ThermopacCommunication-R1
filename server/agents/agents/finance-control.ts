@@ -7,6 +7,9 @@ import { agentDataRepo } from '../data-access/agent-data-repo';
 import { resolveEscalation } from '../framework/escalation';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
+import {
+  EPC_FINDING_DEFS, hasGracePassed, trackFinding, markAlerted, markTaskCreated, resolveFindings,
+} from './epc-findings-tracker';
 
 const SOURCE_AGENT = 'finance_controller';
 const AGENT_KEY = 'finance';
@@ -2041,6 +2044,80 @@ export class FinanceControlAgent implements IAgent {
     }
 
     // ══════════════════════════════════════════════════════════════════
+    // EPC BILLING MONITORING (EPC-BR1)
+    // ══════════════════════════════════════════════════════════════════
+    let epcResolved = 0;
+    try {
+      const epcBR1Active = new Set<string>();
+
+      const br1Rows = await db.execute(sql`
+        SELECT ebr.id, ebr.status, ebr.updated_at, ebr.project_id,
+          p.name as project_name, p.manager_id
+        FROM epc_billing_readiness ebr
+        JOIN projects p ON ebr.project_id = p.id
+        WHERE ebr.status = 'ready'
+          AND NOT EXISTS (
+            SELECT 1 FROM epc_invoices ei
+            WHERE ei.billing_readiness_id = ebr.id
+          )
+      `);
+      queriesRun++;
+      const br1Def = EPC_FINDING_DEFS['EPC-BR1'];
+      for (const row of (br1Rows.rows || []) as any[]) {
+        if (!hasGracePassed(row.updated_at, br1Def)) continue;
+        const fingerprint = `[fp:fin_epc_br1:billing:${row.id}]`;
+        epcBR1Active.add(fingerprint);
+        const daysSince = Math.floor((Date.now() - new Date(row.updated_at).getTime()) / 86400000);
+        const track = await trackFinding({
+          fingerprint, findingCode: 'EPC-BR1', agentKey: AGENT_KEY,
+          severity: br1Def.severity, projectId: row.project_id,
+          entityType: 'epc_billing_readiness', entityId: row.id,
+          cooldownHours: br1Def.cooldownHours,
+          metadata: { daysSince },
+        });
+        if (track.withinCooldown) continue;
+
+        const finding = await findingManager.createFinding({
+          findingType: 'anomaly', severity: 'medium',
+          title: `EPC-BR1 Billing Ready No Invoice: Project "${row.project_name}" (${daysSince}d)`,
+          description: `Billing milestone ready ${daysSince}d ago but no invoice raised.\nProject: ${row.project_name}\nRevenue delay — milestone cleared for billing.`,
+          logicType: 'rule_based',
+          dataSnapshot: { billingId: row.id, daysSince, projectId: row.project_id },
+          relatedEntityType: 'epc_billing_readiness', relatedEntityId: String(row.id),
+        });
+        if (!finding.isDuplicate) findingsCount++;
+
+        if (!await hasOpenAgentTask(fingerprint)) {
+          const rec = await recommendationManager.createRecommendation({
+            findingId: finding.id || finding.findingId,
+            title: `[Agent] EPC-BR1 Billing Ready No Invoice: ${row.project_name}`,
+            actionType: 'create_task',
+            description: `Billing milestone ready ${daysSince}d ago, no invoice.`,
+            actionPayload: {
+              title: `[Agent] EPC-BR1 Billing Ready — No Invoice (${daysSince}d)`,
+              description: `Billing readiness #${row.id} marked ready ${daysSince}d ago but no invoice raised.\nProject: ${row.project_name}\nagent_severity: ${br1Def.severity}\n\nAction: Raise invoice for this billing milestone.`,
+              assignedTo: L1, priority: 'Medium', category: `Finance ${fingerprint}`,
+            },
+            actionCategory: 'task_creation', logicType: 'rule_based', priority: 'medium', confidence: 0.9,
+          });
+          if (rec.id > 0) {
+            recommendationsCount++;
+            if (rec.autoApproved) autoExecuteQueue.push(rec.id);
+            await markTaskCreated(track.id);
+          }
+        }
+        await markAlerted(track.id);
+      }
+
+      epcResolved += await resolveFindings({
+        findingCode: 'EPC-BR1', agentKey: AGENT_KEY, sourceAgent: SOURCE_AGENT, stillActiveFingerprints: epcBR1Active,
+      });
+      console.log(`[Finance] EPC Module: ${epcBR1Active.size} active, ${epcResolved} resolved`);
+    } catch (err: any) {
+      console.error(`[Finance] EPC Billing module error:`, err.message);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // RETURN RESULT
     // ══════════════════════════════════════════════════════════════════
 
@@ -2058,6 +2135,7 @@ export class FinanceControlAgent implements IAgent {
         firstRun,
         autoClosedCount,
         autoExecutedCount,
+        epcResolved,
         settings: {
           L1_accountManager: L1,
           L2_generalManager: L2,
