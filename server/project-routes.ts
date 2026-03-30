@@ -4613,6 +4613,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.patch('/api/epc-purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
 
@@ -4964,6 +4965,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.patch('/api/epc-work-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
 
@@ -5224,6 +5226,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
       const {
@@ -5382,6 +5385,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/dispatch-readiness/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { readyNote } = req.body || {};
@@ -5477,6 +5481,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/dispatch-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -6689,6 +6694,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/billing-readiness/:id/submit-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
 
@@ -6816,6 +6822,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/billing-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -7265,6 +7272,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/epc-invoices/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -7315,6 +7323,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/epc-invoices/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { supersessionReason, newInvoiceId } = req.body || {};
