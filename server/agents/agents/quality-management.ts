@@ -1673,7 +1673,7 @@ export class QualityManagementAgent implements IAgent {
         if (!finding.isDuplicate) findingsCount++;
 
         if (!await hasOpenTask(fingerprint)) {
-          const engLead = await resolveDepartmentHead('Design');
+          const assignTo = await resolveEscalation('L3', qcHead);
           const rec = await recommendationManager.createRecommendation({
             findingId: finding.id || finding.findingId,
             title: `[Agent] EPC-QP4 Inspection Failed — Execution Not Blocked (CRITICAL)`,
@@ -1681,8 +1681,8 @@ export class QualityManagementAgent implements IAgent {
             description: `Failed inspection but execution not blocked — compliance risk.`,
             actionPayload: {
               title: `[Agent] EPC-QP4 Inspection Failed — Execution Not Blocked (${daysSince}d) CRITICAL`,
-              description: `Inspection #${row.id} failed ${daysSince}d ago.\nProcurement status: ${row.proc_status || 'N/A'}\nProduction status: ${row.prod_status || 'N/A'}\nProject: ${row.project_name}\nagent_severity: critical\n\nIMMEDIATE ACTION: Block execution records for this item.`,
-              assignedTo: qcHead, priority: 'Critical', category: `Quality ${fingerprint}`,
+              description: `Inspection #${row.id} failed ${daysSince}d ago.\nProcurement status: ${row.proc_status || 'N/A'}\nProduction status: ${row.prod_status || 'N/A'}\nProject: ${row.project_name}\nagent_severity: critical\nEscalation: L3\n\nIMMEDIATE ACTION: Block execution records for this item.`,
+              assignedTo: assignTo, priority: 'Critical', category: `Quality ${fingerprint}`,
             },
             actionCategory: 'task_creation', logicType: 'rule_based', priority: 'critical', confidence: 0.99,
           });

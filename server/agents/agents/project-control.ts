@@ -1063,6 +1063,11 @@ export class ProjectControlAgent implements IAgent {
         LEFT JOIN users u ON dr.reviewer_id = u.id
         LEFT JOIN design_drawings dd ON dr.drawing_id = dd.id
         LEFT JOIN design_projects dp ON dd.design_project_id = dp.id
+        WHERE NOT EXISTS (
+          SELECT 1 FROM epc_drawing_controls edc
+          WHERE edc.design_drawing_id = dr.drawing_id
+            AND edc.status NOT IN ('superseded','cancelled')
+        )
         ORDER BY dr.id
       `);
       queriesRun++;
