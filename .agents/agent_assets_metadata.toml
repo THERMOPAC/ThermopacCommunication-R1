@@ -72,3 +72,9 @@ id = "SUY2V8QH0KLwRAJDzJHXL"
 uri = "file://.local/epc-zero-trust-production-readiness-audit.md"
 type = "text"
 title = "EPC Zero-Trust Production Readiness Audit Report"
+
+[[outputs]]
+id = "lmhI17R4ppx_daivSL0BJ"
+uri = "file://.local/epc-tasks-alerts-integration-plan.md"
+type = "text"
+title = "EPC → Tasks & Alerts Integration Plan (Architecture Review)"
