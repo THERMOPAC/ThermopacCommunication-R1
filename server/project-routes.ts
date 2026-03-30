@@ -1845,6 +1845,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/planning-records/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
@@ -2420,6 +2421,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/procurement-executions/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid procurement execution ID');
       const userId = (req.user as any)?.id;
@@ -2967,6 +2969,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/production-executions/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
       const userId = (req.user as any)?.id;
@@ -3508,6 +3511,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/quality-plans/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
@@ -3799,6 +3803,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/inspection-executions/:id/schedule', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
@@ -3839,6 +3844,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/inspection-executions/:id/start', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
@@ -3874,6 +3880,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/inspection-executions/:id/complete', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
@@ -3973,6 +3980,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/inspection-executions/:id/fail', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
@@ -4232,6 +4240,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/po-preparations/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
@@ -4520,6 +4529,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/wo-preparations/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
@@ -5625,6 +5635,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/dispatch-readiness/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { preparationNote } = req.body || {};
@@ -5703,6 +5714,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   app.post('/api/dispatch-readiness/:id/dispatch', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
+      if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { dispatchReference } = req.body || {};

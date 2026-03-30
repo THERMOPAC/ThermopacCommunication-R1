@@ -22,6 +22,7 @@ import {
   ShoppingCart, Factory, Eye, Truck, Wrench, Receipt, DollarSign,
   ArrowRight, Minus, PenTool, List,
 } from "lucide-react";
+import { roleHierarchy } from "@shared/roles";
 
 type PipelineRecord = {
   id: number;
@@ -190,135 +191,141 @@ function getExceptions(row: any) {
   return exceptions;
 }
 
-function getAvailableActions(layer: string, status: string | null, record: PipelineRecord | null): { label: string; action: string; variant: "default" | "outline" | "destructive"; endpoint: string; needsNote: boolean; noteLabel: string; bodyKey: string; extraBody?: Record<string, any> }[] {
+function getAvailableActions(layer: string, status: string | null, record: PipelineRecord | null, userLevel: number = 99): { label: string; action: string; variant: "default" | "outline" | "destructive"; endpoint: string; needsNote: boolean; noteLabel: string; bodyKey: string; extraBody?: Record<string, any> }[] {
   if (!status || !record) return [];
   const id = record.id;
+  const M = 3;
+  const SM = 2;
+
+  type ActionDef = { label: string; action: string; variant: "default" | "outline" | "destructive"; endpoint: string; needsNote: boolean; noteLabel: string; bodyKey: string; extraBody?: Record<string, any>; minLevel: number };
+  let raw: ActionDef[] = [];
 
   if (layer === "planning") {
-    if (status === "draft") return [
-      { label: "Submit", action: "submit", variant: "default", endpoint: `/api/planning-records/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Submit", action: "submit", variant: "default", endpoint: `/api/planning-records/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_review" && !record.reviewed_by) return [
-      { label: "Review", action: "review", variant: "default", endpoint: `/api/planning-records/${id}/review`, needsNote: true, noteLabel: "Review Note", bodyKey: "reviewNote" },
+    else if (status === "under_review" && !record.reviewed_by) raw = [
+      { label: "Review", action: "review", variant: "default", endpoint: `/api/planning-records/${id}/review`, needsNote: true, noteLabel: "Review Note", bodyKey: "reviewNote", minLevel: M },
     ];
-    if (status === "under_review" && record.reviewed_by) return [
-      { label: "Release", action: "release", variant: "default", endpoint: `/api/planning-records/${id}/release`, needsNote: true, noteLabel: "Release Note", bodyKey: "releaseNote" },
+    else if (status === "under_review" && record.reviewed_by) raw = [
+      { label: "Release", action: "release", variant: "default", endpoint: `/api/planning-records/${id}/release`, needsNote: true, noteLabel: "Release Note", bodyKey: "releaseNote", minLevel: SM },
     ];
-    if (!["superseded", "cancelled"].includes(status)) return [
-      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/planning-records/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason" },
+    else if (!["superseded", "cancelled"].includes(status)) raw = [
+      { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/planning-records/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason", minLevel: M },
     ];
   }
 
   if (layer === "execution") {
     const isProc = record.planning_type === "procurement" || record.source_context === "procurement" || !record.drawing_revision;
     const prefix = isProc ? "procurement-executions" : "production-executions";
-    if (status === "draft") return [
-      { label: "Start Prep", action: "prepare", variant: "default", endpoint: `/api/${prefix}/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Start Prep", action: "prepare", variant: "default", endpoint: `/api/${prefix}/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_preparation") return [
-      { label: "Ready", action: "mark-ready", variant: "default", endpoint: `/api/${prefix}/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote" },
+    if (status === "under_preparation") raw = [
+      { label: "Ready", action: "mark-ready", variant: "default", endpoint: `/api/${prefix}/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote", minLevel: M },
     ];
   }
 
   if (layer === "quality") {
-    if (status === "draft") return [
-      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/quality-plans/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/quality-plans/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_preparation") return [
-      { label: "Ready", action: "mark-ready", variant: "default", endpoint: `/api/quality-plans/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote" },
+    if (status === "under_preparation") raw = [
+      { label: "Ready", action: "mark-ready", variant: "default", endpoint: `/api/quality-plans/${id}/mark-ready`, needsNote: true, noteLabel: "Preparation Note", bodyKey: "preparationNote", minLevel: M },
     ];
   }
 
   if (layer === "po_preparation" || layer === "wo_preparation") {
     const prefix = layer === "po_preparation" ? "po-preparations" : "wo-preparations";
-    if (status === "draft") return [
-      { label: "Submit", action: "submit", variant: "default", endpoint: `/api/${prefix}/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Submit", action: "submit", variant: "default", endpoint: `/api/${prefix}/${id}/submit-for-review`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_review") return [
-      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/${prefix}/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "under_review") raw = [
+      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/${prefix}/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
   }
 
   if (layer === "inspection") {
-    if (status === "draft") return [
-      { label: "Schedule", action: "schedule", variant: "default", endpoint: `/api/inspection-executions/${id}/schedule`, needsNote: true, noteLabel: "Scheduled Date (YYYY-MM-DD)", bodyKey: "scheduledDate" },
+    if (status === "draft") raw = [
+      { label: "Schedule", action: "schedule", variant: "default", endpoint: `/api/inspection-executions/${id}/schedule`, needsNote: true, noteLabel: "Scheduled Date (YYYY-MM-DD)", bodyKey: "scheduledDate", minLevel: M },
     ];
-    if (status === "scheduled") return [
-      { label: "Start", action: "start", variant: "default", endpoint: `/api/inspection-executions/${id}/start`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "scheduled") raw = [
+      { label: "Start", action: "start", variant: "default", endpoint: `/api/inspection-executions/${id}/start`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "in_progress") return [
-      { label: "Pass", action: "complete-pass", variant: "default", endpoint: `/api/inspection-executions/${id}/complete`, needsNote: false, noteLabel: "", bodyKey: "", extraBody: { result: "pass" } },
-      { label: "Fail", action: "fail", variant: "destructive", endpoint: `/api/inspection-executions/${id}/fail`, needsNote: true, noteLabel: "Failure Reason", bodyKey: "failureReason" },
+    if (status === "in_progress") raw = [
+      { label: "Pass", action: "complete-pass", variant: "default", endpoint: `/api/inspection-executions/${id}/complete`, needsNote: false, noteLabel: "", bodyKey: "", extraBody: { result: "pass" }, minLevel: M },
+      { label: "Fail", action: "fail", variant: "destructive", endpoint: `/api/inspection-executions/${id}/fail`, needsNote: true, noteLabel: "Failure Reason", bodyKey: "failureReason", minLevel: M },
     ];
   }
 
   if (layer === "dispatch") {
-    if (status === "draft") return [
-      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/dispatch-readiness/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/dispatch-readiness/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_preparation") return [
-      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/dispatch-readiness/${id}/mark-ready`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "under_preparation") raw = [
+      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/dispatch-readiness/${id}/mark-ready`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "ready_for_dispatch") return [
-      { label: "Dispatch", action: "dispatch", variant: "default", endpoint: `/api/dispatch-readiness/${id}/dispatch`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "ready_for_dispatch") raw = [
+      { label: "Dispatch", action: "dispatch", variant: "default", endpoint: `/api/dispatch-readiness/${id}/dispatch`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
   }
 
   if (layer === "dispatch_record") {
-    if (status === "draft") return [
-      { label: "Confirm", action: "confirm", variant: "default", endpoint: `/api/dispatch-records/${id}/confirm`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Confirm", action: "confirm", variant: "default", endpoint: `/api/dispatch-records/${id}/confirm`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "confirmed") return [
-      { label: "Ship", action: "ship", variant: "default", endpoint: `/api/dispatch-records/${id}/ship`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "confirmed") raw = [
+      { label: "Ship", action: "ship", variant: "default", endpoint: `/api/dispatch-records/${id}/ship`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "shipped") return [
-      { label: "Deliver", action: "deliver", variant: "default", endpoint: `/api/dispatch-records/${id}/deliver`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "shipped") raw = [
+      { label: "Deliver", action: "deliver", variant: "default", endpoint: `/api/dispatch-records/${id}/deliver`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
   }
 
   if (layer === "commissioning") {
-    if (status === "draft") return [
-      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/commissioning-readiness/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Start Prep", action: "start-prep", variant: "default", endpoint: `/api/commissioning-readiness/${id}/start-preparation`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_preparation") return [
-      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/commissioning-readiness/${id}/mark-ready`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "under_preparation") raw = [
+      { label: "Mark Ready", action: "mark-ready", variant: "default", endpoint: `/api/commissioning-readiness/${id}/mark-ready`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "ready_for_commissioning") return [
-      { label: "Commission", action: "commission", variant: "default", endpoint: `/api/commissioning-readiness/${id}/commission`, needsNote: true, noteLabel: "Commissioning Note", bodyKey: "commissioningNote" },
+    if (status === "ready_for_commissioning") raw = [
+      { label: "Commission", action: "commission", variant: "default", endpoint: `/api/commissioning-readiness/${id}/commission`, needsNote: true, noteLabel: "Commissioning Note", bodyKey: "commissioningNote", minLevel: M },
     ];
-    if (status === "commissioned") return [
-      { label: "Handover", action: "handover", variant: "default", endpoint: `/api/commissioning-readiness/${id}/handover`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "commissioned") raw = [
+      { label: "Handover", action: "handover", variant: "default", endpoint: `/api/commissioning-readiness/${id}/handover`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: SM },
     ];
   }
 
   if (layer === "billing") {
-    if (status === "draft") return [
-      { label: "Submit Review", action: "submit-review", variant: "default", endpoint: `/api/billing-readiness/${id}/submit-review`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Submit Review", action: "submit-review", variant: "default", endpoint: `/api/billing-readiness/${id}/submit-review`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: M },
     ];
-    if (status === "under_review") return [
-      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/billing-readiness/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "under_review") raw = [
+      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/billing-readiness/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: SM },
     ];
   }
 
   if (layer === "invoice") {
-    if (status === "draft") return [
-      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/epc-invoices/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "draft") raw = [
+      { label: "Approve", action: "approve", variant: "default", endpoint: `/api/epc-invoices/${id}/approve`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: SM },
     ];
-    if (status === "approved") return [
-      { label: "Issue", action: "issue", variant: "default", endpoint: `/api/epc-invoices/${id}/issue`, needsNote: false, noteLabel: "", bodyKey: "" },
+    if (status === "approved") raw = [
+      { label: "Issue", action: "issue", variant: "default", endpoint: `/api/epc-invoices/${id}/issue`, needsNote: false, noteLabel: "", bodyKey: "", minLevel: SM },
     ];
-    if (status === "issued" || status === "partially_paid") return [
-      { label: "Record Payment", action: "record-payment", variant: "default", endpoint: `/api/epc-invoices/${id}/record-payment`, needsNote: true, noteLabel: "Payment Amount", bodyKey: "paymentAmount" },
+    if (status === "issued" || status === "partially_paid") raw = [
+      { label: "Record Payment", action: "record-payment", variant: "default", endpoint: `/api/epc-invoices/${id}/record-payment`, needsNote: true, noteLabel: "Payment Amount", bodyKey: "paymentAmount", minLevel: M },
     ];
   }
 
-  return [];
+  return raw.filter(a => userLevel <= a.minLevel);
 }
 
 export default function ExecutionControlDashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
   const userRole = user?.role || "Viewer";
+  const userLevel = roleHierarchy[userRole] ?? 99;
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [classificationFilter, setClassificationFilter] = useState<string>("all");
@@ -717,7 +724,7 @@ export default function ExecutionControlDashboard() {
       );
     }
     if (!record) return <span className="text-[10px] text-muted-foreground">—</span>;
-    const actions = getAvailableActions(layer, record.status, record);
+    const actions = getAvailableActions(layer, record.status, record, userLevel);
     return (
       <div className="flex flex-col items-center gap-0.5">
         <StatusBadge status={record.status} />
@@ -871,7 +878,7 @@ export default function ExecutionControlDashboard() {
             </TooltipContent>
           </Tooltip>
         )}
-        {dr && !rec && getAvailableActions("dispatch", dr.status, dr).slice(0, 1).map((a) => (
+        {dr && !rec && getAvailableActions("dispatch", dr.status, dr, userLevel).slice(0, 1).map((a) => (
           <Button
             key={a.action}
             size="sm"
@@ -882,7 +889,7 @@ export default function ExecutionControlDashboard() {
             {a.label}
           </Button>
         ))}
-        {rec && getAvailableActions("dispatch_record", rec.status, rec).slice(0, 1).map((a) => (
+        {rec && getAvailableActions("dispatch_record", rec.status, rec, userLevel).slice(0, 1).map((a) => (
           <Button
             key={a.action}
             size="sm"
@@ -899,7 +906,7 @@ export default function ExecutionControlDashboard() {
 
   function renderFinancialCell(layer: string, record: PipelineRecord | null, itemDesc: string) {
     if (!record) return <span className="text-[10px] text-muted-foreground">—</span>;
-    const actions = getAvailableActions(layer, record.status, record);
+    const actions = getAvailableActions(layer, record.status, record, userLevel);
     const amt = record.gross_amount || record.total_amount;
     return (
       <div className="flex flex-col items-center gap-0.5">
@@ -1085,7 +1092,7 @@ export default function ExecutionControlDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {layers.map(({ key, record, label, icon: Icon, applicabilityKey, docType }) => {
                 const stepApplicable = row.applicability[applicabilityKey]?.applicable !== false;
-                const actions = record && stepApplicable ? getAvailableActions(key, record.status, record) : [];
+                const actions = record && stepApplicable ? getAvailableActions(key, record.status, record, userLevel) : [];
                 const refNum = record?.planning_number || record?.procurement_number || record?.production_number || record?.quality_plan_number || record?.po_prep_number || record?.wo_prep_number || record?.inspection_number || record?.dr_number || record?.dispatch_number || record?.cr_number || record?.br_number || record?.invoice_number;
                 return (
                   <Card key={key} className={`shadow-sm ${!stepApplicable ? "opacity-40 border-dashed" : !record ? "opacity-50" : ""}`}>
