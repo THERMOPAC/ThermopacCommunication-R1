@@ -2,8 +2,10 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
+import EpcDocumentPanel from "@/components/epc-document-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -315,6 +317,8 @@ function getAvailableActions(layer: string, status: string | null, record: Pipel
 
 export default function ExecutionControlDashboard() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const userRole = user?.role || "Viewer";
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [classificationFilter, setClassificationFilter] = useState<string>("all");
@@ -932,17 +936,23 @@ export default function ExecutionControlDashboard() {
   function renderExpandedDetails(row: typeof pipelineRows[0]) {
     const execApplicabilityKey = row.isBuy ? "procurement_execution" : "production_execution";
     const prepApplicabilityKey = row.isBuy ? "po_preparation" : "wo_preparation";
+    const LAYER_DOC_TYPE: Record<string, string> = {
+      planning: "PLN", execution: "BUY", production: "MFG",
+      quality: "QPL", po_preparation: "POP", wo_preparation: "WOP",
+      inspection: "INS", dispatch: "DR", dispatch_record: "DSP",
+      commissioning: "CR", billing: "BR", invoice: "INV",
+    };
     const layers = [
-      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning" },
-      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package, applicabilityKey: execApplicabilityKey },
-      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck, applicabilityKey: "quality" },
-      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart, applicabilityKey: prepApplicabilityKey },
-      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye, applicabilityKey: "inspection" },
-      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch" },
-      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record" },
-      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning" },
-      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing" },
-      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice" },
+      { key: "planning", record: row.plan, label: "Planning", icon: FileText, applicabilityKey: "planning", docType: "PLN" },
+      { key: "execution", record: row.exec, label: row.isBuy ? "Procurement" : "Production", icon: Package, applicabilityKey: execApplicabilityKey, docType: row.isBuy ? "BUY" : "MFG" },
+      { key: "quality", record: row.qp, label: "Quality Plan", icon: ClipboardCheck, applicabilityKey: "quality", docType: "QPL" },
+      { key: row.isBuy ? "po_preparation" : "wo_preparation", record: row.prep, label: row.isBuy ? "PO Prep" : "WO Prep", icon: ShoppingCart, applicabilityKey: prepApplicabilityKey, docType: row.isBuy ? "POP" : "WOP" },
+      { key: "inspection", record: row.insp, label: "Inspection", icon: Eye, applicabilityKey: "inspection", docType: "INS" },
+      { key: "dispatch", record: row.disp, label: "Dispatch Readiness", icon: Truck, applicabilityKey: "dispatch", docType: "DR" },
+      { key: "dispatch_record", record: row.dispRec, label: "Dispatch Record", icon: Truck, applicabilityKey: "dispatch_record", docType: "DSP" },
+      { key: "commissioning", record: row.comm, label: "Commissioning", icon: Wrench, applicabilityKey: "commissioning", docType: "CR" },
+      { key: "billing", record: row.bill, label: "Billing", icon: Receipt, applicabilityKey: "billing", docType: "BR" },
+      { key: "invoice", record: row.inv, label: "Invoice", icon: DollarSign, applicabilityKey: "invoice", docType: "INV" },
     ];
 
     return (
@@ -973,6 +983,16 @@ export default function ExecutionControlDashboard() {
                   <CardHeader className="py-1.5 px-2.5">
                     <CardTitle className="text-[10px] font-medium flex items-center gap-1">
                       <Icon className="h-3 w-3" /> {label}
+                      {record?.revision_code && (
+                        <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-blue-50 text-blue-600 border-blue-200 ml-auto">
+                          Rev {record.revision_code}
+                        </Badge>
+                      )}
+                      {record?.is_current === false && (
+                        <Badge variant="outline" className="text-[7px] px-0.5 py-0 bg-orange-50 text-orange-600 border-orange-200">
+                          superseded
+                        </Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-2.5 pb-2 space-y-0.5">
@@ -1038,10 +1058,35 @@ export default function ExecutionControlDashboard() {
                 </Card>
               ))}
             </div>
+            {projectId && (row.dc || row.bom) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {row.dc && (
+                  <EpcDocumentPanel
+                    projectId={projectId}
+                    docType="DWG"
+                    parentEntityId={row.dc.id}
+                    documentNumber={row.dc.dwg_control_number}
+                    parentStatus={row.dc.status}
+                    userRole={userRole}
+                  />
+                )}
+                {row.bom && (
+                  <EpcDocumentPanel
+                    projectId={projectId}
+                    docType="BOM"
+                    parentEntityId={row.bom.id}
+                    documentNumber={row.bom.bom_number}
+                    parentStatus={row.bom.status}
+                    userRole={userRole}
+                  />
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              {layers.map(({ key, record, label, icon: Icon, applicabilityKey }) => {
+              {layers.map(({ key, record, label, icon: Icon, applicabilityKey, docType }) => {
                 const stepApplicable = row.applicability[applicabilityKey]?.applicable !== false;
                 const actions = record && stepApplicable ? getAvailableActions(key, record.status, record) : [];
+                const refNum = record?.planning_number || record?.procurement_number || record?.production_number || record?.quality_plan_number || record?.po_prep_number || record?.wo_prep_number || record?.inspection_number || record?.dr_number || record?.dispatch_number || record?.cr_number || record?.br_number || record?.invoice_number;
                 return (
                   <Card key={key} className={`shadow-sm ${!stepApplicable ? "opacity-40 border-dashed" : !record ? "opacity-50" : ""}`}>
                     <CardHeader className="py-1.5 px-2.5">
@@ -1104,6 +1149,19 @@ export default function ExecutionControlDashboard() {
                                   {a.label}
                                 </Button>
                               ))}
+                            </div>
+                          )}
+                          {projectId && record && docType && (
+                            <div className="mt-1 pt-1 border-t">
+                              <EpcDocumentPanel
+                                projectId={projectId}
+                                docType={docType}
+                                parentEntityId={record.id}
+                                documentNumber={refNum}
+                                parentStatus={record.status}
+                                userRole={userRole}
+                                compact
+                              />
                             </div>
                           )}
                         </>
