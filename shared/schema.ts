@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -11647,7 +11647,7 @@ export const epcDocumentAttachments = pgTable('epc_document_attachments', {
   gcsObjectPath: varchar('gcs_object_path', { length: 500 }).notNull(),
   originalFileName: varchar('original_file_name', { length: 255 }).notNull(),
   mimeType: varchar('mime_type', { length: 100 }).notNull(),
-  fileSizeBytes: integer('file_size_bytes').notNull(),
+  fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }).notNull(),
   checksumSha256: varchar('checksum_sha256', { length: 64 }).notNull(),
   status: varchar('status', { length: 20 }).notNull().default('active'),
   isCurrent: boolean('is_current').notNull().default(true),

@@ -36,11 +36,9 @@ const ENTITY_TABLE_MAP: Record<string, { table: string; numberColumn: string }> 
 async function lookupParentEntity(docType: string, parentEntityId: number, projectId: number) {
   const mapping = ENTITY_TABLE_MAP[docType];
   if (!mapping) return null;
-  const result = await db.execute(
-    sql.raw(`SELECT id, ${mapping.numberColumn} AS document_number, project_id, status${
-      docType === 'DWG' || docType === 'BOM' ? ', revision_code, is_current' : ''
-    } FROM ${mapping.table} WHERE id = ${parentEntityId} AND project_id = ${projectId}`)
-  );
+  const extraCols = (docType === 'DWG' || docType === 'BOM') ? ', revision_code, is_current' : '';
+  const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, project_id, status${extraCols} FROM ${mapping.table} WHERE id = $1 AND project_id = $2`;
+  const result = await db.execute(sql.raw(queryText, [parentEntityId, projectId]));
   return result.rows.length > 0 ? result.rows[0] as any : null;
 }
 
@@ -96,40 +94,74 @@ export function setupEpcDocumentRoutes(app: express.Express) {
             WHERE document_number = ${documentNumber}
             AND revision_code IS NOT DISTINCT FROM ${revisionCode}
             AND checksum_sha256 = ${checksum}
-            AND status = 'active'`
+            AND status IN ('active', 'withdrawn')`
       );
 
       if (dupCheck.rows.length > 0) {
         const dup = dupCheck.rows[0] as any;
         if (dup.attachment_label === attachmentLabel) {
           return res.status(409).json({
-            error: 'This exact file is already attached to this document.',
+            error: 'This exact file is already attached to this document (active or previously withdrawn).',
             existingAttachmentId: dup.id,
             existingLabel: dup.attachment_label,
           });
         }
       }
 
-      const seqResult = await db.execute(
-        sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
-            FROM epc_document_attachments
-            WHERE document_number = ${documentNumber}
-            AND revision_code IS NOT DISTINCT FROM ${revisionCode}
-            AND status = 'active'`
-      );
-      const attachmentSeq = (seqResult.rows[0] as any).next_seq;
-
-      const gcsObjectPath = epcCoding.buildEpcGcsPath(
-        operationalCode, docType, documentNumber,
-        revisionCode, attachmentSeq, attachmentLabel, req.file.originalname
-      );
-
       const { storage, bucket } = await initializeGCS();
       if (!storage || !bucket) {
         return res.status(500).json({ error: 'Failed to initialize Google Cloud Storage' });
       }
 
-      const gcsFile = bucket.file(gcsObjectPath);
+      const txResult = await db.transaction(async (tx) => {
+        const seqResult = await tx.execute(
+          sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+              FROM epc_document_attachments
+              WHERE document_number = ${documentNumber}
+              AND revision_code IS NOT DISTINCT FROM ${revisionCode}`
+        );
+        const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+
+        const gcsObjectPath = epcCoding.buildEpcGcsPath(
+          operationalCode, docType, documentNumber,
+          revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
+        );
+
+        const [inserted] = await tx.insert(epcDocumentAttachments).values({
+          parentEntityType: ENTITY_TABLE_MAP[docType].table,
+          parentEntityId,
+          projectId,
+          docType,
+          documentNumber,
+          isRevisionControlled,
+          revisionCode,
+          attachmentLabel,
+          attachmentSeq,
+          gcsBucket: 'thermopac_storage',
+          gcsObjectPath,
+          originalFileName: req.file!.originalname,
+          mimeType: req.file!.mimetype,
+          fileSizeBytes: req.file!.size,
+          checksumSha256: checksum,
+          status: 'active',
+          isCurrent: true,
+          uploadedBy: userId,
+        }).returning();
+
+        await tx.execute(sql`
+          INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, 'epc_document.uploaded', ${JSON.stringify({
+            attachmentId: inserted.id, documentNumber, docType, revisionCode,
+            originalFileName: req.file!.originalname, mimeType: req.file!.mimetype,
+            fileSizeBytes: req.file!.size, checksumSha256: checksum,
+            gcsObjectPath, uploadedBy: userId,
+          })}::jsonb, 'epc_document_upload', NOW())
+        `);
+
+        return { inserted, attachmentSeq, gcsObjectPath };
+      });
+
+      const gcsFile = bucket.file(txResult.gcsObjectPath);
       await gcsFile.save(req.file.buffer, {
         contentType: req.file.mimetype,
         metadata: {
@@ -144,50 +176,19 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         },
       });
 
-      const [inserted] = await db.insert(epcDocumentAttachments).values({
-        parentEntityType: ENTITY_TABLE_MAP[docType].table,
-        parentEntityId,
-        projectId,
-        docType,
-        documentNumber,
-        isRevisionControlled,
-        revisionCode,
-        attachmentLabel,
-        attachmentSeq,
-        gcsBucket: 'thermopac_storage',
-        gcsObjectPath,
-        originalFileName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        fileSizeBytes: req.file.size,
-        checksumSha256: checksum,
-        status: 'active',
-        isCurrent: true,
-        uploadedBy: userId,
-      }).returning();
-
-      await db.execute(sql`
-        INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-        VALUES (${projectId}, 'epc_document.uploaded', ${JSON.stringify({
-          attachmentId: inserted.id, documentNumber, docType, revisionCode,
-          originalFileName: req.file.originalname, mimeType: req.file.mimetype,
-          fileSizeBytes: req.file.size, checksumSha256: checksum,
-          gcsObjectPath, uploadedBy: userId,
-        })}::jsonb, 'epc_document_upload', NOW())
-      `);
-
       const [signedUrl] = await gcsFile.getSignedUrl({
         action: 'read' as const,
         expires: Date.now() + 15 * 60 * 1000,
       });
 
       const warning = dupCheck.rows.length > 0
-        ? `This file content is identical to existing attachment '${(dupCheck.rows[0] as any).attachment_label}' (seq ${(dupCheck.rows[0] as any).id}). Duplicate allowed under different label.`
+        ? `This file content is identical to existing attachment '${(dupCheck.rows[0] as any).attachment_label}' (id ${(dupCheck.rows[0] as any).id}). Duplicate allowed under different label.`
         : undefined;
 
-      console.log(`[EPC-DOC] Uploaded ${documentNumber} ${docType} seq ${attachmentSeq} by user ${userId}`);
+      console.log(`[EPC-DOC] Uploaded ${documentNumber} ${docType} seq ${txResult.attachmentSeq} by user ${userId}`);
       res.status(201).json({
         success: true,
-        attachment: inserted,
+        attachment: txResult.inserted,
         previewUrl: signedUrl,
         warning,
       });
@@ -207,6 +208,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       const seq = req.query.seq ? parseInt(req.query.seq as string) : 1;
       const requestedRevision = req.query.revision as string | undefined;
       const consumerContext = (req.query.context as string) || 'general';
+      const snapshotRevision = req.query.snapshot_revision as string | undefined;
 
       const projCheck = await db.execute(sql`SELECT id FROM projects WHERE id = ${projectId}`);
       if (projCheck.rows.length === 0) {
@@ -229,15 +231,23 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       if (isRevControlled) {
         if (requestedRevision) {
           targetRevision = requestedRevision;
-          const revCheck = await db.execute(
-            sql`SELECT is_current FROM epc_document_attachments
-                WHERE document_number = ${documentNumber} AND revision_code = ${requestedRevision} LIMIT 1`
-          );
+          let revCheck;
+          if (docType === 'DWG') {
+            revCheck = await db.execute(
+              sql`SELECT is_current FROM epc_drawing_controls
+                  WHERE dwg_control_number = ${documentNumber} AND revision_code = ${requestedRevision} LIMIT 1`
+            );
+          } else {
+            revCheck = await db.execute(
+              sql`SELECT is_current FROM epc_bom_headers
+                  WHERE bom_number = ${documentNumber} AND revision_code = ${requestedRevision} LIMIT 1`
+            );
+          }
           parentIsCurrent = revCheck.rows.length > 0 ? (revCheck.rows[0] as any).is_current : false;
         } else {
           const resolved = await epcCoding.resolveContextualRevision(
             documentNumber, docType as 'DWG' | 'BOM',
-            consumerContext as any, db
+            consumerContext as any, db, snapshotRevision
           );
           if (!resolved) {
             return res.status(404).json({
@@ -254,6 +264,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         attachmentQuery = await db.execute(
           sql`SELECT * FROM epc_document_attachments
               WHERE document_number = ${documentNumber}
+              AND project_id = ${projectId}
               AND revision_code = ${targetRevision}
               AND status = 'active' AND is_current = TRUE
               AND attachment_seq = ${seq}`
@@ -262,6 +273,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         attachmentQuery = await db.execute(
           sql`SELECT * FROM epc_document_attachments
               WHERE document_number = ${documentNumber}
+              AND project_id = ${projectId}
               AND status = 'active'
               AND attachment_seq = ${seq}`
         );
@@ -277,7 +289,8 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       if (isRevControlled && !parentIsCurrent) {
         const currentRev = await db.execute(
           sql`SELECT revision_code FROM epc_document_attachments
-              WHERE document_number = ${documentNumber} AND is_current = TRUE AND status = 'active' LIMIT 1`
+              WHERE document_number = ${documentNumber} AND project_id = ${projectId}
+              AND is_current = TRUE AND status = 'active' LIMIT 1`
         );
         currentRevisionCode = currentRev.rows.length > 0 ? (currentRev.rows[0] as any).revision_code : null;
       }
@@ -359,6 +372,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       const attachmentId = parseInt(req.params.attachmentId);
       const userId = req.user!.id;
       const mode = (req.query.mode as string) || 'url';
+      const allowNonActive = req.query.include_non_active === 'true';
 
       const attachResult = await db.execute(
         sql`SELECT * FROM epc_document_attachments WHERE id = ${attachmentId} AND project_id = ${projectId}`
@@ -368,11 +382,21 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
       const attachment = attachResult.rows[0] as any;
 
+      if (attachment.status !== 'active' && !allowNonActive) {
+        return res.status(410).json({
+          error: `Attachment is '${attachment.status}' and cannot be served by default. Use ?include_non_active=true to retrieve non-active attachments.`,
+          attachmentId: attachment.id,
+          status: attachment.status,
+          documentNumber: attachment.document_number,
+        });
+      }
+
       let currentRevisionCode: string | null = null;
       if (attachment.is_revision_controlled && !attachment.is_current) {
         const currentRev = await db.execute(
           sql`SELECT revision_code FROM epc_document_attachments
-              WHERE document_number = ${attachment.document_number} AND is_current = TRUE AND status = 'active' LIMIT 1`
+              WHERE document_number = ${attachment.document_number} AND project_id = ${projectId}
+              AND is_current = TRUE AND status = 'active' LIMIT 1`
         );
         currentRevisionCode = currentRev.rows.length > 0 ? (currentRev.rows[0] as any).revision_code : null;
       }
@@ -402,6 +426,10 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         res.setHeader('X-EPC-Document-Number', attachment.document_number);
         res.setHeader('X-EPC-Revision-Code', attachment.revision_code || 'na');
         res.setHeader('X-EPC-Is-Current-Revision', String(attachment.is_current));
+        res.setHeader('X-EPC-Document-Status', attachment.status);
+        if (attachment.status !== 'active') {
+          res.setHeader('X-EPC-Warning', `Document status is '${attachment.status}' — not the active version`);
+        }
         const stream = gcsFile.createReadStream();
         stream.on('error', (err: any) => {
           console.error('[EPC-DOC] Stream error:', err);
@@ -616,20 +644,18 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
       const attachment = attachResult.rows[0] as any;
 
-      if (attachment.status !== 'active') {
-        return res.status(400).json({ error: `Cannot withdraw: attachment status is '${attachment.status}', must be 'active'` });
-      }
-
       if (attachment.status === 'superseded') {
         return res.status(400).json({ error: 'Cannot withdraw a superseded attachment. Superseded attachments are frozen by the revision system.' });
+      }
+      if (attachment.status !== 'active') {
+        return res.status(400).json({ error: `Cannot withdraw: attachment status is '${attachment.status}', must be 'active'` });
       }
 
       const parentMapping = ENTITY_TABLE_MAP[attachment.doc_type];
       let parentStatus = 'draft';
       if (parentMapping) {
-        const parentResult = await db.execute(
-          sql.raw(`SELECT status FROM ${parentMapping.table} WHERE id = ${attachment.parent_entity_id}`)
-        );
+        const parentQueryText = `SELECT status FROM ${parentMapping.table} WHERE id = $1`;
+        const parentResult = await db.execute(sql.raw(parentQueryText, [attachment.parent_entity_id]));
         if (parentResult.rows.length > 0) {
           parentStatus = (parentResult.rows[0] as any).status;
         }
@@ -700,9 +726,35 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         return res.status(400).json({ error: `Cannot reinstate: attachment status is '${attachment.status}', must be 'withdrawn'` });
       }
 
+      let parentIsCurrent = true;
+      if (attachment.is_revision_controlled && attachment.revision_code) {
+        const parentMapping = ENTITY_TABLE_MAP[attachment.doc_type];
+        if (parentMapping) {
+          let parentCheck;
+          if (attachment.doc_type === 'DWG') {
+            parentCheck = await db.execute(
+              sql`SELECT is_current FROM epc_drawing_controls
+                  WHERE dwg_control_number = ${attachment.document_number}
+                  AND revision_code = ${attachment.revision_code} LIMIT 1`
+            );
+          } else if (attachment.doc_type === 'BOM') {
+            parentCheck = await db.execute(
+              sql`SELECT is_current FROM epc_bom_headers
+                  WHERE bom_number = ${attachment.document_number}
+                  AND revision_code = ${attachment.revision_code} LIMIT 1`
+            );
+          }
+          if (parentCheck && parentCheck.rows.length > 0) {
+            parentIsCurrent = (parentCheck.rows[0] as any).is_current;
+          } else {
+            parentIsCurrent = false;
+          }
+        }
+      }
+
       await db.execute(
         sql`UPDATE epc_document_attachments
-            SET status = 'active', is_current = TRUE,
+            SET status = 'active', is_current = ${parentIsCurrent},
                 withdrawn_at = NULL, withdrawn_by = NULL, withdraw_reason = NULL
             WHERE id = ${attachmentId}`
       );
