@@ -186,6 +186,13 @@ export async function fetchWithProjectAccess(url: string): Promise<any> {
         message: "You do not have permission to access this page.",
       });
     }
+    if (body.code === "RECORD_ACCESS_DENIED") {
+      throw new ApiError(403, {
+        success: false,
+        errorCode: "RECORD_ACCESS_DENIED",
+        message: "You do not have permission to view this record.",
+      });
+    }
   }
   await throwIfResNotOk(res);
   return res.json();

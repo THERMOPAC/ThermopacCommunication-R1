@@ -41,7 +41,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
-import { checkModulePermission, requirePageAccess, requireProjectMembership } from './utils/permission-utils';
+import { checkModulePermission, requirePageAccess, requireProjectMembership, checkProjectMembership, buildOwnershipWhereClause, checkRecordOwnership, lookupCreatorDepartment, denyRecordAccess, type OwnershipFilterConfig } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
@@ -3438,14 +3438,20 @@ export function setupProjectRoutes(app: express.Express) {
       const statusFilter = req.query.status as string | undefined;
       const sourceFilter = req.query.sourceContext as string | undefined;
       const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const qpOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', assignedToColumn: 'assigned_to', mode: 'department' };
+      const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, qpOwnershipConfig, 'qp');
 
       let query = sql`SELECT qp.*, u1.username as assigned_to_name, u2.username as created_by_name,
                              u3.username as prepared_by_name
                       FROM quality_planning_records qp
                       LEFT JOIN users u1 ON qp.assigned_to = u1.id
                       LEFT JOIN users u2 ON qp.created_by = u2.id
-                      LEFT JOIN users u3 ON qp.prepared_by = u3.id
-                      WHERE qp.project_id = ${projectId}`;
+                      LEFT JOIN users u3 ON qp.prepared_by = u3.id`;
+      if (joinSql) query = sql`${query} ${joinSql}`;
+      query = sql`${query} WHERE qp.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
 
       if (statusFilter) query = sql`${query} AND qp.status = ${statusFilter}`;
       if (sourceFilter) query = sql`${query} AND qp.source_context = ${sourceFilter}`;
@@ -3474,7 +3480,16 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE qp.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
-      res.json(result.rows[0]);
+
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      const creatorDept = await lookupCreatorDepartment(record.created_by);
+      if (!checkRecordOwnership(record, creatorDept, user, visibilityScope, 'department')) {
+        return denyRecordAccess(res, req);
+      }
+
+      res.json(record);
     } catch (error) {
       sendError(res, error);
     }
@@ -3724,6 +3739,10 @@ export function setupProjectRoutes(app: express.Express) {
       const statusFilter = req.query.status as string | undefined;
       const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
       const typeFilter = req.query.inspectionType as string | undefined;
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const ieOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', assignedToColumn: 'assigned_to', mode: 'department' };
+      const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, ieOwnershipConfig, 'ie');
 
       let query = sql`SELECT ie.*, u1.username as assigned_to_name, u2.username as created_by_name,
                              u3.username as scheduled_by_name, u4.username as completed_by_name
@@ -3731,8 +3750,10 @@ export function setupProjectRoutes(app: express.Express) {
                       LEFT JOIN users u1 ON ie.assigned_to = u1.id
                       LEFT JOIN users u2 ON ie.created_by = u2.id
                       LEFT JOIN users u3 ON ie.scheduled_by = u3.id
-                      LEFT JOIN users u4 ON ie.completed_by = u4.id
-                      WHERE ie.project_id = ${projectId}`;
+                      LEFT JOIN users u4 ON ie.completed_by = u4.id`;
+      if (joinSql) query = sql`${query} ${joinSql}`;
+      query = sql`${query} WHERE ie.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
 
       if (statusFilter) query = sql`${query} AND ie.status = ${statusFilter}`;
       if (itemFilter) query = sql`${query} AND ie.project_item_id = ${itemFilter}`;
@@ -3762,7 +3783,16 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE ie.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
-      res.json(result.rows[0]);
+
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      const creatorDept = await lookupCreatorDepartment(record.created_by);
+      if (!checkRecordOwnership(record, creatorDept, user, visibilityScope, 'department')) {
+        return denyRecordAccess(res, req);
+      }
+
+      res.json(record);
     } catch (error) {
       sendError(res, error);
     }
@@ -4813,6 +4843,10 @@ export function setupProjectRoutes(app: express.Express) {
 
       const statusFilter = req.query.status as string | undefined;
       const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const poOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'strict' };
+      const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, poOwnershipConfig, 'epo');
 
       let query = sql`SELECT epo.*, u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as issued_by_name, v.name as vendor_display_name
@@ -4820,8 +4854,10 @@ export function setupProjectRoutes(app: express.Express) {
                       LEFT JOIN users u1 ON epo.created_by = u1.id
                       LEFT JOIN users u2 ON epo.approved_by = u2.id
                       LEFT JOIN users u3 ON epo.issued_by = u3.id
-                      LEFT JOIN vendors v ON epo.vendor_id = v.id
-                      WHERE epo.project_id = ${projectId}`;
+                      LEFT JOIN vendors v ON epo.vendor_id = v.id`;
+      if (joinSql) query = sql`${query} ${joinSql}`;
+      query = sql`${query} WHERE epo.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
 
       if (statusFilter) query = sql`${query} AND epo.status = ${statusFilter}`;
       if (itemFilter) query = sql`${query} AND epo.project_item_id = ${itemFilter}`;
@@ -4851,11 +4887,18 @@ export function setupProjectRoutes(app: express.Express) {
       );
       if (result.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
 
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      if (!checkRecordOwnership(record, null, user, visibilityScope, 'strict')) {
+        return denyRecordAccess(res, req);
+      }
+
       const items = await db.execute(
         sql`SELECT * FROM epc_purchase_order_items WHERE epc_purchase_order_id = ${id} ORDER BY line_number`
       );
 
-      res.json({ ...(result.rows[0] as any), items: items.rows });
+      res.json({ ...record, items: items.rows });
     } catch (error) {
       sendError(res, error);
     }
@@ -5174,14 +5217,20 @@ export function setupProjectRoutes(app: express.Express) {
 
       const statusFilter = req.query.status as string | undefined;
       const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const woOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'strict' };
+      const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, woOwnershipConfig, 'ewo');
 
       let query = sql`SELECT ewo.*, u1.username as created_by_name, u2.username as approved_by_name,
                              u3.username as released_by_name
                       FROM epc_work_orders ewo
                       LEFT JOIN users u1 ON ewo.created_by = u1.id
                       LEFT JOIN users u2 ON ewo.approved_by = u2.id
-                      LEFT JOIN users u3 ON ewo.released_by = u3.id
-                      WHERE ewo.project_id = ${projectId}`;
+                      LEFT JOIN users u3 ON ewo.released_by = u3.id`;
+      if (joinSql) query = sql`${query} ${joinSql}`;
+      query = sql`${query} WHERE ewo.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
 
       if (statusFilter) query = sql`${query} AND ewo.status = ${statusFilter}`;
       if (itemFilter) query = sql`${query} AND ewo.project_item_id = ${itemFilter}`;
@@ -5210,11 +5259,18 @@ export function setupProjectRoutes(app: express.Express) {
       );
       if (result.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
 
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      if (!checkRecordOwnership(record, null, user, visibilityScope, 'strict')) {
+        return denyRecordAccess(res, req);
+      }
+
       const items = await db.execute(
         sql`SELECT * FROM epc_work_order_items WHERE epc_work_order_id = ${id} ORDER BY line_number`
       );
 
-      res.json({ ...(result.rows[0] as any), items: items.rows });
+      res.json({ ...record, items: items.rows });
     } catch (error) {
       sendError(res, error);
     }
@@ -5535,8 +5591,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
-      const result = await db.execute(
-        sql`SELECT dr.*, 
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const drOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'department' };
+      const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, drOwnershipConfig, 'dr');
+
+      let query = sql`SELECT dr.*, 
               u1.username AS created_by_name, u2.username AS prepared_by_name, 
               u3.username AS ready_marked_by_name, u4.username AS dispatched_by_name,
               u5.username AS cancelled_by_name,
@@ -5550,10 +5610,13 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN users u5 ON dr.cancelled_by = u5.id
             LEFT JOIN project_items pi ON dr.project_item_id = pi.id
             LEFT JOIN epc_purchase_orders po ON dr.epc_purchase_order_id = po.id
-            LEFT JOIN epc_work_orders wo ON dr.epc_work_order_id = wo.id
-            WHERE dr.project_id = ${projectId}
-            ORDER BY dr.created_at DESC`
-      );
+            LEFT JOIN epc_work_orders wo ON dr.epc_work_order_id = wo.id`;
+      if (joinSql) query = sql`${query} ${joinSql}`;
+      query = sql`${query} WHERE dr.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
+      query = sql`${query} ORDER BY dr.created_at DESC`;
+
+      const result = await db.execute(query);
       res.json(result.rows);
     } catch (error) {
       sendError(res, error);
@@ -5582,7 +5645,16 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE dr.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
-      res.json(result.rows[0]);
+
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      const creatorDept = await lookupCreatorDepartment(record.created_by);
+      if (!checkRecordOwnership(record, creatorDept, user, visibilityScope, 'department')) {
+        return denyRecordAccess(res, req);
+      }
+
+      res.json(record);
     } catch (error) {
       sendError(res, error);
     }
@@ -5955,8 +6027,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
-      const result = await db.execute(
-        sql`SELECT d.*, 
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const dRecOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'department' };
+      const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, dRecOwnershipConfig, 'd');
+
+      let query = sql`SELECT d.*, 
               u1.username AS created_by_name, u2.username AS confirmed_by_name,
               u3.username AS shipped_by_name, u4.username AS delivered_by_name,
               u5.username AS cancelled_by_name, u6.username AS delivery_confirmed_by_name,
@@ -5972,10 +6048,13 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN project_items pi ON d.project_item_id = pi.id
             LEFT JOIN epc_dispatch_readiness dr ON d.dispatch_readiness_id = dr.id
             LEFT JOIN epc_purchase_orders po ON d.epc_purchase_order_id = po.id
-            LEFT JOIN epc_work_orders wo ON d.epc_work_order_id = wo.id
-            WHERE d.project_id = ${projectId}
-            ORDER BY d.created_at DESC`
-      );
+            LEFT JOIN epc_work_orders wo ON d.epc_work_order_id = wo.id`;
+      if (joinSql) query = sql`${query} ${joinSql}`;
+      query = sql`${query} WHERE d.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
+      query = sql`${query} ORDER BY d.created_at DESC`;
+
+      const result = await db.execute(query);
       res.json(result.rows);
     } catch (error) {
       sendError(res, error);
@@ -6006,7 +6085,16 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE d.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
-      res.json(result.rows[0]);
+
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      const creatorDept = await lookupCreatorDepartment(record.created_by);
+      if (!checkRecordOwnership(record, creatorDept, user, visibilityScope, 'department')) {
+        return denyRecordAccess(res, req);
+      }
+
+      res.json(record);
     } catch (error) {
       sendError(res, error);
     }
@@ -6931,8 +7019,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
-      const result = await db.execute(
-        sql`SELECT b.*,
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const brOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'strict' };
+      const { whereSql } = buildOwnershipWhereClause(user, visibilityScope, brOwnershipConfig, 'b');
+
+      let query = sql`SELECT b.*,
               u1.username AS created_by_name, u2.username AS reviewed_by_name,
               u3.username AS ready_marked_by_name, u4.username AS invoiced_by_name,
               u5.username AS cancelled_by_name,
@@ -6950,10 +7042,12 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN epc_dispatch_records d ON b.dispatch_record_id = d.id
             LEFT JOIN epc_commissioning_readiness cr ON b.commissioning_readiness_id = cr.id
             LEFT JOIN epc_purchase_orders po ON b.epc_purchase_order_id = po.id
-            LEFT JOIN epc_work_orders wo ON b.epc_work_order_id = wo.id
-            WHERE b.project_id = ${projectId}
-            ORDER BY b.created_at DESC`
-      );
+            LEFT JOIN epc_work_orders wo ON b.epc_work_order_id = wo.id`;
+      query = sql`${query} WHERE b.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
+      query = sql`${query} ORDER BY b.created_at DESC`;
+
+      const result = await db.execute(query);
       res.json(result.rows);
     } catch (error) {
       sendError(res, error);
@@ -6986,7 +7080,15 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE b.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
-      res.json(result.rows[0]);
+
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      if (!checkRecordOwnership(record, null, user, visibilityScope, 'strict')) {
+        return denyRecordAccess(res, req);
+      }
+
+      res.json(record);
     } catch (error) {
       sendError(res, error);
     }
@@ -7378,8 +7480,12 @@ export function setupProjectRoutes(app: express.Express) {
   app.get('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
-      const result = await db.execute(
-        sql`SELECT i.*,
+      const user = req.user as any;
+      const visibilityScope = (req as any).visibilityScope || 'department_records';
+      const invOwnershipConfig: OwnershipFilterConfig = { createdByColumn: 'created_by', mode: 'strict' };
+      const { whereSql } = buildOwnershipWhereClause(user, visibilityScope, invOwnershipConfig, 'i');
+
+      let query = sql`SELECT i.*,
               u1.username AS created_by_name, u2.username AS approved_by_name,
               u3.username AS issued_by_name, u4.username AS cancelled_by_name,
               pi.description AS project_item_description,
@@ -7397,10 +7503,12 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN epc_dispatch_records d ON i.dispatch_record_id = d.id
             LEFT JOIN epc_commissioning_readiness cr ON i.commissioning_readiness_id = cr.id
             LEFT JOIN epc_purchase_orders po ON i.epc_purchase_order_id = po.id
-            LEFT JOIN epc_work_orders wo ON i.epc_work_order_id = wo.id
-            WHERE i.project_id = ${projectId}
-            ORDER BY i.created_at DESC`
-      );
+            LEFT JOIN epc_work_orders wo ON i.epc_work_order_id = wo.id`;
+      query = sql`${query} WHERE i.project_id = ${projectId}`;
+      if (whereSql) query = sql`${query} AND ${whereSql}`;
+      query = sql`${query} ORDER BY i.created_at DESC`;
+
+      const result = await db.execute(query);
       res.json(result.rows);
     } catch (error) {
       sendError(res, error);
@@ -7433,7 +7541,15 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE i.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Invoice not found');
-      res.json(result.rows[0]);
+
+      const record = result.rows[0] as any;
+      const user = req.user as any;
+      const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+      if (!checkRecordOwnership(record, null, user, visibilityScope, 'strict')) {
+        return denyRecordAccess(res, req);
+      }
+
+      res.json(record);
     } catch (error) {
       sendError(res, error);
     }

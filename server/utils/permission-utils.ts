@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users, projectMembers, type Module, type User } from '@shared/schema';
 import { roleHierarchy } from '@shared/roles';
 import type { Request, Response, NextFunction } from 'express';
@@ -303,11 +303,11 @@ export function requirePageAccess(pageKey: string) {
   };
 }
 
-export async function checkProjectMembership(userId: number, role: string, projectId: number): Promise<boolean> {
+export async function checkProjectMembership(userId: number, role: string, projectId: number): Promise<{ isMember: boolean; visibilityScope: string }> {
   const level = roleHierarchy[role] ?? 4;
-  if (role === "Superuser" || level <= 2) return true;
+  if (role === "Superuser" || level <= 2) return { isMember: true, visibilityScope: 'project_all' };
 
-  const rows = await db.select({ id: projectMembers.id })
+  const rows = await db.select({ id: projectMembers.id, visibilityScope: projectMembers.visibilityScope })
     .from(projectMembers)
     .where(and(
       eq(projectMembers.projectId, projectId),
@@ -316,7 +316,8 @@ export async function checkProjectMembership(userId: number, role: string, proje
     ))
     .limit(1);
 
-  return rows.length > 0;
+  if (rows.length === 0) return { isMember: false, visibilityScope: 'department_records' };
+  return { isMember: true, visibilityScope: rows[0].visibilityScope };
 }
 
 export function requireProjectMembership(paramName: string = 'projectId') {
@@ -327,7 +328,7 @@ export function requireProjectMembership(paramName: string = 'projectId') {
     const projectId = parseInt(req.params[paramName]);
     if (isNaN(projectId)) return res.status(400).json({ error: "Invalid project ID" });
 
-    const isMember = await checkProjectMembership(user.id, user.role, projectId);
+    const { isMember, visibilityScope } = await checkProjectMembership(user.id, user.role, projectId);
     if (!isMember) {
       console.warn(`[PROJECT_ACCESS_DENIED] userId=${user.id} username=${user.username} role=${user.role} projectId=${projectId} path=${req.method} ${req.originalUrl}`);
       return res.status(403).json({
@@ -336,6 +337,99 @@ export function requireProjectMembership(paramName: string = 'projectId') {
         projectId
       });
     }
+    (req as any).visibilityScope = visibilityScope;
     next();
   };
+}
+
+export type OwnershipFilterMode = 'strict' | 'department';
+
+export interface OwnershipFilterConfig {
+  createdByColumn: string;
+  assignedToColumn?: string;
+  mode: OwnershipFilterMode;
+}
+
+const SM_PLUS_LEVEL = 2;
+
+function isSmPlus(role: string): boolean {
+  const level = roleHierarchy[role] ?? 4;
+  return role === "Superuser" || level <= SM_PLUS_LEVEL;
+}
+
+export function buildOwnershipWhereClause(
+  user: { id: number; role: string; department: string | null },
+  visibilityScope: string,
+  config: OwnershipFilterConfig,
+  tableAlias: string
+): { whereSql: ReturnType<typeof sql> | null; joinSql: ReturnType<typeof sql> | null } {
+  if (isSmPlus(user.role) || visibilityScope === 'project_all') {
+    return { whereSql: null, joinSql: null };
+  }
+
+  const userId = user.id;
+
+  if (config.mode === 'strict' || visibilityScope === 'own_records_only' || !user.department) {
+    if (config.assignedToColumn) {
+      return {
+        whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId} OR ${tableAlias}.${config.assignedToColumn} = ${userId})`),
+        joinSql: null
+      };
+    }
+    return {
+      whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId})`),
+      joinSql: null
+    };
+  }
+
+  const dept = user.department.replace(/'/g, "''");
+  const joinSql = sql.raw(`LEFT JOIN users ownership_creator ON ownership_creator.id = ${tableAlias}.${config.createdByColumn}`);
+
+  if (config.assignedToColumn) {
+    return {
+      whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId} OR ${tableAlias}.${config.assignedToColumn} = ${userId} OR ownership_creator.department = '${dept}')`),
+      joinSql
+    };
+  }
+  return {
+    whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId} OR ownership_creator.department = '${dept}')`),
+    joinSql
+  };
+}
+
+export function checkRecordOwnership(
+  record: { created_by?: number | null; assigned_to?: number | null },
+  creatorDepartment: string | null,
+  user: { id: number; role: string; department: string | null },
+  visibilityScope: string,
+  mode: OwnershipFilterMode
+): boolean {
+  if (isSmPlus(user.role) || visibilityScope === 'project_all') return true;
+
+  if (record.created_by === user.id) return true;
+  if (record.assigned_to && record.assigned_to === user.id) return true;
+
+  if (mode === 'department' && visibilityScope !== 'own_records_only') {
+    if (user.department && creatorDepartment && user.department === creatorDepartment) return true;
+  }
+
+  return false;
+}
+
+export async function lookupCreatorDepartment(createdBy: number | null): Promise<string | null> {
+  if (!createdBy) return null;
+  const rows = await db.select({ department: users.department })
+    .from(users)
+    .where(eq(users.id, createdBy))
+    .limit(1);
+  return rows.length > 0 ? rows[0].department : null;
+}
+
+export function denyRecordAccess(res: Response, req: Request): Response {
+  const user = (req as any).user;
+  console.warn(`[RECORD_ACCESS_DENIED] userId=${user?.id} username=${user?.username} role=${user?.role} path=${req.method} ${req.originalUrl}`);
+  return res.status(403).json({
+    error: "Access denied",
+    code: "RECORD_ACCESS_DENIED"
+  });
 }

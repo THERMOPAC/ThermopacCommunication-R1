@@ -1710,6 +1710,8 @@ export const projectMembers = pgTable('project_members', {
   // Assignment status
   isActive: boolean('is_active').default(true).notNull(),
   
+  visibilityScope: varchar('visibility_scope', { length: 20 }).notNull().default('department_records'),
+  
   // Additional details
   notes: text('notes'),
 });
