@@ -329,6 +329,7 @@ export function requireProjectMembership(paramName: string = 'projectId') {
 
     const isMember = await checkProjectMembership(user.id, user.role, projectId);
     if (!isMember) {
+      console.warn(`[PROJECT_ACCESS_DENIED] userId=${user.id} username=${user.username} role=${user.role} projectId=${projectId} path=${req.method} ${req.originalUrl}`);
       return res.status(403).json({
         error: "Project access denied",
         code: "PROJECT_ACCESS_DENIED",

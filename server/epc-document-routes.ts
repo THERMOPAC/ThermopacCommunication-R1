@@ -5,6 +5,7 @@ import { db } from './db';
 import { sql } from 'drizzle-orm';
 import { epcDocumentAttachments, epcDocumentAccessLog } from '@shared/schema';
 import { ensureAuthenticated } from './auth-middleware';
+import { requireProjectMembership } from './utils/permission-utils';
 import * as epcCoding from './epc-coding';
 import { initializeGCS } from './utils/gcs-operations';
 
@@ -50,7 +51,7 @@ async function getProjectOperationalCode(projectId: number): Promise<string | nu
 export function setupEpcDocumentRoutes(app: express.Express) {
 
   app.post('/api/projects/:projectId/epc-documents/:docType/:parentEntityId/upload',
-    ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), upload.single('file'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const docType = req.params.docType.toUpperCase();
@@ -211,7 +212,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.get('/api/projects/:projectId/epc-documents/:documentNumber/download',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const documentNumber = req.params.documentNumber;
@@ -378,7 +379,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.get('/api/projects/:projectId/epc-documents/attachments/:attachmentId/download',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const attachmentId = parseInt(req.params.attachmentId);
@@ -484,7 +485,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.get('/api/projects/:projectId/epc-documents/:docType/:parentEntityId/attachments',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const docType = req.params.docType.toUpperCase();
@@ -580,7 +581,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.get('/api/projects/:projectId/epc-documents/:documentNumber/history',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const documentNumber = req.params.documentNumber;
@@ -640,7 +641,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.post('/api/projects/:projectId/epc-documents/attachments/:attachmentId/withdraw',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const attachmentId = parseInt(req.params.attachmentId);
@@ -727,7 +728,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.post('/api/projects/:projectId/epc-documents/attachments/:attachmentId/reinstate',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const attachmentId = parseInt(req.params.attachmentId);
@@ -813,7 +814,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
   });
 
   app.get('/api/projects/:projectId/epc-documents/:documentNumber/access-log',
-    ensureAuthenticated, async (req: Request, res: Response) => {
+    ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const documentNumber = req.params.documentNumber;
