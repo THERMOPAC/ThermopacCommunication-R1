@@ -7,6 +7,7 @@ import AlertPopup from "@/components/alert-popup";
 import AttendanceGatekeeper from "@/components/attendance-gatekeeper";
 import { Separator } from "@/components/ui/separator";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
+import { usePagePermissions } from "@/hooks/use-page-permissions";
 import {
   LayoutDashboard,
   LayoutTemplate,
@@ -131,6 +132,7 @@ function Layout({ children }: LayoutProps) {
 
   // Get all module permissions for the current user
   const { data: modulePermissions, isLoading: isLoadingPermissions } = useAllModulePermissions();
+  const { hasPageAccess } = usePagePermissions();
 
   // Send heartbeat for live user tracking across all pages
   useHeartbeat({ interval: 30000 }); // Send heartbeat every 30 seconds
@@ -392,17 +394,17 @@ function Layout({ children }: LayoutProps) {
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
         { icon: ClipboardCheck, label: "Execution Control", href: "/execution-control" },
-        { icon: Layers, label: "EPC BOM Controls", href: "/epc/bom-controls" },
-        { icon: PenTool, label: "EPC Drawing Controls", href: "/epc/drawing-controls" },
-        { icon: ShoppingCart, label: "EPC Purchase Orders", href: "/epc/purchase-orders" },
-        { icon: Wrench, label: "EPC Work Orders", href: "/epc/work-orders" },
-        { icon: ClipboardList, label: "EPC Planning Control", href: "/epc/planning-control" },
-        { icon: Package, label: "EPC Procurement & Production", href: "/epc/execution-control" },
-        { icon: ShieldCheck, label: "EPC Quality & Inspection", href: "/epc/quality-inspection" },
-        { icon: Truck, label: "EPC Dispatch & Logistics", href: "/epc/dispatch-logistics" },
-        { icon: Wrench, label: "EPC Commissioning & Handover", href: "/epc/commissioning-handover" },
-        { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
-        { icon: Shield, label: "EPC Risks", href: "/epc-risks" },
+        ...(hasPageAccess("bom-controls") ? [{ icon: Layers, label: "EPC BOM Controls", href: "/epc/bom-controls" }] : []),
+        ...(hasPageAccess("drawing-controls") ? [{ icon: PenTool, label: "EPC Drawing Controls", href: "/epc/drawing-controls" }] : []),
+        ...(hasPageAccess("purchase-orders") ? [{ icon: ShoppingCart, label: "EPC Purchase Orders", href: "/epc/purchase-orders" }] : []),
+        ...(hasPageAccess("work-orders") ? [{ icon: Wrench, label: "EPC Work Orders", href: "/epc/work-orders" }] : []),
+        ...(hasPageAccess("planning-control") ? [{ icon: ClipboardList, label: "EPC Planning Control", href: "/epc/planning-control" }] : []),
+        ...(hasPageAccess("procurement-production") ? [{ icon: Package, label: "EPC Procurement & Production", href: "/epc/execution-control" }] : []),
+        ...(hasPageAccess("quality-inspection") ? [{ icon: ShieldCheck, label: "EPC Quality & Inspection", href: "/epc/quality-inspection" }] : []),
+        ...(hasPageAccess("dispatch-logistics") ? [{ icon: Truck, label: "EPC Dispatch & Logistics", href: "/epc/dispatch-logistics" }] : []),
+        ...(hasPageAccess("commissioning-handover") ? [{ icon: Wrench, label: "EPC Commissioning & Handover", href: "/epc/commissioning-handover" }] : []),
+        ...(hasPageAccess("invoices") ? [{ icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" }] : []),
+        ...(hasPageAccess("epc-risks") ? [{ icon: Shield, label: "EPC Risks", href: "/epc-risks" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "EPC Permission Control", href: "/epc/permission-control" }] : [])
       ]
     }] : []),

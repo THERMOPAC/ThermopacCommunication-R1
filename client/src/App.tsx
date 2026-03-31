@@ -5,6 +5,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
+import { PageProtectedRoute } from "@/components/page-protected-route";
 import Layout from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
@@ -100,7 +101,7 @@ function Router() {
       {/* Agent Dashboard */}
       <ProtectedRoute path="/agent-dashboard" component={() => <Agents.AgentDashboardPage />} />
       <ProtectedRoute path="/worker-agents" component={() => <Agents.WorkerAgentsPage />} />
-      <ProtectedRoute path="/epc-risks" component={() => <Agents.EpcRisksDashboardPage />} />
+      <PageProtectedRoute path="/epc-risks" pageKey="epc-risks" component={() => <Agents.EpcRisksDashboardPage />} />
       
       {/* Finance Module Routes */}
       <ProtectedRoute path="/finance" component={() => <Finance.FinanceDashboardPage />} />
@@ -165,16 +166,16 @@ function Router() {
       {/* Projects & Production Routes */}
       <ProtectedRoute path="/project-dashboard" component={() => <ProjectsProduction.ProjectDashboardPage />} />
       <ProtectedRoute path="/execution-control" component={() => <ProjectsProduction.ExecutionControlDashboard />} />
-      <ProtectedRoute path="/epc/bom-controls" component={() => <ProjectsProduction.EpcBomControlPage />} />
-      <ProtectedRoute path="/epc/drawing-controls" component={() => <ProjectsProduction.EpcDrawingControlPage />} />
-      <ProtectedRoute path="/epc/purchase-orders" component={() => <ProjectsProduction.EpcPurchaseOrdersPage />} />
-      <ProtectedRoute path="/epc/work-orders" component={() => <ProjectsProduction.EpcWorkOrdersPage />} />
-      <ProtectedRoute path="/epc/invoices" component={() => <ProjectsProduction.EpcInvoicesPage />} />
-      <ProtectedRoute path="/epc/planning-control" component={() => <ProjectsProduction.EpcPlanningControlPage />} />
-      <ProtectedRoute path="/epc/execution-control" component={() => <ProjectsProduction.EpcExecutionControlPage />} />
-      <ProtectedRoute path="/epc/quality-inspection" component={() => <ProjectsProduction.EpcQualityInspectionPage />} />
-      <ProtectedRoute path="/epc/dispatch-logistics" component={() => <ProjectsProduction.EpcDispatchLogisticsPage />} />
-      <ProtectedRoute path="/epc/commissioning-handover" component={() => <ProjectsProduction.EpcCommissioningHandoverPage />} />
+      <PageProtectedRoute path="/epc/bom-controls" pageKey="bom-controls" component={() => <ProjectsProduction.EpcBomControlPage />} />
+      <PageProtectedRoute path="/epc/drawing-controls" pageKey="drawing-controls" component={() => <ProjectsProduction.EpcDrawingControlPage />} />
+      <PageProtectedRoute path="/epc/purchase-orders" pageKey="purchase-orders" component={() => <ProjectsProduction.EpcPurchaseOrdersPage />} />
+      <PageProtectedRoute path="/epc/work-orders" pageKey="work-orders" component={() => <ProjectsProduction.EpcWorkOrdersPage />} />
+      <PageProtectedRoute path="/epc/invoices" pageKey="invoices" component={() => <ProjectsProduction.EpcInvoicesPage />} />
+      <PageProtectedRoute path="/epc/planning-control" pageKey="planning-control" component={() => <ProjectsProduction.EpcPlanningControlPage />} />
+      <PageProtectedRoute path="/epc/execution-control" pageKey="procurement-production" component={() => <ProjectsProduction.EpcExecutionControlPage />} />
+      <PageProtectedRoute path="/epc/quality-inspection" pageKey="quality-inspection" component={() => <ProjectsProduction.EpcQualityInspectionPage />} />
+      <PageProtectedRoute path="/epc/dispatch-logistics" pageKey="dispatch-logistics" component={() => <ProjectsProduction.EpcDispatchLogisticsPage />} />
+      <PageProtectedRoute path="/epc/commissioning-handover" pageKey="commissioning-handover" component={() => <ProjectsProduction.EpcCommissioningHandoverPage />} />
       <ProtectedRoute path="/epc/permission-control" component={() => <ProjectsProduction.EpcPermissionDashboard />} />
       <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
       <ProtectedRoute path="/projects/:id" component={() => <ProjectsProduction.ProjectDetailPage />} />

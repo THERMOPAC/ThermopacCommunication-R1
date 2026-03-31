@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { db } from './db';
 import { eq, and, or } from 'drizzle-orm';
-import { modules, modulePermissions, roleModulePermissions, users } from '@shared/schema';
-import { checkModulePermission, getUserModulePermissions, resetUserModulePermissions, setUserModulePermission } from './utils/permission-utils';
+import { modules, modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users } from '@shared/schema';
+import { checkModulePermission, getUserModulePermissions, resetUserModulePermissions, setUserModulePermission, getAllPagePermissionsForUser } from './utils/permission-utils';
 import { authenticateUser, isAdmin } from './middlewares/auth';
+import { roleHierarchy } from '@shared/roles';
 
 const router = Router();
 
@@ -205,6 +206,145 @@ router.get('/api/modules/:moduleName/analytics', authenticateUser, isAdmin, asyn
   } catch (error) {
     console.error('Error getting module analytics:', error);
     res.status(500).json({ error: 'Failed to get module analytics' });
+  }
+});
+
+router.get('/api/my-page-permissions', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user!;
+    const perms = await getAllPagePermissionsForUser(user.id, user.role, user.department);
+    res.json(perms);
+  } catch (error) {
+    console.error('Error getting page permissions:', error);
+    res.status(500).json({ error: 'Failed to get page permissions' });
+  }
+});
+
+router.get('/api/page-permissions/department-matrix', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const rows = await db.select().from(departmentPagePermissions);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error getting department page matrix:', error);
+    res.status(500).json({ error: 'Failed to get department page matrix' });
+  }
+});
+
+router.put('/api/page-permissions/department-matrix', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { department, pageKey, canView } = req.body;
+    if (!department || !pageKey || typeof canView !== 'boolean') {
+      return res.status(400).json({ error: 'Missing department, pageKey, or canView' });
+    }
+    const existing = await db.select().from(departmentPagePermissions)
+      .where(and(
+        eq(departmentPagePermissions.department, department),
+        eq(departmentPagePermissions.pageKey, pageKey)
+      ));
+    if (existing.length > 0) {
+      await db.update(departmentPagePermissions)
+        .set({ canView, updatedAt: new Date() })
+        .where(eq(departmentPagePermissions.id, existing[0].id));
+    } else {
+      await db.insert(departmentPagePermissions).values({
+        department,
+        pageKey,
+        moduleName: 'Project Management',
+        canView,
+      });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating department page permission:', error);
+    res.status(500).json({ error: 'Failed to update permission' });
+  }
+});
+
+router.get('/api/page-permissions/user-overrides', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const rows = await db.select({
+      id: pagePermissions.id,
+      userId: pagePermissions.userId,
+      pageKey: pagePermissions.pageKey,
+      moduleName: pagePermissions.moduleName,
+      canView: pagePermissions.canView,
+      username: users.username,
+      department: users.department,
+      role: users.role,
+    }).from(pagePermissions)
+      .innerJoin(users, eq(pagePermissions.userId, users.id));
+    res.json(rows);
+  } catch (error) {
+    console.error('Error getting user page overrides:', error);
+    res.status(500).json({ error: 'Failed to get user page overrides' });
+  }
+});
+
+router.put('/api/page-permissions/user-override', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { userId, pageKey, canView } = req.body;
+    if (!userId || !pageKey || typeof canView !== 'boolean') {
+      return res.status(400).json({ error: 'Missing userId, pageKey, or canView' });
+    }
+    const existing = await db.select().from(pagePermissions)
+      .where(and(
+        eq(pagePermissions.userId, userId),
+        eq(pagePermissions.pageKey, pageKey)
+      ));
+    if (existing.length > 0) {
+      await db.update(pagePermissions)
+        .set({ canView, updatedAt: new Date() })
+        .where(eq(pagePermissions.id, existing[0].id));
+    } else {
+      await db.insert(pagePermissions).values({
+        userId,
+        pageKey,
+        moduleName: 'Project Management',
+        canView,
+      });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating user page override:', error);
+    res.status(500).json({ error: 'Failed to update user override' });
+  }
+});
+
+router.delete('/api/page-permissions/user-override', authenticateUser, async (req, res) => {
+  try {
+    const user = req.user!;
+    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const { userId, pageKey } = req.body;
+    if (!userId || !pageKey) {
+      return res.status(400).json({ error: 'Missing userId or pageKey' });
+    }
+    await db.delete(pagePermissions)
+      .where(and(
+        eq(pagePermissions.userId, userId),
+        eq(pagePermissions.pageKey, pageKey)
+      ));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting user page override:', error);
+    res.status(500).json({ error: 'Failed to delete user override' });
   }
 });
 

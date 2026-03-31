@@ -41,7 +41,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
-import { checkModulePermission } from './utils/permission-utils';
+import { checkModulePermission, requirePageAccess } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
@@ -1789,7 +1789,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Planning Record Lifecycle Routes ─────────────────────────────────────
 
-  app.get('/api/projects/:projectId/planning-records', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/planning-records', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -1819,7 +1819,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/planning-records/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/planning-records/:id', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
@@ -1843,7 +1843,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/planning-records/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/planning-records/:id/submit-for-review', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -1877,7 +1877,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/planning-records/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/planning-records/:id/review', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -1919,7 +1919,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/planning-records/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/planning-records/:id/release', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
@@ -2089,7 +2089,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/planning-records/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/planning-records/:id/cancel', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -2217,7 +2217,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/planning-records/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/planning-records/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -2253,7 +2253,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/planning-records/:id/convert', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/planning-records/:id/convert', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
@@ -2333,7 +2333,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Procurement Execution Record Lifecycle Routes ─────────────────────────
 
-  app.get('/api/projects/:projectId/procurement-executions', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/procurement-executions', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -2361,7 +2361,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/procurement-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/procurement-executions/:id', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid procurement execution ID');
@@ -2383,7 +2383,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/procurement-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/procurement-executions/:id', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid procurement execution ID');
@@ -2419,7 +2419,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/procurement-executions/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/procurement-executions/:id/start-preparation', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -2453,7 +2453,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/procurement-executions/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/procurement-executions/:id/mark-ready', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -2758,7 +2758,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/procurement-executions/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/procurement-executions/:id/revert-to-preparation', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -2800,7 +2800,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/procurement-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/procurement-executions/:id/cancel', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -2883,7 +2883,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Production Execution Record Lifecycle Routes ──────────────────────────
 
-  app.get('/api/projects/:projectId/production-executions', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/production-executions', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -2910,7 +2910,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/production-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/production-executions/:id', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
@@ -2931,7 +2931,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/production-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/production-executions/:id', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
@@ -2967,7 +2967,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/production-executions/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/production-executions/:id/start-preparation', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3001,7 +3001,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/production-executions/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/production-executions/:id/mark-ready', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3305,7 +3305,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/production-executions/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/production-executions/:id/revert-to-preparation', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3347,7 +3347,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/production-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/production-executions/:id/cancel', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3430,7 +3430,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Quality Planning Record Lifecycle Routes ──────────────────────────────
 
-  app.get('/api/projects/:projectId/quality-plans', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/quality-plans', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -3459,7 +3459,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/quality-plans/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/quality-plans/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
@@ -3480,7 +3480,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/quality-plans/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/quality-plans/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
@@ -3509,7 +3509,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/quality-plans/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/quality-plans/:id/start-preparation', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3544,7 +3544,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/quality-plans/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/quality-plans/:id/mark-ready', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3621,7 +3621,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/quality-plans/:id/revert-to-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/quality-plans/:id/revert-to-preparation', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3661,7 +3661,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/quality-plans/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/quality-plans/:id/cancel', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3716,7 +3716,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Inspection Execution Record Lifecycle Routes ──────────────────────────
 
-  app.get('/api/projects/:projectId/inspection-executions', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/inspection-executions', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -3746,7 +3746,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/inspection-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/inspection-executions/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
@@ -3768,7 +3768,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/inspection-executions/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/inspection-executions/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
@@ -3801,7 +3801,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/schedule', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/schedule', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3842,7 +3842,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/start', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/start', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3878,7 +3878,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/complete', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/complete', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -3978,7 +3978,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/fail', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/fail', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4112,7 +4112,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/cancel', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4152,7 +4152,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/mark-rework-required', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/mark-rework-required', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4189,7 +4189,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/inspection-executions/:id/close', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/inspection-executions/:id/close', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
@@ -4806,7 +4806,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── EPC Purchase Order Routes ──────────────────────────────────────────
 
-  app.get('/api/projects/:projectId/epc-purchase-orders', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/epc-purchase-orders', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -4834,7 +4834,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/epc-purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/epc-purchase-orders/:id', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid EPC purchase order ID');
@@ -4861,7 +4861,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/po-preparations/:id/create-purchase-order', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/po-preparations/:id/create-purchase-order', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const poPrepId = parseInt(req.params.id);
@@ -4951,7 +4951,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/epc-purchase-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/epc-purchase-orders/:id', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4981,7 +4981,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-purchase-orders/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-purchase-orders/:id/approve', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5032,7 +5032,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-purchase-orders/:id/issue', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-purchase-orders/:id/issue', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
@@ -5086,7 +5086,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-purchase-orders/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-purchase-orders/:id/cancel', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5128,7 +5128,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-purchase-orders/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-purchase-orders/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5167,7 +5167,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── EPC Work Order Routes ──────────────────────────────────────────────
 
-  app.get('/api/projects/:projectId/epc-work-orders', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/epc-work-orders', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -5194,7 +5194,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/epc-work-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/epc-work-orders/:id', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid EPC work order ID');
@@ -5220,7 +5220,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/wo-preparations/:id/create-work-order', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/wo-preparations/:id/create-work-order', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const woPrepId = parseInt(req.params.id);
@@ -5316,7 +5316,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/epc-work-orders/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/epc-work-orders/:id', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5346,7 +5346,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-work-orders/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-work-orders/:id/approve', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5397,7 +5397,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-work-orders/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-work-orders/:id/release', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
@@ -5451,7 +5451,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-work-orders/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-work-orders/:id/cancel', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5493,7 +5493,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-work-orders/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-work-orders/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5532,7 +5532,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC DISPATCH READINESS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -5560,7 +5560,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/dispatch-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/dispatch-readiness/:id', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const result = await db.execute(
@@ -5588,7 +5588,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const projectId = parseInt(req.params.projectId);
@@ -5708,7 +5708,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-readiness/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-readiness/:id/start-preparation', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5741,7 +5741,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-readiness/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-readiness/:id/mark-ready', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5787,7 +5787,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-readiness/:id/dispatch', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-readiness/:id/dispatch', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5838,7 +5838,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-readiness/:id/cancel', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5874,7 +5874,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-readiness/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-readiness/:id/supersede', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -5912,7 +5912,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/dispatch-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/dispatch-readiness/:id', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -5952,7 +5952,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC DISPATCH RECORDS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/dispatch-records', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -5982,7 +5982,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/dispatch-records/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/dispatch-records/:id', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const result = await db.execute(
@@ -6012,7 +6012,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/dispatch-records', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -6116,7 +6116,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-records/:id/confirm', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-records/:id/confirm', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6159,7 +6159,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-records/:id/ship', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-records/:id/ship', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6208,7 +6208,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-records/:id/deliver', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-records/:id/deliver', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6254,7 +6254,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-records/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-records/:id/cancel', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6302,7 +6302,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/dispatch-records/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/dispatch-records/:id/supersede', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6341,7 +6341,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/dispatch-records/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/dispatch-records/:id', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6381,7 +6381,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC COMMISSIONING / HANDOVER READINESS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -6411,7 +6411,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/commissioning-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/commissioning-readiness/:id', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const result = await db.execute(
@@ -6441,7 +6441,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -6532,7 +6532,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/start-preparation', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/start-preparation', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6564,7 +6564,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/mark-ready', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/mark-ready', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6611,7 +6611,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/commission', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/commission', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6659,7 +6659,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/handover', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/handover', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6714,7 +6714,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/cancel', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6749,7 +6749,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/supersede', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6787,7 +6787,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/commissioning-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/commissioning-readiness/:id', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -6824,7 +6824,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/open-punch-list', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/open-punch-list', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -6858,7 +6858,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/resolve-punch-list', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/resolve-punch-list', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -6892,7 +6892,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/commissioning-readiness/:id/close', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/commissioning-readiness/:id/close', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
@@ -6928,7 +6928,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC INVOICE TRIGGER / BILLING READINESS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/billing-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -6960,7 +6960,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/billing-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/billing-readiness/:id', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const result = await db.execute(
@@ -6992,7 +6992,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/billing-readiness', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -7132,7 +7132,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/billing-readiness/:id/submit-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/billing-readiness/:id/submit-review', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -7168,7 +7168,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/billing-readiness/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/billing-readiness/:id/approve', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7216,7 +7216,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/billing-readiness/:id/mark-invoiced', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/billing-readiness/:id/mark-invoiced', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7260,7 +7260,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/billing-readiness/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/billing-readiness/:id/cancel', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -7296,7 +7296,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/billing-readiness/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/billing-readiness/:id/supersede', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7334,7 +7334,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/billing-readiness/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/billing-readiness/:id', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7375,7 +7375,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC ACTUAL INVOICE BRIDGE ====================
 
-  app.get('/api/projects/:projectId/epc-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -7407,7 +7407,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/epc-invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/epc-invoices/:id', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const result = await db.execute(
@@ -7439,7 +7439,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/epc-invoices', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -7559,7 +7559,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-invoices/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-invoices/:id/approve', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7602,7 +7602,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-invoices/:id/issue', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-invoices/:id/issue', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7641,7 +7641,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-invoices/:id/record-payment', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-invoices/:id/record-payment', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7703,7 +7703,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-invoices/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-invoices/:id/cancel', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -7754,7 +7754,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/epc-invoices/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/epc-invoices/:id/supersede', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
@@ -7794,7 +7794,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/epc-invoices/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/epc-invoices/:id', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -7843,7 +7843,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC DRAWING CONTROL LAYER ====================
 
-  app.get('/api/projects/:projectId/drawing-controls', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const results = await db.execute(
@@ -7855,7 +7855,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/drawing-controls/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/drawing-controls/:id', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
@@ -7866,7 +7866,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -7980,7 +7980,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/submit-for-review', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -8033,7 +8033,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/review', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8094,7 +8094,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/approve', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8160,7 +8160,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/release', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8225,7 +8225,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/release-gate', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/release-gate', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8291,7 +8291,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/client-approval', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/client-approval', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -8333,7 +8333,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/cancel', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 2) {
@@ -8382,7 +8382,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/supersede', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8513,7 +8513,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/drawing-controls/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/drawing-controls/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -8549,7 +8549,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/drawing-controls/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/drawing-controls/:id', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -8607,7 +8607,7 @@ export function setupProjectRoutes(app: express.Express) {
 
 
 
-  app.get('/api/projects/:projectId/bom-headers', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/bom-headers', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const { bomType, status, projectItemId } = req.query;
@@ -8631,7 +8631,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/bom-headers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/bom-headers/:id', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const results = await db.execute(sql`
@@ -8652,7 +8652,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/bom-headers', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/bom-headers', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -8730,7 +8730,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/bom-headers/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/bom-headers/:id', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8769,7 +8769,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/submit-for-review', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8818,7 +8818,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/review', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8874,7 +8874,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/approve', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8932,7 +8932,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/release', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8967,7 +8967,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/lock', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/lock', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -8996,7 +8996,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/cancel', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -9038,7 +9038,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/supersede', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/supersede', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -9195,7 +9195,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -9233,7 +9233,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== BOM EXPLOSION ====================
 
-  app.get('/api/bom-headers/:id/explosion-preview', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/bom-headers/:id/explosion-preview', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
@@ -9404,7 +9404,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:id/explode', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:id/explode', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -9595,7 +9595,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/bom-headers/:id/explosion-status', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/bom-headers/:id/explosion-status', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
@@ -9704,7 +9704,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== BOM LINES ====================
 
-  app.get('/api/bom-headers/:bomHeaderId/lines', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/bom-headers/:bomHeaderId/lines', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const bomHeaderId = parseInt(req.params.bomHeaderId);
       const headerCheck = await db.execute(sql`SELECT id FROM epc_bom_headers WHERE id = ${bomHeaderId}`);
@@ -9723,7 +9723,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/bom-headers/:bomHeaderId/lines', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/bom-headers/:bomHeaderId/lines', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const bomHeaderId = parseInt(req.params.bomHeaderId);
       const userId = (req.user as any)?.id;
@@ -9790,7 +9790,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/bom-lines/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/bom-lines/:id', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
@@ -9838,7 +9838,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.delete('/api/bom-lines/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.delete('/api/bom-lines/:id', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;

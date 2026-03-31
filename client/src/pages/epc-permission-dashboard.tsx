@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Shield, ShieldCheck, ShieldAlert, Eye, EyeOff, Check, X, AlertTriangle, Info, ChevronDown, ChevronRight, FileText, Lock, Users, Database } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Shield, ShieldCheck, ShieldAlert, Eye, EyeOff, Check, X, AlertTriangle, Info, ChevronDown, ChevronRight, FileText, Lock, Users, Database, Settings, UserCog, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const ROLE_LABELS: Record<number, string> = { 0: "Superuser", 1: "General Manager", 2: "Senior Manager", 3: "Manager", 4: "Employee" };
 const ROLE_SHORT: Record<number, string> = { 0: "SU", 1: "GM", 2: "SM", 3: "Mgr", 4: "Emp" };
@@ -160,6 +163,7 @@ export default function EpcPermissionDashboard() {
             <TabsTrigger value="actions" className="text-xs h-7 px-3">Action Matrix <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">{summary?.totalActions || 0}</Badge></TabsTrigger>
             <TabsTrigger value="data" className="text-xs h-7 px-3">Data Rules</TabsTrigger>
             <TabsTrigger value="gaps" className="text-xs h-7 px-3">Gaps & Inconsistencies <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0 bg-amber-100 text-amber-700">{summary?.totalGaps || 0}</Badge></TabsTrigger>
+            <TabsTrigger value="page-permissions" className="text-xs h-7 px-3"><Settings className="h-3 w-3 mr-1" />Page Access Control</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pages" className="mt-3">
@@ -191,6 +195,10 @@ export default function EpcPermissionDashboard() {
               categoryFilter={gapCategoryFilter}
               setCategoryFilter={setGapCategoryFilter}
             />
+          </TabsContent>
+
+          <TabsContent value="page-permissions" className="mt-3">
+            <PageAccessControlTab />
           </TabsContent>
         </Tabs>
       )}
@@ -546,6 +554,281 @@ function GapsTab({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const DEPARTMENTS = ["Accounts", "Administration", "After Sales", "Design", "Marketing", "Production", "Purchase", "Quality Control", "Stores"];
+const PAGE_LABELS: Record<string, string> = {
+  "project-dashboard": "Project Dashboard",
+  "projects": "Projects",
+  "item-master": "Item Master",
+  "execution-control": "Execution Control",
+  "drawing-controls": "Drawing Controls",
+  "bom-controls": "BOM Controls",
+  "purchase-orders": "Purchase Orders",
+  "work-orders": "Work Orders",
+  "planning-control": "Planning Control",
+  "procurement-production": "Procurement & Production",
+  "quality-inspection": "Quality & Inspection",
+  "dispatch-logistics": "Dispatch & Logistics",
+  "commissioning-handover": "Commissioning & Handover",
+  "invoices": "Invoices",
+  "epc-risks": "EPC Risks",
+  "permission-control": "Permission Control",
+};
+
+function PageAccessControlTab() {
+  const { toast } = useToast();
+  const [overrideUserId, setOverrideUserId] = useState<string>("");
+  const [overridePageKey, setOverridePageKey] = useState<string>("");
+  const [overrideGranted, setOverrideGranted] = useState<boolean>(true);
+
+  const { data: deptMatrix, isLoading: matrixLoading } = useQuery<any[]>({
+    queryKey: ["/api/page-permissions/department-matrix"],
+    queryFn: async () => {
+      const res = await fetch("/api/page-permissions/department-matrix");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: userOverrides, isLoading: overridesLoading } = useQuery<any[]>({
+    queryKey: ["/api/page-permissions/user-overrides"],
+    queryFn: async () => {
+      const res = await fetch("/api/page-permissions/user-overrides");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: allUsers } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const res = await fetch("/api/users");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const toggleDeptPermission = useMutation({
+    mutationFn: async ({ department, pageKey, granted }: { department: string; pageKey: string; granted: boolean }) => {
+      await apiRequest("PUT", "/api/page-permissions/department-matrix", { department, pageKey, granted });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/page-permissions/department-matrix"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+    },
+  });
+
+  const addOverride = useMutation({
+    mutationFn: async ({ userId, pageKey, granted }: { userId: number; pageKey: string; granted: boolean }) => {
+      await apiRequest("PUT", "/api/page-permissions/user-override", { userId, pageKey, granted });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/page-permissions/user-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
+      setOverrideUserId("");
+      setOverridePageKey("");
+      toast({ title: "Override saved" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to save", variant: "destructive" });
+    },
+  });
+
+  const deleteOverride = useMutation({
+    mutationFn: async ({ userId, pageKey }: { userId: number; pageKey: string }) => {
+      await apiRequest("DELETE", "/api/page-permissions/user-override", { userId, pageKey });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/page-permissions/user-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
+      toast({ title: "Override removed" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to remove", variant: "destructive" });
+    },
+  });
+
+  const matrixMap = useMemo(() => {
+    const m: Record<string, boolean> = {};
+    if (deptMatrix) {
+      for (const row of deptMatrix) {
+        m[`${row.department}::${row.pageKey}`] = row.granted;
+      }
+    }
+    return m;
+  }, [deptMatrix]);
+
+  const allPageKeys = Object.keys(PAGE_LABELS);
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Department × Page Matrix</h3>
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0">SM+ bypass — always see all pages</Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            Toggle which EPC pages each department can access. Manager and Employee roles are filtered by their department. Senior Manager and above always have full access.
+          </p>
+          {matrixLoading ? (
+            <div className="text-xs text-muted-foreground p-4 text-center">Loading department matrix...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-[10px] font-semibold w-[140px] sticky left-0 bg-background z-10">Page</TableHead>
+                    {DEPARTMENTS.map(dept => (
+                      <TableHead key={dept} className="text-[10px] font-semibold text-center px-2 min-w-[70px]">
+                        {dept.replace("After Sales", "A.Sales").replace("Quality Control", "QC").replace("Administration", "Admin")}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allPageKeys.map(pk => (
+                    <TableRow key={pk}>
+                      <TableCell className="text-[10px] font-medium sticky left-0 bg-background z-10">{PAGE_LABELS[pk]}</TableCell>
+                      {DEPARTMENTS.map(dept => {
+                        const key = `${dept}::${pk}`;
+                        const granted = matrixMap[key] ?? false;
+                        return (
+                          <TableCell key={dept} className="text-center px-2">
+                            <Switch
+                              checked={granted}
+                              onCheckedChange={(checked) => toggleDeptPermission.mutate({ department: dept, pageKey: pk, granted: checked })}
+                              className="scale-75"
+                            />
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <UserCog className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">Per-User Overrides</h3>
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0">Overrides department defaults</Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            Grant or deny specific page access for individual users. These take priority over department-level settings.
+          </p>
+
+          <div className="flex items-end gap-3 mb-4 p-3 bg-muted/30 rounded-lg border">
+            <div className="flex-1 space-y-1">
+              <label className="text-[10px] font-medium">User</label>
+              <Select value={overrideUserId} onValueChange={setOverrideUserId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select user..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(allUsers || [])
+                    .filter((u: any) => u.isActive)
+                    .sort((a: any, b: any) => (a.firstName || a.username).localeCompare(b.firstName || b.username))
+                    .map((u: any) => (
+                      <SelectItem key={u.id} value={String(u.id)} className="text-xs">
+                        {u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.username} — {u.department || "N/A"} ({u.role})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 space-y-1">
+              <label className="text-[10px] font-medium">Page</label>
+              <Select value={overridePageKey} onValueChange={setOverridePageKey}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select page..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allPageKeys.map(pk => (
+                    <SelectItem key={pk} value={pk} className="text-xs">{PAGE_LABELS[pk]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-medium">Access</label>
+              <Select value={overrideGranted ? "grant" : "deny"} onValueChange={(v) => setOverrideGranted(v === "grant")}>
+                <SelectTrigger className="h-8 text-xs w-[90px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="grant" className="text-xs">Grant</SelectItem>
+                  <SelectItem value="deny" className="text-xs">Deny</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              size="sm"
+              className="h-8 text-xs"
+              disabled={!overrideUserId || !overridePageKey || addOverride.isPending}
+              onClick={() => addOverride.mutate({ userId: Number(overrideUserId), pageKey: overridePageKey, granted: overrideGranted })}
+            >
+              {addOverride.isPending ? "Saving..." : "Save Override"}
+            </Button>
+          </div>
+
+          {overridesLoading ? (
+            <div className="text-xs text-muted-foreground p-4 text-center">Loading overrides...</div>
+          ) : !userOverrides?.length ? (
+            <div className="text-xs text-muted-foreground p-4 text-center border rounded">No user overrides configured.</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-[10px]">User</TableHead>
+                  <TableHead className="text-[10px]">Department</TableHead>
+                  <TableHead className="text-[10px]">Role</TableHead>
+                  <TableHead className="text-[10px]">Page</TableHead>
+                  <TableHead className="text-[10px]">Access</TableHead>
+                  <TableHead className="text-[10px] w-[60px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {userOverrides.map((ov: any, idx: number) => (
+                  <TableRow key={idx}>
+                    <TableCell className="text-[10px]">{ov.userName || `User #${ov.userId}`}</TableCell>
+                    <TableCell className="text-[10px]">{ov.department || "—"}</TableCell>
+                    <TableCell className="text-[10px]">{ov.role || "—"}</TableCell>
+                    <TableCell className="text-[10px]">{PAGE_LABELS[ov.pageKey] || ov.pageKey}</TableCell>
+                    <TableCell>
+                      <Badge variant={ov.granted ? "default" : "destructive"} className="text-[9px] px-1.5 py-0">
+                        {ov.granted ? "Granted" : "Denied"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => deleteOverride.mutate({ userId: ov.userId, pageKey: ov.pageKey })}
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

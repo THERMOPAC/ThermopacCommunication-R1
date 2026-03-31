@@ -735,6 +735,41 @@ export type CampaignLeadSelect = typeof campaignLeads.$inferSelect;
 
 export type Module = typeof modules[number];
 
+export const departments = [
+  "Accounts",
+  "Administration",
+  "After Sales",
+  "Design",
+  "Marketing",
+  "Production",
+  "Purchase",
+  "Quality Control",
+  "Stores",
+] as const;
+
+export type Department = (typeof departments)[number];
+
+export const epcPageKeys = [
+  "project-dashboard",
+  "projects",
+  "item-master",
+  "execution-control",
+  "drawing-controls",
+  "bom-controls",
+  "purchase-orders",
+  "work-orders",
+  "planning-control",
+  "procurement-production",
+  "quality-inspection",
+  "dispatch-logistics",
+  "commissioning-handover",
+  "invoices",
+  "epc-risks",
+  "permission-control",
+] as const;
+
+export type EpcPageKey = (typeof epcPageKeys)[number];
+
 export const employeeTypes = [
   'PERMANENT',
   'TEMPORARY',
@@ -1329,6 +1364,34 @@ export const insertRoleModulePermissionSchema = createInsertSchema(roleModulePer
   role: z.enum(roles),
   moduleName: z.enum(modules),
 });
+
+export const departmentPagePermissions = pgTable('department_page_permissions', {
+  id: serial('id').primaryKey(),
+  department: text('department').notNull(),
+  pageKey: text('page_key').notNull(),
+  moduleName: text('module_name').notNull(),
+  canView: boolean('can_view').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const pagePermissions = pgTable('page_permissions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  pageKey: text('page_key').notNull(),
+  moduleName: text('module_name').notNull(),
+  canView: boolean('can_view').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const insertDepartmentPagePermissionSchema = createInsertSchema(departmentPagePermissions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPagePermissionSchema = createInsertSchema(pagePermissions).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type DepartmentPagePermission = typeof departmentPagePermissions.$inferSelect;
+export type InsertDepartmentPagePermission = z.infer<typeof insertDepartmentPagePermissionSchema>;
+export type PagePermission = typeof pagePermissions.$inferSelect;
+export type InsertPagePermission = z.infer<typeof insertPagePermissionSchema>;
 
 // Define types for all tables
 export type InsertUser = z.infer<typeof insertUserSchema>;

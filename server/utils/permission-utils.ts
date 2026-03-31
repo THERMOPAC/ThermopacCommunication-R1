@@ -1,6 +1,8 @@
 import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { modulePermissions, roleModulePermissions, users, type Module, type User } from '@shared/schema';
+import { modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users, type Module, type User } from '@shared/schema';
+import { roleHierarchy } from '@shared/roles';
+import type { Request, Response, NextFunction } from 'express';
 
 /**
  * Checks if a user has a specific permission on a module
@@ -213,4 +215,89 @@ export async function resetUserModulePermissions(userId: number, moduleName: Mod
       eq(modulePermissions.userId, userId),
       eq(modulePermissions.moduleName, moduleName)
     ));
+}
+
+export async function checkUserPageOverride(userId: number, pageKey: string): Promise<boolean | null> {
+  const rows = await db.select()
+    .from(pagePermissions)
+    .where(and(
+      eq(pagePermissions.userId, userId),
+      eq(pagePermissions.pageKey, pageKey)
+    ));
+  if (rows.length === 0) return null;
+  return rows[0].canView;
+}
+
+export async function checkDeptPagePermission(department: string | null | undefined, pageKey: string): Promise<boolean> {
+  if (!department) return true;
+  const normalized = department.trim();
+  const rows = await db.select()
+    .from(departmentPagePermissions)
+    .where(and(
+      eq(departmentPagePermissions.pageKey, pageKey)
+    ));
+  const match = rows.find(r => r.department.trim().toLowerCase() === normalized.toLowerCase());
+  if (!match) return true;
+  return match.canView;
+}
+
+export async function checkPagePermission(userId: number, role: string, department: string | null | undefined, pageKey: string): Promise<boolean> {
+  if (role === "Superuser") return true;
+  const level = roleHierarchy[role] ?? 4;
+  if (level <= 2) return true;
+
+  const userOverride = await checkUserPageOverride(userId, pageKey);
+  if (userOverride !== null) return userOverride;
+
+  return checkDeptPagePermission(department, pageKey);
+}
+
+export async function getAllPagePermissionsForUser(userId: number, role: string, department: string | null | undefined): Promise<Record<string, boolean>> {
+  const { epcPageKeys } = await import('../../shared/schema');
+
+  if (role === "Superuser" || (roleHierarchy[role] ?? 4) <= 2) {
+    const result: Record<string, boolean> = {};
+    for (const key of epcPageKeys) result[key] = true;
+    return result;
+  }
+
+  const userOverrides = await db.select()
+    .from(pagePermissions)
+    .where(eq(pagePermissions.userId, userId));
+
+  const deptRows = await db.select()
+    .from(departmentPagePermissions);
+
+  const normalizedDept = department?.trim().toLowerCase() || "";
+
+  const result: Record<string, boolean> = {};
+  for (const key of epcPageKeys) {
+    const override = userOverrides.find(o => o.pageKey === key);
+    if (override) {
+      result[key] = override.canView;
+      continue;
+    }
+    const deptMatch = deptRows.find(
+      r => r.pageKey === key && r.department.trim().toLowerCase() === normalizedDept
+    );
+    result[key] = deptMatch ? deptMatch.canView : true;
+  }
+  return result;
+}
+
+export function requirePageAccess(pageKey: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const allowed = await checkPagePermission(user.id, user.role, user.department, pageKey);
+    if (!allowed) {
+      return res.status(403).json({
+        error: "Page access denied",
+        code: "PAGE_ACCESS_DENIED",
+        pageKey
+      });
+    }
+    next();
+  };
 }
