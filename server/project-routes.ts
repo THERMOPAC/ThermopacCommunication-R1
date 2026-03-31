@@ -41,7 +41,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
-import { checkModulePermission, requirePageAccess, requireProjectMembership, checkProjectMembership, buildOwnershipWhereClause, checkRecordOwnership, lookupCreatorDepartment, denyRecordAccess, type OwnershipFilterConfig } from './utils/permission-utils';
+import { checkModulePermission, requirePageAccess, requireProjectMembership, checkProjectMembership, buildOwnershipWhereClause, checkRecordOwnership, lookupCreatorDepartment, denyRecordAccess, enforceWriteOwnership, type OwnershipFilterConfig } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
@@ -391,6 +391,10 @@ export function setupProjectRoutes(app: express.Express) {
       if (!phase) {
         return res.status(404).json({ error: 'Project phase not found' });
       }
+
+      const user = req.user as any;
+      const { isMember } = await checkProjectMembership(user.id, user.role, phase.projectId);
+      if (!isMember) return res.status(403).json({ error: "Access denied", code: "PROJECT_ACCESS_DENIED" });
       
       res.json(phase);
     } catch (error) {
@@ -1097,6 +1101,10 @@ export function setupProjectRoutes(app: express.Express) {
       if (!item) {
         return res.status(404).json({ error: 'Project item not found' });
       }
+
+      const user = req.user as any;
+      const { isMember } = await checkProjectMembership(user.id, user.role, item.projectId);
+      if (!isMember) return res.status(403).json({ error: "Access denied", code: "PROJECT_ACCESS_DENIED" });
       
       res.json(item);
     } catch (error) {
@@ -3504,6 +3512,9 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
       const record = existing.rows[0] as any;
 
+      const user = req.user as any;
+      if (!(await enforceWriteOwnership(record, user, 'department', req, res))) return;
+
       if (record.status === 'superseded' || record.status === 'cancelled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
@@ -3534,6 +3545,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
       const record = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
       if (record.status !== 'draft') {
         return sendBusinessError(res, `Cannot start preparation: record is in '${record.status}' status. Only 'draft' records can start preparation.`);
@@ -3570,6 +3583,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
       const record = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
       if (record.status !== 'under_preparation') {
         return sendBusinessError(res, `Cannot mark ready: record is in '${record.status}' status. Only 'under_preparation' records can be marked ready.`);
@@ -3647,6 +3662,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
       const record = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
+
       if (record.status !== 'ready_for_inspection_setup') {
         return sendBusinessError(res, `Cannot revert: only 'ready_for_inspection_setup' records can be reverted. Current status: '${record.status}'.`);
       }
@@ -3689,6 +3706,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Quality planning record not found');
       const record = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
       if (record.status === 'superseded' || record.status === 'cancelled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
@@ -3807,6 +3826,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
+
       if (['completed', 'failed', 'superseded', 'cancelled'].includes(record.status)) {
         return sendBusinessError(res, `Cannot edit: record is in terminal status '${record.status}'.`);
       }
@@ -3845,6 +3866,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
+
       if (record.status !== 'draft') {
         return sendBusinessError(res, `Cannot schedule: record status is '${record.status}', expected 'draft'.`);
       }
@@ -3882,6 +3905,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
       if (record.status !== 'scheduled') {
         return sendBusinessError(res, `Cannot start: record status is '${record.status}', expected 'scheduled'.`);
@@ -3923,6 +3948,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
       if (record.status !== 'in_progress') {
         return sendBusinessError(res, `Cannot complete: record status is '${record.status}', expected 'in_progress'.`);
@@ -4021,6 +4048,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
       if (record.status !== 'in_progress') {
         return sendBusinessError(res, `Cannot fail: record status is '${record.status}', expected 'in_progress'.`);
@@ -4156,6 +4185,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
+
       if (['completed', 'failed', 'superseded', 'cancelled'].includes(record.status)) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
@@ -4194,6 +4225,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
+
       if (record.status !== 'failed') {
         return sendBusinessError(res, `Cannot mark rework required: record status is '${record.status}', expected 'failed'.`);
       }
@@ -4231,6 +4264,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Inspection execution record not found');
       const record = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
+
       if (!['completed', 'rework_required'].includes(record.status)) {
         return sendBusinessError(res, `Cannot close: record status is '${record.status}'. Only 'completed' or 'rework_required' records can be closed.`);
       }
@@ -4259,7 +4294,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── PO Preparation Record Lifecycle Routes ──────────────────────────────
 
-  app.get('/api/projects/:projectId/po-preparations', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/po-preparations', ensureAuthenticated, requirePageAccess('purchase-orders'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -4287,7 +4322,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/po-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/po-preparations/:id', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
@@ -4309,7 +4344,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/po-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/po-preparations/:id', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
@@ -4343,7 +4378,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/po-preparations/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/po-preparations/:id/submit-for-review', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4377,7 +4412,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/po-preparations/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/po-preparations/:id/approve', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4420,7 +4455,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/po-preparations/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/po-preparations/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4453,7 +4488,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/po-preparations/:id/revert-to-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/po-preparations/:id/revert-to-review', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4486,7 +4521,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/po-preparations/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/po-preparations/:id/cancel', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4547,7 +4582,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── WO Preparation Record Lifecycle Routes ──────────────────────────────
 
-  app.get('/api/projects/:projectId/wo-preparations', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/wo-preparations', ensureAuthenticated, requirePageAccess('work-orders'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -4575,7 +4610,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.get('/api/wo-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/wo-preparations/:id', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
@@ -4597,7 +4632,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.patch('/api/wo-preparations/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/wo-preparations/:id', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
@@ -4632,7 +4667,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/wo-preparations/:id/submit-for-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/wo-preparations/:id/submit-for-review', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4666,7 +4701,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/wo-preparations/:id/approve', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/wo-preparations/:id/approve', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4709,7 +4744,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/wo-preparations/:id/revert-to-draft', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/wo-preparations/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4742,7 +4777,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/wo-preparations/:id/revert-to-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/wo-preparations/:id/revert-to-review', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -4775,7 +4810,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/wo-preparations/:id/cancel', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/wo-preparations/:id/cancel', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
@@ -5004,6 +5039,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
       const po = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
+
       if (['cancelled', 'superseded', 'issued'].includes(po.status)) {
         return sendBusinessError(res, `Cannot edit: PO is in terminal status '${po.status}'.`);
       }
@@ -5035,6 +5072,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
       const po = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
       if (po.status !== 'draft') {
         return sendBusinessError(res, `Cannot approve: PO status is '${po.status}', expected 'draft'.`);
@@ -5086,6 +5125,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
       const po = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
       if (po.status !== 'approved') {
         return sendBusinessError(res, `Cannot issue: PO status is '${po.status}', expected 'approved'.`);
@@ -5143,6 +5184,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
       const po = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
+
       if (['cancelled', 'superseded'].includes(po.status)) {
         return sendBusinessError(res, `Cannot cancel: PO is already '${po.status}'.`);
       }
@@ -5181,6 +5224,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_purchase_orders WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');
       const po = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
       if (po.status !== 'approved') {
         return sendBusinessError(res, `Cannot revert to draft: only 'approved' POs can be reverted. Current status: '${po.status}'.`);
@@ -5382,6 +5427,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
       const wo = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
+
       if (['cancelled', 'superseded', 'released'].includes(wo.status)) {
         return sendBusinessError(res, `Cannot edit: WO is in terminal status '${wo.status}'.`);
       }
@@ -5413,6 +5460,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
       const wo = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
       if (wo.status !== 'draft') {
         return sendBusinessError(res, `Cannot approve: WO status is '${wo.status}', expected 'draft'.`);
@@ -5464,6 +5513,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
       const wo = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
       if (wo.status !== 'approved') {
         return sendBusinessError(res, `Cannot release: WO status is '${wo.status}', expected 'approved'.`);
@@ -5521,6 +5572,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
       const wo = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
+
       if (['cancelled', 'superseded'].includes(wo.status)) {
         return sendBusinessError(res, `Cannot cancel: WO is already '${wo.status}'.`);
       }
@@ -5559,6 +5612,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_work_orders WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'EPC work order not found');
       const wo = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
       if (wo.status !== 'approved') {
         return sendBusinessError(res, `Cannot revert to draft: only 'approved' WOs can be reverted. Current status: '${wo.status}'.`);
@@ -5791,6 +5846,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
+
       if (dr.status !== 'draft') {
         return sendBusinessError(res, `Cannot start preparation: status is '${dr.status}', expected 'draft'.`);
       }
@@ -5823,6 +5880,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_dispatch_readiness WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
       if (dr.status !== 'under_preparation') {
         return sendBusinessError(res, `Cannot mark ready: status is '${dr.status}', expected 'under_preparation'.`);
@@ -5869,6 +5928,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_dispatch_readiness WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
       if (dr.status !== 'ready_for_dispatch') {
         return sendBusinessError(res, `Cannot dispatch: status is '${dr.status}', expected 'ready_for_dispatch'.`);
@@ -5923,6 +5984,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
+
       if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
         return sendBusinessError(res, `Cannot cancel: status is '${dr.status}' (terminal state).`);
       }
@@ -5958,6 +6021,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
+
       if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
         return sendBusinessError(res, `Cannot supersede: status is '${dr.status}' (terminal state).`);
       }
@@ -5992,6 +6057,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_dispatch_readiness WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
       if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
         return sendBusinessError(res, `Cannot update: status is '${dr.status}' (terminal state).`);
@@ -6220,6 +6287,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
+
       if (d.status !== 'draft') {
         return sendBusinessError(res, `Cannot confirm: status is '${d.status}', expected 'draft'.`);
       }
@@ -6262,6 +6331,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
       if (d.status !== 'confirmed') {
         return sendBusinessError(res, `Cannot ship: status is '${d.status}', expected 'confirmed'.`);
@@ -6312,6 +6383,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
+
       if (d.status !== 'shipped') {
         return sendBusinessError(res, `Cannot mark delivered: status is '${d.status}', expected 'shipped'.`);
       }
@@ -6353,6 +6426,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
       if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
         return sendBusinessError(res, `Cannot cancel: status is '${d.status}' (terminal state).`);
@@ -6402,6 +6477,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
+
       if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
         return sendBusinessError(res, `Cannot supersede: status is '${d.status}' (terminal state).`);
       }
@@ -6437,6 +6514,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_dispatch_records WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
       if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
         return sendBusinessError(res, `Cannot update: status is '${d.status}' (terminal state).`);
@@ -6523,7 +6602,11 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE c.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
-      res.json(result.rows[0]);
+      const cr = result.rows[0] as any;
+      const user = req.user as any;
+      const { isMember } = await checkProjectMembership(user.id, user.role, cr.project_id);
+      if (!isMember) return res.status(403).json({ error: "Access denied", code: "PROJECT_ACCESS_DENIED" });
+      res.json(cr);
     } catch (error) {
       sendError(res, error);
     }
@@ -7244,6 +7327,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
       const br = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
+
       if (br.status !== 'draft') {
         return sendBusinessError(res, `Cannot submit for review: status is '${br.status}', expected 'draft'.`);
       }
@@ -7285,6 +7370,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
       const br = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
 
       if (br.status !== 'under_review') {
         return sendBusinessError(res, `Cannot approve: status is '${br.status}', expected 'under_review'.`);
@@ -7336,6 +7423,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
       const br = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
+
       if (br.status !== 'ready_for_invoice') {
         return sendBusinessError(res, `Cannot mark invoiced: status is '${br.status}', expected 'ready_for_invoice'.`);
       }
@@ -7375,6 +7464,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
       const br = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
+
       if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
         return sendBusinessError(res, `Cannot cancel: status is '${br.status}' (terminal state).`);
       }
@@ -7410,6 +7501,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
       const br = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
+
       if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
         return sendBusinessError(res, `Cannot supersede: status is '${br.status}' (terminal state).`);
       }
@@ -7444,6 +7537,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Billing readiness record not found');
       const br = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
 
       if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
         return sendBusinessError(res, `Cannot update: status is '${br.status}' (terminal state).`);
@@ -7691,6 +7786,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
       const inv = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
+
       if (inv.status !== 'draft') {
         return sendBusinessError(res, `Cannot approve: status is '${inv.status}', expected 'draft'.`);
       }
@@ -7734,6 +7831,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
       const inv = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
+
       if (inv.status !== 'approved') {
         return sendBusinessError(res, `Cannot issue: status is '${inv.status}', expected 'approved'.`);
       }
@@ -7776,6 +7875,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
       const inv = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
 
       if (inv.status !== 'issued' && inv.status !== 'partially_paid') {
         return sendBusinessError(res, `Cannot record payment: status is '${inv.status}', expected 'issued' or 'partially_paid'.`);
@@ -7832,6 +7933,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
       const inv = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
+
       if (inv.status === 'cancelled' || inv.status === 'superseded' || inv.status === 'paid') {
         return sendBusinessError(res, `Cannot cancel: status is '${inv.status}' (terminal state).`);
       }
@@ -7883,6 +7986,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
       const inv = existing.rows[0] as any;
 
+      if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
+
       if (inv.status === 'cancelled' || inv.status === 'superseded' || inv.status === 'paid') {
         return sendBusinessError(res, `Cannot supersede: status is '${inv.status}' (terminal state).`);
       }
@@ -7918,6 +8023,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Invoice not found');
       const inv = existing.rows[0] as any;
+
+      if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
 
       if (inv.status !== 'draft') {
         return sendBusinessError(res, `Cannot update: only draft invoices can be edited. Current status: '${inv.status}'.`);
@@ -7976,7 +8083,11 @@ export function setupProjectRoutes(app: express.Express) {
       const id = parseInt(req.params.id);
       const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
-      res.json(results.rows[0]);
+      const dc = results.rows[0] as any;
+      const user = req.user as any;
+      const { isMember } = await checkProjectMembership(user.id, user.role, dc.project_id);
+      if (!isMember) return res.status(403).json({ error: "Access denied", code: "PROJECT_ACCESS_DENIED" });
+      res.json(dc);
     } catch (error) {
       sendError(res, error);
     }
@@ -8762,7 +8873,11 @@ export function setupProjectRoutes(app: express.Express) {
         WHERE bh.id = ${id}
       `);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
-      res.json(results.rows[0]);
+      const bom = results.rows[0] as any;
+      const user = req.user as any;
+      const { isMember } = await checkProjectMembership(user.id, user.role, bom.project_id);
+      if (!isMember) return res.status(403).json({ error: "Access denied", code: "PROJECT_ACCESS_DENIED" });
+      res.json(bom);
     } catch (error) {
       sendError(res, error);
     }

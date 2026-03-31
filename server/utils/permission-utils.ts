@@ -368,31 +368,33 @@ export function buildOwnershipWhereClause(
   }
 
   const userId = user.id;
+  const createdByRef = sql.raw(`${tableAlias}.${config.createdByColumn}`);
+  const assignedToRef = config.assignedToColumn ? sql.raw(`${tableAlias}.${config.assignedToColumn}`) : null;
 
   if (config.mode === 'strict' || visibilityScope === 'own_records_only' || !user.department) {
-    if (config.assignedToColumn) {
+    if (assignedToRef) {
       return {
-        whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId} OR ${tableAlias}.${config.assignedToColumn} = ${userId})`),
+        whereSql: sql`(${createdByRef} = ${userId} OR ${assignedToRef} = ${userId})`,
         joinSql: null
       };
     }
     return {
-      whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId})`),
+      whereSql: sql`(${createdByRef} = ${userId})`,
       joinSql: null
     };
   }
 
-  const dept = user.department.replace(/'/g, "''");
-  const joinSql = sql.raw(`LEFT JOIN users ownership_creator ON ownership_creator.id = ${tableAlias}.${config.createdByColumn}`);
+  const dept = user.department;
+  const joinSql = sql`LEFT JOIN users ownership_creator ON ownership_creator.id = ${createdByRef}`;
 
-  if (config.assignedToColumn) {
+  if (assignedToRef) {
     return {
-      whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId} OR ${tableAlias}.${config.assignedToColumn} = ${userId} OR ownership_creator.department = '${dept}')`),
+      whereSql: sql`(${createdByRef} = ${userId} OR ${assignedToRef} = ${userId} OR ownership_creator.department = ${dept})`,
       joinSql
     };
   }
   return {
-    whereSql: sql.raw(`(${tableAlias}.${config.createdByColumn} = ${userId} OR ownership_creator.department = '${dept}')`),
+    whereSql: sql`(${createdByRef} = ${userId} OR ownership_creator.department = ${dept})`,
     joinSql
   };
 }
@@ -428,8 +430,41 @@ export async function lookupCreatorDepartment(createdBy: number | null): Promise
 export function denyRecordAccess(res: Response, req: Request): Response {
   const user = (req as any).user;
   console.warn(`[RECORD_ACCESS_DENIED] userId=${user?.id} username=${user?.username} role=${user?.role} path=${req.method} ${req.originalUrl}`);
+  persistDenialLog(user, 'RECORD_ACCESS_DENIED', req);
   return res.status(403).json({
     error: "Access denied",
     code: "RECORD_ACCESS_DENIED"
   });
+}
+
+export function denyProjectAccess(res: Response, req: Request): Response {
+  const user = (req as any).user;
+  console.warn(`[PROJECT_ACCESS_DENIED] userId=${user?.id} username=${user?.username} role=${user?.role} path=${req.method} ${req.originalUrl}`);
+  persistDenialLog(user, 'PROJECT_ACCESS_DENIED', req);
+  return res.status(403).json({
+    error: "Access denied",
+    code: "PROJECT_ACCESS_DENIED"
+  });
+}
+
+function persistDenialLog(user: any, code: string, req: Request): void {
+  db.execute(sql`INSERT INTO access_denied_log (user_id, username, role, department, denial_code, method, path)
+    VALUES (${user?.id || null}, ${user?.username || null}, ${user?.role || null}, ${user?.department || null}, ${code}, ${req.method}, ${req.originalUrl})`)
+    .catch((err: any) => console.error('[DenialLog] Failed to persist:', err.message));
+}
+
+export async function enforceWriteOwnership(
+  record: any,
+  user: any,
+  mode: OwnershipFilterMode,
+  req: Request,
+  res: Response
+): Promise<boolean> {
+  const { visibilityScope } = await checkProjectMembership(user.id, user.role, record.project_id);
+  const creatorDept = mode === 'department' ? await lookupCreatorDepartment(record.created_by) : null;
+  if (!checkRecordOwnership(record, creatorDept, user, visibilityScope, mode)) {
+    denyRecordAccess(res, req);
+    return false;
+  }
+  return true;
 }
