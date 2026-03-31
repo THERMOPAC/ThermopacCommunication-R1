@@ -402,7 +402,8 @@ function Layout({ children }: LayoutProps) {
         { icon: Truck, label: "EPC Dispatch & Logistics", href: "/epc/dispatch-logistics" },
         { icon: Wrench, label: "EPC Commissioning & Handover", href: "/epc/commissioning-handover" },
         { icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" },
-        { icon: Shield, label: "EPC Risks", href: "/epc-risks" }
+        { icon: Shield, label: "EPC Risks", href: "/epc-risks" },
+        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "EPC Permission Control", href: "/epc/permission-control" }] : [])
       ]
     }] : []),
     ...(hasViewPermission("Design Management") ? [{ 

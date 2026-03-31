@@ -25,6 +25,7 @@ import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
 import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { setupEpcDocumentRoutes } from "./epc-document-routes";
+import { registerEpcPermissionRoutes } from "./epc-permission-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { default as standaloneRoutes } from "./standalone-routes";
@@ -847,6 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupEngineeringChangeRoutes(app);
 
   setupEpcDocumentRoutes(app);
+  registerEpcPermissionRoutes(app);
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);

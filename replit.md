@@ -42,6 +42,7 @@ The system is a full-stack web application built with organized, hierarchical da
     - **Alert Management System**: A full alert system with priority levels, categories, and a 3-state workflow.
     - **API Security**: Implements measures against SQL injection, XSS, authentication middleware, and secure credential management.
     - **Two-Factor Authentication (2FA)**: TOTP-based 2FA with JWT challenge tokens, AES-256-GCM encrypted secrets, bcrypt-hashed recovery codes, rate limiting, and OTP lockout. Enforced for critical roles.
+    - **EPC Permission Control Dashboard**: Phase 1 read-only RBAC audit dashboard at `/epc/permission-control` (Superuser/GM only). Centralized permission registry (`shared/epc-permission-registry.ts`) derived from actual backend route guards and frontend action definitions. Features: Page Visibility matrix, Action Matrix with module grouping and drill-down (80+ actions across 16 pages), Sensitive Data Rules with frontend/backend enforcement indicators, Gaps & Inconsistencies panel with severity/category filters and recommendations, Role Simulation dropdown. Backend: `server/epc-permission-routes.ts` with read-only GET endpoints.
 
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.
