@@ -229,15 +229,16 @@ export async function checkUserPageOverride(userId: number, pageKey: string): Pr
 }
 
 export async function checkDeptPagePermission(department: string | null | undefined, pageKey: string): Promise<boolean> {
-  if (!department) return true;
+  if (!department) return false;
   const normalized = department.trim();
+  if (!normalized) return false;
   const rows = await db.select()
     .from(departmentPagePermissions)
     .where(and(
       eq(departmentPagePermissions.pageKey, pageKey)
     ));
   const match = rows.find(r => r.department.trim().toLowerCase() === normalized.toLowerCase());
-  if (!match) return true;
+  if (!match) return false;
   return match.canView;
 }
 
@@ -280,7 +281,7 @@ export async function getAllPagePermissionsForUser(userId: number, role: string,
     const deptMatch = deptRows.find(
       r => r.pageKey === key && r.department.trim().toLowerCase() === normalizedDept
     );
-    result[key] = deptMatch ? deptMatch.canView : true;
+    result[key] = deptMatch ? deptMatch.canView : false;
   }
   return result;
 }
