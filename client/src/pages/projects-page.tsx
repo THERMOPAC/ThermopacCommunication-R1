@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Package, Building2, Calendar, User, Edit, Save, Search, ArrowRight, Plus } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Loader2, Package, Building2, Calendar, User, Edit, Save, Search,
+  ArrowRight, Plus, ChevronDown, ChevronRight, Briefcase,
+  Clock, CheckCircle2, PauseCircle, XCircle, AlertTriangle,
+  FolderKanban, Hash, Wrench, ShoppingCart, BarChart3, ExternalLink,
+} from "lucide-react";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +32,8 @@ interface Project {
   startDate: string;
   targetEndDate: string;
   description: string;
+  projectType?: string;
+  priority?: string;
 }
 
 interface ProjectItem {
@@ -49,25 +56,48 @@ interface ProjectItem {
   };
 }
 
+const STATUS_CONFIG: Record<string, { label: string; bg: string; icon: any }> = {
+  planning: { label: "Planning", bg: "bg-slate-100 text-slate-700 border-slate-300", icon: Clock },
+  active: { label: "Active", bg: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: CheckCircle2 },
+  on_hold: { label: "On Hold", bg: "bg-amber-100 text-amber-800 border-amber-300", icon: PauseCircle },
+  completed: { label: "Completed", bg: "bg-blue-100 text-blue-800 border-blue-300", icon: CheckCircle2 },
+  canceled: { label: "Cancelled", bg: "bg-red-100 text-red-800 border-red-300", icon: XCircle },
+  cancelled: { label: "Cancelled", bg: "bg-red-100 text-red-800 border-red-300", icon: XCircle },
+};
+
+const ITEM_STATUS_CONFIG: Record<string, string> = {
+  "not started": "bg-gray-100 text-gray-700 border-gray-300",
+  "in progress": "bg-blue-100 text-blue-700 border-blue-300",
+  "active": "bg-emerald-100 text-emerald-700 border-emerald-300",
+  "completed": "bg-green-100 text-green-800 border-green-300",
+  "on hold": "bg-amber-100 text-amber-700 border-amber-300",
+  "on_hold": "bg-amber-100 text-amber-700 border-amber-300",
+  "cancelled": "bg-red-100 text-red-700 border-red-300",
+  "canceled": "bg-red-100 text-red-700 border-red-300",
+  "under construction": "bg-orange-100 text-orange-700 border-orange-300",
+  "drawing received": "bg-indigo-100 text-indigo-700 border-indigo-300",
+  "material received": "bg-teal-100 text-teal-700 border-teal-300",
+};
+
+const PRIORITY_CONFIG: Record<string, string> = {
+  High: "bg-red-50 text-red-700 border-red-200",
+  Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  Low: "bg-green-50 text-green-700 border-green-200",
+};
+
 export default function ProjectsPage() {
-  const [location, navigate] = useLocation();
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [, navigate] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [keepVisible, setKeepVisible] = useState(false);
-  const [formData, setFormData] = useState({
-    quantity: "",
-    estimatedCost: "",
-    actualCost: "",
-    notes: "",
-    status: ""
-  });
-  
+  const [editProjectId, setEditProjectId] = useState<number | null>(null);
+  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({ quantity: "", estimatedCost: "", actualCost: "", notes: "", status: "" });
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
 
   const getIndianFinancialYear = () => {
     const now = new Date();
@@ -77,21 +107,12 @@ export default function ProjectsPage() {
     const endYear = startYear + 1;
     return `${String(startYear).slice(2)}${String(endYear).slice(2)}`;
   };
-
   const currentFY = getIndianFinancialYear();
 
   const [newProjectData, setNewProjectData] = useState({
-    name: "",
-    description: "",
-    code: "",
-    customerId: "",
-    projectType: "",
-    financialYear: currentFY,
-    startDate: new Date().toISOString().split("T")[0],
-    targetEndDate: "",
-    durationMonths: "",
-    priority: "Medium",
-    status: "planning",
+    name: "", description: "", code: "", customerId: "", projectType: "",
+    financialYear: currentFY, startDate: new Date().toISOString().split("T")[0],
+    targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
   });
 
   const { data: customers } = useQuery<{ id: number; bpName: string; bpCode: string }[]>({
@@ -118,23 +139,23 @@ export default function ProjectsPage() {
     }
   }, [nextCodeData, newProjectDialogOpen, customers]);
 
+  const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
+    queryKey: ["/api/design/projects"],
+  });
+
   const createProjectMutation = useMutation({
     mutationFn: async (data: typeof newProjectData) => {
-      const payload = {
-        ...data,
-        customerId: data.customerId ? parseInt(data.customerId) : undefined,
-      };
+      const payload = { ...data, customerId: data.customerId ? parseInt(data.customerId) : undefined };
       return await apiRequest("POST", "/api/projects", payload);
     },
-    onSuccess: (project) => {
-      toast({ title: "Project created", description: `Project ${project.code} created successfully.` });
+    onSuccess: () => {
+      toast({ title: "Project created successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects/next-code", currentFY] });
       setNewProjectDialogOpen(false);
       setNewProjectData({
         name: "", description: "", code: "", customerId: "", projectType: "",
-        financialYear: currentFY,
-        startDate: new Date().toISOString().split("T")[0],
+        financialYear: currentFY, startDate: new Date().toISOString().split("T")[0],
         targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
       });
     },
@@ -143,245 +164,301 @@ export default function ProjectsPage() {
     },
   });
 
-  // Parse URL parameters on component mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectParam = urlParams.get('project');
-    const keepParam = urlParams.get('keep');
-    
-    if (projectParam) {
-      setSelectedProjectId(projectParam);
-    }
-    
-    if (keepParam === 'true') {
-      setKeepVisible(true);
-    }
-  }, [location]);
-
-  // Update URL when project filter changes
-  const updateURL = (projectId: string, keep: boolean) => {
-    const params = new URLSearchParams();
-    if (projectId) {
-      params.set('project', projectId);
-      if (keep) {
-        params.set('keep', 'true');
-      }
-    }
-    
-    const newUrl = params.toString() ? 
-      `/projects?${params.toString()}` : 
-      '/projects';
-    
-    window.history.replaceState({}, '', newUrl);
-  };
-
-  // Fetch all projects for the dropdown
-  const { data: projects, isLoading: projectsLoading } = useQuery<Project[]>({
-    queryKey: ['/api/design/projects'],
-  });
-
-  // Fetch project items when a project is selected
-  const { data: projectItems, isLoading: itemsLoading } = useQuery<ProjectItem[]>({
-    queryKey: [`/api/projects/${selectedProjectId}/items`],
-    enabled: !!selectedProjectId,
-  });
-
-  const selectedProject = projects?.find(p => p.id.toString() === selectedProjectId);
-
-  // Fetch virtual components for the selected project
-  const { data: virtualComponents } = useQuery<any[]>({
-    queryKey: [`/api/projects/${selectedProjectId}/virtual-components`],
-    enabled: !!selectedProjectId,
-  });
-
-  // Organize project items hierarchically (including virtual components)
-  const organizedProjectItems = React.useMemo(() => {
-    if (!projectItems || projectItems.length === 0) return [];
-
-    // All project items are parent assemblies
-    const parentAssemblies = projectItems;
-
-    // Sort parent assemblies by item code (descending)
-    const sortByItemCode = (a: ProjectItem, b: ProjectItem) => {
-      const codeA = a.masterItem?.itemCode || '';
-      const codeB = b.masterItem?.itemCode || '';
-      return codeB.localeCompare(codeA); // Descending order
-    };
-
-    parentAssemblies.sort(sortByItemCode);
-
-    // Create hierarchical structure: each parent followed by its virtual components
-    const hierarchicalItems: (ProjectItem & { type?: string, isVirtual?: boolean })[] = [];
-
-    parentAssemblies.forEach((parent: ProjectItem) => {
-      // Add the parent assembly
-      hierarchicalItems.push({ ...parent, type: 'parent' });
-
-      // Find and add virtual components that belong to this parent
-      if (virtualComponents && Array.isArray(virtualComponents)) {
-        const relatedVirtualComponents = virtualComponents.filter((component: any) => 
-          component.parent_item_id === parent.masterItem?.id
-        );
-
-        // Sort virtual components by component code
-        relatedVirtualComponents.sort((a: any, b: any) => {
-          const codeA = a.component_code || '';
-          const codeB = b.component_code || '';
-          return codeB.localeCompare(codeA); // Descending order
-        });
-
-        // Add virtual components as project items
-        relatedVirtualComponents.forEach((component: any) => {
-          const virtualItem: ProjectItem & { type?: string, isVirtual?: boolean } = {
-            id: component.id + 10000, // Use unique numeric ID for virtual components
-            projectId: parent.projectId,
-            itemId: component.component_item_id,
-            quantity: component.quantity || 1,
-            status: 'Active', // Default status for virtual components
-            masterItem: {
-              id: component.component_item_id,
-              itemCode: component.component_code,
-              description: component.component_description,
-              specification: '',
-              uom: component.unit || 'Nos',
-              makeOrBuy: 'Make',
-              supplier: ''
-            },
-            type: 'component',
-            isVirtual: true
-          };
-          hierarchicalItems.push(virtualItem);
-        });
-      }
-    });
-
-    return hierarchicalItems;
-  }, [projectItems, virtualComponents]);
-
-  // Filter project items based on search query
-  const filteredProjectItems = projectItems?.filter(item => {
-    if (!searchQuery) return true;
-    
-    const searchLower = searchQuery.toLowerCase();
-    const itemCode = item.masterItem?.itemCode?.toLowerCase() || '';
-    const description = item.masterItem?.description?.toLowerCase() || '';
-    const status = item.status?.toLowerCase() || '';
-    const makeOrBuy = item.masterItem?.makeOrBuy?.toLowerCase() || '';
-    
-    return itemCode.includes(searchLower) || 
-           description.includes(searchLower) || 
-           status.includes(searchLower) || 
-           makeOrBuy.includes(searchLower);
-  });
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'bg-green-500 text-white';
-      case 'completed': return 'bg-blue-500 text-white';
-      case 'on_hold': 
-      case 'on hold': return 'bg-yellow-500 text-black';
-      case 'cancelled': 
-      case 'canceled': return 'bg-red-500 text-white';
-      case 'not started': 
-      case 'drawing received':
-      case 'material received': return 'bg-gray-500 text-white';
-      case 'under construction':
-      case 'in progress': return 'bg-orange-500 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
-  const getMakeOrBuyColor = (makeOrBuy: string) => {
-    switch (makeOrBuy?.toLowerCase()) {
-      case 'make': return 'bg-blue-100 text-blue-800';
-      case 'buy': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  // Mutation for updating project item
   const updateItemMutation = useMutation({
     mutationFn: async (data: { id: number; updates: any }) => {
       const response = await fetch(`/api/project-items/${data.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data.updates),
       });
-      if (!response.ok) {
-        throw new Error('Failed to update project item');
-      }
+      if (!response.ok) throw new Error("Failed to update project item");
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/projects/${selectedProjectId}/items`] });
-      toast({
-        title: "Success",
-        description: "Project item updated successfully",
-      });
+      if (editProjectId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects", editProjectId, "items"] });
+      }
+      toast({ title: "Project item updated successfully" });
       setEditDialogOpen(false);
       setEditingItem(null);
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update project item",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Failed to update project item", variant: "destructive" });
     },
   });
 
-  const handleEditClick = (item: ProjectItem) => {
+  const filteredProjects = useMemo(() => {
+    if (!projects) return [];
+    return projects.filter(p => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          p.projectName?.toLowerCase().includes(q) ||
+          p.projectCode?.toLowerCase().includes(q) ||
+          p.customerName?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [projects, statusFilter, searchQuery]);
+
+  const summaryStats = useMemo(() => {
+    if (!projects) return { total: 0, planning: 0, active: 0, onHold: 0, completed: 0, cancelled: 0 };
+    return {
+      total: projects.length,
+      planning: projects.filter(p => p.status === "planning").length,
+      active: projects.filter(p => p.status === "active").length,
+      onHold: projects.filter(p => p.status === "on_hold").length,
+      completed: projects.filter(p => p.status === "completed").length,
+      cancelled: projects.filter(p => p.status === "canceled" || p.status === "cancelled").length,
+    };
+  }, [projects]);
+
+  const toggleRow = (id: number) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleEditClick = (item: ProjectItem, projectId: number) => {
     setEditingItem(item);
+    setEditProjectId(projectId);
     setFormData({
       quantity: item.quantity.toString(),
       estimatedCost: item.estimatedCost?.toString() || "",
       actualCost: item.actualCost?.toString() || "",
       notes: item.notes || "",
-      status: item.status || "Not Started"
+      status: item.status || "Not Started",
     });
     setEditDialogOpen(true);
   };
 
   const handleSaveEdit = () => {
     if (!editingItem) return;
-
-    const updates = {
-      quantity: parseFloat(formData.quantity) || 0,
-      estimatedCost: formData.estimatedCost ? parseFloat(formData.estimatedCost) : null,
-      actualCost: formData.actualCost ? parseFloat(formData.actualCost) : null,
-      notes: formData.notes,
-      status: formData.status
-    };
-
-    console.log('🔄 Updating project item:', { id: editingItem.id, updates });
-    updateItemMutation.mutate({ id: editingItem.id, updates });
+    updateItemMutation.mutate({
+      id: editingItem.id,
+      updates: {
+        quantity: parseFloat(formData.quantity) || 0,
+        estimatedCost: formData.estimatedCost ? parseFloat(formData.estimatedCost) : null,
+        actualCost: formData.actualCost ? parseFloat(formData.actualCost) : null,
+        notes: formData.notes,
+        status: formData.status,
+      },
+    });
   };
 
-  const handleViewDetails = (project: Project | undefined) => {
-    if (!project) return;
-    
-    if (keepVisible && selectedProjectId) {
-      navigate(`/projects/${project.id}?project=${selectedProjectId}&keep=true`);
-    } else {
-      navigate(`/projects/${project.id}`);
-    }
+  const formatDate = (d: string) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  };
+
+  const getDaysRemaining = (endDate: string) => {
+    if (!endDate) return null;
+    const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return diff;
   };
 
   return (
     <Layout>
       <Helmet>
-        <title>Projects | THERMOPAC Communication System</title>
+        <title>Projects | THERMOPAC QMS</title>
       </Helmet>
-
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold tracking-tight pl-4">Projects</h1>
-          <Button onClick={() => setNewProjectDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> New Project
+      <div className="space-y-4 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+              <FolderKanban className="h-5 w-5 text-primary" /> Projects
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Manage projects, items, and assignments</p>
+          </div>
+          <Button size="sm" onClick={() => setNewProjectDialogOpen(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> New Project
           </Button>
         </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {[
+            { label: "Total", value: summaryStats.total, color: "", icon: Briefcase },
+            { label: "Planning", value: summaryStats.planning, color: "text-slate-600", icon: Clock },
+            { label: "Active", value: summaryStats.active, color: "text-emerald-600", icon: CheckCircle2 },
+            { label: "On Hold", value: summaryStats.onHold, color: "text-amber-600", icon: PauseCircle },
+            { label: "Completed", value: summaryStats.completed, color: "text-blue-600", icon: CheckCircle2 },
+            { label: "Cancelled", value: summaryStats.cancelled, color: "text-red-600", icon: XCircle },
+          ].map(({ label, value, color, icon: Icon }) => (
+            <Card key={label} className="shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
+              const filterMap: Record<string, string> = { Total: "all", Planning: "planning", Active: "active", "On Hold": "on_hold", Completed: "completed", Cancelled: "canceled" };
+              setStatusFilter(filterMap[label] || "all");
+            }}>
+              <CardContent className="pt-2.5 pb-2 px-3">
+                <div className="flex items-center justify-between">
+                  <Icon className={`h-4 w-4 ${color || "text-muted-foreground"}`} />
+                  <span className={`text-lg font-bold ${color}`}>{value}</span>
+                </div>
+                <div className="text-[9px] text-muted-foreground mt-0.5">{label}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card>
+          <CardContent className="pt-3 pb-2">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, code, or customer..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-8 text-xs"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="on_hold">On Hold</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="canceled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              {(searchQuery || statusFilter !== "all") && (
+                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {projectsLoading ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mt-2">Loading projects...</p>
+            </CardContent>
+          </Card>
+        ) : filteredProjects.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-lg font-medium">No Projects Found</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {projects?.length === 0 ? "Create your first project to get started." : "No projects match the current filters."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <TooltipProvider>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-6 px-1"></TableHead>
+                        <TableHead className="text-[10px] font-semibold min-w-[60px]">Code</TableHead>
+                        <TableHead className="text-[10px] font-semibold min-w-[200px]">Project Name</TableHead>
+                        <TableHead className="text-[10px] font-semibold min-w-[120px]">Customer</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center w-[80px]">Status</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center w-[80px]">Priority</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[80px]">Start</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center min-w-[80px]">End</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center w-[80px]">Timeline</TableHead>
+                        <TableHead className="text-[10px] font-semibold text-center w-[60px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProjects.map((project) => {
+                        const isExpanded = expandedRows.has(project.id);
+                        const statusCfg = STATUS_CONFIG[project.status] || STATUS_CONFIG.planning;
+                        const StatusIcon = statusCfg.icon;
+                        const daysRemaining = getDaysRemaining(project.targetEndDate);
+                        const isOverdue = daysRemaining !== null && daysRemaining < 0 && project.status !== "completed" && project.status !== "canceled" && project.status !== "cancelled";
+
+                        return (
+                          <TooltipProvider key={project.id}>
+                            <TableRow
+                              className={`cursor-pointer hover:bg-muted/30 transition-colors ${isExpanded ? "bg-muted/20" : ""} ${isOverdue ? "bg-red-50/30" : ""}`}
+                              onClick={() => toggleRow(project.id)}
+                            >
+                              <TableCell className="px-1">
+                                {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </TableCell>
+                              <TableCell className="text-[10px] font-mono font-medium text-primary">{project.projectCode}</TableCell>
+                              <TableCell>
+                                <div className="text-[11px] font-medium truncate max-w-[250px]">{project.projectName}</div>
+                                {project.projectType && <div className="text-[9px] text-muted-foreground">{project.projectType}</div>}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                  <span className="text-[10px] truncate max-w-[120px]">{project.customerName}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className={`text-[9px] px-1.5 py-0 gap-0.5 ${statusCfg.bg}`}>
+                                  <StatusIcon className="h-2.5 w-2.5" />
+                                  {statusCfg.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {project.priority && (
+                                  <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${PRIORITY_CONFIG[project.priority] || ""}`}>
+                                    {project.priority}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center text-[10px] text-muted-foreground">{formatDate(project.startDate)}</TableCell>
+                              <TableCell className="text-center text-[10px] text-muted-foreground">{formatDate(project.targetEndDate)}</TableCell>
+                              <TableCell className="text-center">
+                                {daysRemaining !== null && project.status !== "completed" && project.status !== "canceled" && project.status !== "cancelled" ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className={`text-[9px] px-1 py-0 ${isOverdue ? "bg-red-100 text-red-700 border-red-300" : daysRemaining <= 30 ? "bg-amber-100 text-amber-700 border-amber-300" : "bg-green-100 text-green-700 border-green-300"}`}>
+                                        {isOverdue ? `${Math.abs(daysRemaining)}d late` : `${daysRemaining}d left`}
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">
+                                      Target: {formatDate(project.targetEndDate)}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : project.status === "completed" ? (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">Done</Badge>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-center gap-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/projects/${project.id}`)}>
+                                        <ExternalLink className="h-3 w-3" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">View Details</TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && <ExpandedProjectRow project={project} onEditItem={(item) => handleEditClick(item, project.id)} />}
+                          </TooltipProvider>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TooltipProvider>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Dialog open={newProjectDialogOpen} onOpenChange={setNewProjectDialogOpen}>
           <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
@@ -391,21 +468,17 @@ export default function ProjectsPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="np-customer">Select Customer *</Label>
+                <Label>Select Customer *</Label>
                 <Select value={newProjectData.customerId} onValueChange={(v) => {
                   const selected = customers?.find(c => c.id.toString() === v);
                   const autoName = selected ? `${selected.bpName} - ${selected.bpCode} - ${newProjectData.code}` : "";
                   setNewProjectData(d => ({ ...d, customerId: v, name: autoName }));
                 }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a customer..." />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Choose a customer..." /></SelectTrigger>
                   <SelectContent>
                     {customers && customers.length > 0 ? (
                       customers.map((c) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
-                          {c.bpName} ({c.bpCode})
-                        </SelectItem>
+                        <SelectItem key={c.id} value={c.id.toString()}>{c.bpName} ({c.bpCode})</SelectItem>
                       ))
                     ) : (
                       <SelectItem value="none" disabled>No customers available</SelectItem>
@@ -414,25 +487,23 @@ export default function ProjectsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="np-name">Project Name *</Label>
-                <Input id="np-name" value={newProjectData.name} readOnly className="bg-muted" placeholder="Auto-populated from Customer + Project Code" />
+                <Label>Project Name *</Label>
+                <Input value={newProjectData.name} readOnly className="bg-muted" placeholder="Auto-populated from Customer + Project Code" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="np-code">Project Code *</Label>
-                  <Input id="np-code" value={codeFetching ? "Loading..." : newProjectData.code} readOnly className="bg-muted" />
+                  <Label>Project Code *</Label>
+                  <Input value={codeFetching ? "Loading..." : newProjectData.code} readOnly className="bg-muted" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="np-fy">Financial Year *</Label>
-                  <Input id="np-fy" value={newProjectData.financialYear} readOnly className="bg-muted" />
+                  <Label>Financial Year *</Label>
+                  <Input value={newProjectData.financialYear} readOnly className="bg-muted" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="np-type">Project Type *</Label>
+                <Label>Project Type *</Label>
                 <Select value={newProjectData.projectType} onValueChange={(v) => setNewProjectData(d => ({ ...d, projectType: v }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project type..." />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select project type..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="CPS System">CPS System</SelectItem>
                     <SelectItem value="Equipment">Equipment</SelectItem>
@@ -444,13 +515,13 @@ export default function ProjectsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="np-desc">Description *</Label>
-                <Textarea id="np-desc" value={newProjectData.description} onChange={(e) => setNewProjectData(d => ({ ...d, description: e.target.value }))} placeholder="Brief project description" rows={2} />
+                <Label>Description *</Label>
+                <Textarea value={newProjectData.description} onChange={(e) => setNewProjectData(d => ({ ...d, description: e.target.value }))} placeholder="Brief project description" rows={2} />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="np-start">Start Date *</Label>
-                  <Input id="np-start" type="date" value={newProjectData.startDate} onChange={(e) => {
+                  <Label>Start Date *</Label>
+                  <Input type="date" value={newProjectData.startDate} onChange={(e) => {
                     const startDate = e.target.value;
                     setNewProjectData(d => {
                       if (d.durationMonths && startDate) {
@@ -464,8 +535,8 @@ export default function ProjectsPage() {
                   }} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="np-duration">Duration (Months) *</Label>
-                  <Input id="np-duration" type="number" min="1" max="60" placeholder="e.g. 12" value={newProjectData.durationMonths} onChange={(e) => {
+                  <Label>Duration (Months) *</Label>
+                  <Input type="number" min="1" max="60" placeholder="e.g. 12" value={newProjectData.durationMonths} onChange={(e) => {
                     const months = e.target.value;
                     setNewProjectData(d => {
                       if (months && d.startDate) {
@@ -479,13 +550,13 @@ export default function ProjectsPage() {
                   }} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="np-end">Target End Date</Label>
-                  <Input id="np-end" type="date" value={newProjectData.targetEndDate} onChange={(e) => setNewProjectData(d => ({ ...d, targetEndDate: e.target.value, durationMonths: "" }))} />
+                  <Label>Target End Date</Label>
+                  <Input type="date" value={newProjectData.targetEndDate} onChange={(e) => setNewProjectData(d => ({ ...d, targetEndDate: e.target.value, durationMonths: "" }))} />
                   <p className="text-xs text-muted-foreground">Auto-calculated from duration</p>
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="np-priority">Priority</Label>
+                <Label>Priority</Label>
                 <Select value={newProjectData.priority} onValueChange={(v) => setNewProjectData(d => ({ ...d, priority: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -508,490 +579,240 @@ export default function ProjectsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        
-        {/* Available Projects Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Available Projects
-            </CardTitle>
-            <CardDescription>
-              Select a project from the dropdown to view all associated items
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Project Dropdown */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Select Project</label>
-                <Select value={selectedProjectId} onValueChange={(value) => {
-                  setSelectedProjectId(value);
-                  updateURL(value, keepVisible);
-                }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Choose a project..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectsLoading ? (
-                      <SelectItem value="loading" disabled>
-                        <div className="flex items-center">
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Loading projects...
-                        </div>
-                      </SelectItem>
-                    ) : !projects || projects.length === 0 ? (
-                      <SelectItem value="no-projects" disabled>
-                        No projects available
-                      </SelectItem>
-                    ) : (
-                      projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id.toString()}>
-                          {project.projectName} ({project.projectCode}) – {project.customerName}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
 
-              {/* Keep Visible checkbox */}
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="keep-visible" 
-                  checked={keepVisible}
-                  onCheckedChange={(checked) => {
-                    const isChecked = checked === true;
-                    setKeepVisible(isChecked);
-                    updateURL(selectedProjectId, isChecked);
-                  }}
-                />
-                <Label htmlFor="keep-visible" className="text-sm font-medium">
-                  Keep Visible
-                </Label>
-                <span className="text-xs text-gray-500">
-                  (Maintain project filter when returning from project detail pages)
-                </span>
-              </div>
-            </div>
-
-            {/* Selected Project Info */}
-            {selectedProject && (
-              <Card className="bg-blue-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">{selectedProject.projectName}</h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="w-4 h-4" />
-                          <span>{selectedProject.customerName}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            {new Date(selectedProject.startDate).toLocaleDateString()} - 
-                            {selectedProject.targetEndDate ? new Date(selectedProject.targetEndDate).toLocaleDateString() : 'TBD'}
-                          </span>
-                        </div>
-                      </div>
-                      {selectedProject.description && (
-                        <p className="text-sm text-gray-600 mt-2">{selectedProject.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Select
-                        value={selectedProject.status}
-                        onValueChange={async (newStatus) => {
-                          try {
-                            await apiRequest("PUT", `/api/projects/${selectedProject.id}`, { status: newStatus });
-                            queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
-                            toast({ title: "Status updated", description: `Project status changed to ${newStatus}` });
-                          } catch (err: any) {
-                            toast({ title: "Failed to update status", description: err.message, variant: "destructive" });
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="planning">Planning</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="canceled">Canceled</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(selectedProject)}>
-                        <ArrowRight className="mr-1 h-4 w-4" /> View Details
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Project Items Table */}
-            {selectedProjectId && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Project Items</h3>
-                  <div className="flex items-center gap-4">
-                    {projectItems && (
-                      <Badge variant="outline" className="px-3 py-1">
-                        {filteredProjectItems?.length || 0} of {projectItems.length} {projectItems.length === 1 ? 'item' : 'items'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Search Field */}
-                {projectItems && projectItems.length > 0 && (
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      placeholder="Search items by code, name, status, or make/buy..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                )}
-
-                {itemsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin mr-2" />
-                    <span>Loading project items...</span>
-                  </div>
-                ) : !projectItems || projectItems.length === 0 ? (
-                  <div className="text-center py-12 border rounded-lg">
-                    <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Found</h3>
-                    <p className="text-gray-600">
-                      This project doesn't have any items associated with it yet.
-                    </p>
-                  </div>
-                ) : !filteredProjectItems || filteredProjectItems.length === 0 ? (
-                  <div className="text-center py-12 border rounded-lg">
-                    <Search className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Match Your Search</h3>
-                    <p className="text-gray-600">
-                      Try adjusting your search terms or clear the search to see all items.
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSearchQuery("")}
-                      className="mt-4"
-                    >
-                      Clear Search
-                    </Button>
-                  </div>
-                ) : searchQuery ? (
-                  // Show table view when searching
-                  <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[4%]"></TableHead>
-                          <TableHead>Item Code</TableHead>
-                          <TableHead>Item Name</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>UOM</TableHead>
-                          <TableHead>Make/Buy</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProjectItems.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell className="w-6">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log("Navigate to master item:", item);
-                                  if (item.masterItem?.id) {
-                                    // Store the master item ID and return page in sessionStorage
-                                    sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                    const returnPath = window.location.pathname + window.location.search;
-                                    console.log('Storing return path (projects page):', returnPath);
-                                    sessionStorage.setItem('returnToPage', returnPath);
-                                    // Navigate to Item Master page
-                                    navigate("/item-master");
-                                  } else {
-                                    toast({
-                                      title: "Error",
-                                      description: "Could not find master item information",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                                className="h-6 w-6 p-0"
-                                title="Edit in Master Items"
-                              >
-                                <ArrowRight className="h-4 w-4 text-amber-500" />
-                              </Button>
-                            </TableCell>
-                            <TableCell className="font-medium">{item.masterItem?.itemCode || 'N/A'}</TableCell>
-                            <TableCell>{item.masterItem?.description || 'N/A'}</TableCell>
-                            <TableCell>{item.quantity.toLocaleString()}</TableCell>
-                            <TableCell>{item.masterItem?.uom || 'N/A'}</TableCell>
-                            <TableCell>
-                              <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
-                                {item.masterItem?.makeOrBuy || 'N/A'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={getStatusColor(item.status || 'Not Started')}>
-                                {item.status || 'Not Started'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleEditClick(item)}
-                                  className="h-8 w-8 p-0"
-                                  title="Edit Item"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  // Show hierarchical card view when not searching
-                  <div className="space-y-3">
-                    {organizedProjectItems.map((item, index) => {
-                      const itemWithType = item as ProjectItem & { type?: string };
-                      const isComponent = itemWithType.type === 'component';
-                      
-                      return (
-                        <Card 
-                          key={`${item.id}-${index}`} 
-                          className={`transition-all duration-200 hover:shadow-md ${
-                            isComponent ? 'ml-6 bg-purple-50/30 border-purple-200' : 'bg-green-50/30 border-green-200'
-                          }`}
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-3">
-                                  <Badge className={isComponent ? 'bg-purple-500 hover:bg-purple-600' : 'bg-green-600 hover:bg-green-700'}>
-                                    {isComponent ? '🟪 Component' : '🟩 Parent Assembly'}
-                                  </Badge>
-                                  <span className="font-medium text-gray-900">
-                                    {item.masterItem?.itemCode || 'N/A'}
-                                  </span>
-                                </div>
-                                
-                                <div className="space-y-1">
-                                  <p className="font-medium text-gray-900">
-                                    {item.masterItem?.description || 'N/A'}
-                                  </p>
-                                  
-                                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                                    <span>Qty: <strong>{item.quantity.toLocaleString()}</strong></span>
-                                    <span>Unit: <strong>{item.masterItem?.uom || 'N/A'}</strong></span>
-                                    <Badge className={getMakeOrBuyColor(item.masterItem?.makeOrBuy || '')}>
-                                      {item.masterItem?.makeOrBuy || 'N/A'}
-                                    </Badge>
-                                    <Badge className={getStatusColor(item.status || 'Not Started')}>
-                                      {item.status || 'Not Started'}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-2 ml-4">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log("Navigate to master item:", item);
-                                    if (item.masterItem?.id) {
-                                      // Store the master item ID and return page in sessionStorage
-                                      sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                      const returnPath = window.location.pathname + window.location.search;
-                                      console.log('Storing return path (projects page):', returnPath);
-                                      sessionStorage.setItem('returnToPage', returnPath);
-                                      // Navigate to Item Master page
-                                      navigate("/item-master");
-                                    } else {
-                                      toast({
-                                        title: "Error",
-                                        description: "Could not find master item information",
-                                        variant: "destructive",
-                                      });
-                                    }
-                                  }}
-                                  className="h-8 w-8 p-0"
-                                  title="Edit in Master Items"
-                                >
-                                  <ArrowRight className="h-4 w-4 text-amber-500" />
-                                </Button>
-                                
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleEditClick(item)}
-                                  className="h-8 w-8 p-0"
-                                  title="Edit Item"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Edit Project Item Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Edit Project Item</DialogTitle>
-              <DialogDescription>
-                Update the details for this project item.
-              </DialogDescription>
+              <DialogDescription>Update details for this project item.</DialogDescription>
             </DialogHeader>
             {editingItem && (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="item-code" className="text-right">
-                    Item Code
-                  </Label>
-                  <Input
-                    id="item-code"
-                    value={editingItem.masterItem?.itemCode || 'N/A'}
-                    className="col-span-3"
-                    disabled
-                  />
+              <div className="space-y-3 py-2">
+                <div className="bg-muted/50 rounded-md p-2.5 space-y-1">
+                  <div className="text-[10px] text-muted-foreground">Item</div>
+                  <div className="text-sm font-medium">{editingItem.masterItem?.itemCode} — {editingItem.masterItem?.description}</div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="item-name" className="text-right">
-                    Item Name
-                  </Label>
-                  <Input
-                    id="item-name"
-                    value={editingItem.masterItem?.description || 'N/A'}
-                    className="col-span-3"
-                    disabled
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Quantity *</Label>
+                    <Input type="number" value={formData.quantity} onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))} className="h-8 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Status</Label>
+                    <Select value={formData.status} onValueChange={(v) => setFormData(prev => ({ ...prev, status: v }))}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Not Started">Not Started</SelectItem>
+                        <SelectItem value="In Progress">In Progress</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="On Hold">On Hold</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="quantity" className="text-right">
-                    Quantity *
-                  </Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                    className="col-span-3"
-                    placeholder="Enter quantity"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Estimated Cost</Label>
+                    <Input type="number" value={formData.estimatedCost} onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: e.target.value }))} className="h-8 text-sm" placeholder="₹" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Actual Cost</Label>
+                    <Input type="number" value={formData.actualCost} onChange={(e) => setFormData(prev => ({ ...prev, actualCost: e.target.value }))} className="h-8 text-sm" placeholder="₹" />
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="estimated-cost" className="text-right">
-                    Estimated Cost
-                  </Label>
-                  <Input
-                    id="estimated-cost"
-                    type="number"
-                    value={formData.estimatedCost}
-                    onChange={(e) => setFormData(prev => ({ ...prev, estimatedCost: e.target.value }))}
-                    className="col-span-3"
-                    placeholder="Enter estimated cost"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="actual-cost" className="text-right">
-                    Actual Cost
-                  </Label>
-                  <Input
-                    id="actual-cost"
-                    type="number"
-                    value={formData.actualCost}
-                    onChange={(e) => setFormData(prev => ({ ...prev, actualCost: e.target.value }))}
-                    className="col-span-3"
-                    placeholder="Enter actual cost"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">
-                    Status
-                  </Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Not Started">Not Started</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="On Hold">On Hold</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="notes" className="text-right">
-                    Notes
-                  </Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    className="col-span-3"
-                    placeholder="Enter any notes or comments"
-                    rows={3}
-                  />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Notes</Label>
+                  <Textarea value={formData.notes} onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))} rows={2} className="text-sm" />
                 </div>
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSaveEdit} 
-                disabled={updateItemMutation.isPending || !formData.quantity}
-              >
-                {updateItemMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
-                  </>
-                )}
+              <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveEdit} disabled={updateItemMutation.isPending || !formData.quantity}>
+                {updateItemMutation.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
     </Layout>
+  );
+}
+
+function ExpandedProjectRow({ project, onEditItem }: { project: Project; onEditItem: (item: ProjectItem) => void }) {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [itemSearch, setItemSearch] = useState("");
+
+  const { data: projectItems, isLoading } = useQuery<ProjectItem[]>({
+    queryKey: ["/api/projects", project.id, "items"],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${project.id}/items`);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const { data: virtualComponents } = useQuery<any[]>({
+    queryKey: ["/api/projects", project.id, "virtual-components"],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${project.id}/virtual-components`);
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+  });
+
+  const filteredItems = useMemo(() => {
+    if (!projectItems) return [];
+    if (!itemSearch) return projectItems;
+    const q = itemSearch.toLowerCase();
+    return projectItems.filter(item =>
+      item.masterItem?.itemCode?.toLowerCase().includes(q) ||
+      item.masterItem?.description?.toLowerCase().includes(q) ||
+      item.masterItem?.makeOrBuy?.toLowerCase().includes(q)
+    );
+  }, [projectItems, itemSearch]);
+
+  const itemStats = useMemo(() => {
+    if (!projectItems) return { total: 0, make: 0, buy: 0, components: 0 };
+    return {
+      total: projectItems.length,
+      make: projectItems.filter(i => i.masterItem?.makeOrBuy?.toLowerCase() === "make").length,
+      buy: projectItems.filter(i => i.masterItem?.makeOrBuy?.toLowerCase() === "buy").length,
+      components: virtualComponents?.length || 0,
+    };
+  }, [projectItems, virtualComponents]);
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await apiRequest("PUT", `/api/projects/${project.id}`, { status: newStatus });
+      queryClient.invalidateQueries({ queryKey: ["/api/design/projects"] });
+      toast({ title: "Status updated", description: `Project status changed to ${newStatus}` });
+    } catch (err: any) {
+      toast({ title: "Failed to update status", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <TableRow>
+      <TableCell colSpan={10} className="p-0 bg-muted/10">
+        <div className="p-4 space-y-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              {project.description && <p className="text-xs text-muted-foreground max-w-xl">{project.description}</p>}
+              <div className="flex items-center gap-3 mt-1.5">
+                <div className="flex items-center gap-3 text-[10px]">
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 bg-blue-50 text-blue-700 border-blue-200">
+                    <Hash className="h-2.5 w-2.5" /> {itemStats.total} items
+                  </Badge>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 bg-violet-50 text-violet-700 border-violet-200">
+                    <Wrench className="h-2.5 w-2.5" /> {itemStats.make} Make
+                  </Badge>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <ShoppingCart className="h-2.5 w-2.5" /> {itemStats.buy} Buy
+                  </Badge>
+                  {itemStats.components > 0 && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 bg-purple-50 text-purple-700 border-purple-200">
+                      {itemStats.components} Components
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={project.status} onValueChange={handleStatusChange}>
+                <SelectTrigger className="w-[120px] h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="on_hold">On Hold</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={() => navigate(`/projects/${project.id}`)}>
+                <ExternalLink className="h-3 w-3" /> Details
+              </Button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="py-6 text-center">
+              <Loader2 className="h-5 w-5 mx-auto animate-spin text-muted-foreground" />
+              <p className="text-xs text-muted-foreground mt-1">Loading items...</p>
+            </div>
+          ) : !projectItems || projectItems.length === 0 ? (
+            <div className="py-6 text-center border rounded-md bg-background">
+              <Package className="h-8 w-8 mx-auto text-muted-foreground mb-1.5" />
+              <p className="text-xs text-muted-foreground">No items in this project yet.</p>
+            </div>
+          ) : (
+            <>
+              {projectItems.length > 5 && (
+                <div className="relative max-w-xs">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input placeholder="Search items..." value={itemSearch} onChange={(e) => setItemSearch(e.target.value)} className="pl-7 h-7 text-[10px]" />
+                </div>
+              )}
+              <div className="border rounded-md overflow-hidden bg-background">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="text-[9px] font-semibold w-8"></TableHead>
+                      <TableHead className="text-[9px] font-semibold">Item Code</TableHead>
+                      <TableHead className="text-[9px] font-semibold">Description</TableHead>
+                      <TableHead className="text-[9px] font-semibold text-center w-16">Qty</TableHead>
+                      <TableHead className="text-[9px] font-semibold text-center w-14">UOM</TableHead>
+                      <TableHead className="text-[9px] font-semibold text-center w-16">Class</TableHead>
+                      <TableHead className="text-[9px] font-semibold text-center w-20">Status</TableHead>
+                      <TableHead className="text-[9px] font-semibold text-center w-14">Edit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredItems.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-muted/20">
+                        <TableCell className="px-1">
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => {
+                            if (item.masterItem?.id) {
+                              sessionStorage.setItem("editMasterItemId", item.masterItem.id.toString());
+                              sessionStorage.setItem("returnToPage", "/projects");
+                              navigate("/item-master");
+                            }
+                          }}>
+                            <ArrowRight className="h-3 w-3 text-amber-500" />
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-[10px] font-mono font-medium">{item.masterItem?.itemCode || "—"}</TableCell>
+                        <TableCell className="text-[10px] truncate max-w-[200px]">{item.masterItem?.description || "—"}</TableCell>
+                        <TableCell className="text-[10px] text-center font-mono">{item.quantity?.toLocaleString()}</TableCell>
+                        <TableCell className="text-[10px] text-center text-muted-foreground">{item.masterItem?.uom || "—"}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className={`text-[8px] px-1 py-0 ${item.masterItem?.makeOrBuy?.toLowerCase() === "buy" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : item.masterItem?.makeOrBuy?.toLowerCase() === "make" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                            {item.masterItem?.makeOrBuy || "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className={`text-[8px] px-1 py-0 ${ITEM_STATUS_CONFIG[item.status?.toLowerCase()] || "bg-gray-100 text-gray-600 border-gray-300"}`}>
+                            {item.status || "Not Started"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onEditItem(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
