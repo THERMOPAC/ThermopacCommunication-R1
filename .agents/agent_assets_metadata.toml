@@ -90,3 +90,9 @@ id = "pd8_GrFYWbQ_eF7FlWTLL"
 uri = "file://.local/epc-permission-matrix.md"
 type = "text"
 title = "EPC Permission Matrix — Current Implementation"
+
+[[outputs]]
+id = "M8SOG_w6JdmKhHRIMMXuZ"
+uri = "file://.local/epc-permission-dashboard-plan.md"
+type = "text"
+title = "EPC Permission Control Dashboard — Implementation Plan"
