@@ -168,6 +168,29 @@ export function getErrorAction(error: unknown): string | undefined {
   return undefined;
 }
 
+export async function fetchWithProjectAccess(url: string): Promise<any> {
+  const res = await fetch(url, { credentials: "include" });
+  if (res.status === 403) {
+    const body = await res.json().catch(() => ({}));
+    if (body.code === "PROJECT_ACCESS_DENIED") {
+      throw new ApiError(403, {
+        success: false,
+        errorCode: "PROJECT_ACCESS_DENIED",
+        message: "You do not have access to this project. Contact your administrator to request membership.",
+      });
+    }
+    if (body.code === "PAGE_ACCESS_DENIED") {
+      throw new ApiError(403, {
+        success: false,
+        errorCode: "PAGE_ACCESS_DENIED",
+        message: "You do not have permission to access this page.",
+      });
+    }
+  }
+  await throwIfResNotOk(res);
+  return res.json();
+}
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;

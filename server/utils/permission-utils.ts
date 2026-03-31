@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
-import { modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users, type Module, type User } from '@shared/schema';
+import { modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users, projectMembers, type Module, type User } from '@shared/schema';
 import { roleHierarchy } from '@shared/roles';
 import type { Request, Response, NextFunction } from 'express';
 
@@ -297,6 +297,42 @@ export function requirePageAccess(pageKey: string) {
         error: "Page access denied",
         code: "PAGE_ACCESS_DENIED",
         pageKey
+      });
+    }
+    next();
+  };
+}
+
+export async function checkProjectMembership(userId: number, role: string, projectId: number): Promise<boolean> {
+  const level = roleHierarchy[role] ?? 4;
+  if (role === "Superuser" || level <= 2) return true;
+
+  const rows = await db.select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(and(
+      eq(projectMembers.projectId, projectId),
+      eq(projectMembers.userId, userId),
+      eq(projectMembers.isActive, true)
+    ))
+    .limit(1);
+
+  return rows.length > 0;
+}
+
+export function requireProjectMembership(paramName: string = 'projectId') {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const projectId = parseInt(req.params[paramName]);
+    if (isNaN(projectId)) return res.status(400).json({ error: "Invalid project ID" });
+
+    const isMember = await checkProjectMembership(user.id, user.role, projectId);
+    if (!isMember) {
+      return res.status(403).json({
+        error: "Project access denied",
+        code: "PROJECT_ACCESS_DENIED",
+        projectId
       });
     }
     next();

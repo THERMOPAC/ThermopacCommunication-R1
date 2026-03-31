@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
   Loader2, Search, Filter, ClipboardCheck, ShieldCheck, CheckCircle2,
   XCircle, ChevronDown, ChevronRight, RefreshCw, AlertTriangle,
   Play, CircleCheck, Undo2, Calendar, Eye, Wrench, Lock,
@@ -114,15 +115,15 @@ export default function EpcQualityInspectionPage() {
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
-  const { data: qpRecords = [], isLoading: qpLoading } = useQuery<any[]>({
+  const { data: qpRecords = [], isLoading: qpLoading, error: qpError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "quality-plans"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/quality-plans`, { credentials: "include" }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/quality-plans`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
-  const { data: ieRecords = [], isLoading: ieLoading } = useQuery<any[]>({
+  const { data: ieRecords = [], isLoading: ieLoading, error: ieError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "inspection-executions"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/inspection-executions`, { credentials: "include" }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/inspection-executions`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
@@ -429,6 +430,10 @@ export default function EpcQualityInspectionPage() {
           <p className="text-sm text-muted-foreground">Select a project to view quality & inspection records</p>
         </Card>
       );
+    }
+
+    if (isProjectAccessDenied(qpError) || isProjectAccessDenied(ieError)) {
+      return <ProjectAccessDenied />;
     }
 
     if (isLoading) {

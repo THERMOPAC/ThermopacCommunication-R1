@@ -41,7 +41,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
-import { checkModulePermission, requirePageAccess } from './utils/permission-utils';
+import { checkModulePermission, requirePageAccess, requireProjectMembership } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
@@ -361,7 +361,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Project Phases Routes
-  app.get('/api/projects/:projectId/phases', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/phases', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectIdParam = req.params.projectId;
       
@@ -399,7 +399,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/phases', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/phases', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -465,7 +465,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Project Members Routes
-  app.get('/api/projects/:projectId/members', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/members', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       
@@ -482,7 +482,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/members', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/members', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -517,7 +517,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.delete('/api/projects/:projectId/members/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.delete('/api/projects/:projectId/members/:userId', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const memberUserId = parseInt(req.params.userId);
@@ -547,7 +547,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.put('/api/projects/:projectId/members/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.put('/api/projects/:projectId/members/:userId', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const memberUserId = parseInt(req.params.userId);
@@ -677,7 +677,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Project Tasks Routes
-  app.get('/api/projects/:projectId/tasks', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/tasks', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const tasks = await storage.getProjectTasks(projectId);
@@ -699,7 +699,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/tasks', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/tasks', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -824,7 +824,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Project Key Stages Routes
-  app.get('/api/projects/:projectId/key-stages', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/key-stages', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const keyStages = await storage.getProjectKeyStages(projectId);
@@ -835,7 +835,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
   
-  app.post('/api/projects/:projectId/key-stages', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/key-stages', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -864,7 +864,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
   
-  app.patch('/api/projects/:projectId/key-stages/:stageId', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.patch('/api/projects/:projectId/key-stages/:stageId', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
@@ -905,7 +905,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
   
   // Dedicated endpoint for marking a key stage as completed
-  app.post('/api/projects/:projectId/key-stages/:stageId/complete', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/key-stages/:stageId/complete', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
@@ -920,7 +920,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
   
   // Dedicated endpoint for marking a key stage as incomplete
-  app.post('/api/projects/:projectId/key-stages/:stageId/incomplete', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/key-stages/:stageId/incomplete', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
@@ -935,7 +935,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
   
   // Project Documents Routes
-  app.get('/api/projects/:projectId/documents', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/documents', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const documents = await storage.getProjectDocuments(projectId);
@@ -957,7 +957,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/documents', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/documents', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -1024,7 +1024,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Project Items Routes
-  app.get('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/items', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectIdParam = req.params.projectId;
       console.log('Fetching items for project ID:', projectIdParam);
@@ -1051,7 +1051,7 @@ export function setupProjectRoutes(app: express.Express) {
   });
 
   // Get virtual components for a project
-  app.get('/api/projects/:projectId/virtual-components', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/virtual-components', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       
@@ -1105,7 +1105,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/items', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
@@ -1541,7 +1541,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.delete('/api/projects/:projectId/items', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.delete('/api/projects/:projectId/items', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectIdParam = req.params.projectId;
       const userId = req.user!.id;
@@ -1789,7 +1789,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Planning Record Lifecycle Routes ─────────────────────────────────────
 
-  app.get('/api/projects/:projectId/planning-records', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/planning-records', ensureAuthenticated, requirePageAccess('planning-control'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -2333,7 +2333,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Procurement Execution Record Lifecycle Routes ─────────────────────────
 
-  app.get('/api/projects/:projectId/procurement-executions', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/procurement-executions', ensureAuthenticated, requirePageAccess('procurement-production'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -2883,7 +2883,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Production Execution Record Lifecycle Routes ──────────────────────────
 
-  app.get('/api/projects/:projectId/production-executions', ensureAuthenticated, requirePageAccess('procurement-production'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/production-executions', ensureAuthenticated, requirePageAccess('procurement-production'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -3430,7 +3430,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Quality Planning Record Lifecycle Routes ──────────────────────────────
 
-  app.get('/api/projects/:projectId/quality-plans', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/quality-plans', ensureAuthenticated, requirePageAccess('quality-inspection'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -3716,7 +3716,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── Inspection Execution Record Lifecycle Routes ──────────────────────────
 
-  app.get('/api/projects/:projectId/inspection-executions', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/inspection-executions', ensureAuthenticated, requirePageAccess('quality-inspection'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -4229,7 +4229,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── PO Preparation Record Lifecycle Routes ──────────────────────────────
 
-  app.get('/api/projects/:projectId/po-preparations', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/po-preparations', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -4517,7 +4517,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── WO Preparation Record Lifecycle Routes ──────────────────────────────
 
-  app.get('/api/projects/:projectId/wo-preparations', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/wo-preparations', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -4806,7 +4806,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── EPC Purchase Order Routes ──────────────────────────────────────────
 
-  app.get('/api/projects/:projectId/epc-purchase-orders', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/epc-purchase-orders', ensureAuthenticated, requirePageAccess('purchase-orders'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -5167,7 +5167,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ─── EPC Work Order Routes ──────────────────────────────────────────────
 
-  app.get('/api/projects/:projectId/epc-work-orders', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/epc-work-orders', ensureAuthenticated, requirePageAccess('work-orders'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) return sendValidationError(res, 'Invalid project ID');
@@ -5532,7 +5532,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC DISPATCH READINESS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -5588,7 +5588,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/dispatch-readiness', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const projectId = parseInt(req.params.projectId);
@@ -5952,7 +5952,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC DISPATCH RECORDS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -6012,7 +6012,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -6381,7 +6381,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC COMMISSIONING / HANDOVER READINESS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -6441,7 +6441,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -6928,7 +6928,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC INVOICE TRIGGER / BILLING READINESS BRIDGE ====================
 
-  app.get('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -6992,7 +6992,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -7375,7 +7375,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC ACTUAL INVOICE BRIDGE ====================
 
-  app.get('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const result = await db.execute(
@@ -7439,7 +7439,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
@@ -7843,7 +7843,7 @@ export function setupProjectRoutes(app: express.Express) {
 
   // ==================== EPC DRAWING CONTROL LAYER ====================
 
-  app.get('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const results = await db.execute(
@@ -7866,7 +7866,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -8607,7 +8607,7 @@ export function setupProjectRoutes(app: express.Express) {
 
 
 
-  app.get('/api/projects/:projectId/bom-headers', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
+  app.get('/api/projects/:projectId/bom-headers', ensureAuthenticated, requirePageAccess('bom-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const { bomType, status, projectItemId } = req.query;
@@ -8652,7 +8652,7 @@ export function setupProjectRoutes(app: express.Express) {
     }
   });
 
-  app.post('/api/projects/:projectId/bom-headers', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
+  app.post('/api/projects/:projectId/bom-headers', ensureAuthenticated, requirePageAccess('bom-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;

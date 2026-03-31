@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
   Loader2, Search, Filter, FileText, CheckCircle2, ShieldCheck,
   XCircle, ChevronDown, ChevronRight, RefreshCw, AlertTriangle,
   ClipboardList, Send, UserCheck, Rocket, Package, Factory, Ban,
@@ -93,9 +94,9 @@ export default function EpcPlanningControlPage() {
   const [actionNote, setActionNote] = useState("");
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
-  const { data: records = [], isLoading } = useQuery<any[]>({
+  const { data: records = [], isLoading, error: recordsError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "planning-records"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/planning-records`, { credentials: "include" }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/planning-records`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
@@ -252,6 +253,8 @@ export default function EpcPlanningControlPage() {
             <ClipboardList className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">Select a project to view planning records</p>
           </Card>
+        ) : isProjectAccessDenied(recordsError) ? (
+          <ProjectAccessDenied />
         ) : isLoading ? (
           <div className="py-12 text-center"><Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (

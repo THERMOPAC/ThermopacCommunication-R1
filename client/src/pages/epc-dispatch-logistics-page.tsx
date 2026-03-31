@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
   Loader2, Search, Filter, Truck, Package, CheckCircle2,
   XCircle, ChevronDown, ChevronRight, RefreshCw, AlertTriangle,
   Play, CircleCheck, MapPin, Clock, Ship, Archive,
@@ -111,15 +112,15 @@ export default function EpcDispatchLogisticsPage() {
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
-  const { data: drRecords = [], isLoading: drLoading } = useQuery<any[]>({
+  const { data: drRecords = [], isLoading: drLoading, error: drError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "dispatch-readiness"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/dispatch-readiness`, { credentials: "include" }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/dispatch-readiness`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
-  const { data: dspRecords = [], isLoading: dspLoading } = useQuery<any[]>({
+  const { data: dspRecords = [], isLoading: dspLoading, error: dspError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "dispatch-records"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/dispatch-records`, { credentials: "include" }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/dispatch-records`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
@@ -471,6 +472,10 @@ export default function EpcDispatchLogisticsPage() {
           <p className="text-sm text-muted-foreground">Select a project to view dispatch & logistics records</p>
         </Card>
       );
+    }
+
+    if (isProjectAccessDenied(drError) || isProjectAccessDenied(dspError)) {
+      return <ProjectAccessDenied />;
     }
 
     if (isLoading) {

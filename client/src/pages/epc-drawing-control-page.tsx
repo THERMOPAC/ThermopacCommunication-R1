@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import {
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
   Loader2, Search, Filter, PenTool, Plus, Edit, Send, CheckCircle2, ShieldCheck,
   Unlock, XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, FileText, Eye, Lock, UserCheck,
@@ -181,14 +182,14 @@ export default function EpcDrawingControlPage() {
   });
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
-  const { data: drawingControls = [], isLoading } = useQuery<DrawingControl[]>({
+  const { data: drawingControls = [], isLoading, error: recordsError } = useQuery<DrawingControl[]>({
     queryKey: ["/api/projects", projectId, "drawing-controls"],
-    queryFn: () => fetch(`/api/projects/${projectId}/drawing-controls`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
     enabled: !!projectId,
   });
   const { data: projectItems = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "items"],
-    queryFn: () => fetch(`/api/projects/${projectId}/items`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/items`),
     enabled: !!projectId,
   });
 
@@ -396,6 +397,8 @@ export default function EpcDrawingControlPage() {
 
           {!projectId ? (
             <Card><CardContent className="py-12 text-center text-sm text-muted-foreground">Select a project to view drawing controls.</CardContent></Card>
+          ) : isProjectAccessDenied(recordsError) ? (
+            <ProjectAccessDenied />
           ) : isLoading ? (
             <div className="py-12 text-center"><Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" /></div>
           ) : (

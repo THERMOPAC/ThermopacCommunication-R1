@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
   Loader2, Search, Filter, Layers, Plus, Edit, Send, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
   RefreshCw, AlertTriangle, FileText, Eye, Lock, Trash2, History,
@@ -116,15 +117,15 @@ export default function EpcBomControlPage() {
   const [lineForm, setLineForm] = useState({ componentItemId: "", quantityPerUnit: "1", componentSpecification: "", estimatedUnitCost: "", procurementLeadTimeDays: "", preferredVendor: "", notes: "" });
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
-  const { data: bomHeaders = [], isLoading } = useQuery<any[]>({
+  const { data: bomHeaders = [], isLoading, error: recordsError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "bom-headers"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/bom-headers`).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/bom-headers`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
   const { data: projectItems = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "items"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/items`).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/items`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
@@ -479,6 +480,8 @@ export default function EpcBomControlPage() {
 
         {!selectedProjectId ? (
           <Card className="shadow-sm"><CardContent className="p-8 text-center text-muted-foreground text-sm">Select a project to view its BOM controls.</CardContent></Card>
+        ) : isProjectAccessDenied(recordsError) ? (
+          <ProjectAccessDenied />
         ) : isLoading ? (
           <Card className="shadow-sm"><CardContent className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>
         ) : (

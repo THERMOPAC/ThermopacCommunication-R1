@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
   Loader2, Search, Filter, Wrench, CheckCircle2, XCircle, ChevronDown,
   ChevronRight, RefreshCw, AlertTriangle, Play, CircleCheck, MapPin,
   ClipboardList, Lock, ListChecks, HandMetal, Settings,
@@ -113,9 +114,9 @@ export default function EpcCommissioningHandoverPage() {
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
 
-  const { data: crRecords = [], isLoading } = useQuery<any[]>({
+  const { data: crRecords = [], isLoading, error: recordsError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "commissioning-readiness"],
-    queryFn: () => selectedProjectId ? fetch(`/api/projects/${selectedProjectId}/commissioning-readiness`, { credentials: "include" }).then(r => r.json()) : Promise.resolve([]),
+    queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/commissioning-readiness`) : Promise.resolve([]),
     enabled: !!selectedProjectId,
   });
 
@@ -483,6 +484,8 @@ export default function EpcCommissioningHandoverPage() {
             <Wrench className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">Select a project to view commissioning & handover records</p>
           </Card>
+        ) : isProjectAccessDenied(recordsError) ? (
+          <ProjectAccessDenied />
         ) : isLoading ? (
           <div className="py-12 text-center"><Loader2 className="h-6 w-6 mx-auto animate-spin text-muted-foreground" /></div>
         ) : filtered.length === 0 ? (

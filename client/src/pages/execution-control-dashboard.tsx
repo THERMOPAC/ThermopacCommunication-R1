@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { usePagePermissions } from "@/hooks/use-page-permissions";
+import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
 import Layout from "@/components/layout";
 import { Helmet } from "react-helmet";
 import EpcDocumentPanel from "@/components/epc-document-panel";
@@ -685,105 +686,105 @@ export default function ExecutionControlDashboard() {
 
   const projectId = selectedProjectId ? parseInt(selectedProjectId) : null;
 
-  const { data: projectItems = [], isLoading: loadingItems } = useQuery<any[]>({
+  const { data: projectItems = [], isLoading: loadingItems, error: itemsError } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "items"],
-    queryFn: () => fetch(`/api/projects/${projectId}/items`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/items`),
     enabled: !!projectId,
   });
 
   const { data: planningRecords = [], isLoading: loadingPlanning } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "planning-records"],
-    queryFn: () => fetch(`/api/projects/${projectId}/planning-records`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/planning-records`),
     enabled: !!projectId,
   });
 
   const { data: procExecs = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "procurement-executions"],
-    queryFn: () => fetch(`/api/projects/${projectId}/procurement-executions`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/procurement-executions`),
     enabled: !!projectId,
   });
 
   const { data: prodExecs = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "production-executions"],
-    queryFn: () => fetch(`/api/projects/${projectId}/production-executions`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/production-executions`),
     enabled: !!projectId,
   });
 
   const { data: qualityPlans = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "quality-plans"],
-    queryFn: () => fetch(`/api/projects/${projectId}/quality-plans`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/quality-plans`),
     enabled: !!projectId,
   });
 
   const { data: poPreps = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "po-preparations"],
-    queryFn: () => fetch(`/api/projects/${projectId}/po-preparations`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/po-preparations`),
     enabled: !!projectId,
   });
 
   const { data: woPreps = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "wo-preparations"],
-    queryFn: () => fetch(`/api/projects/${projectId}/wo-preparations`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/wo-preparations`),
     enabled: !!projectId,
   });
 
   const { data: inspExecs = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "inspection-executions"],
-    queryFn: () => fetch(`/api/projects/${projectId}/inspection-executions`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/inspection-executions`),
     enabled: !!projectId,
   });
 
   const { data: dispatchReadiness = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "dispatch-readiness"],
-    queryFn: () => fetch(`/api/projects/${projectId}/dispatch-readiness`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/dispatch-readiness`),
     enabled: !!projectId,
   });
 
   const { data: dispatchRecords = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "dispatch-records"],
-    queryFn: () => fetch(`/api/projects/${projectId}/dispatch-records`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/dispatch-records`),
     enabled: !!projectId,
   });
 
   const { data: commissioningReadiness = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "commissioning-readiness"],
-    queryFn: () => fetch(`/api/projects/${projectId}/commissioning-readiness`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/commissioning-readiness`),
     enabled: !!projectId,
   });
 
   const { data: billingReadiness = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "billing-readiness"],
-    queryFn: () => fetch(`/api/projects/${projectId}/billing-readiness`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/billing-readiness`),
     enabled: !!projectId,
   });
 
   const { data: epcInvoices = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "epc-invoices"],
-    queryFn: () => fetch(`/api/projects/${projectId}/epc-invoices`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/epc-invoices`),
     enabled: !!projectId,
   });
 
   const { data: drawingControls = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "drawing-controls"],
-    queryFn: () => fetch(`/api/projects/${projectId}/drawing-controls`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
     enabled: !!projectId,
   });
 
   const { data: bomHeaders = [] } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "bom-headers"],
-    queryFn: () => fetch(`/api/projects/${projectId}/bom-headers`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/bom-headers`),
     enabled: !!projectId,
   });
 
   const { data: epcPurchaseOrders = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "epc-purchase-orders"],
-    queryFn: () => fetch(`/api/projects/${projectId}/epc-purchase-orders`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/epc-purchase-orders`),
     enabled: !!projectId,
   });
 
   const { data: epcWorkOrders = [] } = useQuery<PipelineRecord[]>({
     queryKey: ["/api/projects", projectId, "epc-work-orders"],
-    queryFn: () => fetch(`/api/projects/${projectId}/epc-work-orders`).then(r => r.json()),
+    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/epc-work-orders`),
     enabled: !!projectId,
   });
 
@@ -1072,6 +1073,7 @@ export default function ExecutionControlDashboard() {
   }
 
   const isLoading = loadingProjects || (projectId && loadingItems) || (projectId && loadingPlanning);
+  const projectAccessDenied = isProjectAccessDenied(itemsError);
 
   function toggleRow(itemId: number) {
     setExpandedRows(prev => {
@@ -1811,6 +1813,8 @@ export default function ExecutionControlDashboard() {
               <p className="text-sm text-muted-foreground mt-1">Choose a project above to view its execution control pipeline</p>
             </CardContent>
           </Card>
+        ) : projectAccessDenied ? (
+          <ProjectAccessDenied />
         ) : isLoading ? (
           <Card>
             <CardContent className="py-12 text-center">
