@@ -17,11 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Loader2, Search, Filter, AlertTriangle, Clock, CheckCircle2, XCircle,
   ChevronDown, ChevronRight, RefreshCw, FileText, Package, ClipboardCheck,
   ShoppingCart, Factory, Eye, Truck, Wrench, Receipt, DollarSign,
-  ArrowRight, Minus, PenTool, List, ExternalLink,
+  ArrowRight, Minus, PenTool, List, ExternalLink, Scale, Link2,
 } from "lucide-react";
 import { roleHierarchy } from "@shared/roles";
 
@@ -174,6 +175,260 @@ function PipelineProgressBar({ row }: { row: any }) {
       <span className="text-[9px] text-muted-foreground">{pct}%</span>
     </div>
   );
+}
+
+type ReconciliationFinding = {
+  type: "shortage" | "overage" | "missing_downstream" | "orphan" | "stage_mismatch" | "amount_mismatch";
+  severity: "critical" | "warning" | "info";
+  layer: string;
+  label: string;
+  sourceRef?: string;
+  sourceQty?: number;
+  targetRef?: string;
+  targetQty?: number;
+  sourceAmount?: number;
+  targetAmount?: number;
+};
+
+const RECON_STYLES: Record<string, { bg: string; icon: any }> = {
+  shortage: { bg: "bg-red-50 text-red-700 border-red-200", icon: AlertTriangle },
+  overage: { bg: "bg-amber-50 text-amber-700 border-amber-200", icon: Scale },
+  missing_downstream: { bg: "bg-orange-50 text-orange-700 border-orange-200", icon: Link2 },
+  orphan: { bg: "bg-purple-50 text-purple-700 border-purple-200", icon: XCircle },
+  stage_mismatch: { bg: "bg-yellow-50 text-yellow-700 border-yellow-200", icon: ArrowRight },
+  amount_mismatch: { bg: "bg-pink-50 text-pink-700 border-pink-200", icon: DollarSign },
+};
+
+function getReconciliationFindings(row: any): ReconciliationFinding[] {
+  const findings: ReconciliationFinding[] = [];
+  const { plan, exec, prep, po, wo, insp, disp, dispRec, comm, bill, inv, bom, isBuy, item } = row;
+  const itemQty = parseFloat(item?.quantity || plan?.quantity || "0") || 0;
+  if (itemQty === 0) return findings;
+
+  const orderRecord = isBuy ? po : wo;
+  const orderQty = orderRecord ? (parseFloat(orderRecord.quantity || "0") || 0) : 0;
+  const orderRef = orderRecord ? (orderRecord.po_number || orderRecord.wo_number || `#${orderRecord.id}`) : null;
+
+  if (prep && !["superseded", "cancelled"].includes(prep.status)) {
+    const readyStatuses = isBuy
+      ? ["ready_for_po_creation", "completed"]
+      : ["ready_for_wo_creation", "completed"];
+    if (readyStatuses.includes(prep.status) && !orderRecord) {
+      findings.push({
+        type: "missing_downstream",
+        severity: "warning",
+        layer: isBuy ? "purchase_order" : "work_order",
+        label: `${isBuy ? "PO" : "WO"} Prep ready but no ${isBuy ? "PO" : "WO"} created`,
+        sourceRef: prep.po_prep_number || prep.wo_prep_number || `Prep #${prep.id}`,
+      });
+    }
+  }
+
+  if (orderRecord && !["superseded", "cancelled"].includes(orderRecord.status)) {
+    if (orderQty > 0 && itemQty > 0) {
+      if (orderQty < itemQty) {
+        findings.push({
+          type: "shortage",
+          severity: "critical",
+          layer: isBuy ? "purchase_order" : "work_order",
+          label: `${isBuy ? "PO" : "WO"} qty ${orderQty} < item qty ${itemQty}`,
+          sourceRef: `Item: ${itemQty}`,
+          sourceQty: itemQty,
+          targetRef: orderRef || undefined,
+          targetQty: orderQty,
+        });
+      } else if (orderQty > itemQty * 1.1) {
+        findings.push({
+          type: "overage",
+          severity: "warning",
+          layer: isBuy ? "purchase_order" : "work_order",
+          label: `${isBuy ? "PO" : "WO"} qty ${orderQty} > item qty ${itemQty} (+${Math.round(((orderQty - itemQty) / itemQty) * 100)}%)`,
+          sourceRef: `Item: ${itemQty}`,
+          sourceQty: itemQty,
+          targetRef: orderRef || undefined,
+          targetQty: orderQty,
+        });
+      }
+    }
+  }
+
+  if (orderRecord && !["superseded", "cancelled", "draft"].includes(orderRecord.status) && !insp) {
+    if (["approved", "issued", "released"].includes(orderRecord.status)) {
+      findings.push({
+        type: "missing_downstream",
+        severity: "info",
+        layer: "inspection",
+        label: `${isBuy ? "PO" : "WO"} ${orderRecord.status} but no inspection`,
+        sourceRef: orderRef || undefined,
+      });
+    }
+  }
+
+  const dispQty = disp ? (parseFloat(disp.dispatch_quantity || disp.quantity || "0") || 0) : 0;
+  if (disp && !["superseded", "cancelled"].includes(disp.status)) {
+    if (dispQty > 0 && orderQty > 0 && dispQty > orderQty * 1.1) {
+      findings.push({
+        type: "overage",
+        severity: "warning",
+        layer: "dispatch",
+        label: `Dispatch qty ${dispQty} > ${isBuy ? "PO" : "WO"} qty ${orderQty}`,
+        sourceRef: orderRef || undefined,
+        sourceQty: orderQty,
+        targetRef: disp.dr_number || `DR #${disp.id}`,
+        targetQty: dispQty,
+      });
+    }
+    if (dispQty > 0 && dispQty < itemQty * 0.9 && disp.status === "dispatched") {
+      findings.push({
+        type: "shortage",
+        severity: "warning",
+        layer: "dispatch",
+        label: `Partial dispatch: ${dispQty} of ${itemQty}`,
+        sourceRef: `Item: ${itemQty}`,
+        sourceQty: itemQty,
+        targetRef: disp.dr_number || `DR #${disp.id}`,
+        targetQty: dispQty,
+      });
+    }
+    if (disp.status === "dispatched" && !dispRec) {
+      findings.push({
+        type: "missing_downstream",
+        severity: "warning",
+        layer: "dispatch_record",
+        label: "Dispatched but no dispatch record",
+        sourceRef: disp.dr_number || `DR #${disp.id}`,
+      });
+    }
+  }
+
+  if (dispRec && !["superseded", "cancelled"].includes(dispRec.status)) {
+    const recQty = parseFloat(dispRec.dispatch_quantity || dispRec.quantity || "0") || 0;
+    if (recQty > 0 && dispQty > 0 && Math.abs(recQty - dispQty) > 0.01) {
+      findings.push({
+        type: "stage_mismatch",
+        severity: recQty < dispQty ? "warning" : "info",
+        layer: "dispatch_record",
+        label: `Record qty ${recQty} ≠ readiness qty ${dispQty}`,
+        sourceRef: disp?.dr_number || undefined,
+        sourceQty: dispQty,
+        targetRef: dispRec.dispatch_number || `DSP #${dispRec.id}`,
+        targetQty: recQty,
+      });
+    }
+    if (["delivered"].includes(dispRec.status) && !comm) {
+      findings.push({
+        type: "missing_downstream",
+        severity: "warning",
+        layer: "commissioning",
+        label: "Delivered but no commissioning record",
+        sourceRef: dispRec.dispatch_number || `DSP #${dispRec.id}`,
+      });
+    }
+  }
+
+  if (comm && !["superseded", "cancelled"].includes(comm.status)) {
+    const commQty = parseFloat(comm.quantity || "0") || 0;
+    const sourceQty = dispRec ? (parseFloat(dispRec.dispatch_quantity || dispRec.quantity || "0") || 0) : dispQty;
+    if (commQty > 0 && sourceQty > 0 && Math.abs(commQty - sourceQty) > 0.01) {
+      findings.push({
+        type: "stage_mismatch",
+        severity: "info",
+        layer: "commissioning",
+        label: `Comm qty ${commQty} ≠ dispatch qty ${sourceQty}`,
+        sourceRef: dispRec?.dispatch_number || disp?.dr_number || undefined,
+        sourceQty: sourceQty,
+        targetRef: comm.cr_number || `CR #${comm.id}`,
+        targetQty: commQty,
+      });
+    }
+    if (["handed_over", "closed"].includes(comm.status) && !bill) {
+      findings.push({
+        type: "missing_downstream",
+        severity: "critical",
+        layer: "billing",
+        label: "Handed over but no billing record",
+        sourceRef: comm.cr_number || `CR #${comm.id}`,
+      });
+    }
+  }
+
+  if (bill && !["superseded", "cancelled"].includes(bill.status)) {
+    if (["ready_for_invoice", "invoiced"].includes(bill.status) && !inv) {
+      findings.push({
+        type: "missing_downstream",
+        severity: "critical",
+        layer: "invoice",
+        label: "Billing ready but no invoice created",
+        sourceRef: bill.br_number || `BR #${bill.id}`,
+      });
+    }
+  }
+
+  if (bill && inv && !["superseded", "cancelled"].includes(bill.status) && !["superseded", "cancelled"].includes(inv.status)) {
+    const billAmt = parseFloat(bill.gross_amount || bill.total_amount || "0") || 0;
+    const invAmt = parseFloat(inv.gross_amount || inv.total_amount || "0") || 0;
+    if (billAmt > 0 && invAmt > 0 && Math.abs(billAmt - invAmt) > 1) {
+      findings.push({
+        type: "amount_mismatch",
+        severity: Math.abs(billAmt - invAmt) / Math.max(billAmt, invAmt) > 0.05 ? "warning" : "info",
+        layer: "invoice",
+        label: `Bill ₹${Math.round(billAmt).toLocaleString("en-IN")} ≠ Inv ₹${Math.round(invAmt).toLocaleString("en-IN")}`,
+        sourceRef: bill.br_number || `BR #${bill.id}`,
+        sourceAmount: billAmt,
+        targetRef: inv.invoice_number || `INV #${inv.id}`,
+        targetAmount: invAmt,
+      });
+    }
+  }
+
+  if (inv && !["superseded", "cancelled"].includes(inv.status) && ["issued", "partially_paid"].includes(inv.status)) {
+    const outstanding = parseFloat(inv.amount_outstanding || "0") || 0;
+    const totalAmt = parseFloat(inv.gross_amount || inv.total_amount || "0") || 0;
+    const paid = parseFloat(inv.amount_paid || "0") || 0;
+    if (totalAmt > 0 && paid > totalAmt) {
+      findings.push({
+        type: "overage",
+        severity: "warning",
+        layer: "payment",
+        label: `Overpaid: ₹${Math.round(paid).toLocaleString("en-IN")} on ₹${Math.round(totalAmt).toLocaleString("en-IN")}`,
+        sourceRef: inv.invoice_number || `INV #${inv.id}`,
+        sourceAmount: totalAmt,
+        targetAmount: paid,
+      });
+    }
+  }
+
+  if (orderRecord && !["superseded", "cancelled"].includes(orderRecord.status) && !prep) {
+    findings.push({
+      type: "orphan",
+      severity: "info",
+      layer: isBuy ? "purchase_order" : "work_order",
+      label: `${isBuy ? "PO" : "WO"} exists without preparation record`,
+      sourceRef: orderRef || undefined,
+    });
+  }
+
+  if (disp && !orderRecord && !["superseded", "cancelled"].includes(disp.status)) {
+    findings.push({
+      type: "orphan",
+      severity: "warning",
+      layer: "dispatch",
+      label: `Dispatch without ${isBuy ? "PO" : "WO"}`,
+      sourceRef: disp.dr_number || `DR #${disp.id}`,
+    });
+  }
+
+  if (bill && !comm && !["superseded", "cancelled"].includes(bill.status) && bill.billing_basis !== "milestone") {
+    findings.push({
+      type: "orphan",
+      severity: "info",
+      layer: "billing",
+      label: "Billing without commissioning",
+      sourceRef: bill.br_number || `BR #${bill.id}`,
+    });
+  }
+
+  return findings;
 }
 
 const AGING_THRESHOLD_DAYS = 3;
@@ -391,6 +646,10 @@ export default function ExecutionControlDashboard() {
   const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
+  const [dashboardTab, setDashboardTab] = useState<string>("pipeline");
+  const [reconTypeFilter, setReconTypeFilter] = useState<string>("all");
+  const [reconSeverityFilter, setReconSeverityFilter] = useState<string>("all");
+  const [reconLayerFilter, setReconLayerFilter] = useState<string>("all");
   const [actionDialog, setActionDialog] = useState<ActionDialogState>({
     open: false, action: "", layer: "", recordId: 0, recordStatus: "",
     itemDesc: "", needsNote: false, noteLabel: "", endpoint: "", bodyKey: "",
@@ -514,6 +773,18 @@ export default function ExecutionControlDashboard() {
     enabled: !!projectId,
   });
 
+  const { data: epcPurchaseOrders = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "epc-purchase-orders"],
+    queryFn: () => fetch(`/api/projects/${projectId}/epc-purchase-orders`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
+  const { data: epcWorkOrders = [] } = useQuery<PipelineRecord[]>({
+    queryKey: ["/api/projects", projectId, "epc-work-orders"],
+    queryFn: () => fetch(`/api/projects/${projectId}/epc-work-orders`).then(r => r.json()),
+    enabled: !!projectId,
+  });
+
   const actionMutation = useMutation({
     mutationFn: async ({ endpoint, body }: { endpoint: string; body: any }) => {
       return apiRequest("POST", endpoint, body);
@@ -536,6 +807,7 @@ export default function ExecutionControlDashboard() {
       "quality-plans", "po-preparations", "wo-preparations", "inspection-executions",
       "dispatch-readiness", "dispatch-records", "commissioning-readiness",
       "billing-readiness", "epc-invoices", "drawing-controls", "bom-headers",
+      "epc-purchase-orders", "epc-work-orders",
     ];
     keys.forEach(k => queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, k] }));
     queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "items"] });
@@ -663,6 +935,8 @@ export default function ExecutionControlDashboard() {
       const exec = isBuy ? findActive(procExecs, itemId) : findActive(prodExecs, itemId);
       const qp = findActive(qualityPlans, itemId);
       const prep = isBuy ? findActive(poPreps, itemId) : findActive(woPreps, itemId);
+      const po = isBuy ? findActive(epcPurchaseOrders, itemId) : null;
+      const wo = !isBuy ? findActive(epcWorkOrders, itemId) : null;
       const insp = findActive(inspExecs, itemId);
       const disp = findActive(dispatchReadiness, itemId);
       const dispRec = findActive(dispatchRecords, itemId);
@@ -679,15 +953,17 @@ export default function ExecutionControlDashboard() {
       const itemDesc = plan?.item_description || exec?.item_description || item.masterItem?.description || "";
 
       const row = {
-        itemId, item, plan, exec, qp, prep, insp, disp, dispRec, comm, bill, inv,
+        itemId, item, plan, exec, qp, prep, po, wo, insp, disp, dispRec, comm, bill, inv,
         dc, bom, engWarnings, applicability,
         classification, isBuy, itemCode, itemDesc,
         exceptions: [] as any[],
+        reconciliation: [] as ReconciliationFinding[],
       };
       row.exceptions = getExceptions(row);
+      row.reconciliation = getReconciliationFindings(row);
       return row;
     });
-  }, [projectItems, planningRecords, procExecs, prodExecs, qualityPlans, poPreps, woPreps, inspExecs, dispatchReadiness, dispatchRecords, commissioningReadiness, billingReadiness, epcInvoices, drawingControls, bomHeaders]);
+  }, [projectItems, planningRecords, procExecs, prodExecs, qualityPlans, poPreps, woPreps, inspExecs, dispatchReadiness, dispatchRecords, commissioningReadiness, billingReadiness, epcInvoices, drawingControls, bomHeaders, epcPurchaseOrders, epcWorkOrders]);
 
   const filteredRows = useMemo(() => {
     return pipelineRows.filter((row) => {
@@ -747,8 +1023,33 @@ export default function ExecutionControlDashboard() {
     const engWarningCount = pipelineRows.filter(r => r.engWarnings.length > 0).length;
     const dwgReleasedCount = pipelineRows.filter(r => r.dc?.status === "released").length;
     const bomReleasedCount = pipelineRows.filter(r => r.bom?.status === "released").length;
-    return { total, withExceptions, overdueCount, gapCount, blockedCount, buyCount, makeCount, completedInsp, failedInsp, dispatchedCount, shippedCount, deliveredCount, commissionedCount, punchListCount, handedOverCount, invoicedCount, paidCount, outstandingAmount, engWarningCount, dwgReleasedCount, bomReleasedCount };
+    const reconTotal = pipelineRows.reduce((s, r) => s + r.reconciliation.length, 0);
+    const reconCritical = pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.severity === "critical").length, 0);
+    const reconWarning = pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.severity === "warning").length, 0);
+    const reconInfo = pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.severity === "info").length, 0);
+    const reconByType = {
+      shortage: pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.type === "shortage").length, 0),
+      overage: pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.type === "overage").length, 0),
+      missing_downstream: pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.type === "missing_downstream").length, 0),
+      orphan: pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.type === "orphan").length, 0),
+      stage_mismatch: pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.type === "stage_mismatch").length, 0),
+      amount_mismatch: pipelineRows.reduce((s, r) => s + r.reconciliation.filter((f: ReconciliationFinding) => f.type === "amount_mismatch").length, 0),
+    };
+    const itemsWithFindings = pipelineRows.filter(r => r.reconciliation.length > 0).length;
+    return { total, withExceptions, overdueCount, gapCount, blockedCount, buyCount, makeCount, completedInsp, failedInsp, dispatchedCount, shippedCount, deliveredCount, commissionedCount, punchListCount, handedOverCount, invoicedCount, paidCount, outstandingAmount, engWarningCount, dwgReleasedCount, bomReleasedCount, reconTotal, reconCritical, reconWarning, reconInfo, reconByType, itemsWithFindings };
   }, [pipelineRows]);
+
+  const reconFilteredRows = useMemo(() => {
+    return pipelineRows.filter(r => r.reconciliation.length > 0).map(r => ({
+      ...r,
+      filteredFindings: r.reconciliation.filter((f: ReconciliationFinding) => {
+        if (reconTypeFilter !== "all" && f.type !== reconTypeFilter) return false;
+        if (reconSeverityFilter !== "all" && f.severity !== reconSeverityFilter) return false;
+        if (reconLayerFilter !== "all" && f.layer !== reconLayerFilter) return false;
+        return true;
+      }),
+    })).filter(r => r.filteredFindings.length > 0);
+  }, [pipelineRows, reconTypeFilter, reconSeverityFilter, reconLayerFilter]);
 
   function openActionDialog(action: any, layer: string, record: PipelineRecord, itemDesc: string) {
     setActionDialog({
@@ -1167,6 +1468,39 @@ export default function ExecutionControlDashboard() {
                 )}
               </div>
             )}
+            {row.reconciliation.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Scale className="h-3.5 w-3.5 text-amber-600" />
+                  <span className="text-[10px] font-semibold text-amber-700">Reconciliation ({row.reconciliation.length})</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {row.reconciliation.map((f: ReconciliationFinding, i: number) => {
+                    const style = RECON_STYLES[f.type] || RECON_STYLES.stage_mismatch;
+                    const Icon = style.icon;
+                    return (
+                      <Tooltip key={i}>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className={`text-[9px] px-1.5 py-0 gap-0.5 cursor-default ${style.bg}`}>
+                            <Icon className="h-2.5 w-2.5" />
+                            {f.label.length > 35 ? f.label.substring(0, 33) + "..." : f.label}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[10px] max-w-[300px]">
+                          <div className="space-y-1">
+                            <div><strong>Type:</strong> {f.type.replace(/_/g, " ")} | <strong>Severity:</strong> {f.severity}</div>
+                            <div><strong>Stage:</strong> {f.layer.replace(/_/g, " ")}</div>
+                            <div>{f.label}</div>
+                            {f.sourceRef && <div><strong>Source:</strong> {f.sourceRef}{f.sourceQty != null ? ` (Qty: ${f.sourceQty})` : ""}</div>}
+                            {f.targetRef && <div><strong>Target:</strong> {f.targetRef}{f.targetQty != null ? ` (Qty: ${f.targetQty})` : ""}</div>}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               {layers.map(({ key, record, label, icon: Icon, applicabilityKey, docType, deepLink }) => {
                 const stepApplicable = row.applicability[applicabilityKey]?.applicable !== false;
@@ -1482,7 +1816,25 @@ export default function ExecutionControlDashboard() {
               <p className="text-sm text-muted-foreground mt-2">Loading pipeline data...</p>
             </CardContent>
           </Card>
-        ) : filteredRows.length === 0 ? (
+        ) : (
+          <Tabs value={dashboardTab} onValueChange={setDashboardTab}>
+            <TabsList className="mb-3">
+              <TabsTrigger value="pipeline" className="gap-1.5">
+                <FileText className="h-3.5 w-3.5" /> Pipeline
+                <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">{filteredRows.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="reconciliation" className="gap-1.5">
+                <Scale className="h-3.5 w-3.5" /> Reconciliation
+                {summaryStats.reconTotal > 0 && (
+                  <Badge variant="outline" className={`text-[9px] px-1 py-0 ml-1 ${summaryStats.reconCritical > 0 ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                    {summaryStats.reconTotal}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="pipeline">
+          {filteredRows.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <ClipboardCheck className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
@@ -1627,6 +1979,178 @@ export default function ExecutionControlDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+            </TabsContent>
+
+            <TabsContent value="reconciliation">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                  {[
+                    { label: "Total Findings", value: summaryStats.reconTotal, color: "", bg: "" },
+                    { label: "Critical", value: summaryStats.reconCritical, color: "text-red-700", bg: summaryStats.reconCritical > 0 ? "border-red-200 bg-red-50/30" : "" },
+                    { label: "Warning", value: summaryStats.reconWarning, color: "text-amber-700", bg: summaryStats.reconWarning > 0 ? "border-amber-200 bg-amber-50/30" : "" },
+                    { label: "Info", value: summaryStats.reconInfo, color: "text-blue-600", bg: "" },
+                    { label: "Shortages", value: summaryStats.reconByType.shortage, color: "text-red-600", bg: summaryStats.reconByType.shortage > 0 ? "border-red-200 bg-red-50/30" : "" },
+                    { label: "Missing Links", value: summaryStats.reconByType.missing_downstream, color: "text-orange-600", bg: summaryStats.reconByType.missing_downstream > 0 ? "border-orange-200 bg-orange-50/30" : "" },
+                    { label: "Mismatches", value: summaryStats.reconByType.stage_mismatch + summaryStats.reconByType.amount_mismatch, color: "text-yellow-700", bg: "" },
+                    { label: "Items Affected", value: summaryStats.itemsWithFindings, color: "text-purple-600", bg: "" },
+                  ].map(({ label, value, color, bg }) => (
+                    <Card key={label} className={`shadow-sm ${bg}`}>
+                      <CardContent className="pt-2 pb-1.5 px-2 text-center">
+                        <div className={`text-lg font-bold ${color}`}>{value}</div>
+                        <div className="text-[9px] text-muted-foreground">{label}</div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                <Card>
+                  <CardContent className="pt-3 pb-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Finding Type</label>
+                        <Select value={reconTypeFilter} onValueChange={setReconTypeFilter}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Types</SelectItem>
+                            <SelectItem value="shortage">Shortage</SelectItem>
+                            <SelectItem value="overage">Overage</SelectItem>
+                            <SelectItem value="missing_downstream">Missing Downstream</SelectItem>
+                            <SelectItem value="orphan">Orphan Record</SelectItem>
+                            <SelectItem value="stage_mismatch">Stage Mismatch</SelectItem>
+                            <SelectItem value="amount_mismatch">Amount Mismatch</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Severity</label>
+                        <Select value={reconSeverityFilter} onValueChange={setReconSeverityFilter}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Severities</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                            <SelectItem value="warning">Warning</SelectItem>
+                            <SelectItem value="info">Info</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Stage</label>
+                        <Select value={reconLayerFilter} onValueChange={setReconLayerFilter}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Stages</SelectItem>
+                            <SelectItem value="purchase_order">Purchase Order</SelectItem>
+                            <SelectItem value="work_order">Work Order</SelectItem>
+                            <SelectItem value="inspection">Inspection</SelectItem>
+                            <SelectItem value="dispatch">Dispatch</SelectItem>
+                            <SelectItem value="dispatch_record">Dispatch Record</SelectItem>
+                            <SelectItem value="commissioning">Commissioning</SelectItem>
+                            <SelectItem value="billing">Billing</SelectItem>
+                            <SelectItem value="invoice">Invoice</SelectItem>
+                            <SelectItem value="payment">Payment</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {reconFilteredRows.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-12 text-center">
+                      <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
+                      <h3 className="text-lg font-medium">No Reconciliation Findings</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {summaryStats.reconTotal === 0 ? "All stages are reconciled. No shortages, mismatches, or missing records detected." : "No findings match the current filters."}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="text-[10px] font-semibold min-w-[140px]">Item</TableHead>
+                              <TableHead className="text-[10px] font-semibold w-[60px] text-center">Class</TableHead>
+                              <TableHead className="text-[10px] font-semibold w-[60px] text-center">Qty</TableHead>
+                              <TableHead className="text-[10px] font-semibold min-w-[80px] text-center">Severity</TableHead>
+                              <TableHead className="text-[10px] font-semibold min-w-[100px]">Type</TableHead>
+                              <TableHead className="text-[10px] font-semibold min-w-[80px]">Stage</TableHead>
+                              <TableHead className="text-[10px] font-semibold min-w-[200px]">Finding</TableHead>
+                              <TableHead className="text-[10px] font-semibold min-w-[120px]">Source → Target</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {reconFilteredRows.flatMap((row) =>
+                              row.filteredFindings.map((f: ReconciliationFinding, fi: number) => {
+                                const style = RECON_STYLES[f.type] || RECON_STYLES.stage_mismatch;
+                                const Icon = style.icon;
+                                const sevColor = f.severity === "critical" ? "bg-red-100 text-red-800 border-red-300"
+                                  : f.severity === "warning" ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-blue-100 text-blue-700 border-blue-300";
+                                const isCommercial = ["billing", "invoice", "payment"].includes(f.layer);
+                                const hideAmounts = isCommercial && userLevel > 3;
+                                return (
+                                  <TableRow key={`${row.itemId}-${fi}`} className="hover:bg-muted/20">
+                                    {fi === 0 && (
+                                      <>
+                                        <TableCell rowSpan={row.filteredFindings.length} className="align-top border-r">
+                                          <div className="text-[10px] font-medium">{row.itemCode}</div>
+                                          <div className="text-[9px] text-muted-foreground truncate max-w-[140px]">{row.itemDesc}</div>
+                                        </TableCell>
+                                        <TableCell rowSpan={row.filteredFindings.length} className="text-center align-top border-r">
+                                          <Badge variant="outline" className={`text-[9px] px-1 ${row.classification === "Buy" ? "bg-blue-50 text-blue-700 border-blue-200" : row.classification === "Make" ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                                            {row.classification || "—"}
+                                          </Badge>
+                                        </TableCell>
+                                        <TableCell rowSpan={row.filteredFindings.length} className="text-center align-top border-r text-[10px] font-mono">
+                                          {row.item?.quantity || "—"}
+                                        </TableCell>
+                                      </>
+                                    )}
+                                    <TableCell className="text-center">
+                                      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${sevColor}`}>
+                                        {f.severity}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 gap-0.5 ${style.bg}`}>
+                                        <Icon className="h-2.5 w-2.5" />
+                                        {f.type.replace(/_/g, " ")}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-[10px] text-muted-foreground">
+                                      {f.layer.replace(/_/g, " ")}
+                                    </TableCell>
+                                    <TableCell className="text-[10px]">
+                                      {hideAmounts ? <span className="italic text-muted-foreground">Restricted</span> : f.label}
+                                    </TableCell>
+                                    <TableCell className="text-[9px] font-mono text-muted-foreground">
+                                      {hideAmounts ? "—" : (
+                                        <div className="space-y-0.5">
+                                          {f.sourceRef && <div>{f.sourceRef}{f.sourceQty != null ? ` (${f.sourceQty})` : ""}</div>}
+                                          {f.targetRef && <div className="flex items-center gap-0.5"><ArrowRight className="h-2.5 w-2.5" />{f.targetRef}{f.targetQty != null ? ` (${f.targetQty})` : ""}</div>}
+                                          {f.sourceAmount != null && <div>₹{Math.round(f.sourceAmount).toLocaleString("en-IN")}</div>}
+                                          {f.targetAmount != null && <div className="flex items-center gap-0.5"><ArrowRight className="h-2.5 w-2.5" />₹{Math.round(f.targetAmount).toLocaleString("en-IN")}</div>}
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         )}
 
         <Dialog open={actionDialog.open} onOpenChange={(open) => setActionDialog(prev => ({ ...prev, open }))}>
