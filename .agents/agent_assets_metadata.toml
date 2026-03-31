@@ -84,3 +84,9 @@ id = "IPU8-Ossl6K9D0tEIMc24"
 uri = "file://.local/epc-tasks-alerts-integration-plan-v2.md"
 type = "text"
 title = "EPC Tasks & Alerts Integration Plan v2 (Revised & Approved)"
+
+[[outputs]]
+id = "pd8_GrFYWbQ_eF7FlWTLL"
+uri = "file://.local/epc-permission-matrix.md"
+type = "text"
+title = "EPC Permission Matrix — Current Implementation"
