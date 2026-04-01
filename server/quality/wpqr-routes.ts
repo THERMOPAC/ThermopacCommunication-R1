@@ -16,6 +16,11 @@ import {
   streamFileFromGCS,
   deleteFileFromGCS
 } from '../utils/gcs-operations';
+import {
+  createRevision, logDownload, logAuditEvent, softDeleteRevision,
+  getLatestRevision, checkUploadPermission, checkDeletePermission,
+  type QmsModule,
+} from '../utils/qms-file-governance';
 
 const router = express.Router();
 
@@ -382,34 +387,13 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
     // Generate a unique document ID
     const documentId = await generateWpqrDocumentId();
     
-    // Upload the file to Google Cloud Storage
-    const filePath = `/QMS/WPQR/${documentId}.pdf`;
-    const fileBuffer = req.file.buffer;
-    const fileType = req.file.mimetype;
-    
-    // Flag to track if GCS upload was successful
-    let gcsUploadSuccess = false;
-    
-    // No longer saving files locally as per requirements
-    // All uploads should go directly to Google Cloud Storage
-    
-    // Upload file to GCS using our utility function
-    console.log(`Attempting to upload file to GCS: ${filePath}`);
-    
-    const uploadResult = await uploadFileToGCS(filePath, fileBuffer, fileType);
-    
-    if (!uploadResult.success) {
-      console.error('GCS upload failed:', uploadResult.message);
-      throw new Error(`Google Cloud Storage upload failed: ${uploadResult.message}`);
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
     }
-    
-    console.log('GCS upload successful:', uploadResult.message);
-    gcsUploadSuccess = true;
-    
-    // Get the file URL from the upload result or generate it
-    const fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
-    
-    // Insert document record into the database
+
     const insertedDocuments = await db.insert(wpqrDocuments)
       .values({
         documentId,
@@ -420,15 +404,50 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
         jointType,
         certificateNo,
         inspectionAuthority,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         status,
-        createdBy: userId,
+        createdBy: userId!,
         updatedAt: new Date()
       })
       .returning();
-    
+
     const insertedDocument = insertedDocuments[0];
+
+    try {
+      const govResult = await createRevision({
+        module: 'WPQR' as QmsModule,
+        documentNumber: documentId,
+        label: 'qualification-record',
+        fileBuffer: req.file.buffer,
+        originalFileName: req.file.originalname,
+        contentType: req.file.mimetype,
+        parentEntityType: 'wpqr_document',
+        parentEntityId: insertedDocument.id,
+        userId: userId!,
+        userRole,
+        ipAddress: req.ip,
+      });
+
+      await db.update(wpqrDocuments)
+        .set({ filePath: govResult.gcsPath, fileUrl: govResult.gcsPath })
+        .where(eq(wpqrDocuments.id, insertedDocument.id));
+      insertedDocument.filePath = govResult.gcsPath;
+      insertedDocument.fileUrl = govResult.gcsPath;
+      console.log(`WPQR uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+    } catch (govErr) {
+      console.error('Governance upload failed, falling back to legacy:', govErr);
+      const filePath = `/QMS/WPQR/${documentId}.pdf`;
+      const uploadResult = await uploadFileToGCS(filePath, req.file.buffer, req.file.mimetype);
+      if (uploadResult.success) {
+        const fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
+        await db.update(wpqrDocuments)
+          .set({ filePath, fileUrl })
+          .where(eq(wpqrDocuments.id, insertedDocument.id));
+        insertedDocument.filePath = filePath;
+        insertedDocument.fileUrl = fileUrl;
+      }
+    }
     
     // Handle welder linking if welderIds are provided
     if (welderIds && Array.isArray(welderIds) && welderIds.length > 0) {
@@ -574,41 +593,36 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
       updatedAt: new Date()
     };
     
-    // Handle file uploads if a new file was uploaded
     if (req.file) {
-      console.log(`File uploaded in PATCH request. Processing file for WPQR document: ${document.documentId}`);
-      
-      // Use the existing document ID for the file name
-      const filePath = `/QMS/WPQR/${document.documentId}.pdf`;
-      const fileBuffer = req.file.buffer;
-      const fileType = req.file.mimetype;
-      
-      // Flag to track if GCS upload was successful
-      let gcsUploadSuccess = false;
-      
-      // No longer saving files locally as per requirements
-      // All uploads should go directly to Google Cloud Storage
-      
-      // Upload file to GCS using our utility function
-      console.log(`Attempting to upload file to GCS: ${filePath}`);
-      
-      const uploadResult = await uploadFileToGCS(filePath, fileBuffer, fileType);
-      
-      if (!uploadResult.success) {
-        console.error('GCS upload failed:', uploadResult.message);
-        throw new Error(`Google Cloud Storage upload failed: ${uploadResult.message}`);
+      const user = (req as any).user;
+      const userRole = user?.role || '';
+      const roleCheck = checkUploadPermission(userRole);
+      if (!roleCheck.allowed) {
+        return res.status(403).json({ error: roleCheck.reason });
       }
-      
-      console.log('GCS upload successful:', uploadResult.message);
-      gcsUploadSuccess = true;
-      
-      // Update file path and URL in the database
-      updateData.filePath = filePath;
-      
-      // Get the file URL from the upload result or generate it
-      updateData.fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
-      
-      console.log(`GCS upload successful: ${gcsUploadSuccess}, URL: ${updateData.fileUrl}`);
+
+      try {
+        const govResult = await createRevision({
+          module: 'WPQR' as QmsModule,
+          documentNumber: document.documentId,
+          label: 'qualification-record',
+          fileBuffer: req.file.buffer,
+          originalFileName: req.file.originalname,
+          contentType: req.file.mimetype,
+          parentEntityType: 'wpqr_document',
+          parentEntityId: documentId,
+          userId: userId!,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        updateData.filePath = govResult.gcsPath;
+        updateData.fileUrl = govResult.gcsPath;
+        console.log(`WPQR revised via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+      } catch (govErr) {
+        console.error('Governance revision failed:', govErr);
+        return res.status(500).json({ error: 'Failed to create file revision' });
+      }
     }
     
     // Update the document in the database
@@ -673,62 +687,62 @@ router.patch('/:id', ensureAuthenticated, upload.single('document'), async (req:
   }
 });
 
-// Delete a WPQR document
 router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const documentId = parseInt(id);
-    
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+
+    const deleteCheck = checkDeletePermission(userRole);
+    if (!deleteCheck.allowed) {
+      return res.status(403).json({ error: deleteCheck.reason });
+    }
+
     if (isNaN(documentId)) {
       return res.status(400).json({ error: 'Invalid document ID' });
     }
-    
-    // Get the existing document for file path
+
     const existingDocument = await db.select()
       .from(wpqrDocuments)
       .where(eq(wpqrDocuments.id, documentId))
       .limit(1);
-    
+
     if (!existingDocument.length) {
       return res.status(404).json({ error: 'Document not found' });
     }
-    
+
     const document = existingDocument[0];
-    
-    // Delete the file from GCS if it exists
-    if (document.filePath) {
-      console.log(`Attempting to delete file from GCS: ${document.filePath}`);
-      
-      try {
-        // Use our GCS utility to delete the file
-        const deleteResult = await deleteFileFromGCS(document.filePath);
-        
-        if (deleteResult.success) {
-          console.log(`File deletion successful: ${deleteResult.message}`);
-        } else {
-          // We'll still continue with database record deletion even if file deletion fails
-          // This prevents database records from being orphaned if GCS has issues
-          console.warn(`Warning: ${deleteResult.message} - continuing with document deletion anyway`);
-        }
-      } catch (fileError) {
-        // Log the error but continue with database record deletion
-        console.warn(`Unexpected error during file deletion: ${fileError instanceof Error ? fileError.message : String(fileError)}`);
-        console.warn(`Continuing with document deletion despite file deletion failure`);
-      }
+    const reason = req.body?.reason || 'No reason provided';
+
+    const governed = await getLatestRevision('WPQR', document.documentId);
+    if (governed) {
+      await softDeleteRevision({
+        module: 'WPQR',
+        documentNumber: document.documentId,
+        revisionId: governed.revisionId,
+        userId: user?.id || 0,
+        userRole,
+        reason,
+        ipAddress: req.ip,
+      });
     }
-    
-    // Delete the document record from the database
-    console.log(`Deleting document record from database: ID ${documentId}`);
+
     const deletedDocuments = await db.delete(wpqrDocuments)
       .where(eq(wpqrDocuments.id, documentId))
       .returning();
-    
-    if (!deletedDocuments.length) {
-      console.error(`No document with ID ${documentId} was deleted from the database`);
-      return res.status(404).json({ error: 'Document not found in database during delete operation' });
-    }
-    
-    console.log(`Successfully deleted document with ID ${documentId} from database`);
+
+    await logAuditEvent({
+      module: 'WPQR',
+      documentNumber: document.documentId,
+      action: 'soft_delete',
+      userId: user?.id || 0,
+      userRole,
+      ipAddress: req.ip,
+      details: { reason, entityDeleted: true },
+    });
+
+    console.log(`Successfully deleted WPQR document with ID ${documentId} from database (GCS files preserved)`);
     res.json(deletedDocuments[0]);
   } catch (error) {
     console.error('Error deleting WPQR document:', error);
@@ -855,36 +869,45 @@ router.get('/download/:id', async (req: Request, res: Response) => {
         `Additional Details:\n` + 
         `Bucket Name: ${bucketName}\n`;
       
-      // APPROACH 1: Use our GCS utility to directly stream from GCS
+      const downloadUser = (req as any).user;
+      let governedPath: string | null = null;
+      const governed = await getLatestRevision('WPQR', docId);
+      if (governed) {
+        governedPath = governed.gcsPath;
+      }
+
+      const effectivePath = governedPath || filePath;
+
       try {
-        console.log(`Attempting to stream file directly from GCS: ${filePath}`);
-        
-        // Set the appropriate content type
+        console.log(`Attempting to stream file directly from GCS: ${effectivePath}`);
         const contentType = 'application/pdf';
-        
-        // Create a clean document filename
-        // Remove redundant "WPQR-" prefix if docId already contains it
         const cleanDocId = docId.startsWith('WPQR-') ? docId : `WPQR-${docId}`;
         const downloadFilename = `${cleanDocId}.pdf`;
-        
-        // Use our GCS utility to stream the file directly
+
         const streamSuccess = await streamFileFromGCS(
-          filePath,
+          effectivePath,
           res,
           contentType,
           downloadFilename
         );
-        
+
         if (streamSuccess) {
-          console.log(`Successfully started streaming file from GCS: ${filePath}`);
-          // Return to end the request handling here since streaming has begun
+          console.log(`Successfully started streaming file from GCS: ${effectivePath}`);
+          await logDownload({
+            module: 'WPQR',
+            documentNumber: docId,
+            revisionId: governed?.revisionId,
+            gcsPath: effectivePath,
+            userId: downloadUser?.id || 0,
+            userRole: downloadUser?.role,
+            ipAddress: req.ip,
+          });
           return;
         } else {
-          console.error(`Failed to stream file from GCS: ${filePath}`);
+          console.error(`Failed to stream file from GCS: ${effectivePath}`);
         }
       } catch (gcsStreamError) {
         console.error(`Error streaming from GCS: ${gcsStreamError instanceof Error ? gcsStreamError.message : String(gcsStreamError)}`);
-        // Continue to backup approaches
       }
       
       // APPROACH 2: Check local document directory as backup

@@ -11829,3 +11829,52 @@ export const epcMigrationFeatureFlags = pgTable('epc_migration_feature_flags', {
 });
 
 export type EpcMigrationFeatureFlag = typeof epcMigrationFeatureFlags.$inferSelect;
+
+export const qmsDocumentRevisions = pgTable('qms_document_revisions', {
+  id: serial('id').primaryKey(),
+  module: varchar('module', { length: 30 }).notNull(),
+  documentNumber: varchar('document_number', { length: 100 }).notNull(),
+  revisionNumber: integer('revision_number').notNull().default(1),
+  sequence: integer('sequence').notNull().default(1),
+  label: varchar('label', { length: 100 }).notNull(),
+  fileExtension: varchar('file_extension', { length: 20 }).notNull(),
+  gcsPath: varchar('gcs_path', { length: 500 }).notNull(),
+  checksumSha256: varchar('checksum_sha256', { length: 64 }).notNull(),
+  fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }).notNull().default(0),
+  originalFileName: varchar('original_file_name', { length: 255 }),
+  contentType: varchar('content_type', { length: 100 }),
+  isLatest: boolean('is_latest').notNull().default(true),
+  isActive: boolean('is_active').notNull().default(true),
+  parentEntityType: varchar('parent_entity_type', { length: 50 }).notNull(),
+  parentEntityId: integer('parent_entity_id').notNull(),
+  revisionOf: integer('revision_of'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  deletedBy: integer('deleted_by').references(() => users.id),
+  deletedAt: timestamp('deleted_at'),
+  deleteReason: text('delete_reason'),
+});
+
+export const qmsDocumentRevisionsRelations = relations(qmsDocumentRevisions, ({ one }) => ({
+  creator: one(users, { fields: [qmsDocumentRevisions.createdBy], references: [users.id] }),
+  deleter: one(users, { fields: [qmsDocumentRevisions.deletedBy], references: [users.id] }),
+}));
+
+export type QmsDocumentRevision = typeof qmsDocumentRevisions.$inferSelect;
+export type InsertQmsDocumentRevision = typeof qmsDocumentRevisions.$inferInsert;
+
+export const qmsDocumentAuditLog = pgTable('qms_document_audit_log', {
+  id: serial('id').primaryKey(),
+  module: varchar('module', { length: 30 }).notNull(),
+  documentNumber: varchar('document_number', { length: 100 }).notNull(),
+  revisionId: integer('revision_id'),
+  action: varchar('action', { length: 30 }).notNull(),
+  gcsPath: varchar('gcs_path', { length: 500 }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  userRole: varchar('user_role', { length: 50 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type QmsDocumentAuditLog = typeof qmsDocumentAuditLog.$inferSelect;

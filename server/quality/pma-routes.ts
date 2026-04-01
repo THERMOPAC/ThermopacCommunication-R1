@@ -6,6 +6,11 @@ import { pmaDocumentSchema, InsertPmaDocument } from '@shared/schema';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
 import { ensureAuthenticated } from '../middleware/auth-middleware';
 import multer from 'multer';
+import {
+  createRevision, logDownload, logAuditEvent, softDeleteRevision,
+  getLatestRevision, checkUploadPermission, checkDeletePermission,
+  type QmsModule,
+} from '../utils/qms-file-governance';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -170,22 +175,12 @@ router.post('/', upload.single('file'), async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Only PDF and DOCX files are allowed' });
     }
 
-    // Create GCS path: QMS/PMA_Records/{pma_number}.{extension}
-    const fileExtension = file.originalname.split('.').pop();
-    const gcsPath = `QMS/PMA_Records/${validatedData.pmaNumber}.${fileExtension}`;
-
-    // Upload file to GCS
-    const uploadResult = await uploadFileWithDiagnostics(
-      gcsPath,
-      file.buffer,
-      file.mimetype
-    );
-
-    if (!uploadResult.successful) {
-      return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+    const userRole = user?.role || '';
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
     }
 
-    // Create PMA document record
     const newDocument = await db
       .insert(pmaDocuments)
       .values({
@@ -197,14 +192,41 @@ router.post('/', upload.single('file'), async (req: Request, res: Response) => {
         remarks: validatedData.remarks,
         issueDate: validatedData.issueDate,
         expiryDate: validatedData.expiryDate,
-        filePath: gcsPath,
-        fileUrl: uploadResult.url,
+        filePath: null,
+        fileUrl: null,
         originalFileName: file.originalname,
         createdBy: user.id,
       })
       .returning();
 
-    res.status(201).json(newDocument[0]);
+    const created = newDocument[0];
+
+    try {
+      const govResult = await createRevision({
+        module: 'PMA' as QmsModule,
+        documentNumber: validatedData.pmaNumber,
+        label: 'material-approval',
+        fileBuffer: file.buffer,
+        originalFileName: file.originalname,
+        contentType: file.mimetype,
+        parentEntityType: 'pma_document',
+        parentEntityId: created.id,
+        userId: user.id,
+        userRole,
+        ipAddress: req.ip,
+      });
+
+      await db.update(pmaDocuments)
+        .set({ filePath: govResult.gcsPath, fileUrl: govResult.gcsPath })
+        .where(eq(pmaDocuments.id, created.id));
+      created.filePath = govResult.gcsPath;
+      created.fileUrl = govResult.gcsPath;
+    } catch (govErr) {
+      console.error('PMA governance upload failed:', govErr);
+      return res.status(500).json({ error: 'Failed to upload file via governance' });
+    }
+
+    res.status(201).json(created);
   } catch (error) {
     console.error('Error creating PMA document:', error);
     res.status(500).json({ error: 'Failed to create PMA document' });
@@ -241,32 +263,40 @@ router.put('/:id', upload.single('file'), async (req: Request, res: Response) =>
       updatedAt: new Date(),
     };
 
-    // If new file is uploaded, handle file replacement
     if (file) {
-      // Validate file type (PDF or DOCX only)
       const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
       if (!allowedTypes.includes(file.mimetype)) {
         return res.status(400).json({ error: 'Only PDF and DOCX files are allowed' });
       }
 
-      // Create new GCS path
-      const fileExtension = file.originalname.split('.').pop();
-      const gcsPath = `QMS/PMA_Records/${validatedData.pmaNumber}.${fileExtension}`;
-
-      // Upload new file to GCS
-      const uploadResult = await uploadFileWithDiagnostics(
-        gcsPath,
-        file.buffer,
-        file.mimetype
-      );
-
-      if (!uploadResult.successful) {
-        return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+      const userRole = user?.role || '';
+      const roleCheck = checkUploadPermission(userRole);
+      if (!roleCheck.allowed) {
+        return res.status(403).json({ error: roleCheck.reason });
       }
 
-      updateData.filePath = gcsPath;
-      updateData.fileUrl = uploadResult.url;
-      updateData.originalFileName = file.originalname;
+      try {
+        const govResult = await createRevision({
+          module: 'PMA' as QmsModule,
+          documentNumber: validatedData.pmaNumber,
+          label: 'material-approval',
+          fileBuffer: file.buffer,
+          originalFileName: file.originalname,
+          contentType: file.mimetype,
+          parentEntityType: 'pma_document',
+          parentEntityId: id,
+          userId: user.id,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        updateData.filePath = govResult.gcsPath;
+        updateData.fileUrl = govResult.gcsPath;
+        updateData.originalFileName = file.originalname;
+      } catch (govErr) {
+        console.error('PMA governance revision failed:', govErr);
+        return res.status(500).json({ error: 'Failed to create file revision' });
+      }
     }
 
     // Update PMA document record
@@ -326,63 +356,98 @@ router.post('/:id/upload', upload.single('document'), async (req: Request, res: 
       return res.status(404).json({ error: 'PMA document not found' });
     }
 
-    // Create GCS path
-    const fileExtension = file.originalname.split('.').pop();
-    const gcsPath = `QMS/PMA_Records/${existingDoc[0].pmaNumber}.${fileExtension}`;
-
-    // Upload file to GCS
-    const uploadResult = await uploadFileWithDiagnostics(
-      gcsPath,
-      file.buffer,
-      file.mimetype
-    );
-
-    if (!uploadResult.successful) {
-      return res.status(500).json({ error: 'Failed to upload file to cloud storage' });
+    const userRole = user?.role || '';
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
     }
 
-    // Update PMA document with new file info
-    const updatedDocument = await db
-      .update(pmaDocuments)
-      .set({
-        filePath: gcsPath,
-        fileUrl: uploadResult.url,
+    try {
+      const govResult = await createRevision({
+        module: 'PMA' as QmsModule,
+        documentNumber: existingDoc[0].pmaNumber,
+        label: 'material-approval',
+        fileBuffer: file.buffer,
         originalFileName: file.originalname,
-        updatedAt: new Date(),
-      })
-      .where(eq(pmaDocuments.id, id))
-      .returning();
+        contentType: file.mimetype,
+        parentEntityType: 'pma_document',
+        parentEntityId: id,
+        userId: user.id,
+        userRole,
+        ipAddress: req.ip,
+      });
 
-    res.json({
-      message: 'File uploaded successfully',
-      document: updatedDocument[0],
-      uploadResult: uploadResult
-    });
+      const updatedDocument = await db
+        .update(pmaDocuments)
+        .set({
+          filePath: govResult.gcsPath,
+          fileUrl: govResult.gcsPath,
+          originalFileName: file.originalname,
+          updatedAt: new Date(),
+        })
+        .where(eq(pmaDocuments.id, id))
+        .returning();
+
+      res.json({
+        message: 'File uploaded successfully',
+        document: updatedDocument[0],
+      });
+    } catch (govErr) {
+      console.error('PMA governance upload failed:', govErr);
+      return res.status(500).json({ error: 'Failed to upload file via governance' });
+    }
   } catch (error) {
     console.error('Error uploading file to PMA document:', error);
     res.status(500).json({ error: 'Failed to upload file' });
   }
 });
 
-// Delete PMA document
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid PMA document ID' });
     }
 
-    // Delete the PMA document
-    const deletedDocument = await db
-      .delete(pmaDocuments)
-      .where(eq(pmaDocuments.id, id))
-      .returning();
+    const user = req.user as any;
+    const userRole = user?.role || '';
+    const deleteCheck = checkDeletePermission(userRole);
+    if (!deleteCheck.allowed) {
+      return res.status(403).json({ error: deleteCheck.reason });
+    }
 
-    if (deletedDocument.length === 0) {
+    const existing = await db.select().from(pmaDocuments).where(eq(pmaDocuments.id, id)).limit(1);
+    if (existing.length === 0) {
       return res.status(404).json({ error: 'PMA document not found' });
     }
 
-    res.json({ message: 'PMA document deleted successfully' });
+    const reason = req.body?.reason || 'No reason provided';
+    const governed = await getLatestRevision('PMA', existing[0].pmaNumber);
+    if (governed) {
+      await softDeleteRevision({
+        module: 'PMA',
+        documentNumber: existing[0].pmaNumber,
+        revisionId: governed.revisionId,
+        userId: user?.id || 0,
+        userRole,
+        reason,
+        ipAddress: req.ip,
+      });
+    }
+
+    const deletedDocument = await db.delete(pmaDocuments).where(eq(pmaDocuments.id, id)).returning();
+
+    await logAuditEvent({
+      module: 'PMA',
+      documentNumber: existing[0].pmaNumber,
+      action: 'soft_delete',
+      userId: user?.id || 0,
+      userRole,
+      ipAddress: req.ip,
+      details: { reason, entityDeleted: true },
+    });
+
+    res.json({ message: 'PMA document deleted successfully (files preserved)' });
   } catch (error) {
     console.error('Error deleting PMA document:', error);
     res.status(500).json({ error: 'Failed to delete PMA document' });
@@ -551,10 +616,51 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
         return res.status(404).json({ error: 'File not found in storage' });
       }
 
-      // Generate signed URL for download
+      let effectivePath = pmaDoc.filePath!;
+      let revisionId: number | undefined;
+      const governed = await getLatestRevision('PMA', pmaDoc.pmaNumber);
+      if (governed) {
+        effectivePath = governed.gcsPath;
+        revisionId = governed.revisionId;
+        const govFile = bucket.file(effectivePath);
+        const [govExists] = await govFile.exists();
+        if (govExists) {
+          const [govSignedUrl] = await govFile.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 15 * 60 * 1000,
+          });
+
+          await logDownload({
+            module: 'PMA',
+            documentNumber: pmaDoc.pmaNumber,
+            revisionId,
+            gcsPath: effectivePath,
+            userId: user.id,
+            userRole: user.role,
+            ipAddress: req.ip,
+          });
+
+          return res.json({
+            downloadUrl: govSignedUrl,
+            fileName: pmaDoc.originalFileName,
+            pmaNumber: pmaDoc.pmaNumber,
+          });
+        }
+      }
+
       const [signedUrl] = await file.getSignedUrl({
         action: 'read',
-        expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+        expires: Date.now() + 15 * 60 * 1000,
+      });
+
+      await logDownload({
+        module: 'PMA',
+        documentNumber: pmaDoc.pmaNumber,
+        revisionId,
+        gcsPath: pmaDoc.filePath!,
+        userId: user.id,
+        userRole: user.role,
+        ipAddress: req.ip,
       });
 
       res.json({ 

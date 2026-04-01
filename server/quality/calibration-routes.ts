@@ -8,6 +8,11 @@ import { format } from 'date-fns';
 import { uploadCalibrationCertificate, getCertificateUrl } from '../utils/calibration-certificate-upload';
 import { calculateNextCalibrationDate } from '../utils/date-utils';
 import { listCalibrationFilesFromGCS } from '../utils/gcs-operations';
+import {
+  createRevision, logDownload, logAuditEvent, softDeleteRevision,
+  getLatestRevision, getRevisionHistory, checkUploadPermission, checkDeletePermission,
+  type QmsModule,
+} from '../utils/qms-file-governance';
 
 // Create the router
 const router = Router();
@@ -267,33 +272,8 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
     
     console.log(`Creating new instrument with ID: ${instrument_id}`);
     
-    // Handle certificate file upload to GCS if present
     let certificate_gcs_key = null;
-    
-    if (req.file) {
-      try {
-        // Upload file to GCS with the instrument ID
-        const uploadResult = await uploadCalibrationCertificate(
-          req.file.buffer,
-          req.file.originalname,
-          req.file.mimetype,
-          instrument_id
-        );
-        
-        if (uploadResult.success && uploadResult.filePath) {
-          // Extract only the filename (gcsKey) from the full path
-          certificate_gcs_key = uploadResult.filePath.split('/').pop() || `${instrument_id}.pdf`;
-          console.log(`Certificate uploaded to GCS with key: ${certificate_gcs_key}`);
-        } else {
-          console.error('Failed to upload certificate to GCS:', uploadResult.error);
-        }
-      } catch (uploadError) {
-        console.error('Error uploading certificate:', uploadError);
-        // Continue without certificate if upload fails
-      }
-    }
-    
-    // Insert into database
+
     const result = await pool.query(`
       INSERT INTO calibration_instruments (
         instrument_id,
@@ -329,13 +309,43 @@ router.post('/instruments', ensureAuthenticated, async (req: Request, res: Respo
       certificate_gcs_key,
       remarks || null
     ]);
-    
-    // Log success of instrument creation
+
+    const createdInstrument = result.rows[0];
+
+    if (req.file) {
+      const user = (req as any).user;
+      const userRole = user?.role || '';
+      const roleCheck = checkUploadPermission(userRole);
+      if (!roleCheck.allowed) {
+        return res.status(403).json({ error: roleCheck.reason });
+      }
+
+      try {
+        const govResult = await createRevision({
+          module: 'Calibration' as QmsModule,
+          documentNumber: instrument_id,
+          label: 'certificate',
+          fileBuffer: req.file.buffer,
+          originalFileName: req.file.originalname,
+          contentType: req.file.mimetype,
+          parentEntityType: 'calibration_instrument',
+          parentEntityId: createdInstrument.id,
+          userId: user?.id || 0,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        await pool.query(`UPDATE calibration_instruments SET certificate_gcs_key = $1 WHERE id = $2`, [govResult.gcsPath, createdInstrument.id]);
+        createdInstrument.certificate_gcs_key = govResult.gcsPath;
+        console.log(`Certificate uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+      } catch (uploadError) {
+        console.error('Error uploading certificate via governance:', uploadError);
+      }
+    }
+
     console.log(`Successfully created calibration instrument with ID: ${instrument_id}`);
-    
-    // Set content type header explicitly and send success response
     res.setHeader('Content-Type', 'application/json');
-    return res.status(201).json(result.rows[0]);
+    return res.status(201).json(createdInstrument);
     
   } catch (error) {
     // Log and send error
@@ -416,25 +426,32 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
     let certificate_url = null;
     
     if (req.file) {
+      const user = (req as any).user;
+      const userRole = user?.role || '';
+      const roleCheck = checkUploadPermission(userRole);
+      if (!roleCheck.allowed) {
+        return res.status(403).end(JSON.stringify({ error: roleCheck.reason }));
+      }
+
       try {
-        // Upload file to GCS using the instrument ID for consistent naming
-        const uploadResult = await uploadCalibrationCertificate(
-          req.file.buffer,
-          req.file.originalname,
-          req.file.mimetype,
-          instrumentId
-        );
-        
-        if (uploadResult.success && uploadResult.filePath) {
-          // Extract only the filename (gcsKey) from the full path
-          certificate_gcs_key = uploadResult.filePath.split('/').pop() || `${instrumentId}.pdf`;
-          console.log(`Certificate uploaded to GCS with key: ${certificate_gcs_key}`);
-        } else {
-          console.error('Failed to upload certificate to GCS:', uploadResult.error);
-        }
+        const govResult = await createRevision({
+          module: 'Calibration' as QmsModule,
+          documentNumber: instrumentId,
+          label: 'certificate',
+          fileBuffer: req.file.buffer,
+          originalFileName: req.file.originalname,
+          contentType: req.file.mimetype,
+          parentEntityType: 'calibration_instrument',
+          parentEntityId: parseInt(id),
+          userId: user?.id || 0,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        certificate_gcs_key = govResult.gcsPath;
+        console.log(`Certificate revised via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
       } catch (uploadError) {
-        console.error('Error uploading certificate:', uploadError);
-        // Continue without certificate if upload fails
+        console.error('Error uploading certificate via governance:', uploadError);
       }
     }
     
@@ -522,37 +539,58 @@ router.put('/instruments/:id', ensureAuthenticated, async (req: Request, res: Re
   }
 });
 
-// Delete a calibration instrument
 router.delete('/instruments/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    
-    // Get current instrument data to check if we need to delete a certificate file
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+
+    const deleteCheck = checkDeletePermission(userRole);
+    if (!deleteCheck.allowed) {
+      return res.status(403).json({ error: deleteCheck.reason });
+    }
+
     const currentResult = await pool.query(`
       SELECT instrument_id, certificate_gcs_key FROM calibration_instruments
       WHERE id = $1
     `, [id]);
-    
+
     if (currentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Calibration instrument not found' });
     }
-    
-    const currentFilePath = currentResult.rows[0].certificate_gcs_key;
+
     const instrumentId = currentResult.rows[0].instrument_id;
-    
+    const reason = req.body?.reason || 'No reason provided';
+
+    const governed = await getLatestRevision('Calibration', instrumentId);
+    if (governed) {
+      await softDeleteRevision({
+        module: 'Calibration',
+        documentNumber: instrumentId,
+        revisionId: governed.revisionId,
+        userId: user?.id || 0,
+        userRole,
+        reason,
+        ipAddress: req.ip,
+      });
+    }
+
     const result = await pool.query(`
       DELETE FROM calibration_instruments
       WHERE id = $1
       RETURNING *
     `, [id]);
-    
-    // Handle file deletion based on storage location
-    // GCS files are managed via GCS APIs, not local filesystem operations
-    // Previous certificate (if any) will remain in GCS for data integrity
-    if (currentFilePath) {
-      console.log(`Previous certificate key: ${currentFilePath}`);
-    }
-    
+
+    await logAuditEvent({
+      module: 'Calibration',
+      documentNumber: instrumentId,
+      action: 'soft_delete',
+      userId: user?.id || 0,
+      userRole,
+      ipAddress: req.ip,
+      details: { reason, entityDeleted: true },
+    });
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error deleting calibration instrument:', error);
@@ -630,18 +668,37 @@ router.get('/instruments/:id/certificate', ensureAuthenticated, async (req: Requ
     if (!certificateGcsKey) {
       return res.status(404).json({ error: 'No certificate file found for this instrument' });
     }
-    
-    // Build the full GCS path: QMS/Instrument/{filename}
-    const certificateFilePath = `QMS/Instrument/${certificateGcsKey}`;
-    
-    // Get signed URL for GCS file
+
+    const user = (req as any).user;
+
+    let certificateFilePath: string;
+    let revisionId: number | undefined;
+    const governed = await getLatestRevision('Calibration', instrumentId);
+    if (governed) {
+      certificateFilePath = governed.gcsPath;
+      revisionId = governed.revisionId;
+    } else if (certificateGcsKey.startsWith('QMS/')) {
+      certificateFilePath = certificateGcsKey;
+    } else {
+      certificateFilePath = `QMS/Instrument/${certificateGcsKey}`;
+    }
+
     const signedUrl = await getCertificateUrl(certificateFilePath);
       
     if (!signedUrl) {
       return res.status(404).json({ error: 'Certificate file not found in cloud storage' });
     }
-      
-    // Redirect to the signed URL
+
+    await logDownload({
+      module: 'Calibration',
+      documentNumber: instrumentId,
+      revisionId,
+      gcsPath: certificateFilePath,
+      userId: user?.id || 0,
+      userRole: user?.role,
+      ipAddress: req.ip,
+    });
+
     return res.redirect(signedUrl);
   } catch (error) {
     console.error('Error accessing certificate file:', error);

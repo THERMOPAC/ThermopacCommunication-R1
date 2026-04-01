@@ -7,6 +7,11 @@ import { z } from 'zod';
 import { uploadFileWithDiagnostics } from '../utils/gcs-enhanced-upload';
 import { initializeGCS, buildProcedureGcsPrefixes, listFilesFromGCS } from '../utils/gcs-operations';
 import { ensureAuthenticated } from '../auth-middleware';
+import {
+  createRevision, logDownload, logAuditEvent, softDeleteRevision,
+  getLatestRevision, checkUploadPermission, checkDeletePermission,
+  type QmsModule,
+} from '../utils/qms-file-governance';
 
 // Setup multer for handling file uploads
 const upload = multer({
@@ -234,63 +239,57 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
       return res.status(409).json({ error: 'Procedure number already exists' });
     }
 
-    // Upload file to GCS with standards-based path structure
-    const fileExtension = req.file.originalname.split('.').pop();
-    const fileName = `${data.procedureNumber}.${fileExtension}`;
-    
-    // Determine standard type from applicableStandard field
-    // Group headings: ASME/EN/Others
-    const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'Others';
-      
-      const standardUpper = standard.toUpperCase();
-      
-      // ASME Standards (only ASME, not ASTM)
-      if (standardUpper.includes('ASME')) {
-        return 'ASME';
-      }
-      
-      // EN Standards (including ISO)
-      if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
-        return 'EN';
-      }
-      
-      // Everything else goes to Others (ASTM, API, AWS, etc.)
-      return 'Others';
-    };
-    
-    const standardType = getStandardType(data.applicableStandard);
-    const gcsPath = `QMS/Test_Procedures/${data.ndtMethod}/${standardType}/${fileName}`;
-    
-    console.log('Uploading file to GCS path:', gcsPath);
-    const uploadResult = await uploadFileWithDiagnostics(
-      gcsPath,
-      req.file.buffer,
-      req.file.mimetype
-    );
-
-    if (!uploadResult.successful) {
-      console.error('File upload failed:', uploadResult.error);
-      return res.status(500).json({ error: 'Failed to upload procedure document' });
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
     }
 
-    console.log('File uploaded successfully:', uploadResult.fileUrl);
-    
-    // Create procedure record with file information
+    const revLabel = data.procedureRevision || 'R1';
+
     const [newProcedure] = await db
       .insert(testProcedures)
       .values({
         ...data,
-        attachments: JSON.stringify([{
-          fileName: req.file.originalname,
-          fileUrl: uploadResult.fileUrl,
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: userId
-        }]),
+        attachments: null,
         createdBy: userId,
         updatedBy: userId,
       })
       .returning();
+
+    try {
+      const govResult = await createRevision({
+        module: 'TestProcedures' as QmsModule,
+        documentNumber: data.procedureNumber,
+        label: `procedure-${revLabel}`,
+        fileBuffer: req.file.buffer,
+        originalFileName: req.file.originalname,
+        contentType: req.file.mimetype,
+        parentEntityType: 'test_procedure',
+        parentEntityId: newProcedure.id,
+        userId,
+        userRole,
+        ipAddress: req.ip,
+      });
+
+      await db.update(testProcedures)
+        .set({
+          attachments: JSON.stringify([{
+            fileName: req.file.originalname,
+            fileUrl: govResult.gcsPath,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: userId,
+            revisionNumber: govResult.revisionNumber,
+          }]),
+        })
+        .where(eq(testProcedures.id, newProcedure.id));
+
+      console.log(`Test procedure uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+    } catch (govErr) {
+      console.error('Governance upload failed:', govErr);
+      return res.status(500).json({ error: 'Failed to upload procedure document via governance' });
+    }
 
     console.log('Test procedure created successfully:', newProcedure.id);
     res.status(201).json(newProcedure);
@@ -356,77 +355,58 @@ router.put('/:id', ensureAuthenticated, upload.single('file'), async (req: Reque
     
     const data = validation.data;
     
-    // Handle file upload if provided
     let attachmentData = null;
     if (req.file) {
-      console.log('File provided for update:', req.file.originalname);
-      
-      // Get current procedure data for file path construction
+      const user = (req as any).user;
+      const userRole = user?.role || '';
+      const roleCheck = checkUploadPermission(userRole);
+      if (!roleCheck.allowed) {
+        return res.status(403).json({ error: roleCheck.reason });
+      }
+
       const currentProcedure = await db
         .select({
           procedureNumber: testProcedures.procedureNumber,
-          ndtMethod: testProcedures.ndtMethod,
-          applicableStandard: testProcedures.applicableStandard
+          procedureRevision: testProcedures.procedureRevision,
         })
         .from(testProcedures)
         .where(eq(testProcedures.id, id))
         .limit(1);
-      
+
       if (currentProcedure.length === 0) {
         return res.status(404).json({ error: 'Test procedure not found' });
       }
-      
-      // Use data from form or existing procedure for file path
+
       const procedureNumber = data.procedureNumber || currentProcedure[0].procedureNumber;
-      const ndtMethod = data.ndtMethod || currentProcedure[0].ndtMethod;
-      const applicableStandard = data.applicableStandard || currentProcedure[0].applicableStandard;
-      
-      // Determine standard type from applicableStandard field
-      // Group headings: ASME/EN/Others
-      const getStandardType = (standard: string | undefined): string => {
-        if (!standard) return 'Others';
-        
-        const standardUpper = standard.toUpperCase();
-        
-        // ASME Standards (only ASME, not ASTM)
-        if (standardUpper.includes('ASME')) {
-          return 'ASME';
-        }
-        
-        // EN Standards (including ISO)
-        if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
-          return 'EN';
-        }
-        
-        // Everything else goes to Others (ASTM, API, AWS, etc.)
-        return 'Others';
-      };
-      
-      const fileExtension = req.file.originalname.split('.').pop();
-      const fileName = `${procedureNumber}.${fileExtension}`;
-      const standardType = getStandardType(applicableStandard);
-      const gcsPath = `QMS/Test_Procedures/${ndtMethod}/${standardType}/${fileName}`;
-      
-      console.log('Uploading updated file to GCS path:', gcsPath);
-      const uploadResult = await uploadFileWithDiagnostics(
-        gcsPath,
-        req.file.buffer,
-        req.file.mimetype
-      );
+      const revLabel = data.procedureRevision || currentProcedure[0].procedureRevision || 'R1';
 
-      if (!uploadResult.successful) {
-        console.error('File upload failed:', uploadResult.error);
-        return res.status(500).json({ error: 'Failed to upload procedure document' });
+      try {
+        const govResult = await createRevision({
+          module: 'TestProcedures' as QmsModule,
+          documentNumber: procedureNumber,
+          label: `procedure-${revLabel}`,
+          fileBuffer: req.file.buffer,
+          originalFileName: req.file.originalname,
+          contentType: req.file.mimetype,
+          parentEntityType: 'test_procedure',
+          parentEntityId: id,
+          userId,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        attachmentData = JSON.stringify([{
+          fileName: req.file.originalname,
+          fileUrl: govResult.gcsPath,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: userId,
+          revisionNumber: govResult.revisionNumber,
+        }]);
+        console.log(`Test procedure revised via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+      } catch (govErr) {
+        console.error('Governance revision failed:', govErr);
+        return res.status(500).json({ error: 'Failed to create file revision' });
       }
-
-      console.log('File uploaded successfully:', uploadResult.fileUrl);
-      
-      attachmentData = JSON.stringify([{
-        fileName: req.file.originalname,
-        fileUrl: uploadResult.fileUrl,
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: userId
-      }]);
     }
     
     // Check if procedure exists
@@ -487,114 +467,77 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
   try {
     const id = parseInt(req.params.id);
     const userId = (req.user as any)?.id;
-    
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid procedure ID' });
     }
-    
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
-    
     if (!req.file) {
       return res.status(400).json({ error: 'File is required' });
     }
-    
-    // Check if test procedure exists and get required data for path construction
+
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
+    }
+
     const existingProcedure = await db
       .select({
         id: testProcedures.id,
         procedureNumber: testProcedures.procedureNumber,
-        ndtMethod: testProcedures.ndtMethod,
-        applicableStandard: testProcedures.applicableStandard,
-        attachments: testProcedures.attachments
+        procedureRevision: testProcedures.procedureRevision,
       })
       .from(testProcedures)
       .where(eq(testProcedures.id, id))
       .limit(1);
-    
+
     if (existingProcedure.length === 0) {
       return res.status(404).json({ error: 'Test procedure not found' });
     }
-    
+
     const procedure = existingProcedure[0];
-    
-    // Determine standard type from applicableStandard field
-    // Group headings: ASME/EN/Others
-    const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'Others';
-      
-      const standardUpper = standard.toUpperCase();
-      
-      // ASME Standards (only ASME, not ASTM)
-      if (standardUpper.includes('ASME')) {
-        return 'ASME';
-      }
-      
-      // EN Standards (including ISO)
-      if (standardUpper.includes('EN') || standardUpper.includes('ISO')) {
-        return 'EN';
-      }
-      
-      // Everything else goes to Others (ASTM, API, AWS, etc.)
-      return 'Others';
-    };
-    
-    // Use standardized file naming and path structure
-    const fileExtension = req.file.originalname.split('.').pop();
-    const fileName = `${procedure.procedureNumber}.${fileExtension}`;
-    const standardType = getStandardType(procedure.applicableStandard);
-    const gcsPath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${fileName}`;
-    
-    console.log('Uploading file to GCS path:', gcsPath);
-    
-    // Upload file to GCS
-    const uploadResult = await uploadFileWithDiagnostics(
-      gcsPath,
-      req.file.buffer,
-      req.file.mimetype
-    );
-    
-    if (!uploadResult.successful) {
-      console.error('File upload failed:', uploadResult.error);
-      return res.status(500).json({ error: 'Failed to upload file' });
-    }
-    
-    // Parse existing attachments
-    let attachments = [];
-    if (procedure.attachments) {
-      try {
-        attachments = JSON.parse(procedure.attachments);
-      } catch (error) {
-        console.error('Error parsing existing attachments:', error);
-        attachments = [];
-      }
-    }
-    
-    // Add new attachment
-    const newAttachment = {
-      fileName: req.file.originalname,
-      fileUrl: uploadResult.url,
-      uploadedAt: new Date().toISOString(),
-      uploadedBy: userId
-    };
-    
-    attachments.push(newAttachment);
-    
-    // Update procedure with new attachment
+    const revLabel = procedure.procedureRevision || 'R1';
+    const label = req.body.label || `attachment-${revLabel}`;
+
+    const govResult = await createRevision({
+      module: 'TestProcedures' as QmsModule,
+      documentNumber: procedure.procedureNumber,
+      label,
+      fileBuffer: req.file.buffer,
+      originalFileName: req.file.originalname,
+      contentType: req.file.mimetype,
+      parentEntityType: 'test_procedure',
+      parentEntityId: id,
+      userId,
+      userRole,
+      ipAddress: req.ip,
+    });
+
     await db
       .update(testProcedures)
       .set({
-        attachments: JSON.stringify(attachments),
+        attachments: JSON.stringify([{
+          fileName: req.file.originalname,
+          fileUrl: govResult.gcsPath,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: userId,
+          revisionNumber: govResult.revisionNumber,
+        }]),
         updatedBy: userId,
         updatedAt: new Date(),
       })
       .where(eq(testProcedures.id, id));
-    
+
+    console.log(`Test procedure file uploaded via governance: ${govResult.gcsPath}`);
     res.json({
       message: 'File uploaded successfully',
-      fileUrl: uploadResult.url,
-      fileName: req.file.originalname
+      fileUrl: govResult.gcsPath,
+      fileName: req.file.originalname,
+      revisionNumber: govResult.revisionNumber,
     });
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -602,24 +545,63 @@ router.post('/:id/upload', ensureAuthenticated, upload.single('file'), async (re
   }
 });
 
-// DELETE /api/quality/test-procedures/:id - Delete test procedure
+// DELETE /api/quality/test-procedures/:id - Soft-delete test procedure (Superuser only)
 router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id);
-    
+    const userId = (req.user as any)?.id;
+    const user = (req as any).user;
+    const userRole = user?.role || '';
+
     if (isNaN(id)) {
       return res.status(400).json({ error: 'Invalid procedure ID' });
     }
-    
-    const deletedProcedure = await db
+
+    const roleCheck = checkDeletePermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
+    }
+
+    const [procedure] = await db
+      .select({ id: testProcedures.id, procedureNumber: testProcedures.procedureNumber })
+      .from(testProcedures)
+      .where(eq(testProcedures.id, id))
+      .limit(1);
+
+    if (!procedure) {
+      return res.status(404).json({ error: 'Test procedure not found' });
+    }
+
+    const latestRev = await getLatestRevision('test_procedure', id);
+    if (latestRev) {
+      await softDeleteRevision({
+        revisionId: latestRev.id,
+        userId: userId || 0,
+        userRole,
+        ipAddress: req.ip,
+        reason: req.body?.reason || 'Test procedure deleted',
+      });
+    }
+
+    await logAuditEvent({
+      action: 'soft_delete',
+      module: 'TestProcedures',
+      documentNumber: procedure.procedureNumber,
+      userId: userId || 0,
+      userRole,
+      ipAddress: req.ip,
+      details: { procedureId: id, reason: req.body?.reason },
+    });
+
+    const [deletedProcedure] = await db
       .delete(testProcedures)
       .where(eq(testProcedures.id, id))
       .returning();
-    
-    if (deletedProcedure.length === 0) {
+
+    if (!deletedProcedure) {
       return res.status(404).json({ error: 'Test procedure not found' });
     }
-    
+
     res.json({ message: 'Test procedure deleted successfully' });
   } catch (error) {
     console.error('Error deleting test procedure:', error);
@@ -673,22 +655,15 @@ router.post('/:id/approve', ensureAuthenticated, async (req: Request, res: Respo
 
 // GET /api/quality/test-procedures/:id/download - Download test procedure file
 router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
-  console.log('='.repeat(80));
-  console.log('🔥🔥🔥 TEST PROCEDURES DOWNLOAD ENDPOINT HIT!!! 🔥🔥🔥');
-  console.log('Request ID:', req.params.id);
-  console.log('Request URL:', req.url);
-  console.log('Request Path:', req.path);
-  console.log('='.repeat(80));
-  
   try {
     const id = parseInt(req.params.id);
-    
+    const userId = (req.user as any)?.id || 0;
+    const userRole = ((req as any).user)?.role || '';
+
     if (isNaN(id)) {
-      console.log('❌ Invalid ID provided:', req.params.id);
       return res.status(400).json({ error: 'Invalid procedure ID' });
     }
 
-    // Get procedure from database
     const [procedure] = await db
       .select()
       .from(testProcedures)
@@ -696,182 +671,117 @@ router.get('/:id/download', ensureAuthenticated, async (req: Request, res: Respo
       .limit(1);
 
     if (!procedure) {
-      console.log('❌ Procedure not found for ID:', id);
       return res.status(404).json({ error: 'Test procedure not found' });
     }
 
-    console.log('✅ Found procedure:', {
-      id: procedure.id,
-      procedureNumber: procedure.procedureNumber,
-      ndtMethod: procedure.ndtMethod,
-      applicableStandard: procedure.applicableStandard,
-      hasAttachments: !!procedure.attachments
-    });
+    const latestRev = await getLatestRevision('test_procedure', id);
 
-    // Helper function to determine standard type
+    if (latestRev) {
+      const { bucket } = await initializeGCS();
+      const file = bucket.file(latestRev.gcsPath);
+      const [exists] = await file.exists();
+
+      if (exists) {
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 15 * 60 * 1000,
+        });
+
+        await logDownload({
+          module: 'TestProcedures',
+          documentNumber: procedure.procedureNumber,
+          gcsPath: latestRev.gcsPath,
+          userId,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        return res.json({
+          downloadUrl: signedUrl,
+          fileName: latestRev.originalFileName,
+          procedureNumber: procedure.procedureNumber,
+          revisionNumber: latestRev.revisionNumber,
+          foundPath: latestRev.gcsPath,
+        });
+      }
+    }
+
     const getStandardType = (standard: string | undefined): string => {
-      if (!standard) return 'ASME';
-      if (standard.includes('EN')) return 'EN';
-      if (standard.includes('ASTM')) return 'ASTM';
-      return 'ASME';
+      if (!standard) return 'Others';
+      const su = standard.toUpperCase();
+      if (su.includes('ASME')) return 'ASME';
+      if (su.includes('EN') || su.includes('ISO')) return 'EN';
+      return 'Others';
     };
 
     const standardType = getStandardType(procedure.applicableStandard);
-    console.log('🎯 Standard type determined:', standardType, 'from:', procedure.applicableStandard);
-
-    // Build comprehensive path strategies based on your GCS structure documentation
-    const pathStrategies = [];
-
-    // Strategy 1: Official GCS path structure (most likely correct)
-    const officialPath = `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`;
-    pathStrategies.push({
-      name: 'Official GCS Structure',
-      path: officialPath
+    const pathStrategies: string[] = [
+      `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`,
+    ];
+    const exts = ['PDF', 'doc', 'docx', 'DOC', 'DOCX'];
+    exts.forEach(ext => {
+      pathStrategies.push(`QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.${ext}`);
     });
 
-    // Strategy 2: Try with different extensions for official structure
-    const extensions = ['PDF', 'doc', 'docx', 'DOC', 'DOCX'];
-    extensions.forEach(ext => {
-      pathStrategies.push({
-        name: `Official Structure (${ext})`,
-        path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.${ext}`
-      });
-    });
-
-    // Strategy 3: Try with uploaded filename from database if available
     if (procedure.attachments) {
       try {
-        const attachments = JSON.parse(procedure.attachments);
-        console.log('📎 Parsed attachments:', attachments);
-        if (attachments.length > 0) {
-          const attachment = attachments[0];
-          const uploadedFileName = attachment.fileName || attachment.filename || attachment.originalName;
-          if (uploadedFileName) {
-            pathStrategies.push({
-              name: 'Using Uploaded Filename',
-              path: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${uploadedFileName}`
-            });
-          }
+        const atts = JSON.parse(procedure.attachments);
+        if (atts.length > 0) {
+          const fn = atts[0].fileName || atts[0].filename;
+          if (fn) pathStrategies.push(`QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${fn}`);
         }
-      } catch (e) {
-        console.log('⚠️ Could not parse attachments:', e);
-      }
+      } catch (_e) {}
     }
 
-    // Strategy 4: Alternative standard types (in case of misclassification)
-    const alternativeStandards = ['ASME', 'EN', 'ASTM'].filter(s => s !== standardType);
-    alternativeStandards.forEach(altStandard => {
-      pathStrategies.push({
-        name: `Alternative ${altStandard} Standard`,
-        path: `QMS/Test_Procedures/${procedure.ndtMethod}/${altStandard}/${procedure.procedureNumber}.pdf`
-      });
+    ['ASME', 'EN', 'Others'].filter(s => s !== standardType).forEach(alt => {
+      pathStrategies.push(`QMS/Test_Procedures/${procedure.ndtMethod}/${alt}/${procedure.procedureNumber}.pdf`);
     });
-
-    // Strategy 5: Legacy or alternative structures
-    pathStrategies.push(
-      {
-        name: 'Flat Structure',
-        path: `QMS/Test_Procedures/${procedure.procedureNumber}.pdf`
-      },
-      {
-        name: 'Method Only Structure',
-        path: `QMS/Test_Procedures/${procedure.ndtMethod}/${procedure.procedureNumber}.pdf`
-      }
-    );
+    pathStrategies.push(`QMS/Test_Procedures/${procedure.procedureNumber}.pdf`);
+    pathStrategies.push(`QMS/Test_Procedures/${procedure.ndtMethod}/${procedure.procedureNumber}.pdf`);
 
     const { bucket } = await initializeGCS();
-    let foundFile = null;
     let foundPath = '';
+    let foundFile: any = null;
 
-    // First, let's see what files actually exist in the Test_Procedures directory
-    console.log('📁 Scanning GCS for Test Procedures files...');
-    let allFiles = [];
-    try {
-      const [files] = await bucket.getFiles({
-        prefix: 'QMS/Test_Procedures/'
-      });
-      allFiles = files.map(f => f.name);
-      console.log('📋 Found files in Test_Procedures directory:');
-      files.forEach((file, index) => {
-        console.log(`${index + 1}. ${file.name}`);
-      });
-      
-      // Also check if our specific procedure file exists in any form
-      const relatedFiles = files.filter(f => 
-        f.name.includes('TP-2025-001') || 
-        f.name.includes('PT') || 
-        f.name.includes('NDT PRO')
-      );
-      console.log('🔍 Files related to TP-2025-001 or PT or NDT PRO:');
-      relatedFiles.forEach((file, index) => {
-        console.log(`  ${index + 1}. ${file.name}`);
-      });
-    } catch (e) {
-      console.log('⚠️ Could not scan GCS directory:', e.message);
-    }
-
-    // Try each path strategy
-    for (const strategy of pathStrategies) {
+    for (const p of pathStrategies) {
       try {
-        console.log(`🔍 Trying ${strategy.name}: ${strategy.path}`);
-        const file = bucket.file(strategy.path);
-        const [exists] = await file.exists();
-        
-        if (exists) {
-          console.log(`✅ Found file using ${strategy.name}: ${strategy.path}`);
-          foundFile = file;
-          foundPath = strategy.path;
-          break;
-        }
-      } catch (e) {
-        console.log(`❌ Error checking ${strategy.name}:`, e.message);
-      }
+        const f = bucket.file(p);
+        const [ex] = await f.exists();
+        if (ex) { foundFile = f; foundPath = p; break; }
+      } catch (_e) {}
     }
 
     if (!foundFile) {
-      console.log('❌ No file found with any strategy for procedure:', procedure.procedureNumber);
-      
-      // Additional debugging information
-      let attachmentInfo = 'No attachments data';
-      if (procedure.attachments) {
-        try {
-          const attachments = JSON.parse(procedure.attachments);
-          attachmentInfo = `Found ${attachments.length} attachment(s): ${attachments.map(a => a.fileName || a.filename || 'unnamed').join(', ')}`;
-        } catch (e) {
-          attachmentInfo = 'Could not parse attachments';
-        }
-      }
-      
-      console.log('📎 Attachment status:', attachmentInfo);
-      console.log('🎯 Expected primary path:', `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`);
-      
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'File not found in storage',
         procedureNumber: procedure.procedureNumber,
-        expectedPath: `QMS/Test_Procedures/${procedure.ndtMethod}/${standardType}/${procedure.procedureNumber}.pdf`,
-        attachmentInfo: attachmentInfo,
-        triedPaths: pathStrategies.map(s => s.path),
-        suggestion: 'The file may need to be uploaded. Use the Upload button to add the document.'
+        suggestion: 'The file may need to be uploaded. Use the Upload button to add the document.',
       });
     }
 
-    // Generate signed URL
     const [signedUrl] = await foundFile.getSignedUrl({
       action: 'read',
-      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      expires: Date.now() + 15 * 60 * 1000,
     });
 
-    console.log('✅ Generated signed URL for:', foundPath);
+    await logDownload({
+      module: 'TestProcedures',
+      documentNumber: procedure.procedureNumber,
+      gcsPath: foundPath,
+      userId,
+      userRole,
+      ipAddress: req.ip,
+      details: { source: 'legacy_fallback' },
+    });
 
     res.json({
       downloadUrl: signedUrl,
       fileName: foundPath.split('/').pop() || `${procedure.procedureNumber}.pdf`,
       procedureNumber: procedure.procedureNumber,
-      foundPath: foundPath
+      foundPath,
     });
-
   } catch (error) {
-    console.error('❌ Error in test procedure download:', error);
+    console.error('Error in test procedure download:', error);
     res.status(500).json({ error: 'Failed to download test procedure' });
   }
 });

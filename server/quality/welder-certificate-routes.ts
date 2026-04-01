@@ -5,6 +5,11 @@ import { Storage } from '@google-cloud/storage';
 import multer from 'multer';
 import { eq, desc, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import {
+  createRevision, logDownload, logAuditEvent, softDeleteRevision,
+  getLatestRevision, checkUploadPermission, checkDeletePermission,
+  type QmsModule,
+} from '../utils/qms-file-governance';
 
 // Helper function to safely handle GCS file paths
 function getGCSCleanPath(filePath: any): string {
@@ -266,62 +271,59 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
     if (!req.file) {
       return res.status(400).json({ error: 'No certificate file uploaded' });
     }
+
+    const userRole = (req.user as any)?.role || '';
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
+    }
     
-    // Generate a unique certificate number for this specific welder
     const certificateNo = await generateCertificateNumber(welderIdInt);
-    
-    // Count existing certificates for this welder to determine file number in sequence
-    const countResult = await db.execute(sql`
-      SELECT COUNT(*) as count FROM welder_certificates WHERE welder_id = ${welderIdInt}
-    `);
-    
-    const count = countResult.rows[0]?.count;
-    const countStr = typeof count === 'string' ? count : String(count);
-    const existingCertCount = parseInt(countStr) + 1;
-    
-    // Upload the file to Google Cloud Storage
-    const filePath = `/QMS/WELDERS/${welderIdString}/${welderIdString}_${existingCertCount}.pdf`;
-    const fileBuffer = req.file.buffer;
-    const fileType = req.file.mimetype;
-    
-    // Upload file to GCS
-    const bucket = gcsClient.bucket(bucketName);
-    const cleanPath = getGCSCleanPath(filePath);
-    const file = bucket.file(cleanPath);
-    
-    await file.save(fileBuffer, {
-      metadata: {
-        contentType: fileType
-      }
-    });
-    
-    // Generate a signed URL that will be valid for 7 days
-    const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-      responseDisposition: 'attachment', // Force download rather than viewing in browser
-    });
-    
-    // Only store the file path in the database, not the signed URL (which is too long)
-    // We'll generate fresh signed URLs when needed
-    
-    // Insert certificate record into the database
+
     const result = await db.execute(sql`
       INSERT INTO welder_certificates (
         welder_id, certificate_no, certificate_type, description,
         issue_date, expiry_date, file_path, status, created_by
       ) VALUES (
         ${welderIdInt}, ${certificateNo}, ${certificateType}, ${description},
-        ${issueDate}, ${expiryDate}, ${filePath}, ${status}, ${userId}
+        ${issueDate}, ${expiryDate}, ${''}, ${status}, ${userId}
       )
       RETURNING id, certificate_no, certificate_type, issue_date, expiry_date
     `);
-    
+
     if (result.rows.length === 0) {
       throw new Error('Failed to insert certificate record');
     }
-    
+
+    const certId = (result.rows[0] as any).id;
+    const docNumber = `${welderIdString}-${certificateNo}`;
+
+    try {
+      const govResult = await createRevision({
+        module: 'WelderManagement' as QmsModule,
+        documentNumber: docNumber,
+        label: `cert-${certificateType}`,
+        fileBuffer: req.file.buffer,
+        originalFileName: req.file.originalname,
+        contentType: req.file.mimetype,
+        parentEntityType: 'welder_certificate',
+        parentEntityId: certId,
+        userId: userId!,
+        userRole,
+        ipAddress: req.ip,
+      });
+
+      await db.execute(sql`
+        UPDATE welder_certificates SET file_path = ${govResult.gcsPath}
+        WHERE id = ${certId}
+      `);
+
+      console.log(`Welder certificate uploaded via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+    } catch (govErr) {
+      console.error('Governance upload failed for welder cert:', govErr);
+      return res.status(500).json({ error: 'Failed to upload certificate file' });
+    }
+
     res.status(201).json({
       success: true,
       message: 'Certificate added successfully',
@@ -337,55 +339,96 @@ router.post('/:welderId', ensureAuthenticated, upload.single('file'), async (req
   }
 });
 
-// Get a fresh signed URL for a specific certificate
+// Get a fresh signed URL for a specific certificate (with audit logging)
 router.get('/:certificateId/url', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { certificateId } = req.params;
-    
+    const userId = (req.user as any)?.id || 0;
+    const userRole = (req.user as any)?.role || '';
+
     if (!certificateId || isNaN(parseInt(certificateId))) {
       return res.status(400).json({ error: 'Invalid certificate ID' });
     }
-    
+
     const certificateIdInt = parseInt(certificateId);
-    
-    // Get certificate details
+
+    const latestRev = await getLatestRevision('welder_certificate', certificateIdInt);
+
+    if (latestRev) {
+      const bucket = gcsClient.bucket(bucketName);
+      const file = bucket.file(latestRev.gcsPath);
+      const [exists] = await file.exists();
+
+      if (exists) {
+        const [signedUrl] = await file.getSignedUrl({
+          version: 'v4',
+          action: 'read',
+          expires: Date.now() + 24 * 60 * 60 * 1000,
+          responseDisposition: 'attachment',
+        });
+
+        await logDownload({
+          module: 'WelderManagement',
+          documentNumber: latestRev.documentNumber,
+          gcsPath: latestRev.gcsPath,
+          userId,
+          userRole,
+          ipAddress: req.ip,
+        });
+
+        return res.json({
+          success: true,
+          fileUrl: signedUrl,
+          certificateNo: latestRev.documentNumber,
+          revisionNumber: latestRev.revisionNumber,
+        });
+      }
+    }
+
     const certResult = await db.execute(sql`
       SELECT file_path, certificate_no FROM welder_certificates WHERE id = ${certificateIdInt}
     `);
-    
+
     if (certResult.rows.length === 0) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
-    
+
     const filePathRaw = certResult.rows[0].file_path;
     const certificateNo = certResult.rows[0].certificate_no;
-    
+
     if (!filePathRaw) {
       return res.status(404).json({ error: 'Certificate file path not found' });
     }
-    
-    // Generate a fresh signed URL
+
     const bucket = gcsClient.bucket(bucketName);
     const cleanPath = getGCSCleanPath(filePathRaw);
     const file = bucket.file(cleanPath);
-    
-    // Check if the file exists
+
     const [exists] = await file.exists();
     if (!exists) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         error: 'Certificate file not found in storage',
-        details: `File not found at path: ${cleanPath}` 
+        details: `File not found at path: ${cleanPath}`
       });
     }
-    
-    // Generate signed URL
+
     const [signedUrl] = await file.getSignedUrl({
       version: 'v4',
       action: 'read',
-      expires: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-      responseDisposition: 'attachment', // Force download rather than viewing in browser
+      expires: Date.now() + 24 * 60 * 60 * 1000,
+      responseDisposition: 'attachment',
     });
-    
+
+    await logDownload({
+      module: 'WelderManagement',
+      documentNumber: String(certificateNo),
+      gcsPath: cleanPath,
+      userId,
+      userRole,
+      ipAddress: req.ip,
+      details: { source: 'legacy_fallback' },
+    });
+
     res.json({
       success: true,
       fileUrl: signedUrl,
@@ -456,85 +499,73 @@ router.put('/:certificateId', ensureAuthenticated, async (req: Request, res: Res
   }
 });
 
-// Update certificate with new file
+// Update certificate with new file (non-destructive governance revision)
 router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { certificateId } = req.params;
-    
+    const userId = (req.user as any)?.id;
+    const userRole = (req.user as any)?.role || '';
+
     if (!certificateId || isNaN(parseInt(certificateId))) {
       return res.status(400).json({ error: 'Invalid certificate ID' });
     }
-    
+
     const certificateIdInt = parseInt(certificateId);
-    
-    // Get certificate and welder details
+
+    const roleCheck = checkUploadPermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
+    }
+
     const certResult = await db.execute(sql`
       SELECT c.*, w."welderId"
       FROM welder_certificates c
       JOIN welders w ON c.welder_id = w.id
       WHERE c.id = ${certificateIdInt}
     `);
-    
+
     if (certResult.rows.length === 0) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
-    
-    const certificate = certResult.rows[0];
+
+    const certificate = certResult.rows[0] as any;
     const welderIdString = certificate.welderId;
-    
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    
-    // Delete old file if it exists
-    if (certificate.file_path) {
-      try {
-        const bucket = gcsClient.bucket(bucketName);
-        const cleanPath = getGCSCleanPath(certificate.file_path);
-        const oldFile = bucket.file(cleanPath);
-        await oldFile.delete();
-      } catch (fileError) {
-        console.error('Error deleting old file from GCS:', fileError);
-        // Continue even if old file deletion fails
-      }
-    }
-    
-    // Upload new file to GCS
-    const fileName = `${welderIdString}_${certificate.certificate_no}.pdf`;
-    const filePath = `/QMS/WELDERS/${welderIdString}/${fileName}`;
-    
-    const bucket = gcsClient.bucket(bucketName);
-    const cleanPath = getGCSCleanPath(filePath);
-    const file = bucket.file(cleanPath);
-    
-    await file.save(req.file.buffer, {
-      metadata: {
-        contentType: req.file.mimetype
-      }
+
+    const docNumber = `${welderIdString}-${certificate.certificate_no}`;
+
+    const govResult = await createRevision({
+      module: 'WelderManagement' as QmsModule,
+      documentNumber: docNumber,
+      label: `cert-${certificate.certificate_type}`,
+      fileBuffer: req.file.buffer,
+      originalFileName: req.file.originalname,
+      contentType: req.file.mimetype,
+      parentEntityType: 'welder_certificate',
+      parentEntityId: certificateIdInt,
+      userId: userId || 0,
+      userRole,
+      ipAddress: req.ip,
     });
-    
-    // Generate a signed URL that will be valid for 7 days
-    const [signedUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      responseDisposition: 'attachment', // Force download rather than viewing in browser
-    });
-    
-    // We won't store the signed URL in the database since it's too long and expires anyway
-    // Instead, we'll generate it on-demand when needed
+
     const updateResult = await db.execute(sql`
       UPDATE welder_certificates SET
-        file_path = ${filePath},
+        file_path = ${govResult.gcsPath},
         updated_at = NOW()
       WHERE id = ${certificateIdInt}
       RETURNING *
     `);
-    
+
+    console.log(`Welder certificate file revised via governance: ${govResult.gcsPath} (rev ${govResult.revisionNumber})`);
+
     res.json({
       success: true,
       message: 'Certificate file updated successfully',
-      certificate: updateResult.rows[0]
+      certificate: updateResult.rows[0],
+      revisionNumber: govResult.revisionNumber,
     });
   } catch (error) {
     console.error('Error updating certificate file:', error);
@@ -545,56 +576,75 @@ router.put('/:certificateId/file', ensureAuthenticated, upload.single('file'), a
   }
 });
 
-// Delete a certificate
+// Delete a certificate (Superuser only, soft-delete governance revisions)
 router.delete('/:certificateId', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const { certificateId } = req.params;
-    
+    const userId = (req.user as any)?.id || 0;
+    const userRole = (req.user as any)?.role || '';
+
     if (!certificateId || isNaN(parseInt(certificateId))) {
       return res.status(400).json({ error: 'Invalid certificate ID' });
     }
-    
+
+    const roleCheck = checkDeletePermission(userRole);
+    if (!roleCheck.allowed) {
+      return res.status(403).json({ error: roleCheck.reason });
+    }
+
     const certificateIdInt = parseInt(certificateId);
-    
-    // Get certificate details first
+
     const certResult = await db.execute(sql`
-      SELECT file_path FROM welder_certificates WHERE id = ${certificateIdInt}
+      SELECT c.certificate_no, w."welderId"
+      FROM welder_certificates c
+      JOIN welders w ON c.welder_id = w.id
+      WHERE c.id = ${certificateIdInt}
     `);
-    
+
     if (certResult.rows.length === 0) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
-    
-    const filePathRaw = certResult.rows[0].file_path;
-    
-    // Delete from database
+
+    const cert = certResult.rows[0] as any;
+    const docNumber = `${cert.welderId}-${cert.certificate_no}`;
+
+    const latestRev = await getLatestRevision('welder_certificate', certificateIdInt);
+    if (latestRev) {
+      await softDeleteRevision({
+        revisionId: latestRev.id,
+        userId,
+        userRole,
+        ipAddress: req.ip,
+        reason: req.body?.reason || 'Certificate deleted',
+      });
+    }
+
+    await logAuditEvent({
+      action: 'soft_delete',
+      module: 'WelderManagement',
+      documentNumber: docNumber,
+      userId,
+      userRole,
+      ipAddress: req.ip,
+      details: { certificateId: certificateIdInt, reason: req.body?.reason },
+    });
+
     const result = await db.execute(sql`
       DELETE FROM welder_certificates WHERE id = ${certificateIdInt}
       RETURNING id
     `);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Certificate not found' });
     }
-    
-    // Try to delete file from GCS
-    try {
-      const bucket = gcsClient.bucket(bucketName);
-      const cleanPath = getGCSCleanPath(filePathRaw);
-      const file = bucket.file(cleanPath);
-      await file.delete();
-    } catch (fileError) {
-      console.error('Error deleting file from GCS:', fileError);
-      // Continue with the response even if file deletion fails
-    }
-    
-    res.json({ 
+
+    res.json({
       success: true,
       message: 'Certificate deleted successfully'
     });
   } catch (error) {
     console.error('Error deleting certificate:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to delete certificate',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
