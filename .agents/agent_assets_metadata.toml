@@ -114,3 +114,9 @@ id = "YHkPrNW37ztGj1xrC1yN7"
 uri = "file://.local/gcs-volume-report.md"
 type = "text"
 title = "Legacy GCS Volume Report"
+
+[[outputs]]
+id = "mFmhOsh8rjW-XxeIuLiKs"
+uri = "file://.local/epc-migration-implementation-plan.md"
+type = "text"
+title = "EPC File Governance — Implementation Plan (Phase 0 + Wave 1)"
