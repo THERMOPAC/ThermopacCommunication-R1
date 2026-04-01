@@ -5,6 +5,8 @@ import { designBasicDrawings, projects } from '../shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { ensureAuthenticated } from './auth-middleware';
+import { resolveBasicDrawingWithFallback } from './utils/epc-migration-helpers';
+import { initializeGCS } from './utils/gcs-operations';
 
 const router = express.Router();
 
@@ -231,15 +233,17 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req, res) =>
   }
 });
 
-// GET /api/design/basic-drawings/:id/download - Download a basic drawing
+// GET /api/design/basic-drawings/:id/download - Download a basic drawing (EPC-first read with legacy fallback)
 router.get('/:id/download', ensureAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user?.id || 1;
+    const drawingId = parseInt(id);
 
     const drawing = await db
       .select()
       .from(designBasicDrawings)
-      .where(eq(designBasicDrawings.id, parseInt(id)))
+      .where(eq(designBasicDrawings.id, drawingId))
       .limit(1);
 
     if (!drawing || drawing.length === 0) {
@@ -250,17 +254,52 @@ router.get('/:id/download', ensureAuthenticated, async (req, res) => {
     }
 
     const drawingData = drawing[0];
+    const legacyPath = drawingData.filePath || '';
 
-    // For now, return the file URL for direct download
-    // In production, you might want to generate a signed URL or stream the file
-    if (drawingData.fileUrl) {
-      res.redirect(drawingData.fileUrl);
-    } else {
-      res.status(404).json({ 
-        success: false, 
-        error: 'File URL not available' 
-      });
+    const resolved = await resolveBasicDrawingWithFallback(
+      drawingId,
+      legacyPath,
+      userId
+    );
+
+    if (resolved.source === 'epc') {
+      const { bucket } = await initializeGCS();
+      if (bucket) {
+        const file = bucket.file(resolved.path);
+        const [exists] = await file.exists();
+        if (exists) {
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + (15 * 60 * 1000),
+          });
+          return res.json({ url: signedUrl, source: 'epc' });
+        }
+      }
     }
+
+    if (drawingData.fileUrl) {
+      return res.redirect(drawingData.fileUrl);
+    }
+
+    if (legacyPath) {
+      const { bucket } = await initializeGCS();
+      if (bucket) {
+        const file = bucket.file(legacyPath);
+        const [exists] = await file.exists();
+        if (exists) {
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + (15 * 60 * 1000),
+          });
+          return res.json({ url: signedUrl, source: 'legacy' });
+        }
+      }
+    }
+
+    return res.status(404).json({ 
+      success: false, 
+      error: 'File URL not available' 
+    });
   } catch (error) {
     console.error('Error downloading basic drawing:', error);
     res.status(500).json({ 

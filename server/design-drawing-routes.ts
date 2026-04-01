@@ -11,6 +11,8 @@ import {
 } from '../shared/schema';
 import { ensureAuthenticated as authenticateUser } from './auth-middleware';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
+import { resolveDrawingVersionWithFallback } from './utils/epc-migration-helpers';
+import { initializeGCS } from './utils/gcs-operations';
 
 const router = Router();
 
@@ -494,12 +496,12 @@ router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), a
   }
 });
 
-// Download drawing version
+// Download drawing version — EPC-first read with legacy fallback
 router.get('/versions/:versionId/download', authenticateUser, async (req, res) => {
   try {
     const versionId = parseInt(req.params.versionId);
+    const userId = (req as any).user?.id || 1;
     
-    // Get version information including file path
     const version = await db
       .select({
         id: drawingVersions.id,
@@ -520,10 +522,46 @@ router.get('/versions/:versionId/download', authenticateUser, async (req, res) =
     }
 
     const versionData = version[0];
+    const legacyPath = versionData.filePath || '';
 
-    // Redirect to the signed URL for direct download
+    const resolved = await resolveDrawingVersionWithFallback(
+      versionId,
+      legacyPath,
+      userId
+    );
+
+    if (resolved.source === 'epc') {
+      const { bucket } = await initializeGCS();
+      if (bucket) {
+        const file = bucket.file(resolved.path);
+        const [exists] = await file.exists();
+        if (exists) {
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + (15 * 60 * 1000),
+          });
+          return res.json({ url: signedUrl, source: 'epc' });
+        }
+      }
+    }
+
     if (versionData.fileUrl) {
       return res.redirect(versionData.fileUrl);
+    }
+
+    if (legacyPath) {
+      const { bucket } = await initializeGCS();
+      if (bucket) {
+        const file = bucket.file(legacyPath);
+        const [exists] = await file.exists();
+        if (exists) {
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + (15 * 60 * 1000),
+          });
+          return res.json({ url: signedUrl, source: 'legacy' });
+        }
+      }
     }
 
     return res.status(404).json({ error: 'File not accessible' });
