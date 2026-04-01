@@ -96,3 +96,9 @@ id = "M8SOG_w6JdmKhHRIMMXuZ"
 uri = "file://.local/epc-permission-dashboard-plan.md"
 type = "text"
 title = "EPC Permission Control Dashboard — Implementation Plan"
+
+[[outputs]]
+id = "PV9SfOo85l_DP86SCvUUJ"
+uri = "file://.local/gcs-path-audit-report.md"
+type = "text"
+title = "GCS File Path Audit Report"
