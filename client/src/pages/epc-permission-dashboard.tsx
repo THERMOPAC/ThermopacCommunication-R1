@@ -660,10 +660,12 @@ function PageAccessControlTab() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [editMode, setEditMode] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Array<{ requestType: string; targetEntity: string; targetId: string; pageKey: string; currentValue: any; requestedValue: any }>>([]);
   const [overrideUserId, setOverrideUserId] = useState<string>("");
   const [overridePageKey, setOverridePageKey] = useState<string>("");
   const [overrideGranted, setOverrideGranted] = useState<boolean>(true);
+  const [overrideReason, setOverrideReason] = useState<string>("");
 
   const { data: deptMatrix, isLoading: matrixLoading } = useQuery<any[]>({
     queryKey: ["/api/page-permissions/department-matrix"],
@@ -692,16 +694,12 @@ function PageAccessControlTab() {
     },
   });
 
-  const toggleDeptPermission = useMutation({
-    mutationFn: async ({ department, pageKey, granted }: { department: string; pageKey: string; granted: boolean }) => {
-      await apiRequest("PUT", "/api/page-permissions/department-matrix", { department, pageKey, granted });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/page-permissions/department-matrix"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "Error", description: err.message || "Failed to update", variant: "destructive" });
+  const { data: serverPendingRequests } = useQuery<{ requests: any[] }>({
+    queryKey: ["/api/epc-permissions/change-requests", "pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/epc-permissions/change-requests?status=pending");
+      if (!res.ok) return { requests: [] };
+      return res.json();
     },
   });
 
@@ -723,14 +721,15 @@ function PageAccessControlTab() {
   });
 
   const addOverride = useMutation({
-    mutationFn: async ({ userId, pageKey, granted }: { userId: number; pageKey: string; granted: boolean }) => {
-      await apiRequest("PUT", "/api/page-permissions/user-override", { userId, pageKey, granted });
+    mutationFn: async ({ userId, pageKey, granted, auditReason }: { userId: number; pageKey: string; granted: boolean; auditReason: string }) => {
+      await apiRequest("PUT", "/api/page-permissions/user-override", { userId, pageKey, canView: granted, auditReason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/page-permissions/user-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
       setOverrideUserId("");
       setOverridePageKey("");
+      setOverrideReason("");
       toast({ title: "Override saved" });
     },
     onError: (err: any) => {
@@ -738,13 +737,18 @@ function PageAccessControlTab() {
     },
   });
 
+  const [deleteReasonDialog, setDeleteReasonDialog] = useState<{ userId: number; pageKey: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
   const deleteOverride = useMutation({
-    mutationFn: async ({ userId, pageKey }: { userId: number; pageKey: string }) => {
-      await apiRequest("DELETE", "/api/page-permissions/user-override", { userId, pageKey });
+    mutationFn: async ({ userId, pageKey, auditReason }: { userId: number; pageKey: string; auditReason: string }) => {
+      await apiRequest("DELETE", "/api/page-permissions/user-override", { userId, pageKey, auditReason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/page-permissions/user-overrides"] });
       queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
+      setDeleteReasonDialog(null);
+      setDeleteReason("");
       toast({ title: "Override removed" });
     },
     onError: (err: any) => {
@@ -772,12 +776,39 @@ function PageAccessControlTab() {
     return m;
   }, [pendingChanges]);
 
+  const serverPendingMap = useMemo(() => {
+    const m: Record<string, boolean> = {};
+    if (serverPendingRequests?.requests) {
+      for (const r of serverPendingRequests.requests) {
+        if (r.status === 'pending' && r.targetEntity === 'department' && r.pageKey) {
+          m[`${r.targetId}::${r.pageKey}`] = true;
+        }
+      }
+    }
+    return m;
+  }, [serverPendingRequests]);
+
   const allPageKeys = Object.keys(PAGE_LABELS);
   const isSuperuser = (user as any)?.role === 'Superuser';
 
+  const handleEditModeToggle = (newValue: boolean) => {
+    if (!newValue && pendingChanges.length > 0) {
+      setShowDiscardDialog(true);
+      return;
+    }
+    setEditMode(newValue);
+    if (!newValue) setPendingChanges([]);
+  };
+
+  const confirmDiscard = () => {
+    setPendingChanges([]);
+    setEditMode(false);
+    setShowDiscardDialog(false);
+  };
+
   const handleEditToggle = (dept: string, pk: string, currentGranted: boolean) => {
     if (!editMode) {
-      toggleDeptPermission.mutate({ department: dept, pageKey: pk, granted: !currentGranted });
+      toast({ title: "Edit Mode required", description: "Enable Edit Mode to make permission changes through the approval workflow.", variant: "destructive" });
       return;
     }
     const existing = pendingChanges.findIndex(c => c.targetEntity === 'department' && c.targetId === dept && c.pageKey === pk);
@@ -809,7 +840,7 @@ function PageAccessControlTab() {
               {isSuperuser && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-muted-foreground">Edit Mode</span>
-                  <Switch checked={editMode} onCheckedChange={(v) => { setEditMode(v); if (!v) setPendingChanges([]); }} className="scale-75" />
+                  <Switch checked={editMode} onCheckedChange={handleEditModeToggle} className="scale-75" />
                 </div>
               )}
             </div>
@@ -862,14 +893,30 @@ function PageAccessControlTab() {
                         const key = `${dept}::${pk}`;
                         const currentGranted = matrixMap[key] ?? false;
                         const hasPending = pendingMap[key] !== undefined;
+                        const hasServerPending = serverPendingMap[key] === true;
                         const displayValue = hasPending ? pendingMap[key] : currentGranted;
                         return (
-                          <TableCell key={dept} className={`text-center px-2 ${hasPending ? "bg-amber-50" : ""}`}>
-                            <Switch
-                              checked={displayValue}
-                              onCheckedChange={() => handleEditToggle(dept, pk, currentGranted)}
-                              className="scale-75"
-                            />
+                          <TableCell key={dept} className={`text-center px-2 relative ${hasPending ? "bg-amber-50" : hasServerPending ? "bg-orange-50" : ""}`}>
+                            <div className="flex items-center justify-center gap-0.5">
+                              <Switch
+                                checked={displayValue}
+                                onCheckedChange={() => handleEditToggle(dept, pk, currentGranted)}
+                                className="scale-75"
+                                disabled={!editMode && !isSuperuser}
+                              />
+                              {hasServerPending && !hasPending && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Clock className="h-3 w-3 text-orange-500 absolute top-1 right-1" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="text-[10px]">
+                                      <p>Pending change request awaiting approval</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                            </div>
                           </TableCell>
                         );
                       })}
@@ -937,11 +984,20 @@ function PageAccessControlTab() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex-1 space-y-1">
+              <label className="text-[10px] font-medium">Reason (required)</label>
+              <Input
+                className="h-8 text-xs"
+                placeholder="Audit reason..."
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+              />
+            </div>
             <Button
               size="sm"
               className="h-8 text-xs"
-              disabled={!overrideUserId || !overridePageKey || addOverride.isPending}
-              onClick={() => addOverride.mutate({ userId: Number(overrideUserId), pageKey: overridePageKey, granted: overrideGranted })}
+              disabled={!overrideUserId || !overridePageKey || !overrideReason.trim() || addOverride.isPending}
+              onClick={() => addOverride.mutate({ userId: Number(overrideUserId), pageKey: overridePageKey, granted: overrideGranted, auditReason: overrideReason.trim() })}
             >
               {addOverride.isPending ? "Saving..." : "Save Override"}
             </Button>
@@ -980,7 +1036,7 @@ function PageAccessControlTab() {
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
-                        onClick={() => deleteOverride.mutate({ userId: ov.userId, pageKey: ov.pageKey })}
+                        onClick={() => setDeleteReasonDialog({ userId: ov.userId, pageKey: ov.pageKey })}
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
@@ -992,6 +1048,52 @@ function PageAccessControlTab() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!deleteReasonDialog} onOpenChange={(v) => { if (!v) { setDeleteReasonDialog(null); setDeleteReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reason for removing override</DialogTitle>
+            <DialogDescription>
+              An audit reason is required for direct permission changes.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            className="text-xs"
+            placeholder="Enter audit reason..."
+            value={deleteReason}
+            onChange={(e) => setDeleteReason(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteReasonDialog(null); setDeleteReason(""); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!deleteReason.trim() || deleteOverride.isPending}
+              onClick={() => {
+                if (deleteReasonDialog) {
+                  deleteOverride.mutate({ userId: deleteReasonDialog.userId, pageKey: deleteReasonDialog.pageKey, auditReason: deleteReason.trim() });
+                }
+              }}
+            >
+              {deleteOverride.isPending ? "Removing..." : "Remove Override"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Discard unsaved changes?</DialogTitle>
+            <DialogDescription>
+              You have {pendingChanges.length} queued permission change{pendingChanges.length !== 1 ? "s" : ""} that {pendingChanges.length !== 1 ? "have" : "has"} not been submitted for approval. Leaving Edit Mode will discard them.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDiscardDialog(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmDiscard}>Discard Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -42,40 +42,46 @@ function getRequestMeta(req: Request) {
   };
 }
 
-async function writeAuditLog(req: Request, action: string, details: any, opts?: { changeRequestId?: number; snapshotId?: number; batchId?: string }) {
+async function writeAuditLog(req: Request, action: string, details: any, opts?: { changeRequestId?: number; snapshotId?: number; batchId?: string; tx?: any }) {
   const meta = getRequestMeta(req);
+  const target = opts?.tx || db;
+  await target.insert(permissionAuditLog).values({
+    action,
+    changeRequestId: opts?.changeRequestId || null,
+    snapshotId: opts?.snapshotId || null,
+    batchId: opts?.batchId || null,
+    userId: meta.userId,
+    username: meta.username,
+    role: meta.role,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+    details,
+  });
+}
+
+async function writeAuditLogBestEffort(req: Request, action: string, details: any, opts?: { changeRequestId?: number; snapshotId?: number; batchId?: string }) {
   try {
-    await db.insert(permissionAuditLog).values({
-      action,
-      changeRequestId: opts?.changeRequestId || null,
-      snapshotId: opts?.snapshotId || null,
-      batchId: opts?.batchId || null,
-      userId: meta.userId,
-      username: meta.username,
-      role: meta.role,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      details,
-    });
+    await writeAuditLog(req, action, details, opts);
   } catch (e) {
     console.error('[PermAudit] write error:', e);
   }
 }
 
-async function captureSnapshot(req: Request, snapshotType: string, description: string): Promise<number> {
+async function captureSnapshot(req: Request, snapshotType: string, description: string, tx?: any): Promise<number> {
   const meta = getRequestMeta(req);
-  const deptRows = await db.select().from(departmentPagePermissions);
-  const userRows = await db.select().from(pagePermissions);
+  const target = tx || db;
+  const deptRows = await target.select().from(departmentPagePermissions);
+  const userRows = await target.select().from(pagePermissions);
   const snapshotData: any = { departmentMatrix: deptRows, userOverrides: userRows };
 
-  const [snap] = await db.insert(permissionSnapshots).values({
+  const [snap] = await target.insert(permissionSnapshots).values({
     snapshotType: snapshotType as any,
     snapshotData,
     createdBy: meta.userId,
     description,
   }).returning();
 
-  await writeAuditLog(req, 'snapshot', { snapshotType, description, recordCount: deptRows.length + userRows.length }, { snapshotId: snap.id });
+  await writeAuditLog(req, 'snapshot', { snapshotType, description, recordCount: deptRows.length + userRows.length }, { snapshotId: snap.id, tx });
   return snap.id;
 }
 
@@ -192,42 +198,48 @@ export function registerEpcPermissionRoutes(app: Express) {
       const isEmergency = !!emergencyOverride;
       const status = isEmergency ? 'approved' : 'pending';
 
-      const insertedIds: number[] = [];
       for (const change of changes) {
-        const { requestType, targetEntity, targetId, pageKey, actionId, currentValue, requestedValue } = change;
-        if (!requestType || !targetEntity || !targetId) {
+        if (!change.requestType || !change.targetEntity || !change.targetId) {
           return res.status(400).json({ message: 'Each change requires requestType, targetEntity, targetId.' });
         }
-
-        const [row] = await db.insert(permissionChangeRequests).values({
-          batchId,
-          requestType,
-          targetEntity,
-          targetId,
-          pageKey: pageKey || null,
-          actionId: actionId || null,
-          currentValue: currentValue || null,
-          requestedValue: requestedValue || null,
-          requestedBy: meta.userId,
-          status,
-          emergencyOverride: isEmergency,
-          emergencyReason: isEmergency ? (emergencyReason || 'Emergency override') : null,
-          approvedBy: isEmergency ? meta.userId : null,
-          approvedAt: isEmergency ? new Date() : null,
-        }).returning();
-        insertedIds.push(row.id);
       }
 
-      const auditAction = isEmergency ? 'emergency_override' : 'create';
-      await writeAuditLog(req, auditAction, {
-        batchId,
-        changeCount: changes.length,
-        changeIds: insertedIds,
-        isEmergency,
-        emergencyReason: isEmergency ? emergencyReason : undefined,
-      }, { batchId });
+      const result = await db.transaction(async (tx) => {
+        const insertedIds: number[] = [];
+        for (const change of changes) {
+          const { requestType, targetEntity, targetId, pageKey, actionId, currentValue, requestedValue } = change;
+          const [row] = await tx.insert(permissionChangeRequests).values({
+            batchId,
+            requestType,
+            targetEntity,
+            targetId,
+            pageKey: pageKey || null,
+            actionId: actionId || null,
+            currentValue: currentValue || null,
+            requestedValue: requestedValue || null,
+            requestedBy: meta.userId,
+            status,
+            emergencyOverride: isEmergency,
+            emergencyReason: isEmergency ? (emergencyReason || 'Emergency override') : null,
+            approvedBy: isEmergency ? meta.userId : null,
+            approvedAt: isEmergency ? new Date() : null,
+          }).returning();
+          insertedIds.push(row.id);
+        }
 
-      res.json({ batchId, changeIds: insertedIds, status, count: insertedIds.length });
+        const auditAction = isEmergency ? 'emergency_override' : 'create';
+        await writeAuditLog(req, auditAction, {
+          batchId,
+          changeCount: changes.length,
+          changeIds: insertedIds,
+          isEmergency,
+          emergencyReason: isEmergency ? emergencyReason : undefined,
+        }, { batchId, tx });
+
+        return insertedIds;
+      });
+
+      res.json({ batchId, changeIds: result, status, count: result.length });
     } catch (error: any) {
       console.error('[EPC Permissions] create change request error:', error);
       res.status(500).json({ message: 'Failed to create change request' });
@@ -290,31 +302,36 @@ export function registerEpcPermissionRoutes(app: Express) {
       if (cr.status !== 'pending') return res.status(400).json({ message: `Cannot approve a ${cr.status} request.` });
       if (cr.requestedBy === meta.userId) return res.status(403).json({ message: 'Self-approval not allowed. A different authorized user must approve.' });
 
-      if (cr.batchId) {
-        const batchItems = await db.select().from(permissionChangeRequests)
-          .where(eq(permissionChangeRequests.batchId, cr.batchId));
-        const allPending = batchItems.every(b => b.status === 'pending');
-        if (!allPending) return res.status(400).json({ message: 'All items in batch must be pending to approve.' });
+      await db.transaction(async (tx) => {
+        if (cr.batchId) {
+          const batchItems = await tx.select().from(permissionChangeRequests)
+            .where(eq(permissionChangeRequests.batchId, cr.batchId));
+          const allPending = batchItems.every(b => b.status === 'pending');
+          if (!allPending) throw new Error('VALIDATION:All items in batch must be pending to approve.');
 
-        await db.update(permissionChangeRequests)
-          .set({ status: 'approved', approvedBy: meta.userId, approvedAt: new Date() })
-          .where(eq(permissionChangeRequests.batchId, cr.batchId));
+          await tx.update(permissionChangeRequests)
+            .set({ status: 'approved', approvedBy: meta.userId, approvedAt: new Date() })
+            .where(eq(permissionChangeRequests.batchId, cr.batchId));
 
-        await writeAuditLog(req, 'approve', {
-          batchId: cr.batchId,
-          batchSize: batchItems.length,
-          approvedIds: batchItems.map(b => b.id),
-        }, { batchId: cr.batchId });
-      } else {
-        await db.update(permissionChangeRequests)
-          .set({ status: 'approved', approvedBy: meta.userId, approvedAt: new Date() })
-          .where(eq(permissionChangeRequests.id, id));
+          await writeAuditLog(req, 'approve', {
+            batchId: cr.batchId,
+            batchSize: batchItems.length,
+            approvedIds: batchItems.map(b => b.id),
+          }, { batchId: cr.batchId, tx });
+        } else {
+          await tx.update(permissionChangeRequests)
+            .set({ status: 'approved', approvedBy: meta.userId, approvedAt: new Date() })
+            .where(eq(permissionChangeRequests.id, id));
 
-        await writeAuditLog(req, 'approve', { changeRequestId: id }, { changeRequestId: id });
-      }
+          await writeAuditLog(req, 'approve', { changeRequestId: id }, { changeRequestId: id, tx });
+        }
+      });
 
       res.json({ success: true, message: 'Change request approved.' });
     } catch (error: any) {
+      if (error.message?.startsWith('VALIDATION:')) {
+        return res.status(400).json({ message: error.message.replace('VALIDATION:', '') });
+      }
       console.error('[EPC Permissions] approve error:', error);
       res.status(500).json({ message: 'Failed to approve change request' });
     }
@@ -333,19 +350,21 @@ export function registerEpcPermissionRoutes(app: Express) {
       if (!cr) return res.status(404).json({ message: 'Change request not found' });
       if (cr.status !== 'pending') return res.status(400).json({ message: `Cannot reject a ${cr.status} request.` });
 
-      if (cr.batchId) {
-        await db.update(permissionChangeRequests)
-          .set({ status: 'rejected', rejectionReason: reason.trim(), approvedBy: meta.userId, approvedAt: new Date() })
-          .where(eq(permissionChangeRequests.batchId, cr.batchId));
+      await db.transaction(async (tx) => {
+        if (cr.batchId) {
+          await tx.update(permissionChangeRequests)
+            .set({ status: 'rejected', rejectionReason: reason.trim(), approvedBy: meta.userId, approvedAt: new Date() })
+            .where(eq(permissionChangeRequests.batchId, cr.batchId));
 
-        await writeAuditLog(req, 'reject', { batchId: cr.batchId, reason }, { batchId: cr.batchId });
-      } else {
-        await db.update(permissionChangeRequests)
-          .set({ status: 'rejected', rejectionReason: reason.trim(), approvedBy: meta.userId, approvedAt: new Date() })
-          .where(eq(permissionChangeRequests.id, id));
+          await writeAuditLog(req, 'reject', { batchId: cr.batchId, reason }, { batchId: cr.batchId, tx });
+        } else {
+          await tx.update(permissionChangeRequests)
+            .set({ status: 'rejected', rejectionReason: reason.trim(), approvedBy: meta.userId, approvedAt: new Date() })
+            .where(eq(permissionChangeRequests.id, id));
 
-        await writeAuditLog(req, 'reject', { changeRequestId: id, reason }, { changeRequestId: id });
-      }
+          await writeAuditLog(req, 'reject', { changeRequestId: id, reason }, { changeRequestId: id, tx });
+        }
+      });
 
       res.json({ success: true, message: 'Change request rejected.' });
     } catch (error: any) {
@@ -364,86 +383,90 @@ export function registerEpcPermissionRoutes(app: Express) {
       if (!cr) return res.status(404).json({ message: 'Change request not found' });
       if (cr.status !== 'approved') return res.status(400).json({ message: `Only approved requests can be applied. Current status: ${cr.status}` });
 
-      const snapshotId = await captureSnapshot(req, 'page_matrix', `Pre-apply snapshot for ${cr.batchId || `request #${id}`}`);
+      const result = await db.transaction(async (tx) => {
+        const snapshotId = await captureSnapshot(req, 'page_matrix', `Pre-apply snapshot for ${cr.batchId || `request #${id}`}`, tx);
 
-      let itemsToApply = [cr];
-      if (cr.batchId) {
-        itemsToApply = await db.select().from(permissionChangeRequests)
-          .where(and(
-            eq(permissionChangeRequests.batchId, cr.batchId),
-            eq(permissionChangeRequests.status, 'approved')
-          ));
-      }
+        let itemsToApply = [cr];
+        if (cr.batchId) {
+          itemsToApply = await tx.select().from(permissionChangeRequests)
+            .where(and(
+              eq(permissionChangeRequests.batchId, cr.batchId),
+              eq(permissionChangeRequests.status, 'approved')
+            ));
+        }
 
-      let appliedCount = 0;
-      const appliedDetails: any[] = [];
+        let appliedCount = 0;
+        const appliedDetails: any[] = [];
 
-      for (const item of itemsToApply) {
-        if (item.requestType === 'page_access' && item.targetEntity === 'department') {
-          const granted = (item.requestedValue as any)?.granted;
-          if (typeof granted === 'boolean' && item.pageKey) {
-            const existing = await db.select().from(departmentPagePermissions)
-              .where(and(
-                eq(departmentPagePermissions.department, item.targetId),
-                eq(departmentPagePermissions.pageKey, item.pageKey)
-              ));
-            if (existing.length > 0) {
-              await db.update(departmentPagePermissions)
-                .set({ canView: granted, updatedAt: new Date() })
-                .where(eq(departmentPagePermissions.id, existing[0].id));
-            } else {
-              await db.insert(departmentPagePermissions).values({
-                department: item.targetId,
-                pageKey: item.pageKey,
-                moduleName: 'Project Management',
-                canView: granted,
-              });
+        for (const item of itemsToApply) {
+          if (item.requestType === 'page_access' && item.targetEntity === 'department') {
+            const granted = (item.requestedValue as any)?.granted;
+            if (typeof granted === 'boolean' && item.pageKey) {
+              const existing = await tx.select().from(departmentPagePermissions)
+                .where(and(
+                  eq(departmentPagePermissions.department, item.targetId),
+                  eq(departmentPagePermissions.pageKey, item.pageKey)
+                ));
+              if (existing.length > 0) {
+                await tx.update(departmentPagePermissions)
+                  .set({ canView: granted, updatedAt: new Date() })
+                  .where(eq(departmentPagePermissions.id, existing[0].id));
+              } else {
+                await tx.insert(departmentPagePermissions).values({
+                  department: item.targetId,
+                  pageKey: item.pageKey,
+                  moduleName: 'Project Management',
+                  canView: granted,
+                });
+              }
+              appliedCount++;
+              appliedDetails.push({ id: item.id, type: 'dept_page', dept: item.targetId, page: item.pageKey, granted });
             }
-            appliedCount++;
-            appliedDetails.push({ id: item.id, type: 'dept_page', dept: item.targetId, page: item.pageKey, granted });
-          }
-        } else if (item.requestType === 'page_access' && item.targetEntity === 'user') {
-          const granted = (item.requestedValue as any)?.granted;
-          if (typeof granted === 'boolean' && item.pageKey) {
-            const userId = parseInt(item.targetId);
-            const existing = await db.select().from(pagePermissions)
-              .where(and(
-                eq(pagePermissions.userId, userId),
-                eq(pagePermissions.pageKey, item.pageKey)
-              ));
-            if (existing.length > 0) {
-              await db.update(pagePermissions)
-                .set({ canView: granted, updatedAt: new Date() })
-                .where(eq(pagePermissions.id, existing[0].id));
-            } else {
-              await db.insert(pagePermissions).values({
-                userId,
-                pageKey: item.pageKey,
-                moduleName: 'Project Management',
-                canView: granted,
-              });
+          } else if (item.requestType === 'page_access' && item.targetEntity === 'user') {
+            const granted = (item.requestedValue as any)?.granted;
+            if (typeof granted === 'boolean' && item.pageKey) {
+              const userId = parseInt(item.targetId);
+              const existing = await tx.select().from(pagePermissions)
+                .where(and(
+                  eq(pagePermissions.userId, userId),
+                  eq(pagePermissions.pageKey, item.pageKey)
+                ));
+              if (existing.length > 0) {
+                await tx.update(pagePermissions)
+                  .set({ canView: granted, updatedAt: new Date() })
+                  .where(eq(pagePermissions.id, existing[0].id));
+              } else {
+                await tx.insert(pagePermissions).values({
+                  userId,
+                  pageKey: item.pageKey,
+                  moduleName: 'Project Management',
+                  canView: granted,
+                });
+              }
+              appliedCount++;
+              appliedDetails.push({ id: item.id, type: 'user_page', userId, page: item.pageKey, granted });
             }
-            appliedCount++;
-            appliedDetails.push({ id: item.id, type: 'user_page', userId, page: item.pageKey, granted });
           }
         }
-      }
 
-      const updateIds = itemsToApply.map(i => i.id);
-      if (updateIds.length > 0) {
-        await db.update(permissionChangeRequests)
-          .set({ status: 'applied', appliedAt: new Date() })
-          .where(inArray(permissionChangeRequests.id, updateIds));
-      }
+        const updateIds = itemsToApply.map(i => i.id);
+        if (updateIds.length > 0) {
+          await tx.update(permissionChangeRequests)
+            .set({ status: 'applied', appliedAt: new Date() })
+            .where(inArray(permissionChangeRequests.id, updateIds));
+        }
 
-      await writeAuditLog(req, 'apply', {
-        snapshotId,
-        batchId: cr.batchId,
-        appliedCount,
-        appliedDetails,
-      }, { batchId: cr.batchId, snapshotId });
+        await writeAuditLog(req, 'apply', {
+          snapshotId,
+          batchId: cr.batchId,
+          appliedCount,
+          appliedDetails,
+        }, { batchId: cr.batchId, snapshotId, tx });
 
-      res.json({ success: true, appliedCount, snapshotId, message: `Applied ${appliedCount} permission change(s).` });
+        return { appliedCount, snapshotId };
+      });
+
+      res.json({ success: true, appliedCount: result.appliedCount, snapshotId: result.snapshotId, message: `Applied ${result.appliedCount} permission change(s).` });
     } catch (error: any) {
       console.error('[EPC Permissions] apply error:', error);
       res.status(500).json({ message: 'Failed to apply change request' });
@@ -506,40 +529,42 @@ export function registerEpcPermissionRoutes(app: Express) {
       const [snap] = await db.select().from(permissionSnapshots).where(eq(permissionSnapshots.id, id));
       if (!snap) return res.status(404).json({ message: 'Snapshot not found' });
 
-      await captureSnapshot(req, 'full', `Pre-restore backup before restoring snapshot #${id}`);
-
       const data = snap.snapshotData as any;
 
-      await db.delete(departmentPagePermissions);
-      if (data.departmentMatrix && Array.isArray(data.departmentMatrix)) {
-        for (const row of data.departmentMatrix) {
-          await db.insert(departmentPagePermissions).values({
-            department: row.department,
-            pageKey: row.pageKey || row.page_key,
-            moduleName: row.moduleName || row.module_name || 'Project Management',
-            canView: row.canView ?? row.can_view ?? true,
-          });
-        }
-      }
+      await db.transaction(async (tx) => {
+        await captureSnapshot(req, 'full', `Pre-restore backup before restoring snapshot #${id}`, tx);
 
-      await db.delete(pagePermissions);
-      if (data.userOverrides && Array.isArray(data.userOverrides)) {
-        for (const row of data.userOverrides) {
-          await db.insert(pagePermissions).values({
-            userId: row.userId || row.user_id,
-            pageKey: row.pageKey || row.page_key,
-            moduleName: row.moduleName || row.module_name || 'Project Management',
-            canView: row.canView ?? row.can_view ?? true,
-          });
+        await tx.delete(departmentPagePermissions);
+        if (data.departmentMatrix && Array.isArray(data.departmentMatrix)) {
+          for (const row of data.departmentMatrix) {
+            await tx.insert(departmentPagePermissions).values({
+              department: row.department,
+              pageKey: row.pageKey || row.page_key,
+              moduleName: row.moduleName || row.module_name || 'Project Management',
+              canView: row.canView ?? row.can_view ?? true,
+            });
+          }
         }
-      }
 
-      await writeAuditLog(req, 'rollback', {
-        snapshotId: id,
-        snapshotDescription: snap.description,
-        restoredDeptRows: data.departmentMatrix?.length || 0,
-        restoredUserRows: data.userOverrides?.length || 0,
-      }, { snapshotId: id });
+        await tx.delete(pagePermissions);
+        if (data.userOverrides && Array.isArray(data.userOverrides)) {
+          for (const row of data.userOverrides) {
+            await tx.insert(pagePermissions).values({
+              userId: row.userId || row.user_id,
+              pageKey: row.pageKey || row.page_key,
+              moduleName: row.moduleName || row.module_name || 'Project Management',
+              canView: row.canView ?? row.can_view ?? true,
+            });
+          }
+        }
+
+        await writeAuditLog(req, 'rollback', {
+          snapshotId: id,
+          snapshotDescription: snap.description,
+          restoredDeptRows: data.departmentMatrix?.length || 0,
+          restoredUserRows: data.userOverrides?.length || 0,
+        }, { snapshotId: id, tx });
+      });
 
       res.json({ success: true, message: `Restored snapshot #${id} successfully.` });
     } catch (error: any) {

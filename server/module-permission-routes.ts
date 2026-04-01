@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from './db';
 import { eq, and, or } from 'drizzle-orm';
-import { modules, modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users } from '@shared/schema';
+import { modules, modulePermissions, roleModulePermissions, departmentPagePermissions, pagePermissions, users, permissionAuditLog } from '@shared/schema';
 import { checkModulePermission, getUserModulePermissions, resetUserModulePermissions, setUserModulePermission, getAllPagePermissionsForUser } from './utils/permission-utils';
 import { authenticateUser, isAdmin } from './middlewares/auth';
 import { roleHierarchy } from '@shared/roles';
@@ -237,30 +237,56 @@ router.get('/api/page-permissions/department-matrix', authenticateUser, async (r
 router.put('/api/page-permissions/department-matrix', authenticateUser, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
-      return res.status(403).json({ error: 'Access denied' });
+    if (user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Direct permission changes are restricted to Superuser only. Use the approval workflow for standard changes.' });
     }
-    const { department, pageKey, canView } = req.body;
+    const { department, pageKey, canView, auditReason } = req.body;
     if (!department || !pageKey || typeof canView !== 'boolean') {
       return res.status(400).json({ error: 'Missing department, pageKey, or canView' });
     }
-    const existing = await db.select().from(departmentPagePermissions)
-      .where(and(
-        eq(departmentPagePermissions.department, department),
-        eq(departmentPagePermissions.pageKey, pageKey)
-      ));
-    if (existing.length > 0) {
-      await db.update(departmentPagePermissions)
-        .set({ canView, updatedAt: new Date() })
-        .where(eq(departmentPagePermissions.id, existing[0].id));
-    } else {
-      await db.insert(departmentPagePermissions).values({
-        department,
-        pageKey,
-        moduleName: 'Project Management',
-        canView,
-      });
+    if (!auditReason?.trim()) {
+      return res.status(400).json({ error: 'Mandatory audit reason required for direct permission changes.' });
     }
+
+    await db.transaction(async (tx) => {
+      const existing = await tx.select().from(departmentPagePermissions)
+        .where(and(
+          eq(departmentPagePermissions.department, department),
+          eq(departmentPagePermissions.pageKey, pageKey)
+        ));
+      const previousValue = existing.length > 0 ? existing[0].canView : null;
+
+      if (existing.length > 0) {
+        await tx.update(departmentPagePermissions)
+          .set({ canView, updatedAt: new Date() })
+          .where(eq(departmentPagePermissions.id, existing[0].id));
+      } else {
+        await tx.insert(departmentPagePermissions).values({
+          department,
+          pageKey,
+          moduleName: 'Project Management',
+          canView,
+        });
+      }
+
+      await tx.insert(permissionAuditLog).values({
+        action: 'direct_change',
+        userId: user.id,
+        username: user.username || 'unknown',
+        role: user.role || 'unknown',
+        ipAddress: req.ip || req.socket?.remoteAddress || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: {
+          endpoint: 'PUT /api/page-permissions/department-matrix',
+          reason: auditReason.trim(),
+          department,
+          pageKey,
+          previousValue,
+          newValue: canView,
+        },
+      });
+    });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating department page permission:', error);
@@ -295,30 +321,56 @@ router.get('/api/page-permissions/user-overrides', authenticateUser, async (req,
 router.put('/api/page-permissions/user-override', authenticateUser, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
-      return res.status(403).json({ error: 'Access denied' });
+    if (user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Direct user override changes are restricted to Superuser only. Use the approval workflow for standard changes.' });
     }
-    const { userId, pageKey, canView } = req.body;
+    const { userId, pageKey, canView, auditReason } = req.body;
     if (!userId || !pageKey || typeof canView !== 'boolean') {
       return res.status(400).json({ error: 'Missing userId, pageKey, or canView' });
     }
-    const existing = await db.select().from(pagePermissions)
-      .where(and(
-        eq(pagePermissions.userId, userId),
-        eq(pagePermissions.pageKey, pageKey)
-      ));
-    if (existing.length > 0) {
-      await db.update(pagePermissions)
-        .set({ canView, updatedAt: new Date() })
-        .where(eq(pagePermissions.id, existing[0].id));
-    } else {
-      await db.insert(pagePermissions).values({
-        userId,
-        pageKey,
-        moduleName: 'Project Management',
-        canView,
-      });
+    if (!auditReason?.trim()) {
+      return res.status(400).json({ error: 'Mandatory audit reason required for direct permission changes.' });
     }
+
+    await db.transaction(async (tx) => {
+      const existing = await tx.select().from(pagePermissions)
+        .where(and(
+          eq(pagePermissions.userId, userId),
+          eq(pagePermissions.pageKey, pageKey)
+        ));
+      const previousValue = existing.length > 0 ? existing[0].canView : null;
+
+      if (existing.length > 0) {
+        await tx.update(pagePermissions)
+          .set({ canView, updatedAt: new Date() })
+          .where(eq(pagePermissions.id, existing[0].id));
+      } else {
+        await tx.insert(pagePermissions).values({
+          userId,
+          pageKey,
+          moduleName: 'Project Management',
+          canView,
+        });
+      }
+
+      await tx.insert(permissionAuditLog).values({
+        action: 'direct_change',
+        userId: user.id,
+        username: user.username || 'unknown',
+        role: user.role || 'unknown',
+        ipAddress: req.ip || req.socket?.remoteAddress || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: {
+          endpoint: 'PUT /api/page-permissions/user-override',
+          reason: auditReason.trim(),
+          targetUserId: userId,
+          pageKey,
+          previousValue,
+          newValue: canView,
+        },
+      });
+    });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating user page override:', error);
@@ -329,18 +381,41 @@ router.put('/api/page-permissions/user-override', authenticateUser, async (req, 
 router.delete('/api/page-permissions/user-override', authenticateUser, async (req, res) => {
   try {
     const user = req.user!;
-    if (user.role !== 'Superuser' && user.role !== 'General Manager') {
-      return res.status(403).json({ error: 'Access denied' });
+    if (user.role !== 'Superuser') {
+      return res.status(403).json({ error: 'Direct user override deletion is restricted to Superuser only.' });
     }
-    const { userId, pageKey } = req.body;
+    const { userId, pageKey, auditReason } = req.body;
     if (!userId || !pageKey) {
       return res.status(400).json({ error: 'Missing userId or pageKey' });
     }
-    await db.delete(pagePermissions)
-      .where(and(
-        eq(pagePermissions.userId, userId),
-        eq(pagePermissions.pageKey, pageKey)
-      ));
+    if (!auditReason?.trim()) {
+      return res.status(400).json({ error: 'Mandatory audit reason required for direct permission changes.' });
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(pagePermissions)
+        .where(and(
+          eq(pagePermissions.userId, userId),
+          eq(pagePermissions.pageKey, pageKey)
+        ));
+
+      await tx.insert(permissionAuditLog).values({
+        action: 'direct_change',
+        userId: user.id,
+        username: user.username || 'unknown',
+        role: user.role || 'unknown',
+        ipAddress: req.ip || req.socket?.remoteAddress || '',
+        userAgent: req.headers['user-agent'] || '',
+        details: {
+          endpoint: 'DELETE /api/page-permissions/user-override',
+          reason: auditReason.trim(),
+          targetUserId: userId,
+          pageKey,
+          action: 'delete_override',
+        },
+      });
+    });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting user page override:', error);
