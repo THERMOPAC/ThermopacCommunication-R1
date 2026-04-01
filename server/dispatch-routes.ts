@@ -1,9 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { db } from './db';
 import multer from 'multer';
-import { eq, and, desc, gte, lte } from 'drizzle-orm';
+import crypto from 'crypto';
+import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { gcsStorage } from './utils/gcs-storage';
-import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems, projects } from '@shared/schema';
+import { initializeGCS } from './utils/gcs-operations';
+import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems, projects, epcDocumentAttachments, epcDocumentAccessLog } from '@shared/schema';
+import * as epcCoding from './epc-coding';
+import { isFeatureFlagEnabled, findEpcDispatchRecord, resolveDispatchDocumentWithFallback } from './utils/epc-migration-helpers';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -337,14 +341,12 @@ export function setupDispatchRoutes(app: Router) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
       
-      // Verify the dispatch record exists
       const dispatch = await db.select().from(dispatchRecords).where(eq(dispatchRecords.id, dispatchId)).limit(1);
       
       if (!dispatch || dispatch.length === 0) {
         return res.status(404).json({ error: 'Dispatch record not found' });
       }
       
-      // Get the project details
       const projectResult = await db.select().from(projects).where(eq(projects.id, dispatch[0].project_id)).limit(1);
       
       if (!projectResult || projectResult.length === 0) {
@@ -352,49 +354,166 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       const project = projectResult[0];
-      
-      // Upload to GCS
       const fileName = req.file.originalname;
-      const fileBuffer = req.file.buffer;
-      
-      // Get dispatch number and ensure it exists
       const dispatchNumber = dispatch[0].dispatch_number;
-      
-      // Create the file path in GCS
-      const filePath = `THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}/${document_type}_${fileName}`;
-      
-      // Create or ensure the directory structure exists
-      await gcsStorage.ensureDirectoryStructure(`THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}`);
-      
-      // Generate upload signed URL
-      const uploadUrl = await gcsStorage.generateUploadSignedUrl({
-        financialYear: project.financialYear,
-        projectCode: project.code,
-        department: 'Dispatch',
-        subDirectory: dispatchNumber,
-        fileName: `${document_type}_${fileName}`,
-        contentType: req.file.mimetype
-      });
-      
-      const uploadResult = {
-        path: filePath,
-        url: uploadUrl,
-        expiryTime: Date.now() + 15 * 60 * 1000 // 15 minutes expiry
-      };
-      
-      // Add the document to the database
-      const [newDocument] = await db.insert(dispatchDocuments).values({
-        dispatch_id: dispatchId,
-        document_type,
-        document_name: fileName,
-        document_path: filePath,
-        uploaded_by: req.user!.id,
-        storage_path: uploadResult.path,
-        storage_url: uploadResult.url,
-        storage_url_expiry: uploadResult.expiryTime ? new Date(uploadResult.expiryTime) : null
-      }).returning();
-      
-      res.status(201).json(newDocument);
+      const userId = req.user!.id;
+
+      const dspCutoverEnabled = await isFeatureFlagEnabled('EPC_UPLOAD_CUTOVER_DSP');
+      const epcDispatch = dspCutoverEnabled
+        ? await findEpcDispatchRecord(dispatchNumber, project.id)
+        : null;
+
+      if (dspCutoverEnabled && epcDispatch && project.operational_code) {
+        const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+        const documentNumber = epcDispatch.dispatch_number;
+        const operationalCode = project.operational_code;
+
+        const dupCheck = await db.execute(
+          sql`SELECT id, attachment_label FROM epc_document_attachments
+              WHERE document_number = ${documentNumber}
+              AND doc_type = 'DSP'
+              AND checksum_sha256 = ${checksum}
+              AND status = 'active'`
+        );
+
+        if (dupCheck.rows.length > 0) {
+          const dup = dupCheck.rows[0] as any;
+          return res.status(409).json({
+            error: 'This exact file is already attached to this dispatch record.',
+            existingAttachmentId: dup.id,
+          });
+        }
+
+        const { storage, bucket } = await initializeGCS();
+        if (!storage || !bucket) {
+          return res.status(500).json({ error: 'Failed to initialize Google Cloud Storage' });
+        }
+
+        const txResult = await db.transaction(async (tx) => {
+          const seqResult = await tx.execute(
+            sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+                FROM epc_document_attachments
+                WHERE document_number = ${documentNumber}
+                AND revision_code IS NULL`
+          );
+          const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+          const attachmentLabel = (document_type || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+          const gcsObjectPath = epcCoding.buildEpcGcsPath(
+            operationalCode, 'DSP', documentNumber,
+            null, attachmentSeq, attachmentLabel, fileName
+          );
+
+          const [inserted] = await tx.insert(epcDocumentAttachments).values({
+            parentEntityType: 'epc_dispatch_records',
+            parentEntityId: epcDispatch.id,
+            projectId: project.id,
+            docType: 'DSP',
+            documentNumber,
+            isRevisionControlled: false,
+            revisionCode: null,
+            attachmentLabel,
+            attachmentSeq,
+            gcsBucket: 'thermopac_storage',
+            gcsObjectPath,
+            originalFileName: fileName,
+            mimeType: req.file!.mimetype,
+            fileSizeBytes: req.file!.size,
+            checksumSha256: checksum,
+            status: 'active',
+            isCurrent: true,
+            uploadedBy: userId,
+          }).returning();
+
+          await tx.execute(sql`
+            INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${project.id}, 'epc_document.uploaded', ${JSON.stringify({
+              attachmentId: inserted.id, documentNumber, docType: 'DSP',
+              originalFileName: fileName, mimeType: req.file!.mimetype,
+              fileSizeBytes: req.file!.size, checksumSha256: checksum,
+              gcsObjectPath, uploadedBy: userId,
+            })}::jsonb, 'dispatch_document_upload', NOW())
+          `);
+
+          return { inserted, attachmentSeq, gcsObjectPath };
+        });
+
+        const gcsFile = bucket.file(txResult.gcsObjectPath);
+        await gcsFile.save(req.file.buffer, {
+          contentType: req.file.mimetype,
+          metadata: {
+            metadata: {
+              documentNumber, docType: 'DSP', revisionCode: 'na',
+              projectId: String(project.id), uploadedBy: String(userId),
+              checksumSha256: checksum,
+            },
+          },
+        });
+
+        await db.insert(epcDocumentAccessLog).values({
+          attachmentId: txResult.inserted.id,
+          documentNumber,
+          revisionCode: null,
+          docType: 'DSP',
+          projectId: project.id,
+          action: 'upload',
+          accessedBy: userId,
+          ipAddress: (req.ip || req.socket.remoteAddress || '').substring(0, 45),
+          userAgent: (req.headers['user-agent'] || '').substring(0, 500),
+        });
+
+        const [newDocument] = await db.insert(dispatchDocuments).values({
+          dispatch_id: dispatchId,
+          document_type,
+          document_name: fileName,
+          document_path: txResult.gcsObjectPath,
+          uploaded_by: userId,
+          storage_path: txResult.gcsObjectPath,
+          storage_url: null,
+          storage_url_expiry: null
+        }).returning();
+
+        console.log(`[DSP-EPC] Uploaded ${documentNumber} DSP seq ${txResult.attachmentSeq} by user ${userId}`);
+        res.status(201).json({
+          ...newDocument,
+          epcAttachmentId: txResult.inserted.id,
+          epcPath: txResult.gcsObjectPath,
+          uploadRoute: 'epc',
+        });
+      } else {
+        const filePath = `THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}/${document_type}_${fileName}`;
+
+        await gcsStorage.ensureDirectoryStructure(`THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}`);
+
+        const uploadUrl = await gcsStorage.generateUploadSignedUrl({
+          financialYear: project.financialYear,
+          projectCode: project.code,
+          department: 'Dispatch',
+          subDirectory: dispatchNumber,
+          fileName: `${document_type}_${fileName}`,
+          contentType: req.file.mimetype
+        });
+
+        const uploadResult = {
+          path: filePath,
+          url: uploadUrl,
+          expiryTime: Date.now() + 15 * 60 * 1000
+        };
+
+        const [newDocument] = await db.insert(dispatchDocuments).values({
+          dispatch_id: dispatchId,
+          document_type,
+          document_name: fileName,
+          document_path: filePath,
+          uploaded_by: userId,
+          storage_path: uploadResult.path,
+          storage_url: uploadResult.url,
+          storage_url_expiry: uploadResult.expiryTime ? new Date(uploadResult.expiryTime) : null
+        }).returning();
+
+        console.log(`[DSP-LEGACY] Uploaded dispatch doc for ${dispatchNumber} by user ${userId}`);
+        res.status(201).json({ ...newDocument, uploadRoute: 'legacy' });
+      }
     } catch (error) {
       console.error('Error uploading dispatch document:', error);
       res.status(500).json({ error: 'Failed to upload dispatch document' });
@@ -407,8 +526,8 @@ export function setupDispatchRoutes(app: Router) {
   app.get('/api/dispatch/documents/:id/download', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const documentId = parseInt(req.params.id);
+      const userId = req.user!.id;
       
-      // Get the document
       const documentResult = await db.select().from(dispatchDocuments).where(eq(dispatchDocuments.id, documentId)).limit(1);
       
       if (!documentResult || documentResult.length === 0) {
@@ -416,36 +535,76 @@ export function setupDispatchRoutes(app: Router) {
       }
       
       const document = documentResult[0];
-      
-      // Check if the URL is still valid
-      const now = new Date();
-      if (document.storage_url_expiry && document.storage_url_expiry > now && document.storage_url) {
-        return res.json({ url: document.storage_url });
-      }
-      
-      // Generate a new signed URL
-      // Make sure storage_path is not null
+
       if (!document.storage_path) {
         return res.status(404).json({ error: 'Document path not found' });
       }
-      
-      const downloadUrl = await gcsStorage.generateDownloadSignedUrl({
-        filePath: document.storage_path
-      });
-      
+
+      const dispatchResult = await db.select().from(dispatchRecords).where(eq(dispatchRecords.id, document.dispatch_id)).limit(1);
+      const dispatchNumber = dispatchResult.length > 0 ? dispatchResult[0].dispatch_number : null;
+      const projectId = dispatchResult.length > 0 ? dispatchResult[0].project_id : null;
+
+      let downloadUrl: string | null = null;
+      let downloadSource: 'epc' | 'legacy' = 'legacy';
+
+      if (dispatchNumber && projectId) {
+        const resolved = await resolveDispatchDocumentWithFallback(
+          document.id,
+          document.storage_path,
+          projectId,
+          dispatchNumber,
+          userId
+        );
+
+        if (resolved.source === 'epc') {
+          const { storage, bucket } = await initializeGCS();
+          if (storage && bucket) {
+            const gcsFile = bucket.file(resolved.path);
+            const [signedUrl] = await gcsFile.getSignedUrl({
+              action: 'read' as const,
+              expires: Date.now() + 15 * 60 * 1000,
+            });
+            downloadUrl = signedUrl;
+            downloadSource = 'epc';
+
+            await db.insert(epcDocumentAccessLog).values({
+              attachmentId: resolved.attachmentId!,
+              documentNumber: dispatchNumber,
+              revisionCode: null,
+              docType: 'DSP',
+              projectId,
+              action: 'download',
+              accessedBy: userId,
+              ipAddress: (req.ip || req.socket.remoteAddress || '').substring(0, 45),
+              userAgent: (req.headers['user-agent'] || '').substring(0, 500),
+            });
+          }
+        }
+      }
+
       if (!downloadUrl) {
-        return res.status(404).json({ error: 'Could not generate download URL for file' });
+        const now = new Date();
+        if (document.storage_url_expiry && document.storage_url_expiry > now && document.storage_url) {
+          return res.json({ url: document.storage_url, source: 'legacy_cached' });
+        }
+
+        downloadUrl = await gcsStorage.generateDownloadSignedUrl({
+          filePath: document.storage_path
+        });
+
+        if (!downloadUrl) {
+          return res.status(404).json({ error: 'Could not generate download URL for file' });
+        }
+
+        await db.update(dispatchDocuments)
+          .set({
+            storage_url: downloadUrl,
+            storage_url_expiry: new Date(Date.now() + 15 * 60 * 1000)
+          })
+          .where(eq(dispatchDocuments.id, documentId));
       }
       
-      // Update the document with the new URL and expiry
-      await db.update(dispatchDocuments)
-        .set({
-          storage_url: downloadUrl,
-          storage_url_expiry: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes expiry
-        })
-        .where(eq(dispatchDocuments.id, documentId));
-      
-      res.json({ url: downloadUrl });
+      res.json({ url: downloadUrl, source: downloadSource });
     } catch (error) {
       console.error('Error getting download URL:', error);
       res.status(500).json({ error: 'Failed to get download URL' });

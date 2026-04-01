@@ -111,6 +111,56 @@ export async function resolveBasicDrawingWithFallback(
   return { path: legacyPath, source: 'legacy' };
 }
 
+export async function resolveDispatchDocumentWithFallback(
+  dispatchDocId: number,
+  legacyPath: string,
+  projectId: number,
+  dispatchNumber: string,
+  userId: number
+): Promise<{ path: string; source: 'epc' | 'legacy'; attachmentId?: number }> {
+  const epcResult = await db.execute(
+    sql`SELECT eda.id, eda.gcs_object_path
+        FROM epc_document_attachments eda
+        JOIN epc_dispatch_records edr ON edr.id = eda.parent_entity_id
+        WHERE eda.parent_entity_type = 'epc_dispatch_records'
+        AND eda.doc_type = 'DSP'
+        AND eda.project_id = ${projectId}
+        AND eda.status = 'active'
+        AND eda.is_current = true
+        AND edr.dispatch_number = ${dispatchNumber}
+        ORDER BY eda.uploaded_at DESC
+        LIMIT 1`
+  );
+
+  if (epcResult.rows.length > 0) {
+    const row = epcResult.rows[0] as any;
+    return { path: row.gcs_object_path, source: 'epc', attachmentId: row.id };
+  }
+
+  await db.insert(legacyFileAccessLog).values({
+    legacyPath,
+    pathFamily: 'PATH-04',
+    projectId,
+    accessedBy: userId,
+    action: 'download_fallback',
+    migratedToEpc: false,
+  });
+
+  return { path: legacyPath, source: 'legacy' };
+}
+
+export async function findEpcDispatchRecord(
+  dispatchNumber: string,
+  projectId: number
+): Promise<{ id: number; dispatch_number: string } | null> {
+  const result = await db.execute(
+    sql`SELECT id, dispatch_number FROM epc_dispatch_records
+        WHERE dispatch_number = ${dispatchNumber} AND project_id = ${projectId}
+        LIMIT 1`
+  );
+  return result.rows.length > 0 ? result.rows[0] as any : null;
+}
+
 export async function isFeatureFlagEnabled(flagName: string): Promise<boolean> {
   const result = await db.execute(
     sql`SELECT enabled FROM epc_migration_feature_flags WHERE flag_name = ${flagName} LIMIT 1`
