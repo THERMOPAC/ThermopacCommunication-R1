@@ -384,7 +384,7 @@ export default function EpcDrawingControlPage() {
                 <SelectContent>
                   {projects.map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                      {p.name || p.project_name} ({p.operational_code || "—"})
+                      {p.name} ({p.code || "—"})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -646,7 +646,7 @@ export default function EpcDrawingControlPage() {
               <DialogHeader>
                 <DialogTitle>Create Drawing Control</DialogTitle>
                 <DialogDescription>
-                  New DWG control for {selectedProject?.name || selectedProject?.project_name || "this project"}. Initial revision will be A (draft).
+                  New DWG control for {selectedProject?.name || "this project"}. Initial revision will be A (draft).
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
