@@ -25,7 +25,37 @@ The system is a full-stack web application with organized, hierarchical data str
     - **Multi-Agent Intelligence & Automation**: Features 11 agents with conflict control, event bus, finding management, and audit logging. Includes an L1 Worker Agents Dashboard and a Live EPC Risks Dashboard.
     - **Employee Appraisal Module**: Hierarchical workflow, KPI/competency scoring, increment policies, L3 decision support, and PDF report generation.
     - **Alert Management System**: Full alert system with priority levels and a 3-state workflow.
-    - **Security & Access Control**: API Security (SQL injection, XSS protection), TOTP-based Two-Factor Authentication (2FA), EPC Permission Control Dashboard (Phase 2: editable permissions with approval workflow, audit trail, snapshots, and rollback), EPC Page-Level Permission Control (role + department based access with user overrides), EPC Project Membership Enforcement (record-level visibility via project membership), and EPC Record-Level Ownership Filtering (fine-grained record visibility within projects based on ownership scope). Includes Access Denied Audit Logging and Permission Change Audit Trail.
+    - **Security & Access Control**: API Security (SQL injection, XSS protection), TOTP-based Two-Factor Authentication (2FA), EPC Permission Control Dashboard (production-ready, locked — see architecture below), EPC Page-Level Permission Control (role + department based access with user overrides), EPC Project Membership Enforcement (record-level visibility via project membership), and EPC Record-Level Ownership Filtering (fine-grained record visibility within projects based on ownership scope). Includes Access Denied Audit Logging and Permission Change Audit Trail.
+
+### EPC Permission Control Dashboard — Final Architecture (Production-Ready, Locked)
+**Status**: Production-approved. Do not expand scope or refactor unless specifically requested.
+
+**Phase 1 — Visibility & Intelligence** (read-only):
+- Full RBAC matrix: pages × roles, actions × roles, data visibility rules
+- Role simulation (view-as any role)
+- Gap/finding tracker with severity classification
+- Department × Page access matrix (live view from `department_page_permissions`)
+- Per-user override management (`page_permissions`)
+
+**Phase 2 — Editable Control + Approval Workflow + Audit Trail**:
+- **Edit Mode** (Superuser only): queues permission changes as batch change requests instead of applying immediately. Unsaved changes warning dialog on exit.
+- **Approval workflow**: Pending → Approved (by different user, self-approval blocked) → Applied. Batch-level approve/reject. Rejection requires reason.
+- **Emergency override**: Superuser-only, skips pending state, requires reason, fully audit-logged.
+- **Snapshots & rollback**: Auto-snapshot before apply, manual snapshot capture, Superuser-only restore with pre-restore backup.
+- **Audit trail**: Permanent log for all actions (create, approve, reject, apply, rollback, emergency_override, snapshot, direct_change). Paginated, filterable, CSV-exportable.
+- **Transactional integrity**: All permission-changing operations (create, approve, reject, apply, restore) run inside `db.transaction()`. Audit writes are inside the transaction for critical operations — if audit fails, the permission change rolls back.
+- **Pending matrix indicator**: Matrix cells with pending change requests show orange highlight + clock icon.
+
+**Emergency Direct-Change Path** (bypass approval workflow):
+- Restricted to **Superuser only** (not General Manager).
+- Mandatory `auditReason` field — request rejected without it.
+- Logged as `direct_change` in audit trail with full details (endpoint, reason, previous/new value).
+- Runs inside `db.transaction()` — audit write failure rolls back the change.
+- Endpoints: `PUT /api/page-permissions/department-matrix`, `PUT /api/page-permissions/user-override`, `DELETE /api/page-permissions/user-override`.
+
+**DB Tables**: `permission_change_requests`, `permission_snapshots`, `permission_audit_log` (all additive — no existing tables modified).
+**Backend**: `server/epc-permission-routes.ts` (10 endpoints), `server/module-permission-routes.ts` (3 restricted direct endpoints).
+**Frontend**: `client/src/pages/epc-permission-dashboard.tsx` (PageAccessControlTab, ChangeRequestsTab, AuditHistoryTab, SnapshotsPanel).
 
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.
