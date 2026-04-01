@@ -5,28 +5,127 @@ import { bucketName } from './utils/storage-config';
 import { checkGcsPermissions } from './utils/gcs-permissions-check';
 import { db } from './db';
 import * as schema from '@shared/schema';
-import { gcsDirectories, projectDocuments, directoryTemplates, masterItems } from '@shared/schema';
-import { eq, and, like } from 'drizzle-orm';
+import { gcsDirectories, projectDocuments, directoryTemplates, masterItems, legacyFileAccessLog } from '@shared/schema';
+import { eq, and, like, sql } from 'drizzle-orm';
 import path from 'path';
+import { checkProjectMembership } from './utils/permission-utils';
 
-// We'll use the standard Request type from Express
-// which will be augmented by multer to include the file property
-
-// Configure multer for memory storage (we're not saving files to disk)
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB file size limit
+    fileSize: 100 * 1024 * 1024,
   }
 });
 
-// Auth middleware
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
     return next();
   }
   res.status(401).json({ error: 'You must be logged in to access this resource' });
+}
+
+const MANAGER_PLUS_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+
+async function resolveProjectFromCode(projectCode: string): Promise<{ id: number; operationalCode: string | null } | null> {
+  const result = await db.execute(
+    sql`SELECT id, operational_code FROM projects WHERE code = ${projectCode} LIMIT 1`
+  );
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0] as any;
+  return { id: row.id, operationalCode: row.operational_code };
+}
+
+async function enforceFileAccessControl(
+  req: Request,
+  res: Response,
+  pathStr: string,
+  action: string
+): Promise<boolean> {
+  const user = (req as any).user;
+  if (!user) {
+    res.status(401).json({ error: 'Not authenticated' });
+    return false;
+  }
+
+  if (pathStr.startsWith('THERMOPAC_INVENTORY/') || pathStr.startsWith('THERMOPAC_INVENTORY')) {
+    if (!MANAGER_PLUS_ROLES.includes(user.role)) {
+      console.warn(`[FILE_ACCESS_DENIED] userId=${user.id} role=${user.role} path=${pathStr} action=${action} reason=inventory_requires_manager`);
+      await db.insert(legacyFileAccessLog).values({
+        legacyPath: pathStr,
+        pathFamily: 'PATH-03',
+        accessedBy: user.id,
+        action: 'access_denied',
+        migratedToEpc: false,
+      });
+      res.status(403).json({ error: 'Inventory files require Manager or higher role' });
+      return false;
+    }
+    await db.insert(legacyFileAccessLog).values({
+      legacyPath: pathStr,
+      pathFamily: 'PATH-03',
+      accessedBy: user.id,
+      action,
+      migratedToEpc: false,
+    });
+    return true;
+  }
+
+  let projectCode: string | null = null;
+  let pathFamily = 'PATH-02';
+
+  if (pathStr.startsWith('THERMOPAC_PROJECTS/')) {
+    const parts = pathStr.split('/');
+    if (parts.length >= 3) {
+      projectCode = parts[2];
+    }
+  } else if (!pathStr.startsWith('THERMOPAC_INVENTORY')) {
+    const parts = pathStr.split('/');
+    if (parts.length >= 2) {
+      projectCode = parts[1];
+    }
+  }
+
+  if (projectCode) {
+    const project = await resolveProjectFromCode(projectCode);
+    if (project) {
+      const { isMember } = await checkProjectMembership(user.id, user.role, project.id);
+      if (!isMember) {
+        console.warn(`[FILE_ACCESS_DENIED] userId=${user.id} role=${user.role} projectCode=${projectCode} projectId=${project.id} path=${pathStr} action=${action}`);
+        await db.insert(legacyFileAccessLog).values({
+          legacyPath: pathStr,
+          pathFamily,
+          projectId: project.id,
+          accessedBy: user.id,
+          action: 'access_denied',
+          migratedToEpc: false,
+        });
+        res.status(403).json({
+          error: 'Project access denied',
+          code: 'PROJECT_ACCESS_DENIED',
+        });
+        return false;
+      }
+      await db.insert(legacyFileAccessLog).values({
+        legacyPath: pathStr,
+        pathFamily,
+        projectId: project.id,
+        accessedBy: user.id,
+        action,
+        migratedToEpc: false,
+      });
+      return true;
+    }
+  }
+
+  await db.insert(legacyFileAccessLog).values({
+    legacyPath: pathStr,
+    pathFamily: 'UNKNOWN',
+    accessedBy: user.id,
+    action,
+    migratedToEpc: false,
+  });
+  return true;
 }
 
 /**
@@ -96,7 +195,10 @@ export function setupFileStorageRoutes(app: Router) {
     try {
       const { financialYear, projectCode } = req.params;
       
-      // 1. Get standard directory templates from directory_templates table
+      const dirListPath = `THERMOPAC_PROJECTS/${financialYear}/${projectCode}`;
+      const allowed = await enforceFileAccessControl(req, res, dirListPath, 'list_directories');
+      if (!allowed) return;
+      
       const templates = await db
         .select()
         .from(directoryTemplates);
@@ -185,7 +287,10 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Missing required parameters' });
       }
       
-      // Build the full path with THERMOPAC_PROJECTS prefix
+      const dirAccessPath = `THERMOPAC_PROJECTS/${financialYear}/${projectCode}`;
+      const allowed = await enforceFileAccessControl(req, res, dirAccessPath, 'create_directory');
+      if (!allowed) return;
+      
       let fullPath = path.join('THERMOPAC_PROJECTS', financialYear, projectCode, department);
       if (subDirectory) {
         fullPath = path.join(fullPath, subDirectory);
@@ -261,14 +366,14 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Path parameter is required' });
       }
       
-      // Parse the recursive parameter (default to false)
       const isRecursive = recursive === 'true' || recursive === '1';
       
       console.log(`Listing files in path: ${path} (recursive: ${isRecursive})`);
       
-      // Determine if this is a drawing-related path - drawings often have a specific structure
-      // Look for patterns that might indicate a drawing directory
       const pathStr = path as string;
+      const allowed = await enforceFileAccessControl(req, res, pathStr, 'list');
+      if (!allowed) return;
+      
       const isDrawingPath = 
         pathStr.includes('drawings') || 
         (pathStr.includes('THERMOPAC_INVENTORY') && /\d+/.test(pathStr)) ||
@@ -379,7 +484,12 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'Missing required parameters' });
       }
       
-      // Create storage path
+      const urlAccessPath = financialYear === 'THERMOPAC_INVENTORY'
+        ? `THERMOPAC_INVENTORY/${projectCode}`
+        : `THERMOPAC_PROJECTS/${financialYear}/${projectCode}`;
+      const allowed = await enforceFileAccessControl(req, res, urlAccessPath, 'upload_url');
+      if (!allowed) return;
+      
       const storagePath = gcsStorage.buildStoragePath({
         financialYear,
         projectCode,
@@ -426,7 +536,9 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'File path is required' });
       }
       
-      // Generate a signed URL for downloading the file
+      const allowed = await enforceFileAccessControl(req, res, filePath as string, 'download');
+      if (!allowed) return;
+      
       const signedUrl = await gcsStorage.generateDownloadSignedUrl({
         filePath: filePath as string,
         expirationMinutes: expirationMinutes ? parseInt(expirationMinutes as string) : undefined
@@ -457,7 +569,9 @@ export function setupFileStorageRoutes(app: Router) {
         return res.status(400).json({ error: 'File path is required' });
       }
       
-      // Use the real GCS implementation
+      const allowed = await enforceFileAccessControl(req, res, filePath, 'delete');
+      if (!allowed) return;
+      
       const success = await gcsStorage.deleteFile(filePath);
       
       if (!success) {
@@ -516,7 +630,14 @@ export function setupFileStorageRoutes(app: Router) {
         isPublic
       } = req.body;
       
-      // Add format validation and better error messages
+      if (financialYear && projectCode) {
+        const uploadPath = financialYear === 'THERMOPAC_INVENTORY' 
+          ? `THERMOPAC_INVENTORY/${projectCode}`
+          : `THERMOPAC_PROJECTS/${financialYear}/${projectCode}`;
+        const allowed = await enforceFileAccessControl(req, res, uploadPath, 'upload');
+        if (!allowed) return;
+      }
+      
       const errors = [];
       if (!financialYear) errors.push('financialYear is required');
       if (!projectCode) errors.push('projectCode is required');

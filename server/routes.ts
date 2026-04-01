@@ -74,10 +74,7 @@ import { setupCleanPaymentCreation } from "./clean-payment-creation";
 import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
 import { default as simpleAllocationEndpoint } from "./simple-allocation-endpoint";
 import { cleanPaymentUpdateRouter } from "./clean-payment-update";
-import { registerFileUploadTestRoutes } from "./test/file-upload-test";
-import calibrationTestRoutes from "./testapi/calibration-test-routes";
 import { registerTemplateManagementRoutes } from "./template-management/register-routes";
-import { registerCalibrationTestRoutes } from "./calibration-test-routes";
 import agentRoutes from "./agents/agent-routes";
 import l1WorkerRoutes from "./l1-worker-routes";
 import { initializeAgentSystem } from "./agents/agent-setup";
@@ -834,12 +831,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up dedicated test routes that bypass React app
   // These should be registered BEFORE app.use("*", ...) in setupVite
   setupDedicatedTestRoutes(app);
-  
-  // Set up file upload test routes for GCS diagnostics
-  registerFileUploadTestRoutes(app);
-  
-  // Set up calibration test routes
-  registerCalibrationTestRoutes(app);
   
   // Set up dispatch and shipping routes
   setupDispatchRoutes(app);

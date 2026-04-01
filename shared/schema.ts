@@ -11802,3 +11802,30 @@ export const epcDocumentAccessLog = pgTable('epc_document_access_log', {
 export const insertEpcDocumentAccessLogSchema = createInsertSchema(epcDocumentAccessLog).omit({ id: true, accessedAt: true });
 export type InsertEpcDocumentAccessLog = z.infer<typeof insertEpcDocumentAccessLogSchema>;
 export type EpcDocumentAccessLog = typeof epcDocumentAccessLog.$inferSelect;
+
+export const legacyFileAccessLog = pgTable('legacy_file_access_log', {
+  id: serial('id').primaryKey(),
+  legacyPath: varchar('legacy_path', { length: 500 }).notNull(),
+  pathFamily: varchar('path_family', { length: 20 }).notNull(),
+  projectId: integer('project_id'),
+  accessedBy: integer('accessed_by').notNull().references(() => users.id),
+  accessedAt: timestamp('accessed_at', { withTimezone: true }).notNull().defaultNow(),
+  action: varchar('action', { length: 20 }).notNull().default('download'),
+  migratedToEpc: boolean('migrated_to_epc').notNull().default(false),
+  epcAttachmentId: integer('epc_attachment_id'),
+});
+
+export const insertLegacyFileAccessLogSchema = createInsertSchema(legacyFileAccessLog).omit({ id: true, accessedAt: true });
+export type InsertLegacyFileAccessLog = z.infer<typeof insertLegacyFileAccessLogSchema>;
+export type LegacyFileAccessLog = typeof legacyFileAccessLog.$inferSelect;
+
+export const epcMigrationFeatureFlags = pgTable('epc_migration_feature_flags', {
+  id: serial('id').primaryKey(),
+  flagName: varchar('flag_name', { length: 100 }).notNull().unique(),
+  enabled: boolean('enabled').notNull().default(false),
+  description: text('description'),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type EpcMigrationFeatureFlag = typeof epcMigrationFeatureFlags.$inferSelect;
