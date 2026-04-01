@@ -258,12 +258,27 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
       
       if (storage && bucket) {
         const projectCode = inspection.projectCode || 'UNKNOWN';
+        
+        let epcDossierPrefix: string | null = null;
+        try {
+          const projResult = await db.execute(
+            sql`SELECT operational_code FROM projects WHERE id = ${inspection.projectId} LIMIT 1`
+          );
+          if (projResult.rows.length > 0) {
+            const opCode = (projResult.rows[0] as any).operational_code;
+            if (opCode) {
+              epcDossierPrefix = `EPC/${opCode}/INS/${inspectionOrderNumber}/`;
+            }
+          }
+        } catch (e) { /* ignore */ }
+        
         const dossierPaths = [
+          epcDossierPrefix,
           `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final_Dossier/`,
           `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
           `QMS/Inspections_Records/${inspectionOrderNumber}/Final_Dossier/`,
           `QMS/Inspections_Records/${inspectionOrderNumber}/FinalDossier/`
-        ];
+        ].filter(Boolean) as string[];
         
         console.log(`🔍 Final Dossier paths for inspection ${inspectionOrderNumber} with project ${projectCode}:`, dossierPaths);
         
@@ -513,13 +528,26 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
         
         if (storage && bucket) {
           const projectCode = inspection.projectCode || 'UNKNOWN';
+          
+          let epcPrefix2: string | null = null;
+          try {
+            const projRes2 = await db.execute(
+              sql`SELECT operational_code FROM projects WHERE id = ${inspection.projectId} LIMIT 1`
+            );
+            if (projRes2.rows.length > 0) {
+              const oc = (projRes2.rows[0] as any).operational_code;
+              if (oc) epcPrefix2 = `EPC/${oc}/INS/${inspectionOrderNumber}/`;
+            }
+          } catch (e) { /* ignore */ }
+          
           const dossierPaths = [
+            epcPrefix2,
             `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final_Dossier/`,
             `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
             `QMS/Inspections_Records/${inspectionOrderNumber}/Final_Dossier/`,
             `QMS/Inspections_Records/${inspectionOrderNumber}/Final Dossier/`,
             `QMS/Inspections_Records/${inspectionOrderNumber}/FinalDossier/`
-          ];
+          ].filter(Boolean) as string[];
           
           console.log(`🔍 Final Dossier paths for inspection ${inspectionOrderNumber} with project ${projectCode}:`, dossierPaths);
           
@@ -638,16 +666,33 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
       formattedTabName = 'FinalDossier'; // Format for GCS path consistency
     }
     
-    // Try multiple path formats for file detection
     const projectCode = inspection.projectCode || 'UNKNOWN';
+    
+    let epcResolvedPath: string | null = null;
+    try {
+      const { resolveFilePathWithFallback } = await import('../utils/epc-migration-helpers');
+      const resolved = await resolveFilePathWithFallback(
+        inspection.projectId!,
+        'INS',
+        inspectionOrderNumber,
+        'inspection_order',
+        inspection.id,
+        `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`,
+        (req as any).user?.id || 3
+      );
+      if (resolved.source === 'epc') {
+        epcResolvedPath = resolved.path;
+      }
+    } catch (epcErr) {
+      console.warn('EPC resolution failed, falling back to legacy paths:', epcErr);
+    }
+    
     const pathsToTry = [
-      // New hierarchical format (preferred)
+      epcResolvedPath,
       `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`,
-      // Stored database path
       document.filePath,
-      // Old format fallback
       `QMS/Inspections_Records/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${document.fileName?.split('.').pop() || 'pdf'}`
-    ].filter(Boolean);
+    ].filter(Boolean) as string[];
     
     console.log(`Trying paths for download:`, pathsToTry);
     

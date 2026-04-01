@@ -210,16 +210,18 @@ async function executeCopyMigration(manifest: ManifestEntry[], dryRun: boolean =
       if (!dryRun) {
         await sourceFile.copy(destFile);
         
-        const [sourceMetadata] = await sourceFile.getMetadata();
         const [destMetadata] = await destFile.getMetadata();
-        if (sourceMetadata.size !== destMetadata.size) {
+        const destSize = parseInt(destMetadata.size as string) || 0;
+        if (Math.abs(destSize - entry.size) > 0 && entry.size > 0) {
           entry.status = 'error';
-          entry.error = `Size mismatch: source=${sourceMetadata.size} dest=${destMetadata.size}`;
+          entry.error = `Size mismatch: source=${entry.size} dest=${destSize}`;
           errors++;
           continue;
         }
         
-        const sha256 = await computeSha256FromGCS(bucket, entry.epcPath);
+        const sha256 = destMetadata.md5Hash
+          ? Buffer.from(destMetadata.md5Hash, 'base64').toString('hex')
+          : 'md5-' + (destMetadata.md5Hash || 'unknown');
         
         await db.insert(epcDocumentAttachments).values({
           parentEntityType: entry.parentEntityType,

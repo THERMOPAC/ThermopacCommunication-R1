@@ -125,10 +125,34 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'Hydrotest'; // Hydrotest tab maintains same name for GCS path consistency
     }
     
-    // Use consistent naming without timestamps to enable file overwriting
-    // Now that we have proper storage.objects.delete permissions, we can overwrite files directly
-    // Format: QMS/Inspections_Records/{project_code}/{InspectionOrderNumber}/{TabName}/{recordId}.{extension}
-    const filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
+    let filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
+    
+    let useEpcPath = false;
+    try {
+      const { isFeatureFlagEnabled } = await import('./epc-migration-helpers');
+      useEpcPath = await isFeatureFlagEnabled('EPC_UPLOAD_CUTOVER_INS');
+      if (useEpcPath) {
+        const client2 = await pool.connect();
+        try {
+          const projRes = await client2.query(
+            `SELECT p.operational_code FROM projects p JOIN inspection_orders io ON io.project_id = p.id WHERE io.inspection_order_number = $1 LIMIT 1`,
+            [inspectionOrderNumber]
+          );
+          if (projRes.rows.length > 0 && projRes.rows[0].operational_code) {
+            const opCode = projRes.rows[0].operational_code;
+            const label = `${formattedTabName}_${recordId}`;
+            filePath = `EPC/${opCode}/INS/${inspectionOrderNumber}/A/1-${label}.${fileExtension}`;
+            console.log(`uploadInspectionDocument: EPC_UPLOAD_CUTOVER enabled, using EPC path: ${filePath}`);
+          } else {
+            useEpcPath = false;
+          }
+        } finally {
+          client2.release();
+        }
+      }
+    } catch (flagErr) {
+      console.warn('Feature flag check failed, using legacy path:', flagErr);
+    }
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (project code: ${projectCode}, original tab name: ${tabName})`);
     
