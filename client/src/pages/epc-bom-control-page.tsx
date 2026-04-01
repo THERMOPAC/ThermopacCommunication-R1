@@ -415,7 +415,7 @@ export default function EpcBomControlPage() {
             <SelectTrigger className="w-52 h-8 text-xs"><SelectValue placeholder="Select Project" /></SelectTrigger>
             <SelectContent>
               {projects.map((p: any) => (
-                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.project_code} — {p.project_name}</SelectItem>
+                <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
