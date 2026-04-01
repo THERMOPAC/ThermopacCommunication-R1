@@ -251,7 +251,7 @@ export default function EpcWorkOrdersPage() {
               </SelectTrigger>
               <SelectContent>
                 {projects.map((p: any) => (
-                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.projectName || p.project_name || `Project #${p.id}`}</SelectItem>
+                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.name} ({p.code || "—"})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
