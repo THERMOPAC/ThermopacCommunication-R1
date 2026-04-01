@@ -405,7 +405,8 @@ function Layout({ children }: LayoutProps) {
         ...(hasPageAccess("commissioning-handover") ? [{ icon: Wrench, label: "EPC Commissioning & Handover", href: "/epc/commissioning-handover" }] : []),
         ...(hasPageAccess("invoices") ? [{ icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" }] : []),
         ...(hasPageAccess("epc-risks") ? [{ icon: Shield, label: "EPC Risks", href: "/epc-risks" }] : []),
-        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "EPC Permission Control", href: "/epc/permission-control" }] : [])
+        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "EPC Permission Control", href: "/epc/permission-control" }] : []),
+        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: BarChart4, label: "EPC Cutover Dashboard", href: "/epc/cutover-dashboard" }] : [])
       ]
     }] : []),
     ...(hasViewPermission("Design Management") ? [{ 

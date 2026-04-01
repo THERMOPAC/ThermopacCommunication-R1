@@ -840,6 +840,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   setupEpcDocumentRoutes(app);
   registerEpcPermissionRoutes(app);
+
+  const { setupEpcMonitoringRoutes } = await import('./epc-monitoring-routes');
+  setupEpcMonitoringRoutes(app);
   
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);

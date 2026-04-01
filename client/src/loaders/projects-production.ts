@@ -28,3 +28,4 @@ export const EpcQualityInspectionPage = lazyWithRetry(() => import("@/pages/epc-
 export const EpcDispatchLogisticsPage = lazyWithRetry(() => import("@/pages/epc-dispatch-logistics-page"));
 export const EpcCommissioningHandoverPage = lazyWithRetry(() => import("@/pages/epc-commissioning-handover-page"));
 export const EpcPermissionDashboard = lazyWithRetry(() => import("@/pages/epc-permission-dashboard"));
+export const EpcCutoverDashboard = lazyWithRetry(() => import("@/pages/epc-cutover-dashboard"));

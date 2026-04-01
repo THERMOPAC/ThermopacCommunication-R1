@@ -57,6 +57,17 @@ The system is a full-stack web application with organized, hierarchical data str
 **Backend**: `server/epc-permission-routes.ts` (10 endpoints), `server/module-permission-routes.ts` (3 restricted direct endpoints).
 **Frontend**: `client/src/pages/epc-permission-dashboard.tsx` (PageAccessControlTab, ChangeRequestsTab, AuditHistoryTab, SnapshotsPanel).
 
+### EPC Cutover Readiness Dashboard — Controlled Adoption & Monitoring
+**Status**: Observation-only phase. No flags turned ON, no forced migrations, no path deletions.
+**Access**: Superuser and General Manager only.
+**Route**: `/epc/cutover-dashboard`
+**Backend**: `server/epc-monitoring-routes.ts` (4 read-only endpoints):
+- `GET /api/epc-monitoring/pending-uploads` — Lists DWG `pending_upload` drawings with control number, project, age
+- `GET /api/epc-monitoring/dsp-usage` — DSP EPC dispatch record count, first usage timestamp, by-project breakdown
+- `GET /api/epc-monitoring/legacy-access` — Daily legacy file access report by path family, unique users, zero-usage candidates
+- `GET /api/epc-monitoring/cutover-readiness` — Composite dashboard: feature flags, INS EPC vs legacy %, DWG file status breakdown, DSP adoption, 7-day legacy trend
+**Frontend**: `client/src/pages/epc-cutover-dashboard.tsx`
+
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.
 - **Database Services**: Neon (PostgreSQL hosting).
