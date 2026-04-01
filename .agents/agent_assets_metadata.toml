@@ -102,3 +102,9 @@ id = "PV9SfOo85l_DP86SCvUUJ"
 uri = "file://.local/gcs-path-audit-report.md"
 type = "text"
 title = "GCS File Path Audit Report"
+
+[[outputs]]
+id = "NvwQf4BNugZzA2zpMunYX"
+uri = "file://.local/epc-file-governance-migration-plan.md"
+type = "text"
+title = "EPC-Only Project Document Governance — Migration Plan"
