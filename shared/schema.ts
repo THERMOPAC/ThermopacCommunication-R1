@@ -1393,6 +1393,62 @@ export type InsertDepartmentPagePermission = z.infer<typeof insertDepartmentPage
 export type PagePermission = typeof pagePermissions.$inferSelect;
 export type InsertPagePermission = z.infer<typeof insertPagePermissionSchema>;
 
+export const permissionChangeRequests = pgTable('permission_change_requests', {
+  id: serial('id').primaryKey(),
+  batchId: text('batch_id'),
+  requestType: text('request_type').notNull(),
+  targetEntity: text('target_entity').notNull(),
+  targetId: text('target_id').notNull(),
+  pageKey: text('page_key'),
+  actionId: text('action_id'),
+  currentValue: jsonb('current_value'),
+  requestedValue: jsonb('requested_value'),
+  requestedBy: integer('requested_by').notNull(),
+  requestedAt: timestamp('requested_at').defaultNow().notNull(),
+  status: text('status').notNull().default('pending'),
+  approvedBy: integer('approved_by'),
+  approvedAt: timestamp('approved_at'),
+  rejectionReason: text('rejection_reason'),
+  appliedAt: timestamp('applied_at'),
+  emergencyOverride: boolean('emergency_override').default(false),
+  emergencyReason: text('emergency_reason'),
+});
+
+export const permissionSnapshots = pgTable('permission_snapshots', {
+  id: serial('id').primaryKey(),
+  snapshotType: text('snapshot_type').notNull(),
+  snapshotData: jsonb('snapshot_data').notNull(),
+  createdBy: integer('created_by').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  description: text('description'),
+});
+
+export const permissionAuditLog = pgTable('permission_audit_log', {
+  id: serial('id').primaryKey(),
+  action: text('action').notNull(),
+  changeRequestId: integer('change_request_id'),
+  snapshotId: integer('snapshot_id'),
+  batchId: text('batch_id'),
+  userId: integer('user_id').notNull(),
+  username: text('username').notNull(),
+  role: text('role').notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const insertPermissionChangeRequestSchema = createInsertSchema(permissionChangeRequests).omit({ id: true, requestedAt: true, approvedAt: true, appliedAt: true });
+export const insertPermissionSnapshotSchema = createInsertSchema(permissionSnapshots).omit({ id: true, createdAt: true });
+export const insertPermissionAuditLogSchema = createInsertSchema(permissionAuditLog).omit({ id: true, createdAt: true });
+
+export type PermissionChangeRequest = typeof permissionChangeRequests.$inferSelect;
+export type InsertPermissionChangeRequest = z.infer<typeof insertPermissionChangeRequestSchema>;
+export type PermissionSnapshot = typeof permissionSnapshots.$inferSelect;
+export type InsertPermissionSnapshot = z.infer<typeof insertPermissionSnapshotSchema>;
+export type PermissionAuditLogEntry = typeof permissionAuditLog.$inferSelect;
+export type InsertPermissionAuditLogEntry = z.infer<typeof insertPermissionAuditLogSchema>;
+
 // Define types for all tables
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;

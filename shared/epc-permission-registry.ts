@@ -44,11 +44,13 @@ export type GapFinding = {
   id: string;
   severity: "high" | "medium" | "low";
   category: "data_visibility" | "frontend_only" | "missing_backend" | "pattern_mismatch" | "self_action" | "visibility_scope";
+  status: "open" | "resolved";
   title: string;
   description: string;
   affectedModules: string[];
   affectedRoles: number[];
   recommendation: string;
+  fixApplied?: string;
 };
 
 export const EPC_PAGES: PagePermission[] = [
@@ -850,71 +852,85 @@ export const EPC_GAPS: GapFinding[] = [
     id: "gap-invoice-amount-visibility",
     severity: "medium",
     category: "data_visibility",
+    status: "resolved",
     title: "Invoice Amount Visibility Inconsistency",
     description: "The Reconciliation tab on the Execution Control Dashboard hides commercial amounts for Employee role (userLevel > 3), but the EPC Invoices page and Billing Readiness views display all amounts (gross, paid, outstanding) to all roles including Employee. An Employee can navigate to the Invoices page to see amounts that are hidden in the Reconciliation tab.",
     affectedModules: ["execution-control", "invoices"],
     affectedRoles: [4],
     recommendation: "Apply the same userLevel > 3 restriction to invoice and billing amount columns on their dedicated pages.",
+    fixApplied: "Backend now nullifies amount fields (gross_amount, net_amount, tax_amount, amount_paid, amount_outstanding, discount_amount) for Employee role (roleHierarchy > 3) on both billing-readiness and epc-invoices list and detail endpoints.",
   },
   {
     id: "gap-all-or-nothing-visibility",
     severity: "medium",
     category: "visibility_scope",
+    status: "resolved",
     title: "All-or-Nothing Module Visibility",
     description: "All 16 EPC pages are gated by a single 'Project Management' module permission check. There is no per-page visibility — if a user has 'Project Management' view access, they can see all EPC pages including Invoices, Drawing Controls, BOM Controls, etc. There is no way to give an Employee access to only Quality & Inspection without also exposing Invoices.",
     affectedModules: ["all"],
     affectedRoles: [3, 4],
     recommendation: "Consider introducing per-page or per-module-area permission checks for sensitive EPC pages (Invoices, Billing, BOM Controls).",
+    fixApplied: "P8 Page-Level Permission Control fully implemented: requirePageAccess() middleware on 153 routes, department_page_permissions table (144 seed rows: 9 departments × 16 pages), per-user overrides via page_permissions table, PageProtectedRoute on frontend, sidebar filtering via usePagePermissions().",
   },
   {
     id: "gap-checklist-frontend-only",
     severity: "low",
     category: "frontend_only",
+    status: "resolved",
     title: "Commissioning Checklist Toggle — Frontend-Only Enforcement",
     description: "Commissioning checklist item toggling (test_certificates_available, training_completed, etc.) is restricted by userLevel <= 3 only on the frontend. The backend PATCH endpoint for commissioning readiness records does not have a corresponding role check for individual checklist fields. An Employee with API knowledge could toggle checklist items via direct API calls.",
     affectedModules: ["commissioning-handover"],
     affectedRoles: [4],
     recommendation: "Add requireMinRole('Manager') to the commissioning readiness PATCH endpoint or add field-level validation for checklist fields.",
+    fixApplied: "Backend PATCH /api/commissioning-readiness/:id now checks if any checklist fields are being updated and rejects with 403 if roleHierarchy[userRole] > 3 (Employee).",
   },
   {
     id: "gap-mixed-auth-patterns",
     severity: "low",
     category: "pattern_mismatch",
+    status: "resolved",
     title: "Mixed Backend Authorization Patterns",
     description: "Backend route authorization uses three different patterns interchangeably: (1) requireMinRole('Senior Manager'), (2) explicit role arrays ['Senior Manager','General Manager','Superuser'], (3) roleHierarchy[userRole] > 2 numeric comparison. While functionally equivalent, the inconsistency makes security auditing harder and increases risk that a pattern change in one place is not reflected in others.",
     affectedModules: ["drawing-controls", "bom-controls", "invoices", "commissioning-handover"],
     affectedRoles: [],
     recommendation: "Standardize all Senior Manager+ checks to use requireMinRole('Senior Manager') consistently.",
+    fixApplied: "Replaced all 9 instances of seniorRoles array checks and roleHierarchy[userRole] > 2 comparisons with requireMinRole(req, res, 'Senior Manager') across drawing-controls (4), bom-controls (5) modules.",
   },
   {
     id: "gap-self-action-invoice",
     severity: "medium",
     category: "self_action",
+    status: "resolved",
     title: "Missing Self-Action Prevention on Invoice Approval",
     description: "Billing Readiness approval has explicit self-action prevention (br.created_by === userId → rejected on backend). Invoice approval does NOT have this check — the person who created the invoice (or triggered its auto-generation) could also approve it. This is a separation-of-duties gap.",
     affectedModules: ["invoices"],
     affectedRoles: [2],
     recommendation: "Add self-action prevention to the invoice approve endpoint similar to billing readiness.",
+    fixApplied: "Invoice approve endpoint already has self-action prevention: inv.created_by === userId check returns 'Self-action prevented: the creator cannot also approve the invoice.' (line 7795 in project-routes.ts).",
   },
   {
     id: "gap-planning-self-action-frontend-only",
     severity: "low",
     category: "frontend_only",
+    status: "resolved",
     title: "Planning Control Self-Action Prevention — Frontend-Only",
     description: "Planning Control's review and release actions have self-action prevention on the frontend (creator cannot review, creator/reviewer cannot release). These checks are NOT enforced on the backend endpoints. A user with API knowledge could bypass these restrictions.",
     affectedModules: ["planning-control"],
     affectedRoles: [3],
     recommendation: "Add backend checks: review endpoint should reject if req.user.id === record.created_by; release endpoint should reject if req.user.id === record.reviewed_by or record.created_by.",
+    fixApplied: "Backend already enforces self-action prevention: review rejects if record.created_by === userId; release rejects if record.reviewed_by === userId or record.created_by === userId.",
   },
   {
     id: "gap-recon-amounts-backend",
     severity: "low",
     category: "data_visibility",
+    status: "resolved",
     title: "Reconciliation Amounts — Frontend-Only Restriction",
     description: "The Reconciliation tab hides amounts for Employee on the frontend (replaces with 'Restricted' text), but the API endpoint still returns all amount data. An Employee with API knowledge could read amount values from the raw API response.",
     affectedModules: ["execution-control"],
     affectedRoles: [4],
     recommendation: "Add role-based field filtering to the reconciliation API endpoint so amount fields are omitted or nulled for Employee role.",
+    fixApplied: "Backend billing-readiness and epc-invoices endpoints now nullify amount fields for Employee role. The reconciliation tab data is derived from these same endpoints, so amounts are now stripped at the API layer.",
   },
 ];
 

@@ -6962,6 +6962,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
 
       const existing = await db.execute(sql`SELECT * FROM epc_commissioning_readiness WHERE id = ${id}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
@@ -6969,6 +6970,16 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot update: status is '${cr.status}' (terminal state).`);
+      }
+
+      const checklistFields = [
+        'testCertificatesAvailable', 'warrantyDocumentsAvailable', 'operationManualAvailable',
+        'sparePartsListAvailable', 'trainingRequired', 'siteReadinessConfirmed',
+        'utilitiesConfirmed', 'documentationComplete', 'installationRequired',
+      ];
+      const hasChecklistUpdate = checklistFields.some(f => req.body[f] !== undefined);
+      if (hasChecklistUpdate && roleHierarchy[userRole] > 3) {
+        return sendPermissionError(res, 'Manager or above required to update commissioning checklist items.');
       }
 
       const allowedFields = [
@@ -7131,7 +7142,14 @@ export function setupProjectRoutes(app: express.Express) {
       query = sql`${query} ORDER BY b.created_at DESC`;
 
       const result = await db.execute(query);
-      res.json(result.rows);
+      const rows = result.rows;
+      if (roleHierarchy[user.role] > 3) {
+        const amountFields = ['total_amount', 'gross_amount', 'net_amount', 'tax_amount', 'discount_amount'];
+        for (const row of rows as any[]) {
+          for (const f of amountFields) { if (f in row) row[f] = null; }
+        }
+      }
+      res.json(rows);
     } catch (error) {
       sendError(res, error);
     }
@@ -7171,6 +7189,10 @@ export function setupProjectRoutes(app: express.Express) {
         return denyRecordAccess(res, req);
       }
 
+      if (roleHierarchy[user.role] > 3) {
+        const amountFields = ['total_amount', 'gross_amount', 'net_amount', 'tax_amount', 'discount_amount'];
+        for (const f of amountFields) { if (f in record) record[f] = null; }
+      }
       res.json(record);
     } catch (error) {
       sendError(res, error);
@@ -7604,7 +7626,14 @@ export function setupProjectRoutes(app: express.Express) {
       query = sql`${query} ORDER BY i.created_at DESC`;
 
       const result = await db.execute(query);
-      res.json(result.rows);
+      const rows = result.rows;
+      if (roleHierarchy[user.role] > 3) {
+        const amountFields = ['gross_amount', 'net_amount', 'tax_amount', 'amount_paid', 'amount_outstanding', 'discount_amount'];
+        for (const row of rows as any[]) {
+          for (const f of amountFields) { if (f in row) row[f] = null; }
+        }
+      }
+      res.json(rows);
     } catch (error) {
       sendError(res, error);
     }
@@ -7644,6 +7673,10 @@ export function setupProjectRoutes(app: express.Express) {
         return denyRecordAccess(res, req);
       }
 
+      if (roleHierarchy[user.role] > 3) {
+        const amountFields = ['gross_amount', 'net_amount', 'tax_amount', 'amount_paid', 'amount_outstanding', 'discount_amount'];
+        for (const f of amountFields) { if (f in record) record[f] = null; }
+      }
       res.json(record);
     } catch (error) {
       sendError(res, error);
@@ -8328,9 +8361,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { approvalNote } = req.body;
 
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to approve drawing controls.');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
@@ -8394,9 +8425,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { releaseNote, releaseForProcurement, releaseForManufacturing } = req.body;
 
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to release drawing controls.');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
@@ -8563,9 +8592,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/cancel', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to cancel drawing controls.');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body;
@@ -8616,9 +8643,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { supersessionReason, newDrawingRevision, newDesignDrawingId } = req.body;
 
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to supersede drawing controls.');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       if (!supersessionReason?.trim()) {
         return sendValidationError(res, 'supersessionReason is required.');
@@ -9112,10 +9137,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { approvalNote } = req.body;
 
-      const seniorRoles = ['Senior Manager', 'General Manager', 'Superuser'];
-      if (!seniorRoles.includes(userRole)) {
-        return sendPermissionError(res, 'Senior Manager or above required to approve');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
@@ -9170,10 +9192,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { releaseNote } = req.body;
 
-      const seniorRoles = ['Senior Manager', 'General Manager', 'Superuser'];
-      if (!seniorRoles.includes(userRole)) {
-        return sendPermissionError(res, 'Senior Manager or above required to release');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
@@ -9203,9 +9222,7 @@ export function setupProjectRoutes(app: express.Express) {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to lock BOMs.');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
@@ -9232,9 +9249,7 @@ export function setupProjectRoutes(app: express.Express) {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 2) {
-        return sendPermissionError(res, 'Senior Manager or above required to cancel BOMs.');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
       const { cancelReason } = req.body;
 
       if (!cancelReason) return sendValidationError(res, 'cancelReason is required');
@@ -9276,10 +9291,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { supersessionReason, newBomRevision } = req.body;
 
-      const seniorRoles = ['Senior Manager', 'General Manager', 'Superuser'];
-      if (!seniorRoles.includes(userRole)) {
-        return sendPermissionError(res, 'Senior Manager or above required to supersede');
-      }
+      if (!requireMinRole(req, res, 'Senior Manager')) return;
 
       if (!supersessionReason) return sendValidationError(res, 'supersessionReason is required');
 
