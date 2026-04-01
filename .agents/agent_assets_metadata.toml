@@ -108,3 +108,9 @@ id = "NvwQf4BNugZzA2zpMunYX"
 uri = "file://.local/epc-file-governance-migration-plan.md"
 type = "text"
 title = "EPC-Only Project Document Governance — Migration Plan"
+
+[[outputs]]
+id = "YHkPrNW37ztGj1xrC1yN7"
+uri = "file://.local/gcs-volume-report.md"
+type = "text"
+title = "Legacy GCS Volume Report"
