@@ -306,6 +306,21 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
                   createdAt: metadata.timeCreated || new Date().toISOString(),
                   updatedAt: metadata.updated || new Date().toISOString()
                 });
+                if (pathPrefix.startsWith('QMS/')) {
+                  try {
+                    const { legacyFileAccessLog } = await import('@shared/schema');
+                    await db.insert(legacyFileAccessLog).values({
+                      legacyPath: file.name,
+                      pathFamily: 'PATH-18',
+                      projectId: inspection.projectId,
+                      accessedBy: (req as any).user?.id || 0,
+                      action: 'list_dossier',
+                      migratedToEpc: false,
+                    });
+                  } catch (logErr) {
+                    console.warn('Legacy access log failed:', logErr);
+                  }
+                }
               }
             }
           } catch (pathError) {
@@ -575,6 +590,21 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
                     createdAt: metadata.timeCreated || new Date().toISOString(),
                     updatedAt: metadata.updated || new Date().toISOString()
                   });
+                  if (pathPrefix.startsWith('QMS/')) {
+                    try {
+                      const { legacyFileAccessLog } = await import('@shared/schema');
+                      await db.insert(legacyFileAccessLog).values({
+                        legacyPath: file.name,
+                        pathFamily: 'PATH-18',
+                        projectId: inspection.projectId,
+                        accessedBy: (req as any).user?.id || 0,
+                        action: 'list_dossier',
+                        migratedToEpc: false,
+                      });
+                    } catch (logErr) {
+                      console.warn('Legacy access log failed:', logErr);
+                    }
+                  }
                 }
               }
             } catch (pathError) {
@@ -732,7 +762,22 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId/dow
       return res.status(404).json({ error: "File not found in storage" });
     }
     
-    // Stream the file
+    if (finalPath.startsWith('QMS/')) {
+      try {
+        const { legacyFileAccessLog } = await import('@shared/schema');
+        await db.insert(legacyFileAccessLog).values({
+          legacyPath: finalPath,
+          pathFamily: 'PATH-17',
+          projectId: inspection.projectId,
+          accessedBy: (req as any).user?.id || 0,
+          action: 'download',
+          migratedToEpc: false,
+        });
+      } catch (logErr) {
+        console.warn('Legacy download access log failed:', logErr);
+      }
+    }
+    
     const file = bucket.file(finalPath);
     const readStream = file.createReadStream();
     
