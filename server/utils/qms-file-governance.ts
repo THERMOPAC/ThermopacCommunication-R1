@@ -7,7 +7,7 @@ import { Storage } from '@google-cloud/storage';
 const MANAGER_PLUS_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 const ADMIN_ROLES = ['Superuser'];
 
-export type QmsModule = 'Calibration' | 'WPQR' | 'PMA' | 'TestProcedures' | 'WelderCertificates' | 'WelderPhotos';
+export type QmsModule = 'Calibration' | 'WPQR' | 'PMA' | 'TestProcedures' | 'WelderCertificates' | 'WelderPhotos' | 'WelderManagement';
 
 export type QmsAuditAction = 'upload' | 'download' | 'revision' | 'soft_delete' | 'restore' | 'view_list';
 
@@ -77,7 +77,7 @@ export function checkDeletePermission(userRole: string): { allowed: boolean; rea
 }
 
 export async function logAuditEvent(params: {
-  module: QmsModule;
+  module: QmsModule | string;
   documentNumber: string;
   revisionId?: number;
   action: QmsAuditAction;
@@ -105,24 +105,50 @@ export async function logAuditEvent(params: {
 }
 
 export async function getLatestRevision(
-  module: QmsModule,
-  documentNumber: string
-): Promise<{ revisionNumber: number; revisionId: number; gcsPath: string } | null> {
-  const [row] = await db
-    .select()
-    .from(qmsDocumentRevisions)
-    .where(
-      and(
-        eq(qmsDocumentRevisions.module, module),
-        eq(qmsDocumentRevisions.documentNumber, documentNumber),
-        eq(qmsDocumentRevisions.isLatest, true),
-        eq(qmsDocumentRevisions.isActive, true)
+  moduleOrEntityType: string,
+  documentNumberOrEntityId: string | number
+): Promise<{ revisionNumber: number; revisionId: number; gcsPath: string; documentNumber: string; module: string; originalFileName: string } | null> {
+  let row: typeof qmsDocumentRevisions.$inferSelect | undefined;
+
+  if (typeof documentNumberOrEntityId === 'number') {
+    [row] = await db
+      .select()
+      .from(qmsDocumentRevisions)
+      .where(
+        and(
+          eq(qmsDocumentRevisions.parentEntityType, moduleOrEntityType),
+          eq(qmsDocumentRevisions.parentEntityId, documentNumberOrEntityId),
+          eq(qmsDocumentRevisions.isLatest, true),
+          eq(qmsDocumentRevisions.isActive, true)
+        )
       )
-    )
-    .orderBy(desc(qmsDocumentRevisions.revisionNumber))
-    .limit(1);
+      .orderBy(desc(qmsDocumentRevisions.revisionNumber))
+      .limit(1);
+  } else {
+    [row] = await db
+      .select()
+      .from(qmsDocumentRevisions)
+      .where(
+        and(
+          eq(qmsDocumentRevisions.module, moduleOrEntityType),
+          eq(qmsDocumentRevisions.documentNumber, documentNumberOrEntityId),
+          eq(qmsDocumentRevisions.isLatest, true),
+          eq(qmsDocumentRevisions.isActive, true)
+        )
+      )
+      .orderBy(desc(qmsDocumentRevisions.revisionNumber))
+      .limit(1);
+  }
+
   if (!row) return null;
-  return { revisionNumber: row.revisionNumber, revisionId: row.id, gcsPath: row.gcsPath };
+  return {
+    revisionNumber: row.revisionNumber,
+    revisionId: row.id,
+    gcsPath: row.gcsPath,
+    documentNumber: row.documentNumber,
+    module: row.module,
+    originalFileName: row.originalFileName,
+  };
 }
 
 export async function getNextRevisionNumber(
@@ -237,8 +263,8 @@ export async function createRevision(params: {
 }
 
 export async function softDeleteRevision(params: {
-  module: QmsModule;
-  documentNumber: string;
+  module?: QmsModule | string;
+  documentNumber?: string;
   revisionId: number;
   userId: number;
   userRole: string;
@@ -258,6 +284,9 @@ export async function softDeleteRevision(params: {
   if (!rev) throw new Error(`Revision ${params.revisionId} not found`);
   if (!rev.isActive) throw new Error(`Revision ${params.revisionId} already deleted`);
 
+  const module = (params.module || rev.module) as QmsModule;
+  const documentNumber = params.documentNumber || rev.documentNumber;
+
   await db.transaction(async (tx) => {
     await tx
       .update(qmsDocumentRevisions)
@@ -276,8 +305,8 @@ export async function softDeleteRevision(params: {
         .from(qmsDocumentRevisions)
         .where(
           and(
-            eq(qmsDocumentRevisions.module, params.module),
-            eq(qmsDocumentRevisions.documentNumber, params.documentNumber),
+            eq(qmsDocumentRevisions.module, module),
+            eq(qmsDocumentRevisions.documentNumber, documentNumber),
             eq(qmsDocumentRevisions.isActive, true)
           )
         )
@@ -294,8 +323,8 @@ export async function softDeleteRevision(params: {
   });
 
   await logAuditEvent({
-    module: params.module,
-    documentNumber: params.documentNumber,
+    module,
+    documentNumber,
     revisionId: params.revisionId,
     action: 'soft_delete',
     gcsPath: rev.gcsPath,
@@ -323,13 +352,14 @@ export async function getRevisionHistory(
 }
 
 export async function logDownload(params: {
-  module: QmsModule;
+  module: QmsModule | string;
   documentNumber: string;
   revisionId?: number;
   gcsPath: string;
   userId: number;
   userRole?: string;
   ipAddress?: string;
+  details?: Record<string, unknown>;
 }): Promise<void> {
   await logAuditEvent({
     module: params.module,
@@ -340,6 +370,7 @@ export async function logDownload(params: {
     userId: params.userId,
     userRole: params.userRole,
     ipAddress: params.ipAddress,
+    details: params.details,
   });
 }
 
