@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import Layout from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,6 +109,7 @@ export default function EpcPermissionDashboard() {
   }, [matrix, simulateRole]);
 
   return (
+    <Layout>
     <div className="p-4 space-y-4 max-w-[1400px] mx-auto">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -1613,5 +1615,6 @@ function AuditHistoryTab() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }
