@@ -106,6 +106,7 @@ export default function EpcDocumentPanel({
   const canViewAccessLog = ACCESS_LOG_ROLES.includes(userRole);
   const isParentReleased = ["released", "approved", "completed"].includes(parentStatus || "");
   const canWithdraw = isParentReleased ? canWithdrawReleased : canUpload;
+  const isPhantomRecord = ["pending_upload", "file_not_available"].includes(parentStatus || "");
 
   const queryKey = ["/api/projects", projectId, "epc-documents", docType, parentEntityId, "attachments"];
 
@@ -644,7 +645,15 @@ export default function EpcDocumentPanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="px-3 pb-2">
-        {isLoading ? (
+        {isPhantomRecord && !hasAnyAttachments ? (
+          <div className="py-2 px-2 text-center rounded bg-amber-50 border border-amber-200">
+            <p className="text-[10px] text-amber-700 font-medium">
+              {parentStatus === "pending_upload"
+                ? "⏳ This record was migrated without a source file. Upload the drawing to activate it."
+                : "This record references a file that was never uploaded and is no longer expected."}
+            </p>
+          </div>
+        ) : isLoading ? (
           <div className="py-3 text-center">
             <Loader2 className="h-4 w-4 mx-auto animate-spin text-muted-foreground" />
           </div>

@@ -21,7 +21,7 @@ import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project
 import {
   Loader2, Search, Filter, PenTool, Plus, Edit, Send, CheckCircle2, ShieldCheck,
   Unlock, XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
-  RefreshCw, AlertTriangle, FileText, Eye, Lock, UserCheck,
+  RefreshCw, AlertTriangle, FileText, Eye, Lock, UserCheck, UploadCloud, FileX,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -39,12 +39,22 @@ const STATUS_STYLES: Record<string, string> = {
   released: "bg-green-100 text-green-700 border-green-300",
   superseded: "bg-orange-100 text-orange-600 border-orange-300",
   cancelled: "bg-red-50 text-red-500 border-red-200",
+  pending_upload: "bg-amber-100 text-amber-700 border-amber-400",
+  file_not_available: "bg-gray-100 text-gray-500 border-gray-300",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending_upload: "Awaiting Upload",
+  file_not_available: "No File",
 };
 
 function StatusBadge({ status }: { status: string }) {
+  const label = STATUS_LABELS[status] || status?.replace(/_/g, " ");
+  const Icon = status === "pending_upload" ? UploadCloud : status === "file_not_available" ? FileX : null;
   return (
     <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border ${STATUS_STYLES[status] || "bg-gray-100 text-gray-600 border-gray-300"}`}>
-      {status?.replace(/_/g, " ")}
+      {Icon && <Icon className="h-2.5 w-2.5 mr-0.5 inline" />}
+      {label}
     </Badge>
   );
 }
@@ -577,8 +587,10 @@ export default function EpcDrawingControlPage() {
                                         <CardContent className="px-3 pb-2">
                                           {actions.length === 0 ? (
                                             <p className="text-[10px] text-muted-foreground italic py-2">
-                                              {["cancelled", "superseded"].includes(rec.status)
+                                              {["cancelled", "superseded", "file_not_available"].includes(rec.status)
                                                 ? "No actions available — record is terminal."
+                                                : rec.status === "pending_upload"
+                                                ? "Upload a file to activate this record before lifecycle actions become available."
                                                 : "No actions available for your role on this record."}
                                             </p>
                                           ) : (
