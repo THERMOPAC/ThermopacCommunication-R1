@@ -117,19 +117,22 @@ export async function validatePreConversion(
   return { valid: failures.length === 0, failures, offer, items: itemsResult.rows };
 }
 
-export async function checkIdempotency(offerId: number): Promise<ConversionResult | null> {
-  const snapResult = await pool.query(
+const STALE_SNAPSHOT_MINUTES = 10;
+
+async function checkIdempotencyInTx(offerId: number, client: any): Promise<ConversionResult | null> {
+  const snapResult = await client.query(
     `SELECT s.*, p.operational_code, p.name as project_name, p.status as project_status, p.id as pid
      FROM offer_conversion_snapshots s
      LEFT JOIN projects p ON p.id = s.project_id
-     WHERE s.offer_id = $1`, [offerId]
+     WHERE s.offer_id = $1
+     FOR UPDATE OF s`, [offerId]
   );
   if (snapResult.rows.length === 0) return null;
 
   const snap = snapResult.rows[0];
 
   if (snap.conversion_status === 'completed') {
-    const offerResult = await pool.query(`SELECT * FROM offers WHERE id = $1`, [offerId]);
+    const offerResult = await client.query(`SELECT * FROM offers WHERE id = $1`, [offerId]);
     return {
       offer: offerResult.rows[0],
       project: {
@@ -147,7 +150,24 @@ export async function checkIdempotency(offerId: number): Promise<ConversionResul
     };
   }
 
-  throw new Error(`Previous conversion incomplete (status: ${snap.conversion_status}). Contact administrator for recovery.`);
+  const snapAge = (Date.now() - new Date(snap.converted_at).getTime()) / 60000;
+  if (snapAge > STALE_SNAPSHOT_MINUTES) {
+    console.log(`[offer-conversion] Cleaning stale incomplete snapshot ${snap.id} (status: ${snap.conversion_status}, age: ${snapAge.toFixed(1)}min)`);
+    if (snap.project_id) {
+      await client.query(`DELETE FROM project_members WHERE project_id = $1`, [snap.project_id]);
+      await client.query(`DELETE FROM project_items WHERE project_id = $1`, [snap.project_id]);
+      await client.query(`DELETE FROM project_workflow_events WHERE project_id = $1`, [snap.project_id]);
+      await client.query(`UPDATE offer_conversion_snapshots SET project_id = NULL WHERE id = $1`, [snap.id]);
+      await client.query(`DELETE FROM projects WHERE id = $1`, [snap.project_id]);
+    }
+    await client.query(`DELETE FROM offer_conversion_snapshots WHERE id = $1`, [snap.id]);
+    return null;
+  }
+
+  throw Object.assign(
+    new Error(`Conversion in progress (status: ${snap.conversion_status}, started ${snapAge.toFixed(0)}min ago). Please wait or retry after ${STALE_SNAPSHOT_MINUTES} minutes.`),
+    { statusCode: 409 }
+  );
 }
 
 async function generateOrderNumber(fyCode: string, client: any): Promise<string> {
@@ -166,15 +186,21 @@ export async function executeOfferConversion(
   epcParams: EpcParams,
   userId: number
 ): Promise<ConversionResult> {
-  const idempotent = await checkIdempotency(offerId);
-  if (idempotent) return idempotent;
-
   const validation = await validatePreConversion(offerId);
   if (!validation.valid) {
     throw Object.assign(new Error('Pre-conversion validation failed'), {
       statusCode: 422,
       failures: validation.failures,
     });
+  }
+
+  if (epcParams.startDate && epcParams.targetEndDate) {
+    if (new Date(epcParams.startDate) >= new Date(epcParams.targetEndDate)) {
+      throw Object.assign(new Error('Pre-conversion validation failed'), {
+        statusCode: 422,
+        failures: [{ field: 'targetEndDate', reason: 'Target end date must be after start date' }],
+      });
+    }
   }
 
   const offer = validation.offer!;
@@ -247,6 +273,12 @@ export async function executeOfferConversion(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    const idempotent = await checkIdempotencyInTx(offerId, client);
+    if (idempotent) {
+      await client.query('COMMIT');
+      return idempotent;
+    }
 
     const orderNumber = await generateOrderNumber(fyCode, client);
 
@@ -562,8 +594,27 @@ export async function executeOfferConversion(
       itemsCreated,
       itemsPendingMapping,
     };
-  } catch (error) {
+  } catch (error: any) {
     await client.query('ROLLBACK');
+
+    if (error?.code === '23505' && error?.constraint?.includes('offer_id')) {
+      const retryClient = await pool.connect();
+      try {
+        await retryClient.query('BEGIN');
+        const idempotent = await checkIdempotencyInTx(offerId, retryClient);
+        await retryClient.query('COMMIT');
+        if (idempotent) return idempotent;
+      } catch (retryErr) {
+        await retryClient.query('ROLLBACK');
+      } finally {
+        retryClient.release();
+      }
+      throw Object.assign(
+        new Error('Conversion already in progress for this offer. Please retry.'),
+        { statusCode: 409 }
+      );
+    }
+
     throw error;
   } finally {
     client.release();

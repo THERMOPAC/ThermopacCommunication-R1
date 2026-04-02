@@ -1228,6 +1228,8 @@ export function setupSalesMarketingRoutes(app: Express) {
     }
   });
 
+  const ORDER_CONFIRM_ROLES = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+
   router.patch('/offers/:id/status', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
@@ -1236,6 +1238,10 @@ export function setupSalesMarketingRoutes(app: Express) {
       const user = req.user as any;
 
       if (status === 'Order Confirmed') {
+        if (!ORDER_CONFIRM_ROLES.includes(user.role)) {
+          return res.status(403).json({ error: 'Access denied — only Manager or above can confirm orders' });
+        }
+
         const { executeOfferConversion } = await import('./offer-conversion');
         if (!epcParams) {
           return res.status(422).json({
@@ -1250,8 +1256,8 @@ export function setupSalesMarketingRoutes(app: Express) {
           if (convError.statusCode === 422) {
             return res.status(422).json({ error: convError.message, failures: convError.failures });
           }
-          if (convError.message?.includes('Previous conversion incomplete')) {
-            return res.status(409).json({ error: convError.message });
+          if (convError.statusCode === 409) {
+            return res.status(409).json({ error: convError.message, alreadyConverted: true, result: convError.result });
           }
           throw convError;
         }
