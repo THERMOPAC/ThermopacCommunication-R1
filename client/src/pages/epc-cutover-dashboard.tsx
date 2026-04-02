@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, FileWarning, Activity, TrendingDown, Shield, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, FileWarning, Activity, TrendingDown, Shield, CheckCircle2, XCircle, Clock, AlertTriangle, Package, Lock, Unlock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function StatusBadge({ enabled }: { enabled: boolean }) {
   return enabled ? (
@@ -62,6 +63,11 @@ export default function EpcCutoverDashboard() {
 
   const { data: legacyAccess, isLoading: legacyLoading } = useQuery<any>({
     queryKey: ["/api/epc-monitoring/legacy-access"],
+  });
+
+  const { data: bomReadiness, isLoading: bomLoading } = useQuery<any>({
+    queryKey: ["/api/epc-monitoring/bom-readiness"],
+    refetchInterval: 60000,
   });
 
   if (readinessLoading) {
@@ -365,6 +371,195 @@ export default function EpcCutoverDashboard() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Package className="h-5 w-5" /> BOM Gating — Cutover Readiness
+          </CardTitle>
+          {bomReadiness && (
+            <div className="flex items-center gap-2 mt-1">
+              {bomReadiness.strictEnabled ? (
+                <Badge className="bg-red-100 text-red-800"><Lock className="h-3 w-3 mr-1" /> Strict EPC Mode</Badge>
+              ) : (
+                <Badge variant="outline" className="text-amber-600 border-amber-300"><Unlock className="h-3 w-3 mr-1" /> Transitional Mode</Badge>
+              )}
+              {bomReadiness.canEnableStrict ? (
+                <Badge className="bg-green-100 text-green-800"><CheckCircle2 className="h-3 w-3 mr-1" /> Ready for Strict</Badge>
+              ) : (
+                <Badge variant="outline" className="text-red-600 border-red-300"><XCircle className="h-3 w-3 mr-1" /> Not Ready</Badge>
+              )}
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          {bomLoading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+          ) : bomReadiness ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-3 bg-blue-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-blue-700">{bomReadiness.summary.totalActiveProjectItems}</p>
+                  <p className="text-xs text-blue-600">Active Project Items</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-green-700">{bomReadiness.summary.bomCoveragePercent}%</p>
+                  <p className="text-xs text-green-600">BOM Coverage</p>
+                </div>
+                <div className="p-3 bg-emerald-50 rounded-lg text-center">
+                  <p className="text-2xl font-bold text-emerald-700">{bomReadiness.summary.bomReadyPercent}%</p>
+                  <p className="text-xs text-emerald-600">Released/Locked</p>
+                </div>
+                <div className={`p-3 rounded-lg text-center ${bomReadiness.summary.recentBypasses14d > 0 ? 'bg-amber-50' : 'bg-gray-50'}`}>
+                  <p className={`text-2xl font-bold ${bomReadiness.summary.recentBypasses14d > 0 ? 'text-amber-700' : 'text-gray-500'}`}>{bomReadiness.summary.recentBypasses14d}</p>
+                  <p className={`text-xs ${bomReadiness.summary.recentBypasses14d > 0 ? 'text-amber-600' : 'text-gray-500'}`}>Bypasses (14d)</p>
+                </div>
+              </div>
+
+              <ProgressBar value={bomReadiness.summary.withBom} max={bomReadiness.summary.totalActiveProjectItems} label="BOM Coverage (Items with BOM)" />
+              <ProgressBar value={bomReadiness.summary.withReleasedLockedBom} max={bomReadiness.summary.totalActiveProjectItems} label="BOM Ready (Released/Locked)" />
+
+              {bomReadiness.cutoverBlockers?.length > 0 && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4" /> Cutover Blockers
+                  </p>
+                  <ul className="space-y-1">
+                    {bomReadiness.cutoverBlockers.map((b: string, i: number) => (
+                      <li key={i} className="text-sm text-red-700 flex items-center gap-1">
+                        <XCircle className="h-3 w-3 flex-shrink-0" /> {b}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <Tabs defaultValue="without-bom" className="mt-4">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="without-bom">
+                    Without BOM ({bomReadiness.itemsWithoutBom?.length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="not-ready">
+                    Not Released ({bomReadiness.bomsNotReady?.length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="bypass-log">
+                    Bypass Log ({bomReadiness.bypassLog?.length || 0})
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="without-bom">
+                  {bomReadiness.itemsWithoutBom?.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                      <p>All active project items have BOMs</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Project</TableHead>
+                          <TableHead>Item #</TableHead>
+                          <TableHead>Item Code</TableHead>
+                          <TableHead>Description</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bomReadiness.itemsWithoutBom?.map((r: any) => (
+                          <TableRow key={r.id}>
+                            <TableCell><span className="font-mono text-xs">{r.project_code}</span></TableCell>
+                            <TableCell className="font-mono text-sm">{r.item_number}</TableCell>
+                            <TableCell>{r.item_code || '—'}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{r.description || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="not-ready">
+                  {bomReadiness.bomsNotReady?.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                      <p>All current BOMs are Released or Locked</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Project</TableHead>
+                          <TableHead>BOM Number</TableHead>
+                          <TableHead>Rev</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Item</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bomReadiness.bomsNotReady?.map((r: any) => (
+                          <TableRow key={r.id}>
+                            <TableCell><span className="font-mono text-xs">{r.project_code}</span></TableCell>
+                            <TableCell className="font-mono text-sm">{r.bom_number}</TableCell>
+                            <TableCell><Badge variant="outline">{r.revision_code}</Badge></TableCell>
+                            <TableCell>
+                              <Badge className={
+                                r.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                                r.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
+                                r.status === 'approved' ? 'bg-amber-100 text-amber-800' :
+                                'bg-gray-100 text-gray-800'
+                              }>{r.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">{r.item_code || r.item_number}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="bypass-log">
+                  {bomReadiness.bypassLog?.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                      <p>No PO/WO created without BOM backing</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Document</TableHead>
+                          <TableHead>Project</TableHead>
+                          <TableHead>Item</TableHead>
+                          <TableHead>Reason</TableHead>
+                          <TableHead>Created By</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bomReadiness.bypassLog?.map((r: any) => (
+                          <TableRow key={r.id}>
+                            <TableCell>
+                              <Badge variant="outline" className={r.document_type === 'PO' ? 'text-blue-600' : 'text-purple-600'}>
+                                {r.document_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{r.document_number}</TableCell>
+                            <TableCell><span className="font-mono text-xs">{r.project_code}</span></TableCell>
+                            <TableCell className="text-sm">{r.item_code || r.item_number}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{r.reason}</TableCell>
+                            <TableCell className="text-sm">{r.created_by_name}</TableCell>
+                            <TableCell className="text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

@@ -231,5 +231,123 @@ export function setupEpcMonitoringRoutes(app: Router) {
     }
   });
 
+  app.get('/api/epc-monitoring/bom-readiness', ensureAuthenticated, requireMonitorRole, async (_req: Request, res: Response) => {
+    try {
+      const flagResult = await db.execute(
+        sql`SELECT enabled FROM epc_migration_feature_flags WHERE flag_name = 'EPC_BOM_GATING_STRICT' LIMIT 1`
+      );
+      const strictEnabled = flagResult.rows.length > 0 ? (flagResult.rows[0] as any).enabled === true : false;
+
+      const itemsWithoutBom = await db.execute(sql`
+        SELECT pi.id, pi.item_number, mi.item_code, mi.description,
+               p.code as project_code, p.name as project_name
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        LEFT JOIN master_items mi ON mi.id = pi.master_item_id
+        LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+        WHERE bh.id IS NULL
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+        ORDER BY p.code, pi.item_number
+      `);
+
+      const bomsNotReady = await db.execute(sql`
+        SELECT bh.id, bh.bom_number, bh.status, bh.revision_code,
+               pi.item_number, mi.item_code,
+               p.code as project_code, p.name as project_name
+        FROM epc_bom_headers bh
+        JOIN project_items pi ON pi.id = bh.project_item_id
+        JOIN projects p ON p.id = pi.project_id
+        LEFT JOIN master_items mi ON mi.id = bh.master_item_id
+        WHERE bh.is_current = true
+          AND bh.status NOT IN ('released', 'locked')
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+        ORDER BY p.code, pi.item_number
+      `);
+
+      const totalActiveItems = await db.execute(sql`
+        SELECT COUNT(*) as total
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
+      `);
+
+      const totalWithBom = await db.execute(sql`
+        SELECT COUNT(DISTINCT pi.id) as total
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+        WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
+      `);
+
+      const totalReleasedLocked = await db.execute(sql`
+        SELECT COUNT(DISTINCT pi.id) as total
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+        WHERE bh.status IN ('released', 'locked')
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+      `);
+
+      const bypassLog = await db.execute(sql`
+        SELECT bl.id, bl.document_type, bl.document_number, bl.reason, bl.created_at,
+               pi.item_number, mi.item_code,
+               p.code as project_code, p.name as project_name,
+               u.username as created_by_name
+        FROM bom_gating_bypass_log bl
+        JOIN project_items pi ON pi.id = bl.project_item_id
+        JOIN projects p ON p.id = bl.project_id
+        LEFT JOIN master_items mi ON mi.id = pi.master_item_id
+        LEFT JOIN users u ON u.id = bl.created_by
+        ORDER BY bl.created_at DESC
+        LIMIT 100
+      `);
+
+      const recentBypassCount = await db.execute(sql`
+        SELECT COUNT(*) as total
+        FROM bom_gating_bypass_log
+        WHERE created_at >= NOW() - '14 days'::interval
+      `);
+
+      const totalItems = parseInt((totalActiveItems.rows[0] as any).total || '0');
+      const withBom = parseInt((totalWithBom.rows[0] as any).total || '0');
+      const releasedLocked = parseInt((totalReleasedLocked.rows[0] as any).total || '0');
+      const recentBypasses = parseInt((recentBypassCount.rows[0] as any).total || '0');
+
+      const canEnableStrict = totalItems > 0
+        && itemsWithoutBom.rows.length === 0
+        && bomsNotReady.rows.length === 0
+        && recentBypasses === 0;
+
+      res.json({
+        mode: strictEnabled ? 'strict' : 'transitional',
+        strictEnabled,
+        summary: {
+          totalActiveProjectItems: totalItems,
+          withBom,
+          withReleasedLockedBom: releasedLocked,
+          bomCoveragePercent: totalItems > 0 ? Math.round((withBom / totalItems) * 100) : 0,
+          bomReadyPercent: totalItems > 0 ? Math.round((releasedLocked / totalItems) * 100) : 0,
+          itemsWithoutBom: itemsWithoutBom.rows.length,
+          bomsNotReady: bomsNotReady.rows.length,
+          recentBypasses14d: recentBypasses,
+          totalBypasses: bypassLog.rows.length,
+        },
+        canEnableStrict,
+        cutoverBlockers: canEnableStrict ? [] : [
+          ...(itemsWithoutBom.rows.length > 0 ? [`${itemsWithoutBom.rows.length} project item(s) have no BOM`] : []),
+          ...(bomsNotReady.rows.length > 0 ? [`${bomsNotReady.rows.length} BOM(s) not in Released/Locked status`] : []),
+          ...(recentBypasses > 0 ? [`${recentBypasses} PO/WO created without BOM in last 14 days`] : []),
+          ...(totalItems === 0 ? ['No active project items found'] : []),
+        ],
+        itemsWithoutBom: itemsWithoutBom.rows,
+        bomsNotReady: bomsNotReady.rows,
+        bypassLog: bypassLog.rows,
+      });
+    } catch (error) {
+      console.error('[EPC-Monitor] Error fetching BOM readiness:', error);
+      res.status(500).json({ error: 'Failed to fetch BOM readiness data' });
+    }
+  });
+
   console.log('EPC Monitoring routes registered at /api/epc-monitoring');
 }

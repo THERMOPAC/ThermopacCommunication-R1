@@ -11885,3 +11885,17 @@ export const qmsDocumentAuditLog = pgTable('qms_document_audit_log', {
 });
 
 export type QmsDocumentAuditLog = typeof qmsDocumentAuditLog.$inferSelect;
+
+export const bomGatingBypassLog = pgTable('bom_gating_bypass_log', {
+  id: serial('id').primaryKey(),
+  documentType: varchar('document_type', { length: 10 }).notNull(),
+  documentId: integer('document_id').notNull(),
+  documentNumber: varchar('document_number', { length: 100 }).notNull(),
+  projectId: integer('project_id').notNull(),
+  projectItemId: integer('project_item_id').notNull(),
+  reason: varchar('reason', { length: 50 }).notNull().default('no_bom_exists'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type BomGatingBypassLog = typeof bomGatingBypassLog.$inferSelect;

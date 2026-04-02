@@ -61,12 +61,22 @@ The system is a full-stack web application with organized, hierarchical data str
 **Status**: Observation-only phase. No flags turned ON, no forced migrations, no path deletions.
 **Access**: Superuser and General Manager only.
 **Route**: `/epc/cutover-dashboard`
-**Backend**: `server/epc-monitoring-routes.ts` (4 read-only endpoints):
+**Backend**: `server/epc-monitoring-routes.ts` (5 read-only endpoints):
 - `GET /api/epc-monitoring/pending-uploads` — Lists DWG `pending_upload` drawings with control number, project, age
 - `GET /api/epc-monitoring/dsp-usage` — DSP EPC dispatch record count, first usage timestamp, by-project breakdown
 - `GET /api/epc-monitoring/legacy-access` — Daily legacy file access report by path family, unique users, zero-usage candidates
 - `GET /api/epc-monitoring/cutover-readiness` — Composite dashboard: feature flags, INS EPC vs legacy %, DWG file status breakdown, DSP adoption, 7-day legacy trend
+- `GET /api/epc-monitoring/bom-readiness` — BOM gating cutover readiness: coverage %, items without BOM, BOMs not Released/Locked, bypass log, cutover blockers, strict mode eligibility check
 **Frontend**: `client/src/pages/epc-cutover-dashboard.tsx`
+
+### BOM Downstream Gating — Feature-Flag Controlled Policy
+**Status**: Transitional mode (default). Strict EPC mode available via feature flag.
+**Feature Flag**: `EPC_BOM_GATING_STRICT` in `epc_migration_feature_flags` (default OFF)
+- **OFF (Transitional)**: PO/WO allowed when no BOM exists (logged to `bom_gating_bypass_log`). Blocked if BOM exists but is not Released/Locked.
+- **ON (Strict EPC)**: PO/WO blocked unless a current Released/Locked BOM exists for the project item.
+**Cutover Rule**: Strict mode should only be enabled when: 100% project items have BOM, 100% BOMs are Released/Locked, zero recent bypasses (14d).
+**DB Tables**: `bom_gating_bypass_log` (tracks PO/WO created without BOM in Transitional mode).
+**Traceability Columns**: `source_bom_header_id`, `source_bom_line_id` on `epc_purchase_orders`, `epc_work_orders`, `epc_purchase_order_items`, `epc_work_order_items`.
 
 ### EPC Control Tower — Program-Level Monitoring Dashboard
 **Status**: Production-ready.

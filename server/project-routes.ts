@@ -35,6 +35,7 @@ import {
   epcInvoices,
   projects,
   customers,
+  bomGatingBypassLog,
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
@@ -45,6 +46,7 @@ import { checkModulePermission, requirePageAccess, requireProjectMembership, che
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
+import { isFeatureFlagEnabled } from './utils/epc-migration-helpers';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -4963,6 +4965,8 @@ export function setupProjectRoutes(app: express.Express) {
       );
       let bomHeaderId: number | null = null;
       let bomLineId: number | null = null;
+      let bomBypass = false;
+      const strictMode = await isFeatureFlagEnabled('EPC_BOM_GATING_STRICT');
       if (bomCheck.rows.length > 0) {
         const bom = bomCheck.rows[0] as any;
         if (!['released', 'locked'].includes(bom.status)) {
@@ -4973,6 +4977,13 @@ export function setupProjectRoutes(app: express.Express) {
           sql`SELECT id FROM epc_bom_lines WHERE bom_header_id = ${bom.id} AND component_item_id = ${prep.master_item_id} LIMIT 1`
         );
         if (bomLineMatch.rows.length > 0) bomLineId = (bomLineMatch.rows[0] as any).id;
+      } else {
+        if (strictMode) {
+          const piResult = await db.execute(sql`SELECT pi.item_number, mi.item_code FROM project_items pi LEFT JOIN master_items mi ON mi.id = pi.master_item_id WHERE pi.id = ${prep.project_item_id}`);
+          const piInfo = piResult.rows[0] as any;
+          return sendBusinessError(res, `Cannot create PO: No BOM exists for project item ${piInfo?.item_number || prep.project_item_id} (${piInfo?.item_code || 'unknown'}). Create and Release a BOM for this project item before creating a Purchase Order. [Strict EPC mode is ON]`);
+        }
+        bomBypass = true;
       }
 
       const existingPO = await db.execute(
@@ -4985,9 +4996,10 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       let newPoId: number;
+      let poNumber: string;
 
       await db.transaction(async (tx) => {
-        const poNumber = await epcCoding.generateDocumentNumber(prep.project_id, 'PO', tx);
+        poNumber = await epcCoding.generateDocumentNumber(prep.project_id, 'PO', tx);
         const [newPO] = await tx.insert(epcPurchaseOrders).values({
           poNumber,
           projectId: prep.project_id,
@@ -5035,6 +5047,19 @@ export function setupProjectRoutes(app: express.Express) {
             createdBy: userId,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
+        if (bomBypass) {
+          await tx.insert(bomGatingBypassLog).values({
+            documentType: 'PO',
+            documentId: newPO.id,
+            documentNumber: poNumber,
+            projectId: prep.project_id,
+            projectItemId: prep.project_item_id,
+            reason: 'no_bom_exists',
+            createdBy: userId,
+          });
+          console.log(`[BOM-GATE] BYPASS: PO ${poNumber} created without BOM for project item ${prep.project_item_id} (Transitional mode)`);
+        }
+
         const poApproveAssignee = await resolveAssignee(prep.project_id, 'Procurement', userId, tx);
         const poProjectCode = await resolveProjectCode(prep.project_id, tx);
         await createEpcTask({
@@ -5045,7 +5070,7 @@ export function setupProjectRoutes(app: express.Express) {
         });
       });
 
-      console.log(`[EPC-PO] Purchase order ${poNumber} created from PO prep ${poPrepId} by user ${userId}`);
+      console.log(`[EPC-PO] Purchase order created from PO prep ${poPrepId} by user ${userId}`);
       res.json({ success: true, message: `Purchase order ${poNumber} created`, id: newPoId!, poNumber, poPrepId, status: 'draft' });
     } catch (error) {
       sendError(res, error);
@@ -5368,6 +5393,8 @@ export function setupProjectRoutes(app: express.Express) {
       );
       let bomHeaderId: number | null = null;
       let bomLineId: number | null = null;
+      let bomBypass = false;
+      const strictMode = await isFeatureFlagEnabled('EPC_BOM_GATING_STRICT');
       if (bomCheck.rows.length > 0) {
         const bom = bomCheck.rows[0] as any;
         if (!['released', 'locked'].includes(bom.status)) {
@@ -5378,6 +5405,13 @@ export function setupProjectRoutes(app: express.Express) {
           sql`SELECT id FROM epc_bom_lines WHERE bom_header_id = ${bom.id} AND component_item_id = ${prep.master_item_id} LIMIT 1`
         );
         if (bomLineMatch.rows.length > 0) bomLineId = (bomLineMatch.rows[0] as any).id;
+      } else {
+        if (strictMode) {
+          const piResult = await db.execute(sql`SELECT pi.item_number, mi.item_code FROM project_items pi LEFT JOIN master_items mi ON mi.id = pi.master_item_id WHERE pi.id = ${prep.project_item_id}`);
+          const piInfo = piResult.rows[0] as any;
+          return sendBusinessError(res, `Cannot create WO: No BOM exists for project item ${piInfo?.item_number || prep.project_item_id} (${piInfo?.item_code || 'unknown'}). Create and Release a BOM for this project item before creating a Work Order. [Strict EPC mode is ON]`);
+        }
+        bomBypass = true;
       }
 
       const existingWO = await db.execute(
@@ -5390,9 +5424,10 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       let newWoId: number;
+      let woNumber: string;
 
       await db.transaction(async (tx) => {
-        const woNumber = await epcCoding.generateDocumentNumber(prep.project_id, 'WO', tx);
+        woNumber = await epcCoding.generateDocumentNumber(prep.project_id, 'WO', tx);
         const [newWO] = await tx.insert(epcWorkOrders).values({
           woNumber,
           projectId: prep.project_id,
@@ -5446,6 +5481,19 @@ export function setupProjectRoutes(app: express.Express) {
             createdBy: userId,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
+        if (bomBypass) {
+          await tx.insert(bomGatingBypassLog).values({
+            documentType: 'WO',
+            documentId: newWO.id,
+            documentNumber: woNumber,
+            projectId: prep.project_id,
+            projectItemId: prep.project_item_id,
+            reason: 'no_bom_exists',
+            createdBy: userId,
+          });
+          console.log(`[BOM-GATE] BYPASS: WO ${woNumber} created without BOM for project item ${prep.project_item_id} (Transitional mode)`);
+        }
+
         const woApproveAssignee = await resolveAssignee(prep.project_id, 'Production', userId, tx);
         const woProjectCode = await resolveProjectCode(prep.project_id, tx);
         await createEpcTask({
@@ -5456,7 +5504,7 @@ export function setupProjectRoutes(app: express.Express) {
         });
       });
 
-      console.log(`[EPC-WO] Work order ${woNumber} created from WO prep ${woPrepId} by user ${userId}`);
+      console.log(`[EPC-WO] Work order created from WO prep ${woPrepId} by user ${userId}`);
       res.json({ success: true, message: `Work order ${woNumber} created`, id: newWoId!, woNumber, woPrepId, status: 'draft' });
     } catch (error) {
       sendError(res, error);
