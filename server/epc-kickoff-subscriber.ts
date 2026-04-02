@@ -23,15 +23,24 @@ const EPC_MILESTONES = [
   { stageNumber: 12, name: 'Warranty Start', phase: 'After-Sales & Warranty' },
 ];
 
-const KICKOFF_TASKS = [
-  { title: 'Prepare Project Execution Plan', phase: 'Engineering & Design' },
-  { title: 'Define Project Schedule & Milestones', phase: 'Engineering & Design' },
-  { title: 'Initiate GA Drawing', phase: 'Engineering & Design' },
-  { title: 'Prepare Preliminary BOM', phase: 'Engineering & Design' },
-  { title: 'Import Project Items from Order', phase: 'Engineering & Design' },
-  { title: 'Review Make/Buy Classification', phase: 'Procurement' },
-  { title: 'Identify Critical Procurement Items', phase: 'Procurement' },
-  { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Assurance' },
+type AssignmentOwner = 'project_manager' | 'department';
+
+interface KickoffTaskDef {
+  title: string;
+  phase: string;
+  owner: AssignmentOwner;
+  department?: string;
+}
+
+const KICKOFF_TASKS: KickoffTaskDef[] = [
+  { title: 'Prepare Project Execution Plan', phase: 'Engineering & Design', owner: 'project_manager' },
+  { title: 'Define Project Schedule & Milestones', phase: 'Engineering & Design', owner: 'project_manager' },
+  { title: 'Initiate GA Drawing', phase: 'Engineering & Design', owner: 'department', department: 'Design' },
+  { title: 'Prepare Preliminary BOM', phase: 'Engineering & Design', owner: 'department', department: 'Design' },
+  { title: 'Import Project Items from Order', phase: 'Engineering & Design', owner: 'project_manager' },
+  { title: 'Review Make/Buy Classification', phase: 'Procurement', owner: 'department', department: 'Purchase' },
+  { title: 'Identify Critical Procurement Items', phase: 'Procurement', owner: 'department', department: 'Purchase' },
+  { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Assurance', owner: 'department', department: 'Quality Control' },
 ];
 
 const STARTER_DELIVERABLES = [
@@ -41,6 +50,54 @@ const STARTER_DELIVERABLES = [
   { name: 'Project Item List (Initial Baseline Confirmed)', phase: 'Engineering & Design' },
   { name: 'Quality Assurance Plan', phase: 'Quality Assurance' },
 ];
+
+const ROLE_PRIORITY = ['Senior Manager', 'Manager'];
+
+async function findDepartmentLead(tx: any, department: string): Promise<number | null> {
+  for (const role of ROLE_PRIORITY) {
+    const result = await tx.execute(
+      sql`SELECT id FROM users WHERE department = ${department} AND role = ${role} AND is_active = true ORDER BY id LIMIT 1`
+    );
+    if (result.rows.length > 0) {
+      return (result.rows[0] as any).id;
+    }
+  }
+  return null;
+}
+
+interface AssignmentResult {
+  assignedTo: number | null;
+  method: 'phase_lead' | 'department_lead' | 'project_manager' | 'unassigned';
+  detail: string;
+}
+
+async function resolveTaskAssignment(
+  tx: any,
+  taskDef: KickoffTaskDef,
+  phaseLeadId: number | null,
+  managerId: number | null,
+): Promise<AssignmentResult> {
+  if (phaseLeadId) {
+    return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead (user ${phaseLeadId})` };
+  }
+
+  if (taskDef.owner === 'project_manager') {
+    if (managerId) {
+      return { assignedTo: managerId, method: 'project_manager', detail: `Project Manager (user ${managerId})` };
+    }
+    return { assignedTo: null, method: 'unassigned', detail: 'No Project Manager configured' };
+  }
+
+  if (taskDef.owner === 'department' && taskDef.department) {
+    const deptLeadId = await findDepartmentLead(tx, taskDef.department);
+    if (deptLeadId) {
+      return { assignedTo: deptLeadId, method: 'department_lead', detail: `${taskDef.department} lead (user ${deptLeadId})` };
+    }
+    return { assignedTo: null, method: 'unassigned', detail: `No Senior Manager or Manager found in ${taskDef.department}` };
+  }
+
+  return { assignedTo: null, method: 'unassigned', detail: 'No assignment rule matched' };
+}
 
 async function handleProjectKickoff(event: AgentEvent): Promise<void> {
   const { projectId, newStatus, oldStatus, changedBy, projectCode, projectName } = event.payload;
@@ -116,17 +173,29 @@ async function handleProjectKickoff(event: AgentEvent): Promise<void> {
       const now = new Date().toISOString();
       const twoWeeksLater = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+      const unassignedTasks: string[] = [];
+
       for (const taskDef of KICKOFF_TASKS) {
         const phaseInfo = phaseMap.get(taskDef.phase);
-        const assignTo = phaseInfo?.leadId || managerId;
+        const phaseLeadId = phaseInfo?.leadId || null;
         const dueDate = phaseInfo?.endDate?.split('T')[0] || twoWeeksLater;
+
+        const assignment = await resolveTaskAssignment(tx, taskDef, phaseLeadId, managerId);
+
+        let description = `Auto-created kickoff task for ${projectName || projectCode}`;
+        if (assignment.method === 'unassigned') {
+          description = `⚠ ASSIGNMENT REQUIRED — ${assignment.detail}. Auto-created kickoff task for ${projectName || projectCode}`;
+          unassignedTasks.push(taskDef.title);
+        }
+
+        console.log(`[EPC-Kickoff] Task "${taskDef.title}" → ${assignment.method}: ${assignment.detail}`);
 
         const [newTask] = await tx.insert(tasksTable).values({
           title: taskDef.title,
-          description: `Auto-created kickoff task for ${projectName || projectCode}`,
+          description,
           status: 'pending',
           priority: 'High',
-          assignedTo: assignTo,
+          assignedTo: assignment.assignedTo,
           createdBy: changedBy || managerId,
           createdAt: now,
           startDate: projectStartDate || now.split('T')[0],
@@ -146,6 +215,29 @@ async function handleProjectKickoff(event: AgentEvent): Promise<void> {
             sql`INSERT INTO project_tasks (task_id, project_id) VALUES (${newTask.id}, ${projectId})`
           );
         }
+      }
+
+      if (unassignedTasks.length > 0 && managerId) {
+        const warningTitle = `[Kickoff] ${unassignedTasks.length} task(s) require assignment — ${projectName || projectCode}`;
+        const warningDescription = `The following kickoff tasks could not be auto-assigned because no phase lead or department lead was found:\n\n` +
+          unassignedTasks.map((t, i) => `${i + 1}. ${t}`).join('\n') +
+          `\n\nPlease assign these tasks manually or configure phase leads / department managers.`;
+
+        await tx.insert(tasksTable).values({
+          title: warningTitle,
+          description: warningDescription,
+          status: 'pending',
+          priority: 'Urgent',
+          assignedTo: managerId,
+          createdBy: changedBy || managerId,
+          createdAt: now,
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          sourceType: 'automation',
+          sourceId: projectId,
+          sourceAgent: 'epc_kickoff',
+        }).returning();
+
+        console.log(`[EPC-Kickoff] ⚠ Created assignment warning task for PM: ${unassignedTasks.length} unassigned task(s)`);
       }
 
       console.log(`[EPC-Kickoff] Creating ${STARTER_DELIVERABLES.length} starter deliverables for project ${projectId}`);
@@ -173,6 +265,7 @@ async function handleProjectKickoff(event: AgentEvent): Promise<void> {
           milestonesCreated: EPC_MILESTONES.length,
           tasksCreated: KICKOFF_TASKS.length,
           deliverablesCreated: STARTER_DELIVERABLES.length,
+          unassignedTasks: unassignedTasks.length > 0 ? unassignedTasks : undefined,
           triggeredBy: changedBy,
         },
         emittedBy: 'epc-kickoff-subscriber',
@@ -181,7 +274,8 @@ async function handleProjectKickoff(event: AgentEvent): Promise<void> {
         processedAt: new Date(),
       });
 
-      console.log(`[EPC-Kickoff] Kickoff complete for project ${projectId}: 12 milestones, ${KICKOFF_TASKS.length} tasks, ${STARTER_DELIVERABLES.length} deliverables`);
+      console.log(`[EPC-Kickoff] Kickoff complete for project ${projectId}: 12 milestones, ${KICKOFF_TASKS.length} tasks, ${STARTER_DELIVERABLES.length} deliverables` +
+        (unassignedTasks.length > 0 ? ` (${unassignedTasks.length} unassigned — warning created)` : ''));
     });
   } catch (err) {
     console.error(`[EPC-Kickoff] Failed to initialize kickoff for project ${projectId}:`, err);
