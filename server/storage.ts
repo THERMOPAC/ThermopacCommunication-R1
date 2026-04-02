@@ -2835,16 +2835,29 @@ export class DatabaseStorage implements IStorage {
     return newTask;
   }
 
-  async getProjectTasks(projectId: number): Promise<ProjectTask[]> {
+  async getProjectTasks(projectId: number): Promise<any[]> {
     console.log(`Getting tasks for project ${projectId}`);
     try {
-      // Use simpler SQL query to avoid syntax issues with snake_case column names
-      const query = `SELECT * FROM "project_tasks" WHERE "project_id" = $1 ORDER BY "id"`;
+      const query = `
+        SELECT 
+          pt.id, pt.task_id as "taskId", pt.project_id as "projectId", 
+          pt.phase_id as "phaseId", pt.notes,
+          t.title, t.description, t.status, t.priority,
+          t.start_date as "startDate", t.finish_date as "finishDate", 
+          t.due_date as "dueDate", t.assigned_to as "assignedTo",
+          t.created_at as "createdAt", t.completed_at as "completedAt",
+          u.username as "assignedToName"
+        FROM "project_tasks" pt
+        LEFT JOIN "tasks" t ON pt.task_id = t.id
+        LEFT JOIN "users" u ON t.assigned_to = u.id
+        WHERE pt.project_id = $1
+        ORDER BY pt.id
+      `;
       
       const { rows } = await pool.query(query, [projectId]);
       
       console.log(`Found ${rows.length} tasks for project ${projectId}`);
-      return rows as ProjectTask[];
+      return rows;
     } catch (error) {
       console.error(`Error getting tasks for project ${projectId}:`, error);
       return [];
