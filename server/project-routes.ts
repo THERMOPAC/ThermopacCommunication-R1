@@ -39,7 +39,7 @@ import {
 } from '@shared/schema';
 import { canManage, roleHierarchy } from '@shared/roles';
 import { eq, sql } from 'drizzle-orm';
-import { db } from './db';
+import { db, pool } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
 import { checkModulePermission, requirePageAccess, requireProjectMembership, checkProjectMembership, buildOwnershipWhereClause, checkRecordOwnership, lookupCreatorDepartment, denyRecordAccess, enforceWriteOwnership, type OwnershipFilterConfig } from './utils/permission-utils';
@@ -47,6 +47,8 @@ import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
 import { isFeatureFlagEnabled } from './utils/epc-migration-helpers';
+import { executeProjectCancellationCascade, isProjectFrozen, isProjectTerminal } from './utils/epc-project-cascade';
+import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -67,6 +69,18 @@ function ensureAuthenticated(req: Request, res: Response, next: express.NextFunc
     return next();
   }
   res.status(401).json({ error: 'You must be logged in to access this resource' });
+}
+
+async function guardProjectNotFrozen(projectId: number, res: Response): Promise<boolean> {
+  const result = await pool.query(`SELECT status FROM projects WHERE id = $1`, [projectId]);
+  if (result.rows.length === 0) return true;
+  const status = result.rows[0].status;
+  if (isProjectFrozen(status)) {
+    const label = status === 'cancelled' ? 'cancelled' : 'on hold';
+    sendBusinessError(res, `Project is ${label} — no new records or status changes allowed.`);
+    return false;
+  }
+  return true;
 }
 
 export function setupProjectRoutes(app: express.Express) {
@@ -341,18 +355,40 @@ export function setupProjectRoutes(app: express.Express) {
       console.log("Final clean update data:", updateData);
       
       const oldStatus = project.status;
+      const newStatus = updateData.status;
+
+      if (newStatus && newStatus !== oldStatus) {
+        if (isProjectTerminal(oldStatus)) {
+          return sendBusinessError(res, `Cannot change status of a cancelled project. Cancelled is terminal.`);
+        }
+        if (newStatus === 'active' && isProjectTerminal(oldStatus)) {
+          return sendBusinessError(res, `Cannot reactivate a cancelled project.`);
+        }
+      }
+
       const updatedProject = await storage.updateProject(projectId, updateData);
 
-      if (updateData.status && updateData.status !== oldStatus) {
+      if (newStatus && newStatus !== oldStatus) {
         agentEventBus.emit('project.status_changed', {
           projectId,
           projectCode: project.code,
           projectName: project.name,
           oldStatus,
-          newStatus: updateData.status,
+          newStatus,
           changedBy: userId,
         }, 'project-routes');
-        console.log(`[EventBus] project.status_changed emitted — projectId=${projectId}, ${oldStatus} → ${updateData.status}, changedBy=${userId}`);
+        console.log(`[EventBus] project.status_changed emitted — projectId=${projectId}, ${oldStatus} → ${newStatus}, changedBy=${userId}`);
+
+        if (newStatus === 'cancelled') {
+          try {
+            const cascadeResult = await executeProjectCancellationCascade(projectId, userId);
+            console.log(`[EPC-Cascade] Cancellation cascade completed for project ${project.code}`);
+            return res.json({ ...updatedProject, cascadeResult });
+          } catch (cascadeErr) {
+            console.error(`[EPC-Cascade] Error during cancellation cascade for project ${projectId}:`, cascadeErr);
+            return res.json({ ...updatedProject, cascadeWarning: 'Project status updated but cascade had errors. Check logs.' });
+          }
+        }
       }
 
       res.json(updatedProject);
@@ -4953,6 +4989,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const prep = existing.rows[0] as any;
 
+      if (!(await guardProjectNotFrozen(prep.project_id, res))) return;
+
       if (prep.status !== 'ready_for_po_creation') {
         return sendBusinessError(res, `Cannot create PO: PO preparation status is '${prep.status}', expected 'ready_for_po_creation'.`);
       }
@@ -5380,6 +5418,8 @@ export function setupProjectRoutes(app: express.Express) {
       const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${woPrepId}`);
       if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
       const prep = existing.rows[0] as any;
+
+      if (!(await guardProjectNotFrozen(prep.project_id, res))) return;
 
       if (prep.status !== 'ready_for_wo_creation') {
         return sendBusinessError(res, `Cannot create WO: WO preparation status is '${prep.status}', expected 'ready_for_wo_creation'.`);
@@ -9007,6 +9047,9 @@ export function setupProjectRoutes(app: express.Express) {
       const projectId = parseInt(req.params.projectId);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
+
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
+
       if (roleHierarchy[userRole] > 3) {
         return sendPermissionError(res, 'Manager or above required to create BOMs.');
       }
@@ -9305,7 +9348,22 @@ export function setupProjectRoutes(app: express.Express) {
       }).where(eq(epcBomHeaders.id, id));
 
       console.log(`[BOM] ${rec.bom_number} released by user ${userId}`);
-      res.json({ success: true, message: `${rec.bom_number} released` });
+
+      let reconciliationResult = null;
+      if (rec.supersedes_id) {
+        try {
+          reconciliationResult = await reconcileBomSupersession(rec.supersedes_id, id, userId);
+          console.log(`[BOM] Reconciliation completed for ${rec.bom_number} vs superseded BOM ${rec.supersedes_id}`);
+        } catch (reconErr) {
+          console.error(`[BOM] Reconciliation error for ${rec.bom_number}:`, reconErr);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${rec.bom_number} released`,
+        ...(reconciliationResult ? { reconciliation: reconciliationResult } : {}),
+      });
     } catch (error) {
       sendError(res, error);
     }
@@ -9392,6 +9450,8 @@ export function setupProjectRoutes(app: express.Express) {
       const results = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const rec = results.rows[0] as any;
+
+      if (!(await guardProjectNotFrozen(rec.project_id, res))) return;
 
       if (['superseded', 'cancelled'].includes(rec.status)) {
         return sendBusinessError(res, `Cannot supersede: BOM is already ${rec.status}.`);

@@ -78,6 +78,24 @@ The system is a full-stack web application with organized, hierarchical data str
 **DB Tables**: `bom_gating_bypass_log` (tracks PO/WO created without BOM in Transitional mode).
 **Traceability Columns**: `source_bom_header_id`, `source_bom_line_id` on `epc_purchase_orders`, `epc_work_orders`, `epc_purchase_order_items`, `epc_work_order_items`.
 
+### EPC Control Integrity — Project & BOM Lifecycle Enforcement
+**Status**: Production-ready (Phase 1 complete).
+**Backend**: `server/utils/epc-project-cascade.ts`, `server/utils/epc-bom-reconciliation.ts`
+**Project Status Cascade** (on cancellation):
+- Auto-cancels draft tasks, BOMs (`draft`/`under_review`), DWGs (`draft`/`pending_upload`/`file_not_available`), planning records, POs, WOs, inspections, dispatch records
+- Keeps `approved`/`released`/`locked` BOMs as read-only baseline
+- Flags active (non-draft) records for manual review via EPC tasks
+- Logs cascade results to `project_workflow_events` as `project_cancellation_cascade`
+**Project Freeze Guard** (`guardProjectNotFrozen`):
+- Blocks BOM creation, PO creation, WO creation, and BOM supersession on `on_hold`/`inactive`/`cancelled` projects
+- `cancelled` is terminal — no status changes allowed
+**BOM Supersession Reconciliation** (triggers on release of superseding BOM):
+- Compares old vs new BOM lines by `component_item_id`
+- Removed lines with no downstream → auto-cancel planning records
+- Removed lines with active PO/WO/INS/DSP → create review task
+- Quantity changes → update `project_items`, flag if active downstream exists
+- Logs to `project_workflow_events` as `bom_supersession_reconciliation`
+
 ### EPC Control Tower — Program-Level Monitoring Dashboard
 **Status**: Production-ready.
 **Access**: Superuser and General Manager only.
