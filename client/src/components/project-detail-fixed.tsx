@@ -156,6 +156,17 @@ const memberFormSchema = z.object({
 
 type MemberFormValues = z.infer<typeof memberFormSchema>;
 
+const taskFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().min(1, "Description is required"),
+  assignedTo: z.number().optional(),
+  dueDate: z.string().min(1, "Due date is required"),
+  priority: z.enum(["High", "Medium", "Low"]).default("Medium"),
+  status: z.enum(["pending", "in_progress", "completed"]).default("pending"),
+});
+
+type TaskFormValues = z.infer<typeof taskFormSchema>;
+
 const editProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().min(1, "Project description is required"),
@@ -204,6 +215,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [selectedPhase, setSelectedPhase] = useState<any>(null);
   const [isAddDeliverableOpen, setIsAddDeliverableOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<any>(null);
   
   // Enhanced debugging for project ID handling
   console.log("Project ID from prop:", id);
@@ -825,6 +839,93 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const handleAddMember = () => {
     memberForm.reset({ userId: 0, role: "team_member" });
     setIsAddMemberOpen(true);
+  };
+
+  const taskForm = useForm<TaskFormValues>({
+    resolver: zodResolver(taskFormSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      assignedTo: undefined,
+      dueDate: "",
+      priority: "Medium",
+      status: "pending",
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: TaskFormValues) => {
+      const now = new Date().toISOString();
+      const taskRes = await apiRequest("POST", "/api/tasks", {
+        title: data.title,
+        description: data.description,
+        assignedTo: data.assignedTo || null,
+        dueDate: data.dueDate,
+        startDate: now,
+        finishDate: data.dueDate,
+        priority: data.priority,
+        status: data.status,
+        createdAt: now,
+      });
+      const task = await taskRes.json();
+      await apiRequest("POST", `/api/projects/${projectId}/tasks`, {
+        taskId: task.id,
+      });
+      return task;
+    },
+    onSuccess: () => {
+      toast({ title: "Task created", description: "New project task created." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsAddTaskOpen(false);
+      taskForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error creating task", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ taskId, data }: { taskId: number; data: Partial<TaskFormValues> }) => {
+      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Task updated", description: "Task updated successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/tasks`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      setIsEditTaskOpen(false);
+      setEditingTask(null);
+      taskForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating task", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleAddTask = () => {
+    taskForm.reset({
+      title: "",
+      description: "",
+      assignedTo: undefined,
+      dueDate: "",
+      priority: "Medium",
+      status: "pending",
+    });
+    setIsAddTaskOpen(true);
+  };
+
+  const handleEditTask = (task: any) => {
+    setEditingTask(task);
+    taskForm.reset({
+      title: task.title || "",
+      description: task.description || "",
+      assignedTo: task.assignedTo || task.assigned_to || undefined,
+      dueDate: task.dueDate || task.due_date || "",
+      priority: task.priority || "Medium",
+      status: task.status || "pending",
+    });
+    setIsEditTaskOpen(true);
   };
 
   function formatDate(dateString) {
@@ -2328,7 +2429,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           <TabsContent value="tasks" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Project Tasks</h2>
-              <Button>
+              <Button onClick={handleAddTask}>
                 <Plus className="mr-1 h-4 w-4" /> Add Task
               </Button>
             </div>
@@ -2366,7 +2467,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -2890,6 +2991,166 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <Button type="submit" disabled={addMemberMutation.isPending}>
                   {addMemberMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Add Member
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Task</DialogTitle>
+            <DialogDescription>Create a new task for this project.</DialogDescription>
+          </DialogHeader>
+          <Form {...taskForm}>
+            <form onSubmit={taskForm.handleSubmit((data) => createTaskMutation.mutate(data))} className="space-y-4">
+              <FormField control={taskForm.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl><Input {...field} placeholder="Task title" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={taskForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl><Textarea {...field} placeholder="Task description" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={taskForm.control} name="assignedTo" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assign To</FormLabel>
+                  <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value ? String(field.value) : ""}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select assignee" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {members?.map((m: any) => (
+                        <SelectItem key={m.userId || m.id} value={String(m.userId || m.id)}>
+                          {m.username || m.firstName || `User #${m.userId}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={taskForm.control} name="dueDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Date</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={taskForm.control} name="priority" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddTaskOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createTaskMutation.isPending}>
+                  {createTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Task
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditTaskOpen} onOpenChange={(open) => { setIsEditTaskOpen(open); if (!open) setEditingTask(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>Update task details.</DialogDescription>
+          </DialogHeader>
+          <Form {...taskForm}>
+            <form onSubmit={taskForm.handleSubmit((data) => updateTaskMutation.mutate({ taskId: editingTask?.taskId || editingTask?.task_id || editingTask?.id, data }))} className="space-y-4">
+              <FormField control={taskForm.control} name="title" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={taskForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl><Textarea {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={taskForm.control} name="assignedTo" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assign To</FormLabel>
+                  <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value ? String(field.value) : ""}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select assignee" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {members?.map((m: any) => (
+                        <SelectItem key={m.userId || m.id} value={String(m.userId || m.id)}>
+                          {m.username || m.firstName || `User #${m.userId}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={taskForm.control} name="dueDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Due Date</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={taskForm.control} name="priority" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Priority</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="High">High</SelectItem>
+                        <SelectItem value="Medium">Medium</SelectItem>
+                        <SelectItem value="Low">Low</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <FormField control={taskForm.control} name="status" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditTaskOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={updateTaskMutation.isPending}>
+                  {updateTaskMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
                 </Button>
               </DialogFooter>
             </form>
