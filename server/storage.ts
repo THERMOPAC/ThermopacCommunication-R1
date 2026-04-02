@@ -2836,7 +2836,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProjectTasks(projectId: number): Promise<any[]> {
-    console.log(`Getting tasks for project ${projectId}`);
     try {
       const query = `
         SELECT 
@@ -2856,7 +2855,6 @@ export class DatabaseStorage implements IStorage {
       
       const { rows } = await pool.query(query, [projectId]);
       
-      console.log(`Found ${rows.length} tasks for project ${projectId}`);
       return rows;
     } catch (error) {
       console.error(`Error getting tasks for project ${projectId}:`, error);
