@@ -1,5 +1,7 @@
 import { Request, Response, Express } from 'express';
 import { pool } from './db';
+import { createEpcTask } from './epc-task-helpers';
+import { resolveManagerId } from './epc-task-helpers';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if ((req as any).isAuthenticated && (req as any).isAuthenticated()) {
@@ -442,6 +444,401 @@ export function setupEpcControlTowerRoutes(app: Express) {
     } catch (err) {
       console.error('[EPC-Control-Tower] Stage gates error:', err);
       res.status(500).json({ error: 'Failed to load stage gate analysis' });
+    }
+  });
+
+  app.get('/api/epc-control-tower/blocking-analysis', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
+    try {
+      const projectFilter = req.query.projectId ? `AND p.id = ${parseInt(req.query.projectId as string)}` : '';
+
+      const items = await pool.query(`
+        SELECT
+          pi.id as project_item_id,
+          pi.quantity,
+          mi.id as master_item_id,
+          mi.item_code,
+          mi.description as item_description,
+          mi.make_or_buy,
+          p.id as project_id,
+          p.code as project_code,
+          p.name as project_name,
+          bh.id as bom_id, bh.status as bom_status, bh.created_at as bom_created_at,
+          dc.id as dwg_id, dc.status as dwg_status, dc.created_at as dwg_created_at,
+          ipr.id as planning_id, ipr.status as planning_status, ipr.planning_type, ipr.created_at as planning_created_at,
+          (SELECT epo.id FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_id,
+          (SELECT epo.status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_status,
+          (SELECT epo.quality_status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_quality_status,
+          (SELECT epo.created_at FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_created_at,
+          (SELECT ewo.id FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_id,
+          (SELECT ewo.status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_status,
+          (SELECT ewo.quality_status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_quality_status,
+          (SELECT ewo.created_at FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_created_at,
+          (SELECT ier.status FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled') ORDER BY ier.id DESC LIMIT 1) as ins_status,
+          (SELECT ier.created_at FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled') ORDER BY ier.id DESC LIMIT 1) as ins_created_at,
+          (SELECT edr.status FROM epc_dispatch_records edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('cancelled') ORDER BY edr.id DESC LIMIT 1) as dsp_status,
+          (SELECT edr.created_at FROM epc_dispatch_records edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('cancelled') ORDER BY edr.id DESC LIMIT 1) as dsp_created_at,
+          (SELECT ecr.status FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled','superseded') ORDER BY ecr.id DESC LIMIT 1) as com_status,
+          (SELECT ecr.created_at FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled','superseded') ORDER BY ecr.id DESC LIMIT 1) as com_created_at,
+          (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled','superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        LEFT JOIN master_items mi ON mi.id = pi.item_id
+        LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+        LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
+        LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('cancelled','superseded')
+        WHERE p.status NOT IN ('cancelled','completed','closed') ${projectFilter}
+        ORDER BY p.code, mi.item_code
+      `);
+
+      const blockedItems: any[] = [];
+      const stageSummary: Record<string, { blocked: number; items: any[] }> = {
+        BOM: { blocked: 0, items: [] },
+        DWG: { blocked: 0, items: [] },
+        PLN: { blocked: 0, items: [] },
+        PO_WO: { blocked: 0, items: [] },
+        INS: { blocked: 0, items: [] },
+        DSP: { blocked: 0, items: [] },
+        COM: { blocked: 0, items: [] },
+        INV: { blocked: 0, items: [] },
+      };
+
+      const now = Date.now();
+      for (const item of items.rows as any[]) {
+        const isBuy = item.make_or_buy === 'Buy';
+        const isMake = item.make_or_buy === 'Make' || item.make_or_buy === 'Assembly';
+        const itemRef = `${item.project_code} / ${item.item_code || 'PI-' + item.project_item_id}`;
+        const reasons: string[] = [];
+        let blockedAtStage = '';
+        let stuckSinceDateStr: string | null = null;
+
+        const bomReady = item.bom_id && ['released', 'locked'].includes(item.bom_status);
+        const dwgReady = item.dwg_id && ['approved', 'released'].includes(item.dwg_status);
+        const plnReady = item.planning_id && item.planning_status === 'released';
+        const hasPoWo = item.po_id || item.wo_id;
+        const qualityCleared = item.po_quality_status === 'inspection_cleared' || item.wo_quality_status === 'inspection_cleared';
+        const dspReady = item.dsp_status && ['shipped', 'delivered'].includes(item.dsp_status);
+        const comReady = item.com_status && ['commissioned', 'handed_over'].includes(item.com_status);
+
+        if (!item.bom_id) {
+          blockedAtStage = 'BOM'; reasons.push('No BOM created for this project item');
+          stuckSinceDateStr = null;
+        } else if (!bomReady) {
+          blockedAtStage = 'BOM'; reasons.push(`BOM exists but status is '${item.bom_status}' — needs Released or Locked`);
+          stuckSinceDateStr = item.bom_created_at;
+        } else if (isMake && !dwgReady) {
+          blockedAtStage = 'DWG';
+          if (!item.dwg_id) reasons.push('No drawing control record exists (required for Make/Assembly)');
+          else reasons.push(`Drawing status is '${item.dwg_status}' — needs Approved or Released`);
+          stuckSinceDateStr = item.bom_created_at;
+        } else if (!plnReady) {
+          blockedAtStage = 'PLN';
+          if (!item.planning_id) reasons.push('No planning record created — BOM explosion may not have run');
+          else reasons.push(`Planning record status is '${item.planning_status}' — needs Released`);
+          stuckSinceDateStr = item.planning_created_at || item.bom_created_at;
+        } else if (!hasPoWo) {
+          blockedAtStage = 'PO_WO';
+          if (isBuy) reasons.push('Planning released but no Purchase Order created yet');
+          else if (isMake) reasons.push('Planning released but no Work Order created yet');
+          else reasons.push('Planning released but no PO or WO created yet');
+          stuckSinceDateStr = item.planning_created_at;
+        } else if (!qualityCleared) {
+          blockedAtStage = 'INS';
+          if (!item.ins_status) reasons.push('No inspection record exists — inspection not triggered');
+          else if (item.ins_status !== 'completed') reasons.push(`Inspection status is '${item.ins_status}' — not yet completed`);
+          else reasons.push('Inspection completed but quality not cleared on PO/WO');
+          stuckSinceDateStr = item.po_created_at || item.wo_created_at;
+        } else if (!dspReady) {
+          blockedAtStage = 'DSP';
+          if (!item.dsp_status) reasons.push('Quality cleared but no dispatch record created');
+          else reasons.push(`Dispatch status is '${item.dsp_status}' — needs Shipped or Delivered`);
+          stuckSinceDateStr = item.ins_created_at || item.po_created_at;
+        } else if (!comReady) {
+          blockedAtStage = 'COM';
+          if (!item.com_status) reasons.push('Dispatched but commissioning not started');
+          else reasons.push(`Commissioning status is '${item.com_status}' — needs Commissioned or Handed Over`);
+          stuckSinceDateStr = item.dsp_created_at;
+        } else if (!item.inv_status || !['approved', 'invoiced', 'ready_for_invoice'].includes(item.inv_status)) {
+          blockedAtStage = 'INV';
+          if (!item.inv_status) reasons.push('Commissioning complete but billing readiness not created');
+          else reasons.push(`Billing status is '${item.inv_status}' — not yet invoiced`);
+          stuckSinceDateStr = item.com_created_at;
+        }
+
+        if (blockedAtStage) {
+          const stuckDays = stuckSinceDateStr ? Math.floor((now - new Date(stuckSinceDateStr).getTime()) / (1000 * 60 * 60 * 24)) : null;
+          const entry = {
+            projectId: item.project_id, projectCode: item.project_code, projectName: item.project_name,
+            projectItemId: item.project_item_id, itemCode: item.item_code, itemDescription: item.item_description,
+            makeOrBuy: item.make_or_buy, blockedAtStage, reasons, stuckDays,
+            severity: (stuckDays !== null && stuckDays > 14) ? 'critical' : (stuckDays !== null && stuckDays > 7) ? 'warning' : 'info',
+          };
+          blockedItems.push(entry);
+          if (stageSummary[blockedAtStage]) {
+            stageSummary[blockedAtStage].blocked++;
+            if (stageSummary[blockedAtStage].items.length < 10) stageSummary[blockedAtStage].items.push(entry);
+          }
+        }
+      }
+
+      res.json({
+        totalItems: items.rows.length,
+        totalBlocked: blockedItems.length,
+        stageSummary,
+        blockedItems: blockedItems.slice(0, 500),
+      });
+    } catch (err) {
+      console.error('[EPC-Control-Tower] Blocking analysis error:', err);
+      res.status(500).json({ error: 'Failed to load blocking analysis' });
+    }
+  });
+
+  app.get('/api/epc-control-tower/risk-indicators', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+    try {
+      const pendingInspections = await pool.query(`
+        SELECT
+          ier.id, ier.inspection_order_number, ier.inspection_type, ier.status,
+          ier.project_item_id, ier.created_at,
+          EXTRACT(DAY FROM (NOW() - ier.created_at))::int as age_days,
+          mi.item_code, mi.description as item_description,
+          p.id as project_id, p.code as project_code, p.name as project_name
+        FROM inspection_execution_records ier
+        JOIN project_items pi ON ier.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        LEFT JOIN master_items mi ON pi.item_id = mi.id
+        WHERE ier.status NOT IN ('completed', 'cancelled', 'closed')
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+        ORDER BY age_days DESC
+        LIMIT 100
+      `);
+
+      const missingDrawings = await pool.query(`
+        SELECT
+          pi.id as project_item_id, mi.item_code, mi.description as item_description, mi.make_or_buy,
+          p.id as project_id, p.code as project_code, p.name as project_name,
+          bh.bom_number, bh.status as bom_status
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        JOIN master_items mi ON mi.id = pi.item_id
+        LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+        LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
+        WHERE mi.make_or_buy IN ('Make', 'Assembly')
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND bh.id IS NOT NULL AND bh.status IN ('released', 'locked')
+          AND dc.id IS NULL
+        ORDER BY p.code, mi.item_code
+        LIMIT 100
+      `);
+
+      const unreleasedPlanning = await pool.query(`
+        SELECT
+          ipr.id as planning_id, ipr.status as planning_status, ipr.planning_type, ipr.created_at,
+          EXTRACT(DAY FROM (NOW() - ipr.created_at))::int as age_days,
+          pi.id as project_item_id, mi.item_code, mi.description as item_description,
+          p.id as project_id, p.code as project_code, p.name as project_name
+        FROM item_planning_records ipr
+        JOIN project_items pi ON ipr.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        LEFT JOIN master_items mi ON pi.item_id = mi.id
+        WHERE ipr.status NOT IN ('released', 'cancelled', 'superseded')
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+        ORDER BY age_days DESC
+        LIMIT 100
+      `);
+
+      const stalePoWo = await pool.query(`
+        SELECT 'PO' as type, epo.id, epo.po_number as doc_number, epo.status, epo.quality_status,
+          epo.project_item_id, epo.created_at,
+          EXTRACT(DAY FROM (NOW() - epo.created_at))::int as age_days,
+          mi.item_code, mi.description as item_description,
+          p.code as project_code, p.name as project_name
+        FROM epc_purchase_orders epo
+        JOIN project_items pi ON epo.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        LEFT JOIN master_items mi ON pi.item_id = mi.id
+        WHERE epo.status NOT IN ('cancelled', 'superseded')
+          AND epo.quality_status != 'inspection_cleared'
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND epo.created_at < NOW() - INTERVAL '14 days'
+        UNION ALL
+        SELECT 'WO' as type, ewo.id, ewo.wo_number as doc_number, ewo.status, ewo.quality_status,
+          ewo.project_item_id, ewo.created_at,
+          EXTRACT(DAY FROM (NOW() - ewo.created_at))::int as age_days,
+          mi.item_code, mi.description as item_description,
+          p.code as project_code, p.name as project_name
+        FROM epc_work_orders ewo
+        JOIN project_items pi ON ewo.project_item_id = pi.id
+        JOIN projects p ON pi.project_id = p.id
+        LEFT JOIN master_items mi ON pi.item_id = mi.id
+        WHERE ewo.status NOT IN ('cancelled', 'superseded')
+          AND ewo.quality_status != 'inspection_cleared'
+          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND ewo.created_at < NOW() - INTERVAL '14 days'
+        ORDER BY age_days DESC
+        LIMIT 100
+      `);
+
+      res.json({
+        pendingInspections: { count: pendingInspections.rows.length, items: pendingInspections.rows },
+        missingDrawings: { count: missingDrawings.rows.length, items: missingDrawings.rows },
+        unreleasedPlanning: { count: unreleasedPlanning.rows.length, items: unreleasedPlanning.rows },
+        stalePoWo: { count: stalePoWo.rows.length, items: stalePoWo.rows },
+        summary: {
+          pendingInspections: pendingInspections.rows.length,
+          missingDrawings: missingDrawings.rows.length,
+          unreleasedPlanning: unreleasedPlanning.rows.length,
+          stalePoWo: stalePoWo.rows.length,
+          totalRisks: pendingInspections.rows.length + missingDrawings.rows.length + unreleasedPlanning.rows.length + stalePoWo.rows.length,
+        }
+      });
+    } catch (err) {
+      console.error('[EPC-Control-Tower] Risk indicators error:', err);
+      res.status(500).json({ error: 'Failed to load risk indicators' });
+    }
+  });
+
+  app.post('/api/epc-control-tower/generate-gap-tasks', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      const { gapType, projectId, projectItemId } = req.body;
+
+      if (!gapType) return res.status(400).json({ error: 'gapType is required' });
+
+      const gapQueries: Record<string, { query: string; taskBuilder: (row: any) => any }> = {
+        missing_bom: {
+          query: `
+            SELECT pi.id as project_item_id, mi.item_code, mi.description, p.id as project_id, p.code as project_code
+            FROM project_items pi
+            JOIN projects p ON p.id = pi.project_id
+            LEFT JOIN master_items mi ON mi.id = pi.item_id
+            LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+            WHERE bh.id IS NULL AND p.status NOT IN ('cancelled','completed','closed')
+            ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
+            ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
+            LIMIT 50`,
+          taskBuilder: (r: any) => ({
+            projectId: r.project_id, entityType: 'project_item', recordId: r.project_item_id,
+            actionCode: 'create_bom',
+            title: `[Gap] Create BOM for ${r.item_code || 'PI-' + r.project_item_id} (${r.project_code})`,
+            description: `BOM is missing for project item ${r.item_code || r.project_item_id}. Create and release a BOM to unblock downstream stages.`,
+            priority: 'High', createdBy: userId,
+          }),
+        },
+        unreleased_bom: {
+          query: `
+            SELECT pi.id as project_item_id, mi.item_code, mi.description, p.id as project_id, p.code as project_code, bh.bom_number, bh.status as bom_status
+            FROM project_items pi
+            JOIN projects p ON p.id = pi.project_id
+            LEFT JOIN master_items mi ON mi.id = pi.item_id
+            JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+            WHERE bh.status NOT IN ('released','locked') AND p.status NOT IN ('cancelled','completed','closed')
+            ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
+            ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
+            LIMIT 50`,
+          taskBuilder: (r: any) => ({
+            projectId: r.project_id, entityType: 'bom_header', recordId: r.project_item_id,
+            actionCode: 'release_bom',
+            title: `[Gap] Release BOM ${r.bom_number} for ${r.item_code || 'PI-' + r.project_item_id} (${r.project_code})`,
+            description: `BOM ${r.bom_number} is in '${r.bom_status}' status. Release or lock to unblock downstream stages.`,
+            priority: 'High', createdBy: userId,
+          }),
+        },
+        missing_drawing: {
+          query: `
+            SELECT pi.id as project_item_id, mi.item_code, mi.description, mi.make_or_buy, p.id as project_id, p.code as project_code
+            FROM project_items pi
+            JOIN projects p ON p.id = pi.project_id
+            JOIN master_items mi ON mi.id = pi.item_id
+            LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+            LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
+            WHERE mi.make_or_buy IN ('Make','Assembly') AND bh.status IN ('released','locked') AND dc.id IS NULL
+              AND p.status NOT IN ('cancelled','completed','closed')
+            ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
+            ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
+            LIMIT 50`,
+          taskBuilder: (r: any) => ({
+            projectId: r.project_id, entityType: 'project_item', recordId: r.project_item_id,
+            actionCode: 'create_drawing',
+            title: `[Gap] Create drawing for ${r.item_code || 'PI-' + r.project_item_id} (${r.project_code})`,
+            description: `${r.make_or_buy} item ${r.item_code || r.project_item_id} has a released BOM but no drawing control. Create and approve a drawing to unblock Work Orders.`,
+            priority: 'High', createdBy: userId,
+          }),
+        },
+        unreleased_planning: {
+          query: `
+            SELECT ipr.id as planning_id, ipr.status as planning_status, ipr.planning_type,
+              pi.id as project_item_id, mi.item_code, mi.description, p.id as project_id, p.code as project_code
+            FROM item_planning_records ipr
+            JOIN project_items pi ON ipr.project_item_id = pi.id
+            JOIN projects p ON pi.project_id = p.id
+            LEFT JOIN master_items mi ON pi.item_id = mi.id
+            WHERE ipr.status NOT IN ('released','cancelled','superseded')
+              AND p.status NOT IN ('cancelled','completed','closed')
+            ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
+            ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
+            LIMIT 50`,
+          taskBuilder: (r: any) => ({
+            projectId: r.project_id, entityType: 'planning_record', recordId: r.planning_id,
+            actionCode: 'release_planning',
+            title: `[Gap] Release planning for ${r.item_code || 'PI-' + r.project_item_id} (${r.project_code})`,
+            description: `Planning record (${r.planning_type}) is in '${r.planning_status}' status. Release to unblock PO/WO creation.`,
+            priority: 'High', createdBy: userId,
+          }),
+        },
+        pending_inspection: {
+          query: `
+            SELECT ier.id, ier.inspection_order_number, ier.inspection_type, ier.status,
+              ier.project_item_id, EXTRACT(DAY FROM (NOW() - ier.created_at))::int as age_days,
+              mi.item_code, mi.description, p.id as project_id, p.code as project_code
+            FROM inspection_execution_records ier
+            JOIN project_items pi ON ier.project_item_id = pi.id
+            JOIN projects p ON pi.project_id = p.id
+            LEFT JOIN master_items mi ON pi.item_id = mi.id
+            WHERE ier.status NOT IN ('completed','cancelled','closed')
+              AND p.status NOT IN ('cancelled','completed','closed')
+              AND ier.created_at < NOW() - INTERVAL '7 days'
+            ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
+            ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
+            ORDER BY age_days DESC LIMIT 50`,
+          taskBuilder: (r: any) => ({
+            projectId: r.project_id, entityType: 'inspection', recordId: r.id,
+            actionCode: 'complete_inspection',
+            title: `[Gap] Complete inspection ${r.inspection_order_number} (${r.age_days}d old) — ${r.project_code}`,
+            description: `${r.inspection_type} inspection for ${r.item_code || 'PI-' + r.project_item_id} has been pending for ${r.age_days} days. Complete to unblock dispatch.`,
+            priority: r.age_days > 14 ? 'Urgent' : 'High', createdBy: userId,
+          }),
+        },
+      };
+
+      const config = gapQueries[gapType];
+      if (!config) return res.status(400).json({ error: `Unknown gapType: ${gapType}. Valid: ${Object.keys(gapQueries).join(', ')}` });
+
+      const result = await pool.query(config.query);
+      let tasksCreated = 0;
+      let tasksDuplicate = 0;
+
+      for (const row of result.rows) {
+        const params = config.taskBuilder(row);
+        const assignee = await resolveManagerId(params.projectId);
+        params.assignedTo = assignee;
+        const taskId = await createEpcTask(params);
+        if (taskId) tasksCreated++;
+        else tasksDuplicate++;
+      }
+
+      res.json({
+        gapType,
+        itemsFound: result.rows.length,
+        tasksCreated,
+        tasksDuplicate,
+        message: tasksCreated > 0
+          ? `Created ${tasksCreated} actionable tasks for '${gapType}' gaps.`
+          : tasksDuplicate > 0
+          ? `All ${tasksDuplicate} gap tasks already exist (de-duplicated).`
+          : `No items found matching '${gapType}' criteria.`,
+      });
+    } catch (err) {
+      console.error('[EPC-Control-Tower] Generate gap tasks error:', err);
+      res.status(500).json({ error: 'Failed to generate gap tasks' });
     }
   });
 

@@ -1,14 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { 
   Activity, AlertTriangle, ArrowRight, BarChart3, CheckCircle2, 
   ChevronRight, Clock, Eye, FileWarning, Layers, 
-  ShieldAlert, Users, XCircle, Radar, ExternalLink, GitBranch
+  ShieldAlert, Users, XCircle, Radar, ExternalLink, GitBranch,
+  Search, Zap, Target, Timer, Hammer
 } from "lucide-react";
 
 function HealthBadge({ health }: { health: string }) {
@@ -96,12 +100,37 @@ export default function EpcControlTower() {
     queryKey: ["/api/epc-control-tower/stage-gates"],
   });
 
+  const { data: blocking, isLoading: loadingBlocking } = useQuery({
+    queryKey: ["/api/epc-control-tower/blocking-analysis"],
+  });
+
+  const { data: riskIndicators, isLoading: loadingRisk } = useQuery({
+    queryKey: ["/api/epc-control-tower/risk-indicators"],
+  });
+
   const { data: docStatus, isLoading: loadingDocs } = useQuery({
     queryKey: ["/api/epc-monitoring/cutover-readiness"],
   });
 
   const { data: legacyAccess } = useQuery({
     queryKey: ["/api/epc-monitoring/legacy-access"],
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const generateTasksMutation = useMutation({
+    mutationFn: async (gapType: string) => {
+      const res = await apiRequest('POST', '/api/epc-control-tower/generate-gap-tasks', { gapType });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Gap Tasks", description: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/blocking-analysis"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/risk-indicators"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Error", description: err.message || "Failed to generate tasks", variant: "destructive" });
+    },
   });
 
   const hc = summary?.healthCounts || { on_track: 0, at_risk: 0, delayed: 0, blocked: 0 };
@@ -367,6 +396,268 @@ export default function EpcControlTower() {
           })() : null}
         </CardContent>
       </Card>
+
+      {/* Section: Blocking Analysis */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Search className="h-4 w-4 text-red-600" /> Stage-Wise Blocking Analysis
+            {!loadingBlocking && blocking && (
+              <div className="flex gap-2 ml-auto">
+                <Badge variant="destructive" className="text-[10px]">
+                  {(blocking as any).totalBlocked} / {(blocking as any).totalItems} blocked
+                </Badge>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingBlocking ? <Skeleton className="h-48" /> : blocking ? (() => {
+            const b = blocking as any;
+            const ss = b.stageSummary || {};
+            const stageOrder = ['BOM', 'DWG', 'PLN', 'PO_WO', 'INS', 'DSP', 'COM', 'INV'];
+            const stageLabels: Record<string, string> = {
+              BOM: 'BOM', DWG: 'Drawing', PLN: 'Planning', PO_WO: 'PO / WO',
+              INS: 'Inspection', DSP: 'Dispatch', COM: 'Commissioning', INV: 'Invoice'
+            };
+            const stageColors: Record<string, string> = {
+              BOM: 'bg-blue-100 border-blue-300 text-blue-700',
+              DWG: 'bg-purple-100 border-purple-300 text-purple-700',
+              PLN: 'bg-indigo-100 border-indigo-300 text-indigo-700',
+              PO_WO: 'bg-orange-100 border-orange-300 text-orange-700',
+              INS: 'bg-amber-100 border-amber-300 text-amber-700',
+              DSP: 'bg-teal-100 border-teal-300 text-teal-700',
+              COM: 'bg-cyan-100 border-cyan-300 text-cyan-700',
+              INV: 'bg-green-100 border-green-300 text-green-700',
+            };
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                  {stageOrder.map(k => {
+                    const s = ss[k] || { blocked: 0 };
+                    return (
+                      <div key={k} className={`rounded-lg border p-2 text-center ${s.blocked > 0 ? stageColors[k] : 'border-gray-200 bg-gray-50 text-gray-500'}`}>
+                        <p className="text-[10px] font-semibold">{stageLabels[k]}</p>
+                        <p className="text-xl font-bold">{s.blocked}</p>
+                        <p className="text-[9px]">blocked</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {b.blockedItems?.length > 0 && (
+                  <div className="max-h-[350px] overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[70px]">Stage</TableHead>
+                          <TableHead className="w-[80px]">Severity</TableHead>
+                          <TableHead className="w-[80px]">Project</TableHead>
+                          <TableHead className="w-[100px]">Item</TableHead>
+                          <TableHead>Why Blocked</TableHead>
+                          <TableHead className="w-[70px] text-right">Stuck</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {b.blockedItems.slice(0, 100).map((item: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-[10px] ${stageColors[item.blockedAtStage] || ''}`}>
+                                {item.blockedAtStage}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={item.severity === 'critical' ? 'destructive' : item.severity === 'warning' ? 'outline' : 'secondary'} className="text-[10px]">
+                                {item.severity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-[10px]">{item.projectCode}</TableCell>
+                            <TableCell className="text-xs">{item.itemCode || 'PI-' + item.projectItemId}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {item.reasons.map((r: string, ri: number) => (
+                                <span key={ri} className="block">{r}</span>
+                              ))}
+                            </TableCell>
+                            <TableCell className="text-right text-xs">
+                              {item.stuckDays !== null ? (
+                                <span className={item.stuckDays > 14 ? 'text-red-600 font-medium' : item.stuckDays > 7 ? 'text-amber-600 font-medium' : ''}>{item.stuckDays}d</span>
+                              ) : '—'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {(!b.blockedItems || b.blockedItems.length === 0) && (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                    <p className="text-sm">All items are progressing — no stage-level blocks detected</p>
+                  </div>
+                )}
+              </div>
+            );
+          })() : null}
+        </CardContent>
+      </Card>
+
+      {/* Section: Risk Indicators + Actionable Tasks */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Target className="h-4 w-4 text-amber-600" /> Delay Risk Indicators
+                {!loadingRisk && riskIndicators && (
+                  <Badge variant="outline" className="text-[10px] ml-2 border-amber-300 text-amber-700">
+                    {(riskIndicators as any).summary?.totalRisks || 0} risks
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingRisk ? <Skeleton className="h-48" /> : riskIndicators ? (() => {
+                const ri = riskIndicators as any;
+                return (
+                  <Tabs defaultValue="inspections">
+                    <TabsList className="grid w-full grid-cols-4">
+                      <TabsTrigger value="inspections" className="text-[10px]">
+                        Inspections ({ri.pendingInspections?.count || 0})
+                      </TabsTrigger>
+                      <TabsTrigger value="drawings" className="text-[10px]">
+                        Drawings ({ri.missingDrawings?.count || 0})
+                      </TabsTrigger>
+                      <TabsTrigger value="planning" className="text-[10px]">
+                        Planning ({ri.unreleasedPlanning?.count || 0})
+                      </TabsTrigger>
+                      <TabsTrigger value="stale" className="text-[10px]">
+                        Stale PO/WO ({ri.stalePoWo?.count || 0})
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="inspections">
+                      {ri.pendingInspections?.items?.length > 0 ? (
+                        <div className="max-h-[280px] overflow-y-auto space-y-1 mt-2">
+                          {ri.pendingInspections.items.map((item: any) => (
+                            <div key={item.id} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium">{item.inspection_order_number}</span>
+                                <span className="text-muted-foreground ml-2">{item.item_code} — {item.project_code}</span>
+                                <span className="ml-2 text-[10px] text-muted-foreground">{item.inspection_type} • {item.status}</span>
+                              </div>
+                              <span className={`flex-shrink-0 ml-2 font-medium ${item.age_days > 14 ? 'text-red-600' : item.age_days > 7 ? 'text-amber-600' : ''}`}>
+                                <Timer className="h-3 w-3 inline mr-0.5" />{item.age_days}d
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground py-6 text-center">No pending inspections</p>}
+                    </TabsContent>
+
+                    <TabsContent value="drawings">
+                      {ri.missingDrawings?.items?.length > 0 ? (
+                        <div className="max-h-[280px] overflow-y-auto space-y-1 mt-2">
+                          {ri.missingDrawings.items.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
+                              <div>
+                                <span className="font-medium">{item.item_code}</span>
+                                <span className="text-muted-foreground ml-2">{item.item_description}</span>
+                                <span className="text-muted-foreground ml-2">({item.project_code})</span>
+                              </div>
+                              <Badge variant="outline" className="text-[10px]">{item.make_or_buy}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground py-6 text-center">All Make/Assembly items have drawings</p>}
+                    </TabsContent>
+
+                    <TabsContent value="planning">
+                      {ri.unreleasedPlanning?.items?.length > 0 ? (
+                        <div className="max-h-[280px] overflow-y-auto space-y-1 mt-2">
+                          {ri.unreleasedPlanning.items.map((item: any) => (
+                            <div key={item.planning_id} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium">{item.item_code || 'PI-' + item.project_item_id}</span>
+                                <span className="text-muted-foreground ml-2">{item.project_code}</span>
+                                <Badge variant="outline" className="text-[10px] ml-2">{item.planning_status}</Badge>
+                                <span className="text-[10px] text-muted-foreground ml-1">({item.planning_type})</span>
+                              </div>
+                              <span className={`flex-shrink-0 ml-2 font-medium ${item.age_days > 14 ? 'text-red-600' : item.age_days > 7 ? 'text-amber-600' : ''}`}>
+                                {item.age_days}d
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground py-6 text-center">All planning records are released</p>}
+                    </TabsContent>
+
+                    <TabsContent value="stale">
+                      {ri.stalePoWo?.items?.length > 0 ? (
+                        <div className="max-h-[280px] overflow-y-auto space-y-1 mt-2">
+                          {ri.stalePoWo.items.map((item: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
+                              <div className="flex-1 min-w-0">
+                                <Badge variant="outline" className="text-[10px] mr-1">{item.type}</Badge>
+                                <span className="font-medium">{item.doc_number}</span>
+                                <span className="text-muted-foreground ml-2">{item.item_code} — {item.project_code}</span>
+                                <span className="text-[10px] text-muted-foreground ml-1">quality: {item.quality_status || 'pending'}</span>
+                              </div>
+                              <span className={`flex-shrink-0 ml-2 font-medium ${item.age_days > 30 ? 'text-red-600' : 'text-amber-600'}`}>
+                                {item.age_days}d
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-muted-foreground py-6 text-center">No stale PO/WO records</p>}
+                    </TabsContent>
+                  </Tabs>
+                );
+              })() : null}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-1">
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Zap className="h-4 w-4 text-blue-600" /> Actionable Tasks
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground mb-3">Convert critical gaps into assigned tasks automatically. De-duplicated — safe to run multiple times.</p>
+                {[
+                  { key: 'missing_bom', label: 'Missing BOMs', icon: Layers, count: (blocking as any)?.stageSummary?.BOM?.blocked || 0, color: 'text-blue-600' },
+                  { key: 'unreleased_bom', label: 'Unreleased BOMs', icon: GitBranch, count: 0, color: 'text-purple-600' },
+                  { key: 'missing_drawing', label: 'Missing Drawings', icon: Eye, count: (riskIndicators as any)?.missingDrawings?.count || 0, color: 'text-purple-600' },
+                  { key: 'unreleased_planning', label: 'Unreleased Planning', icon: Timer, count: (riskIndicators as any)?.unreleasedPlanning?.count || 0, color: 'text-indigo-600' },
+                  { key: 'pending_inspection', label: 'Stale Inspections (7d+)', icon: Search, count: (riskIndicators as any)?.pendingInspections?.items?.filter((x: any) => x.age_days >= 7).length || 0, color: 'text-amber-600' },
+                ].map(action => (
+                  <div key={action.key} className="flex items-center justify-between border rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <action.icon className={`h-3.5 w-3.5 ${action.color}`} />
+                      <div>
+                        <p className="text-xs font-medium">{action.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{action.count} items</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px] px-2"
+                      disabled={generateTasksMutation.isPending}
+                      onClick={() => generateTasksMutation.mutate(action.key)}
+                    >
+                      <Hammer className="h-3 w-3 mr-1" />
+                      Generate
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* Section 3 + 4: Bottlenecks + Ownership */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
