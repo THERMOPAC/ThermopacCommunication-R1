@@ -188,9 +188,9 @@ export async function executeProjectCancellationCascade(projectId: number, userI
   }
 
   await pool.query(`
-    INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
-    VALUES ($1, 'project_cancellation_cascade', $2, $3, NOW())
-  `, [projectId, JSON.stringify(result), userId]);
+    INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+    VALUES ($1, 'project_cancellation_cascade', $2, $3, NOW(), true)
+  `, [projectId, JSON.stringify(result), String(userId)]);
 
   console.log(`[EPC-Cascade] Project ${projectCode} (ID ${projectId}) cancellation cascade: ` +
     `tasks=${result.tasksCancelled}C/${result.tasksReviewNeeded}R, ` +

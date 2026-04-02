@@ -124,7 +124,7 @@ async function checkIdempotencyInTx(offerId: number, client: any): Promise<Conve
     `SELECT s.*, p.operational_code, p.name as project_name, p.status as project_status, p.id as pid
      FROM offer_conversion_snapshots s
      LEFT JOIN projects p ON p.id = s.project_id
-     WHERE s.offer_id = $1
+     WHERE s.offer_id = $1 AND s.conversion_status != 'recovered'
      FOR UPDATE OF s`, [offerId]
   );
   if (snapResult.rows.length === 0) return null;
@@ -152,15 +152,43 @@ async function checkIdempotencyInTx(offerId: number, client: any): Promise<Conve
 
   const snapAge = (Date.now() - new Date(snap.converted_at).getTime()) / 60000;
   if (snapAge > STALE_SNAPSHOT_MINUTES) {
-    console.log(`[offer-conversion] Cleaning stale incomplete snapshot ${snap.id} (status: ${snap.conversion_status}, age: ${snapAge.toFixed(1)}min)`);
+    const recoveryDetail = {
+      action: 'stale_snapshot_auto_recovery',
+      conversionId: snap.conversion_id,
+      offerId,
+      orderNumber: snap.order_number,
+      staleStatus: snap.conversion_status,
+      ageMinutes: parseFloat(snapAge.toFixed(1)),
+      orphanProjectId: snap.project_id || null,
+      recoveredAt: new Date().toISOString(),
+    };
+    console.log(`[offer-conversion] AUTO-RECOVERY: Cleaning stale incomplete snapshot ${snap.id} (conversion_id=${snap.conversion_id}, status=${snap.conversion_status}, age=${snapAge.toFixed(1)}min)`);
+
     if (snap.project_id) {
-      await client.query(`DELETE FROM project_members WHERE project_id = $1`, [snap.project_id]);
-      await client.query(`DELETE FROM project_items WHERE project_id = $1`, [snap.project_id]);
-      await client.query(`DELETE FROM project_workflow_events WHERE project_id = $1`, [snap.project_id]);
-      await client.query(`UPDATE offer_conversion_snapshots SET project_id = NULL WHERE id = $1`, [snap.id]);
-      await client.query(`DELETE FROM projects WHERE id = $1`, [snap.project_id]);
+      const projCheck = await client.query(
+        `SELECT id FROM projects WHERE id = $1 AND source_conversion_id = $2`,
+        [snap.project_id, snap.conversion_id]
+      );
+      if (projCheck.rows.length > 0) {
+        await client.query(`DELETE FROM project_tasks pt USING tasks t WHERE pt.project_id = $1 AND pt.task_id = t.id`, [snap.project_id]);
+        await client.query(`DELETE FROM project_members WHERE project_id = $1`, [snap.project_id]);
+        await client.query(`DELETE FROM project_items WHERE project_id = $1`, [snap.project_id]);
+        await client.query(`DELETE FROM project_workflow_events WHERE project_id = $1`, [snap.project_id]);
+        await client.query(`UPDATE offer_conversion_snapshots SET project_id = NULL WHERE id = $1`, [snap.id]);
+        await client.query(`DELETE FROM projects WHERE id = $1`, [snap.project_id]);
+      } else {
+        console.log(`[offer-conversion] AUTO-RECOVERY: Orphan project ${snap.project_id} does not match conversion_id ${snap.conversion_id} — skipping project cleanup, removing snapshot only`);
+        await client.query(`UPDATE offer_conversion_snapshots SET project_id = NULL WHERE id = $1`, [snap.id]);
+      }
     }
-    await client.query(`DELETE FROM offer_conversion_snapshots WHERE id = $1`, [snap.id]);
+
+    await client.query(
+      `UPDATE offer_conversion_snapshots
+       SET conversion_status = 'recovered', error_detail = $1, project_id = NULL
+       WHERE id = $2`,
+      [JSON.stringify(recoveryDetail), snap.id]
+    );
+
     return null;
   }
 

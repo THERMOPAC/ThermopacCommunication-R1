@@ -136,8 +136,8 @@ export async function reconcileBomSupersession(
   }
 
   await pool.query(
-    `INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
-     VALUES ($1, 'bom_supersession_reconciliation', $2, $3, NOW())`,
+    `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+     VALUES ($1, 'bom_supersession_reconciliation', $2, $3, NOW(), true)`,
     [projectId, JSON.stringify({
       oldBomHeaderId, newBomHeaderId,
       bomNumber: bom.bom_number, revisionCode: bom.revision_code,
@@ -145,7 +145,7 @@ export async function reconcileBomSupersession(
       quantityChanges: result.quantityChanges.length,
       reviewTasks: result.reviewTaskIds.length,
       autoActions: result.autoActions.length,
-    }), userId]
+    }), String(userId)]
   );
 
   console.log(`[BOM-Reconcile] BOM ${bom.bom_number} Rev ${bom.revision_code}: ` +
