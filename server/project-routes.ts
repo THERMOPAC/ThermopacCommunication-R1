@@ -5001,6 +5001,38 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot create PO: PO preparation status is '${prep.status}', expected 'ready_for_po_creation'.`);
       }
 
+      const planningStrictMode = await isFeatureFlagEnabled('EPC_PLANNING_GATING_STRICT');
+      if (!prep.planning_record_id) {
+        if (planningStrictMode) {
+          await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+            VALUES (${prep.project_id}, 'planning_gate_blocked', ${JSON.stringify({
+              type: 'po', prepId: poPrepId, projectItemId: prep.project_item_id,
+              reason: 'No planning record linked', mode: 'strict',
+            })}::jsonb, ${userId}, NOW())`);
+          return sendBusinessError(res, 'Cannot create PO: no planning record found for this item. A released planning record is required before PO creation.');
+        }
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+          VALUES (${prep.project_id}, 'planning_gate_bypass', ${JSON.stringify({
+            type: 'po', prepId: poPrepId, projectItemId: prep.project_item_id,
+            reason: 'No planning_record_id on preparation record', mode: 'transitional',
+          })}::jsonb, ${userId}, NOW())`);
+        console.log(`[Planning-Gate] PO prep ${poPrepId}: no planning_record_id — bypass logged (transitional mode)`);
+      } else {
+        const planResult = await db.execute(sql`SELECT id, status FROM item_planning_records WHERE id = ${prep.planning_record_id}`);
+        if (planResult.rows.length === 0) {
+          return sendBusinessError(res, 'Cannot create PO: linked planning record not found.');
+        }
+        const planRec = planResult.rows[0] as any;
+        if (planRec.status !== 'released') {
+          await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+            VALUES (${prep.project_id}, 'planning_gate_blocked', ${JSON.stringify({
+              type: 'po', prepId: poPrepId, planningRecordId: prep.planning_record_id,
+              planningStatus: planRec.status, reason: 'Planning not released',
+            })}::jsonb, ${userId}, NOW())`);
+          return sendBusinessError(res, `Cannot create PO: planning record is in '${planRec.status}' status. Planning must be released first.`);
+        }
+      }
+
       const bomCheck = await db.execute(
         sql`SELECT bh.id, bh.bom_number, bh.status, bh.revision_code
             FROM epc_bom_headers bh
@@ -5442,6 +5474,38 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (prep.status !== 'ready_for_wo_creation') {
         return sendBusinessError(res, `Cannot create WO: WO preparation status is '${prep.status}', expected 'ready_for_wo_creation'.`);
+      }
+
+      const woPlanningStrictMode = await isFeatureFlagEnabled('EPC_PLANNING_GATING_STRICT');
+      if (!prep.planning_record_id) {
+        if (woPlanningStrictMode) {
+          await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+            VALUES (${prep.project_id}, 'planning_gate_blocked', ${JSON.stringify({
+              type: 'wo', prepId: woPrepId, projectItemId: prep.project_item_id,
+              reason: 'No planning record linked', mode: 'strict',
+            })}::jsonb, ${userId}, NOW())`);
+          return sendBusinessError(res, 'Cannot create WO: no planning record found for this item. A released planning record is required before WO creation.');
+        }
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+          VALUES (${prep.project_id}, 'planning_gate_bypass', ${JSON.stringify({
+            type: 'wo', prepId: woPrepId, projectItemId: prep.project_item_id,
+            reason: 'No planning_record_id on preparation record', mode: 'transitional',
+          })}::jsonb, ${userId}, NOW())`);
+        console.log(`[Planning-Gate] WO prep ${woPrepId}: no planning_record_id — bypass logged (transitional mode)`);
+      } else {
+        const woPlanResult = await db.execute(sql`SELECT id, status FROM item_planning_records WHERE id = ${prep.planning_record_id}`);
+        if (woPlanResult.rows.length === 0) {
+          return sendBusinessError(res, 'Cannot create WO: linked planning record not found.');
+        }
+        const woPlanRec = woPlanResult.rows[0] as any;
+        if (woPlanRec.status !== 'released') {
+          await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
+            VALUES (${prep.project_id}, 'planning_gate_blocked', ${JSON.stringify({
+              type: 'wo', prepId: woPrepId, planningRecordId: prep.planning_record_id,
+              planningStatus: woPlanRec.status, reason: 'Planning not released',
+            })}::jsonb, ${userId}, NOW())`);
+          return sendBusinessError(res, `Cannot create WO: planning record is in '${woPlanRec.status}' status. Planning must be released first.`);
+        }
       }
 
       const bomCheck = await db.execute(

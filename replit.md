@@ -79,7 +79,7 @@ The system is a full-stack web application with organized, hierarchical data str
 **Traceability Columns**: `source_bom_header_id`, `source_bom_line_id` on `epc_purchase_orders`, `epc_work_orders`, `epc_purchase_order_items`, `epc_work_order_items`.
 
 ### EPC Control Integrity — Full Lifecycle Enforcement
-**Status**: Production-ready (Phase 1 + Phase 2 complete).
+**Status**: Production-ready (Phase 1 + Phase 2 + Phase 3 complete).
 **Backend**: `server/utils/epc-project-cascade.ts`, `server/utils/epc-bom-reconciliation.ts`, `server/utils/epc-dwg-linking.ts`, `server/utils/epc-inspection-trigger.ts`
 
 **Phase 1 — Project Status Cascade & BOM Reconciliation**:
@@ -98,6 +98,13 @@ The system is a full-stack web application with organized, hierarchical data str
 - **Duplicate Prevention**: Existing non-cancelled inspection for same item + type = skip.
 - **Aging Alerts**: `POST /api/projects/:projectId/inspection-aging-check` — flags pending inspections older than N days, de-duplicated (3-day cooldown).
 - All actions audit-logged to `project_workflow_events`.
+
+**Phase 3 — Stage Gate Enforcement (Planning → PO/WO)**:
+- **Planning Gate on PO Creation**: PO creation from `po_preparation_records` validates linked `planning_record_id` → `item_planning_records.status` must be `released`. Blocks with clear message if not released.
+- **Planning Gate on WO Creation**: WO creation from `wo_preparation_records` validates linked `planning_record_id` → `item_planning_records.status` must be `released`. Blocks with clear message if not released.
+- **Feature Flag**: `EPC_PLANNING_GATING_STRICT` (default OFF). OFF = NULL `planning_record_id` allowed but logged as `planning_gate_bypass`. ON = NULL `planning_record_id` blocks creation entirely.
+- **Audit Logging**: All bypass events (`planning_gate_bypass`) and blocked attempts (`planning_gate_blocked`) logged to `project_workflow_events` with full context (type, prepId, projectItemId, mode, reason, planningStatus).
+- **Gates 2–4 (Inspection→Dispatch, Dispatch→Commissioning, Commissioning→Invoice)**: Already enforced in existing route logic — no changes needed.
 
 ### EPC Control Tower — Program-Level Monitoring Dashboard
 **Status**: Production-ready.
