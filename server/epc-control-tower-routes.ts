@@ -28,7 +28,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
       const riskHealth = await pool.query(`
         SELECT 
           p.id, p.code, p.name, p.status, p.manager_id,
-          p.start_date, p.estimated_end_date,
+          p.start_date, p.target_end_date,
           u.username as manager_name,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id AND ks.is_completed = true) as completed_stages,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id) as total_stages,
@@ -88,7 +88,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
   app.get('/api/epc-control-tower/pipeline', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
     try {
       const stages = [
-        { key: 'BOM', table: 'epc_bom_headers', statusCol: 'lifecycle_status', label: 'Bill of Materials' },
+        { key: 'BOM', table: 'epc_bom_headers', statusCol: 'status', label: 'Bill of Materials' },
         { key: 'DWG', table: 'epc_drawing_controls', statusCol: 'status', label: 'Drawing Controls' },
         { key: 'PO', table: 'epc_purchase_orders', statusCol: 'status', label: 'Purchase Orders' },
         { key: 'WO', table: 'epc_work_orders', statusCol: 'status', label: 'Work Orders' },
@@ -142,11 +142,12 @@ export function setupEpcControlTowerRoutes(app: Express) {
   app.get('/api/epc-control-tower/bottlenecks', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
     try {
       const overdueMilestones = await pool.query(`
-        SELECT ks.id, ks.stage_name, ks.phase, ks.target_end_date, p.code as project_code, p.name as project_name,
-          EXTRACT(DAY FROM CURRENT_DATE - ks.target_end_date::date)::int as days_overdue
+        SELECT ks.id, ks.stage_name, ks.phase, p.target_end_date, p.code as project_code, p.name as project_name,
+          CASE WHEN p.target_end_date IS NOT NULL AND p.target_end_date::date < CURRENT_DATE 
+            THEN EXTRACT(DAY FROM CURRENT_DATE - p.target_end_date::date)::int ELSE 0 END as days_overdue
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
-        WHERE ks.is_completed = false AND ks.target_end_date IS NOT NULL AND ks.target_end_date::date < CURRENT_DATE
+        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date::date < CURRENT_DATE
         ORDER BY days_overdue DESC
         LIMIT 20
       `);
