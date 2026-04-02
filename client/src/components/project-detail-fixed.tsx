@@ -149,6 +149,13 @@ const deliverableFormSchema = z.object({
 
 type DeliverableFormValues = z.infer<typeof deliverableFormSchema>;
 
+const memberFormSchema = z.object({
+  userId: z.number().min(1, "Please select a user"),
+  role: z.enum(["project_manager", "phase_lead", "team_member", "consultant"]),
+});
+
+type MemberFormValues = z.infer<typeof memberFormSchema>;
+
 const editProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().min(1, "Project description is required"),
@@ -196,6 +203,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isDeliverablesOpen, setIsDeliverablesOpen] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<any>(null);
   const [isAddDeliverableOpen, setIsAddDeliverableOpen] = useState(false);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   
   // Enhanced debugging for project ID handling
   console.log("Project ID from prop:", id);
@@ -778,6 +786,45 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       notes: "",
     });
     setIsAddDeliverableOpen(true);
+  };
+
+  const memberForm = useForm<MemberFormValues>({
+    resolver: zodResolver(memberFormSchema),
+    defaultValues: {
+      userId: 0,
+      role: "team_member",
+    },
+  });
+
+  const { data: allUsers } = useQuery({
+    queryKey: ['/api/users'],
+    queryFn: async () => {
+      const response = await fetch('/api/users');
+      if (!response.ok) throw new Error("Failed to fetch users");
+      return response.json();
+    },
+    enabled: isAddMemberOpen,
+  });
+
+  const addMemberMutation = useMutation({
+    mutationFn: async (data: MemberFormValues) => {
+      const res = await apiRequest("POST", `/api/projects/${projectId}/members`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Member added", description: "Team member added successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/members`] });
+      setIsAddMemberOpen(false);
+      memberForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error adding member", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleAddMember = () => {
+    memberForm.reset({ userId: 0, role: "team_member" });
+    setIsAddMemberOpen(true);
   };
 
   function formatDate(dateString) {
@@ -2223,7 +2270,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           <TabsContent value="team" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Project Team</h2>
-              <Button>
+              <Button onClick={handleAddMember}>
                 <Plus className="mr-1 h-4 w-4" /> Add Member
               </Button>
             </div>
@@ -2795,6 +2842,58 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               </Table>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Team Member</DialogTitle>
+            <DialogDescription>Add a user to this project team.</DialogDescription>
+          </DialogHeader>
+          <Form {...memberForm}>
+            <form onSubmit={memberForm.handleSubmit((data) => addMemberMutation.mutate(data))} className="space-y-4">
+              <FormField control={memberForm.control} name="userId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>User</FormLabel>
+                  <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value ? String(field.value) : ""}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {allUsers?.filter((u: any) => !members?.some((m: any) => m.userId === u.id))
+                        .map((u: any) => (
+                          <SelectItem key={u.id} value={String(u.id)}>
+                            {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username} — {u.department || 'No dept'}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={memberForm.control} name="role" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project Role</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="project_manager">Project Manager</SelectItem>
+                      <SelectItem value="phase_lead">Phase Lead</SelectItem>
+                      <SelectItem value="team_member">Team Member</SelectItem>
+                      <SelectItem value="consultant">Consultant</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddMemberOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={addMemberMutation.isPending}>
+                  {addMemberMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Add Member
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
