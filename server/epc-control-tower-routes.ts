@@ -271,7 +271,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
       const itemPipeline = await pool.query(`
         SELECT
           pi.id as project_item_id,
-          pi.item_number,
+          pi.project_code as pi_project_code,
           pi.quantity,
           mi.id as master_item_id,
           mi.item_code,
@@ -314,12 +314,12 @@ export function setupEpcControlTowerRoutes(app: Express) {
           (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled', 'superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
         FROM project_items pi
         JOIN projects p ON p.id = pi.project_id
-        LEFT JOIN master_items mi ON mi.id = pi.master_item_id
+        LEFT JOIN master_items mi ON mi.id = pi.item_id
         LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
         LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('cancelled', 'superseded')
         WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
-        ORDER BY p.code, pi.item_number
+        ORDER BY p.code, mi.item_code
       `);
 
       const stageCounts = {
@@ -340,7 +340,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
       for (const item of itemPipeline.rows as any[]) {
         const isBuy = item.make_or_buy === 'Buy';
         const isMake = item.make_or_buy === 'Make';
-        const itemRef = `${item.project_code} / ${item.item_number} (${item.item_code || 'no code'})`;
+        const itemRef = `${item.project_code} / ${item.item_code || 'PI-' + item.project_item_id}`;
 
         const bomExists = !!item.bom_id;
         const bomReady = bomExists && ['released', 'locked'].includes(item.bom_status);
