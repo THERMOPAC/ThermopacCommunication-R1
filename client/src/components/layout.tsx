@@ -406,6 +406,7 @@ function Layout({ children }: LayoutProps) {
         ...(hasPageAccess("invoices") ? [{ icon: Receipt, label: "EPC Invoices", href: "/epc/invoices" }] : []),
         ...(hasPageAccess("epc-risks") ? [{ icon: Shield, label: "EPC Risks", href: "/epc-risks" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "EPC Permission Control", href: "/epc/permission-control" }] : []),
+        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Radar, label: "EPC Control Tower", href: "/epc/control-tower" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: BarChart4, label: "EPC Cutover Dashboard", href: "/epc/cutover-dashboard" }] : [])
       ]
     }] : []),

@@ -68,6 +68,18 @@ The system is a full-stack web application with organized, hierarchical data str
 - `GET /api/epc-monitoring/cutover-readiness` — Composite dashboard: feature flags, INS EPC vs legacy %, DWG file status breakdown, DSP adoption, 7-day legacy trend
 **Frontend**: `client/src/pages/epc-cutover-dashboard.tsx`
 
+### EPC Control Tower — Program-Level Monitoring Dashboard
+**Status**: Production-ready.
+**Access**: Superuser and General Manager only.
+**Route**: `/epc/control-tower`
+**Backend**: `server/epc-control-tower-routes.ts` (4 endpoints):
+- `GET /api/epc-control-tower/summary` — Project counts, risk health (on track/at risk/delayed/blocked), milestones, deliverables, project tasks
+- `GET /api/epc-control-tower/pipeline` — EPC pipeline flow BOM→DWG→PO→WO→INS→DSP→INV with counts, status breakdowns, gap warnings, aging
+- `GET /api/epc-control-tower/bottlenecks` — Overdue milestones, deliverables, and tasks with days overdue
+- `GET /api/epc-control-tower/ownership-gaps` — Unassigned tasks, kickoff assignment warnings, phases without leads, projects without managers, deliverables without owners
+**Frontend**: `client/src/pages/epc-control-tower.tsx`
+**Reused APIs**: `GET /api/epc-monitoring/cutover-readiness`, `GET /api/epc-monitoring/legacy-access` (for document status + legacy dependence sections)
+
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.
 - **Database Services**: Neon (PostgreSQL hosting).
