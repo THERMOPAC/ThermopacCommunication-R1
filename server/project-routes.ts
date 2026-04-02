@@ -49,6 +49,8 @@ import { markAttachmentsSuperseded } from './epc-document-routes';
 import { isFeatureFlagEnabled } from './utils/epc-migration-helpers';
 import { executeProjectCancellationCascade, isProjectFrozen, isProjectTerminal } from './utils/epc-project-cascade';
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
+import { isDwgGateRequired } from './utils/epc-dwg-linking';
+import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
 
 function requireMinRole(req: Request, res: Response, minRole: string): boolean {
   const userRole = (req.user as any)?.role;
@@ -2525,6 +2527,9 @@ export function setupProjectRoutes(app: express.Express) {
       const isBuy = classification === 'Buy';
       const isMake = classification === 'Make';
 
+      const procGateItemCode = record.item_code || record.item_description || `Item #${record.project_item_id}`;
+
+      if (isDwgGateRequired(classification)) {
       const dcResult = await db.execute(
         sql`SELECT id, status, released_for_procurement, released_for_manufacturing, dwg_control_number
             FROM epc_drawing_controls
@@ -2534,8 +2539,6 @@ export function setupProjectRoutes(app: express.Express) {
             LIMIT 1`
       );
       const dc = dcResult.rows.length > 0 ? (dcResult.rows[0] as any) : null;
-
-      const procGateItemCode = record.item_code || record.item_description || `Item #${record.project_item_id}`;
 
       if (!dc) {
         await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
@@ -2638,6 +2641,7 @@ export function setupProjectRoutes(app: express.Express) {
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
           { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
+      }
       }
 
       const bomTypes = isBuy ? ['procurement', 'assembly'] : isMake ? ['manufacturing', 'assembly'] : ['procurement', 'manufacturing', 'assembly'];
@@ -3073,6 +3077,9 @@ export function setupProjectRoutes(app: express.Express) {
       const isBuy = classification === 'Buy';
       const isMake = classification === 'Make';
 
+      const prodGateItemCode = record.item_code || record.item_description || `Item #${record.project_item_id}`;
+
+      if (isDwgGateRequired(classification)) {
       const dcResult = await db.execute(
         sql`SELECT id, status, released_for_procurement, released_for_manufacturing, dwg_control_number
             FROM epc_drawing_controls
@@ -3082,8 +3089,6 @@ export function setupProjectRoutes(app: express.Express) {
             LIMIT 1`
       );
       const dc = dcResult.rows.length > 0 ? (dcResult.rows[0] as any) : null;
-
-      const prodGateItemCode = record.item_code || record.item_description || `Item #${record.project_item_id}`;
 
       if (!dc) {
         await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
@@ -3186,6 +3191,7 @@ export function setupProjectRoutes(app: express.Express) {
         });
         return sendBusinessError(res, `Cannot mark ready: drawing control ${dc.dwg_control_number} is in '${dc.status}' status. It must be released first.`,
           { action: `Progress drawing ${dc.dwg_control_number} through review → approval → release.` });
+      }
       }
 
       const bomTypes2 = isMake ? ['manufacturing', 'assembly'] : isBuy ? ['procurement', 'assembly'] : ['procurement', 'manufacturing', 'assembly'];
@@ -5250,7 +5256,20 @@ export function setupProjectRoutes(app: express.Express) {
       });
 
       console.log(`[EPC-PO] Purchase order ${po.po_number} issued by user ${userId}`);
-      res.json({ success: true, message: `Purchase order ${po.po_number} issued`, id, newStatus: 'issued' });
+
+      let inspectionResult = null;
+      if (po.project_item_id) {
+        try {
+          inspectionResult = await triggerInspectionOnPoIssuance(id, po.po_number, po.project_id, po.project_item_id, userId);
+        } catch (insErr) {
+          console.error(`[EPC-PO] Inspection trigger error for ${po.po_number}:`, insErr);
+        }
+      }
+
+      res.json({
+        success: true, message: `Purchase order ${po.po_number} issued`, id, newStatus: 'issued',
+        ...(inspectionResult ? { inspection: inspectionResult } : {}),
+      });
     } catch (error) {
       sendError(res, error);
     }
@@ -5686,7 +5705,20 @@ export function setupProjectRoutes(app: express.Express) {
       });
 
       console.log(`[EPC-WO] Work order ${wo.wo_number} released by user ${userId}`);
-      res.json({ success: true, message: `Work order ${wo.wo_number} released`, id, newStatus: 'released' });
+
+      let inspectionResult = null;
+      if (wo.project_item_id) {
+        try {
+          inspectionResult = await triggerInspectionOnWoRelease(id, wo.wo_number, wo.project_id, wo.project_item_id, userId);
+        } catch (insErr) {
+          console.error(`[EPC-WO] Inspection trigger error for ${wo.wo_number}:`, insErr);
+        }
+      }
+
+      res.json({
+        success: true, message: `Work order ${wo.wo_number} released`, id, newStatus: 'released',
+        ...(inspectionResult ? { inspection: inspectionResult } : {}),
+      });
     } catch (error) {
       sendError(res, error);
     }
@@ -8226,6 +8258,39 @@ export function setupProjectRoutes(app: express.Express) {
 
       console.log(`[INV] ${inv.invoice_number} updated by user ${userId}`);
       res.json({ success: true, message: `${inv.invoice_number} updated`, id });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC DWG AUTO-LINKING ====================
+
+  app.post('/api/projects/:projectId/drawing-controls/auto-link', ensureAuthenticated, requirePageAccess('drawing-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      if (!requireMinRole(req, res, 'Manager')) return;
+
+      const { autoLinkUnlinkedDrawings } = await import('./utils/epc-dwg-linking');
+      const result = await autoLinkUnlinkedDrawings(projectId, userId);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  // ==================== EPC INSPECTION AGING CHECK ====================
+
+  app.post('/api/projects/:projectId/inspection-aging-check', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const userId = (req.user as any)?.id;
+      if (!requireMinRole(req, res, 'Manager')) return;
+
+      const { checkPendingInspectionAging } = await import('./utils/epc-inspection-trigger');
+      const agingDays = parseInt(req.body.agingDays) || 7;
+      const count = await checkPendingInspectionAging(projectId, userId, agingDays);
+      res.json({ success: true, agingInspections: count });
     } catch (error) {
       sendError(res, error);
     }

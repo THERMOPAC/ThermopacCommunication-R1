@@ -78,23 +78,26 @@ The system is a full-stack web application with organized, hierarchical data str
 **DB Tables**: `bom_gating_bypass_log` (tracks PO/WO created without BOM in Transitional mode).
 **Traceability Columns**: `source_bom_header_id`, `source_bom_line_id` on `epc_purchase_orders`, `epc_work_orders`, `epc_purchase_order_items`, `epc_work_order_items`.
 
-### EPC Control Integrity — Project & BOM Lifecycle Enforcement
-**Status**: Production-ready (Phase 1 complete).
-**Backend**: `server/utils/epc-project-cascade.ts`, `server/utils/epc-bom-reconciliation.ts`
-**Project Status Cascade** (on cancellation):
-- Auto-cancels draft tasks, BOMs (`draft`/`under_review`), DWGs (`draft`/`pending_upload`/`file_not_available`), planning records, POs, WOs, inspections, dispatch records
+### EPC Control Integrity — Full Lifecycle Enforcement
+**Status**: Production-ready (Phase 1 + Phase 2 complete).
+**Backend**: `server/utils/epc-project-cascade.ts`, `server/utils/epc-bom-reconciliation.ts`, `server/utils/epc-dwg-linking.ts`, `server/utils/epc-inspection-trigger.ts`
+
+**Phase 1 — Project Status Cascade & BOM Reconciliation**:
+- Auto-cancels draft records across all EPC stages on project cancellation
 - Keeps `approved`/`released`/`locked` BOMs as read-only baseline
 - Flags active (non-draft) records for manual review via EPC tasks
-- Logs cascade results to `project_workflow_events` as `project_cancellation_cascade`
-**Project Freeze Guard** (`guardProjectNotFrozen`):
-- Blocks BOM creation, PO creation, WO creation, and BOM supersession on `on_hold`/`inactive`/`cancelled` projects
+- Project Freeze Guard blocks new record creation on `on_hold`/`inactive`/`cancelled` projects
 - `cancelled` is terminal — no status changes allowed
-**BOM Supersession Reconciliation** (triggers on release of superseding BOM):
-- Compares old vs new BOM lines by `component_item_id`
-- Removed lines with no downstream → auto-cancel planning records
-- Removed lines with active PO/WO/INS/DSP → create review task
-- Quantity changes → update `project_items`, flag if active downstream exists
-- Logs to `project_workflow_events` as `bom_supersession_reconciliation`
+- BOM Supersession Reconciliation triggers on release of superseding BOM: compares lines, auto-cancels removed components' planning records, flags quantity changes with downstream
+
+**Phase 2 — DWG Linking Enforcement & Inspection Trigger Automation**:
+- **DWG Auto-Linking**: `POST /api/projects/:projectId/drawing-controls/auto-link` — matches unlinked drawings to Make/Assembly project items by `master_item_id` or `item_code`. Unambiguous = auto-link. Ambiguous/unmatched = review task.
+- **DWG Gate Scope Fix**: Buy items skip the DWG gate entirely via `isDwgGateRequired()`. Only Make/Assembly items are blocked when drawing is missing or not released.
+- **Inspection Trigger on PO Issuance**: Auto-creates `incoming` inspection order when PO is issued.
+- **Inspection Trigger on WO Release**: Auto-creates `in-process` inspection order when WO is released.
+- **Duplicate Prevention**: Existing non-cancelled inspection for same item + type = skip.
+- **Aging Alerts**: `POST /api/projects/:projectId/inspection-aging-check` — flags pending inspections older than N days, de-duplicated (3-day cooldown).
+- All actions audit-logged to `project_workflow_events`.
 
 ### EPC Control Tower — Program-Level Monitoring Dashboard
 **Status**: Production-ready.
