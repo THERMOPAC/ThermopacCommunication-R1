@@ -33,6 +33,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   visibility_scope: "Visibility Scope",
 };
 
+interface StatCardProps {
+  icon: any;
+  label: string;
+  value: number;
+  color: string;
+  bg: string;
+  sub?: string;
+}
+
 export default function EpcPermissionDashboard() {
   const { user } = useAuth();
   const [simulateRole, setSimulateRole] = useState<string>("none");
@@ -226,19 +235,12 @@ export default function EpcPermissionDashboard() {
         Registry snapshot: {matrix?.registryTimestamp || "—"} | {matrix?.registryNote || ""}
       </div>
     </div>
+    </Layout>
   );
 }
 
-interface StatCardProps {
-  icon: any;
-  label: string;
-  value: number;
-  color: string;
-  bg: string;
-  sub?: string;
-}
-
-function StatCard({ icon: Icon, label, value, color, bg, sub }: StatCardProps) {
+function StatCard(props: StatCardProps) {
+  const { icon: Icon, label, value, color, bg, sub } = props;
   return (
     <Card>
       <CardContent className="p-3">
@@ -1624,6 +1626,5 @@ function AuditHistoryTab() {
         </CardContent>
       </Card>
     </div>
-    </Layout>
   );
 }
