@@ -30,7 +30,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
       const riskHealth = await pool.query(`
         SELECT 
           p.id, p.code, p.name, p.status, p.manager_id,
-          p.start_date, p.target_end_date,
+          p.start_date, p.target_end_date, p.project_origin, p.source_order_number,
           u.username as manager_name,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id AND ks.is_completed = true) as completed_stages,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id) as total_stages,
