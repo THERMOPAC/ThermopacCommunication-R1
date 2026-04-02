@@ -32,8 +32,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
           u.username as manager_name,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id AND ks.is_completed = true) as completed_stages,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id) as total_stages,
-          (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id AND d.status = 'pending' AND d.due_date < CURRENT_DATE) as overdue_deliverables,
-          (SELECT COUNT(*)::int FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id WHERE pt.project_id = p.id AND t.status != 'completed' AND t.due_date < CURRENT_DATE::text) as overdue_tasks,
+          (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id AND d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE) as overdue_deliverables,
+          (SELECT COUNT(*)::int FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id WHERE pt.project_id = p.id AND t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE) as overdue_tasks,
           (SELECT COUNT(*)::int FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id WHERE pt.project_id = p.id AND t.assigned_to IS NULL AND t.status != 'completed') as unassigned_tasks
         FROM projects p
         LEFT JOIN users u ON p.manager_id = u.id
@@ -143,21 +143,21 @@ export function setupEpcControlTowerRoutes(app: Express) {
     try {
       const overdueMilestones = await pool.query(`
         SELECT ks.id, ks.stage_name, ks.phase, p.target_end_date, p.code as project_code, p.name as project_name,
-          CASE WHEN p.target_end_date IS NOT NULL AND p.target_end_date::date < CURRENT_DATE 
-            THEN EXTRACT(DAY FROM CURRENT_DATE - p.target_end_date::date)::int ELSE 0 END as days_overdue
+          CASE WHEN p.target_end_date IS NOT NULL AND p.target_end_date != ''
+            THEN (CURRENT_DATE - p.target_end_date::date) ELSE 0 END as days_overdue
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
-        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date::date < CURRENT_DATE
+        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date != '' AND p.target_end_date::date < CURRENT_DATE
         ORDER BY days_overdue DESC
         LIMIT 20
       `);
 
       const overdueDeliverables = await pool.query(`
         SELECT d.id, d.name, d.due_date, d.status, p.code as project_code, p.name as project_name,
-          EXTRACT(DAY FROM CURRENT_DATE - d.due_date::date)::int as days_overdue
+          (CURRENT_DATE - d.due_date::date) as days_overdue
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
-        WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date::date < CURRENT_DATE
+        WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE
         ORDER BY days_overdue DESC
         LIMIT 20
       `);
@@ -165,12 +165,12 @@ export function setupEpcControlTowerRoutes(app: Express) {
       const overdueTasks = await pool.query(`
         SELECT t.id, t.title, t.due_date, t.status, t.priority, t.assigned_to,
           u.username as assigned_to_name, p.code as project_code, p.name as project_name,
-          EXTRACT(DAY FROM CURRENT_DATE - t.due_date::date)::int as days_overdue
+          (CURRENT_DATE - t.due_date::date) as days_overdue
         FROM tasks t
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
         LEFT JOIN users u ON t.assigned_to = u.id
-        WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date < CURRENT_DATE::text
+        WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE
         ORDER BY days_overdue DESC
         LIMIT 20
       `);

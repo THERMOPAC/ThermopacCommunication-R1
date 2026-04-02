@@ -386,39 +386,46 @@ export default function EpcControlTower() {
           <CardContent>
             {loadingDocs ? <Skeleton className="h-32" /> : (
               <div className="space-y-3">
-                {docStatus?.dwgFileStatus && (
+                {docStatus?.dwg && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">DWG File Status</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(docStatus.dwgFileStatus).map(([status, count]: [string, any]) => (
-                        <div key={status} className="flex justify-between text-xs bg-muted/50 px-3 py-2 rounded">
-                          <span>{status.replace(/_/g, ' ')}</span>
-                          <span className="font-medium">{count}</span>
+                      {[
+                        { label: 'EPC With Files', value: docStatus.dwg.epcWithFiles },
+                        { label: 'Pending Upload', value: docStatus.dwg.pendingUpload },
+                        { label: 'File Not Available', value: docStatus.dwg.fileNotAvailable },
+                        { label: 'Superseded', value: docStatus.dwg.superseded },
+                        { label: 'Total', value: docStatus.dwg.total },
+                      ].map((item: any) => (
+                        <div key={item.label} className="flex justify-between text-xs bg-muted/50 px-3 py-2 rounded">
+                          <span>{item.label}</span>
+                          <span className="font-medium">{item.value || 0}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                {docStatus?.featureFlags && (
+                {docStatus?.featureFlags && Array.isArray(docStatus.featureFlags) && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">Feature Flags</p>
                     <div className="space-y-1">
-                      {Object.entries(docStatus.featureFlags).map(([flag, val]: [string, any]) => (
-                        <div key={flag} className="flex items-center justify-between text-xs">
-                          <span className="font-mono text-[10px]">{flag}</span>
-                          <Badge variant={val ? "default" : "outline"} className="text-[10px]">{val ? "ON" : "OFF"}</Badge>
+                      {(docStatus.featureFlags as any[]).map((f: any) => (
+                        <div key={f.flag_name || f.flag} className="flex items-center justify-between text-xs">
+                          <span className="font-mono text-[10px]">{f.flag_name || f.flag}</span>
+                          <Badge variant={f.enabled || f.value ? "default" : "outline"} className="text-[10px]">{f.enabled || f.value ? "ON" : "OFF"}</Badge>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                {docStatus?.dspAdoption && (
+                {docStatus?.dsp && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">DSP Adoption</p>
                     <div className="text-xs">
-                      <span>Records: <strong>{docStatus.dspAdoption.totalRecords || 0}</strong></span>
-                      {docStatus.dspAdoption.firstUsed && (
-                        <span className="ml-3 text-muted-foreground">First used: {new Date(docStatus.dspAdoption.firstUsed).toLocaleDateString()}</span>
+                      <span>Records: <strong>{docStatus.dsp.totalEpcDispatches || 0}</strong></span>
+                      <span className="ml-3">Status: <strong>{docStatus.dsp.status || 'inactive'}</strong></span>
+                      {docStatus.dsp.firstCreated && (
+                        <span className="ml-3 text-muted-foreground">First used: {new Date(docStatus.dsp.firstCreated).toLocaleDateString()}</span>
                       )}
                     </div>
                   </div>
@@ -438,23 +445,23 @@ export default function EpcControlTower() {
           <CardContent>
             {loadingDocs ? <Skeleton className="h-32" /> : (
               <div className="space-y-3">
-                {docStatus?.legacyTrend7d && (
+                {docStatus?.legacyTrend7Day && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">Legacy Access — Last 7 Days</p>
                     <div className="flex items-end gap-1 h-16">
-                      {(docStatus.legacyTrend7d as any[]).map((d: any, i: number) => {
-                        const max = Math.max(...(docStatus.legacyTrend7d as any[]).map((x: any) => x.count || 0), 1);
-                        const h = Math.max(((d.count || 0) / max) * 100, 4);
+                      {(docStatus.legacyTrend7Day as any[]).map((d: any, i: number) => {
+                        const max = Math.max(...(docStatus.legacyTrend7Day as any[]).map((x: any) => parseInt(x.accesses) || 0), 1);
+                        const h = Math.max(((parseInt(d.accesses) || 0) / max) * 100, 4);
                         return (
                           <div key={i} className="flex-1 flex flex-col items-center">
-                            <div className="w-full bg-amber-200 rounded-t" style={{ height: `${h}%` }} title={`${d.count || 0} reads`} />
+                            <div className="w-full bg-amber-200 rounded-t" style={{ height: `${h}%` }} title={`${d.accesses || 0} reads`} />
                             <span className="text-[9px] text-muted-foreground mt-0.5">{d.day?.slice(5) || ''}</span>
                           </div>
                         );
                       })}
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1">
-                      Total: {(docStatus.legacyTrend7d as any[]).reduce((a: number, d: any) => a + (d.count || 0), 0)} legacy reads
+                      Total: {(docStatus.legacyTrend7Day as any[]).reduce((a: number, d: any) => a + (parseInt(d.accesses) || 0), 0)} legacy reads
                     </p>
                   </div>
                 )}
@@ -486,7 +493,7 @@ export default function EpcControlTower() {
                   </div>
                 )}
 
-                {(!docStatus?.legacyTrend7d || (docStatus.legacyTrend7d as any[]).every((d: any) => (d.count || 0) === 0)) &&
+                {(!docStatus?.legacyTrend7Day || (docStatus.legacyTrend7Day as any[]).every((d: any) => (parseInt(d.accesses) || 0) === 0)) &&
                  (!legacyAccess || !Array.isArray(legacyAccess) || legacyAccess.length === 0) && (
                   <p className="text-xs text-muted-foreground py-8 text-center">No legacy access detected in the monitoring period.</p>
                 )}
