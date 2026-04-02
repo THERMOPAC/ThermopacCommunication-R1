@@ -3,10 +3,12 @@ import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Activity, AlertTriangle, ArrowRight, BarChart3, CheckCircle2, 
   ChevronRight, Clock, Eye, FileWarning, Layers, 
-  ShieldAlert, Users, XCircle, Radar, ExternalLink
+  ShieldAlert, Users, XCircle, Radar, ExternalLink, GitBranch
 } from "lucide-react";
 
 function HealthBadge({ health }: { health: string }) {
@@ -88,6 +90,10 @@ export default function EpcControlTower() {
 
   const { data: ownership, isLoading: loadingOwnership } = useQuery({
     queryKey: ["/api/epc-control-tower/ownership-gaps"],
+  });
+
+  const { data: stageGates, isLoading: loadingStageGates } = useQuery({
+    queryKey: ["/api/epc-control-tower/stage-gates"],
   });
 
   const { data: docStatus, isLoading: loadingDocs } = useQuery({
@@ -217,6 +223,148 @@ export default function EpcControlTower() {
               )}
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Stage Gate Analysis */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-blue-600" /> Pipeline Stage Gates — Per-Item Continuity
+            {!loadingStageGates && stageGates && (
+              <div className="flex gap-2 ml-auto">
+                {(stageGates as any).criticalCount > 0 && (
+                  <Badge variant="destructive" className="text-[10px]">{(stageGates as any).criticalCount} Critical</Badge>
+                )}
+                {(stageGates as any).warningCount > 0 && (
+                  <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">{(stageGates as any).warningCount} Warning</Badge>
+                )}
+                {(stageGates as any).criticalCount === 0 && (stageGates as any).warningCount === 0 && (
+                  <Badge variant="outline" className="text-[10px] text-green-600 border-green-300">No Gaps</Badge>
+                )}
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingStageGates ? <Skeleton className="h-48" /> : stageGates ? (() => {
+            const sg = stageGates as any;
+            const sc = sg.stageCounts || {};
+            const stageKeys = ['BOM', 'DWG', 'PLN', 'PO', 'WO', 'INS', 'DSP', 'COM', 'INV'];
+            const stageLabels: Record<string, string> = {
+              BOM: 'BOM', DWG: 'Drawing', PLN: 'Planning', PO: 'Purchase Order',
+              WO: 'Work Order', INS: 'Inspection', DSP: 'Dispatch', COM: 'Commissioning', INV: 'Invoice'
+            };
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+                  {stageKeys.map(k => {
+                    const s = sc[k] || { total: 0, ready: 0, notReady: 0, missing: 0 };
+                    const hasIssue = s.notReady > 0 || (s.missing > 0 && !s.na);
+                    return (
+                      <div key={k} className={`rounded-lg border p-2 text-center ${hasIssue ? 'border-amber-300 bg-amber-50' : s.total > 0 ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <p className="text-[10px] font-semibold text-muted-foreground">{k}</p>
+                        <p className="text-lg font-bold">{s.total}</p>
+                        <div className="text-[9px] space-y-0.5 mt-1">
+                          <p className="text-green-700">{s.ready} ready</p>
+                          {s.notReady > 0 && <p className="text-amber-700">{s.notReady} pending</p>}
+                          {s.missing > 0 && <p className="text-red-700">{s.missing} missing</p>}
+                          {s.na > 0 && <p className="text-gray-500">{s.na} n/a</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Tabs defaultValue="gaps">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="gaps">
+                      Gaps ({sg.gaps?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="definitions">
+                      Stage Definitions
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="gaps">
+                    {(!sg.gaps || sg.gaps.length === 0) ? (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                        <p className="text-sm">No pipeline gaps detected across active projects</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {Object.entries(sg.gapSummary || {}).length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(sg.gapSummary || {}).map(([type, count]) => (
+                              <Badge key={type} variant="outline" className={`text-[10px] ${
+                                sg.gaps.find((g: any) => g.type === type)?.severity === 'critical' 
+                                  ? 'text-red-600 border-red-300 bg-red-50' 
+                                  : 'text-amber-600 border-amber-300 bg-amber-50'
+                              }`}>
+                                {type.replace(/_/g, ' ')}: {count as number}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="max-h-[300px] overflow-y-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[80px]">Severity</TableHead>
+                                <TableHead className="w-[120px]">Gap Type</TableHead>
+                                <TableHead className="w-[100px]">Project</TableHead>
+                                <TableHead>Item</TableHead>
+                                <TableHead>Issue</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {sg.gaps.slice(0, 100).map((g: any, i: number) => (
+                                <TableRow key={i}>
+                                  <TableCell>
+                                    <Badge variant={g.severity === 'critical' ? 'destructive' : 'outline'} className="text-[10px]">
+                                      {g.severity}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-mono text-[10px]">{g.type}</TableCell>
+                                  <TableCell className="font-mono text-[10px]">{g.projectCode}</TableCell>
+                                  <TableCell className="text-xs">{g.item}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{g.message}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="definitions">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[80px]">Stage</TableHead>
+                          <TableHead>Label</TableHead>
+                          <TableHead>Entry Condition</TableHead>
+                          <TableHead>Exit Condition</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(sg.stageDefinitions || []).map((d: any) => (
+                          <TableRow key={d.key}>
+                            <TableCell className="font-mono font-bold text-xs">{d.key}</TableCell>
+                            <TableCell className="text-xs">{d.label}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{d.entry}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{d.exit}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            );
+          })() : null}
         </CardContent>
       </Card>
 

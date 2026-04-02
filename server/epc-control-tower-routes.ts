@@ -254,5 +254,196 @@ export function setupEpcControlTowerRoutes(app: Express) {
     }
   });
 
+  app.get('/api/epc-control-tower/stage-gates', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+    try {
+      const stageDefinitions = [
+        { key: 'BOM', label: 'Bill of Materials', entry: 'Project item exists with master item', exit: 'BOM Released or Locked (is_current=true)' },
+        { key: 'DWG', label: 'Drawing Control', entry: 'BOM exists for project item', exit: 'Drawing approved or released' },
+        { key: 'PLN', label: 'Planning', entry: 'BOM Released/Locked (explosion done)', exit: 'Planning record created with execution records' },
+        { key: 'PO', label: 'Purchase Order', entry: 'Planning exists + BOM Released/Locked + item is Buy', exit: 'PO issued or approved' },
+        { key: 'WO', label: 'Work Order', entry: 'Planning exists + BOM Released/Locked + item is Make', exit: 'WO issued or approved' },
+        { key: 'INS', label: 'Inspection', entry: 'PO or WO exists', exit: 'Inspection completed, quality cleared on PO/WO' },
+        { key: 'DSP', label: 'Dispatch', entry: 'PO/WO quality_status = inspection_cleared', exit: 'Dispatch record shipped or delivered' },
+        { key: 'COM', label: 'Commissioning', entry: 'Dispatch shipped or delivered', exit: 'Commissioned or handed over' },
+        { key: 'INV', label: 'Invoice', entry: 'Dispatch shipped/delivered OR Commissioning complete', exit: 'Billing readiness approved, invoice created' },
+      ];
+
+      const itemPipeline = await pool.query(`
+        SELECT
+          pi.id as project_item_id,
+          pi.item_number,
+          pi.quantity,
+          mi.id as master_item_id,
+          mi.item_code,
+          mi.description,
+          mi.make_or_buy,
+          p.id as project_id,
+          p.code as project_code,
+          p.name as project_name,
+          -- BOM stage
+          bh.id as bom_id,
+          bh.bom_number,
+          bh.status as bom_status,
+          -- DWG stage
+          dc.id as dwg_id,
+          dc.dwg_control_number,
+          dc.status as dwg_status,
+          -- Planning stage
+          ipr.id as planning_id,
+          ipr.status as planning_status,
+          -- PO stage (count + latest status)
+          (SELECT COUNT(*)::int FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled', 'superseded')) as po_count,
+          (SELECT epo.status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled', 'superseded') ORDER BY epo.id DESC LIMIT 1) as po_status,
+          (SELECT epo.quality_status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled', 'superseded') ORDER BY epo.id DESC LIMIT 1) as po_quality_status,
+          -- WO stage (count + latest status)
+          (SELECT COUNT(*)::int FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled', 'superseded')) as wo_count,
+          (SELECT ewo.status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled', 'superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_status,
+          (SELECT ewo.quality_status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled', 'superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_quality_status,
+          -- INS stage
+          (SELECT COUNT(*)::int FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled')) as ins_count,
+          (SELECT ier.status FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled') ORDER BY ier.id DESC LIMIT 1) as ins_status,
+          -- DSP stage
+          (SELECT COUNT(*)::int FROM epc_dispatch_readiness edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('cancelled', 'superseded')) as dsp_readiness_count,
+          (SELECT COUNT(*)::int FROM epc_dispatch_records edr2 WHERE edr2.project_item_id = pi.id AND edr2.status NOT IN ('cancelled')) as dsp_count,
+          (SELECT edr2.status FROM epc_dispatch_records edr2 WHERE edr2.project_item_id = pi.id AND edr2.status NOT IN ('cancelled') ORDER BY edr2.id DESC LIMIT 1) as dsp_status,
+          -- COM stage
+          (SELECT COUNT(*)::int FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled', 'superseded')) as com_count,
+          (SELECT ecr.status FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled', 'superseded') ORDER BY ecr.id DESC LIMIT 1) as com_status,
+          -- INV stage (billing readiness)
+          (SELECT COUNT(*)::int FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled', 'superseded')) as inv_count,
+          (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled', 'superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
+        FROM project_items pi
+        JOIN projects p ON p.id = pi.project_id
+        LEFT JOIN master_items mi ON mi.id = pi.master_item_id
+        LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
+        LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
+        LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('cancelled', 'superseded')
+        WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
+        ORDER BY p.code, pi.item_number
+      `);
+
+      const stageCounts = {
+        BOM: { total: 0, ready: 0, notReady: 0, missing: 0 },
+        DWG: { total: 0, ready: 0, notReady: 0, missing: 0 },
+        PLN: { total: 0, ready: 0, notReady: 0, missing: 0 },
+        PO:  { total: 0, ready: 0, notReady: 0, missing: 0, na: 0 },
+        WO:  { total: 0, ready: 0, notReady: 0, missing: 0, na: 0 },
+        INS: { total: 0, ready: 0, notReady: 0, missing: 0 },
+        DSP: { total: 0, ready: 0, notReady: 0, missing: 0 },
+        COM: { total: 0, ready: 0, notReady: 0, missing: 0 },
+        INV: { total: 0, ready: 0, notReady: 0, missing: 0 },
+      };
+
+      const gaps: any[] = [];
+      const totalItems = itemPipeline.rows.length;
+
+      for (const item of itemPipeline.rows as any[]) {
+        const isBuy = item.make_or_buy === 'Buy';
+        const isMake = item.make_or_buy === 'Make';
+        const itemRef = `${item.project_code} / ${item.item_number} (${item.item_code || 'no code'})`;
+
+        const bomExists = !!item.bom_id;
+        const bomReady = bomExists && ['released', 'locked'].includes(item.bom_status);
+        if (bomExists) { stageCounts.BOM.total++; if (bomReady) stageCounts.BOM.ready++; else stageCounts.BOM.notReady++; }
+        else stageCounts.BOM.missing++;
+
+        const dwgExists = !!item.dwg_id;
+        const dwgReady = dwgExists && ['approved', 'released'].includes(item.dwg_status);
+        if (dwgExists) { stageCounts.DWG.total++; if (dwgReady) stageCounts.DWG.ready++; else stageCounts.DWG.notReady++; }
+        else stageCounts.DWG.missing++;
+
+        const plnExists = !!item.planning_id;
+        const plnReady = plnExists && !['cancelled', 'superseded'].includes(item.planning_status);
+        if (plnExists) { stageCounts.PLN.total++; if (plnReady) stageCounts.PLN.ready++; else stageCounts.PLN.notReady++; }
+        else stageCounts.PLN.missing++;
+
+        if (isBuy) {
+          const poExists = item.po_count > 0;
+          const poReady = poExists && ['approved', 'issued'].includes(item.po_status);
+          if (poExists) { stageCounts.PO.total++; if (poReady) stageCounts.PO.ready++; else stageCounts.PO.notReady++; }
+          else stageCounts.PO.missing++;
+          (stageCounts.WO as any).na = ((stageCounts.WO as any).na || 0) + 1;
+        } else if (isMake) {
+          const woExists = item.wo_count > 0;
+          const woReady = woExists && ['approved', 'issued'].includes(item.wo_status);
+          if (woExists) { stageCounts.WO.total++; if (woReady) stageCounts.WO.ready++; else stageCounts.WO.notReady++; }
+          else stageCounts.WO.missing++;
+          (stageCounts.PO as any).na = ((stageCounts.PO as any).na || 0) + 1;
+        } else {
+          (stageCounts.PO as any).na = ((stageCounts.PO as any).na || 0) + 1;
+          (stageCounts.WO as any).na = ((stageCounts.WO as any).na || 0) + 1;
+        }
+
+        const insExists = item.ins_count > 0;
+        const insReady = insExists && item.ins_status === 'completed';
+        const qualityCleared = item.po_quality_status === 'inspection_cleared' || item.wo_quality_status === 'inspection_cleared';
+        if (insExists) { stageCounts.INS.total++; if (insReady || qualityCleared) stageCounts.INS.ready++; else stageCounts.INS.notReady++; }
+        else stageCounts.INS.missing++;
+
+        const dspExists = item.dsp_count > 0;
+        const dspReady = dspExists && ['shipped', 'delivered'].includes(item.dsp_status);
+        if (dspExists) { stageCounts.DSP.total++; if (dspReady) stageCounts.DSP.ready++; else stageCounts.DSP.notReady++; }
+        else stageCounts.DSP.missing++;
+
+        const comExists = item.com_count > 0;
+        const comReady = comExists && ['commissioned', 'handed_over'].includes(item.com_status);
+        if (comExists) { stageCounts.COM.total++; if (comReady) stageCounts.COM.ready++; else stageCounts.COM.notReady++; }
+        else stageCounts.COM.missing++;
+
+        const invExists = item.inv_count > 0;
+        const invReady = invExists && ['approved', 'invoiced'].includes(item.inv_status);
+        if (invExists) { stageCounts.INV.total++; if (invReady) stageCounts.INV.ready++; else stageCounts.INV.notReady++; }
+        else stageCounts.INV.missing++;
+
+        // Gap detection: identify specific broken links
+        if (bomReady && !dwgExists) {
+          gaps.push({ type: 'BOM_NO_DWG', severity: 'warning', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `BOM released but no drawing control exists` });
+        }
+        if ((item.po_count > 0 || item.wo_count > 0) && !bomReady) {
+          gaps.push({ type: 'POWO_NO_BOM', severity: 'critical', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `PO/WO exists but BOM is not Released/Locked` });
+        }
+        if ((item.po_count > 0 || item.wo_count > 0) && !plnExists) {
+          gaps.push({ type: 'POWO_NO_PLAN', severity: 'warning', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `PO/WO exists but no planning record found` });
+        }
+        if ((item.po_count > 0 || item.wo_count > 0) && !dwgReady && isMake) {
+          gaps.push({ type: 'WO_NO_DWG', severity: 'critical', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `Work Order exists but drawing not approved/released` });
+        }
+        if (dspExists && !qualityCleared && !insReady) {
+          gaps.push({ type: 'DSP_NO_INS', severity: 'critical', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `Dispatch initiated but inspection not completed/cleared` });
+        }
+        if (comExists && !dspReady) {
+          gaps.push({ type: 'COM_NO_DSP', severity: 'critical', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `Commissioning started but dispatch not shipped/delivered` });
+        }
+        if (invExists && !dspReady && !comReady) {
+          gaps.push({ type: 'INV_NO_UPSTREAM', severity: 'critical', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `Billing/Invoice exists but no dispatch or commissioning completed` });
+        }
+        if (bomReady && !plnExists) {
+          gaps.push({ type: 'BOM_NO_PLAN', severity: 'warning', item: itemRef, projectCode: item.project_code, projectItemId: item.project_item_id, message: `BOM released but planning records not generated (explosion not done)` });
+        }
+      }
+
+      const gapSummary: Record<string, number> = {};
+      for (const g of gaps) {
+        gapSummary[g.type] = (gapSummary[g.type] || 0) + 1;
+      }
+
+      const criticalGaps = gaps.filter(g => g.severity === 'critical');
+      const warningGaps = gaps.filter(g => g.severity === 'warning');
+
+      res.json({
+        stageDefinitions,
+        totalActiveProjectItems: totalItems,
+        stageCounts,
+        gapSummary,
+        criticalCount: criticalGaps.length,
+        warningCount: warningGaps.length,
+        gaps: gaps.slice(0, 200),
+      });
+    } catch (err) {
+      console.error('[EPC-Control-Tower] Stage gates error:', err);
+      res.status(500).json({ error: 'Failed to load stage gate analysis' });
+    }
+  });
+
   console.log('[EPC-Control-Tower] Routes registered');
 }
