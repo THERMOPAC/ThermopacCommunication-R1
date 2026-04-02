@@ -2155,6 +2155,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               </Badge>
             </div>
             <p className="text-gray-500 text-sm">Project Code: {project.code}</p>
+            {project.project_origin === 'sales_offer' && project.source_order_number && (
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                  Source: Order #{project.source_order_number}
+                  {project.source_offer_revision != null && ` (Rev ${project.source_offer_revision})`}
+                </Badge>
+              </div>
+            )}
             <p className="mt-2">{project.description}</p>
             <p className="text-muted-foreground text-sm mt-2">
               <span className="inline-flex items-center gap-1 mr-4">

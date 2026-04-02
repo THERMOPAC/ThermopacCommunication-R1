@@ -1170,6 +1170,12 @@ export function setupSalesMarketingRoutes(app: Express) {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+      const existingCheck = await storage.getOfferById(id);
+      if (existingCheck && existingCheck.status === 'Order Confirmed') {
+        return res.status(400).json({ error: 'Offer is locked after Order Confirmed — no edits allowed' });
+      }
+
       const { items, ...offerData } = req.body;
       if (offerData.validUntil) {
         offerData.validUntil = new Date(offerData.validUntil);
@@ -1226,8 +1232,36 @@ export function setupSalesMarketingRoutes(app: Express) {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-      const { status } = req.body;
+      const { status, epcParams } = req.body;
       const user = req.user as any;
+
+      if (status === 'Order Confirmed') {
+        const { executeOfferConversion } = await import('./offer-conversion');
+        if (!epcParams) {
+          return res.status(422).json({
+            error: 'Pre-conversion validation failed',
+            failures: [{ field: 'epcParams', reason: 'EPC parameters required for Order Confirmed' }],
+          });
+        }
+        try {
+          const result = await executeOfferConversion(id, epcParams, user.id);
+          return res.json(result);
+        } catch (convError: any) {
+          if (convError.statusCode === 422) {
+            return res.status(422).json({ error: convError.message, failures: convError.failures });
+          }
+          if (convError.message?.includes('Previous conversion incomplete')) {
+            return res.status(409).json({ error: convError.message });
+          }
+          throw convError;
+        }
+      }
+
+      const existingOffer = await storage.getOfferById(id);
+      if (existingOffer && existingOffer.status === 'Order Confirmed') {
+        return res.status(400).json({ error: 'Offer is locked after Order Confirmed — no status changes allowed' });
+      }
+
       const updateData: any = { status };
       if (status === 'Approved') {
         updateData.approvedBy = user.id;
@@ -1245,6 +1279,12 @@ export function setupSalesMarketingRoutes(app: Express) {
     try {
       const id = parseInt(req.params.id);
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+      const existingOffer = await storage.getOfferById(id);
+      if (existingOffer && existingOffer.status === 'Order Confirmed') {
+        return res.status(400).json({ error: 'Offer is locked after Order Confirmed — cannot be deleted' });
+      }
+
       await storage.deleteOffer(id);
       res.json({ success: true });
     } catch (error) {

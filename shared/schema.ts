@@ -1715,6 +1715,12 @@ export const projects = pgTable('projects', {
   projectSeq: varchar('project_seq', { length: 3 }).notNull(),
   operationalCode: varchar('operational_code', { length: 26 }).notNull().unique(),
   legacyCode: varchar('legacy_code', { length: 20 }),
+
+  sourceOfferId: integer('source_offer_id').references(() => offers.id).unique(),
+  sourceOfferRevision: integer('source_offer_revision'),
+  sourceOrderNumber: varchar('source_order_number', { length: 15 }),
+  sourceConversionId: uuid('source_conversion_id'),
+  projectOrigin: varchar('project_origin', { length: 20 }),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)
@@ -1956,6 +1962,10 @@ export const projectItems = pgTable('project_items', {
   sourceBomLineId: integer('source_bom_line_id'),
   source: varchar('source', { length: 30 }),
   requiredQuantity: decimal('required_quantity', { precision: 12, scale: 2 }),
+
+  sourceOfferId: integer('source_offer_id'),
+  sourceOfferItemId: integer('source_offer_item_id'),
+  sourceOrderNumber: varchar('source_order_number', { length: 15 }),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -11899,3 +11909,26 @@ export const bomGatingBypassLog = pgTable('bom_gating_bypass_log', {
 });
 
 export type BomGatingBypassLog = typeof bomGatingBypassLog.$inferSelect;
+
+export const VALID_PROJECT_ITEM_SOURCES = ['sales_offer', 'manual', 'bom_explosion'] as const;
+export type ProjectItemSource = typeof VALID_PROJECT_ITEM_SOURCES[number];
+
+export const offerConversionSnapshots = pgTable('offer_conversion_snapshots', {
+  id: serial('id').primaryKey(),
+  conversionId: uuid('conversion_id').notNull().unique(),
+  offerId: integer('offer_id').notNull().references(() => offers.id).unique(),
+  offerRevision: integer('offer_revision').notNull(),
+  orderNumber: varchar('order_number', { length: 15 }).notNull().unique(),
+  headerSnapshot: jsonb('header_snapshot').notNull(),
+  itemsSnapshot: jsonb('items_snapshot').notNull(),
+  epcParamsSnapshot: jsonb('epc_params_snapshot').notNull(),
+  projectId: integer('project_id').references(() => projects.id),
+  conversionStatus: varchar('conversion_status', { length: 20 }).notNull().default('initiated'),
+  errorDetail: text('error_detail'),
+  convertedBy: integer('converted_by').notNull().references(() => users.id),
+  convertedAt: timestamp('converted_at').notNull().defaultNow(),
+});
+
+export const insertOfferConversionSnapshotSchema = createInsertSchema(offerConversionSnapshots).omit({ id: true });
+export type OfferConversionSnapshot = typeof offerConversionSnapshots.$inferSelect;
+export type InsertOfferConversionSnapshot = z.infer<typeof insertOfferConversionSnapshotSchema>;

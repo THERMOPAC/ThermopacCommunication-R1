@@ -1158,22 +1158,27 @@ export function setupProjectRoutes(app: express.Express) {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
       
-      // Check if project exists
       const project = await storage.getProject(projectId);
       if (!project) {
         return res.status(404).json({ error: 'Project not found' });
       }
       
-      // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
       const userMember = projectMembers.find(member => member.userId === userId);
       
       if (!userMember && !canManage(req.user!.role, 'Manager')) {
         return res.status(403).json({ error: 'Not authorized to add items to this project' });
       }
+
+      const VALID_SOURCES = ['sales_offer', 'manual', 'bom_explosion'];
+      const itemSource = req.body.source || 'manual';
+      if (!VALID_SOURCES.includes(itemSource)) {
+        return res.status(400).json({ error: `Invalid source value. Allowed: ${VALID_SOURCES.join(', ')}` });
+      }
       
       const itemData = insertProjectItemSchema.parse({
         ...req.body,
+        source: itemSource,
         projectId,
         projectCode: project.code,
         createdAt: new Date(),

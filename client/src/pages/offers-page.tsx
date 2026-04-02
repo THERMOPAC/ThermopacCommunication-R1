@@ -17,9 +17,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient, getErrorMessage } from "@/lib/queryClient";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
-  CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip
+  CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
+  Rocket, ExternalLink, Lock, AlertTriangle
 } from "lucide-react";
 import type { Product } from "@shared/schema";
 
@@ -66,6 +68,7 @@ const statusColors: Record<string, string> = {
   Rejected: "bg-red-100 text-red-800",
   Expired: "bg-yellow-100 text-yellow-800",
   Converted: "bg-purple-100 text-purple-800",
+  "Order Confirmed": "bg-indigo-100 text-indigo-800",
 };
 
 export function OffersContent() {
@@ -79,6 +82,13 @@ export function OffersContent() {
   const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
   const [pdfDownloadOfferId, setPdfDownloadOfferId] = useState<number | null>(null);
+  const [confirmOrderOffer, setConfirmOrderOffer] = useState<any>(null);
+  const [conversionResult, setConversionResult] = useState<any>(null);
+  const [epcFormData, setEpcFormData] = useState({
+    continentCode: '', countryCode: '', projectType: '', priority: 'Medium',
+    startDate: '', targetEndDate: '', managerId: 0,
+  });
+  const [conversionErrors, setConversionErrors] = useState<any[]>([]);
 
   const { data: offers = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/offers'],
@@ -90,6 +100,10 @@ export function OffersContent() {
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ['/api/sales-marketing/products'],
+  });
+
+  const { data: allUsers = [] } = useQuery<any[]>({
+    queryKey: ['/api/users'],
   });
 
   const { data: productChildLinks = [] } = useQuery<any[]>({
@@ -188,6 +202,32 @@ export function OffersContent() {
     onSuccess: () => {
       toast({ title: "Status updated" });
       queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+    },
+  });
+
+  const confirmOrderMutation = useMutation({
+    mutationFn: async ({ id, epcParams }: { id: number; epcParams: any }) =>
+      apiRequest('PATCH', `/api/sales-marketing/offers/${id}/status`, { status: 'Order Confirmed', epcParams }),
+    onSuccess: (result: any) => {
+      if (result.alreadyConverted) {
+        toast({ title: "Already Converted", description: `Project ${result.project?.operationalCode} already exists for this offer.` });
+      } else {
+        toast({ title: "Order Confirmed", description: `EPC Project ${result.project?.operationalCode} created. Order: ${result.orderNumber}` });
+      }
+      setConversionResult(result);
+      setConversionErrors([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers'] });
+    },
+    onError: (error: any) => {
+      let msg = error.message || 'Conversion failed';
+      try {
+        const parsed = JSON.parse(msg.replace(/^[^{]*/, ''));
+        if (parsed.failures) {
+          setConversionErrors(parsed.failures);
+          msg = 'Validation failed — see details below';
+        }
+      } catch {}
+      toast({ title: "Conversion Failed", description: msg, variant: "destructive" });
     },
   });
 
@@ -565,6 +605,23 @@ export function OffersContent() {
                               </Button>
                             </>
                           )}
+                          {offer.status === "Approved" && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-indigo-600" onClick={() => {
+                              setConfirmOrderOffer(offer);
+                              setConversionResult(null);
+                              setConversionErrors([]);
+                              const today = new Date().toISOString().split('T')[0];
+                              const sixMonths = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                              setEpcFormData({ continentCode: '', countryCode: '', projectType: '', priority: 'Medium', startDate: today, targetEndDate: sixMonths, managerId: 0 });
+                            }} title="Confirm Order → Create EPC Project">
+                              <Rocket className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {offer.status === "Order Confirmed" && (
+                            <Badge variant="outline" className="text-indigo-700 border-indigo-300 text-xs">
+                              <Lock className="h-3 w-3 mr-1" /> Locked
+                            </Badge>
+                          )}
                           {offer.status === "Draft" && (
                             <Button
                               variant="ghost" size="icon" className="h-8 w-8 text-destructive"
@@ -659,6 +716,169 @@ export function OffersContent() {
                 {viewingOffer.notes && <div><Label className="text-muted-foreground">Notes</Label><p className="text-sm">{viewingOffer.notes}</p></div>}
                 {viewingOffer.termsAndConditions && <div><Label className="text-muted-foreground">Terms & Conditions</Label><p className="text-sm whitespace-pre-wrap">{viewingOffer.termsAndConditions}</p></div>}
 
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* CONFIRM ORDER DIALOG */}
+        <Dialog open={!!confirmOrderOffer} onOpenChange={(open) => { if (!open) { setConfirmOrderOffer(null); setConversionResult(null); setConversionErrors([]); } }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Rocket className="h-5 w-5 text-indigo-600" />
+                Confirm Order &amp; Create EPC Project
+              </DialogTitle>
+              <DialogDescription>
+                Offer {confirmOrderOffer?.offerNumber} — {confirmOrderOffer?.customerName}
+              </DialogDescription>
+            </DialogHeader>
+
+            {conversionResult ? (
+              <div className="space-y-4">
+                <Alert className="border-green-300 bg-green-50">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription>
+                    {conversionResult.alreadyConverted ? 'This offer was already converted.' : 'EPC Project created successfully!'}
+                  </AlertDescription>
+                </Alert>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <Label className="text-muted-foreground">Project Code</Label>
+                    <p className="font-mono font-medium">{conversionResult.project?.operationalCode}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Order Number</Label>
+                    <p className="font-mono font-medium">{conversionResult.orderNumber}</p>
+                  </div>
+                  {!conversionResult.alreadyConverted && (
+                    <>
+                      <div>
+                        <Label className="text-muted-foreground">Items Created</Label>
+                        <p className="font-medium">{conversionResult.itemsCreated}</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Items Pending Mapping</Label>
+                        <p className="font-medium">{conversionResult.itemsPendingMapping?.length || 0}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {conversionResult.itemsPendingMapping?.length > 0 && (
+                  <Alert className="border-yellow-300 bg-yellow-50">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-xs">
+                      {conversionResult.itemsPendingMapping.length} item(s) could not be mapped to master items. Tasks have been created for the project manager.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setConfirmOrderOffer(null); setConversionResult(null); }}>Close</Button>
+                  <Button onClick={() => { window.location.href = `/projects/${conversionResult.project?.id}`; }}>
+                    <ExternalLink className="h-4 w-4 mr-1" /> Open Project
+                  </Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border p-3 bg-muted/30 text-sm">
+                  <p className="font-medium mb-1">This action will:</p>
+                  <ul className="list-disc list-inside text-muted-foreground space-y-0.5 text-xs">
+                    <li>Create an EPC project in planning status</li>
+                    <li>Map offer items to EPC project items</li>
+                    <li>Lock this offer from further editing</li>
+                    <li>Generate an order number for traceability</li>
+                  </ul>
+                </div>
+
+                {conversionErrors.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <ul className="list-disc list-inside text-xs">
+                        {conversionErrors.map((e: any, i: number) => (
+                          <li key={i}><strong>{e.field}</strong>: {e.reason}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Continent Code *</Label>
+                    <Select value={epcFormData.continentCode} onValueChange={(v) => setEpcFormData(p => ({ ...p, continentCode: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        {['AS', 'EU', 'NA', 'SA', 'AF', 'OC'].map(c => (
+                          <SelectItem key={c} value={c}>{c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Country Code *</Label>
+                    <Input placeholder="e.g. IN" maxLength={2} value={epcFormData.countryCode}
+                      onChange={(e) => setEpcFormData(p => ({ ...p, countryCode: e.target.value.toUpperCase() }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Project Type</Label>
+                    <Select value={epcFormData.projectType} onValueChange={(v) => setEpcFormData(p => ({ ...p, projectType: v }))}>
+                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                      <SelectContent>
+                        {['CPS System', 'Equipment', 'Grease Plant', 'Lube Blending Plant', 'Re-refining Plant', 'Spares'].map(t => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Priority</Label>
+                    <Select value={epcFormData.priority} onValueChange={(v) => setEpcFormData(p => ({ ...p, priority: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['Low', 'Medium', 'High'].map(p => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Start Date *</Label>
+                    <Input type="date" value={epcFormData.startDate}
+                      onChange={(e) => setEpcFormData(p => ({ ...p, startDate: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Target End Date *</Label>
+                    <Input type="date" value={epcFormData.targetEndDate}
+                      onChange={(e) => setEpcFormData(p => ({ ...p, targetEndDate: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Project Manager *</Label>
+                    <Select value={epcFormData.managerId ? String(epcFormData.managerId) : ''} onValueChange={(v) => setEpcFormData(p => ({ ...p, managerId: parseInt(v) }))}>
+                      <SelectTrigger><SelectValue placeholder="Select project manager..." /></SelectTrigger>
+                      <SelectContent>
+                        {allUsers.map((u: any) => (
+                          <SelectItem key={u.id} value={String(u.id)}>{u.fullName || u.username} ({u.role})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setConfirmOrderOffer(null)}>Cancel</Button>
+                  <Button
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                    disabled={confirmOrderMutation.isPending || !epcFormData.continentCode || !epcFormData.countryCode || !epcFormData.startDate || !epcFormData.targetEndDate || !epcFormData.managerId}
+                    onClick={() => {
+                      if (!confirmOrderOffer) return;
+                      confirmOrderMutation.mutate({ id: confirmOrderOffer.id, epcParams: epcFormData });
+                    }}
+                  >
+                    {confirmOrderMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Converting...</> : <><Rocket className="h-4 w-4 mr-1" /> Confirm Order</>}
+                  </Button>
+                </DialogFooter>
               </div>
             )}
           </DialogContent>
