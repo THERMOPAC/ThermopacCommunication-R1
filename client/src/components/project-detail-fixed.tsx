@@ -128,7 +128,27 @@ const editItemSchema = z.object({
 
 type EditItemValues = z.infer<typeof editItemSchema>;
 
-// Define schema outside the component
+const phaseFormSchema = z.object({
+  name: z.string().min(1, "Phase name is required"),
+  description: z.string().min(1, "Description is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  targetEndDate: z.string().min(1, "Target end date is required"),
+  status: z.enum(["pending", "in_progress", "completed", "blocked"]).default("pending"),
+  notes: z.string().optional(),
+});
+
+type PhaseFormValues = z.infer<typeof phaseFormSchema>;
+
+const deliverableFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().min(1, "Description is required"),
+  dueDate: z.string().min(1, "Due date is required"),
+  status: z.enum(["pending", "in_progress", "submitted", "approved", "rejected"]).default("pending"),
+  notes: z.string().optional(),
+});
+
+type DeliverableFormValues = z.infer<typeof deliverableFormSchema>;
+
 const editProjectSchema = z.object({
   name: z.string().min(1, "Project name is required"),
   description: z.string().min(1, "Project description is required"),
@@ -169,6 +189,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // State for status update confirmation
   const [isStatusUpdateConfirmOpen, setIsStatusUpdateConfirmOpen] = useState(false);
   const [statusUpdateDetails, setStatusUpdateDetails] = useState<{itemId: number, status: string, oldStatus: string, itemCode: string} | null>(null);
+  
+  const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
+  const [isEditPhaseOpen, setIsEditPhaseOpen] = useState(false);
+  const [editingPhase, setEditingPhase] = useState<any>(null);
+  const [isDeliverablesOpen, setIsDeliverablesOpen] = useState(false);
+  const [selectedPhase, setSelectedPhase] = useState<any>(null);
+  const [isAddDeliverableOpen, setIsAddDeliverableOpen] = useState(false);
   
   // Enhanced debugging for project ID handling
   console.log("Project ID from prop:", id);
@@ -620,6 +647,137 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       // If we can't find the item for some reason, just update directly
       updateProjectItemStatusMutation.mutate({ itemId, status });
     }
+  };
+
+  const phaseForm = useForm<PhaseFormValues>({
+    resolver: zodResolver(phaseFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      startDate: "",
+      targetEndDate: "",
+      status: "pending",
+      notes: "",
+    },
+  });
+
+  const deliverableForm = useForm<DeliverableFormValues>({
+    resolver: zodResolver(deliverableFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      dueDate: "",
+      status: "pending",
+      notes: "",
+    },
+  });
+
+  const { data: deliverables, isLoading: isLoadingDeliverables } = useQuery({
+    queryKey: [`/api/phases/${selectedPhase?.id}/deliverables`],
+    queryFn: async () => {
+      const response = await fetch(`/api/phases/${selectedPhase.id}/deliverables`);
+      if (!response.ok) throw new Error("Failed to fetch deliverables");
+      return response.json();
+    },
+    enabled: !!selectedPhase?.id && isDeliverablesOpen,
+  });
+
+  const createPhaseMutation = useMutation({
+    mutationFn: async (data: PhaseFormValues) => {
+      const existingPhases = phases || [];
+      const res = await apiRequest("POST", `/api/projects/${projectId}/phases`, {
+        ...data,
+        order: existingPhases.length + 1,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Phase created", description: "New phase added successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/phases`] });
+      setIsAddPhaseOpen(false);
+      phaseForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error creating phase", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updatePhaseMutation = useMutation({
+    mutationFn: async ({ phaseId, data }: { phaseId: number; data: Partial<PhaseFormValues> }) => {
+      const res = await apiRequest("PUT", `/api/phases/${phaseId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Phase updated", description: "Phase updated successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/phases`] });
+      setIsEditPhaseOpen(false);
+      setEditingPhase(null);
+      phaseForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating phase", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const createDeliverableMutation = useMutation({
+    mutationFn: async ({ phaseId, data }: { phaseId: number; data: DeliverableFormValues }) => {
+      const res = await apiRequest("POST", `/api/phases/${phaseId}/deliverables`, {
+        ...data,
+        projectId: parseInt(projectId),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Deliverable created", description: "New deliverable added." });
+      queryClient.invalidateQueries({ queryKey: [`/api/phases/${selectedPhase?.id}/deliverables`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/phases`] });
+      setIsAddDeliverableOpen(false);
+      deliverableForm.reset();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error creating deliverable", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleAddPhase = () => {
+    phaseForm.reset({
+      name: "",
+      description: "",
+      startDate: new Date().toISOString().split('T')[0],
+      targetEndDate: "",
+      status: "pending",
+      notes: "",
+    });
+    setIsAddPhaseOpen(true);
+  };
+
+  const handleEditPhase = (phase: any) => {
+    setEditingPhase(phase);
+    phaseForm.reset({
+      name: phase.name || "",
+      description: phase.description || "",
+      startDate: phase.start_date || phase.startDate || "",
+      targetEndDate: phase.target_end_date || phase.targetEndDate || "",
+      status: phase.status || "pending",
+      notes: phase.notes || "",
+    });
+    setIsEditPhaseOpen(true);
+  };
+
+  const handleViewDeliverables = (phase: any) => {
+    setSelectedPhase(phase);
+    setIsDeliverablesOpen(true);
+  };
+
+  const handleAddDeliverable = () => {
+    deliverableForm.reset({
+      name: "",
+      description: "",
+      dueDate: "",
+      status: "pending",
+      notes: "",
+    });
+    setIsAddDeliverableOpen(true);
   };
 
   function formatDate(dateString) {
@@ -1993,7 +2151,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           <TabsContent value="phases" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Project Phases</h2>
-              <Button>
+              <Button onClick={handleAddPhase}>
                 <Plus className="mr-1 h-4 w-4" /> Add Phase
               </Button>
             </div>
@@ -2049,10 +2207,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   </CardContent>
                   <CardFooter className="border-t pt-4">
                     <div className="flex justify-end space-x-2 w-full">
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleViewDeliverables(phase)}>
                         <ClipboardList className="mr-1 h-4 w-4" /> Deliverables
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => handleEditPhase(phase)}>
                         <Edit className="mr-1 h-4 w-4" /> Edit
                       </Button>
                     </div>
@@ -2380,6 +2538,265 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={isAddPhaseOpen} onOpenChange={setIsAddPhaseOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Phase</DialogTitle>
+            <DialogDescription>Create a new project phase.</DialogDescription>
+          </DialogHeader>
+          <Form {...phaseForm}>
+            <form onSubmit={phaseForm.handleSubmit((data) => createPhaseMutation.mutate(data))} className="space-y-4">
+              <FormField control={phaseForm.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phase Name</FormLabel>
+                  <FormControl><Input {...field} placeholder="e.g. Engineering & Design" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={phaseForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl><Textarea {...field} placeholder="Phase description" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={phaseForm.control} name="startDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={phaseForm.control} name="targetEndDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target End Date</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <FormField control={phaseForm.control} name="status" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={phaseForm.control} name="notes" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl><Textarea {...field} placeholder="Optional notes" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsAddPhaseOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createPhaseMutation.isPending}>
+                  {createPhaseMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Phase
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditPhaseOpen} onOpenChange={(open) => { setIsEditPhaseOpen(open); if (!open) setEditingPhase(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Phase</DialogTitle>
+            <DialogDescription>Update phase details for "{editingPhase?.name}".</DialogDescription>
+          </DialogHeader>
+          <Form {...phaseForm}>
+            <form onSubmit={phaseForm.handleSubmit((data) => updatePhaseMutation.mutate({ phaseId: editingPhase?.id, data }))} className="space-y-4">
+              <FormField control={phaseForm.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phase Name</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={phaseForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl><Textarea {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={phaseForm.control} name="startDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={phaseForm.control} name="targetEndDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Target End Date</FormLabel>
+                    <FormControl><Input type="date" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <FormField control={phaseForm.control} name="status" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={phaseForm.control} name="notes" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes</FormLabel>
+                  <FormControl><Textarea {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditPhaseOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={updatePhaseMutation.isPending}>
+                  {updatePhaseMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeliverablesOpen} onOpenChange={(open) => { setIsDeliverablesOpen(open); if (!open) { setSelectedPhase(null); setIsAddDeliverableOpen(false); } }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Deliverables — {selectedPhase?.name}</DialogTitle>
+            <DialogDescription>Manage deliverables for this phase.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleAddDeliverable}>
+                <Plus className="mr-1 h-4 w-4" /> Add Deliverable
+              </Button>
+            </div>
+
+            {isAddDeliverableOpen && (
+              <Card className="border-dashed">
+                <CardContent className="pt-4">
+                  <Form {...deliverableForm}>
+                    <form onSubmit={deliverableForm.handleSubmit((data) => createDeliverableMutation.mutate({ phaseId: selectedPhase?.id, data }))} className="space-y-3">
+                      <FormField control={deliverableForm.control} name="name" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name</FormLabel>
+                          <FormControl><Input {...field} placeholder="Deliverable name" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={deliverableForm.control} name="description" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl><Textarea {...field} placeholder="Description" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField control={deliverableForm.control} name="dueDate" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Due Date</FormLabel>
+                            <FormControl><Input type="date" {...field} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={deliverableForm.control} name="status" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="submitted">Submitted</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setIsAddDeliverableOpen(false)}>Cancel</Button>
+                        <Button type="submit" size="sm" disabled={createDeliverableMutation.isPending}>
+                          {createDeliverableMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Add
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
+            )}
+
+            {isLoadingDeliverables ? (
+              <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            ) : !deliverables || deliverables.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <ClipboardList className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                <p>No deliverables yet.</p>
+                <p className="text-sm">Click "Add Deliverable" to create one.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deliverables.map((d: any) => (
+                    <TableRow key={d.id}>
+                      <TableCell>
+                        <p className="font-medium">{d.name}</p>
+                        <p className="text-xs text-muted-foreground">{d.description}</p>
+                      </TableCell>
+                      <TableCell>{formatDate(d.dueDate || d.due_date)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={
+                          d.status === 'approved' ? 'bg-green-50 text-green-700' :
+                          d.status === 'submitted' ? 'bg-blue-50 text-blue-700' :
+                          d.status === 'in_progress' ? 'bg-amber-50 text-amber-700' :
+                          d.status === 'rejected' ? 'bg-red-50 text-red-700' :
+                          'bg-gray-50 text-gray-600'
+                        }>
+                          {d.status?.charAt(0).toUpperCase() + d.status?.slice(1).replace('_', ' ')}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

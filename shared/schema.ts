@@ -2277,7 +2277,7 @@ export const insertProjectPhaseSchema = createInsertSchema(projectPhases, {
   targetEndDate: z.string(),
   actualEndDate: z.string().optional(),
   status: z.enum(['pending', 'in_progress', 'completed', 'blocked']),
-  name: z.enum(['Design', 'Procurement', 'Manufacturing', 'Quality']),
+  name: z.string().min(1),
 });
 
 export const insertProjectMemberSchema = createInsertSchema(projectMembers, {
