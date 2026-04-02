@@ -4955,6 +4955,26 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot create PO: PO preparation status is '${prep.status}', expected 'ready_for_po_creation'.`);
       }
 
+      const bomCheck = await db.execute(
+        sql`SELECT bh.id, bh.bom_number, bh.status, bh.revision_code
+            FROM epc_bom_headers bh
+            WHERE bh.project_item_id = ${prep.project_item_id} AND bh.is_current = true
+            ORDER BY bh.id DESC LIMIT 1`
+      );
+      let bomHeaderId: number | null = null;
+      let bomLineId: number | null = null;
+      if (bomCheck.rows.length > 0) {
+        const bom = bomCheck.rows[0] as any;
+        if (!['released', 'locked'].includes(bom.status)) {
+          return sendBusinessError(res, `Cannot create PO: BOM ${bom.bom_number} (Rev ${bom.revision_code}) is '${bom.status}'. BOM must be Released or Locked before a Purchase Order can be created.`);
+        }
+        bomHeaderId = bom.id;
+        const bomLineMatch = await db.execute(
+          sql`SELECT id FROM epc_bom_lines WHERE bom_header_id = ${bom.id} AND component_item_id = ${prep.master_item_id} LIMIT 1`
+        );
+        if (bomLineMatch.rows.length > 0) bomLineId = (bomLineMatch.rows[0] as any).id;
+      }
+
       const existingPO = await db.execute(
         sql`SELECT id, po_number, status FROM epc_purchase_orders 
             WHERE po_preparation_id = ${poPrepId} AND status NOT IN ('cancelled', 'superseded')`
@@ -4985,6 +5005,8 @@ export function setupProjectRoutes(app: express.Express) {
           deliveryTerms: deliveryTerms || null,
           poNotes: poNotes || null,
           status: 'draft',
+          sourceBomHeaderId: bomHeaderId,
+          sourceBomLineId: bomLineId,
           createdBy: userId,
         }).returning();
         newPoId = newPO.id;
@@ -5001,6 +5023,7 @@ export function setupProjectRoutes(app: express.Express) {
           quantity: prep.quantity,
           unitCost: prep.estimated_unit_cost || null,
           totalCost: prep.estimated_total_cost || null,
+          sourceBomLineId: bomLineId,
           procurementNotes: prep.procurement_notes || null,
         });
 
@@ -5337,6 +5360,26 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot create WO: WO preparation status is '${prep.status}', expected 'ready_for_wo_creation'.`);
       }
 
+      const bomCheck = await db.execute(
+        sql`SELECT bh.id, bh.bom_number, bh.status, bh.revision_code
+            FROM epc_bom_headers bh
+            WHERE bh.project_item_id = ${prep.project_item_id} AND bh.is_current = true
+            ORDER BY bh.id DESC LIMIT 1`
+      );
+      let bomHeaderId: number | null = null;
+      let bomLineId: number | null = null;
+      if (bomCheck.rows.length > 0) {
+        const bom = bomCheck.rows[0] as any;
+        if (!['released', 'locked'].includes(bom.status)) {
+          return sendBusinessError(res, `Cannot create WO: BOM ${bom.bom_number} (Rev ${bom.revision_code}) is '${bom.status}'. BOM must be Released or Locked before a Work Order can be created.`);
+        }
+        bomHeaderId = bom.id;
+        const bomLineMatch = await db.execute(
+          sql`SELECT id FROM epc_bom_lines WHERE bom_header_id = ${bom.id} AND component_item_id = ${prep.master_item_id} LIMIT 1`
+        );
+        if (bomLineMatch.rows.length > 0) bomLineId = (bomLineMatch.rows[0] as any).id;
+      }
+
       const existingWO = await db.execute(
         sql`SELECT id, wo_number, status FROM epc_work_orders 
             WHERE wo_preparation_id = ${woPrepId} AND status NOT IN ('cancelled', 'superseded')`
@@ -5372,6 +5415,8 @@ export function setupProjectRoutes(app: express.Express) {
           manufacturingNotes: prep.manufacturing_notes || null,
           woNotes: woNotes || null,
           status: 'draft',
+          sourceBomHeaderId: bomHeaderId,
+          sourceBomLineId: bomLineId,
           createdBy: userId,
         }).returning();
         newWoId = newWO.id;
@@ -5389,6 +5434,7 @@ export function setupProjectRoutes(app: express.Express) {
           quantity: prep.quantity,
           unitCost: prep.estimated_unit_cost || null,
           totalCost: prep.estimated_total_cost || null,
+          sourceBomLineId: bomLineId,
           manufacturingNotes: prep.manufacturing_notes || null,
         });
 
@@ -9483,8 +9529,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const header = headerResult.rows[0] as any;
 
-      if (header.status !== 'released') {
-        return sendBusinessError(res, `BOM must be released to preview explosion. Current status: '${header.status}'.`);
+      if (!['released', 'locked'].includes(header.status)) {
+        return sendBusinessError(res, `BOM must be Released or Locked to preview explosion. Current status: '${header.status}'.`);
       }
 
       const parentItemResult = await db.execute(sql`SELECT * FROM project_items WHERE id = ${header.project_item_id}`);
@@ -9664,8 +9710,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const header = headerResult.rows[0] as any;
 
-      if (header.status !== 'released') {
-        return sendBusinessError(res, `BOM must be released to explode. Current status: '${header.status}'.`);
+      if (!['released', 'locked'].includes(header.status)) {
+        return sendBusinessError(res, `BOM must be Released or Locked to explode. Current status: '${header.status}'.`);
       }
 
       const parentItemResult = await db.execute(sql`SELECT * FROM project_items WHERE id = ${header.project_item_id}`);
