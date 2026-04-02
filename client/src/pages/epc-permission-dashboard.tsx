@@ -229,7 +229,16 @@ export default function EpcPermissionDashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color, bg, sub }: { icon: any; label: string; value: number; color: string; bg: string; sub?: string }) {
+interface StatCardProps {
+  icon: any;
+  label: string;
+  value: number;
+  color: string;
+  bg: string;
+  sub?: string;
+}
+
+function StatCard({ icon: Icon, label, value, color, bg, sub }: StatCardProps) {
   return (
     <Card>
       <CardContent className="p-3">
