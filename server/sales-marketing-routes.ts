@@ -8,7 +8,7 @@ import { OfferPdfGenerator } from './offer-pdf-generator';
 import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
-import { storeQuotationPdfArtifact, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifacts, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
+import { storeQuotationPdfArtifact, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifact, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
 
 const templateUploadDir = path.join(process.cwd(), 'uploads', 'offer-templates');
 if (!fs.existsSync(templateUploadDir)) {

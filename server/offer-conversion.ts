@@ -4,11 +4,7 @@ import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
-import { freezeConfirmedArtifacts, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, getActiveArtifact } from './utils/quotation-pdf-artifact';
-import { OfferPdfGenerator } from './offer-pdf-generator';
-import * as fs from 'fs';
-import { offerTemplates } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
 
 export interface EpcParams {
   continentCode: string;
@@ -609,78 +605,15 @@ export async function executeOfferConversion(
       [snapshotId]
     );
 
-    let existingCombined = await getActiveArtifact(offerId, offer.revision || 0, 'combined');
-    if (!existingCombined) {
-      try {
-        const offerItems = await client.query(`SELECT * FROM offer_items WHERE offer_id = $1 ORDER BY id`, [offerId]);
-        const generator = new OfferPdfGenerator({
-          offerNumber: offer.offer_number,
-          revision: offer.revision || 0,
-          createdAt: offer.created_at ? new Date(offer.created_at).toISOString() : new Date().toISOString(),
-          customerName: offer.customer_name,
-          customerEmail: offer.customer_email || '',
-          customerAddress: offer.customer_address || '',
-          contactPerson: offer.contact_person || '',
-          subject: offer.subject,
-          currency: offer.currency,
-          subtotal: offer.subtotal,
-          discountPercent: offer.discount_percent || '0',
-          discountAmount: offer.discount_amount || '0',
-          taxPercent: offer.tax_percent || '0',
-          taxAmount: offer.tax_amount || '0',
-          totalAmount: offer.total_amount,
-          validUntil: offer.valid_until ? new Date(offer.valid_until).toISOString() : '',
-          paymentTerms: offer.payment_terms || '',
-          deliveryTerms: offer.delivery_terms || '',
-          notes: offer.notes || '',
-          termsAndConditions: offer.terms_and_conditions || '',
-          items: offerItems.rows.map((item: any) => ({
-            description: item.description,
-            productCode: item.product_code || '',
-            unit: item.unit,
-            quantity: item.quantity,
-            unitPrice: item.unit_price,
-            discountPercent: item.discount_percent || '0',
-            totalPrice: item.total_price,
-            hsnSacCode: item.hsn_sac_code || '',
-            isSubItem: item.is_sub_item || false,
-          })),
-        }, { priceMode: 'combined' });
-
-        let templatePath = offer.template_pdf_path;
-        let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
-        if (!templatePath || !fs.existsSync(templatePath)) {
-          const offerLang = offer.language || 'English';
-          const [autoTemplate] = await db.select().from(offerTemplates).where(
-            and(eq(offerTemplates.subject, offer.subject), eq(offerTemplates.language, offerLang), eq(offerTemplates.isActive, true))
-          ).limit(1);
-          if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
-            templatePath = autoTemplate.filePath;
-            templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
-          }
-        }
-
-        let pdfBuffer: Buffer;
-        if (templatePath && fs.existsSync(templatePath)) {
-          pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
-        } else {
-          pdfBuffer = await generator.generateToBuffer();
-        }
-
-        await storeQuotationPdfArtifact(pdfBuffer, offerId, offer.offer_number, offer.revision || 0, 'combined', userId);
-        console.log(`[offer-conversion] Auto-generated combined PDF artifact for offer ${offer.offer_number} before confirmation`);
-      } catch (pdfErr) {
-        console.error(`[offer-conversion] Failed to auto-generate PDF artifact for offer ${offerId}:`, pdfErr);
-      }
+    const confirmedArtifactId = await freezeConfirmedArtifact(offerId, offer.revision || 0);
+    if (!confirmedArtifactId) {
+      console.warn(`[offer-conversion] No combined PDF artifact found for offer ${offer.offer_number} rev ${offer.revision || 0} — EPC attachment skipped. Generate the PDF before confirming.`);
     }
-
-    const frozenIds = await freezeConfirmedArtifacts(offerId, offer.revision || 0);
-    console.log(`[offer-conversion] Frozen ${frozenIds.length} confirmed artifact(s) for offer ${offer.offer_number}`);
 
     await client.query('COMMIT');
 
-    if (frozenIds.length > 0) {
-      const primaryArtifactId = frozenIds[0];
+    if (confirmedArtifactId) {
+      const primaryArtifactId = confirmedArtifactId;
       try {
         const attachResult = await attachConfirmedArtifactToEpc(
           primaryArtifactId, project.id, operationalCode, offerId, offer.offer_number, userId

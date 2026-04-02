@@ -107,19 +107,28 @@ export async function downloadArtifactBuffer(gcsObjectPath: string): Promise<Buf
   return contents;
 }
 
-export async function freezeConfirmedArtifacts(offerId: number, revision: number): Promise<number[]> {
-  const result = await pool.query(
-    `UPDATE quotation_pdf_artifacts
-     SET is_confirmed = true, confirmed_at = NOW(), epc_attachment_status = 'pending'
+export async function freezeConfirmedArtifact(offerId: number, revision: number): Promise<number | null> {
+  const candidates = await pool.query(
+    `SELECT id FROM quotation_pdf_artifacts
      WHERE offer_id = $1 AND revision = $2 AND price_mode = 'combined' AND artifact_status = 'active' AND is_confirmed = false
-     RETURNING id`,
+     ORDER BY generated_at DESC
+     LIMIT 1`,
     [offerId, revision]
   );
-  const ids = result.rows.map((r: any) => r.id);
-  if (ids.length > 0) {
-    console.log(`[quotation-pdf] Frozen confirmed artifacts for offer ${offerId} rev ${revision}: [${ids.join(', ')}]`);
+  if (candidates.rows.length === 0) {
+    console.log(`[quotation-pdf] No active combined artifact to confirm for offer ${offerId} rev ${revision}`);
+    return null;
   }
-  return ids;
+  const selectedId = candidates.rows[0].id;
+
+  await pool.query(
+    `UPDATE quotation_pdf_artifacts
+     SET is_confirmed = true, confirmed_at = NOW(), epc_attachment_status = 'pending'
+     WHERE id = $1`,
+    [selectedId]
+  );
+  console.log(`[quotation-pdf] Confirmed artifact ${selectedId} for offer ${offerId} rev ${revision}`);
+  return selectedId;
 }
 
 export async function attachConfirmedArtifactToEpc(
