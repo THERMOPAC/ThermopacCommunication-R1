@@ -21,8 +21,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FileText, Plus, Pencil, Trash2, Loader2, Search, Eye, Package, Download,
   CheckCircle, XCircle, Send, Copy, Calendar, ChevronDown, ChevronRight, GitBranch, X, Paperclip,
-  Rocket, ExternalLink, Lock, AlertTriangle
+  Rocket, ExternalLink, Lock, AlertTriangle, Archive, Shield, RefreshCw
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Product } from "@shared/schema";
 
 const offerItemSchema = z.object({
@@ -70,6 +71,169 @@ const statusColors: Record<string, string> = {
   Converted: "bg-purple-100 text-purple-800",
   "Order Confirmed": "bg-indigo-100 text-indigo-800",
 };
+
+interface PdfArtifact {
+  id: number;
+  revision: number;
+  price_mode: string;
+  artifact_status: string;
+  is_confirmed: boolean;
+  confirmed_at: string | null;
+  epc_attachment_status: string | null;
+  epc_attachment_id: number | null;
+  file_size_bytes: number;
+  generated_at: string;
+}
+
+function PdfDownloadDialog({ offerId, onClose, onDownload }: {
+  offerId: number | null;
+  onClose: () => void;
+  onDownload: (id: number, mode: 'combined' | 'breakup' | 'technical') => void;
+}) {
+  const { toast } = useToast();
+  const { data: artifacts, isLoading: artifactsLoading } = useQuery<PdfArtifact[]>({
+    queryKey: ['/api/sales-marketing/offers', offerId, 'artifacts'],
+    queryFn: () => fetch(`/api/sales-marketing/offers/${offerId}/artifacts`, { credentials: 'include' }).then(r => r.json()),
+    enabled: offerId !== null,
+  });
+
+  const repairMutation = useMutation({
+    mutationFn: async (artifactId: number) => {
+      const res = await apiRequest('POST', `/api/sales-marketing/artifacts/${artifactId}/repair-epc-attachment`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: 'EPC attachment repaired successfully' });
+      if (offerId) queryClient.invalidateQueries({ queryKey: ['/api/sales-marketing/offers', offerId, 'artifacts'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Repair failed', description: getErrorMessage(err), variant: 'destructive' });
+    },
+  });
+
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  };
+
+  const confirmedArtifacts = artifacts?.filter(a => a.is_confirmed) || [];
+  const activeArtifacts = artifacts?.filter(a => !a.is_confirmed && a.artifact_status === 'active') || [];
+
+  return (
+    <Dialog open={offerId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Quotation PDF</DialogTitle>
+          <DialogDescription>Generate or download stored quotation PDFs</DialogDescription>
+        </DialogHeader>
+        <Tabs defaultValue="generate" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="generate">Generate PDF</TabsTrigger>
+            <TabsTrigger value="history">
+              Stored ({artifacts?.length || 0})
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="generate" className="space-y-3 pt-2">
+            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => offerId && onDownload(offerId, 'combined')}>
+              <div className="text-left">
+                <div className="font-medium">Combined Price</div>
+                <div className="text-xs text-muted-foreground">List all sub-products but show only the main product total price</div>
+              </div>
+            </Button>
+            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => offerId && onDownload(offerId, 'breakup')}>
+              <div className="text-left">
+                <div className="font-medium">Breakup Price</div>
+                <div className="text-xs text-muted-foreground">Show main product with sub-product details and individual prices</div>
+              </div>
+            </Button>
+            <Button variant="outline" className="w-full justify-start h-auto py-3 px-4" onClick={() => offerId && onDownload(offerId, 'technical')}>
+              <div className="text-left">
+                <div className="font-medium">Technical Offer</div>
+                <div className="text-xs text-muted-foreground">Same as Combined Price but without any pricing - technical specification only</div>
+              </div>
+            </Button>
+          </TabsContent>
+          <TabsContent value="history" className="pt-2">
+            {artifactsLoading ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            ) : !artifacts?.length ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No stored PDF artifacts yet. Generate a PDF to create one.</p>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {confirmedArtifacts.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Lock className="h-3.5 w-3.5 text-indigo-600" />
+                      <span className="text-xs font-semibold text-indigo-600 uppercase">Confirmed</span>
+                    </div>
+                    {confirmedArtifacts.map(a => (
+                      <div key={a.id} className="flex items-center justify-between rounded-md border p-3 mb-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">{a.price_mode}</span>
+                            <Badge variant="secondary" className="text-[10px]">Rev {a.revision}</Badge>
+                            {a.epc_attachment_status === 'attached' && (
+                              <Badge className="bg-green-100 text-green-700 text-[10px]"><Shield className="h-3 w-3 mr-0.5" /> EPC</Badge>
+                            )}
+                            {a.epc_attachment_status === 'failed' && (
+                              <Badge className="bg-red-100 text-red-700 text-[10px]"><AlertTriangle className="h-3 w-3 mr-0.5" /> Failed</Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatBytes(a.file_size_bytes)} · Confirmed {a.confirmed_at ? new Date(a.confirmed_at).toLocaleDateString() : ''}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {a.epc_attachment_status === 'failed' && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Repair EPC attachment"
+                              disabled={repairMutation.isPending}
+                              onClick={() => repairMutation.mutate(a.id)}>
+                              <RefreshCw className={`h-3.5 w-3.5 ${repairMutation.isPending ? 'animate-spin' : ''}`} />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-7 w-7" title="Download"
+                            onClick={() => offerId && window.open(`/api/sales-marketing/offers/${offerId}/pdf?priceMode=${a.price_mode}`, '_blank')}>
+                            <Download className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activeArtifacts.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-semibold text-muted-foreground uppercase">Active</span>
+                    </div>
+                    {activeArtifacts.map(a => (
+                      <div key={a.id} className="flex items-center justify-between rounded-md border p-3 mb-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium capitalize">{a.price_mode}</span>
+                            <Badge variant="secondary" className="text-[10px]">Rev {a.revision}</Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatBytes(a.file_size_bytes)} · Generated {new Date(a.generated_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Download"
+                          onClick={() => offerId && window.open(`/api/sales-marketing/offers/${offerId}/pdf?priceMode=${a.price_mode}`, '_blank')}>
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function OffersContent() {
   const { toast } = useToast();
@@ -1287,34 +1451,11 @@ export function OffersContent() {
             </div>
           </DialogContent>
         </Dialog>
-        <Dialog open={pdfDownloadOfferId !== null} onOpenChange={(open) => { if (!open) setPdfDownloadOfferId(null); }}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Download PDF</DialogTitle>
-              <DialogDescription>How would you like to show the pricing?</DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-3 py-2">
-              <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'combined')}>
-                <div className="text-left">
-                  <div className="font-medium">Combined Price</div>
-                  <div className="text-xs text-muted-foreground">List all sub-products but show only the main product total price</div>
-                </div>
-              </Button>
-              <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'breakup')}>
-                <div className="text-left">
-                  <div className="font-medium">Breakup Price</div>
-                  <div className="text-xs text-muted-foreground">Show main product with sub-product details and individual prices</div>
-                </div>
-              </Button>
-              <Button variant="outline" className="justify-start h-auto py-3 px-4" onClick={() => pdfDownloadOfferId && handleDownloadPdf(pdfDownloadOfferId, 'technical')}>
-                <div className="text-left">
-                  <div className="font-medium">Technical Offer</div>
-                  <div className="text-xs text-muted-foreground">Same as Combined Price but without any pricing - technical specification only</div>
-                </div>
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PdfDownloadDialog
+          offerId={pdfDownloadOfferId}
+          onClose={() => setPdfDownloadOfferId(null)}
+          onDownload={handleDownloadPdf}
+        />
       </div>
   );
 

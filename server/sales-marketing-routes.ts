@@ -8,6 +8,7 @@ import { OfferPdfGenerator } from './offer-pdf-generator';
 import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { storeQuotationPdfArtifact, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifacts, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
 
 const templateUploadDir = path.join(process.cwd(), 'uploads', 'offer-templates');
 if (!fs.existsSync(templateUploadDir)) {
@@ -1307,7 +1308,25 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (!offer) return res.status(404).json({ error: 'Offer not found' });
       const allItems = await storage.getOfferItems(id);
       const priceMode = (req.query.priceMode as string) || 'combined';
+      const forceRegenerate = req.query.regenerate === 'true';
       const items = allItems;
+      const userId = (req.user as any)?.id || 0;
+
+      if (!forceRegenerate && (offer.status === 'Order Confirmed' || offer.status === 'Sent')) {
+        const existingArtifact = await getActiveArtifact(id, offer.revision || 0, priceMode);
+        if (existingArtifact) {
+          try {
+            const buffer = await downloadArtifactBuffer(existingArtifact.gcs_object_path);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename="${offer.offerNumber.replace(/\//g, '-')}_Quotation.pdf"`);
+            res.setHeader('X-Artifact-Id', String(existingArtifact.id));
+            res.setHeader('X-Artifact-Checksum', existingArtifact.checksum_sha256);
+            return res.end(buffer);
+          } catch (gcsErr) {
+            console.warn(`[quotation-pdf] Failed to download stored artifact ${existingArtifact.id}, regenerating:`, gcsErr);
+          }
+        }
+      }
 
       if (offer.status === 'Draft') {
         await storage.updateOffer(id, { status: 'Sent' });
@@ -1365,14 +1384,95 @@ export function setupSalesMarketingRoutes(app: Express) {
         }
       }
 
+      let pdfBuffer: Buffer;
       if (templatePath && fs.existsSync(templatePath)) {
-        await generator.generateWithTemplate(res, templatePath, templatePageRange);
+        pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
       } else {
-        await generator.generate(res);
+        pdfBuffer = await generator.generateToBuffer();
       }
+
+      let artifactId: number | undefined;
+      let artifactChecksum: string | undefined;
+      try {
+        const result = await storeQuotationPdfArtifact(
+          pdfBuffer, id, offer.offerNumber, offer.revision || 0, priceMode, userId
+        );
+        artifactId = result.artifactId;
+        artifactChecksum = result.checksum;
+        console.log(`[quotation-pdf] Artifact ${artifactId} created for offer ${offer.offerNumber} rev ${offer.revision} mode ${priceMode}`);
+      } catch (storeErr) {
+        console.error(`[quotation-pdf] Failed to store artifact for offer ${id}, serving directly:`, storeErr);
+      }
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${offer.offerNumber.replace(/\//g, '-')}_Quotation.pdf"`);
+      if (artifactId) res.setHeader('X-Artifact-Id', String(artifactId));
+      if (artifactChecksum) res.setHeader('X-Artifact-Checksum', artifactChecksum);
+      res.end(pdfBuffer);
     } catch (error) {
       console.error('Error generating offer PDF:', error);
       res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+  });
+
+  router.get('/offers/:id/artifacts', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const artifacts = await listArtifactsForOffer(id);
+      res.json(artifacts);
+    } catch (error) {
+      console.error('Error fetching artifacts:', error);
+      res.status(500).json({ error: 'Failed to fetch artifacts' });
+    }
+  });
+
+  router.post('/artifacts/:artifactId/repair-epc-attachment', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const artifactId = parseInt(req.params.artifactId);
+      if (isNaN(artifactId)) return res.status(400).json({ error: 'Invalid artifact ID' });
+      const user = req.user as any;
+      const REPAIR_ROLES = ['Superuser', 'General Manager', 'Senior Manager', 'Manager'];
+      if (!REPAIR_ROLES.includes(user.role)) {
+        return res.status(403).json({ error: 'Access denied — only Manager or above can repair EPC attachments' });
+      }
+
+      const artifact = await getArtifactById(artifactId);
+      if (!artifact) return res.status(404).json({ error: 'Artifact not found' });
+      if (artifact.epc_attachment_status !== 'failed') {
+        return res.status(400).json({ error: `Cannot repair artifact with status '${artifact.epc_attachment_status}'` });
+      }
+      if (!artifact.is_confirmed) {
+        return res.status(400).json({ error: 'Only confirmed artifacts can be attached to EPC' });
+      }
+
+      const { pool: dbPool } = await import('./db');
+      const snapResult = await dbPool.query(
+        `SELECT s.project_id, p.operational_code FROM offer_conversion_snapshots s
+         JOIN projects p ON p.id = s.project_id
+         WHERE s.offer_id = $1 AND s.conversion_status = 'completed'
+         LIMIT 1`,
+        [artifact.offer_id]
+      );
+      if (snapResult.rows.length === 0) {
+        return res.status(400).json({ error: 'No completed conversion found for this offer' });
+      }
+      const { project_id, operational_code } = snapResult.rows[0];
+      const offerResult = await dbPool.query(`SELECT offer_number FROM offers WHERE id = $1`, [artifact.offer_id]);
+      const offerNumber = offerResult.rows[0]?.offer_number || '';
+
+      const result = await attachConfirmedArtifactToEpc(
+        artifactId, project_id, operational_code, artifact.offer_id, offerNumber, user.id
+      );
+
+      if (result.success) {
+        res.json({ success: true, epcAttachmentId: result.epcAttachmentId });
+      } else {
+        res.status(500).json({ error: result.error });
+      }
+    } catch (error) {
+      console.error('Error repairing EPC attachment:', error);
+      res.status(500).json({ error: 'Failed to repair EPC attachment' });
     }
   });
 

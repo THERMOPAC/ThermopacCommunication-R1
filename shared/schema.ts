@@ -11932,3 +11932,26 @@ export const offerConversionSnapshots = pgTable('offer_conversion_snapshots', {
 export const insertOfferConversionSnapshotSchema = createInsertSchema(offerConversionSnapshots).omit({ id: true });
 export type OfferConversionSnapshot = typeof offerConversionSnapshots.$inferSelect;
 export type InsertOfferConversionSnapshot = z.infer<typeof insertOfferConversionSnapshotSchema>;
+
+export const quotationPdfArtifacts = pgTable('quotation_pdf_artifacts', {
+  id: serial('id').primaryKey(),
+  offerId: integer('offer_id').notNull().references(() => offers.id),
+  revision: integer('revision').notNull(),
+  priceMode: varchar('price_mode', { length: 20 }).notNull(),
+  gcsBucket: varchar('gcs_bucket', { length: 100 }).notNull().default('thermopac_storage'),
+  gcsObjectPath: varchar('gcs_object_path', { length: 500 }).notNull().unique(),
+  checksumSha256: varchar('checksum_sha256', { length: 64 }).notNull(),
+  fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }).notNull(),
+  artifactStatus: varchar('artifact_status', { length: 20 }).notNull().default('active'),
+  isConfirmed: boolean('is_confirmed').notNull().default(false),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  epcAttachmentStatus: varchar('epc_attachment_status', { length: 20 }),
+  epcAttachmentId: integer('epc_attachment_id').references(() => epcDocumentAttachments.id),
+  epcAttachmentError: text('epc_attachment_error'),
+  generatedBy: integer('generated_by').notNull().references(() => users.id),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertQuotationPdfArtifactSchema = createInsertSchema(quotationPdfArtifacts).omit({ id: true, generatedAt: true });
+export type QuotationPdfArtifact = typeof quotationPdfArtifacts.$inferSelect;
+export type InsertQuotationPdfArtifact = z.infer<typeof insertQuotationPdfArtifactSchema>;

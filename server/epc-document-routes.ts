@@ -32,11 +32,20 @@ const ENTITY_TABLE_MAP: Record<string, { table: string; numberColumn: string }> 
   CR:  { table: 'epc_commissioning_readiness', numberColumn: 'cr_number' },
   BR:  { table: 'epc_billing_readiness', numberColumn: 'br_number' },
   INV: { table: 'epc_invoices', numberColumn: 'invoice_number' },
+  QTN: { table: 'offers', numberColumn: 'offer_number' },
 };
 
 async function lookupParentEntity(docType: string, parentEntityId: number, projectId: number) {
   const mapping = ENTITY_TABLE_MAP[docType];
   if (!mapping) return null;
+  if (docType === 'QTN') {
+    const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, status FROM ${mapping.table} WHERE id = $1`;
+    const result = await db.execute(sql.raw(queryText, [parentEntityId]));
+    if (result.rows.length > 0) {
+      return { ...(result.rows[0] as any), project_id: projectId };
+    }
+    return null;
+  }
   const extraCols = (docType === 'DWG' || docType === 'BOM') ? ', revision_code, is_current' : '';
   const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, project_id, status${extraCols} FROM ${mapping.table} WHERE id = $1 AND project_id = $2`;
   const result = await db.execute(sql.raw(queryText, [parentEntityId, projectId]));

@@ -782,6 +782,35 @@ export class OfferPdfGenerator {
     });
   }
 
+  public async generateToBuffer(): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      this.doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      this.doc.on('end', () => resolve(Buffer.concat(chunks)));
+      this.doc.on('error', reject);
+
+      this.drawHeader();
+      this.drawOfferInfo();
+      this.drawCustomerInfo();
+      this.drawSubject();
+      this.drawDearLine();
+      this.drawItemsTable();
+      if (this.priceMode !== 'technical') {
+        this.drawTotals();
+      }
+      this.drawTerms();
+      this.drawSignature();
+
+      const range = this.doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        this.doc.switchToPage(i);
+        this.drawPageFooter();
+      }
+      this.doc.flushPages();
+      this.doc.end();
+    });
+  }
+
   public async generate(res: Response): Promise<void> {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
@@ -812,46 +841,50 @@ export class OfferPdfGenerator {
     this.doc.end();
   }
 
+  public async generateWithTemplateToBuffer(templatePdfPath: string, pageRange?: { startPage?: number | null; endPage?: number | null }): Promise<Buffer> {
+    const templateBytes = fs.readFileSync(templatePdfPath);
+    const templateDoc = await PDFLibDocument.load(templateBytes);
+    const mergedPdf = await PDFLibDocument.create();
+
+    const part1Bytes = await this.generatePartBuffer([
+      this.drawHeader, this.drawOfferInfo, this.drawCustomerInfo,
+      this.drawSubject, this.drawDearLine,
+    ]);
+    const part2Methods = this.priceMode === 'technical'
+      ? [this.drawItemsTable, this.drawTerms, this.drawSignature]
+      : [this.drawItemsTable, this.drawTotals, this.drawTerms, this.drawSignature];
+    const part2Bytes = await this.generatePartBuffer(part2Methods);
+
+    const part1Doc = await PDFLibDocument.load(part1Bytes);
+    const part2Doc = await PDFLibDocument.load(part2Bytes);
+
+    const p1Pages = await mergedPdf.copyPages(part1Doc, part1Doc.getPageIndices());
+    p1Pages.forEach((page) => mergedPdf.addPage(page));
+
+    const totalTemplatePages = templateDoc.getPageCount();
+    const start = Math.max(0, (pageRange?.startPage || 1) - 1);
+    const end = Math.min(totalTemplatePages, pageRange?.endPage || totalTemplatePages);
+    const pageIndices = Array.from({ length: end - start }, (_, i) => start + i);
+
+    const tplPages = await mergedPdf.copyPages(templateDoc, pageIndices);
+    tplPages.forEach((page) => mergedPdf.addPage(page));
+
+    const p2Pages = await mergedPdf.copyPages(part2Doc, part2Doc.getPageIndices());
+    p2Pages.forEach((page) => mergedPdf.addPage(page));
+
+    const mergedBytes = await mergedPdf.save();
+    return Buffer.from(mergedBytes);
+  }
+
   public async generateWithTemplate(res: Response, templatePdfPath: string, pageRange?: { startPage?: number | null; endPage?: number | null }): Promise<void> {
     try {
-      const templateBytes = fs.readFileSync(templatePdfPath);
-      const templateDoc = await PDFLibDocument.load(templateBytes);
-      const mergedPdf = await PDFLibDocument.create();
-
-      const part1Bytes = await this.generatePartBuffer([
-        this.drawHeader, this.drawOfferInfo, this.drawCustomerInfo,
-        this.drawSubject, this.drawDearLine,
-      ]);
-      const part2Methods = this.priceMode === 'technical'
-        ? [this.drawItemsTable, this.drawTerms, this.drawSignature]
-        : [this.drawItemsTable, this.drawTotals, this.drawTerms, this.drawSignature];
-      const part2Bytes = await this.generatePartBuffer(part2Methods);
-
-      const part1Doc = await PDFLibDocument.load(part1Bytes);
-      const part2Doc = await PDFLibDocument.load(part2Bytes);
-
-      const p1Pages = await mergedPdf.copyPages(part1Doc, part1Doc.getPageIndices());
-      p1Pages.forEach((page) => mergedPdf.addPage(page));
-
-      const totalTemplatePages = templateDoc.getPageCount();
-      const start = Math.max(0, (pageRange?.startPage || 1) - 1);
-      const end = Math.min(totalTemplatePages, pageRange?.endPage || totalTemplatePages);
-      const pageIndices = Array.from({ length: end - start }, (_, i) => start + i);
-
-      const tplPages = await mergedPdf.copyPages(templateDoc, pageIndices);
-      tplPages.forEach((page) => mergedPdf.addPage(page));
-
-      const p2Pages = await mergedPdf.copyPages(part2Doc, part2Doc.getPageIndices());
-      p2Pages.forEach((page) => mergedPdf.addPage(page));
-
-      const mergedBytes = await mergedPdf.save();
-
+      const pdfBuffer = await this.generateWithTemplateToBuffer(templatePdfPath, pageRange);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
         `attachment; filename="${this.data.offerNumber.replace(/\//g, '-')}_Quotation.pdf"`
       );
-      res.end(Buffer.from(mergedBytes));
+      res.end(pdfBuffer);
     } catch (error) {
       console.error('Error merging PDFs:', error);
       this.generate(res);

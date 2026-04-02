@@ -4,6 +4,11 @@ import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
+import { freezeConfirmedArtifacts, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact, getActiveArtifact } from './utils/quotation-pdf-artifact';
+import { OfferPdfGenerator } from './offer-pdf-generator';
+import * as fs from 'fs';
+import { offerTemplates } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 export interface EpcParams {
   continentCode: string;
@@ -604,7 +609,108 @@ export async function executeOfferConversion(
       [snapshotId]
     );
 
+    let existingCombined = await getActiveArtifact(offerId, offer.revision || 0, 'combined');
+    if (!existingCombined) {
+      try {
+        const offerItems = await client.query(`SELECT * FROM offer_items WHERE offer_id = $1 ORDER BY id`, [offerId]);
+        const generator = new OfferPdfGenerator({
+          offerNumber: offer.offer_number,
+          revision: offer.revision || 0,
+          createdAt: offer.created_at ? new Date(offer.created_at).toISOString() : new Date().toISOString(),
+          customerName: offer.customer_name,
+          customerEmail: offer.customer_email || '',
+          customerAddress: offer.customer_address || '',
+          contactPerson: offer.contact_person || '',
+          subject: offer.subject,
+          currency: offer.currency,
+          subtotal: offer.subtotal,
+          discountPercent: offer.discount_percent || '0',
+          discountAmount: offer.discount_amount || '0',
+          taxPercent: offer.tax_percent || '0',
+          taxAmount: offer.tax_amount || '0',
+          totalAmount: offer.total_amount,
+          validUntil: offer.valid_until ? new Date(offer.valid_until).toISOString() : '',
+          paymentTerms: offer.payment_terms || '',
+          deliveryTerms: offer.delivery_terms || '',
+          notes: offer.notes || '',
+          termsAndConditions: offer.terms_and_conditions || '',
+          items: offerItems.rows.map((item: any) => ({
+            description: item.description,
+            productCode: item.product_code || '',
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            discountPercent: item.discount_percent || '0',
+            totalPrice: item.total_price,
+            hsnSacCode: item.hsn_sac_code || '',
+            isSubItem: item.is_sub_item || false,
+          })),
+        }, { priceMode: 'combined' });
+
+        let templatePath = offer.template_pdf_path;
+        let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
+        if (!templatePath || !fs.existsSync(templatePath)) {
+          const offerLang = offer.language || 'English';
+          const [autoTemplate] = await db.select().from(offerTemplates).where(
+            and(eq(offerTemplates.subject, offer.subject), eq(offerTemplates.language, offerLang), eq(offerTemplates.isActive, true))
+          ).limit(1);
+          if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
+            templatePath = autoTemplate.filePath;
+            templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+          }
+        }
+
+        let pdfBuffer: Buffer;
+        if (templatePath && fs.existsSync(templatePath)) {
+          pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
+        } else {
+          pdfBuffer = await generator.generateToBuffer();
+        }
+
+        await storeQuotationPdfArtifact(pdfBuffer, offerId, offer.offer_number, offer.revision || 0, 'combined', userId);
+        console.log(`[offer-conversion] Auto-generated combined PDF artifact for offer ${offer.offer_number} before confirmation`);
+      } catch (pdfErr) {
+        console.error(`[offer-conversion] Failed to auto-generate PDF artifact for offer ${offerId}:`, pdfErr);
+      }
+    }
+
+    const frozenIds = await freezeConfirmedArtifacts(offerId, offer.revision || 0);
+    console.log(`[offer-conversion] Frozen ${frozenIds.length} confirmed artifact(s) for offer ${offer.offer_number}`);
+
     await client.query('COMMIT');
+
+    if (frozenIds.length > 0) {
+      const primaryArtifactId = frozenIds[0];
+      try {
+        const attachResult = await attachConfirmedArtifactToEpc(
+          primaryArtifactId, project.id, operationalCode, offerId, offer.offer_number, userId
+        );
+        if (attachResult.success) {
+          console.log(`[offer-conversion] EPC attachment ${attachResult.epcAttachmentId} created for artifact ${primaryArtifactId}`);
+        } else {
+          console.error(`[offer-conversion] EPC attachment failed for artifact ${primaryArtifactId}: ${attachResult.error}`);
+          await pool.query(
+            `INSERT INTO project_workflow_events
+             (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+             VALUES ($1, 'quotation_pdf_attachment_failed', $2, 'offer-conversion', NOW(), false)`,
+            [project.id, JSON.stringify({
+              artifactId: primaryArtifactId, offerId, offerNumber: offer.offer_number,
+              projectId: project.id, operationalCode, error: attachResult.error,
+            })]
+          );
+          const { createEpcTask } = await import('./epc-task-helpers');
+          await createEpcTask({
+            projectId: project.id, entityType: 'project', recordId: project.id,
+            actionCode: 'quotation_pdf_attachment_repair',
+            title: `Quotation PDF attachment failed for project ${operationalCode}`,
+            description: `The confirmed quotation PDF (artifact #${primaryArtifactId}) could not be attached to the EPC project. Error: ${attachResult.error}. Manual repair required.`,
+            assignedTo: epcParams.managerId, createdBy: userId, priority: 'Medium', dueDays: 2,
+          });
+        }
+      } catch (attachErr: any) {
+        console.error(`[offer-conversion] EPC attachment error for artifact ${primaryArtifactId}:`, attachErr);
+      }
+    }
 
     const updatedOffer = await pool.query(`SELECT * FROM offers WHERE id = $1`, [offerId]);
 
