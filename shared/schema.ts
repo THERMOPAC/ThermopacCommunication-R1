@@ -9804,6 +9804,9 @@ export const offers = pgTable('offers', {
   approvedAt: timestamp('approved_at'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  commercialChainId: uuid('commercial_chain_id').notNull().defaultRandom(),
+  parentOfferId: integer('parent_offer_id'),
+  rootOfferId: integer('root_offer_id'),
 });
 
 export const insertOfferSchema = createInsertSchema(offers).omit({

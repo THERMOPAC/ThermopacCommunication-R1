@@ -197,6 +197,12 @@ router.patch('/change-orders/:id', ensureAuthenticated, ensureManager, async (re
     }
 
     if (revisedOfferId !== undefined) {
+      if (revisedOfferId) {
+        const linkResult = await validateAndLinkChain(cco, revisedOfferId);
+        if (linkResult.error) {
+          return res.status(400).json({ error: linkResult.error });
+        }
+      }
       updates.push(`revised_offer_id = $${paramIdx++}`);
       values.push(revisedOfferId);
     }
@@ -284,6 +290,11 @@ async function handleApproval(cco: any, body: any, user: any): Promise<{ error?:
     return { error: `Cannot approve: revised offer is already used by approved change order ${reuseCheck.rows[0].change_order_number}` };
   }
 
+  const chainLinkResult = await validateAndLinkChain(cco, revisedOfferId);
+  if (chainLinkResult.error) {
+    return { error: `Cannot approve: ${chainLinkResult.error}` };
+  }
+
   if (!ecrId) {
     const ecrInsert = await pool.query(
       `INSERT INTO engineering_change_requests
@@ -364,6 +375,71 @@ async function handleApproval(cco: any, body: any, user: any): Promise<{ error?:
   return { data: updateResult.rows[0] };
 }
 
+async function validateAndLinkChain(cco: any, revisedOfferId: number): Promise<{ error?: string }> {
+  const rootOffer = await pool.query(
+    `SELECT id, commercial_chain_id, root_offer_id FROM offers WHERE id = $1`,
+    [cco.original_offer_id]
+  );
+  if (rootOffer.rows.length === 0) {
+    return { error: 'Original offer not found' };
+  }
+  const root = rootOffer.rows[0];
+  const expectedChainId = root.commercial_chain_id;
+  const expectedRootId = root.root_offer_id || root.id;
+
+  const project = await pool.query(
+    `SELECT current_commercial_reference_id, source_offer_id FROM projects WHERE id = $1`,
+    [cco.project_id]
+  );
+  let expectedParentId: number;
+  if (project.rows[0]?.current_commercial_reference_id) {
+    const prevCco = await pool.query(
+      `SELECT revised_offer_id FROM commercial_change_orders WHERE id = $1`,
+      [project.rows[0].current_commercial_reference_id]
+    );
+    expectedParentId = prevCco.rows[0]?.revised_offer_id || cco.original_offer_id;
+  } else {
+    expectedParentId = cco.original_offer_id;
+  }
+
+  const revisedOffer = await pool.query(
+    `SELECT id, commercial_chain_id, parent_offer_id, root_offer_id FROM offers WHERE id = $1`,
+    [revisedOfferId]
+  );
+  if (revisedOffer.rows.length === 0) {
+    return { error: 'Revised offer not found' };
+  }
+  const revised = revisedOffer.rows[0];
+
+  const isDefaultChain = revised.commercial_chain_id !== expectedChainId;
+  const isUnlinkedParent = revised.parent_offer_id === null;
+  const isDefaultRoot = revised.root_offer_id === revised.id || revised.root_offer_id === null;
+
+  if (isUnlinkedParent && isDefaultRoot) {
+    try {
+      await pool.query(
+        `UPDATE offers SET commercial_chain_id = $1, parent_offer_id = $2, root_offer_id = $3 WHERE id = $4`,
+        [expectedChainId, expectedParentId, expectedRootId, revisedOfferId]
+      );
+      console.log(`[cco-chain] Linked offer ${revisedOfferId} into chain ${expectedChainId} (parent=${expectedParentId}, root=${expectedRootId})`);
+    } catch (err: any) {
+      return { error: `Chain linkage failed: ${err.message}` };
+    }
+  } else {
+    if (revised.commercial_chain_id !== expectedChainId) {
+      return { error: 'Cannot link: offer already belongs to another commercial chain or has conflicting chain ID' };
+    }
+    if (revised.parent_offer_id !== null && revised.parent_offer_id !== expectedParentId) {
+      return { error: 'Cannot link: offer parent linkage conflicts with the commercial chain sequence' };
+    }
+    if (revised.root_offer_id !== null && revised.root_offer_id !== expectedRootId) {
+      return { error: 'Cannot link: offer root_offer_id conflicts with the commercial chain' };
+    }
+  }
+
+  return {};
+}
+
 function formatChangeType(type: string): string {
   const labels: Record<string, string> = {
     scope_addition: 'Scope Addition',
@@ -428,6 +504,8 @@ router.get('/change-orders/project/:projectId/summary', ensureAuthenticated, asy
       [projectId]
     );
 
+    const chainTimeline = await buildChainTimeline(proj.source_offer_id, projectId, proj.current_commercial_reference_id);
+
     res.json({
       projectId,
       originalOrderNumber: proj.source_order_number,
@@ -448,10 +526,110 @@ router.get('/change-orders/project/:projectId/summary', ensureAuthenticated, asy
       governingReferenceType,
       governingReference,
       pendingChangeOrder: pendingCco.rows[0] || null,
+      chainTimeline,
     });
   } catch (error: any) {
     console.error('[cco] Error fetching summary:', error);
     res.status(500).json({ error: 'Failed to fetch commercial summary' });
+  }
+});
+
+async function buildChainTimeline(sourceOfferId: number, projectId: number, currentRefId: number | null) {
+  if (!sourceOfferId) return [];
+
+  const rootOffer = await pool.query(
+    `SELECT id, offer_number, total_amount, status, commercial_chain_id, created_at FROM offers WHERE id = $1`,
+    [sourceOfferId]
+  );
+  if (rootOffer.rows.length === 0) return [];
+  const root = rootOffer.rows[0];
+
+  const nodes: any[] = [{
+    offerId: root.id,
+    offerNumber: root.offer_number,
+    totalAmount: parseFloat(root.total_amount || '0'),
+    status: root.status,
+    role: 'root',
+    isGoverning: !currentRefId,
+    ccoNumber: null,
+    ccoSequence: null,
+    createdAt: root.created_at,
+  }];
+
+  const approvedCcos = await pool.query(
+    `SELECT cco.id, cco.change_order_number, cco.sequence, cco.change_type, cco.change_value,
+            cco.revised_offer_id, cco.approved_at,
+            ro.offer_number AS revised_offer_number, ro.total_amount AS revised_total, ro.status AS revised_status
+     FROM commercial_change_orders cco
+     LEFT JOIN offers ro ON ro.id = cco.revised_offer_id
+     WHERE cco.project_id = $1 AND cco.status = 'approved'
+     ORDER BY cco.sequence ASC`,
+    [projectId]
+  );
+
+  for (const cco of approvedCcos.rows) {
+    const isGoverning = currentRefId === cco.id;
+    nodes.push({
+      offerId: cco.revised_offer_id,
+      offerNumber: cco.revised_offer_number,
+      totalAmount: parseFloat(cco.revised_total || '0'),
+      status: cco.revised_status,
+      role: 'revision',
+      isGoverning,
+      ccoNumber: cco.change_order_number,
+      ccoSequence: cco.sequence,
+      changeType: cco.change_type,
+      changeTypeLabel: formatChangeType(cco.change_type),
+      changeValue: parseFloat(cco.change_value || '0'),
+      approvedAt: cco.approved_at,
+    });
+  }
+
+  return nodes;
+}
+
+router.get('/offers/chain/:chainId', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const chainId = req.params.chainId;
+    if (!chainId) return res.status(400).json({ error: 'chainId parameter required' });
+
+    const offers = await pool.query(
+      `SELECT o.id, o.offer_number, o.customer_name, o.subject, o.total_amount, o.status,
+              o.revision, o.commercial_chain_id, o.parent_offer_id, o.root_offer_id,
+              o.created_at, o.updated_at
+       FROM offers o
+       WHERE o.commercial_chain_id = $1::uuid
+       ORDER BY o.id ASC`,
+      [chainId]
+    );
+
+    if (offers.rows.length === 0) {
+      return res.status(404).json({ error: 'No offers found for this chain' });
+    }
+
+    const rootId = offers.rows[0].root_offer_id || offers.rows[0].id;
+    const root = offers.rows.find((o: any) => o.id === rootId) || offers.rows[0];
+
+    res.json({
+      chainId,
+      rootOfferId: rootId,
+      rootOfferNumber: root.offer_number,
+      customerName: root.customer_name,
+      offers: offers.rows.map((o: any) => ({
+        id: o.id,
+        offerNumber: o.offer_number,
+        totalAmount: parseFloat(o.total_amount || '0'),
+        status: o.status,
+        revision: o.revision,
+        parentOfferId: o.parent_offer_id,
+        rootOfferId: o.root_offer_id,
+        isRoot: o.parent_offer_id === null,
+        createdAt: o.created_at,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[cco] Error fetching chain:', error);
+    res.status(500).json({ error: 'Failed to fetch offer chain' });
   }
 });
 

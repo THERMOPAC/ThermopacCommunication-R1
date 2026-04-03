@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign, Plus, FileText, CheckCircle, XCircle, Clock, ArrowUpRight, ArrowDownRight, AlertTriangle } from "lucide-react";
+import { DollarSign, Plus, FileText, CheckCircle, XCircle, Clock, ArrowUpRight, ArrowDownRight, AlertTriangle, GitBranch, Star, ArrowRight } from "lucide-react";
 
 interface CommercialChangesTabProps {
   projectId: number;
@@ -170,6 +170,10 @@ export default function CommercialChangesTab({ projectId }: CommercialChangesTab
           </CardContent>
         </Card>
       </div>
+
+      {summary?.chainTimeline && summary.chainTimeline.length > 0 && (
+        <ChainTimeline nodes={summary.chainTimeline} />
+      )}
 
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Change Orders</h3>
@@ -350,6 +354,93 @@ function CreateCcoDialog({ open, onClose, onSubmit, isPending }: {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface ChainTimelineNode {
+  offerId: number;
+  offerNumber: string;
+  totalAmount: number;
+  status: string;
+  role: string;
+  isGoverning: boolean;
+  ccoNumber: string | null;
+  ccoSequence: number | null;
+  changeType?: string;
+  changeTypeLabel?: string;
+  changeValue?: number;
+  approvedAt?: string;
+}
+
+function ChainTimeline(props: { nodes: ChainTimelineNode[] }) {
+  const { nodes } = props;
+  if (!nodes || nodes.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="p-3 pb-2">
+        <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+          <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+          Commercial Chain
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-3 pt-0">
+        <div className="flex items-stretch gap-0 overflow-x-auto pb-1">
+          {nodes.map((node, idx) => {
+            const isLast = idx === nodes.length - 1;
+            return (
+              <div key={node.offerId || idx} className="flex items-center">
+                <div
+                  className={`
+                    relative rounded border px-3 py-2 min-w-[140px] max-w-[180px]
+                    ${node.isGoverning
+                      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                      : "border-border bg-card"
+                    }
+                  `}
+                >
+                  {node.isGoverning && (
+                    <div className="absolute -top-2 right-2">
+                      <Badge variant="default" className="text-[8px] px-1 py-0 h-4 leading-none">
+                        <Star className="h-2 w-2 mr-0.5" />
+                        Governing
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="text-[10px] text-muted-foreground mb-0.5">
+                    {node.role === "root" ? "Baseline" : `CO${String(node.ccoSequence).padStart(2, "0")}`}
+                  </div>
+                  <div className="text-xs font-mono font-semibold truncate">
+                    {node.offerNumber || "—"}
+                  </div>
+                  <div className="text-[10px] font-medium mt-0.5">
+                    {formatCurrency(node.totalAmount)}
+                  </div>
+                  {node.changeTypeLabel && (
+                    <div className="text-[9px] text-muted-foreground mt-0.5 truncate">
+                      {node.changeTypeLabel}
+                      {node.changeValue !== undefined && (
+                        <span className={node.changeValue >= 0 ? "text-green-600" : "text-red-600"}>
+                          {" "}{node.changeValue >= 0 ? "+" : ""}{formatCurrency(node.changeValue)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {node.ccoNumber && (
+                    <div className="text-[8px] text-muted-foreground mt-1 font-mono">{node.ccoNumber}</div>
+                  )}
+                </div>
+                {!isLast && (
+                  <div className="flex items-center px-1">
+                    <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
