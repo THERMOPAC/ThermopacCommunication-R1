@@ -138,6 +138,7 @@ export async function attachConfirmedArtifactToEpc(
   offerId: number,
   offerNumber: string,
   userId: number,
+  attachmentLabel?: string,
 ): Promise<{ success: boolean; epcAttachmentId?: number; error?: string }> {
   try {
     const artifact = await getArtifactById(artifactId);
@@ -198,7 +199,7 @@ export async function attachConfirmedArtifactToEpc(
        RETURNING id`,
       [
         offerId, projectId, offerNumber, revStr,
-        'Confirmed Quotation (Combined)',
+        attachmentLabel || 'Confirmed Quotation (Combined)',
         bucketName, epcGcsPath,
         `${offerNumber.replace(/\//g, '-')}_${revStr}_Quotation.pdf`,
         sourceBuffer.length, artifact.checksum_sha256, userId,

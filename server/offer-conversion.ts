@@ -615,8 +615,9 @@ export async function executeOfferConversion(
     if (confirmedArtifactId) {
       const primaryArtifactId = confirmedArtifactId;
       try {
+        const baselineLabel = `Baseline Order — ${orderNumber}`;
         const attachResult = await attachConfirmedArtifactToEpc(
-          primaryArtifactId, project.id, operationalCode, offerId, offer.offer_number, userId
+          primaryArtifactId, project.id, operationalCode, offerId, offer.offer_number, userId, baselineLabel
         );
         if (attachResult.success) {
           console.log(`[offer-conversion] EPC attachment ${attachResult.epcAttachmentId} created for artifact ${primaryArtifactId}`);

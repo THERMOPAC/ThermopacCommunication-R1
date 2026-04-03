@@ -11955,3 +11955,27 @@ export const quotationPdfArtifacts = pgTable('quotation_pdf_artifacts', {
 export const insertQuotationPdfArtifactSchema = createInsertSchema(quotationPdfArtifacts).omit({ id: true, generatedAt: true });
 export type QuotationPdfArtifact = typeof quotationPdfArtifacts.$inferSelect;
 export type InsertQuotationPdfArtifact = z.infer<typeof insertQuotationPdfArtifactSchema>;
+
+export const commercialChangeOrders = pgTable('commercial_change_orders', {
+  id: serial('id').primaryKey(),
+  changeOrderNumber: varchar('change_order_number', { length: 30 }).notNull().unique(),
+  sequence: integer('sequence').notNull(),
+  originalOfferId: integer('original_offer_id').notNull().references(() => offers.id),
+  originalOrderNumber: varchar('original_order_number', { length: 15 }).notNull(),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  revisedOfferId: integer('revised_offer_id').references(() => offers.id),
+  ecrId: integer('ecr_id'),
+  changeType: varchar('change_type', { length: 30 }).notNull(),
+  description: text('description').notNull(),
+  changeValue: numeric('change_value', { precision: 15, scale: 2 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+  requestedBy: integer('requested_by').notNull().references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  notes: text('notes'),
+});
+
+export const insertCommercialChangeOrderSchema = createInsertSchema(commercialChangeOrders).omit({ id: true, requestedAt: true });
+export type CommercialChangeOrder = typeof commercialChangeOrders.$inferSelect;
+export type InsertCommercialChangeOrder = z.infer<typeof insertCommercialChangeOrderSchema>;

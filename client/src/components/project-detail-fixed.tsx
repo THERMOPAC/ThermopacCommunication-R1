@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import FileStorage from "@/components/file-storage";
+const CommercialChangesTab = lazy(() => import("@/components/commercial-changes-tab"));
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { 
   Form,
@@ -2208,6 +2209,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="commercial">Commercial</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -2691,6 +2693,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="commercial" className="space-y-4">
+            <Suspense fallback={<Card><CardContent className="p-8 text-center"><div className="animate-pulse text-sm text-muted-foreground">Loading...</div></CardContent></Card>}>
+              <CommercialChangesTab projectId={parseInt(id)} />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

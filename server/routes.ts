@@ -35,6 +35,7 @@ import { setupTestWelderRoute } from "./quality/test-welder-route";
 import { setupApiTestRoutes } from "./api-test-route";
 import { setupDedicatedTestRoutes } from "./dedicated-test-route";
 import { setupSalesMarketingRoutes } from "./sales-marketing-routes";
+import { setupCommercialChangeOrderRoutes } from "./commercial-change-order-routes";
 import { saveRoiStep, loadRoiProject, getRoiProjectProgress, deleteRoiProject } from "./roi-routes";
 // Temporarily disable main finance routes due to syntax errors
 // import { default as financeRoutes } from "./finance-routes";
@@ -633,6 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up sales and marketing routes
   setupSalesMarketingRoutes(app);
+  setupCommercialChangeOrderRoutes(app);
 
   // Register ROI Calculator routes  
   app.post('/api/roi/save-step', async (req: any, res: any) => {
