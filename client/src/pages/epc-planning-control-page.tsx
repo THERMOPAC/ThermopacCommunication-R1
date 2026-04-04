@@ -27,7 +27,7 @@ const roleHierarchy: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, Employee: 4,
 };
 
-type StatusType = "draft" | "under_review" | "released" | "cancelled" | "superseded";
+type StatusType = "draft" | "under_review" | "released" | "canceled" | "superseded";
 
 const STATUS_COLORS: Record<StatusType, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -127,9 +127,9 @@ export default function EpcPlanningControlPage() {
     draft: records.filter((r: any) => r.status === "draft").length,
     underReview: records.filter((r: any) => r.status === "under_review").length,
     released: records.filter((r: any) => r.status === "released").length,
-    cancelled: records.filter((r: any) => r.status === "cancelled").length,
-    procurement: records.filter((r: any) => r.planning_type === "procurement" && r.status !== "cancelled" && r.status !== "superseded").length,
-    production: records.filter((r: any) => r.planning_type === "production" && r.status !== "cancelled" && r.status !== "superseded").length,
+    cancelled: records.filter((r: any) => r.status === "canceled").length,
+    procurement: records.filter((r: any) => r.planning_type === "procurement" && r.status !== "canceled" && r.status !== "superseded").length,
+    production: records.filter((r: any) => r.planning_type === "production" && r.status !== "canceled" && r.status !== "superseded").length,
   }), [records]);
 
   const lifecycleMutation = useMutation({

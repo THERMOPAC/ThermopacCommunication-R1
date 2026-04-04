@@ -80,7 +80,7 @@ export class PredictiveProjectControlAgent implements IAgent {
         SELECT p.id, p.name, p.status, p.target_end_date, p.manager_id,
           p.code as project_code
         FROM projects p
-        WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
+        WHERE p.status NOT IN ('canceled', 'archived', 'completed')
       `);
       queriesRun++;
       const projects = (projectRows.rows || []) as any[];
@@ -99,7 +99,7 @@ export class PredictiveProjectControlAgent implements IAgent {
               AND wo.status = 'completed'
               AND wo.updated_at >= NOW() - INTERVAL '7 days')::int as curr_week_closed,
             (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = ${pid}
-              AND wo.status NOT IN ('completed', 'cancelled'))::int as open_count,
+              AND wo.status NOT IN ('completed', 'canceled'))::int as open_count,
             (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = ${pid})::int as total_count
         `);
         queriesRun++;
@@ -210,7 +210,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             pp.phase_lead_id,
             EXTRACT(DAY FROM NOW() - pp.updated_at)::int as days_since_update
           FROM project_phases pp
-          WHERE pp.project_id = ${pid} AND pp.status NOT IN ('completed', 'cancelled')
+          WHERE pp.project_id = ${pid} AND pp.status NOT IN ('completed', 'canceled')
             AND pp.target_end_date IS NOT NULL
           ORDER BY pp."order"
         `);
@@ -690,7 +690,7 @@ export class PredictiveProjectControlAgent implements IAgent {
 
       const crossModuleRows = await db.execute(sql`
         SELECT p.id, p.name, p.target_end_date, p.manager_id, p.code,
-          (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id AND wo.status NOT IN ('completed','cancelled'))::int as open_wos,
+          (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id AND wo.status NOT IN ('completed','canceled'))::int as open_wos,
           (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id AND wo.status = 'completed'
             AND wo.updated_at >= NOW() - INTERVAL '7 days')::int as wos_closed_this_week,
           (SELECT COUNT(*) FROM design_drawings dd
@@ -704,7 +704,7 @@ export class PredictiveProjectControlAgent implements IAgent {
             WHERE pp.project_id = p.id AND pp.status != 'completed'
             AND pp.target_end_date IS NOT NULL AND pp.target_end_date < CURRENT_DATE)::int as overdue_phases
         FROM projects p
-        WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
+        WHERE p.status NOT IN ('canceled', 'archived', 'completed')
           AND p.target_end_date IS NOT NULL
       `);
       queriesRun++;
@@ -787,7 +787,7 @@ export class PredictiveProjectControlAgent implements IAgent {
         // ── PX2: Resource Contention Across Modules ──
         const resourceRows = await db.execute(sql`
           SELECT u.id as user_id, u.username,
-            (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','cancelled') AND wo.project_id = ${pid})::int as wo_count,
+            (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','canceled') AND wo.project_id = ${pid})::int as wo_count,
             (SELECT COUNT(*) FROM design_drawings dd
               JOIN design_projects dp ON dd.design_project_id = dp.id
               WHERE dd.assigned_to_id = u.id AND dp.project_id = ${pid}
@@ -795,11 +795,11 @@ export class PredictiveProjectControlAgent implements IAgent {
             (SELECT COUNT(*) FROM tasks t
               JOIN project_tasks pt ON pt.task_id = t.id
               WHERE t.assigned_to = u.id AND pt.project_id = ${pid}
-              AND t.status NOT IN ('completed','cancelled'))::int as task_count
+              AND t.status NOT IN ('completed','canceled'))::int as task_count
           FROM users u
           WHERE u.is_active = true
             AND (
-              EXISTS (SELECT 1 FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.project_id = ${pid} AND wo.status NOT IN ('completed','cancelled'))
+              EXISTS (SELECT 1 FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.project_id = ${pid} AND wo.status NOT IN ('completed','canceled'))
               OR EXISTS (SELECT 1 FROM design_drawings dd JOIN design_projects dp ON dd.design_project_id = dp.id WHERE dd.assigned_to_id = u.id AND dp.project_id = ${pid} AND dd.status NOT IN ('Approved','Issued','Superseded'))
             )
         `);

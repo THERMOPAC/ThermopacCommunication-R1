@@ -135,7 +135,7 @@ async function hasOpenAgentTask(fingerprint: string): Promise<boolean> {
     SELECT 1 FROM tasks 
     WHERE source_type = 'agent_task'
       AND category LIKE ${'%' + fingerprint + '%'}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
     LIMIT 1
   `);
   return (result.rows || []).length > 0;
@@ -202,7 +202,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
     SELECT id, category, title FROM tasks
     WHERE source_type = 'agent_task'
       AND source_agent = 'communicator'
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
       AND category IS NOT NULL
   `);
 
@@ -269,7 +269,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
           const check = await db.execute(sql`
             SELECT status FROM tasks WHERE id = ${origTaskId}
           `);
-          if (['completed', 'cancelled'].includes((check.rows as any[])[0]?.status)) {
+          if (['completed', 'canceled'].includes((check.rows as any[])[0]?.status)) {
             shouldClose = true;
             closeReason = 'Original task has been completed/cancelled';
           }

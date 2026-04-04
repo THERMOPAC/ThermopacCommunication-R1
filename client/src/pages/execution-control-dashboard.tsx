@@ -211,7 +211,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
   const orderQty = orderRecord ? (parseFloat(orderRecord.quantity || "0") || 0) : 0;
   const orderRef = orderRecord ? (orderRecord.po_number || orderRecord.wo_number || `#${orderRecord.id}`) : null;
 
-  if (prep && !["superseded", "cancelled"].includes(prep.status)) {
+  if (prep && !["superseded", "canceled"].includes(prep.status)) {
     const readyStatuses = isBuy
       ? ["ready_for_po_creation", "completed"]
       : ["ready_for_wo_creation", "completed"];
@@ -226,7 +226,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (orderRecord && !["superseded", "cancelled"].includes(orderRecord.status)) {
+  if (orderRecord && !["superseded", "canceled"].includes(orderRecord.status)) {
     if (orderQty > 0 && itemQty > 0) {
       if (orderQty < itemQty) {
         findings.push({
@@ -254,7 +254,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (orderRecord && !["superseded", "cancelled", "draft"].includes(orderRecord.status) && !insp) {
+  if (orderRecord && !["superseded", "canceled", "draft"].includes(orderRecord.status) && !insp) {
     if (["approved", "issued", "released"].includes(orderRecord.status)) {
       findings.push({
         type: "missing_downstream",
@@ -267,7 +267,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
   }
 
   const dispQty = disp ? (parseFloat(disp.dispatch_quantity || disp.quantity || "0") || 0) : 0;
-  if (disp && !["superseded", "cancelled"].includes(disp.status)) {
+  if (disp && !["superseded", "canceled"].includes(disp.status)) {
     if (dispQty > 0 && orderQty > 0 && dispQty > orderQty * 1.1) {
       findings.push({
         type: "overage",
@@ -303,7 +303,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (dispRec && !["superseded", "cancelled"].includes(dispRec.status)) {
+  if (dispRec && !["superseded", "canceled"].includes(dispRec.status)) {
     const recQty = parseFloat(dispRec.dispatch_quantity || dispRec.quantity || "0") || 0;
     if (recQty > 0 && dispQty > 0 && Math.abs(recQty - dispQty) > 0.01) {
       findings.push({
@@ -328,7 +328,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (comm && !["superseded", "cancelled"].includes(comm.status)) {
+  if (comm && !["superseded", "canceled"].includes(comm.status)) {
     const commQty = parseFloat(comm.quantity || "0") || 0;
     const sourceQty = dispRec ? (parseFloat(dispRec.dispatch_quantity || dispRec.quantity || "0") || 0) : dispQty;
     if (commQty > 0 && sourceQty > 0 && Math.abs(commQty - sourceQty) > 0.01) {
@@ -354,7 +354,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (bill && !["superseded", "cancelled"].includes(bill.status)) {
+  if (bill && !["superseded", "canceled"].includes(bill.status)) {
     if (["ready_for_invoice", "invoiced"].includes(bill.status) && !inv) {
       findings.push({
         type: "missing_downstream",
@@ -366,7 +366,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (bill && inv && !["superseded", "cancelled"].includes(bill.status) && !["superseded", "cancelled"].includes(inv.status)) {
+  if (bill && inv && !["superseded", "canceled"].includes(bill.status) && !["superseded", "canceled"].includes(inv.status)) {
     const billAmt = parseFloat(bill.gross_amount || bill.total_amount || "0") || 0;
     const invAmt = parseFloat(inv.gross_amount || inv.total_amount || "0") || 0;
     if (billAmt > 0 && invAmt > 0 && Math.abs(billAmt - invAmt) > 1) {
@@ -383,7 +383,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (inv && !["superseded", "cancelled"].includes(inv.status) && ["issued", "partially_paid"].includes(inv.status)) {
+  if (inv && !["superseded", "canceled"].includes(inv.status) && ["issued", "partially_paid"].includes(inv.status)) {
     const outstanding = parseFloat(inv.amount_outstanding || "0") || 0;
     const totalAmt = parseFloat(inv.gross_amount || inv.total_amount || "0") || 0;
     const paid = parseFloat(inv.amount_paid || "0") || 0;
@@ -400,7 +400,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     }
   }
 
-  if (orderRecord && !["superseded", "cancelled"].includes(orderRecord.status) && !prep) {
+  if (orderRecord && !["superseded", "canceled"].includes(orderRecord.status) && !prep) {
     findings.push({
       type: "orphan",
       severity: "info",
@@ -410,7 +410,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     });
   }
 
-  if (disp && !orderRecord && !["superseded", "cancelled"].includes(disp.status)) {
+  if (disp && !orderRecord && !["superseded", "canceled"].includes(disp.status)) {
     findings.push({
       type: "orphan",
       severity: "warning",
@@ -420,7 +420,7 @@ function getReconciliationFindings(row: any): ReconciliationFinding[] {
     });
   }
 
-  if (bill && !comm && !["superseded", "cancelled"].includes(bill.status) && bill.billing_basis !== "milestone") {
+  if (bill && !comm && !["superseded", "canceled"].includes(bill.status) && bill.billing_basis !== "milestone") {
     findings.push({
       type: "orphan",
       severity: "info",
@@ -513,7 +513,7 @@ function getAvailableActions(layer: string, status: string | null, record: Pipel
     else if (status === "under_review" && record.reviewed_by) raw = [
       { label: "Release", action: "release", variant: "default", endpoint: `/api/planning-records/${id}/release`, needsNote: true, noteLabel: "Release Note", bodyKey: "releaseNote", minLevel: SM },
     ];
-    else if (!["superseded", "cancelled"].includes(status)) raw = [
+    else if (!["superseded", "canceled"].includes(status)) raw = [
       { label: "Cancel", action: "cancel", variant: "destructive", endpoint: `/api/planning-records/${id}/cancel`, needsNote: true, noteLabel: "Cancel Reason", bodyKey: "cancelReason", minLevel: M },
     ];
   }
@@ -860,14 +860,14 @@ export default function ExecutionControlDashboard() {
 
   function findActive(records: PipelineRecord[], itemId: number) {
     if (!Array.isArray(records)) return null;
-    return records.find((r) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
+    return records.find((r) => r.project_item_id === itemId && !["superseded", "canceled"].includes(r.status))
       || records.find((r) => r.project_item_id === itemId)
       || null;
   }
 
   function findActiveDc(records: any[], itemId: number) {
     if (!Array.isArray(records)) return null;
-    return records.find((r: any) => r.project_item_id === itemId && !["superseded", "cancelled"].includes(r.status))
+    return records.find((r: any) => r.project_item_id === itemId && !["superseded", "canceled"].includes(r.status))
       || records.find((r: any) => r.project_item_id === itemId)
       || null;
   }

@@ -73,7 +73,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const openTasks = await db.execute(sql`
     SELECT id, category FROM tasks
     WHERE source_type = 'agent_task' AND source_agent = ${SOURCE_AGENT}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
   `);
 
   for (const task of (openTasks.rows || []) as any[]) {
@@ -363,7 +363,7 @@ export class QualityManagementAgent implements IAgent {
           COUNT(*)::int as unlinked_count
         FROM inspection_orders io
         JOIN projects p ON io.project_id = p.id
-        WHERE io.item_id IS NULL AND io.status NOT IN ('cancelled')
+        WHERE io.item_id IS NULL AND io.status NOT IN ('canceled')
         GROUP BY p.id, p.name
         HAVING COUNT(*) >= 3
       `);
@@ -1172,7 +1172,7 @@ export class QualityManagementAgent implements IAgent {
               WHEN io.hydrotest_data IS NOT NULL AND io.hydrotest_data != '' AND io.hydrotest_data != 'null' THEN 'HT'
             END as method_used
           FROM inspection_orders io
-          WHERE io.status NOT IN ('cancelled')
+          WHERE io.status NOT IN ('canceled')
         )
         SELECT DISTINCT method_used FROM used_methods
         WHERE method_used IS NOT NULL

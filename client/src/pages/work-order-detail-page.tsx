@@ -112,7 +112,7 @@ export default function WorkOrderDetailPage() {
         return <Badge variant="outline" className="flex items-center gap-1 bg-amber-100 text-amber-800"><AlertTriangle className="h-3 w-3" /> On Hold</Badge>;
       case "completed":
         return <Badge variant="outline" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
-      case "cancelled":
+      case "canceled":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
         return <Badge variant="outline">{statusStr || 'Unknown'}</Badge>;

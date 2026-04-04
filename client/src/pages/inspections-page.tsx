@@ -6042,7 +6042,7 @@ export default function InspectionsPage() {
         return <Badge className="flex items-center gap-1 bg-blue-500 hover:bg-blue-600"><Hourglass className="h-3 w-3" /> In Progress</Badge>;
       case "completed":
         return <Badge className="flex items-center gap-1 bg-green-600 hover:bg-green-700"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
-      case "cancelled":
+      case "canceled":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -7465,7 +7465,7 @@ export default function InspectionsPage() {
                               <SelectItem value="passed">Passed</SelectItem>
                               <SelectItem value="failed">Failed</SelectItem>
                               <SelectItem value="conditionally_passed">Conditionally Passed</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                              <SelectItem value="canceled">Cancelled</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -11935,7 +11935,7 @@ export default function InspectionsPage() {
                   <option value="active">Active</option>
                   <option value="expired">Expired</option>
                   <option value="pending">Pending</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="canceled">Cancelled</option>
                 </select>
               </div>
             </div>

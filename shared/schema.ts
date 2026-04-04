@@ -2494,7 +2494,7 @@ export const purchaseOrderHistory = pgTable('purchase_order_history', {
 export const insertVendorSchema = createInsertSchema(vendors);
 export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).extend({
   priority: z.enum(['Low', 'Medium', 'High']),
-  status: z.enum(['draft', 'submitted', 'approved', 'ordered', 'shipped', 'received', 'on_hold', 'cancelled']),
+  status: z.enum(['draft', 'submitted', 'approved', 'ordered', 'shipped', 'received', 'on_hold', 'canceled']),
 });
 export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems);
 export const insertPurchaseOrderDocumentSchema = createInsertSchema(purchaseOrderDocuments);
@@ -5016,7 +5016,7 @@ export const inspectionOrderItemsRelations = relations(inspectionOrderItems, ({ 
 export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
   .omit({ id: true, createdAt: true, updatedAt: true })
   .extend({
-    status: z.enum(['pending', 'in_progress', 'completed', 'cancelled']),
+    status: z.enum(['pending', 'in_progress', 'completed', 'canceled']),
     inspectionType: z.enum(['incoming', 'in-process', 'final', 'dimensional', 'visual']),
     makeOrBuy: z.enum(['Make', 'Buy']).optional(),
     plannedDate: z.string().optional().transform(dateStringToDate),
@@ -7000,7 +7000,7 @@ export const insertLeaveRequestSchema = createInsertSchema(leaveRequests)
     startDate: z.string().transform(dateStringToDate),
     endDate: z.string().transform(dateStringToDate),
     totalDays: z.string().transform(val => parseFloat(val) || 0),
-    status: z.enum(['pending', 'approved', 'rejected', 'cancelled']).default('pending'),
+    status: z.enum(['pending', 'approved', 'rejected', 'canceled']).default('pending'),
     managerApprovalStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
     hrApprovalStatus: z.enum(['pending', 'approved', 'rejected']).optional(),
     halfDayPeriod: z.enum(['morning', 'afternoon']).optional()

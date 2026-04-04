@@ -294,33 +294,33 @@ export function setupEpcControlTowerRoutes(app: Express) {
           ipr.id as planning_id,
           ipr.status as planning_status,
           -- PO stage (count + latest status)
-          (SELECT COUNT(*)::int FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled', 'superseded')) as po_count,
-          (SELECT epo.status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled', 'superseded') ORDER BY epo.id DESC LIMIT 1) as po_status,
-          (SELECT epo.quality_status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled', 'superseded') ORDER BY epo.id DESC LIMIT 1) as po_quality_status,
+          (SELECT COUNT(*)::int FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled', 'superseded')) as po_count,
+          (SELECT epo.status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled', 'superseded') ORDER BY epo.id DESC LIMIT 1) as po_status,
+          (SELECT epo.quality_status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled', 'superseded') ORDER BY epo.id DESC LIMIT 1) as po_quality_status,
           -- WO stage (count + latest status)
-          (SELECT COUNT(*)::int FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled', 'superseded')) as wo_count,
-          (SELECT ewo.status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled', 'superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_status,
-          (SELECT ewo.quality_status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled', 'superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_quality_status,
+          (SELECT COUNT(*)::int FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled', 'superseded')) as wo_count,
+          (SELECT ewo.status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled', 'superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_status,
+          (SELECT ewo.quality_status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled', 'superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_quality_status,
           -- INS stage
-          (SELECT COUNT(*)::int FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled')) as ins_count,
-          (SELECT ier.status FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled') ORDER BY ier.id DESC LIMIT 1) as ins_status,
+          (SELECT COUNT(*)::int FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('canceled')) as ins_count,
+          (SELECT ier.status FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('canceled') ORDER BY ier.id DESC LIMIT 1) as ins_status,
           -- DSP stage
-          (SELECT COUNT(*)::int FROM epc_dispatch_readiness edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('cancelled', 'superseded')) as dsp_readiness_count,
-          (SELECT COUNT(*)::int FROM epc_dispatch_records edr2 WHERE edr2.project_item_id = pi.id AND edr2.status NOT IN ('cancelled')) as dsp_count,
-          (SELECT edr2.status FROM epc_dispatch_records edr2 WHERE edr2.project_item_id = pi.id AND edr2.status NOT IN ('cancelled') ORDER BY edr2.id DESC LIMIT 1) as dsp_status,
+          (SELECT COUNT(*)::int FROM epc_dispatch_readiness edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('canceled', 'superseded')) as dsp_readiness_count,
+          (SELECT COUNT(*)::int FROM epc_dispatch_records edr2 WHERE edr2.project_item_id = pi.id AND edr2.status NOT IN ('canceled')) as dsp_count,
+          (SELECT edr2.status FROM epc_dispatch_records edr2 WHERE edr2.project_item_id = pi.id AND edr2.status NOT IN ('canceled') ORDER BY edr2.id DESC LIMIT 1) as dsp_status,
           -- COM stage
-          (SELECT COUNT(*)::int FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled', 'superseded')) as com_count,
-          (SELECT ecr.status FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled', 'superseded') ORDER BY ecr.id DESC LIMIT 1) as com_status,
+          (SELECT COUNT(*)::int FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('canceled', 'superseded')) as com_count,
+          (SELECT ecr.status FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('canceled', 'superseded') ORDER BY ecr.id DESC LIMIT 1) as com_status,
           -- INV stage (billing readiness)
-          (SELECT COUNT(*)::int FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled', 'superseded')) as inv_count,
-          (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled', 'superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
+          (SELECT COUNT(*)::int FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('canceled', 'superseded')) as inv_count,
+          (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('canceled', 'superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
         FROM project_items pi
         JOIN projects p ON p.id = pi.project_id
         LEFT JOIN master_items mi ON mi.id = pi.item_id
         LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
-        LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('cancelled', 'superseded')
-        WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
+        LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('canceled', 'superseded')
+        WHERE p.status NOT IN ('canceled', 'completed', 'closed')
         ORDER BY p.code, mi.item_code
       `);
 
@@ -355,7 +355,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         else stageCounts.DWG.missing++;
 
         const plnExists = !!item.planning_id;
-        const plnReady = plnExists && !['cancelled', 'superseded'].includes(item.planning_status);
+        const plnReady = plnExists && !['canceled', 'superseded'].includes(item.planning_status);
         if (plnExists) { stageCounts.PLN.total++; if (plnReady) stageCounts.PLN.ready++; else stageCounts.PLN.notReady++; }
         else stageCounts.PLN.missing++;
 
@@ -465,28 +465,28 @@ export function setupEpcControlTowerRoutes(app: Express) {
           bh.id as bom_id, bh.status as bom_status, bh.created_at as bom_created_at,
           dc.id as dwg_id, dc.status as dwg_status, dc.created_at as dwg_created_at,
           ipr.id as planning_id, ipr.status as planning_status, ipr.planning_type, ipr.created_at as planning_created_at,
-          (SELECT epo.id FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_id,
-          (SELECT epo.status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_status,
-          (SELECT epo.quality_status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_quality_status,
-          (SELECT epo.created_at FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('cancelled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_created_at,
-          (SELECT ewo.id FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_id,
-          (SELECT ewo.status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_status,
-          (SELECT ewo.quality_status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_quality_status,
-          (SELECT ewo.created_at FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('cancelled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_created_at,
-          (SELECT ier.status FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled') ORDER BY ier.id DESC LIMIT 1) as ins_status,
-          (SELECT ier.created_at FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('cancelled') ORDER BY ier.id DESC LIMIT 1) as ins_created_at,
-          (SELECT edr.status FROM epc_dispatch_records edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('cancelled') ORDER BY edr.id DESC LIMIT 1) as dsp_status,
-          (SELECT edr.created_at FROM epc_dispatch_records edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('cancelled') ORDER BY edr.id DESC LIMIT 1) as dsp_created_at,
-          (SELECT ecr.status FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled','superseded') ORDER BY ecr.id DESC LIMIT 1) as com_status,
-          (SELECT ecr.created_at FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('cancelled','superseded') ORDER BY ecr.id DESC LIMIT 1) as com_created_at,
-          (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('cancelled','superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
+          (SELECT epo.id FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_id,
+          (SELECT epo.status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_status,
+          (SELECT epo.quality_status FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_quality_status,
+          (SELECT epo.created_at FROM epc_purchase_orders epo WHERE epo.project_item_id = pi.id AND epo.status NOT IN ('canceled','superseded') ORDER BY epo.id DESC LIMIT 1) as po_created_at,
+          (SELECT ewo.id FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_id,
+          (SELECT ewo.status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_status,
+          (SELECT ewo.quality_status FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_quality_status,
+          (SELECT ewo.created_at FROM epc_work_orders ewo WHERE ewo.project_item_id = pi.id AND ewo.status NOT IN ('canceled','superseded') ORDER BY ewo.id DESC LIMIT 1) as wo_created_at,
+          (SELECT ier.status FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('canceled') ORDER BY ier.id DESC LIMIT 1) as ins_status,
+          (SELECT ier.created_at FROM inspection_execution_records ier WHERE ier.project_item_id = pi.id AND ier.status NOT IN ('canceled') ORDER BY ier.id DESC LIMIT 1) as ins_created_at,
+          (SELECT edr.status FROM epc_dispatch_records edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('canceled') ORDER BY edr.id DESC LIMIT 1) as dsp_status,
+          (SELECT edr.created_at FROM epc_dispatch_records edr WHERE edr.project_item_id = pi.id AND edr.status NOT IN ('canceled') ORDER BY edr.id DESC LIMIT 1) as dsp_created_at,
+          (SELECT ecr.status FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('canceled','superseded') ORDER BY ecr.id DESC LIMIT 1) as com_status,
+          (SELECT ecr.created_at FROM epc_commissioning_readiness ecr WHERE ecr.project_item_id = pi.id AND ecr.status NOT IN ('canceled','superseded') ORDER BY ecr.id DESC LIMIT 1) as com_created_at,
+          (SELECT ebr.status FROM epc_billing_readiness ebr WHERE ebr.project_item_id = pi.id AND ebr.status NOT IN ('canceled','superseded') ORDER BY ebr.id DESC LIMIT 1) as inv_status
         FROM project_items pi
         JOIN projects p ON p.id = pi.project_id
         LEFT JOIN master_items mi ON mi.id = pi.item_id
         LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
-        LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('cancelled','superseded')
-        WHERE p.status NOT IN ('cancelled','completed','closed') ${projectFilter}
+        LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('canceled','superseded')
+        WHERE p.status NOT IN ('canceled','completed','closed') ${projectFilter}
         ORDER BY p.code, mi.item_code
       `);
 
@@ -605,8 +605,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_items pi ON ier.project_item_id = pi.id
         JOIN projects p ON pi.project_id = p.id
         LEFT JOIN master_items mi ON pi.item_id = mi.id
-        WHERE ier.status NOT IN ('completed', 'cancelled', 'closed')
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+        WHERE ier.status NOT IN ('completed', 'canceled', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
         ORDER BY age_days DESC
         LIMIT 100
       `);
@@ -622,7 +622,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
         WHERE mi.make_or_buy IN ('Make', 'Assembly')
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
           AND bh.id IS NOT NULL AND bh.status IN ('released', 'locked')
           AND dc.id IS NULL
         ORDER BY p.code, mi.item_code
@@ -639,8 +639,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_items pi ON ipr.project_item_id = pi.id
         JOIN projects p ON pi.project_id = p.id
         LEFT JOIN master_items mi ON pi.item_id = mi.id
-        WHERE ipr.status NOT IN ('released', 'cancelled', 'superseded')
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+        WHERE ipr.status NOT IN ('released', 'canceled', 'superseded')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
         ORDER BY age_days DESC
         LIMIT 100
       `);
@@ -655,9 +655,9 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_items pi ON epo.project_item_id = pi.id
         JOIN projects p ON pi.project_id = p.id
         LEFT JOIN master_items mi ON pi.item_id = mi.id
-        WHERE epo.status NOT IN ('cancelled', 'superseded')
+        WHERE epo.status NOT IN ('canceled', 'superseded')
           AND epo.quality_status != 'inspection_cleared'
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
           AND epo.created_at < NOW() - INTERVAL '14 days'
         UNION ALL
         SELECT 'WO' as type, ewo.id, ewo.wo_number as doc_number, ewo.status, ewo.quality_status,
@@ -669,9 +669,9 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_items pi ON ewo.project_item_id = pi.id
         JOIN projects p ON pi.project_id = p.id
         LEFT JOIN master_items mi ON pi.item_id = mi.id
-        WHERE ewo.status NOT IN ('cancelled', 'superseded')
+        WHERE ewo.status NOT IN ('canceled', 'superseded')
           AND ewo.quality_status != 'inspection_cleared'
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
           AND ewo.created_at < NOW() - INTERVAL '14 days'
         ORDER BY age_days DESC
         LIMIT 100
@@ -711,7 +711,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
             JOIN projects p ON p.id = pi.project_id
             LEFT JOIN master_items mi ON mi.id = pi.item_id
             LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
-            WHERE bh.id IS NULL AND p.status NOT IN ('cancelled','completed','closed')
+            WHERE bh.id IS NULL AND p.status NOT IN ('canceled','completed','closed')
             ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
             ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
             LIMIT 50`,
@@ -730,7 +730,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
             JOIN projects p ON p.id = pi.project_id
             LEFT JOIN master_items mi ON mi.id = pi.item_id
             JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
-            WHERE bh.status NOT IN ('released','locked') AND p.status NOT IN ('cancelled','completed','closed')
+            WHERE bh.status NOT IN ('released','locked') AND p.status NOT IN ('canceled','completed','closed')
             ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
             ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
             LIMIT 50`,
@@ -751,7 +751,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
             LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
             LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
             WHERE mi.make_or_buy IN ('Make','Assembly') AND bh.status IN ('released','locked') AND dc.id IS NULL
-              AND p.status NOT IN ('cancelled','completed','closed')
+              AND p.status NOT IN ('canceled','completed','closed')
             ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
             ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
             LIMIT 50`,
@@ -771,8 +771,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
             JOIN project_items pi ON ipr.project_item_id = pi.id
             JOIN projects p ON pi.project_id = p.id
             LEFT JOIN master_items mi ON pi.item_id = mi.id
-            WHERE ipr.status NOT IN ('released','cancelled','superseded')
-              AND p.status NOT IN ('cancelled','completed','closed')
+            WHERE ipr.status NOT IN ('released','canceled','superseded')
+              AND p.status NOT IN ('canceled','completed','closed')
             ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
             ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}
             LIMIT 50`,
@@ -793,8 +793,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
             JOIN project_items pi ON ier.project_item_id = pi.id
             JOIN projects p ON pi.project_id = p.id
             LEFT JOIN master_items mi ON pi.item_id = mi.id
-            WHERE ier.status NOT IN ('completed','cancelled','closed')
-              AND p.status NOT IN ('cancelled','completed','closed')
+            WHERE ier.status NOT IN ('completed','canceled','closed')
+              AND p.status NOT IN ('canceled','completed','closed')
               AND ier.created_at < NOW() - INTERVAL '7 days'
             ${projectId ? `AND p.id = ${parseInt(projectId)}` : ''}
             ${projectItemId ? `AND pi.id = ${parseInt(projectItemId)}` : ''}

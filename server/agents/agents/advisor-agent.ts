@@ -159,7 +159,7 @@ export class AdvisorAgent implements IAgent {
       SELECT source_agent, assigned_to, status, due_date, created_at
       FROM tasks
       WHERE source_type = 'agent_task'
-        AND status NOT IN ('completed', 'cancelled')
+        AND status NOT IN ('completed', 'canceled')
         AND source_agent IS NOT NULL
     `);
     queriesRun++;

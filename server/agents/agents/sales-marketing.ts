@@ -62,7 +62,7 @@ async function hasOpenAgentTask(fingerprint: string): Promise<boolean> {
     WHERE source_type = 'agent_task'
       AND source_agent = ${SOURCE_AGENT}
       AND category LIKE ${'%' + fingerprint + '%'}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
     LIMIT 1
   `);
   return (result.rows || []).length > 0;
@@ -98,7 +98,7 @@ async function hasAnyOpenLeadTask(leadId: number): Promise<boolean> {
     WHERE source_type = 'agent_task'
       AND source_agent = ${SOURCE_AGENT}
       AND category LIKE ${`%lead:${leadId}%`}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
     LIMIT 1
   `);
   return (result.rows || []).length > 0;
@@ -110,7 +110,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
     SELECT id, category, title FROM tasks
     WHERE source_type = 'agent_task'
       AND source_agent = ${SOURCE_AGENT}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
   `);
 
   for (const task of (openAgentTasks.rows || []) as any[]) {
@@ -283,7 +283,7 @@ export class SalesMarketingAgent implements IAgent {
         (CURRENT_DATE - cf.scheduled_date::date) as days_overdue
       FROM customer_followups cf
       LEFT JOIN customers c ON cf.customer_id = c.id
-      WHERE cf.status NOT IN ('completed', 'cancelled')
+      WHERE cf.status NOT IN ('completed', 'canceled')
         AND cf.scheduled_date::date < CURRENT_DATE
       ORDER BY cf.scheduled_date
     `);

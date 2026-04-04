@@ -30,7 +30,7 @@ function userRoleLevel(role: string): number {
   return roleHierarchy[role] ?? 4;
 }
 
-type StatusType = "draft" | "approved" | "released" | "cancelled" | "superseded";
+type StatusType = "draft" | "approved" | "released" | "canceled" | "superseded";
 
 const STATUS_COLORS: Record<StatusType, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -138,7 +138,7 @@ export default function EpcWorkOrdersPage() {
     draft: workOrders.filter((wo: any) => wo.status === "draft").length,
     approved: workOrders.filter((wo: any) => wo.status === "approved").length,
     released: workOrders.filter((wo: any) => wo.status === "released").length,
-    cancelled: workOrders.filter((wo: any) => wo.status === "cancelled").length,
+    cancelled: workOrders.filter((wo: any) => wo.status === "canceled").length,
   }), [workOrders]);
 
   const lifecycleMutation = useMutation({
@@ -323,7 +323,7 @@ export default function EpcWorkOrdersPage() {
                 {filtered.map((wo: any) => {
                   const isExpanded = expandedRow === wo.id;
                   const actions = getAvailableActions(wo);
-                  const canEdit = userLevel <= 3 && !["cancelled", "superseded", "released"].includes(wo.status);
+                  const canEdit = userLevel <= 3 && !["canceled", "superseded", "released"].includes(wo.status);
                   return (
                     <>
                       <TableRow key={wo.id} className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : wo.id)}>

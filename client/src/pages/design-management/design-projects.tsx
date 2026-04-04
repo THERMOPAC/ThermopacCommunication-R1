@@ -87,7 +87,7 @@ export default function DesignProjectsPage() {
       case 'active': return 'bg-green-500 text-white';
       case 'completed': return 'bg-blue-500 text-white';
       case 'on_hold': return 'bg-yellow-500 text-black';
-      case 'cancelled': return 'bg-red-500 text-white';
+      case 'canceled': return 'bg-red-500 text-white';
       default: return 'bg-gray-500 text-white';
     }
   };

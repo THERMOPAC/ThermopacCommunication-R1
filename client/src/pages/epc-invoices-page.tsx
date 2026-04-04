@@ -30,7 +30,7 @@ function userRoleLevel(role: string): number {
   return roleHierarchy[role] ?? 4;
 }
 
-type StatusType = "draft" | "approved" | "issued" | "partially_paid" | "paid" | "cancelled" | "superseded";
+type StatusType = "draft" | "approved" | "issued" | "partially_paid" | "paid" | "canceled" | "superseded";
 
 const STATUS_COLORS: Record<StatusType, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -122,7 +122,7 @@ export default function EpcInvoicesPage() {
   }, [invoices, statusFilter, searchTerm]);
 
   const stats = useMemo(() => {
-    const totalGross = invoices.filter((i: any) => !["cancelled", "superseded"].includes(i.status)).reduce((sum: number, i: any) => sum + parseFloat(i.gross_amount || "0"), 0);
+    const totalGross = invoices.filter((i: any) => !["canceled", "superseded"].includes(i.status)).reduce((sum: number, i: any) => sum + parseFloat(i.gross_amount || "0"), 0);
     const totalPaid = invoices.reduce((sum: number, i: any) => sum + parseFloat(i.amount_paid || "0"), 0);
     const totalOutstanding = invoices.filter((i: any) => ["issued", "partially_paid"].includes(i.status)).reduce((sum: number, i: any) => sum + parseFloat(i.amount_outstanding || "0"), 0);
     return {
@@ -132,7 +132,7 @@ export default function EpcInvoicesPage() {
       issued: invoices.filter((i: any) => i.status === "issued").length,
       partiallyPaid: invoices.filter((i: any) => i.status === "partially_paid").length,
       paid: invoices.filter((i: any) => i.status === "paid").length,
-      cancelled: invoices.filter((i: any) => i.status === "cancelled").length,
+      cancelled: invoices.filter((i: any) => i.status === "canceled").length,
       totalGross, totalPaid, totalOutstanding,
     };
   }, [invoices]);

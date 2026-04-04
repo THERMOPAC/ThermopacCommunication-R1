@@ -73,12 +73,12 @@ export async function reconcileBomSupersession(
 
     if (!downstream.hasAny) {
       const piResult = await pool.query(
-        `SELECT id FROM project_items WHERE project_id = $1 AND item_id = $2 AND status != 'cancelled'`,
+        `SELECT id FROM project_items WHERE project_id = $1 AND item_id = $2 AND status != 'canceled'`,
         [projectId, removed.itemId]
       );
       for (const pi of piResult.rows) {
         await pool.query(
-          `UPDATE item_planning_records SET status = 'cancelled', cancel_reason = $1,
+          `UPDATE item_planning_records SET status = 'canceled', cancel_reason = $1,
            cancelled_by = $2, cancelled_at = NOW(), updated_at = NOW()
            WHERE project_item_id = $3 AND source = 'bom_explosion' AND source_bom_header_id = $4
              AND status IN ('draft', 'released')`,
@@ -109,7 +109,7 @@ export async function reconcileBomSupersession(
     };
 
     const piResult = await pool.query(
-      `SELECT id FROM project_items WHERE project_id = $1 AND item_id = $2 AND status != 'cancelled'`,
+      `SELECT id FROM project_items WHERE project_id = $1 AND item_id = $2 AND status != 'canceled'`,
       [projectId, changed.itemId]
     );
 
@@ -166,7 +166,7 @@ interface DownstreamCheck {
 
 async function checkDownstream(masterItemId: number, projectId: number): Promise<DownstreamCheck> {
   const piResult = await pool.query(
-    `SELECT id FROM project_items WHERE project_id = $1 AND item_id = $2 AND status != 'cancelled'`,
+    `SELECT id FROM project_items WHERE project_id = $1 AND item_id = $2 AND status != 'canceled'`,
     [projectId, masterItemId]
   );
   if (piResult.rows.length === 0) return { hasAny: false, hasPO: false, hasWO: false, hasInspection: false, hasDispatch: false, summary: 'none' };
@@ -175,10 +175,10 @@ async function checkDownstream(masterItemId: number, projectId: number): Promise
   const placeholders = piIds.map((_, i) => `$${i + 1}`).join(',');
 
   const [poR, woR, insR, dspR] = await Promise.all([
-    pool.query(`SELECT COUNT(*)::int as cnt FROM epc_purchase_orders WHERE project_item_id IN (${placeholders}) AND status NOT IN ('cancelled', 'draft')`, piIds),
-    pool.query(`SELECT COUNT(*)::int as cnt FROM epc_work_orders WHERE project_item_id IN (${placeholders}) AND status NOT IN ('cancelled', 'draft')`, piIds),
-    pool.query(`SELECT COUNT(*)::int as cnt FROM inspection_orders WHERE project_id = $1 AND status NOT IN ('cancelled')`, [projectId]),
-    pool.query(`SELECT COUNT(*)::int as cnt FROM epc_dispatch_records WHERE project_item_id IN (${placeholders}) AND status NOT IN ('cancelled', 'draft')`, piIds),
+    pool.query(`SELECT COUNT(*)::int as cnt FROM epc_purchase_orders WHERE project_item_id IN (${placeholders}) AND status NOT IN ('canceled', 'draft')`, piIds),
+    pool.query(`SELECT COUNT(*)::int as cnt FROM epc_work_orders WHERE project_item_id IN (${placeholders}) AND status NOT IN ('canceled', 'draft')`, piIds),
+    pool.query(`SELECT COUNT(*)::int as cnt FROM inspection_orders WHERE project_id = $1 AND status NOT IN ('canceled')`, [projectId]),
+    pool.query(`SELECT COUNT(*)::int as cnt FROM epc_dispatch_records WHERE project_item_id IN (${placeholders}) AND status NOT IN ('canceled', 'draft')`, piIds),
   ]);
 
   const hasPO = (poR.rows[0]?.cnt || 0) > 0;

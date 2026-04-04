@@ -102,7 +102,7 @@ export async function hasOpenTask(fingerprint: string, sourceAgent: string): Pro
     SELECT 1 FROM tasks 
     WHERE source_type = 'agent_task' AND source_agent = ${sourceAgent}
       AND category LIKE ${'%' + fingerprint + '%'}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
     LIMIT 1
   `);
   return (result.rows || []).length > 0;

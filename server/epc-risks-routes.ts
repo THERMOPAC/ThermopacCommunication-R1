@@ -59,7 +59,7 @@ router.get('/dashboard', async (req: Request, res: Response) => {
           LEFT JOIN users u ON t.assigned_to = u.id
           WHERE t.source_type = 'agent_task'
             AND t.category LIKE '%' || f.fingerprint || '%'
-            AND t.status NOT IN ('cancelled')
+            AND t.status NOT IN ('canceled')
           ORDER BY t.id DESC LIMIT 1
         ) as linked_task
       FROM epc_agent_findings f

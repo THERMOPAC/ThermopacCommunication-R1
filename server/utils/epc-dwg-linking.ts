@@ -19,7 +19,7 @@ export async function autoLinkUnlinkedDrawings(projectId: number, userId: number
     `SELECT id, dwg_control_number, drawing_number, drawing_title, master_item_id, item_code
      FROM epc_drawing_controls
      WHERE project_id = $1 AND project_item_id IS NULL
-       AND status NOT IN ('cancelled', 'superseded')`,
+       AND status NOT IN ('canceled', 'superseded')`,
     [projectId]
   );
 
@@ -34,12 +34,12 @@ export async function autoLinkUnlinkedDrawings(projectId: number, userId: number
       `SELECT pi.id as project_item_id, pi.item_id, mi.item_code, mi.description, mi.make_or_buy
        FROM project_items pi
        JOIN master_items mi ON mi.id = pi.item_id
-       WHERE pi.project_id = $1 AND pi.status != 'cancelled'
+       WHERE pi.project_id = $1 AND pi.status != 'canceled'
          AND mi.make_or_buy IN ('Make', 'Assembly')
          AND NOT EXISTS (
            SELECT 1 FROM epc_drawing_controls dc
            WHERE dc.project_item_id = pi.id AND dc.project_id = $1
-             AND dc.status NOT IN ('cancelled', 'superseded')
+             AND dc.status NOT IN ('canceled', 'superseded')
          )
          AND (
            mi.id = $2

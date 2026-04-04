@@ -78,7 +78,7 @@ async function guardProjectNotFrozen(projectId: number, res: Response): Promise<
   if (result.rows.length === 0) return true;
   const status = result.rows[0].status;
   if (isProjectFrozen(status)) {
-    const label = status === 'cancelled' ? 'cancelled' : 'on hold';
+    const label = status === 'canceled' ? 'canceled' : 'on hold';
     sendBusinessError(res, `Project is ${label} — no new records or status changes allowed.`);
     return false;
   }
@@ -390,10 +390,20 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (newStatus && newStatus !== oldStatus) {
         if (isProjectTerminal(oldStatus)) {
-          return sendBusinessError(res, `Cannot change status of a cancelled project. Cancelled is terminal.`);
+          return sendBusinessError(res, `Cannot change status of a canceled project. Canceled is terminal.`);
         }
         if (newStatus === 'active' && isProjectTerminal(oldStatus)) {
-          return sendBusinessError(res, `Cannot reactivate a cancelled project.`);
+          return sendBusinessError(res, `Cannot reactivate a canceled project.`);
+        }
+        if (newStatus === 'canceled') {
+          const userRole = req.user?.role || '';
+          const userLevel = roleHierarchy[userRole];
+          if (userLevel === undefined || userLevel > 2) {
+            return res.status(403).json({ error: 'Only Senior Manager, General Manager, or Superuser can cancel a project.' });
+          }
+          if (!req.body.cancelReason || typeof req.body.cancelReason !== 'string' || req.body.cancelReason.trim().length < 10) {
+            return res.status(400).json({ error: 'A cancellation reason of at least 10 characters is required.' });
+          }
         }
       }
 
@@ -410,8 +420,19 @@ export function setupProjectRoutes(app: express.Express) {
         }, 'project-routes');
         console.log(`[EventBus] project.status_changed emitted — projectId=${projectId}, ${oldStatus} → ${newStatus}, changedBy=${userId}`);
 
-        if (newStatus === 'cancelled') {
+        if (newStatus === 'canceled') {
           try {
+            const cancelReason = req.body.cancelReason?.trim() || '';
+            if (cancelReason) {
+              const cancelNote = `[CANCELED ${new Date().toISOString().slice(0,10)}] by ${req.user?.username || 'unknown'}: ${cancelReason}`;
+              const existingNotes = project.notes || '';
+              await storage.updateProject(projectId, { notes: existingNotes ? `${existingNotes}\n\n${cancelNote}` : cancelNote });
+              await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, source, created_at)
+                VALUES (${projectId}, 'project.canceled', ${JSON.stringify({
+                  cancelReason, canceledBy: userId, canceledByName: req.user?.username,
+                  previousStatus: oldStatus
+                })}::jsonb, 'project-routes', NOW())`);
+            }
             const cascadeResult = await executeProjectCancellationCascade(projectId, userId);
             console.log(`[EPC-Cascade] Cancellation cascade completed for project ${project.code}`);
             return res.json({ ...updatedProject, cascadeResult });
@@ -1387,9 +1408,9 @@ export function setupProjectRoutes(app: express.Express) {
                 case 'Active':
                   workOrderStatus = 'planned';
                   break;
-                case 'cancelled':
+                case 'canceled':
                 case 'Cancelled':
-                  workOrderStatus = 'cancelled';
+                  workOrderStatus = 'canceled';
                   break;
                 case 'completed':
                 case 'Completed':
@@ -1445,9 +1466,9 @@ export function setupProjectRoutes(app: express.Express) {
                 case 'Active':
                   inspectionOrderStatus = 'pending';
                   break;
-                case 'cancelled':
+                case 'canceled':
                 case 'Cancelled':
-                  inspectionOrderStatus = 'cancelled';
+                  inspectionOrderStatus = 'canceled';
                   break;
                 case 'completed':
                 case 'Completed':
@@ -2199,7 +2220,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Planning record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
@@ -2209,7 +2230,7 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         await tx.update(itemPlanningRecords)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(itemPlanningRecords.id, id));
@@ -2217,41 +2238,41 @@ export function setupProjectRoutes(app: express.Express) {
         if (record.planning_type === 'procurement') {
           const cascadeResult = await tx.execute(
             sql`UPDATE procurement_execution_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Planning record canceled: ' + cancelReason}, updated_at = NOW()
                 WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_po')
                 RETURNING id`
           );
           cascadedProcExecIds = cascadeResult.rows.map((r: any) => r.id);
           for (const procId of cascadedProcExecIds) {
-            const cancelledQPs = await tx.execute(
+            const canceledQPs = await tx.execute(
               sql`UPDATE quality_planning_records 
-                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
                   WHERE procurement_exec_id = ${procId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
                   RETURNING id`
             );
-            for (const qpRow of cancelledQPs.rows) {
+            for (const qpRow of canceledQPs.rows) {
               await tx.execute(
                 sql`UPDATE inspection_execution_records 
-                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                    SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
                     WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
               );
             }
-            const cancelledPOPreps = await tx.execute(
+            const canceledPOPreps = await tx.execute(
               sql`UPDATE po_preparation_records 
-                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
                   WHERE execution_record_id = ${procId} AND status IN ('draft', 'under_review', 'ready_for_po_creation')
                   RETURNING id`
             );
-            for (const ppRow of cancelledPOPreps.rows) {
+            for (const ppRow of canceledPOPreps.rows) {
               await tx.execute(
                 sql`UPDATE epc_purchase_orders 
-                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                    WHERE po_preparation_id = ${(ppRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
+                    SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
+                    WHERE po_preparation_id = ${(ppRow as any).id} AND status NOT IN ('canceled', 'superseded')`
               );
             }
           }
@@ -2259,55 +2280,55 @@ export function setupProjectRoutes(app: express.Express) {
         if (record.planning_type === 'production') {
           const cascadeResult = await tx.execute(
             sql`UPDATE production_execution_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Planning record canceled: ' + cancelReason}, updated_at = NOW()
                 WHERE planning_record_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_wo')
                 RETURNING id`
           );
           cascadedProdExecIds = cascadeResult.rows.map((r: any) => r.id);
           for (const prodId of cascadedProdExecIds) {
-            const cancelledQPs = await tx.execute(
+            const canceledQPs = await tx.execute(
               sql`UPDATE quality_planning_records 
-                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
                   WHERE production_exec_id = ${prodId} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
                   RETURNING id`
             );
-            for (const qpRow of cancelledQPs.rows) {
+            for (const qpRow of canceledQPs.rows) {
               await tx.execute(
                 sql`UPDATE inspection_execution_records 
-                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                    SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
                     WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
               );
             }
-            const cancelledWOPreps = await tx.execute(
+            const canceledWOPreps = await tx.execute(
               sql`UPDATE wo_preparation_records 
-                  SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                      cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
+                  SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                      cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
                   WHERE execution_record_id = ${prodId} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')
                   RETURNING id`
             );
-            for (const wpRow of cancelledWOPreps.rows) {
+            for (const wpRow of canceledWOPreps.rows) {
               await tx.execute(
                 sql`UPDATE epc_work_orders 
-                    SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                        cancel_reason = ${'Upstream planning record cancelled: ' + cancelReason}, updated_at = NOW()
-                    WHERE wo_preparation_id = ${(wpRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
+                    SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                        cancel_reason = ${'Upstream planning record canceled: ' + cancelReason}, updated_at = NOW()
+                    WHERE wo_preparation_id = ${(wpRow as any).id} AND status NOT IN ('canceled', 'superseded')`
               );
             }
           }
         }
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'planning_record.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'planning_record.canceled', ${JSON.stringify({
             planningRecordId: id, planningType: record.planning_type,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[PlanningLifecycle] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Planning record cancelled', id, newStatus: 'cancelled', cascadedProcExecIds, cascadedProdExecIds });
+      console.log(`[PlanningLifecycle] Record ${id} canceled by user ${userId}`);
+      res.json({ success: true, message: 'Planning record canceled', id, newStatus: 'canceled', cascadedProcExecIds, cascadedProdExecIds });
     } catch (error) {
       sendError(res, error);
     }
@@ -2369,7 +2390,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (record.planning_type !== 'review') {
         return sendBusinessError(res, 'Only review-type planning records can be converted.');
       }
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot convert: record is '${record.status}'.`);
       }
 
@@ -2490,7 +2511,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Procurement execution record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
       if (record.status === 'ready_for_po') {
@@ -2584,7 +2605,7 @@ export function setupProjectRoutes(app: express.Express) {
         sql`SELECT id, status, released_for_procurement, released_for_manufacturing, dwg_control_number
             FROM epc_drawing_controls
             WHERE project_item_id = ${record.project_item_id}
-              AND status NOT IN ('superseded', 'cancelled')
+              AND status NOT IN ('superseded', 'canceled')
             ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
             LIMIT 1`
       );
@@ -2700,7 +2721,7 @@ export function setupProjectRoutes(app: express.Express) {
             FROM epc_bom_headers
             WHERE project_item_id = ${record.project_item_id}
               AND bom_type = ANY(${bomTypes})
-              AND status NOT IN ('superseded', 'cancelled')
+              AND status NOT IN ('superseded', 'canceled')
             ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
             LIMIT 1`
       );
@@ -2874,9 +2895,9 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       const activeDownstream = await db.execute(
-        sql`SELECT 'quality_plan' AS type, id, status FROM quality_planning_records WHERE procurement_exec_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+        sql`SELECT 'quality_plan' AS type, id, status FROM quality_planning_records WHERE procurement_exec_id = ${id} AND status NOT IN ('canceled', 'superseded')
             UNION ALL
-            SELECT 'po_preparation' AS type, id, status FROM po_preparation_records WHERE execution_record_id = ${id} AND status NOT IN ('cancelled', 'superseded')`
+            SELECT 'po_preparation' AS type, id, status FROM po_preparation_records WHERE execution_record_id = ${id} AND status NOT IN ('canceled', 'superseded')`
       );
       if (activeDownstream.rows.length > 0) {
         return sendBusinessError(res, `Cannot revert: ${activeDownstream.rows.length} active downstream record(s) exist. Cancel them first or use the cancel action instead.`);
@@ -2914,7 +2935,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Procurement execution record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
@@ -2924,15 +2945,15 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         await tx.update(procurementExecutionRecords)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(procurementExecutionRecords.id, id));
 
         const qpCascade = await tx.execute(
           sql`UPDATE quality_planning_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream procurement execution canceled: ' + cancelReason}, updated_at = NOW()
               WHERE procurement_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
               RETURNING id`
         );
@@ -2940,8 +2961,8 @@ export function setupProjectRoutes(app: express.Express) {
 
         const poPrepCascade = await tx.execute(
           sql`UPDATE po_preparation_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream procurement execution canceled: ' + cancelReason}, updated_at = NOW()
               WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_po_creation')
               RETURNING id`
         );
@@ -2950,8 +2971,8 @@ export function setupProjectRoutes(app: express.Express) {
         for (const qpRow of qpCascade.rows) {
           await tx.execute(
             sql`UPDATE inspection_execution_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
+                SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream procurement execution canceled: ' + cancelReason}, updated_at = NOW()
                 WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
           );
         }
@@ -2959,21 +2980,21 @@ export function setupProjectRoutes(app: express.Express) {
         for (const poPrepRow of poPrepCascade.rows) {
           await tx.execute(
             sql`UPDATE epc_purchase_orders 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream procurement execution cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE po_preparation_id = ${(poPrepRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
+                SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream procurement execution canceled: ' + cancelReason}, updated_at = NOW()
+                WHERE po_preparation_id = ${(poPrepRow as any).id} AND status NOT IN ('canceled', 'superseded')`
           );
         }
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'procurement_execution.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'procurement_execution.canceled', ${JSON.stringify({
             procurementExecId: id, projectItemId: record.project_item_id,
             planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[ProcurementExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Procurement execution record cancelled', id, newStatus: 'cancelled',
+      console.log(`[ProcurementExec] Record ${id} canceled by user ${userId}`);
+      res.json({ success: true, message: 'Procurement execution record canceled', id, newStatus: 'canceled',
         cascadedQualityPlanIds, cascadedPoPrepIds,
       });
     } catch (error) {
@@ -3040,7 +3061,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
       if (record.status === 'ready_for_wo') {
@@ -3134,7 +3155,7 @@ export function setupProjectRoutes(app: express.Express) {
         sql`SELECT id, status, released_for_procurement, released_for_manufacturing, dwg_control_number
             FROM epc_drawing_controls
             WHERE project_item_id = ${record.project_item_id}
-              AND status NOT IN ('superseded', 'cancelled')
+              AND status NOT IN ('superseded', 'canceled')
             ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
             LIMIT 1`
       );
@@ -3250,7 +3271,7 @@ export function setupProjectRoutes(app: express.Express) {
             FROM epc_bom_headers
             WHERE project_item_id = ${record.project_item_id}
               AND bom_type = ANY(${bomTypes2})
-              AND status NOT IN ('superseded', 'cancelled')
+              AND status NOT IN ('superseded', 'canceled')
             ORDER BY CASE WHEN status = 'released' THEN 0 WHEN status = 'approved' THEN 1 ELSE 2 END, id DESC
             LIMIT 1`
       );
@@ -3423,9 +3444,9 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       const activeDownstream = await db.execute(
-        sql`SELECT 'quality_plan' AS type, id, status FROM quality_planning_records WHERE production_exec_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+        sql`SELECT 'quality_plan' AS type, id, status FROM quality_planning_records WHERE production_exec_id = ${id} AND status NOT IN ('canceled', 'superseded')
             UNION ALL
-            SELECT 'wo_preparation' AS type, id, status FROM wo_preparation_records WHERE execution_record_id = ${id} AND status NOT IN ('cancelled', 'superseded')`
+            SELECT 'wo_preparation' AS type, id, status FROM wo_preparation_records WHERE execution_record_id = ${id} AND status NOT IN ('canceled', 'superseded')`
       );
       if (activeDownstream.rows.length > 0) {
         return sendBusinessError(res, `Cannot revert: ${activeDownstream.rows.length} active downstream record(s) exist. Cancel them first or use the cancel action instead.`);
@@ -3463,7 +3484,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Production execution record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
@@ -3473,15 +3494,15 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         await tx.update(productionExecutionRecords)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(productionExecutionRecords.id, id));
 
         const qpCascade = await tx.execute(
           sql`UPDATE quality_planning_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream production execution canceled: ' + cancelReason}, updated_at = NOW()
               WHERE production_exec_id = ${id} AND status IN ('draft', 'under_preparation', 'ready_for_inspection_setup')
               RETURNING id`
         );
@@ -3489,8 +3510,8 @@ export function setupProjectRoutes(app: express.Express) {
 
         const woPrepCascade = await tx.execute(
           sql`UPDATE wo_preparation_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream production execution canceled: ' + cancelReason}, updated_at = NOW()
               WHERE execution_record_id = ${id} AND status IN ('draft', 'under_review', 'ready_for_wo_creation')
               RETURNING id`
         );
@@ -3499,8 +3520,8 @@ export function setupProjectRoutes(app: express.Express) {
         for (const qpRow of qpCascade.rows) {
           await tx.execute(
             sql`UPDATE inspection_execution_records 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
+                SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream production execution canceled: ' + cancelReason}, updated_at = NOW()
                 WHERE quality_plan_id = ${(qpRow as any).id} AND status IN ('draft', 'scheduled', 'in_progress')`
           );
         }
@@ -3508,21 +3529,21 @@ export function setupProjectRoutes(app: express.Express) {
         for (const woPrepRow of woPrepCascade.rows) {
           await tx.execute(
             sql`UPDATE epc_work_orders 
-                SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                    cancel_reason = ${'Upstream production execution cancelled: ' + cancelReason}, updated_at = NOW()
-                WHERE wo_preparation_id = ${(woPrepRow as any).id} AND status NOT IN ('cancelled', 'superseded')`
+                SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                    cancel_reason = ${'Upstream production execution canceled: ' + cancelReason}, updated_at = NOW()
+                WHERE wo_preparation_id = ${(woPrepRow as any).id} AND status NOT IN ('canceled', 'superseded')`
           );
         }
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'production_execution.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'production_execution.canceled', ${JSON.stringify({
             productionExecId: id, projectItemId: record.project_item_id,
             planningRecordId: record.planning_record_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[ProductionExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Production execution record cancelled', id, newStatus: 'cancelled',
+      console.log(`[ProductionExec] Record ${id} canceled by user ${userId}`);
+      res.json({ success: true, message: 'Production execution record canceled', id, newStatus: 'canceled',
         cascadedQualityPlanIds, cascadedWoPrepIds,
       });
     } catch (error) {
@@ -3610,7 +3631,7 @@ export function setupProjectRoutes(app: express.Express) {
       const user = req.user as any;
       if (!(await enforceWriteOwnership(record, user, 'department', req, res))) return;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
       if (record.status === 'ready_for_inspection_setup') {
@@ -3767,7 +3788,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       const activeInspections = await db.execute(
-        sql`SELECT id, status FROM inspection_execution_records WHERE quality_plan_id = ${id} AND status NOT IN ('cancelled', 'superseded')`
+        sql`SELECT id, status FROM inspection_execution_records WHERE quality_plan_id = ${id} AND status NOT IN ('canceled', 'superseded')`
       );
       if (activeInspections.rows.length > 0) {
         return sendBusinessError(res, `Cannot revert: ${activeInspections.rows.length} active inspection record(s) exist. Cancel them first or use the cancel action instead.`);
@@ -3808,7 +3829,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
@@ -3817,29 +3838,29 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         await tx.update(qualityPlanningRecords)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(qualityPlanningRecords.id, id));
 
         const ieCascade = await tx.execute(
           sql`UPDATE inspection_execution_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream quality plan cancelled: ' + cancelReason}, updated_at = NOW()
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream quality plan canceled: ' + cancelReason}, updated_at = NOW()
               WHERE quality_plan_id = ${id} AND status IN ('draft', 'scheduled', 'in_progress')
               RETURNING id`
         );
         cascadedInspExecIds = ieCascade.rows.map((r: any) => r.id);
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'quality_planning.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'quality_planning.canceled', ${JSON.stringify({
             qualityPlanId: id, sourceContext: record.source_context,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[QualityPlan] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Quality planning record cancelled', id, newStatus: 'cancelled',
+      console.log(`[QualityPlan] Record ${id} canceled by user ${userId}`);
+      res.json({ success: true, message: 'Quality planning record canceled', id, newStatus: 'canceled',
         cascadedInspExecIds,
       });
     } catch (error) {
@@ -3928,7 +3949,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
-      if (['completed', 'failed', 'superseded', 'cancelled'].includes(record.status)) {
+      if (['completed', 'failed', 'superseded', 'canceled'].includes(record.status)) {
         return sendBusinessError(res, `Cannot edit: record is in terminal status '${record.status}'.`);
       }
 
@@ -4084,7 +4105,7 @@ export function setupProjectRoutes(app: express.Express) {
                         quality_cleared_inspection_id = ${id}, quality_failure_reason = NULL, quality_failed_inspection_id = NULL, updated_at = NOW()
                     WHERE execution_record_id = ${qp.procurement_exec_id}
                       AND project_item_id = ${record.project_item_id}
-                      AND status NOT IN ('cancelled', 'superseded')
+                      AND status NOT IN ('canceled', 'superseded')
                       AND quality_status != 'inspection_cleared'
                     RETURNING id, po_number`
               );
@@ -4106,7 +4127,7 @@ export function setupProjectRoutes(app: express.Express) {
                         quality_cleared_inspection_id = ${id}, quality_failure_reason = NULL, quality_failed_inspection_id = NULL, updated_at = NOW()
                     WHERE execution_record_id = ${qp.production_exec_id}
                       AND project_item_id = ${record.project_item_id}
-                      AND status NOT IN ('cancelled', 'superseded')
+                      AND status NOT IN ('canceled', 'superseded')
                       AND quality_status != 'inspection_cleared'
                     RETURNING id, wo_number`
               );
@@ -4183,7 +4204,7 @@ export function setupProjectRoutes(app: express.Express) {
                       quality_failed_inspection_id = ${id}, updated_at = NOW()
                   WHERE execution_record_id = ${qp.procurement_exec_id}
                     AND project_item_id = ${record.project_item_id}
-                    AND status NOT IN ('cancelled', 'superseded')
+                    AND status NOT IN ('canceled', 'superseded')
                     AND quality_status != 'inspection_failed'
                   RETURNING id, po_number`
             );
@@ -4205,7 +4226,7 @@ export function setupProjectRoutes(app: express.Express) {
                       quality_failed_inspection_id = ${id}, updated_at = NOW()
                   WHERE execution_record_id = ${qp.production_exec_id}
                     AND project_item_id = ${record.project_item_id}
-                    AND status NOT IN ('cancelled', 'superseded')
+                    AND status NOT IN ('canceled', 'superseded')
                     AND quality_status != 'inspection_failed'
                   RETURNING id, wo_number`
             );
@@ -4292,27 +4313,27 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(record, req.user as any, 'department', req, res))) return;
 
-      if (['completed', 'failed', 'superseded', 'cancelled'].includes(record.status)) {
+      if (['completed', 'failed', 'superseded', 'canceled'].includes(record.status)) {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
       await db.transaction(async (tx) => {
         await tx.execute(
           sql`UPDATE inspection_execution_records 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
                   cancel_reason = ${cancelReason}, updated_at = NOW()
               WHERE id = ${id}`
         );
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'inspection_execution.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'inspection_execution.canceled', ${JSON.stringify({
             inspectionExecId: id, qualityPlanId: record.quality_plan_id,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
-      console.log(`[InspectionExec] Record ${id} cancelled by user ${userId}`);
-      res.json({ success: true, message: 'Inspection execution record cancelled', id, newStatus: 'cancelled' });
+      console.log(`[InspectionExec] Record ${id} canceled by user ${userId}`);
+      res.json({ success: true, message: 'Inspection execution record canceled', id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -4461,7 +4482,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
       if (record.status === 'ready_for_po_creation') {
@@ -4648,7 +4669,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'PO preparation record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
@@ -4657,37 +4678,37 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         await tx.update(poPreparationRecords)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(poPreparationRecords.id, id));
 
         const epcPoCascade = await tx.execute(
           sql`UPDATE epc_purchase_orders 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream PO preparation cancelled: ' + cancelReason}, updated_at = NOW()
-              WHERE po_preparation_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream PO preparation canceled: ' + cancelReason}, updated_at = NOW()
+              WHERE po_preparation_id = ${id} AND status NOT IN ('canceled', 'superseded')
               RETURNING id, po_number`
         );
         cascadedEpcPoIds = epcPoCascade.rows.map((r: any) => r.id);
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'po_preparation.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'po_preparation.canceled', ${JSON.stringify({
             poPrepId: id, executionRecordId: record.execution_record_id,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
         for (const poRow of epcPoCascade.rows) {
           await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-            VALUES (${record.project_id}, 'epc_purchase_order.cancelled_by_upstream', ${JSON.stringify({
+            VALUES (${record.project_id}, 'epc_purchase_order.canceled_by_upstream', ${JSON.stringify({
               epcPoId: (poRow as any).id, poNumber: (poRow as any).po_number,
-              poPrepId: id, cancelledBy: userId, reason: 'Upstream PO preparation cancelled',
+              poPrepId: id, cancelledBy: userId, reason: 'Upstream PO preparation canceled',
             })}::jsonb, 'lifecycle_action', NOW())`);
         }
       });
 
-      console.log(`[POPrep] Record ${id} cancelled by user ${userId}. Cascaded EPC POs: ${cascadedEpcPoIds}`);
-      res.json({ success: true, message: 'PO preparation record cancelled', id, newStatus: 'cancelled', cascadedEpcPoIds });
+      console.log(`[POPrep] Record ${id} canceled by user ${userId}. Cascaded EPC POs: ${cascadedEpcPoIds}`);
+      res.json({ success: true, message: 'PO preparation record canceled', id, newStatus: 'canceled', cascadedEpcPoIds });
     } catch (error) {
       sendError(res, error);
     }
@@ -4755,7 +4776,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot edit: record is '${record.status}'.`);
       }
       if (record.status === 'ready_for_wo_creation') {
@@ -4943,7 +4964,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'WO preparation record not found');
       const record = existing.rows[0] as any;
 
-      if (record.status === 'superseded' || record.status === 'cancelled') {
+      if (record.status === 'superseded' || record.status === 'canceled') {
         return sendBusinessError(res, `Cannot cancel: record is already '${record.status}'.`);
       }
 
@@ -4952,37 +4973,37 @@ export function setupProjectRoutes(app: express.Express) {
       await db.transaction(async (tx) => {
         await tx.update(woPreparationRecords)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(woPreparationRecords.id, id));
 
         const epcWoCascade = await tx.execute(
           sql`UPDATE epc_work_orders 
-              SET status = 'cancelled', cancelled_by = ${userId}, cancelled_at = NOW(),
-                  cancel_reason = ${'Upstream WO preparation cancelled: ' + cancelReason}, updated_at = NOW()
-              WHERE wo_preparation_id = ${id} AND status NOT IN ('cancelled', 'superseded')
+              SET status = 'canceled', cancelled_by = ${userId}, cancelled_at = NOW(),
+                  cancel_reason = ${'Upstream WO preparation canceled: ' + cancelReason}, updated_at = NOW()
+              WHERE wo_preparation_id = ${id} AND status NOT IN ('canceled', 'superseded')
               RETURNING id, wo_number`
         );
         cascadedEpcWoIds = epcWoCascade.rows.map((r: any) => r.id);
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${record.project_id}, 'wo_preparation.cancelled', ${JSON.stringify({
+          VALUES (${record.project_id}, 'wo_preparation.canceled', ${JSON.stringify({
             woPrepId: id, executionRecordId: record.execution_record_id,
             projectItemId: record.project_item_id, cancelledBy: userId, cancelReason,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
         for (const woRow of epcWoCascade.rows) {
           await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-            VALUES (${record.project_id}, 'epc_work_order.cancelled_by_upstream', ${JSON.stringify({
+            VALUES (${record.project_id}, 'epc_work_order.canceled_by_upstream', ${JSON.stringify({
               epcWoId: (woRow as any).id, woNumber: (woRow as any).wo_number,
-              woPrepId: id, cancelledBy: userId, reason: 'Upstream WO preparation cancelled',
+              woPrepId: id, cancelledBy: userId, reason: 'Upstream WO preparation canceled',
             })}::jsonb, 'lifecycle_action', NOW())`);
         }
       });
 
-      console.log(`[WOPrep] Record ${id} cancelled by user ${userId}. Cascaded EPC WOs: ${cascadedEpcWoIds}`);
-      res.json({ success: true, message: 'WO preparation record cancelled', id, newStatus: 'cancelled', cascadedEpcWoIds });
+      console.log(`[WOPrep] Record ${id} canceled by user ${userId}. Cascaded EPC WOs: ${cascadedEpcWoIds}`);
+      res.json({ success: true, message: 'WO preparation record canceled', id, newStatus: 'canceled', cascadedEpcWoIds });
     } catch (error) {
       sendError(res, error);
     }
@@ -5139,7 +5160,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       const existingPO = await db.execute(
         sql`SELECT id, po_number, status FROM epc_purchase_orders 
-            WHERE po_preparation_id = ${poPrepId} AND status NOT IN ('cancelled', 'superseded')`
+            WHERE po_preparation_id = ${poPrepId} AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingPO.rows.length > 0) {
         const ePO = existingPO.rows[0] as any;
@@ -5240,7 +5261,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
-      if (['cancelled', 'superseded', 'issued'].includes(po.status)) {
+      if (['canceled', 'superseded', 'issued'].includes(po.status)) {
         return sendBusinessError(res, `Cannot edit: PO is in terminal status '${po.status}'.`);
       }
 
@@ -5398,29 +5419,29 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
-      if (['cancelled', 'superseded'].includes(po.status)) {
+      if (['canceled', 'superseded'].includes(po.status)) {
         return sendBusinessError(res, `Cannot cancel: PO is already '${po.status}'.`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcPurchaseOrders)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(epcPurchaseOrders.id, id));
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${po.project_id}, 'epc_purchase_order.cancelled', ${JSON.stringify({
+          VALUES (${po.project_id}, 'epc_purchase_order.canceled', ${JSON.stringify({
             epcPoId: id, poNumber: po.po_number, cancelledBy: userId, cancelReason,
             previousStatus: po.status, projectItemId: po.project_item_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
-        await markTasksObsolete('purchase_order', id, 'po_cancelled', tx);
+        await markTasksObsolete('purchase_order', id, 'po_canceled', tx);
       });
 
-      console.log(`[EPC-PO] Purchase order ${po.po_number} cancelled by user ${userId}`);
-      res.json({ success: true, message: `Purchase order ${po.po_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[EPC-PO] Purchase order ${po.po_number} canceled by user ${userId}`);
+      res.json({ success: true, message: `Purchase order ${po.po_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -5614,7 +5635,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       const existingWO = await db.execute(
         sql`SELECT id, wo_number, status FROM epc_work_orders 
-            WHERE wo_preparation_id = ${woPrepId} AND status NOT IN ('cancelled', 'superseded')`
+            WHERE wo_preparation_id = ${woPrepId} AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingWO.rows.length > 0) {
         const eWO = existingWO.rows[0] as any;
@@ -5721,7 +5742,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
-      if (['cancelled', 'superseded', 'released'].includes(wo.status)) {
+      if (['canceled', 'superseded', 'released'].includes(wo.status)) {
         return sendBusinessError(res, `Cannot edit: WO is in terminal status '${wo.status}'.`);
       }
 
@@ -5879,29 +5900,29 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
-      if (['cancelled', 'superseded'].includes(wo.status)) {
+      if (['canceled', 'superseded'].includes(wo.status)) {
         return sendBusinessError(res, `Cannot cancel: WO is already '${wo.status}'.`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcWorkOrders)
           .set({
-            status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(),
+            status: 'canceled', cancelledBy: userId, cancelledAt: new Date(),
             cancelReason, updatedAt: new Date(),
           })
           .where(eq(epcWorkOrders.id, id));
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${wo.project_id}, 'epc_work_order.cancelled', ${JSON.stringify({
+          VALUES (${wo.project_id}, 'epc_work_order.canceled', ${JSON.stringify({
             epcWoId: id, woNumber: wo.wo_number, cancelledBy: userId, cancelReason,
             previousStatus: wo.status, projectItemId: wo.project_item_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
-        await markTasksObsolete('work_order', id, 'wo_cancelled', tx);
+        await markTasksObsolete('work_order', id, 'wo_canceled', tx);
       });
 
-      console.log(`[EPC-WO] Work order ${wo.wo_number} cancelled by user ${userId}`);
-      res.json({ success: true, message: `Work order ${wo.wo_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[EPC-WO] Work order ${wo.wo_number} canceled by user ${userId}`);
+      res.json({ success: true, message: `Work order ${wo.wo_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -6052,7 +6073,7 @@ export function setupProjectRoutes(app: express.Express) {
         if (po.quality_status !== 'inspection_cleared') {
           return sendBusinessError(res, `Cannot create dispatch readiness: PO ${po.po_number} quality status is '${po.quality_status}'. Must be inspection_cleared.`);
         }
-        if (po.status === 'cancelled' || po.status === 'superseded') {
+        if (po.status === 'canceled' || po.status === 'superseded') {
           return sendBusinessError(res, `Cannot create dispatch readiness: PO ${po.po_number} is ${po.status}.`);
         }
         sourceType = 'purchase_order';
@@ -6067,7 +6088,7 @@ export function setupProjectRoutes(app: express.Express) {
         if (wo.quality_status !== 'inspection_cleared') {
           return sendBusinessError(res, `Cannot create dispatch readiness: WO ${wo.wo_number} quality status is '${wo.quality_status}'. Must be inspection_cleared.`);
         }
-        if (wo.status === 'cancelled' || wo.status === 'superseded') {
+        if (wo.status === 'canceled' || wo.status === 'superseded') {
           return sendBusinessError(res, `Cannot create dispatch readiness: WO ${wo.wo_number} is ${wo.status}.`);
         }
         sourceType = epcPurchaseOrderId ? 'both' : 'work_order';
@@ -6085,7 +6106,7 @@ export function setupProjectRoutes(app: express.Express) {
               AND project_id = ${projectId}
               AND COALESCE(epc_purchase_order_id, 0) = COALESCE(${epcPurchaseOrderId || null}::int, 0)
               AND COALESCE(epc_work_order_id, 0) = COALESCE(${epcWorkOrderId || null}::int, 0)
-              AND status NOT IN ('cancelled', 'superseded', 'dispatched')`
+              AND status NOT IN ('canceled', 'superseded', 'dispatched')`
       );
       if (existingCheck.rows.length > 0) {
         const existing = existingCheck.rows[0] as any;
@@ -6296,24 +6317,24 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
-      if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
+      if (dr.status === 'canceled' || dr.status === 'superseded' || dr.status === 'dispatched') {
         return sendBusinessError(res, `Cannot cancel: status is '${dr.status}' (terminal state).`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcDispatchReadiness)
-          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .set({ status: 'canceled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
           .where(eq(epcDispatchReadiness.id, id));
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${dr.project_id}, 'dispatch_readiness.cancelled', ${JSON.stringify({
+          VALUES (${dr.project_id}, 'dispatch_readiness.canceled', ${JSON.stringify({
             drId: id, drNumber: dr.dr_number, cancelledBy: userId, cancelReason,
             previousStatus: dr.status, projectItemId: dr.project_item_id,
           })}::jsonb, 'dispatch_readiness', NOW())`);
       });
 
-      console.log(`[DR] ${dr.dr_number} cancelled by user ${userId}: ${cancelReason}`);
-      res.json({ success: true, message: `${dr.dr_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[DR] ${dr.dr_number} canceled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${dr.dr_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -6334,7 +6355,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
-      if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
+      if (dr.status === 'canceled' || dr.status === 'superseded' || dr.status === 'dispatched') {
         return sendBusinessError(res, `Cannot supersede: status is '${dr.status}' (terminal state).`);
       }
 
@@ -6372,7 +6393,7 @@ export function setupProjectRoutes(app: express.Express) {
       await guardProjectNotFrozen(dr.project_id, res);
       if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
-      if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
+      if (dr.status === 'canceled' || dr.status === 'superseded' || dr.status === 'dispatched') {
         return sendBusinessError(res, `Cannot update: status is '${dr.status}' (terminal state).`);
       }
 
@@ -6513,7 +6534,7 @@ export function setupProjectRoutes(app: express.Express) {
       const existingCheck = await db.execute(
         sql`SELECT id, dispatch_number FROM epc_dispatch_records 
             WHERE dispatch_readiness_id = ${dispatchReadinessId}
-              AND status NOT IN ('cancelled', 'superseded')`
+              AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingCheck.rows.length > 0) {
         const existing = existingCheck.rows[0] as any;
@@ -6746,20 +6767,20 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
-      if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
+      if (d.status === 'canceled' || d.status === 'superseded' || d.status === 'delivered') {
         return sendBusinessError(res, `Cannot cancel: status is '${d.status}' (terminal state).`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcDispatchRecords)
-          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .set({ status: 'canceled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
           .where(eq(epcDispatchRecords.id, id));
 
         if (d.status !== 'shipped') {
           const otherActive = await tx.execute(
             sql`SELECT id FROM epc_dispatch_records 
                 WHERE dispatch_readiness_id = ${d.dispatch_readiness_id} 
-                  AND id != ${id} AND status NOT IN ('cancelled', 'superseded')`
+                  AND id != ${id} AND status NOT IN ('canceled', 'superseded')`
           );
           if (otherActive.rows.length === 0) {
             await tx.update(epcDispatchReadiness)
@@ -6769,14 +6790,14 @@ export function setupProjectRoutes(app: express.Express) {
         }
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${d.project_id}, 'dispatch_record.cancelled', ${JSON.stringify({
+          VALUES (${d.project_id}, 'dispatch_record.canceled', ${JSON.stringify({
             dispatchId: id, dispatchNumber: d.dispatch_number, cancelledBy: userId,
             cancelReason, previousStatus: d.status, projectItemId: d.project_item_id,
           })}::jsonb, 'dispatch_execution', NOW())`);
       });
 
-      console.log(`[DISP] ${d.dispatch_number} cancelled by user ${userId}: ${cancelReason}`);
-      res.json({ success: true, message: `${d.dispatch_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[DISP] ${d.dispatch_number} canceled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${d.dispatch_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -6797,7 +6818,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
-      if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
+      if (d.status === 'canceled' || d.status === 'superseded' || d.status === 'delivered') {
         return sendBusinessError(res, `Cannot supersede: status is '${d.status}' (terminal state).`);
       }
 
@@ -6836,7 +6857,7 @@ export function setupProjectRoutes(app: express.Express) {
       await guardProjectNotFrozen(d.project_id, res);
       if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
-      if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
+      if (d.status === 'canceled' || d.status === 'superseded' || d.status === 'delivered') {
         return sendBusinessError(res, `Cannot update: status is '${d.status}' (terminal state).`);
       }
 
@@ -6965,7 +6986,7 @@ export function setupProjectRoutes(app: express.Express) {
       const existingCheck = await db.execute(
         sql`SELECT id, cr_number FROM epc_commissioning_readiness
             WHERE dispatch_record_id = ${dispatchRecordId}
-              AND status NOT IN ('cancelled', 'superseded')`
+              AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingCheck.rows.length > 0) {
         const existing = existingCheck.rows[0] as any;
@@ -7222,24 +7243,24 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
-      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
+      if (cr.status === 'canceled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot cancel: status is '${cr.status}' (terminal state).`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcCommissioningReadiness)
-          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .set({ status: 'canceled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
           .where(eq(epcCommissioningReadiness.id, id));
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${cr.project_id}, 'commissioning_readiness.cancelled', ${JSON.stringify({
+          VALUES (${cr.project_id}, 'commissioning_readiness.canceled', ${JSON.stringify({
             crId: id, crNumber: cr.cr_number, cancelledBy: userId, cancelReason,
             previousStatus: cr.status, projectItemId: cr.project_item_id,
           })}::jsonb, 'commissioning', NOW())`);
       });
 
-      console.log(`[CR] ${cr.cr_number} cancelled by user ${userId}: ${cancelReason}`);
-      res.json({ success: true, message: `${cr.cr_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[CR] ${cr.cr_number} canceled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${cr.cr_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -7258,7 +7279,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
-      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
+      if (cr.status === 'canceled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot supersede: status is '${cr.status}' (terminal state).`);
       }
 
@@ -7295,7 +7316,7 @@ export function setupProjectRoutes(app: express.Express) {
       const cr = existing.rows[0] as any;
 
       await guardProjectNotFrozen(cr.project_id, res);
-      if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
+      if (cr.status === 'canceled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot update: status is '${cr.status}' (terminal state).`);
       }
 
@@ -7598,7 +7619,7 @@ export function setupProjectRoutes(app: express.Express) {
         sql`SELECT id, br_number FROM epc_billing_readiness
             WHERE ${sql.raw(idempotencyField)} = ${idempotencyValue}
               AND billing_basis = ${billingBasis}
-              AND status NOT IN ('cancelled', 'superseded')`
+              AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingCheck.rows.length > 0) {
         const existing = existingCheck.rows[0] as any;
@@ -7823,24 +7844,24 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
 
-      if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
+      if (br.status === 'canceled' || br.status === 'superseded' || br.status === 'invoiced') {
         return sendBusinessError(res, `Cannot cancel: status is '${br.status}' (terminal state).`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcBillingReadiness)
-          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .set({ status: 'canceled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
           .where(eq(epcBillingReadiness.id, id));
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${br.project_id}, 'billing_readiness.cancelled', ${JSON.stringify({
+          VALUES (${br.project_id}, 'billing_readiness.canceled', ${JSON.stringify({
             brId: id, brNumber: br.br_number, cancelledBy: userId, cancelReason,
             previousStatus: br.status, billingBasis: br.billing_basis,
           })}::jsonb, 'billing', NOW())`);
       });
 
-      console.log(`[BR] ${br.br_number} cancelled by user ${userId}: ${cancelReason}`);
-      res.json({ success: true, message: `${br.br_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[BR] ${br.br_number} canceled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${br.br_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -7861,7 +7882,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
 
-      if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
+      if (br.status === 'canceled' || br.status === 'superseded' || br.status === 'invoiced') {
         return sendBusinessError(res, `Cannot supersede: status is '${br.status}' (terminal state).`);
       }
 
@@ -7899,7 +7920,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(br, req.user as any, 'strict', req, res))) return;
 
-      if (br.status === 'cancelled' || br.status === 'superseded' || br.status === 'invoiced') {
+      if (br.status === 'canceled' || br.status === 'superseded' || br.status === 'invoiced') {
         return sendBusinessError(res, `Cannot update: status is '${br.status}' (terminal state).`);
       }
 
@@ -8051,7 +8072,7 @@ export function setupProjectRoutes(app: express.Express) {
       const existingCheck = await db.execute(
         sql`SELECT id, invoice_number FROM epc_invoices
             WHERE billing_readiness_id = ${billingReadinessId}
-              AND status NOT IN ('cancelled', 'superseded')`
+              AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingCheck.rows.length > 0) {
         const existing = existingCheck.rows[0] as any;
@@ -8310,7 +8331,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
 
-      if (inv.status === 'cancelled' || inv.status === 'superseded' || inv.status === 'paid') {
+      if (inv.status === 'canceled' || inv.status === 'superseded' || inv.status === 'paid') {
         return sendBusinessError(res, `Cannot cancel: status is '${inv.status}' (terminal state).`);
       }
 
@@ -8320,12 +8341,12 @@ export function setupProjectRoutes(app: express.Express) {
 
       await db.transaction(async (tx) => {
         await tx.update(epcInvoices)
-          .set({ status: 'cancelled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
+          .set({ status: 'canceled', cancelledBy: userId, cancelledAt: new Date(), cancelReason, updatedAt: new Date() })
           .where(eq(epcInvoices.id, id));
 
         if (inv.status === 'draft') {
           const otherActive = await tx.execute(
-            sql`SELECT id FROM epc_invoices WHERE billing_readiness_id = ${inv.billing_readiness_id} AND id != ${id} AND status NOT IN ('cancelled', 'superseded')`
+            sql`SELECT id FROM epc_invoices WHERE billing_readiness_id = ${inv.billing_readiness_id} AND id != ${id} AND status NOT IN ('canceled', 'superseded')`
           );
           if (otherActive.rows.length === 0) {
             await tx.update(epcBillingReadiness)
@@ -8335,14 +8356,14 @@ export function setupProjectRoutes(app: express.Express) {
         }
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${inv.project_id}, 'epc_invoice.cancelled', ${JSON.stringify({
+          VALUES (${inv.project_id}, 'epc_invoice.canceled', ${JSON.stringify({
             invoiceId: id, invoiceNumber: inv.invoice_number, cancelledBy: userId, cancelReason,
             previousStatus: inv.status, billingBasis: inv.billing_basis,
           })}::jsonb, 'invoice', NOW())`);
       });
 
-      console.log(`[INV] ${inv.invoice_number} cancelled by user ${userId}: ${cancelReason}`);
-      res.json({ success: true, message: `${inv.invoice_number} cancelled`, id, newStatus: 'cancelled' });
+      console.log(`[INV] ${inv.invoice_number} canceled by user ${userId}: ${cancelReason}`);
+      res.json({ success: true, message: `${inv.invoice_number} canceled`, id, newStatus: 'canceled' });
     } catch (error) {
       sendError(res, error);
     }
@@ -8364,7 +8385,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(inv, req.user as any, 'strict', req, res))) return;
 
-      if (inv.status === 'cancelled' || inv.status === 'superseded' || inv.status === 'paid') {
+      if (inv.status === 'canceled' || inv.status === 'superseded' || inv.status === 'paid') {
         return sendBusinessError(res, `Cannot supersede: status is '${inv.status}' (terminal state).`);
       }
 
@@ -8534,7 +8555,7 @@ export function setupProjectRoutes(app: express.Express) {
         sql`SELECT id, dwg_control_number FROM epc_drawing_controls 
             WHERE project_item_id = ${projectItemId} 
               AND project_id = ${projectId}
-              AND status NOT IN ('cancelled', 'superseded')`
+              AND status NOT IN ('canceled', 'superseded')`
       );
       if (existingCheck.rows.length > 0) {
         const existing = existingCheck.rows[0] as any;
@@ -8991,7 +9012,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
       const rec = results.rows[0] as any;
 
-      if (['cancelled', 'superseded'].includes(rec.status)) {
+      if (['canceled', 'superseded'].includes(rec.status)) {
         return sendBusinessError(res, `Already ${rec.status}.`);
       }
       if (rec.status === 'released') {
@@ -9000,7 +9021,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       await db.transaction(async (tx) => {
         await tx.update(epcDrawingControls).set({
-          status: 'cancelled',
+          status: 'canceled',
           cancelledBy: userId,
           cancelledAt: new Date(),
           cancelReason,
@@ -9008,15 +9029,15 @@ export function setupProjectRoutes(app: express.Express) {
         }).where(eq(epcDrawingControls.id, id));
 
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
-          VALUES (${rec.project_id}, 'drawing_control.cancelled', ${JSON.stringify({
+          VALUES (${rec.project_id}, 'drawing_control.canceled', ${JSON.stringify({
             dwgId: id, dwgControlNumber: rec.dwg_control_number, cancelledBy: userId, cancelReason,
           })}::jsonb, 'drawing_control', NOW())`);
 
-        await markTasksObsolete('drawing_control', id, 'drawing_cancelled', tx);
+        await markTasksObsolete('drawing_control', id, 'drawing_canceled', tx);
       });
 
-      console.log(`[DWG-CTRL] ${rec.dwg_control_number} cancelled by user ${userId}`);
-      res.json({ success: true, message: `${rec.dwg_control_number} cancelled` });
+      console.log(`[DWG-CTRL] ${rec.dwg_control_number} canceled by user ${userId}`);
+      res.json({ success: true, message: `${rec.dwg_control_number} canceled` });
     } catch (error) {
       sendError(res, error);
     }
@@ -9040,7 +9061,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
       const rec = results.rows[0] as any;
 
-      if (['cancelled', 'superseded'].includes(rec.status)) {
+      if (['canceled', 'superseded'].includes(rec.status)) {
         return sendBusinessError(res, `Already ${rec.status}.`);
       }
       if (!rec.is_current) {
@@ -9322,7 +9343,7 @@ export function setupProjectRoutes(app: express.Express) {
       const existingCheck = await db.execute(sql`
         SELECT id, bom_number FROM epc_bom_headers 
         WHERE project_item_id = ${projectItemId} AND bom_type = ${validBomType}
-        AND status NOT IN ('superseded', 'cancelled')
+        AND status NOT IN ('superseded', 'canceled')
       `);
       if (existingCheck.rows.length > 0) {
         return sendBusinessError(res, `Active BOM (${(existingCheck.rows[0] as any).bom_number}) already exists for this project item with type '${validBomType}'. Supersede it to create a new one.`);
@@ -9675,24 +9696,24 @@ export function setupProjectRoutes(app: express.Express) {
       if (rec.status === 'released') {
         return sendBusinessError(res, 'Cannot cancel a released BOM. Supersede it instead.');
       }
-      if (['superseded', 'cancelled'].includes(rec.status)) {
+      if (['superseded', 'canceled'].includes(rec.status)) {
         return sendBusinessError(res, `BOM is already ${rec.status}.`);
       }
 
       await db.transaction(async (tx) => {
         await tx.update(epcBomHeaders).set({
-          status: 'cancelled',
+          status: 'canceled',
           cancelledBy: userId,
           cancelledAt: new Date(),
           cancelReason,
           updatedAt: new Date(),
         }).where(eq(epcBomHeaders.id, id));
 
-        await markTasksObsolete('bom_header', id, 'bom_cancelled', tx);
+        await markTasksObsolete('bom_header', id, 'bom_canceled', tx);
       });
 
-      console.log(`[BOM] ${rec.bom_number} cancelled by user ${userId}`);
-      res.json({ success: true, message: `${rec.bom_number} cancelled` });
+      console.log(`[BOM] ${rec.bom_number} canceled by user ${userId}`);
+      res.json({ success: true, message: `${rec.bom_number} canceled` });
     } catch (error) {
       sendError(res, error);
     }
@@ -9715,7 +9736,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await guardProjectNotFrozen(rec.project_id, res))) return;
 
-      if (['superseded', 'cancelled'].includes(rec.status)) {
+      if (['superseded', 'canceled'].includes(rec.status)) {
         return sendBusinessError(res, `Cannot supersede: BOM is already ${rec.status}.`);
       }
       if (!rec.is_current) {
@@ -9789,13 +9810,13 @@ export function setupProjectRoutes(app: express.Express) {
         const childPlanningResults = await tx.execute(sql`
           SELECT id, status FROM item_planning_records
           WHERE source_bom_header_id = ${id} AND source = 'bom_explosion'
-            AND status NOT IN ('cancelled', 'superseded')
+            AND status NOT IN ('canceled', 'superseded')
         `);
         let autoCancelled = 0, flaggedForReview = 0;
         for (const child of childPlanningResults.rows as any[]) {
           if (child.status === 'draft') {
             await tx.execute(sql`
-              UPDATE item_planning_records SET status = 'cancelled', cancel_reason = ${'Parent BOM superseded: ' + supersessionReason},
+              UPDATE item_planning_records SET status = 'canceled', cancel_reason = ${'Parent BOM superseded: ' + supersessionReason},
                 cancelled_by = ${userId}, cancelled_at = NOW(), updated_at = NOW()
               WHERE id = ${child.id}
             `);
@@ -9824,7 +9845,7 @@ export function setupProjectRoutes(app: express.Express) {
         await createEpcTask({
           projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'supersession_review',
           title: `Review child planning records after BOM ${rec.bom_number} supersession`,
-          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been superseded by ${newBom.bomNumber} on ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-cancelled, ${flaggedForReview} flagged for review.`,
+          description: `BOM ${rec.bom_number} (${rec.bom_type}) has been superseded by ${newBom.bomNumber} on ${bomSupProjectCode}. Reason: ${supersessionReason}. ${autoCancelled} draft planning records auto-canceled, ${flaggedForReview} flagged for review.`,
           assignedTo: bomSupDesignLead || bomSupPM, createdBy: userId, priority: 'High', dueDays: 2, tx,
         });
 
@@ -9836,12 +9857,12 @@ export function setupProjectRoutes(app: express.Express) {
       const newBomNum = txResult.newBom.bomNumber;
       await createEpcAlertMulti(txResult.bomSupAlertRecipients, {
         type: 'epc_supersession', title: `BOM ${rec.bom_number} superseded`,
-        message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNum} on project ${txResult.bomSupProjectCode}. Reason: ${supersessionReason}. ${txResult.autoCancelled} draft planning records auto-cancelled, ${txResult.flaggedForReview} flagged for review.`,
+        message: `BOM ${rec.bom_number} (${rec.bom_type}) superseded by ${newBomNum} on project ${txResult.bomSupProjectCode}. Reason: ${supersessionReason}. ${txResult.autoCancelled} draft planning records auto-canceled, ${txResult.flaggedForReview} flagged for review.`,
         link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
         entityType: 'bom_header', recordId: id, actionCode: 'superseded',
       });
 
-      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNum} (user ${userId}). Child planning: ${txResult.autoCancelled} auto-cancelled, ${txResult.flaggedForReview} flagged for review.`);
+      console.log(`[BOM] ${rec.bom_number} superseded by ${newBomNum} (user ${userId}). Child planning: ${txResult.autoCancelled} auto-canceled, ${txResult.flaggedForReview} flagged for review.`);
       res.status(201).json({
         success: true,
         message: `${rec.bom_number} superseded. New BOM: ${newBomNum} (Rev ${nextRevisionCode})`,
@@ -9982,7 +10003,7 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE project_item_id = ${childId}
               AND source_bom_line_id = ${line.id}
               AND source = 'bom_explosion'
-              AND status NOT IN ('cancelled', 'superseded')
+              AND status NOT IN ('canceled', 'superseded')
           `);
           if (existingPlanning.rows.length > 0) {
             preview.push({
@@ -10183,7 +10204,7 @@ export function setupProjectRoutes(app: express.Express) {
             WHERE project_item_id = ${childProjectItemId}
               AND source_bom_line_id = ${line.id}
               AND source = 'bom_explosion'
-              AND status NOT IN ('cancelled', 'superseded')
+              AND status NOT IN ('canceled', 'superseded')
           `);
 
           if (existingPlanning.rows.length > 0) {

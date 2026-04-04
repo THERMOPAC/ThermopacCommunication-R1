@@ -273,7 +273,7 @@ export default function EpcDrawingControlPage() {
       approved: all.filter(d => d.status === "approved").length,
       released: all.filter(d => d.status === "released").length,
       superseded: all.filter(d => d.status === "superseded").length,
-      cancelled: all.filter(d => d.status === "cancelled").length,
+      cancelled: all.filter(d => d.status === "canceled").length,
     };
   }, [drawingControls, showAllRevisions]);
 
@@ -441,7 +441,7 @@ export default function EpcDrawingControlPage() {
                   <SelectTrigger className="h-8 text-xs w-[130px]"><Filter className="h-3 w-3 mr-1" /><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
-                    {["draft", "under_review", "approved", "released", "superseded", "cancelled"].map(s => (
+                    {["draft", "under_review", "approved", "released", "superseded", "canceled"].map(s => (
                       <SelectItem key={s} value={s} className="text-xs">{s.replace(/_/g, " ")}</SelectItem>
                     ))}
                   </SelectContent>
@@ -587,7 +587,7 @@ export default function EpcDrawingControlPage() {
                                         <CardContent className="px-3 pb-2">
                                           {actions.length === 0 ? (
                                             <p className="text-[10px] text-muted-foreground italic py-2">
-                                              {["cancelled", "superseded", "file_not_available"].includes(rec.status)
+                                              {["canceled", "superseded", "file_not_available"].includes(rec.status)
                                                 ? "No actions available — record is terminal."
                                                 : rec.status === "pending_upload"
                                                 ? "Upload a file to activate this record before lifecycle actions become available."

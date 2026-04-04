@@ -71,7 +71,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const openTasks = await db.execute(sql`
     SELECT id, category FROM tasks
     WHERE source_type = 'agent_task' AND source_agent = ${SOURCE_AGENT}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
   `);
 
   for (const task of (openTasks.rows || []) as any[]) {
@@ -85,7 +85,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
 
     if (['p3_overdue', 'p17_not_started', 'p5_backlog'].includes(findingType)) {
       const result = await db.execute(sql`
-        SELECT 1 FROM work_orders WHERE id = ${entityId} AND status IN ('completed', 'cancelled') LIMIT 1
+        SELECT 1 FROM work_orders WHERE id = ${entityId} AND status IN ('completed', 'canceled') LIMIT 1
       `);
       resolved = (result.rows || []).length > 0;
     } else if (findingType === 'p40_dpr_missing') {
@@ -242,7 +242,7 @@ export class ProductionManagementAgent implements IAgent {
         FROM work_orders wo
         JOIN projects p ON wo.project_id = p.id
         LEFT JOIN users u ON wo.supervisor_id = u.id
-        WHERE wo.status NOT IN ('completed', 'cancelled')
+        WHERE wo.status NOT IN ('completed', 'canceled')
           AND wo.planned_end_date < CURRENT_DATE
           AND NOT EXISTS (SELECT 1 FROM epc_work_orders ew WHERE ew.work_order_id = wo.id)
         ORDER BY (NOW() - wo.planned_end_date) DESC
@@ -295,7 +295,7 @@ export class ProductionManagementAgent implements IAgent {
           b.planned_start_date::date as b_start, b.planned_end_date::date as b_end
         FROM work_orders a
         JOIN work_orders b ON a.production_line = b.production_line AND a.id < b.id
-        WHERE a.status NOT IN ('completed','cancelled') AND b.status NOT IN ('completed','cancelled')
+        WHERE a.status NOT IN ('completed','canceled') AND b.status NOT IN ('completed','canceled')
           AND a.production_line IS NOT NULL AND a.production_line != ''
           AND a.planned_start_date < b.planned_end_date AND b.planned_start_date < a.planned_end_date
         LIMIT 20
@@ -345,7 +345,7 @@ export class ProductionManagementAgent implements IAgent {
           MAX(EXTRACT(DAY FROM NOW() - wo.planned_end_date))::int as max_overdue_days
         FROM work_orders wo
         JOIN projects p ON wo.project_id = p.id
-        WHERE wo.status NOT IN ('completed','cancelled')
+        WHERE wo.status NOT IN ('completed','canceled')
         GROUP BY p.id, p.name, p.code
         HAVING COUNT(*) >= 10
         ORDER BY COUNT(*) DESC
@@ -430,7 +430,7 @@ export class ProductionManagementAgent implements IAgent {
           p.name as project_name
         FROM work_orders wo
         JOIN projects p ON wo.project_id = p.id
-        WHERE wo.status NOT IN ('cancelled')
+        WHERE wo.status NOT IN ('canceled')
           AND (wo.quantity <= 0 OR wo.quantity > 1000)
         LIMIT 20
       `);
@@ -457,7 +457,7 @@ export class ProductionManagementAgent implements IAgent {
           STRING_AGG(DISTINCT wo.production_line, ', ') as lines
         FROM work_orders wo
         JOIN users u ON wo.supervisor_id = u.id
-        WHERE wo.status NOT IN ('completed','cancelled')
+        WHERE wo.status NOT IN ('completed','canceled')
         GROUP BY wo.supervisor_id, u.username
         HAVING COUNT(*) > 15
         ORDER BY COUNT(*) DESC
@@ -576,7 +576,7 @@ export class ProductionManagementAgent implements IAgent {
         JOIN projects p ON wo.project_id = p.id
         WHERE mc.quantity_consumed >= mc.quantity_required * 0.9
           AND mc.quantity_consumed < mc.quantity_required
-          AND wo.status NOT IN ('completed','cancelled')
+          AND wo.status NOT IN ('completed','canceled')
         ORDER BY consumption_pct DESC
         LIMIT 20
       `);
@@ -770,7 +770,7 @@ export class ProductionManagementAgent implements IAgent {
         FROM machine_allocations ma
         JOIN work_orders wo ON ma.work_order_id = wo.id
         WHERE ma.status = 'idle'
-          AND wo.status NOT IN ('completed','cancelled')
+          AND wo.status NOT IN ('completed','canceled')
           AND ma.downtime_minutes > 60
         ORDER BY ma.downtime_minutes DESC
         LIMIT 20
@@ -1546,10 +1546,10 @@ export class ProductionManagementAgent implements IAgent {
       const r2Rows = await db.execute(sql`
         SELECT p.id, p.name, p.code,
           (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id
-            AND wo.status NOT IN ('completed','cancelled')
+            AND wo.status NOT IN ('completed','canceled')
             AND wo.planned_end_date < CURRENT_DATE)::int as overdue_count,
           (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id
-            AND wo.status NOT IN ('completed','cancelled'))::int as open_count,
+            AND wo.status NOT IN ('completed','canceled'))::int as open_count,
           (SELECT COUNT(*) FROM work_orders wo WHERE wo.project_id = p.id
             AND wo.status = 'completed'
             AND wo.actual_end_date > wo.planned_end_date)::int as late_completed
@@ -1668,7 +1668,7 @@ export class ProductionManagementAgent implements IAgent {
             AND wo.updated_at < NOW() - INTERVAL '7 days')::int as prev_week_completed,
           (SELECT COUNT(*) FROM work_orders wo WHERE wo.status = 'completed'
             AND wo.updated_at >= NOW() - INTERVAL '7 days')::int as curr_week_completed,
-          (SELECT COUNT(*) FROM work_orders wo WHERE wo.status NOT IN ('completed','cancelled'))::int as backlog
+          (SELECT COUNT(*) FROM work_orders wo WHERE wo.status NOT IN ('completed','canceled'))::int as backlog
       `);
       queriesRun++;
       const prevCompleted = Number((r7Rows.rows as any[])[0]?.prev_week_completed || 0);
@@ -1748,8 +1748,8 @@ export class ProductionManagementAgent implements IAgent {
       // ── Generate Production Health Insight ──
       const healthRows = await db.execute(sql`
         SELECT
-          (SELECT COUNT(*) FROM work_orders WHERE status NOT IN ('completed','cancelled'))::int as open_wos,
-          (SELECT COUNT(*) FROM work_orders WHERE status NOT IN ('completed','cancelled') AND planned_end_date < CURRENT_DATE)::int as overdue_wos,
+          (SELECT COUNT(*) FROM work_orders WHERE status NOT IN ('completed','canceled'))::int as open_wos,
+          (SELECT COUNT(*) FROM work_orders WHERE status NOT IN ('completed','canceled') AND planned_end_date < CURRENT_DATE)::int as overdue_wos,
           (SELECT COUNT(*) FROM work_orders WHERE status = 'completed' AND updated_at >= NOW() - INTERVAL '7 days')::int as completed_this_week,
           (SELECT COUNT(*) FROM work_orders WHERE status = 'planned' AND planned_start_date < CURRENT_DATE)::int as not_started
       `);
@@ -1794,7 +1794,7 @@ export class ProductionManagementAgent implements IAgent {
         FROM tasks t
         WHERE t.source_type = 'epc_automation'
           AND t.description LIKE '%[automation_key:epc:production_execution:%:gate_blocked]%'
-          AND t.status NOT IN ('completed','cancelled','obsolete')
+          AND t.status NOT IN ('completed','canceled','obsolete')
           AND t.created_at::timestamp < NOW() - INTERVAL '7 days'
       `);
       queriesRun++;

@@ -26,8 +26,8 @@ const roleHierarchy: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, Employee: 4,
 };
 
-type ProcStatus = "draft" | "under_preparation" | "ready_for_po" | "cancelled" | "superseded";
-type ProdStatus = "draft" | "under_preparation" | "ready_for_wo" | "cancelled" | "superseded";
+type ProcStatus = "draft" | "under_preparation" | "ready_for_po" | "canceled" | "superseded";
+type ProdStatus = "draft" | "under_preparation" | "ready_for_wo" | "canceled" | "superseded";
 
 const PROC_STATUS_COLORS: Record<string, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -157,8 +157,8 @@ export default function EpcExecutionControlPage() {
     draft: procRecords.filter((r: any) => r.status === "draft").length,
     underPrep: procRecords.filter((r: any) => r.status === "under_preparation").length,
     ready: procRecords.filter((r: any) => r.status === "ready_for_po").length,
-    cancelled: procRecords.filter((r: any) => r.status === "cancelled").length,
-    totalCost: procRecords.filter((r: any) => !["cancelled", "superseded"].includes(r.status)).reduce((sum: number, r: any) => sum + parseFloat(r.estimated_total_cost || "0"), 0),
+    cancelled: procRecords.filter((r: any) => r.status === "canceled").length,
+    totalCost: procRecords.filter((r: any) => !["canceled", "superseded"].includes(r.status)).reduce((sum: number, r: any) => sum + parseFloat(r.estimated_total_cost || "0"), 0),
   }), [procRecords]);
 
   const prodStats = useMemo(() => ({
@@ -166,8 +166,8 @@ export default function EpcExecutionControlPage() {
     draft: prodRecords.filter((r: any) => r.status === "draft").length,
     underPrep: prodRecords.filter((r: any) => r.status === "under_preparation").length,
     ready: prodRecords.filter((r: any) => r.status === "ready_for_wo").length,
-    cancelled: prodRecords.filter((r: any) => r.status === "cancelled").length,
-    totalCost: prodRecords.filter((r: any) => !["cancelled", "superseded"].includes(r.status)).reduce((sum: number, r: any) => sum + parseFloat(r.estimated_total_cost || "0"), 0),
+    cancelled: prodRecords.filter((r: any) => r.status === "canceled").length,
+    totalCost: prodRecords.filter((r: any) => !["canceled", "superseded"].includes(r.status)).reduce((sum: number, r: any) => sum + parseFloat(r.estimated_total_cost || "0"), 0),
   }), [prodRecords]);
 
   const stats = activeTab === "procurement" ? procStats : prodStats;

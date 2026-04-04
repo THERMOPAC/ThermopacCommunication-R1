@@ -671,7 +671,7 @@ export default function ProcurementPlanningPage() {
                     <SelectItem value="ordered">Ordered</SelectItem>
                     <SelectItem value="received">Received</SelectItem>
                     <SelectItem value="on_hold">On Hold</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="canceled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -93,7 +93,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const openTasks = await db.execute(sql`
     SELECT id, category FROM tasks
     WHERE source_type = 'agent_task' AND source_agent = ${SOURCE_AGENT}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
       AND category LIKE '%[fp:pc_%'
   `);
 
@@ -105,7 +105,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
     if (woMatch) {
       const check = await db.execute(sql`SELECT status FROM work_orders WHERE id = ${parseInt(woMatch[1])}`);
       const s = (check.rows as any[])[0]?.status;
-      if (s === 'completed' || s === 'cancelled') shouldClose = true;
+      if (s === 'completed' || s === 'canceled') shouldClose = true;
     }
 
     const reviewMatch = cat.match(/\[fp:pc_d2_stuck_review:p\d+:review:(\d+)\]/);
@@ -189,7 +189,7 @@ export class ProjectControlAgent implements IAgent {
           EXTRACT(DAY FROM NOW() - wo.updated_at)::int as days_since_update
         FROM work_orders wo
         JOIN projects p ON wo.project_id = p.id
-        WHERE wo.status NOT IN ('completed', 'cancelled')
+        WHERE wo.status NOT IN ('completed', 'canceled')
         ORDER BY wo.project_id
       `);
       queriesRun++;
@@ -201,7 +201,7 @@ export class ProjectControlAgent implements IAgent {
           p.name as project_name, p.manager_id
         FROM project_phases pp
         JOIN projects p ON pp.project_id = p.id
-        WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
+        WHERE p.status NOT IN ('canceled', 'archived', 'completed')
         ORDER BY pp.project_id, pp."order"
       `);
       queriesRun++;
@@ -212,7 +212,7 @@ export class ProjectControlAgent implements IAgent {
           ks.is_completed, ks.completed_date, p.name as project_name, p.manager_id
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
-        WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
+        WHERE p.status NOT IN ('canceled', 'archived', 'completed')
         ORDER BY ks.project_id, ks.stage_number
       `);
       queriesRun++;
@@ -655,7 +655,7 @@ export class ProjectControlAgent implements IAgent {
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
         LEFT JOIN users u ON t.assigned_to = u.id
-        WHERE t.status NOT IN ('completed', 'cancelled')
+        WHERE t.status NOT IN ('completed', 'canceled')
           AND COALESCE(NULLIF(t.due_date, ''), t.finish_date) IS NOT NULL
           AND COALESCE(NULLIF(t.due_date, ''), t.finish_date) != ''
       `);
@@ -835,10 +835,10 @@ export class ProjectControlAgent implements IAgent {
       // ── P10: Resource Overload (weighted load score) ──
       const resourceRows = await db.execute(sql`
         SELECT u.id as user_id, u.username, u.reporting_manager_id,
-          (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','cancelled'))::int as open_wos,
-          (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status NOT IN ('completed','cancelled'))::int as open_tasks,
+          (SELECT COUNT(*) FROM work_orders wo WHERE wo.supervisor_id = u.id AND wo.status NOT IN ('completed','canceled'))::int as open_wos,
+          (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to = u.id AND t.status NOT IN ('completed','canceled'))::int as open_tasks,
           (SELECT COUNT(*) FROM design_drawings dd WHERE dd.assigned_to_id = u.id AND dd.status NOT IN ('Approved','Issued','Superseded'))::int as open_drawings,
-          (SELECT COUNT(*) FROM purchase_orders po WHERE po.created_by = u.id AND po.status NOT IN ('completed','cancelled','delivered'))::int as open_procurement
+          (SELECT COUNT(*) FROM purchase_orders po WHERE po.created_by = u.id AND po.status NOT IN ('completed','canceled','delivered'))::int as open_procurement
         FROM users u
         WHERE u.is_active = true
       `);
@@ -1045,7 +1045,7 @@ export class ProjectControlAgent implements IAgent {
           AND NOT EXISTS (
             SELECT 1 FROM epc_drawing_controls edc
             WHERE edc.design_drawing_id = dd.id
-              AND edc.status NOT IN ('superseded','cancelled')
+              AND edc.status NOT IN ('superseded','canceled')
           )
         ORDER BY dd.id
       `);
@@ -1066,7 +1066,7 @@ export class ProjectControlAgent implements IAgent {
         WHERE NOT EXISTS (
           SELECT 1 FROM epc_drawing_controls edc
           WHERE edc.design_drawing_id = dr.drawing_id
-            AND edc.status NOT IN ('superseded','cancelled')
+            AND edc.status NOT IN ('superseded','canceled')
         )
         ORDER BY dr.id
       `);
@@ -1406,7 +1406,7 @@ export class ProjectControlAgent implements IAgent {
         WHERE pd.name = 'Design'
           AND pd.status != 'completed'
           AND pd."order" < pp."order"
-          AND p.status NOT IN ('cancelled', 'archived', 'completed')
+          AND p.status NOT IN ('canceled', 'archived', 'completed')
           AND pp.target_end_date IS NOT NULL
       `);
       queriesRun++;
@@ -1450,7 +1450,7 @@ export class ProjectControlAgent implements IAgent {
       for (const project of (await db.execute(sql`
         SELECT p.id, p.name, p.target_end_date, p.manager_id
         FROM projects p
-        WHERE p.status NOT IN ('cancelled', 'archived', 'completed')
+        WHERE p.status NOT IN ('canceled', 'archived', 'completed')
           AND p.target_end_date IS NOT NULL
       `)).rows as any[]) {
         const daysUntil = Math.ceil((new Date(project.target_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -1528,7 +1528,7 @@ export class ProjectControlAgent implements IAgent {
           EXTRACT(DAY FROM NOW() - po.created_at)::int as days_since_created
         FROM purchase_orders po
         LEFT JOIN projects p ON po.project_id = p.id
-        WHERE po.status NOT IN ('cancelled', 'completed', 'delivered')
+        WHERE po.status NOT IN ('canceled', 'completed', 'delivered')
         ORDER BY po.created_at
       `);
       queriesRun++;
@@ -1962,7 +1962,7 @@ export class ProjectControlAgent implements IAgent {
         JOIN projects p ON pp.project_id = p.id
         WHERE pp.name = 'Procurement' AND pp.status != 'completed'
           AND pp.target_end_date IS NOT NULL
-          AND p.status NOT IN ('cancelled', 'archived', 'completed')
+          AND p.status NOT IN ('canceled', 'archived', 'completed')
       `)).rows as any[];
       queriesRun++;
 
@@ -2150,7 +2150,7 @@ export class ProjectControlAgent implements IAgent {
           AND NOT EXISTS (
             SELECT 1 FROM epc_bom_headers bh
             WHERE bh.project_item_id = edc.project_item_id
-              AND bh.status NOT IN ('cancelled','superseded')
+              AND bh.status NOT IN ('canceled','superseded')
           )
       `);
       queriesRun++;
@@ -2212,7 +2212,7 @@ export class ProjectControlAgent implements IAgent {
         WHERE bh.status = 'released'
           AND NOT EXISTS (
             SELECT 1 FROM epc_bom_lines bl
-            WHERE bl.bom_id = bh.id AND bl.status != 'cancelled'
+            WHERE bl.bom_id = bh.id AND bl.status != 'canceled'
           )
       `);
       queriesRun++;
@@ -2374,7 +2374,7 @@ export class ProjectControlAgent implements IAgent {
         FROM tasks t
         WHERE t.source_type = 'epc_automation'
           AND t.description LIKE '%[automation_key:epc:procurement_execution:%:gate_blocked]%'
-          AND t.status NOT IN ('completed','cancelled','obsolete')
+          AND t.status NOT IN ('completed','canceled','obsolete')
           AND t.created_at::timestamp < NOW() - INTERVAL '7 days'
       `);
       queriesRun++;

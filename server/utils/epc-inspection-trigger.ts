@@ -61,7 +61,7 @@ async function createInspectionIfNeeded(params: CreateInspectionParams): Promise
   const dupCheck = await pool.query(
     `SELECT id, inspection_order_number FROM inspection_orders
      WHERE project_id = $1 AND item_id = $2
-       AND status NOT IN ('cancelled')
+       AND status NOT IN ('canceled')
        AND ($3::text IS NULL OR inspection_type = $3)
      LIMIT 1`,
     [projectId, projectItemId, inspectionType]

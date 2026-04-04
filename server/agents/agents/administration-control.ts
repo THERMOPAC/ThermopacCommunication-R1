@@ -136,7 +136,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const openTasks = await db.execute(sql`
     SELECT id, category FROM tasks
     WHERE source_type = 'agent_task' AND source_agent = ${SOURCE_AGENT}
-      AND status NOT IN ('completed', 'cancelled')
+      AND status NOT IN ('completed', 'canceled')
       AND category LIKE '%[fp:ac_%'
   `);
 

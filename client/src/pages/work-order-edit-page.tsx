@@ -405,7 +405,7 @@ export default function WorkOrderEditPage() {
                                 <SelectItem value="in_progress">In Progress</SelectItem>
                                 <SelectItem value="on_hold">On Hold</SelectItem>
                                 <SelectItem value="completed">Completed</SelectItem>
-                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                                <SelectItem value="canceled">Cancelled</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />

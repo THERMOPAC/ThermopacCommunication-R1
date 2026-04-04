@@ -72,7 +72,7 @@ const ITEM_STATUS_CONFIG: Record<string, string> = {
   "completed": "bg-green-100 text-green-800 border-green-300",
   "on hold": "bg-amber-100 text-amber-700 border-amber-300",
   "on_hold": "bg-amber-100 text-amber-700 border-amber-300",
-  "cancelled": "bg-red-100 text-red-700 border-red-300",
+  "canceled": "bg-red-100 text-red-700 border-red-300",
   "canceled": "bg-red-100 text-red-700 border-red-300",
   "under construction": "bg-orange-100 text-orange-700 border-orange-300",
   "drawing received": "bg-indigo-100 text-indigo-700 border-indigo-300",
@@ -211,7 +211,7 @@ export default function ProjectsPage() {
       active: projects.filter(p => p.status === "active").length,
       onHold: projects.filter(p => p.status === "on_hold").length,
       completed: projects.filter(p => p.status === "completed").length,
-      cancelled: projects.filter(p => p.status === "canceled" || p.status === "cancelled").length,
+      cancelled: projects.filter(p => p.status === "canceled" || p.status === "canceled").length,
     };
   }, [projects]);
 
@@ -380,7 +380,7 @@ export default function ProjectsPage() {
                         const statusCfg = STATUS_CONFIG[project.status] || STATUS_CONFIG.planning;
                         const StatusIcon = statusCfg.icon;
                         const daysRemaining = getDaysRemaining(project.targetEndDate);
-                        const isOverdue = daysRemaining !== null && daysRemaining < 0 && project.status !== "completed" && project.status !== "canceled" && project.status !== "cancelled";
+                        const isOverdue = daysRemaining !== null && daysRemaining < 0 && project.status !== "completed" && project.status !== "canceled" && project.status !== "canceled";
 
                         return (
                           <TooltipProvider key={project.id}>
@@ -418,7 +418,7 @@ export default function ProjectsPage() {
                               <TableCell className="text-center text-[10px] text-muted-foreground">{formatDate(project.startDate)}</TableCell>
                               <TableCell className="text-center text-[10px] text-muted-foreground">{formatDate(project.targetEndDate)}</TableCell>
                               <TableCell className="text-center">
-                                {daysRemaining !== null && project.status !== "completed" && project.status !== "canceled" && project.status !== "cancelled" ? (
+                                {daysRemaining !== null && project.status !== "completed" && project.status !== "canceled" && project.status !== "canceled" ? (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Badge variant="outline" className={`text-[9px] px-1 py-0 ${isOverdue ? "bg-red-100 text-red-700 border-red-300" : daysRemaining <= 30 ? "bg-amber-100 text-amber-700 border-amber-300" : "bg-green-100 text-green-700 border-green-300"}`}>

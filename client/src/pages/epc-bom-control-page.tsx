@@ -31,7 +31,7 @@ function userRoleLevel(role: string): number {
   return roleHierarchy[role] ?? 4;
 }
 
-type StatusType = "draft" | "under_review" | "approved" | "released" | "locked" | "superseded" | "cancelled";
+type StatusType = "draft" | "under_review" | "approved" | "released" | "locked" | "superseded" | "canceled";
 
 const STATUS_COLORS: Record<StatusType, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -183,7 +183,7 @@ export default function EpcBomControlPage() {
       approved: current.filter((h: any) => h.status === "approved").length,
       released: current.filter((h: any) => h.status === "released").length,
       locked: current.filter((h: any) => h.status === "locked").length,
-      cancelled: current.filter((h: any) => h.status === "cancelled").length,
+      cancelled: current.filter((h: any) => h.status === "canceled").length,
     };
   }, [bomHeaders]);
 
@@ -692,7 +692,7 @@ export default function EpcBomControlPage() {
                                               Reason: {rev.supersession_reason}
                                             </span>
                                           )}
-                                          {rev.is_current && userLevel <= 2 && !["superseded", "cancelled"].includes(rev.status) && rev.id === rec.id && (
+                                          {rev.is_current && userLevel <= 2 && !["superseded", "canceled"].includes(rev.status) && rev.id === rec.id && (
                                             <Button
                                               size="sm"
                                               variant="destructive"

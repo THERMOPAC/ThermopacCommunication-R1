@@ -363,7 +363,7 @@ export default function TaskDashboard() {
                   On Hold
                 </div>
               </SelectItem>
-              <SelectItem value="cancelled">
+              <SelectItem value="canceled">
                 <div className="flex items-center">
                   <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
                   Cancelled

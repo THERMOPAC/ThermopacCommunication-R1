@@ -160,7 +160,7 @@ export default function EpcQualityInspectionPage() {
     draft: qpRecords.filter((r: any) => r.status === "draft").length,
     underPrep: qpRecords.filter((r: any) => r.status === "under_preparation").length,
     ready: qpRecords.filter((r: any) => r.status === "ready_for_inspection_setup").length,
-    cancelled: qpRecords.filter((r: any) => r.status === "cancelled").length,
+    cancelled: qpRecords.filter((r: any) => r.status === "canceled").length,
   }), [qpRecords]);
 
   const ieStats = useMemo(() => ({

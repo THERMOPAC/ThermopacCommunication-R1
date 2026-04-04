@@ -87,7 +87,7 @@ const StatusBadge = ({ status }: { status: string }) => {
         return 'bg-yellow-100 text-yellow-800';
       case 'overdue':
         return 'bg-red-100 text-red-800';
-      case 'cancelled':
+      case 'canceled':
         return 'bg-gray-100 text-gray-800';
       case 'credited':
         return 'bg-purple-100 text-purple-800';
@@ -363,7 +363,7 @@ export default function InvoicesPage() {
                       <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="partially paid">Partially Paid</SelectItem>
                       <SelectItem value="overdue">Overdue</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                      <SelectItem value="canceled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -41,7 +41,7 @@ interface WorkOrder {
   workOrderNumber: string;
   title: string;
   description: string | null;
-  status: 'planned' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
+  status: 'planned' | 'in_progress' | 'on_hold' | 'completed' | 'canceled';
   priority: string;
   plannedStartDate: string | null;
   plannedEndDate: string | null;
@@ -139,7 +139,7 @@ export default function ShopFloorPage() {
       case "in_progress": return 50;
       case "on_hold": return 30;
       case "completed": return 100;
-      case "cancelled": return 0;
+      case "canceled": return 0;
       default: return 0;
     }
   };
@@ -165,7 +165,7 @@ export default function ShopFloorPage() {
       case "delayed":
         // Show work orders that are past their planned end date and not completed
         filteredOrders = workOrders.filter(wo => {
-          if (wo.status === "completed" || wo.status === "cancelled") return false;
+          if (wo.status === "completed" || wo.status === "canceled") return false;
           if (!wo.plannedEndDate) return false;
           const plannedEndDate = new Date(wo.plannedEndDate);
           return plannedEndDate < currentDate;
@@ -765,7 +765,7 @@ export default function ShopFloorPage() {
               ) : (
                 <div className="space-y-2">
                   {workOrders && workOrders
-                    .filter(wo => wo.priority === "High" && wo.status !== "completed" && wo.status !== "cancelled")
+                    .filter(wo => wo.priority === "High" && wo.status !== "completed" && wo.status !== "canceled")
                     .slice(0, 5)
                     .map(wo => (
                       <div 
@@ -804,7 +804,7 @@ export default function ShopFloorPage() {
                       </div>
                     ))}
                     
-                  {(!workOrders || workOrders.filter(wo => wo.priority === "High" && wo.status !== "completed" && wo.status !== "cancelled").length === 0) && (
+                  {(!workOrders || workOrders.filter(wo => wo.priority === "High" && wo.status !== "completed" && wo.status !== "canceled").length === 0) && (
                     <div className="flex items-center justify-center h-24 text-muted-foreground">
                       <Check className="h-5 w-5 mr-2" /> No high priority work orders
                     </div>

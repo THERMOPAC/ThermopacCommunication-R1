@@ -157,7 +157,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
               ELSE 'legacy'
             END AS source_type
           FROM inspection_execution_records ie
-          WHERE ie.status NOT IN ('cancelled')
+          WHERE ie.status NOT IN ('canceled')
         ) sub
       `);
 
@@ -246,7 +246,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
         LEFT JOIN master_items mi ON mi.id = pi.master_item_id
         LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         WHERE bh.id IS NULL
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
         ORDER BY p.code, pi.item_number
       `);
 
@@ -260,7 +260,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
         LEFT JOIN master_items mi ON mi.id = bh.master_item_id
         WHERE bh.is_current = true
           AND bh.status NOT IN ('released', 'locked')
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
         ORDER BY p.code, pi.item_number
       `);
 
@@ -268,7 +268,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
         SELECT COUNT(*) as total
         FROM project_items pi
         JOIN projects p ON p.id = pi.project_id
-        WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
+        WHERE p.status NOT IN ('canceled', 'completed', 'closed')
       `);
 
       const totalWithBom = await db.execute(sql`
@@ -276,7 +276,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
         FROM project_items pi
         JOIN projects p ON p.id = pi.project_id
         JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
-        WHERE p.status NOT IN ('cancelled', 'completed', 'closed')
+        WHERE p.status NOT IN ('canceled', 'completed', 'closed')
       `);
 
       const totalReleasedLocked = await db.execute(sql`
@@ -285,7 +285,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
         JOIN projects p ON p.id = pi.project_id
         JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         WHERE bh.status IN ('released', 'locked')
-          AND p.status NOT IN ('cancelled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed')
       `);
 
       const bypassLog = await db.execute(sql`

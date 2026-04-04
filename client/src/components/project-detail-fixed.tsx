@@ -208,6 +208,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   // State for status update confirmation
   const [isStatusUpdateConfirmOpen, setIsStatusUpdateConfirmOpen] = useState(false);
   const [statusUpdateDetails, setStatusUpdateDetails] = useState<{itemId: number, status: string, oldStatus: string, itemCode: string} | null>(null);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [pendingCancelData, setPendingCancelData] = useState<EditProjectValues | null>(null);
   
   const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
   const [isEditPhaseOpen, setIsEditPhaseOpen] = useState(false);
@@ -955,7 +958,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       case "completed":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "canceled":
-      case "cancelled":
+      case "canceled":
         return "bg-red-100 text-red-800 border-red-200";
       case "pending":
       case "not started":
@@ -1031,26 +1034,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   function onSubmit(data: EditProjectValues) {
-    // Create a copy of the data to avoid mutating the original
     const formattedData = { ...data };
-    
-    // Ensure dates are properly formatted as strings in YYYY-MM-DD format
-    // which is exactly how the server is expecting them
-    if (formattedData.startDate) {
-      console.log("Start date before submission:", formattedData.startDate);
-      // Keep as is - already in YYYY-MM-DD format from the date input
+
+    if (formattedData.status === 'canceled' && project?.status !== 'canceled') {
+      setPendingCancelData(formattedData);
+      setCancelReason('');
+      setIsCancelConfirmOpen(true);
+      return;
     }
-    
-    if (formattedData.targetEndDate) {
-      console.log("Target end date before submission:", formattedData.targetEndDate);
-      // Keep as is - already in YYYY-MM-DD format from the date input
-    }
-    
-    // Don't add updatedAt field here - let the server handle it
-    // to avoid any date formatting issues
     
     console.log("Submitting project update:", formattedData);
     updateProjectMutation.mutate(formattedData);
+  }
+
+  function confirmCancellation() {
+    if (!pendingCancelData || cancelReason.trim().length < 10) return;
+    const payload = { ...pendingCancelData, cancelReason: cancelReason.trim() };
+    updateProjectMutation.mutate(payload as any);
+    setIsCancelConfirmOpen(false);
+    setPendingCancelData(null);
+    setCancelReason('');
   }
   
   // Return early to prevent any API calls with invalid ID
@@ -1428,6 +1431,51 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </DialogContent>
       </Dialog>
       
+      {/* Project Cancellation Confirmation Dialog */}
+      <Dialog open={isCancelConfirmOpen} onOpenChange={(open) => { if (!open) { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); } }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" /> Cancel Project
+            </DialogTitle>
+            <DialogDescription>
+              This action is <strong>irreversible</strong>. Canceling this project will cascade to all child records
+              (planning, purchase orders, work orders, inspections, dispatch, commissioning, billing, invoices).
+              All active records will be frozen and marked as canceled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.name}</span></div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Cancellation Reason <span className="text-destructive">*</span></label>
+              <Textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Provide a detailed reason for cancellation (min 10 characters)..."
+                rows={3}
+                className="resize-none"
+              />
+              {cancelReason.length > 0 && cancelReason.trim().length < 10 && (
+                <p className="text-xs text-destructive">Reason must be at least 10 characters.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); }}>
+              Go Back
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmCancellation}
+              disabled={cancelReason.trim().length < 10 || updateProjectMutation.isPending}
+            >
+              {updateProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Cancellation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Project Dialog */}
       <Dialog 
         open={isEditProjectOpen} 

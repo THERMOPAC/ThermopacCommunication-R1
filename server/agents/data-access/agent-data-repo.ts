@@ -93,7 +93,7 @@ class AgentDataRepository {
       LEFT JOIN users uc ON t.created_by = uc.id
       LEFT JOIN users uma ON ua.reporting_manager_id = uma.id
       LEFT JOIN users umc ON uc.reporting_manager_id = umc.id
-      WHERE t.status NOT IN ('completed', 'cancelled')
+      WHERE t.status NOT IN ('completed', 'canceled')
         AND COALESCE(NULLIF(t.due_date,''), t.finish_date) IS NOT NULL
         AND COALESCE(NULLIF(t.due_date,''), t.finish_date) != ''
         AND COALESCE(NULLIF(t.due_date,''), t.finish_date)::date < CURRENT_DATE
@@ -137,7 +137,7 @@ class AgentDataRepository {
       FROM tasks t
       LEFT JOIN users ua ON t.assigned_to = ua.id
       LEFT JOIN users uc ON t.created_by = uc.id
-      WHERE t.status NOT IN ('completed', 'cancelled')
+      WHERE t.status NOT IN ('completed', 'canceled')
         AND (t.due_date IS NULL OR t.due_date = '')
         AND (t.finish_date IS NULL OR t.finish_date = '')
         AND t.source_agent IS NULL
@@ -214,13 +214,13 @@ class AgentDataRepository {
       last_task AS (
         SELECT assigned_to, MAX(created_at::timestamp) as last_task_date
         FROM tasks
-        WHERE status NOT IN ('completed', 'cancelled')
+        WHERE status NOT IN ('completed', 'canceled')
         GROUP BY assigned_to
       ),
       active_task_count AS (
         SELECT assigned_to, COUNT(*) as active_count
         FROM tasks
-        WHERE status NOT IN ('completed', 'cancelled')
+        WHERE status NOT IN ('completed', 'canceled')
         GROUP BY assigned_to
       )
       SELECT au.id as user_id, au.employee_name, au.employee_email,
@@ -272,7 +272,7 @@ class AgentDataRepository {
   }
 
   async getProjectCount(): Promise<number> {
-    const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM projects WHERE status NOT IN ('cancelled','archived')`);
+    const rows = await db.execute(sql`SELECT COUNT(*) as cnt FROM projects WHERE status NOT IN ('canceled','archived')`);
     return Number((rows.rows as any[])?.[0]?.cnt || 0);
   }
 
@@ -282,7 +282,7 @@ class AgentDataRepository {
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'completed') as completed,
         COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress,
-        COUNT(*) FILTER (WHERE status NOT IN ('completed','cancelled') AND planned_end_date IS NOT NULL AND planned_end_date < NOW()) as overdue
+        COUNT(*) FILTER (WHERE status NOT IN ('completed','canceled') AND planned_end_date IS NOT NULL AND planned_end_date < NOW()) as overdue
       FROM work_orders
     `);
     const r = (rows.rows as any[])?.[0] || {};
@@ -299,7 +299,7 @@ class AgentDataRepository {
       SELECT 
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'completed') as completed,
-        COUNT(*) FILTER (WHERE status NOT IN ('completed','cancelled') AND due_date IS NOT NULL AND due_date != '' AND due_date::timestamp < NOW()) as overdue,
+        COUNT(*) FILTER (WHERE status NOT IN ('completed','canceled') AND due_date IS NOT NULL AND due_date != '' AND due_date::timestamp < NOW()) as overdue,
         COUNT(*) FILTER (WHERE status IN ('pending','todo','open')) as pending
       FROM tasks
     `);
@@ -756,7 +756,7 @@ class AgentDataRepository {
   }> {
     const rows = await db.execute(sql`
       SELECT
-        (SELECT COUNT(*) FROM tasks WHERE status NOT IN ('completed','cancelled') AND due_date IS NOT NULL AND due_date != '' AND due_date::date < CURRENT_DATE) as current_overdue_tasks,
+        (SELECT COUNT(*) FROM tasks WHERE status NOT IN ('completed','canceled') AND due_date IS NOT NULL AND due_date != '' AND due_date::date < CURRENT_DATE) as current_overdue_tasks,
         (SELECT COUNT(*) FROM agent_findings WHERE agent_key = 'communications' AND finding_type = 'overdue' AND created_at > CURRENT_DATE - 7 AND created_at <= CURRENT_DATE) as current_period_overdue_findings,
         (SELECT COUNT(*) FROM agent_findings WHERE agent_key = 'communications' AND finding_type = 'overdue' AND created_at > CURRENT_DATE - 14 AND created_at <= CURRENT_DATE - 7) as previous_period_overdue_findings,
         (SELECT COUNT(DISTINCT f.related_entity_id) FROM agent_findings f WHERE f.agent_key='communications' AND f.related_entity_type='dwar' AND f.created_at > CURRENT_DATE - 7) as current_dwar_issues,
@@ -1010,7 +1010,7 @@ class AgentDataRepository {
       FROM tasks t
       JOIN users ua ON t.assigned_to = ua.id
       LEFT JOIN users uc ON t.created_by = uc.id
-      WHERE t.status NOT IN ('completed','cancelled')
+      WHERE t.status NOT IN ('completed','canceled')
         AND ua.is_active = false
       ORDER BY days_overdue DESC
       LIMIT 20

@@ -139,7 +139,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const failedRunTasks = await db.execute(sql`
     SELECT t.id, t.category FROM tasks t
     WHERE t.source_type = 'agent_task' AND t.source_agent = ${SOURCE_AGENT}
-      AND t.status NOT IN ('completed', 'cancelled')
+      AND t.status NOT IN ('completed', 'canceled')
       AND t.category LIKE '%[fp:mc_m1_01_failed:%'
   `);
 
@@ -162,7 +162,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const stuckRunTasks = await db.execute(sql`
     SELECT t.id, t.category FROM tasks t
     WHERE t.source_type = 'agent_task' AND t.source_agent = ${SOURCE_AGENT}
-      AND t.status NOT IN ('completed', 'cancelled')
+      AND t.status NOT IN ('completed', 'canceled')
       AND t.category LIKE '%[fp:mc_m1_02_stuck:%'
   `);
 
@@ -183,7 +183,7 @@ async function autoCloseResolvedTasks(): Promise<number> {
   const missedRunTasks = await db.execute(sql`
     SELECT t.id, t.category FROM tasks t
     WHERE t.source_type = 'agent_task' AND t.source_agent = ${SOURCE_AGENT}
-      AND t.status NOT IN ('completed', 'cancelled')
+      AND t.status NOT IN ('completed', 'canceled')
       AND t.category LIKE '%[fp:mc_m2_01_missed:%'
   `);
 

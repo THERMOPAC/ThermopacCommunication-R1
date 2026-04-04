@@ -30,7 +30,7 @@ function userRoleLevel(role: string): number {
   return roleHierarchy[role] ?? 4;
 }
 
-type StatusType = "draft" | "approved" | "issued" | "cancelled" | "superseded";
+type StatusType = "draft" | "approved" | "issued" | "canceled" | "superseded";
 
 const STATUS_COLORS: Record<StatusType, string> = {
   draft: "bg-slate-100 text-slate-700",
@@ -132,7 +132,7 @@ export default function EpcPurchaseOrdersPage() {
       draft: purchaseOrders.filter((po: any) => po.status === "draft").length,
       approved: purchaseOrders.filter((po: any) => po.status === "approved").length,
       issued: purchaseOrders.filter((po: any) => po.status === "issued").length,
-      cancelled: purchaseOrders.filter((po: any) => po.status === "cancelled").length,
+      cancelled: purchaseOrders.filter((po: any) => po.status === "canceled").length,
     };
   }, [purchaseOrders]);
 
@@ -314,7 +314,7 @@ export default function EpcPurchaseOrdersPage() {
                 {filtered.map((po: any) => {
                   const isExpanded = expandedRow === po.id;
                   const actions = getAvailableActions(po);
-                  const canEdit = userLevel <= 3 && !["cancelled", "superseded", "issued"].includes(po.status);
+                  const canEdit = userLevel <= 3 && !["canceled", "superseded", "issued"].includes(po.status);
                   return (
                     <>
                       <TableRow key={po.id} className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : po.id)}>

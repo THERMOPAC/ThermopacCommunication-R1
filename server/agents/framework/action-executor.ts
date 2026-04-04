@@ -149,7 +149,7 @@ export class ActionExecutor {
       SELECT id FROM tasks 
       WHERE source_type = ${payload.sourceType || 'llm_insight'}
         AND source_id = ${payload.sourceId || 0}
-        AND status NOT IN ('completed','cancelled')
+        AND status NOT IN ('completed','canceled')
       LIMIT 1
     `);
 

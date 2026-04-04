@@ -221,7 +221,7 @@ export default function EpcCommissioningHandoverPage() {
 
   function renderDetail(d: any, rec: any) {
     const rowActions = getAvailableActions(rec);
-    const canEdit = !["cancelled", "superseded", "handed_over", "closed"].includes(d.status);
+    const canEdit = !["canceled", "superseded", "handed_over", "closed"].includes(d.status);
     return (
       <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

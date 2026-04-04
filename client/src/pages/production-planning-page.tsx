@@ -451,7 +451,7 @@ export default function ProductionPlanningPage() {
         return <Badge variant="outline" className="flex items-center gap-1 bg-amber-100 text-amber-800"><AlertTriangle className="h-3 w-3" /> On Hold</Badge>;
       case "completed":
         return <Badge variant="outline" className="flex items-center gap-1 bg-green-100 text-green-800"><CheckCircle2 className="h-3 w-3" /> Completed</Badge>;
-      case "cancelled":
+      case "canceled":
         return <Badge variant="destructive" className="flex items-center gap-1"><XCircle className="h-3 w-3" /> Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -1051,7 +1051,7 @@ export default function ProductionPlanningPage() {
                               <SelectItem value="in_progress">In Progress</SelectItem>
                               <SelectItem value="on_hold">On Hold</SelectItem>
                               <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                              <SelectItem value="canceled">Cancelled</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

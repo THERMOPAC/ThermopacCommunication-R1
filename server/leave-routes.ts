@@ -461,7 +461,7 @@ router.post('/request/:id/cancel', ensureAuthenticated, async (req: Request, res
     await db
       .update(leaveRequests)
       .set({
-        status: 'cancelled',
+        status: 'canceled',
         updatedAt: new Date()
       })
       .where(eq(leaveRequests.id, requestId));

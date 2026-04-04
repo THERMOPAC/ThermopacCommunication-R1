@@ -149,7 +149,7 @@ export async function resolveFindings(opts: {
       WHERE source_type = 'agent_task'
         AND source_agent = ${opts.sourceAgent}
         AND category LIKE ${'%' + row.fingerprint + '%'}
-        AND status NOT IN ('completed', 'cancelled')
+        AND status NOT IN ('completed', 'canceled')
     `);
 
     resolvedCount++;

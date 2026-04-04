@@ -324,7 +324,7 @@ const LegalManagementPage: React.FC = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'expired':
       case 'rejected':
-      case 'cancelled':
+      case 'canceled':
       case 'overdue':
         return 'bg-red-100 text-red-800';
       case 'draft':

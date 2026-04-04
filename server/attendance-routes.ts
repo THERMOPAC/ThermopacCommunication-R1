@@ -1577,19 +1577,19 @@ router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, r
     const [reg] = await db.select().from(attendanceRegularizations).where(eq(attendanceRegularizations.id, regId));
     if (!reg) return res.status(404).json({ error: 'Request not found' });
     if (reg.employeeId !== user.id) return res.status(403).json({ error: 'You can only cancel your own requests' });
-    if (reg.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be cancelled' });
+    if (reg.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be canceled' });
 
     const cancellerName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
     const existingTrail = (reg.auditTrail as any[]) || [];
     existingTrail.push({
-      action: 'cancelled',
+      action: 'canceled',
       by: user.id,
       byName: cancellerName,
       at: new Date().toISOString(),
     });
 
     await db.update(attendanceRegularizations).set({
-      status: 'cancelled',
+      status: 'canceled',
       auditTrail: existingTrail,
       updatedAt: new Date(),
     }).where(eq(attendanceRegularizations.id, regId));
@@ -1598,8 +1598,8 @@ router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, r
       await createNotification({
         userId: reg.approverId,
         type: 'info',
-        title: `Regularization Cancelled`,
-        message: `${cancellerName} has cancelled their ${reg.businessScenario ? (SCENARIO_LABELS[reg.businessScenario] || reg.businessScenario) : (REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType)} regularization request for ${reg.requestDate}.`,
+        title: `Regularization Canceled`,
+        message: `${cancellerName} has canceled their ${reg.businessScenario ? (SCENARIO_LABELS[reg.businessScenario] || reg.businessScenario) : (REQUEST_TYPE_LABELS[reg.requestType] || reg.requestType)} regularization request for ${reg.requestDate}.`,
         link: '/attendance/regularization',
         sourceType: 'attendance_regularization',
         sourceId: reg.id,
@@ -1607,9 +1607,9 @@ router.delete('/regularization/:id', ensureAuthenticated, async (req: Request, r
       });
     }
 
-    res.json({ message: 'Request cancelled successfully' });
+    res.json({ message: 'Request canceled successfully' });
   } catch (error) {
-    console.error('Error cancelling regularization:', error);
+    console.error('Error canceling regularization:', error);
     sendError(res, error);
   }
 });
