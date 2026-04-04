@@ -2280,9 +2280,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       </div>
                       <div className="bg-amber-50 border border-amber-100 rounded-md p-3 text-center">
                         <p className="text-2xl font-bold text-amber-700">
-                          {tasks?.filter(t => t.status !== 'completed').length || 0}
+                          {tasks?.filter(t => !['completed', 'canceled'].includes(t.status)).length || 0}
                         </p>
-                        <p className="text-xs text-amber-600">Pending</p>
+                        <p className="text-xs text-amber-600">Active</p>
+                      </div>
+                      <div className="bg-red-50 border border-red-100 rounded-md p-3 text-center">
+                        <p className="text-2xl font-bold text-red-700">
+                          {tasks?.filter(t => t.status === 'canceled').length || 0}
+                        </p>
+                        <p className="text-xs text-red-600">Canceled</p>
                       </div>
                     </div>
                   </div>
@@ -2475,9 +2481,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           <TabsContent value="tasks" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Project Tasks</h2>
-              <Button onClick={handleAddTask}>
-                <Plus className="mr-1 h-4 w-4" /> Add Task
-              </Button>
+              {project?.status !== 'canceled' && (
+                <Button onClick={handleAddTask}>
+                  <Plus className="mr-1 h-4 w-4" /> Add Task
+                </Button>
+              )}
             </div>
             
             <Card>
@@ -2508,14 +2516,26 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         </TableCell>
                         <TableCell>{formatDate(task.dueDate)}</TableCell>
                         <TableCell>
-                          <Badge variant={task.status === 'completed' ? "default" : "outline"} className={task.status === 'completed' ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-amber-100 text-amber-800"}>
-                            {task.status === 'completed' ? "Completed" : "In Progress"}
+                          <Badge variant={task.status === 'completed' ? "default" : "outline"} className={
+                            task.status === 'completed' ? "bg-green-100 text-green-800 hover:bg-green-100" :
+                            task.status === 'canceled' ? "bg-red-100 text-red-800" :
+                            task.status === 'blocked' ? "bg-gray-100 text-gray-800" :
+                            task.status === 'in_progress' ? "bg-amber-100 text-amber-800" :
+                            "bg-blue-100 text-blue-800"
+                          }>
+                            {task.status === 'completed' ? "Completed" :
+                             task.status === 'canceled' ? "Canceled" :
+                             task.status === 'blocked' ? "Blocked" :
+                             task.status === 'in_progress' ? "In Progress" :
+                             "Pending"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {project?.status !== 'canceled' && task.status !== 'canceled' && (
+                            <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

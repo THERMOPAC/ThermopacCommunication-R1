@@ -91,31 +91,14 @@ export async function executeProjectCancellationCascade(projectId: number, userI
   const projectCode = await resolveProjectCode(projectId);
   const pmId = await resolveManagerId(projectId);
 
-  // 1. Tasks: pending → canceled, in_progress → review
+  // 1. Tasks: cancel ALL non-terminal tasks (pending, in_progress, etc.)
   const r1 = await pool.query(`
-    UPDATE tasks SET status = 'canceled', updated_at = NOW()
+    UPDATE tasks SET status = 'canceled'
     WHERE id IN (SELECT task_id FROM project_tasks WHERE project_id = $1)
-      AND status = 'pending'
+      AND status NOT IN ('canceled', 'completed', 'closed')
     RETURNING id
   `, [projectId]);
   result.tasksCancelled = r1.rowCount || 0;
-
-  const r1b = await pool.query(`
-    SELECT COUNT(*)::int as cnt FROM tasks
-    WHERE id IN (SELECT task_id FROM project_tasks WHERE project_id = $1)
-      AND status = 'in_progress'
-  `, [projectId]);
-  result.tasksReviewNeeded = r1b.rows[0]?.cnt || 0;
-
-  if (result.tasksReviewNeeded > 0) {
-    const taskId = await createDeduplicatedReviewTask({
-      projectId, entityType: 'project', recordId: projectId, actionCode: 'cancellation_task_review',
-      title: `Review ${result.tasksReviewNeeded} in-progress tasks for canceled project ${projectCode}`,
-      description: `Project ${projectCode} has been canceled. ${result.tasksReviewNeeded} tasks are still in-progress and require manual review.`,
-      assignedTo: pmId || userId, createdBy: userId, priority: 'High', dueDays: 3,
-    });
-    if (taskId) result.reviewTaskIds.push(taskId);
-  }
 
   // 2. BOMs: draft/under_review → canceled
   const r2 = await pool.query(`
