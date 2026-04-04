@@ -363,7 +363,7 @@ export default function ProjectsPage() {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead className="w-6 px-1"></TableHead>
-                        <TableHead className="text-[10px] font-semibold min-w-[60px]">Code</TableHead>
+                        <TableHead className="text-[10px] font-semibold min-w-[180px]">Code</TableHead>
                         <TableHead className="text-[10px] font-semibold min-w-[200px]">Project Name</TableHead>
                         <TableHead className="text-[10px] font-semibold min-w-[120px]">Customer</TableHead>
                         <TableHead className="text-[10px] font-semibold text-center w-[80px]">Status</TableHead>
