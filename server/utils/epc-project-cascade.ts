@@ -25,6 +25,40 @@ interface CascadeResult {
   invoicesCancelled: number;
   invoicesReviewNeeded: number;
   reviewTaskIds: number[];
+  canceledIds?: {
+    tasks: number[];
+    boms: number[];
+    drawings: number[];
+    planningDrafts: number[];
+    planningSuperseded: number[];
+    pos: number[];
+    wos: number[];
+    inspections: number[];
+    dispatchReadiness: number[];
+    dispatchRecords: number[];
+    qualityPlans: number[];
+    commissioning: number[];
+    billing: number[];
+    invoices: number[];
+  };
+}
+
+interface RestorationResult {
+  alreadyRestored: boolean;
+  tasksRestored: number;
+  bomsRestored: number;
+  drawingsRestored: number;
+  planningRestored: number;
+  inspectionsRestored: number;
+  dispatchReadinessRestored: number;
+  qualityPlansRestored: number;
+  commissioningRestored: number;
+  billingRestored: number;
+  posNotRestored: number;
+  wosNotRestored: number;
+  dispatchRecordsNotRestored: number;
+  invoicesNotRestored: number;
+  reviewTaskId: number | null;
 }
 
 async function createDeduplicatedReviewTask(params: {
@@ -91,6 +125,12 @@ export async function executeProjectCancellationCascade(projectId: number, userI
   const projectCode = await resolveProjectCode(projectId);
   const pmId = await resolveManagerId(projectId);
 
+  const cIds: CascadeResult['canceledIds'] = {
+    tasks: [], boms: [], drawings: [], planningDrafts: [], planningSuperseded: [],
+    pos: [], wos: [], inspections: [], dispatchReadiness: [], dispatchRecords: [],
+    qualityPlans: [], commissioning: [], billing: [], invoices: [],
+  };
+
   // 1. Tasks: cancel ALL non-terminal tasks (pending, in_progress, etc.)
   const r1 = await pool.query(`
     UPDATE tasks SET status = 'canceled'
@@ -99,6 +139,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.tasksCancelled = r1.rowCount || 0;
+  cIds.tasks = r1.rows.map((r: any) => r.id);
 
   // 2. BOMs: draft/under_review → canceled
   const r2 = await pool.query(`
@@ -108,6 +149,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.bomsCancelled = r2.rowCount || 0;
+  cIds.boms = r2.rows.map((r: any) => r.id);
 
   // 3. Drawings: draft/pending_upload/file_not_available → canceled
   const r3 = await pool.query(`
@@ -117,6 +159,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.dwgCancelled = r3.rowCount || 0;
+  cIds.drawings = r3.rows.map((r: any) => r.id);
 
   // 4. Planning: draft → canceled, released → superseded
   const r4a = await pool.query(`
@@ -127,6 +170,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId, userId]);
   result.planningCancelled = r4a.rowCount || 0;
+  cIds.planningDrafts = r4a.rows.map((r: any) => r.id);
 
   const r4b = await pool.query(`
     UPDATE item_planning_records SET status = 'superseded',
@@ -136,6 +180,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.planningSuperseded = r4b.rowCount || 0;
+  cIds.planningSuperseded = r4b.rows.map((r: any) => r.id);
 
   // 5. POs: draft → canceled, approved/issued → review
   const r5a = await pool.query(`
@@ -145,6 +190,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.poCancelled = r5a.rowCount || 0;
+  cIds.pos = r5a.rows.map((r: any) => r.id);
 
   const r5b = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM epc_purchase_orders
@@ -161,6 +207,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.woCancelled = r6a.rowCount || 0;
+  cIds.wos = r6a.rows.map((r: any) => r.id);
 
   const r6b = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM epc_work_orders
@@ -186,6 +233,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.inspectionsCancelled = r7a.rowCount || 0;
+  cIds.inspections = r7a.rows.map((r: any) => r.id);
 
   const r7b = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM inspection_orders
@@ -217,6 +265,8 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.dispatchCancelled = (r8a.rowCount || 0) + (r8b.rowCount || 0);
+  cIds.dispatchReadiness = r8a.rows.map((r: any) => r.id);
+  cIds.dispatchRecords = r8b.rows.map((r: any) => r.id);
 
   const r8c = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM epc_dispatch_records
@@ -237,7 +287,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
 
   // 9. Quality Plans: draft/preparation → canceled, ready/in_progress → review
   const r9a = await pool.query(`
-    UPDATE quality_plans SET status = 'canceled', updated_at = NOW()
+    UPDATE quality_planning_records SET status = 'canceled', updated_at = NOW()
     WHERE planning_record_id IN (
       SELECT ipr.id FROM item_planning_records ipr
       JOIN project_items pi ON pi.id = ipr.project_item_id
@@ -246,9 +296,10 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.qualityPlansCancelled = r9a.rowCount || 0;
+  cIds.qualityPlans = r9a.rows.map((r: any) => r.id);
 
   const r9b = await pool.query(`
-    SELECT COUNT(*)::int as cnt FROM quality_plans
+    SELECT COUNT(*)::int as cnt FROM quality_planning_records
     WHERE planning_record_id IN (
       SELECT ipr.id FROM item_planning_records ipr
       JOIN project_items pi ON pi.id = ipr.project_item_id
@@ -275,6 +326,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.commissioningCancelled = r10a.rowCount || 0;
+  cIds.commissioning = r10a.rows.map((r: any) => r.id);
 
   const r10b = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM epc_commissioning_readiness
@@ -301,6 +353,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.billingCancelled = r11a.rowCount || 0;
+  cIds.billing = r11a.rows.map((r: any) => r.id);
 
   const r11b = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM epc_billing_readiness
@@ -327,6 +380,7 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     RETURNING id
   `, [projectId]);
   result.invoicesCancelled = r12a.rowCount || 0;
+  cIds.invoices = r12a.rows.map((r: any) => r.id);
 
   const r12b = await pool.query(`
     SELECT COUNT(*)::int as cnt FROM epc_invoices
@@ -345,6 +399,8 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     if (taskId) result.reviewTaskIds.push(taskId);
   }
 
+  result.canceledIds = cIds;
+
   // Audit log
   await pool.query(`
     INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
@@ -362,6 +418,176 @@ export async function executeProjectCancellationCascade(projectId: number, userI
     `COM=${result.commissioningCancelled}C/${result.commissioningReviewNeeded}R, ` +
     `BIL=${result.billingCancelled}C/${result.billingReviewNeeded}R, ` +
     `INV=${result.invoicesCancelled}C/${result.invoicesReviewNeeded}R`);
+
+  return result;
+}
+
+export async function executeProjectRestorationCascade(projectId: number, userId: number): Promise<RestorationResult> {
+  const result: RestorationResult = {
+    alreadyRestored: false,
+    tasksRestored: 0, bomsRestored: 0, drawingsRestored: 0, planningRestored: 0,
+    inspectionsRestored: 0, dispatchReadinessRestored: 0, qualityPlansRestored: 0,
+    commissioningRestored: 0, billingRestored: 0,
+    posNotRestored: 0, wosNotRestored: 0, dispatchRecordsNotRestored: 0, invoicesNotRestored: 0,
+    reviewTaskId: null,
+  };
+
+  const projectCode = await resolveProjectCode(projectId);
+  const pmId = await resolveManagerId(projectId);
+
+  const lastCancel = await pool.query(`
+    SELECT id, emitted_at FROM project_workflow_events
+    WHERE project_id = $1 AND event_name = 'project_cancellation_cascade'
+    ORDER BY emitted_at DESC LIMIT 1
+  `, [projectId]);
+
+  const lastRestore = await pool.query(`
+    SELECT id, emitted_at FROM project_workflow_events
+    WHERE project_id = $1 AND event_name = 'project_restoration_cascade'
+    ORDER BY emitted_at DESC LIMIT 1
+  `, [projectId]);
+
+  if (lastRestore.rows.length > 0 && lastCancel.rows.length > 0) {
+    const restoreTs = new Date(lastRestore.rows[0].emitted_at).getTime();
+    const cancelTs = new Date(lastCancel.rows[0].emitted_at).getTime();
+    if (restoreTs > cancelTs) {
+      result.alreadyRestored = true;
+      console.log(`[EPC-Restore] Project ${projectCode} (ID ${projectId}) restoration already ran — skipping.`);
+      return result;
+    }
+  }
+
+  const r1 = await pool.query(`
+    UPDATE tasks SET status = 'pending'
+    WHERE id IN (SELECT task_id FROM project_tasks WHERE project_id = $1)
+      AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.tasksRestored = r1.rowCount || 0;
+
+  const r2 = await pool.query(`
+    UPDATE epc_bom_headers SET status = 'draft', updated_at = NOW()
+    WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
+      AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.bomsRestored = r2.rowCount || 0;
+
+  const r3 = await pool.query(`
+    UPDATE epc_drawing_controls SET status = 'draft', updated_at = NOW()
+    WHERE project_id = $1 AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.drawingsRestored = r3.rowCount || 0;
+
+  const r4 = await pool.query(`
+    UPDATE item_planning_records SET status = 'draft', cancel_reason = NULL,
+      cancelled_by = NULL, cancelled_at = NULL, updated_at = NOW()
+    WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
+      AND status = 'canceled' AND cancel_reason = 'Project canceled'
+    RETURNING id
+  `, [projectId]);
+  result.planningRestored = r4.rowCount || 0;
+
+  const r5 = await pool.query(`
+    UPDATE inspection_orders SET status = 'pending', updated_at = NOW()
+    WHERE project_id = $1 AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.inspectionsRestored = r5.rowCount || 0;
+
+  const r6 = await pool.query(`
+    UPDATE epc_dispatch_readiness SET status = 'draft', updated_at = NOW()
+    WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
+      AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.dispatchReadinessRestored = r6.rowCount || 0;
+
+  const r7 = await pool.query(`
+    UPDATE quality_planning_records SET status = 'draft', updated_at = NOW()
+    WHERE planning_record_id IN (
+      SELECT ipr.id FROM item_planning_records ipr
+      JOIN project_items pi ON pi.id = ipr.project_item_id
+      WHERE pi.project_id = $1
+    ) AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.qualityPlansRestored = r7.rowCount || 0;
+
+  const r8 = await pool.query(`
+    UPDATE epc_commissioning_readiness SET status = 'draft', updated_at = NOW()
+    WHERE project_id = $1 AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.commissioningRestored = r8.rowCount || 0;
+
+  const r9 = await pool.query(`
+    UPDATE epc_billing_readiness SET status = 'draft', updated_at = NOW()
+    WHERE project_id = $1 AND status = 'canceled'
+    RETURNING id
+  `, [projectId]);
+  result.billingRestored = r9.rowCount || 0;
+
+  const poCount = await pool.query(`
+    SELECT COUNT(*)::int as cnt FROM epc_purchase_orders
+    WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
+      AND status = 'canceled'
+  `, [projectId]);
+  result.posNotRestored = poCount.rows[0]?.cnt || 0;
+
+  const woCount = await pool.query(`
+    SELECT COUNT(*)::int as cnt FROM epc_work_orders
+    WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
+      AND status = 'canceled'
+  `, [projectId]);
+  result.wosNotRestored = woCount.rows[0]?.cnt || 0;
+
+  const dspCount = await pool.query(`
+    SELECT COUNT(*)::int as cnt FROM epc_dispatch_records
+    WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
+      AND status = 'canceled'
+  `, [projectId]);
+  result.dispatchRecordsNotRestored = dspCount.rows[0]?.cnt || 0;
+
+  const invCount = await pool.query(`
+    SELECT COUNT(*)::int as cnt FROM epc_invoices
+    WHERE project_id = $1 AND status = 'canceled'
+  `, [projectId]);
+  result.invoicesNotRestored = invCount.rows[0]?.cnt || 0;
+
+  const totalNotRestored = result.posNotRestored + result.wosNotRestored +
+    result.dispatchRecordsNotRestored + result.invoicesNotRestored;
+
+  if (totalNotRestored > 0) {
+    const parts: string[] = [];
+    if (result.posNotRestored > 0) parts.push(`${result.posNotRestored} POs`);
+    if (result.wosNotRestored > 0) parts.push(`${result.wosNotRestored} WOs`);
+    if (result.dispatchRecordsNotRestored > 0) parts.push(`${result.dispatchRecordsNotRestored} dispatch records`);
+    if (result.invoicesNotRestored > 0) parts.push(`${result.invoicesNotRestored} invoices`);
+
+    const taskId = await createDeduplicatedReviewTask({
+      projectId, entityType: 'project', recordId: projectId,
+      actionCode: 'restoration_manual_review',
+      title: `Review non-restored records for reopened project ${projectCode}`,
+      description: `Project ${projectCode} has been reopened. The following canceled records were NOT auto-restored and require manual review: ${parts.join(', ')}. These may have SAP linkage, payment records, or physical shipment history.`,
+      assignedTo: pmId || userId, createdBy: userId, priority: 'High', dueDays: 3,
+    });
+    result.reviewTaskId = taskId;
+  }
+
+  await pool.query(`
+    INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+    VALUES ($1, 'project_restoration_cascade', $2, $3, NOW(), true)
+  `, [projectId, JSON.stringify(result), String(userId)]);
+
+  console.log(`[EPC-Restore] Project ${projectCode} (ID ${projectId}) restoration cascade: ` +
+    `tasks=${result.tasksRestored}, BOMs=${result.bomsRestored}, DWG=${result.drawingsRestored}, ` +
+    `planning=${result.planningRestored}, INS=${result.inspectionsRestored}, ` +
+    `DSP-ready=${result.dispatchReadinessRestored}, QP=${result.qualityPlansRestored}, ` +
+    `COM=${result.commissioningRestored}, BIL=${result.billingRestored} | ` +
+    `NOT restored: PO=${result.posNotRestored}, WO=${result.wosNotRestored}, ` +
+    `DSP-rec=${result.dispatchRecordsNotRestored}, INV=${result.invoicesNotRestored}`);
 
   return result;
 }

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import FileStorage from "@/components/file-storage";
 const CommercialChangesTab = lazy(() => import("@/components/commercial-changes-tab"));
@@ -198,6 +199,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+  const isSuperuser = currentUser?.role === 'Superuser';
   const [activeTab, setActiveTab] = useState("overview");
   const [isItemsImportOpen, setIsItemsImportOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -211,6 +214,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [pendingCancelData, setPendingCancelData] = useState<EditProjectValues | null>(null);
+  const [isReopenConfirmOpen, setIsReopenConfirmOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState('');
+  const [pendingReopenData, setPendingReopenData] = useState<EditProjectValues | null>(null);
   
   const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
   const [isEditPhaseOpen, setIsEditPhaseOpen] = useState(false);
@@ -1042,6 +1048,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       setIsCancelConfirmOpen(true);
       return;
     }
+
+    if (project?.status === 'canceled' && formattedData.status && formattedData.status !== 'canceled') {
+      setPendingReopenData(formattedData);
+      setReopenReason('');
+      setIsReopenConfirmOpen(true);
+      return;
+    }
     
     console.log("Submitting project update:", formattedData);
     updateProjectMutation.mutate(formattedData);
@@ -1054,6 +1067,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     setIsCancelConfirmOpen(false);
     setPendingCancelData(null);
     setCancelReason('');
+  }
+
+  function confirmReopen() {
+    if (!pendingReopenData || reopenReason.trim().length < 10) return;
+    const payload = { ...pendingReopenData, reopenReason: reopenReason.trim() };
+    updateProjectMutation.mutate(payload as any);
+    setIsReopenConfirmOpen(false);
+    setPendingReopenData(null);
+    setReopenReason('');
   }
   
   // Return early to prevent any API calls with invalid ID
@@ -1476,6 +1498,52 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={isReopenConfirmOpen} onOpenChange={(open) => { if (!open) { setIsReopenConfirmOpen(false); setPendingReopenData(null); setReopenReason(''); } }}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-blue-700 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" /> Reopen Project
+            </DialogTitle>
+            <DialogDescription>
+              {pendingReopenData?.status === 'on_hold' ? (
+                <>This will move the project to a <strong>frozen review state</strong>. No records will be restored yet. Restoration of draft-level records happens when the project is moved to Planning.</>
+              ) : (
+                <>This will <strong>restore draft-level records</strong> (tasks, BOMs, drawings, planning drafts, inspections, dispatch readiness, quality plans, commissioning, billing). <strong>POs, WOs, dispatch records, and invoices will NOT be restored</strong> and will require manual review.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.name}</span></div>
+            <div className="text-sm">Current Status: <span className="font-bold text-red-600">Canceled</span> → <span className="font-bold text-blue-600">{pendingReopenData?.status === 'on_hold' ? 'On Hold' : 'Planning'}</span></div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Reopen Reason <span className="text-destructive">*</span></label>
+              <Textarea
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Provide a detailed reason for reopening (min 10 characters)..."
+                rows={3}
+                className="resize-none"
+              />
+              {reopenReason.length > 0 && reopenReason.trim().length < 10 && (
+                <p className="text-xs text-destructive">Reason must be at least 10 characters.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsReopenConfirmOpen(false); setPendingReopenData(null); setReopenReason(''); }}>
+              Go Back
+            </Button>
+            <Button
+              onClick={confirmReopen}
+              disabled={reopenReason.trim().length < 10 || updateProjectMutation.isPending}
+            >
+              {updateProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Reopen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Project Dialog */}
       <Dialog 
         open={isEditProjectOpen} 
@@ -1543,11 +1611,25 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="planning">Planning</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="on_hold">On Hold</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="canceled">Canceled</SelectItem>
+                          {project?.status === 'canceled' ? (
+                            isSuperuser ? (
+                              <>
+                                <SelectItem value="canceled">Canceled</SelectItem>
+                                <SelectItem value="on_hold">On Hold</SelectItem>
+                                <SelectItem value="planning">Planning</SelectItem>
+                              </>
+                            ) : (
+                              <SelectItem value="canceled">Canceled</SelectItem>
+                            )
+                          ) : (
+                            <>
+                              <SelectItem value="planning">Planning</SelectItem>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="on_hold">On Hold</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="canceled">Canceled</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />

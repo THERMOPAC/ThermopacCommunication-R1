@@ -47,7 +47,7 @@ import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
 import { isFeatureFlagEnabled } from './utils/epc-migration-helpers';
-import { executeProjectCancellationCascade, isProjectFrozen, isProjectTerminal } from './utils/epc-project-cascade';
+import { executeProjectCancellationCascade, executeProjectRestorationCascade, isProjectFrozen, isProjectTerminal } from './utils/epc-project-cascade';
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 import { isDwgGateRequired } from './utils/epc-dwg-linking';
 import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
@@ -389,15 +389,21 @@ export function setupProjectRoutes(app: express.Express) {
       const newStatus = updateData.status;
 
       if (newStatus && newStatus !== oldStatus) {
+        const userRole = req.user?.role || '';
+        const userLevel = roleHierarchy[userRole];
+
         if (isProjectTerminal(oldStatus)) {
-          return sendBusinessError(res, `Cannot change status of a canceled project. Canceled is terminal.`);
-        }
-        if (newStatus === 'active' && isProjectTerminal(oldStatus)) {
-          return sendBusinessError(res, `Cannot reactivate a canceled project.`);
+          if (userLevel !== 0) {
+            return res.status(403).json({ error: 'Only Superuser can reopen a canceled project.' });
+          }
+          if (!['on_hold', 'planning'].includes(newStatus)) {
+            return res.status(400).json({ error: 'A canceled project can only be moved to On Hold or Planning.' });
+          }
+          if (!req.body.reopenReason || typeof req.body.reopenReason !== 'string' || req.body.reopenReason.trim().length < 10) {
+            return res.status(400).json({ error: 'A reopen reason of at least 10 characters is required.' });
+          }
         }
         if (newStatus === 'canceled') {
-          const userRole = req.user?.role || '';
-          const userLevel = roleHierarchy[userRole];
           if (userLevel === undefined || userLevel > 2) {
             return res.status(403).json({ error: 'Only Senior Manager, General Manager, or Superuser can cancel a project.' });
           }
@@ -420,6 +426,46 @@ export function setupProjectRoutes(app: express.Express) {
         }, 'project-routes');
         console.log(`[EventBus] project.status_changed emitted — projectId=${projectId}, ${oldStatus} → ${newStatus}, changedBy=${userId}`);
 
+        if (oldStatus === 'canceled' && (newStatus === 'on_hold' || newStatus === 'planning')) {
+          try {
+            const reopenReason = req.body.reopenReason?.trim() || '';
+            const reopenNote = `[REOPENED ${new Date().toISOString().slice(0,10)}] by ${req.user?.username || 'unknown'} → ${newStatus}: ${reopenReason}`;
+            const existingNotes = project.notes || '';
+            await storage.updateProject(projectId, { notes: existingNotes ? `${existingNotes}\n\n${reopenNote}` : reopenNote });
+
+            await pool.query(`
+              INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+              VALUES ($1, 'project.reopened', $2, $3, NOW(), true)
+            `, [projectId, JSON.stringify({
+              reopenReason, reopenedBy: userId, reopenedByName: req.user?.username,
+              previousStatus: oldStatus, newStatus,
+            }), String(userId)]);
+
+            if (newStatus === 'planning') {
+              const restoreResult = await executeProjectRestorationCascade(projectId, userId);
+              console.log(`[EPC-Restore] Restoration cascade completed for project ${project.code}`);
+              return res.json({ ...updatedProject, restoreResult });
+            }
+            return res.json(updatedProject);
+          } catch (reopenErr) {
+            console.error(`[EPC-Restore] Error during reopen for project ${projectId}:`, reopenErr);
+            return res.json({ ...updatedProject, reopenWarning: 'Project status updated but restoration had errors. Check logs.' });
+          }
+        }
+
+        if (oldStatus === 'on_hold' && newStatus === 'planning') {
+          try {
+            const restoreResult = await executeProjectRestorationCascade(projectId, userId);
+            if (!restoreResult.alreadyRestored) {
+              console.log(`[EPC-Restore] Restoration cascade completed for project ${project.code} (on_hold → planning)`);
+            }
+            return res.json({ ...updatedProject, restoreResult });
+          } catch (restoreErr) {
+            console.error(`[EPC-Restore] Error during on_hold→planning restore for project ${projectId}:`, restoreErr);
+            return res.json({ ...updatedProject, reopenWarning: 'Status updated but restoration had errors. Check logs.' });
+          }
+        }
+
         if (newStatus === 'canceled') {
           try {
             const cancelReason = req.body.cancelReason?.trim() || '';
@@ -427,11 +473,13 @@ export function setupProjectRoutes(app: express.Express) {
               const cancelNote = `[CANCELED ${new Date().toISOString().slice(0,10)}] by ${req.user?.username || 'unknown'}: ${cancelReason}`;
               const existingNotes = project.notes || '';
               await storage.updateProject(projectId, { notes: existingNotes ? `${existingNotes}\n\n${cancelNote}` : cancelNote });
-              await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_type, payload, source, created_at)
-                VALUES (${projectId}, 'project.canceled', ${JSON.stringify({
-                  cancelReason, canceledBy: userId, canceledByName: req.user?.username,
-                  previousStatus: oldStatus
-                })}::jsonb, 'project-routes', NOW())`);
+              await pool.query(`
+                INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at, processed)
+                VALUES ($1, 'project.canceled', $2, $3, NOW(), true)
+              `, [projectId, JSON.stringify({
+                cancelReason, canceledBy: userId, canceledByName: req.user?.username,
+                previousStatus: oldStatus
+              }), String(userId)]);
             }
             const cascadeResult = await executeProjectCancellationCascade(projectId, userId);
             console.log(`[EPC-Cascade] Cancellation cascade completed for project ${project.code}`);
