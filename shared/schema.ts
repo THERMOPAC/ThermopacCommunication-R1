@@ -5502,17 +5502,17 @@ export const payrollLocks = pgTable('payroll_locks', {
 export const payrollLockExceptions = pgTable('payroll_lock_exceptions', {
   id: serial('id').primaryKey(),
   lockId: integer('lock_id').notNull().references(() => payrollLocks.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id),
-  reason: text('reason').notNull(),
-  requestedBy: integer('requested_by').notNull().references(() => users.id),
-  requestedAt: timestamp('requested_at').defaultNow(),
+  periodId: integer('period_id').notNull().references(() => payrollPeriods.id, { onDelete: 'cascade' }),
+  requestedBy: integer('requested_by').references(() => users.id),
+  requestReason: text('request_reason').notNull(),
+  status: varchar('status', { length: 20 }).default('pending'),
   approvedBy: integer('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at'),
-  status: varchar('status', { length: 20 }).notNull().default('pending'),
-  expiresAt: timestamp('expires_at'),
+  rejectionReason: text('rejection_reason'),
   changesDescription: text('changes_description'),
   closedAt: timestamp('closed_at'),
   closedBy: integer('closed_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Payroll Attendance Snapshot - frozen attendance data for audit
@@ -6837,7 +6837,7 @@ export type InsertPayrollLock = z.infer<typeof insertPayrollLockSchema>;
 
 // Payroll Lock Exceptions schemas and types
 export const insertPayrollLockExceptionSchema = createInsertSchema(payrollLockExceptions)
-  .omit({ id: true, requestedAt: true, approvedBy: true, approvedAt: true, closedAt: true, closedBy: true, expiresAt: true, changesDescription: true })
+  .omit({ id: true, approvedBy: true, approvedAt: true, closedAt: true, closedBy: true, createdAt: true, changesDescription: true, rejectionReason: true })
   .extend({
     status: z.enum(['pending', 'approved', 'rejected', 'expired']).default('pending'),
   });

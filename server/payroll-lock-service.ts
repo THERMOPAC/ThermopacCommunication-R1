@@ -61,13 +61,12 @@ export async function checkPayrollLock(
       .where(
         and(
           eq(payrollLockExceptions.lockId, matchingLock.id),
-          eq(payrollLockExceptions.userId, userId),
+          eq(payrollLockExceptions.requestedBy, userId),
           eq(payrollLockExceptions.status, 'approved')
         )
       );
 
     const validException = exceptions.find((e) => {
-      if (e.expiresAt && new Date(e.expiresAt) < new Date()) return false;
       if (e.closedAt) return false;
       return true;
     });
@@ -159,7 +158,7 @@ export async function getLocksForPeriod(periodId: number): Promise<any[]> {
 
 export async function createLockException(data: {
   lockId: number;
-  userId: number;
+  periodId: number;
   reason: string;
   requestedBy: number;
 }): Promise<any> {
@@ -167,8 +166,8 @@ export async function createLockException(data: {
     .insert(payrollLockExceptions)
     .values({
       lockId: data.lockId,
-      userId: data.userId,
-      reason: data.reason,
+      periodId: data.periodId,
+      requestReason: data.reason,
       requestedBy: data.requestedBy,
       status: 'pending',
     })
@@ -179,8 +178,7 @@ export async function createLockException(data: {
 
 export async function approveLockException(
   exceptionId: number,
-  approvedBy: number,
-  expiresAt?: Date
+  approvedBy: number
 ): Promise<any> {
   const [updated] = await db
     .update(payrollLockExceptions)
@@ -188,7 +186,6 @@ export async function approveLockException(
       status: 'approved',
       approvedBy,
       approvedAt: new Date(),
-      expiresAt: expiresAt || null,
     })
     .where(eq(payrollLockExceptions.id, exceptionId))
     .returning();

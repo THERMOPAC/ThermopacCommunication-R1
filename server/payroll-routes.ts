@@ -1093,8 +1093,8 @@ router.post('/locks/exceptions', async (req, res) => {
   try {
     const requestedBy = requirePayrollRole(req, res);
     if (!requestedBy) return;
-    const { lockId, userId, reason } = req.body;
-    const result = await createLockException({ lockId, userId, reason, requestedBy });
+    const { lockId, periodId, reason } = req.body;
+    const result = await createLockException({ lockId, periodId, reason, requestedBy });
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -1106,8 +1106,7 @@ router.post('/locks/exceptions/:id/approve', async (req, res) => {
     const userId = requirePayrollRole(req, res);
     if (!userId) return;
     const id = parseInt(req.params.id);
-    const { expiresAt } = req.body;
-    const result = await approveLockException(id, userId, expiresAt ? new Date(expiresAt) : undefined);
+    const result = await approveLockException(id, userId);
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
