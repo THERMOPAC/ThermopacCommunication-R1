@@ -1664,6 +1664,8 @@ export const customers = pgTable('customers', {
   sapLastModified: timestamp('sap_last_modified'),
   sapSyncStatus: text('sap_sync_status').default('pending'), // pending, synced, error
   shortCode: varchar('short_code', { length: 5 }).notNull().unique(),
+  continentCode: varchar('continent_code', { length: 2 }),
+  countryCode: varchar('country_code', { length: 2 }),
 });
 
 // Projects table
