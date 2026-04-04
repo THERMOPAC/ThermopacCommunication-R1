@@ -41,6 +41,7 @@ const productFormSchema = z.object({
   currency: z.string().min(1, "Currency is required"),
   category: z.string().min(1, "Product Category is required"),
   hsnSacCode: z.string().min(1, "HSN/SAC Code is required"),
+  drawingNumber: z.string().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -176,7 +177,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      isActive: true,
+      drawingNumber: "", isActive: true,
     },
   });
 
@@ -235,6 +236,7 @@ export default function ProductsPage() {
         unitPrice: data.unitPrice,
         category: data.category || null,
         hsnSacCode: data.hsnSacCode || null,
+        drawingNumber: data.drawingNumber || null,
       };
       return apiRequest('POST', '/api/sales-marketing/products', payload);
     },
@@ -259,6 +261,7 @@ export default function ProductsPage() {
         unitPrice: data.unitPrice,
         category: data.category || null,
         hsnSacCode: data.hsnSacCode || null,
+        drawingNumber: data.drawingNumber || null,
       };
       return apiRequest('PATCH', `/api/sales-marketing/products/${id}`, payload);
     },
@@ -403,7 +406,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      isActive: true,
+      drawingNumber: "", isActive: true,
     });
     setIsProductDialogOpen(true);
   };
@@ -432,6 +435,7 @@ export default function ProductsPage() {
       currency: product.currency || "USD",
       category: product.category || "Finish Goods",
       hsnSacCode: product.hsnSacCode || "",
+      drawingNumber: product.drawingNumber || "",
       isActive: product.isActive ?? true,
     });
     setIsProductDialogOpen(true);
@@ -1252,6 +1256,20 @@ export default function ProductsPage() {
                         <FormLabel>HSN/SAC Code <span className="text-destructive">*</span></FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="e.g. 8481" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={productForm.control}
+                    name="drawingNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Drawing Number</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. DWG-001" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
