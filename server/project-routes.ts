@@ -913,6 +913,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/key-stages', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      await guardProjectNotFrozen(projectId, res);
       const userId = req.user!.id;
       const { stageNumber, stageName, phase, description, isCompleted } = req.body;
       
@@ -941,6 +942,8 @@ export function setupProjectRoutes(app: express.Express) {
   
   app.patch('/api/projects/:projectId/key-stages/:stageId', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
+      const projectId = parseInt(req.params.projectId);
+      await guardProjectNotFrozen(projectId, res);
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
       const { isCompleted, stageName, stageNumber, phase, description } = req.body;
@@ -982,6 +985,8 @@ export function setupProjectRoutes(app: express.Express) {
   // Dedicated endpoint for marking a key stage as completed
   app.post('/api/projects/:projectId/key-stages/:stageId/complete', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
+      const projectId = parseInt(req.params.projectId);
+      await guardProjectNotFrozen(projectId, res);
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
       
@@ -997,6 +1002,8 @@ export function setupProjectRoutes(app: express.Express) {
   // Dedicated endpoint for marking a key stage as incomplete
   app.post('/api/projects/:projectId/key-stages/:stageId/incomplete', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
+      const projectId = parseInt(req.params.projectId);
+      await guardProjectNotFrozen(projectId, res);
       const stageId = parseInt(req.params.stageId);
       const userId = req.user!.id;
       
@@ -1035,6 +1042,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/documents', ensureAuthenticated, requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      await guardProjectNotFrozen(projectId, res);
       const userId = req.user!.id;
       
       // Check if project exists
@@ -6361,6 +6369,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch readiness record not found');
       const dr = existing.rows[0] as any;
 
+      await guardProjectNotFrozen(dr.project_id, res);
       if (!(await enforceWriteOwnership(dr, req.user as any, 'department', req, res))) return;
 
       if (dr.status === 'cancelled' || dr.status === 'superseded' || dr.status === 'dispatched') {
@@ -6473,6 +6482,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/dispatch-records', ensureAuthenticated, requirePageAccess('dispatch-logistics'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      await guardProjectNotFrozen(projectId, res);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const {
@@ -6823,6 +6833,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Dispatch record not found');
       const d = existing.rows[0] as any;
 
+      await guardProjectNotFrozen(d.project_id, res);
       if (!(await enforceWriteOwnership(d, req.user as any, 'department', req, res))) return;
 
       if (d.status === 'cancelled' || d.status === 'superseded' || d.status === 'delivered') {
@@ -7283,6 +7294,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (existing.rows.length === 0) return sendNotFound(res, 'Commissioning readiness record not found');
       const cr = existing.rows[0] as any;
 
+      await guardProjectNotFrozen(cr.project_id, res);
       if (cr.status === 'cancelled' || cr.status === 'superseded' || cr.status === 'handed_over' || cr.status === 'closed') {
         return sendBusinessError(res, `Cannot update: status is '${cr.status}' (terminal state).`);
       }
@@ -9855,6 +9867,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (results.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const rec = results.rows[0] as any;
 
+      await guardProjectNotFrozen(rec.project_id, res);
       if (rec.status !== 'under_review') {
         return sendBusinessError(res, `Cannot revert: current status is '${rec.status}'. Must be 'under_review'.`);
       }
@@ -10066,6 +10079,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       const headerResult = await db.execute(sql`SELECT * FROM epc_bom_headers WHERE id = ${id}`);
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
+      await guardProjectNotFrozen((headerResult.rows[0] as any).project_id, res);
       const header = headerResult.rows[0] as any;
 
       if (!['released', 'locked'].includes(header.status)) {
@@ -10383,6 +10397,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (headerResult.rows.length === 0) return sendNotFound(res, 'BOM header not found');
       const header = headerResult.rows[0] as any;
 
+      await guardProjectNotFrozen(header.project_id, res);
       if (header.status !== 'draft') {
         return sendBusinessError(res, `Cannot add lines: BOM status is '${header.status}'. Only 'draft' BOMs can be modified.`);
       }
@@ -10520,4 +10535,79 @@ export function setupProjectRoutes(app: express.Express) {
 
   // Master Items routes moved to server/routes.ts to avoid conflicts
   // The main routes file has the complete implementation with project filtering support
+
+  auditFreezeGuardCoverage();
+}
+
+const FREEZE_GUARD_EXEMPT_ROUTES = new Set([
+  'GET ',
+  '/api/projects/:projectId/phases',
+  '/api/projects/:projectId/members',
+  '/api/projects/:projectId/items',
+  '/api/projects/:projectId/inspection-aging-check',
+  '/api/projects/:id',
+]);
+
+async function auditFreezeGuardCoverage() {
+  const { readFileSync } = await import('fs');
+  const { join, dirname } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const __auditDirname = dirname(fileURLToPath(import.meta.url));
+  const source: string = readFileSync(join(__auditDirname, 'project-routes.ts'), 'utf8');
+
+  const routePattern = /app\.(post|patch|put)\(\s*['"`](\/api\/[^'"`]+)['"`]/g;
+  const allWriteRoutes: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = routePattern.exec(source)) !== null) {
+    allWriteRoutes.push(`${match[1].toUpperCase()} ${match[2]}`);
+  }
+
+  const guardPattern = /guardProjectNotFrozen|guardRecordProjectNotFrozen/g;
+  const guardPositions: number[] = [];
+  let gm: RegExpExecArray | null;
+  while ((gm = guardPattern.exec(source)) !== null) {
+    if (source.substring(Math.max(0, gm.index - 30), gm.index).includes('function ')) continue;
+    if (source.substring(Math.max(0, gm.index - 30), gm.index).includes('return ')) continue;
+    guardPositions.push(gm.index);
+  }
+
+  const unguarded: string[] = [];
+  const routeBodyPattern = /app\.(post|patch|put)\(\s*['"`](\/api\/[^'"`]+)['"`]/g;
+  let rm: RegExpExecArray | null;
+  while ((rm = routeBodyPattern.exec(source)) !== null) {
+    const routeKey = `${rm[1].toUpperCase()} ${rm[2]}`;
+
+    let exempt = false;
+    for (const ex of FREEZE_GUARD_EXEMPT_ROUTES) {
+      if (routeKey.includes(ex) || rm[2].includes(ex)) { exempt = true; break; }
+    }
+    if (exempt) continue;
+
+    if (!rm[2].includes('/api/projects/') && !rm[2].includes('/api/planning-records/') &&
+        !rm[2].includes('/api/quality-plans/') && !rm[2].includes('/api/inspection-') &&
+        !rm[2].includes('/api/po-prep') && !rm[2].includes('/api/wo-prep') &&
+        !rm[2].includes('/api/dispatch-') && !rm[2].includes('/api/commissioning-') &&
+        !rm[2].includes('/api/billing-') && !rm[2].includes('/api/epc-invoices/') &&
+        !rm[2].includes('/api/drawing-controls/') && !rm[2].includes('/api/bom-')) {
+      continue;
+    }
+
+    const nextRouteMatch = routeBodyPattern.exec(source);
+    const blockEnd = nextRouteMatch ? nextRouteMatch.index : source.length;
+    routeBodyPattern.lastIndex = rm.index + rm[0].length;
+
+    const hasGuard = guardPositions.some(pos => pos > rm!.index && pos < blockEnd);
+    if (!hasGuard) {
+      unguarded.push(routeKey);
+    }
+  }
+
+  if (unguarded.length === 0) {
+    console.log(`[Freeze-Audit] ✅ All ${allWriteRoutes.length} project-scoped write endpoints have freeze guards.`);
+  } else {
+    console.warn(`[Freeze-Audit] ⚠️ ${unguarded.length} project-scoped write endpoint(s) MISSING freeze guard:`);
+    for (const r of unguarded) {
+      console.warn(`[Freeze-Audit]   ❌ ${r}`);
+    }
+  }
 }
