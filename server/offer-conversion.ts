@@ -607,7 +607,11 @@ export async function executeOfferConversion(
 
     const confirmedArtifactId = await freezeConfirmedArtifact(offerId, offer.revision || 0);
     if (!confirmedArtifactId) {
-      console.warn(`[offer-conversion] No combined PDF artifact found for offer ${offer.offer_number} rev ${offer.revision || 0} — EPC attachment skipped. Generate the PDF before confirming.`);
+      await client.query('ROLLBACK');
+      const err: any = new Error('Quotation PDF must be generated before order confirmation');
+      err.statusCode = 422;
+      err.failures = [{ field: 'quotation_pdf', reason: `No active combined PDF artifact found for offer ${offer.offer_number} revision ${offer.revision || 0}. Generate the quotation PDF first.` }];
+      throw err;
     }
 
     await client.query('COMMIT');
