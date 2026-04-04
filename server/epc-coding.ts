@@ -188,9 +188,7 @@ export function buildQuotationGcsPath(
   };
   const label = labelMap[priceMode] || priceMode.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const safeName = offerNumber.replace(/\//g, '-');
-  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Quotations/${safeName}/${revSlot}/${seq}-${label}.pdf`;
-  console.log(`[GCS-PATH-AUDIT] buildQuotationGcsPath => ${path}`);
-  return path;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Quotations/${safeName}/${revSlot}/${seq}-${label}.pdf`;
 }
 
 export function buildEpcQtnGcsPath(
@@ -210,9 +208,7 @@ export function buildEpcQtnGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'baseline';
   const safeName = offerNumber.replace(/\//g, '-');
-  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectCode}/QTN/${safeName}/rev-na/${seq}-${label}.pdf`;
-  console.log(`[GCS-PATH-AUDIT] buildEpcQtnGcsPath => ${path}`);
-  return path;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectCode}/QTN/${safeName}/rev-na/${seq}-${label}.pdf`;
 }
 
 export async function resolveContextualRevision(
