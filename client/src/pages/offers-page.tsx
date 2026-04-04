@@ -711,7 +711,7 @@ export function OffersContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="min-w-[160px]">Offer #</TableHead>
-                    <TableHead>Customer</TableHead>
+                    <TableHead className="min-w-[180px]">Customer</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Valid Until</TableHead>
