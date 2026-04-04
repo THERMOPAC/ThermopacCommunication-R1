@@ -447,7 +447,12 @@ export async function executeProjectRestorationCascade(projectId: number, userId
     ORDER BY emitted_at DESC LIMIT 1
   `, [projectId]);
 
-  if (lastRestore.rows.length > 0 && lastCancel.rows.length > 0) {
+  if (lastRestore.rows.length > 0) {
+    if (lastCancel.rows.length === 0) {
+      result.alreadyRestored = true;
+      console.log(`[EPC-Restore] Project ${projectCode} (ID ${projectId}) restoration already ran (no cancel event found) — skipping.`);
+      return result;
+    }
     const restoreTs = new Date(lastRestore.rows[0].emitted_at).getTime();
     const cancelTs = new Date(lastCancel.rows[0].emitted_at).getTime();
     if (restoreTs > cancelTs) {
