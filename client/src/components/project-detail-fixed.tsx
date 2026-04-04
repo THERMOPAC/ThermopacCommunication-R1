@@ -1453,7 +1453,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FormItem>
                     <FormLabel>Project Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter project name" {...field} />
+                      <Input placeholder="Enter project name" {...field} readOnly className="bg-muted cursor-not-allowed" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
