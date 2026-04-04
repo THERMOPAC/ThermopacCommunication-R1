@@ -85,6 +85,35 @@ async function guardProjectNotFrozen(projectId: number, res: Response): Promise<
   return true;
 }
 
+async function resolveProjectIdFromRecord(table: string, idColumn: string, recordId: number): Promise<number | null> {
+  const projectIdLookups: Record<string, string> = {
+    'item_planning_records': `SELECT pi.project_id FROM item_planning_records ipr JOIN project_items pi ON pi.id = ipr.project_item_id WHERE ipr.id = $1`,
+    'quality_plans': `SELECT pi.project_id FROM quality_plans qp JOIN item_planning_records ipr ON ipr.id = qp.planning_record_id JOIN project_items pi ON pi.id = ipr.project_item_id WHERE qp.id = $1`,
+    'inspection_executions': `SELECT ie.project_id FROM inspection_executions ie WHERE ie.id = $1`,
+    'po_preparation_records': `SELECT ppr.project_id FROM po_preparation_records ppr WHERE ppr.id = $1`,
+    'wo_preparation_records': `SELECT wpr.project_id FROM wo_preparation_records wpr WHERE wpr.id = $1`,
+    'epc_purchase_orders': `SELECT pi.project_id FROM epc_purchase_orders epo JOIN project_items pi ON pi.id = epo.project_item_id WHERE epo.id = $1`,
+    'epc_work_orders': `SELECT pi.project_id FROM epc_work_orders ewo JOIN project_items pi ON pi.id = ewo.project_item_id WHERE ewo.id = $1`,
+    'epc_dispatch_readiness': `SELECT pi.project_id FROM epc_dispatch_readiness edr JOIN project_items pi ON pi.id = edr.project_item_id WHERE edr.id = $1`,
+    'epc_dispatch_records': `SELECT pi.project_id FROM epc_dispatch_records edr JOIN project_items pi ON pi.id = edr.project_item_id WHERE edr.id = $1`,
+    'epc_commissioning_readiness': `SELECT project_id FROM epc_commissioning_readiness WHERE id = $1`,
+    'epc_billing_readiness': `SELECT project_id FROM epc_billing_readiness WHERE id = $1`,
+    'epc_invoices': `SELECT project_id FROM epc_invoices WHERE id = $1`,
+    'epc_drawing_controls': `SELECT project_id FROM epc_drawing_controls WHERE id = $1`,
+    'epc_bom_headers': `SELECT pi.project_id FROM epc_bom_headers ebh JOIN project_items pi ON pi.id = ebh.project_item_id WHERE ebh.id = $1`,
+  };
+  const query = projectIdLookups[table];
+  if (!query) return null;
+  const r = await pool.query(query, [recordId]);
+  return r.rows[0]?.project_id || null;
+}
+
+async function guardRecordProjectNotFrozen(table: string, recordId: number, res: Response): Promise<boolean> {
+  const projectId = await resolveProjectIdFromRecord(table, 'id', recordId);
+  if (!projectId) return true;
+  return guardProjectNotFrozen(projectId, res);
+}
+
 export function setupProjectRoutes(app: express.Express) {
   // Project Routes
   app.get('/api/projects', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -747,6 +776,8 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       const userId = req.user!.id;
+
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       
       // Check if project exists
       const project = await storage.getProject(projectId);
@@ -1900,6 +1931,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('item_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
 
@@ -1934,6 +1966,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('item_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
       const { reviewNote } = req.body || {};
@@ -1976,6 +2009,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('item_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
       const { releaseNote } = req.body || {};
@@ -2146,6 +2180,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('item_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -2274,6 +2309,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('item_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
 
@@ -2309,6 +2345,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/planning-records/:id/convert', ensureAuthenticated, requirePageAccess('planning-control'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('item_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid planning record ID');
       const userId = (req.user as any)?.id;
       const { targetType, note } = req.body || {};
@@ -3555,6 +3592,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/quality-plans/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
 
       const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
@@ -3588,6 +3626,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
 
@@ -3625,6 +3664,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
       const { preparationNote } = req.body || {};
@@ -3704,6 +3744,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
 
@@ -3746,6 +3787,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -3869,6 +3911,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/inspection-executions/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
 
       const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
@@ -3905,6 +3948,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { scheduledDate, inspectorId } = req.body || {};
@@ -3948,6 +3992,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
 
@@ -3986,6 +4031,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { result, findings, measurementData } = req.body || {};
@@ -4088,6 +4134,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { failureReason, findings } = req.body || {};
@@ -4224,6 +4271,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -4266,6 +4314,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { reworkNotes } = req.body || {};
@@ -4305,6 +4354,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { closingNotes } = req.body || {};
@@ -4396,6 +4446,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/po-preparations/:id', ensureAuthenticated, requirePageAccess('purchase-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('po_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
 
       const existing = await db.execute(sql`SELECT * FROM po_preparation_records WHERE id = ${id}`);
@@ -4431,6 +4482,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('po_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
 
@@ -4465,6 +4517,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('po_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
       const { reviewNotes } = req.body || {};
@@ -4508,6 +4561,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('po_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
 
@@ -4541,6 +4595,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('po_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
 
@@ -4574,6 +4629,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('po_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid PO preparation ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -4684,6 +4740,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/wo-preparations/:id', ensureAuthenticated, requirePageAccess('work-orders'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('wo_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
 
       const existing = await db.execute(sql`SELECT * FROM wo_preparation_records WHERE id = ${id}`);
@@ -4720,6 +4777,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('wo_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
 
@@ -4754,6 +4812,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('wo_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
       const { reviewNotes } = req.body || {};
@@ -4797,6 +4856,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('wo_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
 
@@ -4830,6 +4890,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('wo_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
 
@@ -4863,6 +4924,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('wo_preparation_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid WO preparation ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -5954,6 +6016,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const projectId = parseInt(req.params.projectId);
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       const userId = (req.user as any)?.id;
       const {
         projectItemId, epcPurchaseOrderId, epcWorkOrderId, inspectionExecutionId,
@@ -6074,6 +6137,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { preparationNote } = req.body || {};
 
@@ -6109,6 +6173,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { readyNote } = req.body || {};
 
@@ -6157,6 +6222,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { dispatchReference } = req.body || {};
 
@@ -6210,6 +6276,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
 
@@ -6247,6 +6314,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/dispatch-readiness/:id/supersede', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { supersessionReason, newDrId } = req.body || {};
 
@@ -6509,6 +6577,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/dispatch-records/:id/confirm', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_records', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { confirmationNote } = req.body || {};
@@ -6554,6 +6623,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/dispatch-records/:id/ship', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_records', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { shipmentNote, transporterName, vehicleNumber, trackingNumber, lrNumber, lrDate } = req.body || {};
@@ -6605,6 +6675,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/dispatch-records/:id/deliver', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_records', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { deliveryNote, actualDeliveryDate } = req.body || {};
@@ -6653,6 +6724,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/dispatch-records/:id/cancel', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_records', id, res))) return;
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
 
@@ -6703,6 +6775,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/dispatch-records/:id/supersede', ensureAuthenticated, requirePageAccess('dispatch-logistics'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_dispatch_records', id, res))) return;
       const userId = (req.user as any)?.id;
       const { supersessionReason, newDispatchId } = req.body || {};
 
@@ -6850,6 +6923,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/commissioning-readiness', ensureAuthenticated, requirePageAccess('commissioning-handover'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const {
@@ -6941,6 +7015,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/commissioning-readiness/:id/start-preparation', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { preparationNote } = req.body || {};
 
@@ -6973,6 +7048,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/commissioning-readiness/:id/mark-ready', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { readyNote } = req.body || {};
@@ -7020,6 +7096,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/commissioning-readiness/:id/commission', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { commissioningNote, commissioningDate } = req.body || {};
@@ -7068,6 +7145,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/commissioning-readiness/:id/handover', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { handoverNotes, handoverDate, handoverAcceptedBy, handoverAcceptanceNote } = req.body || {};
@@ -7123,6 +7201,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/commissioning-readiness/:id/cancel', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
 
@@ -7158,6 +7237,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/commissioning-readiness/:id/supersede', ensureAuthenticated, requirePageAccess('commissioning-handover'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { supersessionReason, newCrId } = req.body || {};
 
@@ -7245,6 +7325,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { punchListNote } = req.body || {};
 
@@ -7279,6 +7360,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { resolutionNote } = req.body || {};
 
@@ -7313,6 +7395,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_commissioning_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { closingNote } = req.body || {};
 
@@ -7437,6 +7520,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/billing-readiness', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const {
@@ -7578,6 +7662,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_billing_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
 
       const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
@@ -7615,6 +7700,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/billing-readiness/:id/approve', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_billing_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { reviewNote, readyNote } = req.body || {};
@@ -7665,6 +7751,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/billing-readiness/:id/mark-invoiced', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_billing_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { invoiceReference, invoiceNote } = req.body || {};
@@ -7712,6 +7799,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_billing_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
 
@@ -7749,6 +7837,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/billing-readiness/:id/supersede', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_billing_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
       const { supersessionReason, newBrId } = req.body || {};
 
@@ -7789,6 +7878,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/billing-readiness/:id', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_billing_readiness', id, res))) return;
       const userId = (req.user as any)?.id;
 
       const existing = await db.execute(sql`SELECT * FROM epc_billing_readiness WHERE id = ${id}`);
@@ -7921,6 +8011,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/epc-invoices', ensureAuthenticated, requirePageAccess('invoices'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const {
@@ -8041,6 +8132,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/epc-invoices/:id/approve', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_invoices', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { approvalNote } = req.body || {};
@@ -8086,6 +8178,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/epc-invoices/:id/issue', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_invoices', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { issueNote } = req.body || {};
@@ -8127,6 +8220,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/epc-invoices/:id/record-payment', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_invoices', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { paymentAmount, paymentNote } = req.body || {};
@@ -8192,6 +8286,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_invoices', id, res))) return;
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
 
@@ -8245,6 +8340,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_invoices', id, res))) return;
       const userId = (req.user as any)?.id;
       const { supersessionReason, newInvoiceId } = req.body || {};
 
@@ -8286,6 +8382,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/epc-invoices/:id', ensureAuthenticated, requirePageAccess('invoices'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_invoices', id, res))) return;
       const userId = (req.user as any)?.id;
 
       const existing = await db.execute(sql`SELECT * FROM epc_invoices WHERE id = ${id}`);
@@ -8337,6 +8434,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/drawing-controls/auto-link', ensureAuthenticated, requirePageAccess('drawing-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const projectId = parseInt(req.params.projectId);
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       const userId = (req.user as any)?.id;
       if (!requireMinRole(req, res, 'Manager')) return;
 
@@ -8401,6 +8499,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to create drawing controls.');
       }
       const projectId = parseInt(req.params.projectId);
+      if (!(await guardProjectNotFrozen(projectId, res))) return;
       const userId = (req.user as any)?.id;
       const {
         projectItemId, masterItemId, designDrawingId,
@@ -8515,6 +8614,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to submit drawing controls for review.');
       }
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const { submissionNote } = req.body;
 
@@ -8564,6 +8664,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/review', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { reviewNote, recommendation } = req.body;
@@ -8625,6 +8726,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/approve', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { approvalNote } = req.body;
@@ -8689,6 +8791,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/release', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { releaseNote, releaseForProcurement, releaseForManufacturing } = req.body;
@@ -8752,6 +8855,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/release-gate', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { gateType } = req.body;
@@ -8822,6 +8926,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to record client approval.');
       }
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const { status, clientApprovedBy, notes } = req.body;
 
@@ -8862,6 +8967,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body;
 
@@ -8907,6 +9013,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/supersede', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { supersessionReason, newDrawingRevision, newDesignDrawingId } = req.body;
@@ -9040,6 +9147,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to revert drawing controls to draft.');
       }
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
 
       const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
@@ -9076,6 +9184,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendPermissionError(res, 'Manager or above required to edit drawing controls.');
       }
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;
       const userId = (req.user as any)?.id;
 
       const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
@@ -9260,6 +9369,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/bom-headers/:id', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -9299,6 +9409,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/bom-headers/:id/submit-for-review', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (roleHierarchy[userRole] > 3) {
@@ -9348,6 +9459,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/bom-headers/:id/review', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { reviewNote, recommendation } = req.body;
@@ -9404,6 +9516,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/bom-headers/:id/approve', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { approvalNote } = req.body;
@@ -9459,6 +9572,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/bom-headers/:id/release', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       const { releaseNote } = req.body;
@@ -9506,6 +9620,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/bom-headers/:id/lock', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (!requireMinRole(req, res, 'Senior Manager')) return;
@@ -9533,6 +9648,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/bom-headers/:id/cancel', ensureAuthenticated, requirePageAccess('bom-controls'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
       if (!requireMinRole(req, res, 'Senior Manager')) return;
