@@ -1249,9 +1249,11 @@ router.post('/regularization/:id/approve', ensureAuthenticated, async (req: Requ
       return res.status(403).json({ error: 'You are not authorized to approve this request' });
     }
 
-    const lockCheck = await checkPayrollLock('attendance', reg.requestDate, reg.employeeId);
-    if (lockCheck.isLocked) {
-      return res.status(403).json({ error: 'Payroll is locked for this period. Cannot approve regularization.' });
+    if (user.role !== 'Superuser') {
+      const lockCheck = await checkPayrollLock('attendance', reg.requestDate, reg.employeeId);
+      if (lockCheck.isLocked) {
+        return res.status(403).json({ error: 'Payroll is locked for this period. Cannot approve regularization.' });
+      }
     }
 
     const approverName = `${user.firstName || ''}${user.lastName ? ' ' + user.lastName : ''}`.trim() || user.username;
