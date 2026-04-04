@@ -560,7 +560,7 @@ export default function AttendanceRegularizationPage() {
 
       <Dialog open={showNewDialog} onOpenChange={(open) => {
         setShowNewDialog(open);
-        if (!open) { setSelectedAbsentDay(null); setNewRequestType(''); setNewRequestReason(''); }
+        if (!open) { setSelectedAbsentDay(null); setSelectedScenario(''); setNewRequestReason(''); }
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
