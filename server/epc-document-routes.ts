@@ -88,8 +88,8 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         return res.status(404).json({ error: `Parent entity not found: ${docType} #${parentEntityId} in project ${projectId}` });
       }
 
-      const operationalCode = await getProjectOperationalCode(projectId);
-      if (!operationalCode) {
+      const geo = await epcCoding.resolveProjectGeoCodes(projectId);
+      if (!geo.operationalCode) {
         return res.status(400).json({ error: 'Project does not have an operational code' });
       }
 
@@ -133,7 +133,8 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         const attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
         const gcsObjectPath = epcCoding.buildEpcGcsPath(
-          operationalCode, docType, documentNumber,
+          geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+          geo.operationalCode, docType, documentNumber,
           revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
         );
 

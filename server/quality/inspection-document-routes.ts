@@ -259,21 +259,28 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
       if (storage && bucket) {
         const projectCode = inspection.projectCode || 'UNKNOWN';
         
-        let epcDossierPrefix: string | null = null;
+        let epcTpelPrefix: string | null = null;
+        let epcLegacyPrefix: string | null = null;
         try {
           const projResult = await db.execute(
-            sql`SELECT operational_code FROM projects WHERE id = ${inspection.projectId} LIMIT 1`
+            sql`SELECT p.operational_code, p.fy_code, c.continent_code, c.country_code, c.short_code
+                FROM projects p JOIN customers c ON c.id = p.customer_id
+                WHERE p.id = ${inspection.projectId} LIMIT 1`
           );
           if (projResult.rows.length > 0) {
-            const opCode = (projResult.rows[0] as any).operational_code;
-            if (opCode) {
-              epcDossierPrefix = `EPC/${opCode}/INS/${inspectionOrderNumber}/`;
+            const pr = projResult.rows[0] as any;
+            if (pr.operational_code) {
+              epcLegacyPrefix = `EPC/${pr.operational_code}/INS/${inspectionOrderNumber}/`;
+              if (pr.continent_code && pr.country_code && pr.short_code && pr.fy_code) {
+                epcTpelPrefix = `TPEL/${pr.continent_code}/${pr.country_code}/${pr.short_code}/${pr.fy_code}/${pr.operational_code}/INS/${inspectionOrderNumber}/`;
+              }
             }
           }
         } catch (e) { /* ignore */ }
         
         const dossierPaths = [
-          epcDossierPrefix,
+          epcTpelPrefix,
+          epcLegacyPrefix,
           `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final_Dossier/`,
           `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
           `QMS/Inspections_Records/${inspectionOrderNumber}/Final_Dossier/`,
@@ -544,19 +551,28 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
         if (storage && bucket) {
           const projectCode = inspection.projectCode || 'UNKNOWN';
           
-          let epcPrefix2: string | null = null;
+          let epcTpelPrefix2: string | null = null;
+          let epcLegacyPrefix2: string | null = null;
           try {
             const projRes2 = await db.execute(
-              sql`SELECT operational_code FROM projects WHERE id = ${inspection.projectId} LIMIT 1`
+              sql`SELECT p.operational_code, p.fy_code, c.continent_code, c.country_code, c.short_code
+                  FROM projects p JOIN customers c ON c.id = p.customer_id
+                  WHERE p.id = ${inspection.projectId} LIMIT 1`
             );
             if (projRes2.rows.length > 0) {
-              const oc = (projRes2.rows[0] as any).operational_code;
-              if (oc) epcPrefix2 = `EPC/${oc}/INS/${inspectionOrderNumber}/`;
+              const pr2 = projRes2.rows[0] as any;
+              if (pr2.operational_code) {
+                epcLegacyPrefix2 = `EPC/${pr2.operational_code}/INS/${inspectionOrderNumber}/`;
+                if (pr2.continent_code && pr2.country_code && pr2.short_code && pr2.fy_code) {
+                  epcTpelPrefix2 = `TPEL/${pr2.continent_code}/${pr2.country_code}/${pr2.short_code}/${pr2.fy_code}/${pr2.operational_code}/INS/${inspectionOrderNumber}/`;
+                }
+              }
             }
           } catch (e) { /* ignore */ }
           
           const dossierPaths = [
-            epcPrefix2,
+            epcTpelPrefix2,
+            epcLegacyPrefix2,
             `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/Final_Dossier/`,
             `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/FinalDossier/`,
             `QMS/Inspections_Records/${inspectionOrderNumber}/Final_Dossier/`,

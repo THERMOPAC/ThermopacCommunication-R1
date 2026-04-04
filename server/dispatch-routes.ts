@@ -366,7 +366,6 @@ export function setupDispatchRoutes(app: Router) {
       if (dspCutoverEnabled && epcDispatch && project.operational_code) {
         const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
         const documentNumber = epcDispatch.dispatch_number;
-        const operationalCode = project.operational_code;
 
         const dupCheck = await db.execute(
           sql`SELECT id, attachment_label FROM epc_document_attachments
@@ -389,6 +388,8 @@ export function setupDispatchRoutes(app: Router) {
           return res.status(500).json({ error: 'Failed to initialize Google Cloud Storage' });
         }
 
+        const geo = await epcCoding.resolveProjectGeoCodes(project.id);
+
         const txResult = await db.transaction(async (tx) => {
           const seqResult = await tx.execute(
             sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
@@ -400,7 +401,8 @@ export function setupDispatchRoutes(app: Router) {
           const attachmentLabel = (document_type || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
           const gcsObjectPath = epcCoding.buildEpcGcsPath(
-            operationalCode, 'DSP', documentNumber,
+            geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+            geo.operationalCode, 'DSP', documentNumber,
             null, attachmentSeq, attachmentLabel, fileName
           );
 

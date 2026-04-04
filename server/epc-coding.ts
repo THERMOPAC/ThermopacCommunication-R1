@@ -142,6 +142,10 @@ export async function generateDocumentNumber(
 export const REVISION_CONTROLLED_TYPES = new Set(['DWG', 'BOM']);
 
 export function buildEpcGcsPath(
+  continentCode: string,
+  countryCode: string,
+  customerShortCode: string,
+  fyCode: string,
   operationalCode: string,
   docType: string,
   documentNumber: string,
@@ -158,7 +162,42 @@ export function buildEpcGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
-  return `EPC/${operationalCode}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${operationalCode}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
+}
+
+export async function resolveProjectGeoCodes(projectId: number, txOrDb?: any): Promise<{
+  continentCode: string; countryCode: string; customerShortCode: string; fyCode: string; operationalCode: string;
+}> {
+  const executor = txOrDb || db;
+  const result = await executor.execute(
+    sql`SELECT p.operational_code, p.fy_code,
+               c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+        FROM projects p
+        JOIN customers c ON c.id = p.customer_id
+        WHERE p.id = ${projectId}`
+  );
+  if (result.rows.length === 0) {
+    throw new Error(`Project ${projectId} not found or has no customer`);
+  }
+  const row = result.rows[0] as any;
+  let continentCode = row.continent_code;
+  let countryCode = row.country_code;
+  if (!continentCode && row.continent) {
+    continentCode = CONTINENT_NAME_TO_CODE[row.continent];
+  }
+  if (!countryCode && row.country_name) {
+    countryCode = COUNTRY_NAME_TO_CODE[row.country_name];
+  }
+  if (!continentCode || !countryCode || !row.short_code) {
+    throw new Error(`Customer geography codes missing for project ${projectId}`);
+  }
+  return {
+    continentCode,
+    countryCode,
+    customerShortCode: row.short_code,
+    fyCode: row.fy_code,
+    operationalCode: row.operational_code,
+  };
 }
 
 export const CONTINENT_NAME_TO_CODE: Record<string, string> = Object.fromEntries(
