@@ -1540,25 +1540,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer <span className="text-red-500">*</span></FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : null)} 
-                      defaultValue={field.value?.toString() || "none"}
-                      value={field.value?.toString() || "none"}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Select a customer</SelectItem>
-                        {customers?.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id.toString()}>
-                            {customer.bpName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input 
+                        readOnly 
+                        className="bg-muted cursor-not-allowed"
+                        value={customers?.find(c => c.id === field.value)?.bpName || "No customer selected"}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
