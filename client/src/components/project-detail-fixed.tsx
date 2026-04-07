@@ -780,8 +780,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   const updateDeliverableMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: any }) => {
-      const res = await apiRequest("PUT", `/api/deliverables/${id}`, data);
-      return res.json();
+      return await apiRequest("PUT", `/api/deliverables/${id}`, data);
     },
     onSuccess: () => {
       toast({ title: "Deliverable updated", description: "Deliverable has been updated." });
