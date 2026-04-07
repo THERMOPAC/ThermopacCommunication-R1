@@ -447,6 +447,22 @@ export async function executeOfferConversion(
       );
     }
 
+    const defaultPhases = [
+      { name: 'Design & Engineering', description: 'Engineering design, drawings, and technical documentation', order: 1 },
+      { name: 'Procurement', description: 'Material procurement, vendor selection, and purchase orders', order: 2 },
+      { name: 'Manufacturing', description: 'Fabrication, assembly, and shop-floor production', order: 3 },
+      { name: 'Quality Control & Inspection', description: 'Quality checks, inspections, and testing', order: 4 },
+      { name: 'Dispatch & Logistics', description: 'Packing, dispatch, and shipping coordination', order: 5 },
+      { name: 'Installation & Commissioning', description: 'Site installation, commissioning, and handover', order: 6 },
+    ];
+    for (const phase of defaultPhases) {
+      await client.query(
+        `INSERT INTO project_phases (project_id, name, description, "order", start_date, target_end_date, status, progress, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending', 0, NOW(), NOW())`,
+        [project.id, phase.name, phase.description, phase.order, epcParams.startDate, epcParams.targetEndDate]
+      );
+    }
+
     const parentItems = offerItems.filter((i: any) => !i.is_sub_item);
     const childItems = offerItems.filter((i: any) => i.is_sub_item);
     const offerItemIdToProjectItemId: Record<number, number> = {};
