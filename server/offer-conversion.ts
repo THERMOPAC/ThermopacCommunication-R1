@@ -386,13 +386,14 @@ export async function executeOfferConversion(
     const projectSeq = String(nextSeq).padStart(3, '0');
 
     const custResult = await client.query(
-      `SELECT short_code, bp_name FROM customers WHERE id = $1`, [offer.customer_id]
+      `SELECT short_code, bp_name, bp_code FROM customers WHERE id = $1`, [offer.customer_id]
     );
     if (custResult.rows.length === 0) {
       throw new Error(`Customer not found: ${offer.customer_id}`);
     }
     const shortCode = custResult.rows[0].short_code;
     const customerName = custResult.rows[0].bp_name;
+    const customerBpCode = custResult.rows[0].bp_code || '';
     const operationalCode = `TP-${continentCode}-${countryCode}-${shortCode}-${fyCode}-${projectSeq}`;
 
     const projectName = offer.subject || `EPC Project - ${customerName}`;
@@ -569,7 +570,8 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          offerItem.product_code || '', offerItem.description, offerItem.unit || 'set',
+          offerItem.product_code ? `${customerBpCode}-${offerItem.product_code}` : '',
+          offerItem.description, offerItem.unit || 'set',
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           offerId, offerItem.id, orderNumber
@@ -613,7 +615,8 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          childItem.product_code || '', childItem.description, childItem.unit || 'set',
+          childItem.product_code ? `${customerBpCode}-${childItem.product_code}` : '',
+          childItem.description, childItem.unit || 'set',
           childItem.quantity, childItem.total_price,
           childItem.description,
           parentProjectItemId,
