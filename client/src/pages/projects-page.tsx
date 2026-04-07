@@ -87,7 +87,7 @@ const PRIORITY_CONFIG: Record<string, string> = {
 export default function ProjectsPage() {
   const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectItem | null>(null);
