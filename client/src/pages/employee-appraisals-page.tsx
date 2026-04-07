@@ -33,6 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: "bg-green-100 text-green-800",
   closed: "bg-gray-200 text-gray-700",
   paused: "bg-red-100 text-red-800",
+  resubmission_required: "bg-red-100 text-red-800",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,6 +41,7 @@ const STATUS_LABELS: Record<string, string> = {
   self_submitted: "Self Submitted", l1_reviewed: "L1 Reviewed",
   l2_reviewed: "L2 Reviewed", approved: "Approved",
   closed: "Closed", paused: "Paused",
+  resubmission_required: "Resubmission Required",
 };
 
 const RATING_COLORS: Record<string, string> = {
@@ -431,7 +433,7 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
   const initialSections = parseSections(appraisal.selfAssessmentNarrative || "");
   const [sections, setSections] = useState(initialSections);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const canEdit = isEmployee && appraisal.status === "open" && !appraisal.isLocked;
+  const canEdit = isEmployee && ["open", "resubmission_required"].includes(appraisal.status) && !appraisal.isLocked;
   const narrative = combineSections(sections);
   const charCount = narrative.trim().length;
   const isValid = charCount >= NARRATIVE_MIN_LENGTH;
@@ -509,6 +511,19 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
               </div>
             </div>
           )}
+          {appraisal.status === "resubmission_required" && appraisal.lastReturnRemarks && (
+            <div className="p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
+              <RotateCcw className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-700">Returned for Resubmission</p>
+                <p className="text-sm text-red-600 mt-1">Manager Remarks: {appraisal.lastReturnRemarks}</p>
+                {appraisal.resubmissionCount > 0 && (
+                  <p className="text-xs text-red-400 mt-1">Previous resubmissions: {appraisal.resubmissionCount}</p>
+                )}
+                <p className="text-xs text-red-500 mt-2">Please review the feedback, update your self-assessment, scores, and comments as needed, then use the "Resubmit" action.</p>
+              </div>
+            </div>
+          )}
 
           {canEdit ? (
             <>
@@ -556,15 +571,20 @@ function OverviewSection({ appraisal, isEmployee, appraisalId }: { appraisal: an
                   {saveDraftMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
                   <Edit className="h-4 w-4 mr-1" /> Save Draft
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setShowSubmitConfirm(true)}
-                  disabled={!isValid || submitMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Send className="h-4 w-4 mr-1" /> Submit Self-Assessment
-                </Button>
-                {!isValid && (
+                {["open", "draft"].includes(appraisal.status) && (
+                  <Button
+                    size="sm"
+                    onClick={() => setShowSubmitConfirm(true)}
+                    disabled={!isValid || submitMutation.isPending}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Send className="h-4 w-4 mr-1" /> Submit Self-Assessment
+                  </Button>
+                )}
+                {appraisal.status === "resubmission_required" && (
+                  <span className="text-xs text-blue-600 font-medium">Save your draft, then use the "Resubmit" button in Available Actions.</span>
+                )}
+                {!isValid && ["open", "draft"].includes(appraisal.status) && (
                   <span className="text-xs text-muted-foreground">Fill in all sections to enable submission</span>
                 )}
               </div>
@@ -743,10 +763,11 @@ function KpiSection({ appraisalId, appraisal, kpis, isEmployee, isL1, isL2, isAd
   const canSwitchTemplate = ["open", "draft"].includes(appraisal.status) && !appraisal.isLocked;
 
   const canAddKpi = (isEmployee && ["open", "draft"].includes(appraisal.status)) || (isL1 && appraisal.status === "self_submitted") || isAdmin;
-  const canEditSelf = isEmployee && ["open", "draft"].includes(appraisal.status);
+  const canEditSelf = isEmployee && ["open", "draft", "resubmission_required"].includes(appraisal.status);
   const canEditL1 = isL1 && appraisal.status === "self_submitted";
   const canEditL2 = isL2 && appraisal.status === "l1_reviewed";
-  const canEditDefinition = canEditSelf || canEditL1;
+  const isResubmission = appraisal.status === "resubmission_required";
+  const canEditDefinition = (canEditSelf && !isResubmission) || canEditL1;
 
   const { data: templateData } = useQuery<any>({
     queryKey: ["/api/appraisals", appraisalId, "template-kpis"],
@@ -1212,7 +1233,7 @@ function CompetencySection({ appraisalId, appraisal, competencies, isEmployee, i
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState({ selfScore: "", selfComments: "", managerScore: "", managerComments: "", l2Score: "", l2Comments: "" });
 
-  const canEditSelf = isEmployee && ["open", "draft"].includes(appraisal.status);
+  const canEditSelf = isEmployee && ["open", "draft", "resubmission_required"].includes(appraisal.status);
   const canEditL1 = isL1 && appraisal.status === "self_submitted";
   const canEditL2 = isL2 && appraisal.status === "l1_reviewed";
   const equalWeight = competencies.length > 0 ? (100 / competencies.length).toFixed(1) : "20.0";
@@ -1444,21 +1465,27 @@ function HistorySection({ approvals }: { approvals: any[] }) {
           <p className="text-center py-4 text-muted-foreground">No approval actions yet.</p>
         ) : (
           <div className="space-y-3">
-            {approvals.map((a: any) => (
-              <div key={a.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                <ChevronRight className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={a.previousStatus} />
-                    <span className="text-xs">→</span>
-                    <StatusBadge status={a.newStatus} />
-                    <span className="text-xs text-muted-foreground ml-2">by {a.performedByName}</span>
+            {approvals.map((a: any) => {
+              const isReturn = a.newStatus === "resubmission_required";
+              const isResubmit = a.previousStatus === "resubmission_required" && a.newStatus === "self_submitted";
+              return (
+                <div key={a.id} className={`flex items-start gap-3 p-3 border rounded-lg ${isReturn ? "border-orange-200 bg-orange-50" : isResubmit ? "border-blue-200 bg-blue-50" : ""}`}>
+                  {isReturn ? <RotateCcw className="h-5 w-5 text-orange-500 mt-0.5 shrink-0" /> : isResubmit ? <Send className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" /> : <ChevronRight className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={a.previousStatus} />
+                      <span className="text-xs">→</span>
+                      <StatusBadge status={a.newStatus} />
+                      <span className="text-xs text-muted-foreground ml-2">by {a.performedByName}</span>
+                    </div>
+                    {isReturn && <p className="text-sm font-medium text-orange-700 mt-1">Returned for resubmission</p>}
+                    {isResubmit && <p className="text-sm font-medium text-blue-700 mt-1">Self-assessment resubmitted</p>}
+                    {a.remarks && <p className="text-sm text-muted-foreground mt-1">{a.remarks}</p>}
+                    <p className="text-xs text-muted-foreground mt-1">{new Date(a.createdAt).toLocaleString()}</p>
                   </div>
-                  {a.remarks && <p className="text-sm text-muted-foreground mt-1">{a.remarks}</p>}
-                  <p className="text-xs text-muted-foreground mt-1">{new Date(a.createdAt).toLocaleString()}</p>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
@@ -1469,7 +1496,7 @@ function HistorySection({ approvals }: { approvals: any[] }) {
 function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, isAdmin, score }: any) {
   const { toast } = useToast();
   const [actionDialog, setActionDialog] = useState<string | null>(null);
-  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementValue: "0", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "" });
+  const [actionForm, setActionForm] = useState({ remarks: "", l1Comments: "", l2Comments: "", l2Score: "", l2OverrideReason: "", l3Comments: "", reopenReason: "", reopenTargetStage: "open", l1IncrementRecommendation: "", l1PromotionRecommendation: "", l1TrainingRecommendation: "", l2IncrementRecommendation: "", l2PromotionRecommendation: "", l2TrainingRecommendation: "", l3IncrementValue: "0", l3PromotionApproved: false, l3NewDesignation: "", l3EffectiveDate: "", l3FinalRemarks: "", returnRemarks: "" });
 
   const { data: sysRec } = useQuery<any>({
     queryKey: ["/api/appraisals", appraisalId, "system-recommendation"],
@@ -1523,6 +1550,7 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
       if (sysRec) body.systemRecommendation = sysRec;
     }
     if (action === "reopen") { body.reopenReason = actionForm.reopenReason; body.reopenTargetStage = actionForm.reopenTargetStage; }
+    if (action === "return-for-resubmission") { body.returnRemarks = actionForm.returnRemarks; }
     actionMutation.mutate({ action, body });
   };
 
@@ -1538,6 +1566,16 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
         {isL1 && appraisal.status === "self_submitted" && (
           <Button className="w-full justify-start" variant="outline" onClick={() => setActionDialog("l1-review")}>
             <ClipboardCheck className="h-4 w-4 mr-2" /> Complete L1 Review
+          </Button>
+        )}
+        {isL1 && appraisal.status === "self_submitted" && (
+          <Button className="w-full justify-start" variant="outline" onClick={() => setActionDialog("return-for-resubmission")}>
+            <RotateCcw className="h-4 w-4 mr-2 text-orange-600" /> Return for Resubmission
+          </Button>
+        )}
+        {isEmployee && appraisal.status === "resubmission_required" && (
+          <Button className="w-full justify-start" onClick={() => setActionDialog("resubmit")}>
+            <Send className="h-4 w-4 mr-2" /> Resubmit Self-Assessment
           </Button>
         )}
         {isL2 && appraisal.status === "l1_reviewed" && (
@@ -1600,6 +1638,8 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                 {actionDialog === "l2-review" && "Complete L2 Review"}
                 {actionDialog === "l3-approve" && "Final Approval"}
                 {actionDialog === "reopen" && "Reopen Appraisal"}
+                {actionDialog === "return-for-resubmission" && "Return for Resubmission"}
+                {actionDialog === "resubmit" && "Resubmit Self-Assessment"}
               </DialogTitle>
               <DialogDescription>
                 {actionDialog === "self-submit" && "This will submit your self-assessment for L1 review. Ensure all KPIs have weightages summing to 100%."}
@@ -1607,6 +1647,8 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                 {actionDialog === "l2-review" && "Review and optionally override the L1 score."}
                 {actionDialog === "l3-approve" && "This will finalize the appraisal and lock the record."}
                 {actionDialog === "reopen" && "This will unlock the appraisal and reset it to the selected stage."}
+                {actionDialog === "return-for-resubmission" && "Return this appraisal to the employee with feedback. They will be able to revise their self-assessment and resubmit."}
+                {actionDialog === "resubmit" && "Resubmit your updated self-assessment for L1 review. Ensure all KPI scores, competency scores, and narrative are complete."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
@@ -1736,6 +1778,38 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
                   </div>
                 </>
               )}
+              {actionDialog === "return-for-resubmission" && (
+                <>
+                  <div>
+                    <Label>Return Remarks (Required — minimum 10 characters)</Label>
+                    <Textarea
+                      value={actionForm.returnRemarks}
+                      onChange={e => setActionForm({ ...actionForm, returnRemarks: e.target.value })}
+                      rows={4}
+                      placeholder="Explain what needs to be revised — e.g., KPI scores seem too high without supporting data, narrative is incomplete, etc."
+                    />
+                    <p className={`text-xs mt-1 ${actionForm.returnRemarks.trim().length >= 10 ? "text-green-600" : "text-red-500"}`}>
+                      {actionForm.returnRemarks.trim().length} / 10 min characters
+                    </p>
+                  </div>
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                    The employee will see your remarks and can edit their self scores, comments, and narrative. KPI definitions and weightages will remain locked.
+                  </div>
+                </>
+              )}
+              {actionDialog === "resubmit" && (
+                <>
+                  {appraisal.lastReturnRemarks && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm">
+                      <p className="font-medium text-red-700">Manager's Feedback:</p>
+                      <p className="text-red-600 mt-1">{appraisal.lastReturnRemarks}</p>
+                    </div>
+                  )}
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                    This will lock your self-assessment and send it back to your manager for review. Ensure all scores and narrative are updated.
+                  </div>
+                </>
+              )}
               {actionDialog === "reopen" && (
                 <>
                   <div><Label>Reason for Reopening (Required)</Label><Textarea value={actionForm.reopenReason} onChange={e => setActionForm({ ...actionForm, reopenReason: e.target.value })} rows={3} /></div>
@@ -1756,9 +1830,12 @@ function ActionsSection({ appraisalId, appraisal, isEmployee, isL1, isL2, isL3, 
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setActionDialog(null)}>Cancel</Button>
-              <Button onClick={() => actionDialog && handleAction(actionDialog)} disabled={actionMutation.isPending}>
+              <Button
+                onClick={() => actionDialog && handleAction(actionDialog)}
+                disabled={actionMutation.isPending || (actionDialog === "return-for-resubmission" && actionForm.returnRemarks.trim().length < 10)}
+              >
                 {actionMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-                Confirm
+                {actionDialog === "return-for-resubmission" ? "Return to Employee" : actionDialog === "resubmit" ? "Resubmit" : "Confirm"}
               </Button>
             </DialogFooter>
           </DialogContent>

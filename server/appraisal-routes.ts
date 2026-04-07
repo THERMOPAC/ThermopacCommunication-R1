@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { db } from './db';
+import { db, pool } from './db';
 import {
   appraisalCycleTemplates, appraisalCycles, employeeAppraisals,
   employeeAppraisalKpis, employeeAppraisalCompetencies,
@@ -1061,6 +1061,10 @@ router.put('/:id/kpis/:kpiId', ensureAuthenticated, async (req: Request, res: Re
       if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
       if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
       if (req.body.sortOrder !== undefined) updateFields.sortOrder = req.body.sortOrder;
+    } else if (appraisal.employeeId === user.id && appraisal.status === 'resubmission_required') {
+      if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
+      if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
+      if (req.body.achievedValue !== undefined) updateFields.achievedValue = req.body.achievedValue;
     } else if (appraisal.l1ReviewerId === user.id && appraisal.status === 'self_submitted') {
       if (req.body.kpiTitle !== undefined) updateFields.kpiTitle = req.body.kpiTitle;
       if (req.body.kpiDescription !== undefined) updateFields.kpiDescription = req.body.kpiDescription;
@@ -1218,6 +1222,9 @@ router.put('/:id/competencies/:compId', ensureAuthenticated, async (req: Request
     if (appraisal.employeeId === user.id && ['open', 'draft'].includes(appraisal.status)) {
       if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
       if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
+    } else if (appraisal.employeeId === user.id && appraisal.status === 'resubmission_required') {
+      if (req.body.selfScore !== undefined) updateFields.selfScore = req.body.selfScore.toString();
+      if (req.body.selfComments !== undefined) updateFields.selfComments = req.body.selfComments;
     } else if (appraisal.l1ReviewerId === user.id && appraisal.status === 'self_submitted') {
       if (req.body.managerScore !== undefined) updateFields.managerScore = req.body.managerScore.toString();
       if (req.body.managerComments !== undefined) updateFields.managerComments = req.body.managerComments;
@@ -1341,8 +1348,8 @@ router.put('/:id/self-assessment', ensureAuthenticated, async (req: Request, res
     if (appraisal.employeeId !== user.id) {
       return res.status(403).json({ error: 'Only the employee can edit self-assessment' });
     }
-    if (!['open', 'draft'].includes(appraisal.status)) {
-      return res.status(400).json({ error: 'Self-assessment can only be edited when status is Open or Draft' });
+    if (!['open', 'draft', 'resubmission_required'].includes(appraisal.status)) {
+      return res.status(400).json({ error: 'Self-assessment can only be edited when status is Open, Draft, or Resubmission Required' });
     }
 
     const { selfAssessmentNarrative } = req.body;
@@ -1573,6 +1580,176 @@ router.post('/:id/self-submit', ensureAuthenticated, async (req: Request, res: R
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to self-submit' });
+  }
+});
+
+router.post('/:id/return-for-resubmission', ensureAuthenticated, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+    const { returnRemarks } = req.body;
+
+    if (!returnRemarks || typeof returnRemarks !== 'string' || returnRemarks.trim().length < 10) {
+      return res.status(400).json({ error: 'Return remarks must be at least 10 characters' });
+    }
+
+    await client.query('BEGIN');
+    const lockResult = await client.query(
+      'SELECT * FROM employee_appraisals WHERE id = $1 FOR UPDATE',
+      [appraisalId]
+    );
+    if (lockResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Appraisal not found' });
+    }
+    const appraisal = lockResult.rows[0];
+
+    if (appraisal.l1_reviewer_id !== user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Only the assigned L1 Reviewer (Reporting Manager) can return an appraisal for resubmission' });
+    }
+    if (appraisal.status !== 'self_submitted') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Appraisal must be in Self Submitted status to return for resubmission' });
+    }
+
+    await client.query(`
+      UPDATE employee_appraisals SET
+        status = 'resubmission_required',
+        last_returned_at = NOW(),
+        last_returned_by = $2,
+        last_return_remarks = $3,
+        is_locked = false,
+        updated_at = NOW()
+      WHERE id = $1
+    `, [appraisalId, user.id, returnRemarks.trim()]);
+
+    await client.query(`
+      INSERT INTO appraisal_approvals (appraisal_id, previous_status, new_status, performed_by, performed_by_name, remarks)
+      VALUES ($1, 'self_submitted', 'resubmission_required', $2, $3, $4)
+    `, [appraisalId, user.id, getUserDisplayName(user), returnRemarks.trim()]);
+
+    await client.query('COMMIT');
+
+    await logAudit('appraisal', appraisalId, 'returned_for_resubmission', user.id, getUserDisplayName(user), false, {
+      returnRemarks: returnRemarks.trim(),
+      returnedBy: getUserDisplayName(user),
+    });
+
+    await createAppraisalNotification(
+      appraisal.employee_id,
+      'Appraisal Returned for Resubmission',
+      `Your appraisal has been returned by ${getUserDisplayName(user)} for revisions. Remarks: ${returnRemarks.trim()}. Please review and resubmit.`,
+      'high',
+      appraisalId
+    );
+
+    const [updated] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    res.json(updated);
+  } catch (error: any) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(400).json({ error: error.message || 'Failed to return for resubmission' });
+  } finally {
+    client.release();
+  }
+});
+
+router.post('/:id/resubmit', ensureAuthenticated, async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const user = req.user as any;
+    const appraisalId = parseInt(req.params.id);
+
+    await client.query('BEGIN');
+    const lockResult = await client.query(
+      'SELECT * FROM employee_appraisals WHERE id = $1 FOR UPDATE',
+      [appraisalId]
+    );
+    if (lockResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Appraisal not found' });
+    }
+    const appraisal = lockResult.rows[0];
+
+    if (appraisal.employee_id !== user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Only the employee can resubmit their appraisal' });
+    }
+    if (appraisal.status !== 'resubmission_required') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Appraisal must be in Resubmission Required status to resubmit' });
+    }
+
+    const kpis = await db.select().from(employeeAppraisalKpis).where(eq(employeeAppraisalKpis.appraisalId, appraisalId));
+    if (kpis.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'At least one KPI is required' });
+    }
+    const totalWeight = kpis.reduce((sum, k) => sum + (parseFloat(k.weightage) || 0), 0);
+    if (Math.abs(totalWeight - 100) > 0.01) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `KPI weightages must sum to 100 (current: ${totalWeight})` });
+    }
+    const missingSelfScore = kpis.filter(k => !k.selfScore || parseFloat(k.selfScore) <= 0);
+    if (missingSelfScore.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `All KPIs must have a self score before resubmission (${missingSelfScore.length} missing)` });
+    }
+
+    const competencies = await db.select().from(employeeAppraisalCompetencies).where(eq(employeeAppraisalCompetencies.appraisalId, appraisalId));
+    const missingCompSelfScore = competencies.filter(c => !c.selfScore || parseFloat(c.selfScore) <= 0);
+    if (missingCompSelfScore.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `All competencies must have a self score before resubmission (${missingCompSelfScore.length} missing)` });
+    }
+
+    if (!appraisal.self_assessment_narrative || appraisal.self_assessment_narrative.trim().length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Self-assessment narrative is required' });
+    }
+
+    await recalcAndSaveScore(appraisalId);
+
+    const newCount = (appraisal.resubmission_count || 0) + 1;
+    await client.query(`
+      UPDATE employee_appraisals SET
+        status = 'self_submitted',
+        resubmission_count = $2,
+        self_submitted_at = NOW(),
+        is_locked = false,
+        updated_at = NOW()
+      WHERE id = $1
+    `, [appraisalId, newCount]);
+
+    await client.query(`
+      INSERT INTO appraisal_approvals (appraisal_id, previous_status, new_status, performed_by, performed_by_name, remarks)
+      VALUES ($1, 'resubmission_required', 'self_submitted', $2, $3, $4)
+    `, [appraisalId, user.id, getUserDisplayName(user), req.body.remarks || `Resubmission #${newCount} — self-assessment updated and resubmitted`]);
+
+    await client.query('COMMIT');
+
+    await logAudit('appraisal', appraisalId, 'resubmitted', user.id, getUserDisplayName(user), false, {
+      resubmissionCount: newCount,
+      kpiCount: kpis.length,
+      competencyCount: competencies.length,
+    });
+
+    await createAppraisalNotification(
+      appraisal.l1_reviewer_id,
+      'Appraisal Resubmitted — L1 Review Required',
+      `${appraisal.employee_name} has resubmitted their self-assessment (resubmission #${newCount}). Please review.`,
+      'high',
+      appraisalId
+    );
+
+    const [updated] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, appraisalId));
+    res.json(updated);
+  } catch (error: any) {
+    await client.query('ROLLBACK').catch(() => {});
+    res.status(400).json({ error: error.message || 'Failed to resubmit' });
+  } finally {
+    client.release();
   }
 });
 

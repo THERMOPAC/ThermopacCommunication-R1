@@ -10800,6 +10800,11 @@ export const employeeAppraisals = pgTable('employee_appraisals', {
   reopenReason: text('reopen_reason'),
   reopenTargetStage: varchar('reopen_target_stage', { length: 30 }),
 
+  resubmissionCount: integer('resubmission_count').notNull().default(0),
+  lastReturnedAt: timestamp('last_returned_at'),
+  lastReturnedBy: integer('last_returned_by'),
+  lastReturnRemarks: text('last_return_remarks'),
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
