@@ -964,7 +964,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       case "completed":
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "canceled":
-      case "canceled":
         return "bg-red-100 text-red-800 border-red-200";
       case "pending":
       case "not started":

@@ -73,7 +73,6 @@ const ITEM_STATUS_CONFIG: Record<string, string> = {
   "on hold": "bg-amber-100 text-amber-700 border-amber-300",
   "on_hold": "bg-amber-100 text-amber-700 border-amber-300",
   "canceled": "bg-red-100 text-red-700 border-red-300",
-  "canceled": "bg-red-100 text-red-700 border-red-300",
   "under construction": "bg-orange-100 text-orange-700 border-orange-300",
   "drawing received": "bg-indigo-100 text-indigo-700 border-indigo-300",
   "material received": "bg-teal-100 text-teal-700 border-teal-300",
