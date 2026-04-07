@@ -399,7 +399,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         customerId: project.customerId || null,
         startDate: project.startDate || "",
         targetEndDate: project.targetEndDate || "",
-        estimatedBudget: project.estimatedBudget || undefined,
+        estimatedBudget: project.estimatedBudget ? parseFloat(String(project.estimatedBudget)) : undefined,
         code: project.code || "",
         currency: project.currency || "USD",
         projectItemsSearch: "",
