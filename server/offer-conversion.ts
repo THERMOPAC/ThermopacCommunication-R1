@@ -447,20 +447,61 @@ export async function executeOfferConversion(
       );
     }
 
-    const defaultPhases = [
-      { name: 'Design & Engineering', description: 'Engineering design, drawings, and technical documentation', order: 1 },
-      { name: 'Procurement', description: 'Material procurement, vendor selection, and purchase orders', order: 2 },
-      { name: 'Manufacturing', description: 'Fabrication, assembly, and shop-floor production', order: 3 },
-      { name: 'Quality Control & Inspection', description: 'Quality checks, inspections, and testing', order: 4 },
-      { name: 'Dispatch & Logistics', description: 'Packing, dispatch, and shipping coordination', order: 5 },
-      { name: 'Installation & Commissioning', description: 'Site installation, commissioning, and handover', order: 6 },
+    const defaultPhases: Array<{ name: string; description: string; order: number; deliverables: Array<{ name: string; description: string }> }> = [
+      { name: 'Design & Engineering', description: 'Engineering design, drawings, and technical documentation', order: 1, deliverables: [
+        { name: 'General Arrangement Drawing (GA)', description: 'Overall layout and arrangement drawing of the system' },
+        { name: 'P&ID (Piping & Instrumentation Diagram)', description: 'Process flow with piping and instrumentation details' },
+        { name: 'Electrical SLD (Single Line Diagram)', description: 'Electrical single line diagram for power distribution' },
+        { name: 'Bill of Materials (BOM)', description: 'Complete bill of materials for all components' },
+        { name: 'Design Calculation Sheet', description: 'Engineering calculations for equipment sizing and design parameters' },
+      ]},
+      { name: 'Procurement', description: 'Material procurement, vendor selection, and purchase orders', order: 2, deliverables: [
+        { name: 'Vendor Comparison Statement', description: 'Technical and commercial comparison of vendor quotations' },
+        { name: 'Purchase Orders Issued', description: 'All purchase orders placed and confirmed with vendors' },
+        { name: 'Material Receipt & Inspection Report', description: 'Incoming material inspection and acceptance records' },
+        { name: 'Vendor Document Submittals', description: 'Technical data sheets, test certificates, and compliance documents from vendors' },
+      ]},
+      { name: 'Manufacturing', description: 'Fabrication, assembly, and shop-floor production', order: 3, deliverables: [
+        { name: 'Fabrication Drawings (Shop Drawings)', description: 'Detailed fabrication drawings for shop-floor production' },
+        { name: 'Welding Procedure Specification (WPS)', description: 'Approved welding procedures for all critical joints' },
+        { name: 'Stage Inspection Reports', description: 'In-process quality inspection records at key manufacturing stages' },
+        { name: 'Assembly & Fitment Report', description: 'Final assembly and fitment verification records' },
+      ]},
+      { name: 'Quality Control & Inspection', description: 'Quality checks, inspections, and testing', order: 4, deliverables: [
+        { name: 'Quality Assurance Plan (QAP)', description: 'Comprehensive QAP covering all inspection and test requirements' },
+        { name: 'NDT Reports', description: 'Non-destructive testing reports (RT/UT/DPT/MPT as applicable)' },
+        { name: 'Hydro Test / Pressure Test Certificate', description: 'Hydrostatic or pneumatic test certificates' },
+        { name: 'Final Inspection & Test Report', description: 'Final product inspection and acceptance test records' },
+        { name: 'Material Traceability Certificate (MTC)', description: 'Mill test certificates and material traceability records' },
+      ]},
+      { name: 'Dispatch & Logistics', description: 'Packing, dispatch, and shipping coordination', order: 5, deliverables: [
+        { name: 'Packing List', description: 'Detailed packing list with dimensions and weights' },
+        { name: 'Dispatch Clearance Certificate', description: 'Pre-dispatch inspection and clearance approval' },
+        { name: 'Shipping Documents', description: 'Bill of lading, commercial invoice, and customs documents' },
+        { name: 'Transportation & Insurance Records', description: 'Transport plan, route details, and insurance documentation' },
+      ]},
+      { name: 'Installation & Commissioning', description: 'Site installation, commissioning, and handover', order: 6, deliverables: [
+        { name: 'Installation Procedure', description: 'Step-by-step installation methodology and sequence plan' },
+        { name: 'Pre-Commissioning Checklist', description: 'System readiness verification before commissioning' },
+        { name: 'Commissioning Report', description: 'Performance test results and commissioning completion record' },
+        { name: 'Operation & Maintenance Manual', description: 'Complete O&M manual with operating procedures and maintenance schedule' },
+        { name: 'Handover Certificate', description: 'Formal project handover and customer acceptance certificate' },
+      ]},
     ];
     for (const phase of defaultPhases) {
-      await client.query(
+      const phaseResult = await client.query(
         `INSERT INTO project_phases (project_id, name, description, "order", start_date, target_end_date, status, progress, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pending', 0, NOW(), NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, 'pending', 0, NOW(), NOW()) RETURNING id`,
         [project.id, phase.name, phase.description, phase.order, epcParams.startDate, epcParams.targetEndDate]
       );
+      const phaseId = phaseResult.rows[0].id;
+      for (const deliv of phase.deliverables) {
+        await client.query(
+          `INSERT INTO deliverables (project_id, phase_id, name, description, due_date, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 'pending', NOW(), NOW())`,
+          [project.id, phaseId, deliv.name, deliv.description, epcParams.targetEndDate]
+        );
+      }
     }
 
     const parentItems = offerItems.filter((i: any) => !i.is_sub_item);
