@@ -543,18 +543,40 @@ export async function executeOfferConversion(
     let itemsCreated = 0;
     const itemsPendingMapping: Array<{ offerItemId: number; description: string; taskId: number }> = [];
 
-    for (const offerItem of parentItems) {
-      let masterItemId: number | null = null;
-      const masterItemResult = await client.query(
-        `SELECT mi.id, mi.item_code FROM master_items mi
-         INNER JOIN products p ON p.product_code = mi.item_code
-         WHERE p.id = $1
-         LIMIT 1`,
-        [offerItem.product_id]
+    async function findOrCreateMasterItem(
+      client: any, productCode: string, description: string, unit: string,
+      estimatedCost: string, hsnSacCode: string | null, bpCode: string
+    ): Promise<number> {
+      const orderItemCode = bpCode ? `${bpCode}-${productCode}` : productCode;
+      const existing = await client.query(
+        `SELECT id FROM master_items WHERE item_code = $1 LIMIT 1`,
+        [orderItemCode]
       );
-      if (masterItemResult.rows.length > 0) {
-        masterItemId = masterItemResult.rows[0].id;
+      if (existing.rows.length > 0) {
+        return existing.rows[0].id;
       }
+      const created = await client.query(
+        `INSERT INTO master_items
+         (item_code, description, uom, make_or_buy, estimated_cost, notes, created_at, updated_at)
+         VALUES ($1, $2, $3, 'Make', $4, $5, NOW(), NOW())
+         RETURNING id`,
+        [
+          orderItemCode, description, unit || 'set',
+          estimatedCost || null,
+          hsnSacCode ? `HSN/SAC: ${hsnSacCode}` : null
+        ]
+      );
+      return created.rows[0].id;
+    }
+
+    for (const offerItem of parentItems) {
+      const orderItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
+      const masterItemId = offerItem.product_code
+        ? await findOrCreateMasterItem(
+            client, offerItem.product_code, offerItem.description,
+            offerItem.unit, offerItem.total_price, offerItem.hsn_sac_code, customerBpCode
+          )
+        : null;
 
       const piResult = await client.query(
         `INSERT INTO project_items
@@ -570,8 +592,7 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          offerItem.product_code ? `${customerBpCode}-${offerItem.product_code}` : '',
-          offerItem.description, offerItem.unit || 'set',
+          orderItemCode, offerItem.description, offerItem.unit || 'set',
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           offerId, offerItem.id, orderNumber
@@ -588,17 +609,13 @@ export async function executeOfferConversion(
         ? offerItemIdToProjectItemId[childItem.parent_item_id] || null
         : null;
 
-      let masterItemId: number | null = null;
-      const masterItemResult = await client.query(
-        `SELECT mi.id, mi.item_code FROM master_items mi
-         INNER JOIN products p ON p.product_code = mi.item_code
-         WHERE p.id = $1
-         LIMIT 1`,
-        [childItem.product_id]
-      );
-      if (masterItemResult.rows.length > 0) {
-        masterItemId = masterItemResult.rows[0].id;
-      }
+      const orderItemCode = customerBpCode ? `${customerBpCode}-${childItem.product_code || ''}` : (childItem.product_code || '');
+      const masterItemId = childItem.product_code
+        ? await findOrCreateMasterItem(
+            client, childItem.product_code, childItem.description,
+            childItem.unit, childItem.total_price, childItem.hsn_sac_code, customerBpCode
+          )
+        : null;
 
       const piResult = await client.query(
         `INSERT INTO project_items
@@ -615,8 +632,7 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          childItem.product_code ? `${customerBpCode}-${childItem.product_code}` : '',
-          childItem.description, childItem.unit || 'set',
+          orderItemCode, childItem.description, childItem.unit || 'set',
           childItem.quantity, childItem.total_price,
           childItem.description,
           parentProjectItemId,
