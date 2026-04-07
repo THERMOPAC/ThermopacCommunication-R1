@@ -776,7 +776,29 @@ export function OffersContent() {
                               setConversionErrors([]);
                               const today = new Date().toISOString().split('T')[0];
                               const sixMonths = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                              setEpcFormData({ continentCode: '', countryCode: '', projectType: '', priority: 'Medium', startDate: today, targetEndDate: sixMonths, managerId: 0 });
+                              const customer = customers.find((c: any) => c.id === offer.customerId);
+                              const subjectToProjectType: Record<string, string> = {
+                                'Continuous Polishing System': 'CPS System',
+                                'Continuous Polishing Sys...': 'CPS System',
+                                'Used Engine Oil Refinery Equipment': 'Re-refining Plant',
+                                'Automatic Lubricant Blending Plant': 'Lube Blending Plant',
+                                'Automatic Lubricant Blen...': 'Lube Blending Plant',
+                                'Spares for Refinery Equipment': 'Spares',
+                                'Spares for Refinery Equip...': 'Spares',
+                                'Grease Manufacturing Plant': 'Grease Plant',
+                              };
+                              const inferredType = Object.entries(subjectToProjectType).find(
+                                ([key]) => offer.subject?.toLowerCase().includes(key.toLowerCase().replace('...', ''))
+                              );
+                              setEpcFormData({
+                                continentCode: customer?.continentCode || '',
+                                countryCode: customer?.countryCode || '',
+                                projectType: inferredType?.[1] || '',
+                                priority: 'Medium',
+                                startDate: today,
+                                targetEndDate: sixMonths,
+                                managerId: 0,
+                              });
                             }} title="Confirm Order → Create EPC Project">
                               <Rocket className="h-4 w-4" />
                             </Button>
