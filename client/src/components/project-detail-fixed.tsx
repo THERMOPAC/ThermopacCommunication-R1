@@ -20,7 +20,10 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -829,7 +832,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },
-    enabled: isAddMemberOpen,
+    enabled: isAddMemberOpen || isEditMemberOpen,
   });
 
   const addMemberMutation = useMutation({
@@ -3138,12 +3141,37 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value ? String(field.value) : ""}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {allUsers?.filter((u: any) => !members?.some((m: any) => m.userId === u.id))
-                        .map((u: any) => (
-                          <SelectItem key={u.id} value={String(u.id)}>
-                            {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username} — {u.department || 'No dept'}
-                          </SelectItem>
-                        ))}
+                      {(() => {
+                        const available = allUsers?.filter((u: any) => u.isActive && !members?.some((m: any) => m.userId === u.id)) || [];
+                        const allUsersList = allUsers || [];
+                        const managerIds = new Set(allUsersList.map((u: any) => u.reportingManagerId).filter(Boolean));
+                        const l3Users = available.filter((u: any) => ['Superuser', 'Senior Manager'].includes(u.role));
+                        const l2Users = available.filter((u: any) => !['Superuser', 'Senior Manager'].includes(u.role) && (managerIds.has(u.id) || ['General Manager', 'Manager'].includes(u.role)));
+                        const l1Users = available.filter((u: any) => !l3Users.includes(u) && !l2Users.includes(u));
+                        const fmt = (u: any) => `${u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username} — ${u.department || 'No dept'}`;
+                        return (
+                          <>
+                            {l3Users.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel className="text-red-700 font-bold">L3 — Senior Management</SelectLabel>
+                                {l3Users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{fmt(u)}</SelectItem>)}
+                              </SelectGroup>
+                            )}
+                            {l2Users.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel className="text-blue-700 font-bold">L2 — Managers</SelectLabel>
+                                {l2Users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{fmt(u)}</SelectItem>)}
+                              </SelectGroup>
+                            )}
+                            {l1Users.length > 0 && (
+                              <SelectGroup>
+                                <SelectLabel className="text-green-700 font-bold">L1 — Team Members</SelectLabel>
+                                {l1Users.map((u: any) => <SelectItem key={u.id} value={String(u.id)}>{fmt(u)}</SelectItem>)}
+                              </SelectGroup>
+                            )}
+                          </>
+                        );
+                      })()}
                     </SelectContent>
                   </Select>
                   <FormMessage />
