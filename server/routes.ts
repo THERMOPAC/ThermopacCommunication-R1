@@ -25,6 +25,7 @@ import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
 import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
 import { setupEpcDocumentRoutes } from "./epc-document-routes";
+import { setupDocumentControlRoutes } from "./document-control-routes";
 import { registerEpcPermissionRoutes } from "./epc-permission-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
@@ -841,6 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupEngineeringChangeRoutes(app);
 
   setupEpcDocumentRoutes(app);
+  setupDocumentControlRoutes(app);
   registerEpcPermissionRoutes(app);
 
   const { setupEpcMonitoringRoutes } = await import('./epc-monitoring-routes');
