@@ -3126,6 +3126,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <p className="text-sm">Click "Add Deliverable" to create one.</p>
               </div>
             ) : (
+              <>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -3260,6 +3261,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   </CardContent>
                 </Card>
               )}
+              </>
             )}
           </div>
         </DialogContent>
