@@ -2923,14 +2923,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               <FormField control={phaseForm.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Phase Name</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl><Input {...field} readOnly className="bg-muted" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <FormField control={phaseForm.control} name="description" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description</FormLabel>
-                  <FormControl><Textarea {...field} /></FormControl>
+                  <FormControl><Textarea {...field} readOnly className="bg-muted" /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
