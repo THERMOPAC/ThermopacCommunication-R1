@@ -2584,37 +2584,49 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {members?.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>{getInitials(m.username)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{m.username}</p>
-                              <p className="text-xs text-muted-foreground">{m.email}</p>
+                    {members?.map((m: any) => {
+                      const userName = m.user?.username || m.username || 'Unknown';
+                      const userEmail = m.user?.email || m.email || '';
+                      const userActive = m.user?.isActive ?? m.isActive ?? true;
+                      const joinDate = m.joinedAt || m.joined_date || m.createdAt || m.created_at;
+                      const memberRole = m.role || 'team_member';
+                      const displayName = (() => {
+                        const u = allUsers?.find((u: any) => u.id === (m.userId || m.user_id || m.user?.id));
+                        if (u && u.firstName && u.lastName) return `${u.firstName} ${u.lastName}`;
+                        return userName;
+                      })();
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{displayName}</p>
+                                <p className="text-xs text-muted-foreground">{userEmail}</p>
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getRoleColor(m.role)}>
-                            {m.role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDate(m.joined_date)}</TableCell>
-                        <TableCell>
-                          <Badge variant={m.isActive ? "default" : "outline"} className={m.isActive ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-gray-100 text-gray-800"}>
-                            {m.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handleEditMember(m)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getRoleColor(memberRole)}>
+                              {memberRole.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatDate(joinDate)}</TableCell>
+                          <TableCell>
+                            <Badge variant={userActive ? "default" : "outline"} className={userActive ? "bg-green-100 text-green-800 hover:bg-green-100" : "bg-gray-100 text-gray-800"}>
+                              {userActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditMember(m)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
