@@ -790,6 +790,7 @@ export function OffersContent() {
                               const inferredType = Object.entries(subjectToProjectType).find(
                                 ([key]) => offer.subject?.toLowerCase().includes(key.toLowerCase().replace('...', ''))
                               );
+                              const managerId = offer.approvedBy || offer.createdBy || 0;
                               setEpcFormData({
                                 continentCode: customer?.continentCode || '',
                                 countryCode: customer?.countryCode || '',
@@ -797,7 +798,7 @@ export function OffersContent() {
                                 priority: 'Medium',
                                 startDate: today,
                                 targetEndDate: sixMonths,
-                                managerId: 0,
+                                managerId,
                               });
                             }} title="Confirm Order → Create EPC Project">
                               <Rocket className="h-4 w-4" />
@@ -993,30 +994,15 @@ export function OffersContent() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Continent Code *</Label>
-                    <Select value={epcFormData.continentCode} onValueChange={(v) => setEpcFormData(p => ({ ...p, continentCode: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        {['AS', 'EU', 'NA', 'SA', 'AF', 'OC'].map(c => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input value={epcFormData.continentCode} readOnly className="bg-muted cursor-not-allowed" />
                   </div>
                   <div>
                     <Label className="text-xs">Country Code *</Label>
-                    <Input placeholder="e.g. IN" maxLength={2} value={epcFormData.countryCode}
-                      onChange={(e) => setEpcFormData(p => ({ ...p, countryCode: e.target.value.toUpperCase() }))} />
+                    <Input value={epcFormData.countryCode} readOnly className="bg-muted cursor-not-allowed" />
                   </div>
                   <div>
                     <Label className="text-xs">Project Type</Label>
-                    <Select value={epcFormData.projectType} onValueChange={(v) => setEpcFormData(p => ({ ...p, projectType: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                      <SelectContent>
-                        {['CPS System', 'Equipment', 'Grease Plant', 'Lube Blending Plant', 'Re-refining Plant', 'Spares'].map(t => (
-                          <SelectItem key={t} value={t}>{t}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input value={epcFormData.projectType} readOnly className="bg-muted cursor-not-allowed" />
                   </div>
                   <div>
                     <Label className="text-xs">Priority</Label>
@@ -1041,14 +1027,13 @@ export function OffersContent() {
                   </div>
                   <div className="col-span-2">
                     <Label className="text-xs">Project Manager *</Label>
-                    <Select value={epcFormData.managerId ? String(epcFormData.managerId) : ''} onValueChange={(v) => setEpcFormData(p => ({ ...p, managerId: parseInt(v) }))}>
-                      <SelectTrigger><SelectValue placeholder="Select project manager..." /></SelectTrigger>
-                      <SelectContent>
-                        {allUsers.map((u: any) => (
-                          <SelectItem key={u.id} value={String(u.id)}>{u.fullName || u.username} ({u.role})</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      value={(() => {
+                        const mgr = allUsers.find((u: any) => u.id === epcFormData.managerId);
+                        return mgr ? `${mgr.fullName || mgr.username} (${mgr.role})` : '';
+                      })()}
+                      readOnly className="bg-muted cursor-not-allowed"
+                    />
                   </div>
                 </div>
 
