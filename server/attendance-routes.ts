@@ -1129,9 +1129,12 @@ router.get('/regularization/absent-days', ensureAuthenticated, async (req: Reque
       const isHolidayDay = holidayDates.has(dateStr);
 
       if (isWeeklyOffDay || isHolidayDay) {
-        const dayType = isHolidayDay ? 'holiday' : 'weekly_off';
-        const reason = isHolidayDay ? 'Company Holiday' : 'Weekly Off';
-        regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason, attendanceState: dayType, dayType, outcomeGroup: 'B' });
+        const record = attendanceMap.get(dateStr);
+        if (record && (record.checkInTime || record.checkOutTime)) {
+          const dayType = isHolidayDay ? 'holiday' : 'weekly_off';
+          const reason = isHolidayDay ? 'Worked on Holiday' : 'Worked on Weekly Off';
+          regularizableDays.push({ date: dateStr, dayName: dayNames[dayOfWeek], reason, attendanceState: dayType, dayType, outcomeGroup: 'B' });
+        }
         continue;
       }
 
