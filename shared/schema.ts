@@ -1231,12 +1231,14 @@ export const engineeringChangeRequests = pgTable('engineering_change_requests', 
   item_id: integer('item_id').references(() => masterItems.id).notNull(),
   description: text('description').notNull(),
   reason: text('reason').notNull(),
-  status: text('status').notNull().default('Draft'), // Draft, Submitted, Approved, Rejected
+  status: text('status').notNull().default('Draft'),
   requested_by: integer('requested_by').references(() => users.id).notNull(),
   requested_date: timestamp('requested_date').defaultNow().notNull(),
   approved_by: integer('approved_by').references(() => users.id),
   approved_date: timestamp('approved_date'),
   notes: text('notes'),
+  project_id: integer('project_id').references(() => projects.id),
+  project_item_id: integer('project_item_id').references(() => projectItems.id),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -1248,12 +1250,15 @@ export const engineeringChangeNotices = pgTable('engineering_change_notices', {
   item_id: integer('item_id').references(() => masterItems.id).notNull(),
   description: text('description').notNull(),
   implementation_details: text('implementation_details').notNull(),
-  status: text('status').notNull().default('Draft'), // Draft, Issued, Implemented, Closed
+  status: text('status').notNull().default('Draft'),
   issued_by: integer('issued_by').references(() => users.id).notNull(),
   issued_date: timestamp('issued_date').defaultNow().notNull(),
   implementation_date: timestamp('implementation_date'),
   implemented_by: integer('implemented_by').references(() => users.id),
   notes: text('notes'),
+  project_id: integer('project_id').references(() => projects.id),
+  project_item_id: integer('project_item_id').references(() => projectItems.id),
+  resulting_revision: text('resulting_revision'),
   created_at: timestamp('created_at').defaultNow().notNull(),
   updated_at: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -1262,7 +1267,7 @@ export const changeDocuments = pgTable('change_documents', {
   id: serial('id').primaryKey(),
   ecr_id: integer('ecr_id').references(() => engineeringChangeRequests.id),
   ecn_id: integer('ecn_id').references(() => engineeringChangeNotices.id),
-  document_type: text('document_type').notNull(), // Drawing, Specification, etc.
+  document_type: text('document_type').notNull(),
   document_name: text('document_name').notNull(),
   document_path: text('document_path').notNull(),
   uploaded_by: integer('uploaded_by').references(() => users.id).notNull(),
@@ -1270,6 +1275,9 @@ export const changeDocuments = pgTable('change_documents', {
   storage_path: text('storage_path'),
   storage_url: text('storage_url'),
   storage_url_expiry: timestamp('storage_url_expiry'),
+  gcs_object_path: text('gcs_object_path'),
+  checksum_sha256: text('checksum_sha256'),
+  file_size: integer('file_size'),
 });
 
 // Insert schemas for Dispatch & Shipping
@@ -1885,8 +1893,14 @@ export const directoryTemplates = pgTable('directory_templates', {
   id: serial('id').primaryKey(),
   
   // Template structure
-  department: text('department').notNull(), // e.g., "design", "procurement", "manufacturing", "quality"
-  subDirectory: text('sub_directory'), // e.g., "1_BEDD", "2_P_ID", can be null for root directories
+  department: text('department').notNull(),
+  subDirectory: text('sub_directory'),
+  
+  // EPC DocType mapping
+  docTypeCode: text('doc_type_code'),
+  documentTitle: text('document_title'),
+  allowedExtensions: text('allowed_extensions').array(),
+  uploadMode: text('upload_mode'),
   
   // Access control
   isPublic: boolean('is_public').default(false),
@@ -1972,6 +1986,11 @@ export const projectItems = pgTable('project_items', {
   sourceOfferId: integer('source_offer_id'),
   sourceOfferItemId: integer('source_offer_item_id'),
   sourceOrderNumber: varchar('source_order_number', { length: 15 }),
+  
+  bpCode: text('bp_code'),
+  productCode: text('product_code'),
+  inheritedMasterRevision: text('inherited_master_revision'),
+  deviationNotes: text('deviation_notes'),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -11653,6 +11672,10 @@ export const epcDrawingControls = pgTable('epc_drawing_controls', {
   cancelledAt: timestamp("cancelled_at"),
   cancelReason: text("cancel_reason"),
   notes: text("notes"),
+  gcsObjectPath: text("gcs_object_path"),
+  fileName: text("file_name"),
+  fileSize: integer("file_size"),
+  checksumSha256: text("checksum_sha256"),
   createdBy: integer("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -11994,3 +12017,46 @@ export const commercialChangeOrders = pgTable('commercial_change_orders', {
 export const insertCommercialChangeOrderSchema = createInsertSchema(commercialChangeOrders).omit({ id: true, requestedAt: true });
 export type CommercialChangeOrder = typeof commercialChangeOrders.$inferSelect;
 export type InsertCommercialChangeOrder = z.infer<typeof insertCommercialChangeOrderSchema>;
+
+export const epcDocTypes = pgTable('epc_doc_types', {
+  id: serial('id').primaryKey(),
+  code: text('code').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description'),
+  folderCode: text('folder_code').unique(),
+  allowedExtensions: text('allowed_extensions').array().notNull(),
+  uploadMode: text('upload_mode').notNull().default('single'),
+  maxFileSizeMb: integer('max_file_size_mb').notNull().default(50),
+  isSlot: boolean('is_slot').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+export const insertEpcDocTypeSchema = createInsertSchema(epcDocTypes).omit({ id: true });
+export type EpcDocType = typeof epcDocTypes.$inferSelect;
+export type InsertEpcDocType = z.infer<typeof insertEpcDocTypeSchema>;
+
+export const epcDocuments = pgTable('epc_documents', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  docType: text('doc_type').notNull(),
+  folderCode: text('folder_code'),
+  documentNumber: text('document_number'),
+  revision: text('revision').notNull().default('00'),
+  status: text('status').notNull().default('active'),
+  title: text('title').notNull(),
+  fileName: text('file_name').notNull(),
+  fileSize: integer('file_size'),
+  contentType: text('content_type'),
+  gcsObjectPath: text('gcs_object_path').notNull(),
+  checksumSha256: text('checksum_sha256'),
+  seqNumber: integer('seq_number').notNull().default(1),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
+  supersededAt: timestamp('superseded_at'),
+  supersededById: integer('superseded_by_id'),
+});
+
+export const insertEpcDocumentSchema = createInsertSchema(epcDocuments).omit({ id: true, uploadedAt: true });
+export type EpcDocument = typeof epcDocuments.$inferSelect;
+export type InsertEpcDocument = z.infer<typeof insertEpcDocumentSchema>;
