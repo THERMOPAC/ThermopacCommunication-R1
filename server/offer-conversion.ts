@@ -487,8 +487,8 @@ export async function executeOfferConversion(
       } else {
         const taskResult = await client.query(
           `INSERT INTO tasks
-           (title, description, status, priority, assigned_to, created_by, due_date, created_at, updated_at)
-           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, NOW(), NOW())
+           (title, description, status, priority, assigned_to, created_by, due_date, created_at)
+           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, NOW())
            RETURNING id`,
           [
             `Map offer item to master item: ${(offerItem.description || '').substring(0, 80)}`,
@@ -549,8 +549,8 @@ export async function executeOfferConversion(
       } else {
         const taskResult = await client.query(
           `INSERT INTO tasks
-           (title, description, status, priority, assigned_to, created_by, due_date, created_at, updated_at)
-           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, NOW(), NOW())
+           (title, description, status, priority, assigned_to, created_by, due_date, created_at)
+           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, NOW())
            RETURNING id`,
           [
             `Map offer child item to master item: ${(childItem.description || '').substring(0, 80)}`,
