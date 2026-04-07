@@ -436,15 +436,28 @@ export async function executeOfferConversion(
 
     await client.query(
       `INSERT INTO project_members (project_id, user_id, role, assigned_date, is_active)
-       VALUES ($1, $2, 'senior_manager', NOW(), true)`,
+       VALUES ($1, $2, 'project_manager', NOW(), true)`,
       [project.id, epcParams.managerId]
     );
     if (userId !== epcParams.managerId) {
       await client.query(
         `INSERT INTO project_members (project_id, user_id, role, assigned_date, is_active)
-         VALUES ($1, $2, 'senior_manager', NOW(), true)`,
+         VALUES ($1, $2, 'project_manager', NOW(), true)`,
         [project.id, userId]
       );
+    }
+    const seniorMgrResult = await client.query(
+      `SELECT id FROM users WHERE role = 'Senior Manager' AND department = 'Design' AND is_active = true LIMIT 1`
+    );
+    if (seniorMgrResult.rows.length > 0) {
+      const smId = seniorMgrResult.rows[0].id;
+      if (smId !== epcParams.managerId && smId !== userId) {
+        await client.query(
+          `INSERT INTO project_members (project_id, user_id, role, assigned_date, is_active)
+           VALUES ($1, $2, 'senior_manager', NOW(), true)`,
+          [project.id, smId]
+        );
+      }
     }
 
     const defaultPhases: Array<{ name: string; description: string; order: number; deliverables: Array<{ name: string; description: string }> }> = [
