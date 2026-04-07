@@ -790,13 +790,11 @@ export function setupProjectRoutes(app: express.Express) {
       const deliverableId = parseInt(req.params.id);
       const userId = req.user!.id;
       
-      // Check if deliverable exists
       const deliverable = await storage.getDeliverable(deliverableId);
       if (!deliverable) {
         return res.status(404).json({ error: 'Deliverable not found' });
       }
       
-      // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(deliverable.projectId);
       const userMember = projectMembers.find(member => member.userId === userId);
       
@@ -804,13 +802,67 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(403).json({ error: 'Not authorized to update this deliverable' });
       }
       
-      // Update deliverable data
       const updateData = {
         ...req.body,
         updatedAt: new Date()
       };
       
       const updatedDeliverable = await storage.updateDeliverable(deliverableId, updateData);
+
+      const assignedTo = req.body.assignedTo;
+      if (assignedTo) {
+        try {
+          const project = await storage.getProject(deliverable.projectId);
+          const phase = await storage.getProjectPhase(deliverable.phaseId);
+          const phaseName = phase?.name || 'Unknown Phase';
+          const projectName = project?.projectName || 'Unknown Project';
+          
+          const taskStatusMap: Record<string, string> = {
+            'pending': 'pending',
+            'in_progress': 'in_progress',
+            'submitted': 'in_progress',
+            'approved': 'completed',
+            'rejected': 'in_progress',
+          };
+          const taskStatus = taskStatusMap[req.body.status || deliverable.status] || 'pending';
+          const dueDate = req.body.dueDate || deliverable.dueDate;
+          const today = new Date().toISOString().split('T')[0];
+
+          const existingTask = await pool.query(
+            `SELECT id FROM tasks WHERE source_type = 'deliverable' AND source_id = $1 LIMIT 1`,
+            [deliverableId]
+          );
+
+          if (existingTask.rows.length > 0) {
+            await pool.query(
+              `UPDATE tasks SET assigned_to = $1, status = $2, due_date = $3, finish_date = $4, 
+               title = $5, description = $6
+               WHERE source_type = 'deliverable' AND source_id = $7`,
+              [
+                assignedTo, taskStatus, dueDate, dueDate || today,
+                `[Deliverable] ${updatedDeliverable.name}`,
+                `Phase: ${phaseName} | Project: ${projectName}\n${updatedDeliverable.description || ''}`,
+                deliverableId
+              ]
+            );
+          } else {
+            await pool.query(
+              `INSERT INTO tasks (title, description, status, assigned_to, created_by, created_at, priority, start_date, finish_date, due_date, category, source_type, source_id, is_archived)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false)`,
+              [
+                `[Deliverable] ${updatedDeliverable.name}`,
+                `Phase: ${phaseName} | Project: ${projectName}\n${updatedDeliverable.description || ''}`,
+                taskStatus, assignedTo, userId, today, 'medium',
+                today, dueDate || today, dueDate || today,
+                'EPC Deliverable', 'deliverable', deliverableId
+              ]
+            );
+          }
+        } catch (taskError) {
+          console.error('Error creating/updating linked task for deliverable:', taskError);
+        }
+      }
+
       res.json(updatedDeliverable);
     } catch (error) {
       console.error(`Error updating deliverable ${req.params.id}:`, error);
