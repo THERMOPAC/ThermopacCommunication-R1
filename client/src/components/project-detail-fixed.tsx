@@ -724,11 +724,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const createPhaseMutation = useMutation({
     mutationFn: async (data: PhaseFormValues) => {
       const existingPhases = phases || [];
-      const res = await apiRequest("POST", `/api/projects/${projectId}/phases`, {
+      return await apiRequest("POST", `/api/projects/${projectId}/phases`, {
         ...data,
         order: existingPhases.length + 1,
       });
-      return res.json();
     },
     onSuccess: () => {
       toast({ title: "Phase created", description: "New phase added successfully." });
@@ -743,8 +742,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   const updatePhaseMutation = useMutation({
     mutationFn: async ({ phaseId, data }: { phaseId: number; data: Partial<PhaseFormValues> }) => {
-      const res = await apiRequest("PUT", `/api/phases/${phaseId}`, data);
-      return res.json();
+      return await apiRequest("PUT", `/api/phases/${phaseId}`, data);
     },
     onSuccess: () => {
       toast({ title: "Phase updated", description: "Phase updated successfully." });
@@ -760,11 +758,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   const createDeliverableMutation = useMutation({
     mutationFn: async ({ phaseId, data }: { phaseId: number; data: DeliverableFormValues }) => {
-      const res = await apiRequest("POST", `/api/phases/${phaseId}/deliverables`, {
+      return await apiRequest("POST", `/api/phases/${phaseId}/deliverables`, {
         ...data,
         projectId: parseInt(projectId),
       });
-      return res.json();
     },
     onSuccess: () => {
       toast({ title: "Deliverable created", description: "New deliverable added." });
@@ -866,8 +863,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   const addMemberMutation = useMutation({
     mutationFn: async (data: MemberFormValues) => {
-      const res = await apiRequest("POST", `/api/projects/${projectId}/members`, data);
-      return res.json();
+      return await apiRequest("POST", `/api/projects/${projectId}/members`, data);
     },
     onSuccess: () => {
       toast({ title: "Member added", description: "Team member added successfully." });
@@ -952,8 +948,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, data }: { taskId: number; data: Partial<TaskFormValues> }) => {
-      const res = await apiRequest("PATCH", `/api/tasks/${taskId}`, data);
-      return res.json();
+      return await apiRequest("PATCH", `/api/tasks/${taskId}`, data);
     },
     onSuccess: () => {
       toast({ title: "Task updated", description: "Task updated successfully." });
