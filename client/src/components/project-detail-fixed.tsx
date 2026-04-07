@@ -2494,12 +2494,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       </div>
                       <div>
                         <p className="text-muted-foreground">End Date</p>
-                        <p>{formatDate(phase.end_date)}</p>
+                        <p>{formatDate(phase.target_end_date)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Lead</p>
                         <p>
-                          {members?.find(m => m.userId === phase.lead_id)?.username || 'Not assigned'}
+                          {(() => {
+                            const leadId = phase.phase_lead_id || phase.lead_id;
+                            if (!leadId) return 'Not assigned';
+                            const lead = allUsers?.find((u: any) => u.id === leadId);
+                            return lead ? (lead.firstName && lead.lastName ? `${lead.firstName} ${lead.lastName}` : lead.username) : 'Not assigned';
+                          })()}
                         </p>
                       </div>
                     </div>

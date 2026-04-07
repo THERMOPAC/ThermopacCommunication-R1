@@ -490,9 +490,9 @@ export async function executeOfferConversion(
     ];
     for (const phase of defaultPhases) {
       const phaseResult = await client.query(
-        `INSERT INTO project_phases (project_id, name, description, "order", start_date, target_end_date, status, progress, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'pending', 0, NOW(), NOW()) RETURNING id`,
-        [project.id, phase.name, phase.description, phase.order, epcParams.startDate, epcParams.targetEndDate]
+        `INSERT INTO project_phases (project_id, name, description, "order", start_date, target_end_date, phase_lead_id, status, progress, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 0, NOW(), NOW()) RETURNING id`,
+        [project.id, phase.name, phase.description, phase.order, epcParams.startDate, epcParams.targetEndDate, userId]
       );
       const phaseId = phaseResult.rows[0].id;
       for (const deliv of phase.deliverables) {
