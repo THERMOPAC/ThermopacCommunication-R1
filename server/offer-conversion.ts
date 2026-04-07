@@ -557,15 +557,19 @@ export async function executeOfferConversion(
 
       const piResult = await client.query(
         `INSERT INTO project_items
-         (project_id, project_code, item_id, quantity, estimated_cost, notes, status, source,
+         (project_id, project_code, item_id, item_code, description, uom, make_or_buy,
+          quantity, estimated_cost, notes, status, source,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Not Started', 'sales_offer', $7, $8, $9, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, 'Make',
+          $7, $8, $9, 'Not Started', 'sales_offer',
+          $10, $11, $12, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
+          offerItem.product_code || '', offerItem.description, offerItem.unit || 'set',
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           offerId, offerItem.id, orderNumber
@@ -596,16 +600,20 @@ export async function executeOfferConversion(
 
       const piResult = await client.query(
         `INSERT INTO project_items
-         (project_id, project_code, item_id, quantity, estimated_cost, notes, status, source,
+         (project_id, project_code, item_id, item_code, description, uom, make_or_buy,
+          quantity, estimated_cost, notes, status, source,
           parent_project_item_id,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Not Started', 'sales_offer', $7, $8, $9, $10, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, 'Make',
+          $7, $8, $9, 'Not Started', 'sales_offer',
+          $10, $11, $12, $13, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
+          childItem.product_code || '', childItem.description, childItem.unit || 'set',
           childItem.quantity, childItem.total_price,
           childItem.description,
           parentProjectItemId,
