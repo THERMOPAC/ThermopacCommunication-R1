@@ -850,8 +850,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   const updateMemberMutation = useMutation({
     mutationFn: async ({ userId, data }: { userId: number; data: { role: string; isActive?: boolean } }) => {
-      const res = await apiRequest("PUT", `/api/projects/${projectId}/members/${userId}`, data);
-      return res.json();
+      await apiRequest("PUT", `/api/projects/${projectId}/members/${userId}`, data);
     },
     onSuccess: () => {
       toast({ title: "Member updated", description: "Team member updated successfully." });
