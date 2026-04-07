@@ -225,6 +225,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [selectedPhase, setSelectedPhase] = useState<any>(null);
   const [isAddDeliverableOpen, setIsAddDeliverableOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<any>(null);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
@@ -845,6 +847,28 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       toast({ title: "Error adding member", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateMemberMutation = useMutation({
+    mutationFn: async ({ userId, data }: { userId: number; data: { role: string; isActive?: boolean } }) => {
+      const res = await apiRequest("PUT", `/api/projects/${projectId}/members/${userId}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Member updated", description: "Team member updated successfully." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/members`] });
+      setIsEditMemberOpen(false);
+      setEditingMember(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating member", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleEditMember = (member: any) => {
+    setEditingMember(member);
+    memberForm.reset({ userId: member.userId, role: member.role });
+    setIsEditMemberOpen(true);
+  };
 
   const handleAddMember = () => {
     memberForm.reset({ userId: 0, role: "team_member" });
@@ -2547,7 +2571,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditMember(m)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -3144,6 +3168,41 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <Button type="submit" disabled={addMemberMutation.isPending}>
                   {addMemberMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Add Member
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditMemberOpen} onOpenChange={(open) => { setIsEditMemberOpen(open); if (!open) setEditingMember(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Team Member</DialogTitle>
+            <DialogDescription>Update role for "{editingMember?.username}".</DialogDescription>
+          </DialogHeader>
+          <Form {...memberForm}>
+            <form onSubmit={memberForm.handleSubmit((data) => updateMemberMutation.mutate({ userId: editingMember?.userId, data: { role: data.role } }))} className="space-y-4">
+              <FormField control={memberForm.control} name="role" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project Role</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      <SelectItem value="project_manager">Project Manager</SelectItem>
+                      <SelectItem value="phase_lead">Phase Lead</SelectItem>
+                      <SelectItem value="team_member">Team Member</SelectItem>
+                      <SelectItem value="consultant">Consultant</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditMemberOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={updateMemberMutation.isPending}>
+                  {updateMemberMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
                 </Button>
               </DialogFooter>
             </form>
