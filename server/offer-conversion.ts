@@ -436,13 +436,13 @@ export async function executeOfferConversion(
 
     await client.query(
       `INSERT INTO project_members (project_id, user_id, role, assigned_date, is_active)
-       VALUES ($1, $2, 'project_manager', NOW(), true)`,
+       VALUES ($1, $2, 'senior_manager', NOW(), true)`,
       [project.id, epcParams.managerId]
     );
     if (userId !== epcParams.managerId) {
       await client.query(
         `INSERT INTO project_members (project_id, user_id, role, assigned_date, is_active)
-         VALUES ($1, $2, 'project_manager', NOW(), true)`,
+         VALUES ($1, $2, 'senior_manager', NOW(), true)`,
         [project.id, userId]
       );
     }

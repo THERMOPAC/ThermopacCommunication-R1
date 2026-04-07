@@ -638,7 +638,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
       const userMember = projectMembers.find(member => 
-        member.userId === userId && (member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
+        member.userId === userId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
       );
       
       if (!userMember) {
@@ -674,7 +674,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
       const userMember = projectMembers.find(member => 
-        member.userId === currentUserId && (member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
+        member.userId === currentUserId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
       );
       
       if (!userMember && currentUserId !== memberUserId) {
@@ -704,7 +704,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
       const userMember = projectMembers.find(member => 
-        member.userId === currentUserId && (member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
+        member.userId === currentUserId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
       );
       
       if (!userMember) {
@@ -901,7 +901,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Check if user is authorized - only project managers can request approvals
       const projectMembers = await storage.getProjectMembers(phase.projectId);
       const userMember = projectMembers.find(member => 
-        member.userId === userId && (member.role === 'project_manager' || member.role === 'phase_lead')
+        member.userId === userId && (member.role === 'senior_manager' || member.role === 'project_manager' || member.role === 'phase_lead')
       );
       
       if (!userMember && !canManage(req.user!.role, 'Senior Manager')) {
@@ -1623,7 +1623,7 @@ export function setupProjectRoutes(app: express.Express) {
       
       const projectMembers = await storage.getProjectMembers(item.projectId);
       const userMember = projectMembers.find(member => 
-        member.userId === userId && (member.role === 'project_manager' || canManage(req.user!.role, 'Manager'))
+        member.userId === userId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Manager'))
       );
       
       if (!userMember) {
@@ -1721,7 +1721,7 @@ export function setupProjectRoutes(app: express.Express) {
       // Check if user is authorized
       const projectMembers = await storage.getProjectMembers(projectId);
       const userMember = projectMembers.find(member => 
-        member.userId === userId && (member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
+        member.userId === userId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
       );
       
       if (!userMember) {

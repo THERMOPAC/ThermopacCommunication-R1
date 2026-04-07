@@ -153,7 +153,7 @@ type DeliverableFormValues = z.infer<typeof deliverableFormSchema>;
 
 const memberFormSchema = z.object({
   userId: z.number().min(1, "Please select a user"),
-  role: z.enum(["project_manager", "phase_lead", "team_member", "consultant"]),
+  role: z.enum(["senior_manager", "project_manager", "phase_lead", "team_member", "consultant"]),
 });
 
 type MemberFormValues = z.infer<typeof memberFormSchema>;
@@ -1033,6 +1033,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
 
   function getRoleColor(role) {
     switch (role) {
+      case "senior_manager":
+        return "bg-red-100 text-red-800";
       case "project_manager":
         return "bg-blue-100 text-blue-800";
       case "phase_lead":
@@ -3153,6 +3155,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
+                      <SelectItem value="senior_manager">Senior Manager</SelectItem>
                       <SelectItem value="project_manager">Project Manager</SelectItem>
                       <SelectItem value="phase_lead">Phase Lead</SelectItem>
                       <SelectItem value="team_member">Team Member</SelectItem>
@@ -3188,6 +3191,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
+                      <SelectItem value="senior_manager">Senior Manager</SelectItem>
                       <SelectItem value="project_manager">Project Manager</SelectItem>
                       <SelectItem value="phase_lead">Phase Lead</SelectItem>
                       <SelectItem value="team_member">Team Member</SelectItem>
