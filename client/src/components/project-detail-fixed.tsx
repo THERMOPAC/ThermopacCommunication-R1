@@ -891,6 +891,19 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     },
   });
 
+  const deleteMemberMutation = useMutation({
+    mutationFn: async (memberUserId: number) => {
+      return await apiRequest("DELETE", `/api/projects/${projectId}/members/${memberUserId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Member removed", description: "Team member removed from project." });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/members`] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error removing member", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleEditMember = (member: any) => {
     setEditingMember(member);
     memberForm.reset({ userId: member.userId, role: member.role });
@@ -2619,9 +2632,21 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleEditMember(m)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => handleEditMember(m)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => {
+                                  if (window.confirm(`Remove ${displayName} from this project?`)) {
+                                    deleteMemberMutation.mutate(m.userId || m.user_id || m.user?.id);
+                                  }
+                                }}
+                                disabled={deleteMemberMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
