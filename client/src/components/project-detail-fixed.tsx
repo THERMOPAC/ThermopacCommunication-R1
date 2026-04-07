@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import FileStorage from "@/components/file-storage";
+import DocumentControl from "@/components/document-control";
 const CommercialChangesTab = lazy(() => import("@/components/commercial-changes-tab"));
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { 
@@ -1895,7 +1895,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <Paperclip className="h-4 w-4" /> Attachments
                   </TabsTrigger>
                   <TabsTrigger value="files" className="flex items-center gap-1">
-                    <FileText className="h-4 w-4" /> File Storage
+                    <FileText className="h-4 w-4" /> Document Control
                   </TabsTrigger>
                 </TabsList>
                 
@@ -2251,17 +2251,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </TabsContent>
                 
                 <TabsContent value="files" className="space-y-4 mt-4">
-                  <div className="border rounded-md h-[600px]" onClick={(e) => {
-                    // Prevent form submission when interacting with file storage
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}>
+                  <div onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}>
                     {project && (
-                      <FileStorage 
-                        projectId={parseInt(projectId)}
-                        projectCode={project.code}
-                        financialYear={project.financialYear}
-                      />
+                      <DocumentControl projectId={parseInt(projectId)} />
                     )}
                   </div>
                 </TabsContent>
@@ -2384,7 +2376,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="tasks">Tasks</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="files">Files</TabsTrigger>
+            <TabsTrigger value="document-control">Document Control</TabsTrigger>
             <TabsTrigger value="commercial">Commercial</TabsTrigger>
           </TabsList>
           
@@ -2894,34 +2886,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </Card>
           </TabsContent>
           
-          <TabsContent value="files" className="space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Project Files</h2>
-              <div className="space-x-2">
-                <Button variant="outline">
-                  <FolderPlus className="mr-1 h-4 w-4" /> New Directory
-                </Button>
-                <Button>
-                  <Upload className="mr-1 h-4 w-4" /> Upload File
-                </Button>
-              </div>
-            </div>
-            
-            <Card className="border rounded-md h-[600px]">
-              <CardContent className="p-0" onClick={(e) => {
-                // Prevent form submission when interacting with file storage
-                e.stopPropagation();
-                e.preventDefault();
-              }}>
-                {project && (
-                  <FileStorage 
-                    projectId={parseInt(id)}
-                    projectCode={project.code}
-                    financialYear={project.financialYear}
-                  />
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="document-control" className="space-y-4">
+            {project && (
+              <DocumentControl projectId={parseInt(id)} />
+            )}
           </TabsContent>
 
           <TabsContent value="commercial" className="space-y-4">
