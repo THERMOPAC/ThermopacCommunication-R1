@@ -543,6 +543,7 @@ export async function executeOfferConversion(
     const itemsPendingMapping: Array<{ offerItemId: number; description: string; taskId: number }> = [];
 
     for (const offerItem of parentItems) {
+      let masterItemId: number | null = null;
       const masterItemResult = await client.query(
         `SELECT mi.id, mi.item_code FROM master_items mi
          INNER JOIN products p ON p.product_code = mi.item_code
@@ -550,51 +551,29 @@ export async function executeOfferConversion(
          LIMIT 1`,
         [offerItem.product_id]
       );
-
       if (masterItemResult.rows.length > 0) {
-        const masterItem = masterItemResult.rows[0];
-        const piResult = await client.query(
-          `INSERT INTO project_items
-           (project_id, project_code, item_id, quantity, estimated_cost, notes, status, source,
-            source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, 'Not Started', 'sales_offer', $7, $8, $9, NOW(), NOW())
-           ON CONFLICT (source_order_number, source_offer_item_id)
-             WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
-           DO NOTHING
-           RETURNING id`,
-          [
-            project.id, operationalCode, masterItem.id,
-            offerItem.quantity, offerItem.total_price,
-            offerItem.description,
-            offerId, offerItem.id, orderNumber
-          ]
-        );
-        if (piResult.rows.length > 0) {
-          offerItemIdToProjectItemId[offerItem.id] = piResult.rows[0].id;
-          itemsCreated++;
-        }
-      } else {
-        const taskResult = await client.query(
-          `INSERT INTO tasks
-           (title, description, status, priority, assigned_to, created_by, due_date, start_date, finish_date, created_at)
-           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, $5, $6, NOW())
-           RETURNING id`,
-          [
-            `Map offer item to master item: ${(offerItem.description || '').substring(0, 80)}`,
-            `Offer ${offer.offer_number} item #${offerItem.id} (${offerItem.product_code || 'no code'}) "${offerItem.description}" needs to be mapped to a master item before it can be added to EPC project ${operationalCode}. Order: ${orderNumber}`,
-            epcParams.managerId, userId,
-            epcParams.startDate, epcParams.targetEndDate
-          ]
-        );
-        await client.query(
-          `INSERT INTO project_tasks (project_id, task_id) VALUES ($1, $2)`,
-          [project.id, taskResult.rows[0].id]
-        );
-        itemsPendingMapping.push({
-          offerItemId: offerItem.id,
-          description: offerItem.description,
-          taskId: taskResult.rows[0].id,
-        });
+        masterItemId = masterItemResult.rows[0].id;
+      }
+
+      const piResult = await client.query(
+        `INSERT INTO project_items
+         (project_id, project_code, item_id, quantity, estimated_cost, notes, status, source,
+          source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'Not Started', 'sales_offer', $7, $8, $9, NOW(), NOW())
+         ON CONFLICT (source_order_number, source_offer_item_id)
+           WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
+         DO NOTHING
+         RETURNING id`,
+        [
+          project.id, operationalCode, masterItemId,
+          offerItem.quantity, offerItem.total_price,
+          offerItem.description,
+          offerId, offerItem.id, orderNumber
+        ]
+      );
+      if (piResult.rows.length > 0) {
+        offerItemIdToProjectItemId[offerItem.id] = piResult.rows[0].id;
+        itemsCreated++;
       }
     }
 
@@ -603,6 +582,7 @@ export async function executeOfferConversion(
         ? offerItemIdToProjectItemId[childItem.parent_item_id] || null
         : null;
 
+      let masterItemId: number | null = null;
       const masterItemResult = await client.query(
         `SELECT mi.id, mi.item_code FROM master_items mi
          INNER JOIN products p ON p.product_code = mi.item_code
@@ -610,53 +590,31 @@ export async function executeOfferConversion(
          LIMIT 1`,
         [childItem.product_id]
       );
-
       if (masterItemResult.rows.length > 0) {
-        const masterItem = masterItemResult.rows[0];
-        const piResult = await client.query(
-          `INSERT INTO project_items
-           (project_id, project_code, item_id, quantity, estimated_cost, notes, status, source,
-            parent_project_item_id,
-            source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, 'Not Started', 'sales_offer', $7, $8, $9, $10, NOW(), NOW())
-           ON CONFLICT (source_order_number, source_offer_item_id)
-             WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
-           DO NOTHING
-           RETURNING id`,
-          [
-            project.id, operationalCode, masterItem.id,
-            childItem.quantity, childItem.total_price,
-            childItem.description,
-            parentProjectItemId,
-            offerId, childItem.id, orderNumber
-          ]
-        );
-        if (piResult.rows.length > 0) {
-          offerItemIdToProjectItemId[childItem.id] = piResult.rows[0].id;
-          itemsCreated++;
-        }
-      } else {
-        const taskResult = await client.query(
-          `INSERT INTO tasks
-           (title, description, status, priority, assigned_to, created_by, due_date, start_date, finish_date, created_at)
-           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, $5, $6, NOW())
-           RETURNING id`,
-          [
-            `Map offer child item to master item: ${(childItem.description || '').substring(0, 80)}`,
-            `Offer ${offer.offer_number} child item #${childItem.id} (${childItem.product_code || 'no code'}) "${childItem.description}" needs to be mapped to a master item. Parent offer item: #${childItem.parent_item_id}. EPC project: ${operationalCode}. Order: ${orderNumber}`,
-            epcParams.managerId, userId,
-            epcParams.startDate, epcParams.targetEndDate
-          ]
-        );
-        await client.query(
-          `INSERT INTO project_tasks (project_id, task_id) VALUES ($1, $2)`,
-          [project.id, taskResult.rows[0].id]
-        );
-        itemsPendingMapping.push({
-          offerItemId: childItem.id,
-          description: childItem.description,
-          taskId: taskResult.rows[0].id,
-        });
+        masterItemId = masterItemResult.rows[0].id;
+      }
+
+      const piResult = await client.query(
+        `INSERT INTO project_items
+         (project_id, project_code, item_id, quantity, estimated_cost, notes, status, source,
+          parent_project_item_id,
+          source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'Not Started', 'sales_offer', $7, $8, $9, $10, NOW(), NOW())
+         ON CONFLICT (source_order_number, source_offer_item_id)
+           WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
+         DO NOTHING
+         RETURNING id`,
+        [
+          project.id, operationalCode, masterItemId,
+          childItem.quantity, childItem.total_price,
+          childItem.description,
+          parentProjectItemId,
+          offerId, childItem.id, orderNumber
+        ]
+      );
+      if (piResult.rows.length > 0) {
+        offerItemIdToProjectItemId[childItem.id] = piResult.rows[0].id;
+        itemsCreated++;
       }
     }
 

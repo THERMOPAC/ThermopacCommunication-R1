@@ -1971,8 +1971,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                     <ArrowRight className="h-4 w-4 text-amber-500" />
                                   </Button>
                                 </TableCell>
-                                <TableCell>{item.masterItem?.itemCode || "N/A"}</TableCell>
-                                <TableCell>{item.masterItem?.description || "N/A"}</TableCell>
+                                <TableCell>{item.masterItem?.itemCode || item.projectCode || "N/A"}</TableCell>
+                                <TableCell>{item.masterItem?.description || item.notes || "N/A"}</TableCell>
                                 <TableCell>{item.quantity}</TableCell>
                                 <TableCell>{item.masterItem?.uom || "N/A"}</TableCell>
                                 <TableCell>{item.masterItem?.makeOrBuy || "N/A"}</TableCell>
@@ -2820,10 +2820,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               <ArrowRight className="h-4 w-4 text-amber-500" />
                             </Button>
                           </TableCell>
-                          <TableCell className="truncate max-w-0">{item.masterItem?.itemCode || "N/A"}</TableCell>
+                          <TableCell className="truncate max-w-0">{item.masterItem?.itemCode || item.projectCode || "N/A"}</TableCell>
                           <TableCell className="truncate max-w-0">
-                            <div className="truncate" title={item.masterItem?.description || "N/A"}>
-                              {item.masterItem?.description || "N/A"}
+                            <div className="truncate" title={item.masterItem?.description || item.notes || "N/A"}>
+                              {item.masterItem?.description || item.notes || "N/A"}
                             </div>
                           </TableCell>
                           <TableCell>{item.quantity}</TableCell>

@@ -1950,7 +1950,7 @@ export const projectItems = pgTable('project_items', {
   id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   projectCode: text('project_code').notNull(),
-  itemId: integer('item_id').notNull().references(() => masterItems.id),
+  itemId: integer('item_id').references(() => masterItems.id),
   
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
   estimatedCost: decimal('estimated_cost', { precision: 12, scale: 2 }),
