@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
-import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
+import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact } from './utils/quotation-pdf-artifact';
 
 export interface EpcParams {
   continentCode: string;
@@ -605,13 +605,82 @@ export async function executeOfferConversion(
       [snapshotId]
     );
 
-    const confirmedArtifactId = await freezeConfirmedArtifact(offerId, offer.revision || 0);
+    let confirmedArtifactId = await freezeConfirmedArtifact(offerId, offer.revision || 0);
     if (!confirmedArtifactId) {
-      await client.query('ROLLBACK');
-      const err: any = new Error('Quotation PDF must be generated before order confirmation');
-      err.statusCode = 422;
-      err.failures = [{ field: 'quotation_pdf', reason: `No active combined PDF artifact found for offer ${offer.offer_number} revision ${offer.revision || 0}. Generate the quotation PDF first.` }];
-      throw err;
+      console.log(`[offer-conversion] No existing PDF artifact for offer ${offerId}, auto-generating...`);
+      try {
+        const fs = await import('fs');
+        const { and, eq } = await import('drizzle-orm');
+        const { offerTemplates } = await import('@shared/schema');
+        const { OfferPdfGenerator } = await import('./offer-pdf-generator');
+        const allItems = await pool.query(`SELECT * FROM offer_items WHERE offer_id = $1 ORDER BY sort_order ASC`, [offerId]);
+        const generator = new OfferPdfGenerator({
+          offerNumber: offer.offer_number,
+          revision: offer.revision || 0,
+          createdAt: offer.created_at?.toISOString?.() || new Date().toISOString(),
+          customerName: offer.customer_name || '',
+          customerEmail: offer.customer_email || '',
+          customerAddress: offer.customer_address || '',
+          contactPerson: offer.contact_person || '',
+          subject: offer.subject || '',
+          currency: offer.currency || 'USD',
+          subtotal: offer.subtotal || '0',
+          discountPercent: offer.discount_percent || '0',
+          discountAmount: offer.discount_amount || '0',
+          taxPercent: offer.tax_percent || '0',
+          taxAmount: offer.tax_amount || '0',
+          totalAmount: offer.total_amount || '0',
+          validUntil: offer.valid_until?.toISOString?.() || '',
+          paymentTerms: offer.payment_terms || '',
+          deliveryTerms: offer.delivery_terms || '',
+          notes: offer.notes || '',
+          termsAndConditions: offer.terms_and_conditions || '',
+          items: allItems.rows.map((item: any) => ({
+            description: item.description,
+            productCode: item.product_code || '',
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: item.unit_price,
+            discountPercent: item.discount_percent || '0',
+            totalPrice: item.total_price,
+            hsnSacCode: item.hsn_sac_code || '',
+            isSubItem: item.is_sub_item || false,
+          })),
+        }, { priceMode: 'combined' });
+
+        let templatePath: string | null = null;
+        let templatePageRange: { startPage?: number | null; endPage?: number | null } = {};
+        const offerLang = offer.language || 'English';
+        const [autoTemplate] = await db.select().from(offerTemplates).where(
+          and(
+            eq(offerTemplates.subject, offer.subject),
+            eq(offerTemplates.language, offerLang),
+            eq(offerTemplates.isActive, true)
+          )
+        ).limit(1);
+        if (autoTemplate && fs.existsSync(autoTemplate.filePath)) {
+          templatePath = autoTemplate.filePath;
+          templatePageRange = { startPage: autoTemplate.startPage, endPage: autoTemplate.endPage };
+        }
+
+        let pdfBuffer: Buffer;
+        if (templatePath && fs.existsSync(templatePath)) {
+          pdfBuffer = await generator.generateWithTemplateToBuffer(templatePath, templatePageRange);
+        } else {
+          pdfBuffer = await generator.generateToBuffer();
+        }
+
+        await storeQuotationPdfArtifact(pdfBuffer, offerId, offer.offer_number, offer.revision || 0, 'combined', userId);
+        console.log(`[offer-conversion] Auto-generated quotation PDF for offer ${offerId}`);
+        confirmedArtifactId = await freezeConfirmedArtifact(offerId, offer.revision || 0);
+      } catch (pdfErr: any) {
+        console.error(`[offer-conversion] Auto PDF generation failed:`, pdfErr);
+        await client.query('ROLLBACK');
+        const err: any = new Error('Failed to auto-generate quotation PDF during order confirmation');
+        err.statusCode = 422;
+        err.failures = [{ field: 'quotation_pdf', reason: `Auto-generation failed: ${pdfErr.message}. Try generating the PDF manually first.` }];
+        throw err;
+      }
     }
 
     await client.query('COMMIT');
