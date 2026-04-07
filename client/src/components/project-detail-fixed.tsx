@@ -150,6 +150,7 @@ const deliverableFormSchema = z.object({
   dueDate: z.string().min(1, "Due date is required"),
   status: z.enum(["pending", "in_progress", "submitted", "approved", "rejected"]).default("pending"),
   notes: z.string().optional(),
+  assignedTo: z.number().optional(),
 });
 
 type DeliverableFormValues = z.infer<typeof deliverableFormSchema>;
@@ -227,6 +228,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isDeliverablesOpen, setIsDeliverablesOpen] = useState(false);
   const [selectedPhase, setSelectedPhase] = useState<any>(null);
   const [isAddDeliverableOpen, setIsAddDeliverableOpen] = useState(false);
+  const [editingDeliverable, setEditingDeliverable] = useState<any>(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<any>(null);
@@ -775,6 +777,34 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       toast({ title: "Error creating deliverable", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateDeliverableMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      const res = await apiRequest("PUT", `/api/deliverables/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Deliverable updated", description: "Deliverable has been updated." });
+      queryClient.invalidateQueries({ queryKey: [`/api/phases/${selectedPhase?.id}/deliverables`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/projects/${projectId}/phases`] });
+      setEditingDeliverable(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating deliverable", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleEditDeliverable = (d: any) => {
+    setEditingDeliverable(d);
+    deliverableForm.reset({
+      name: d.name || "",
+      description: d.description || "",
+      dueDate: d.due_date || d.dueDate || "",
+      status: d.status || "pending",
+      notes: d.notes || "",
+      assignedTo: d.assigned_to || d.assignedTo || undefined,
+    });
+  };
 
   const handleAddPhase = () => {
     phaseForm.reset({
@@ -3017,8 +3047,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isDeliverablesOpen} onOpenChange={(open) => { setIsDeliverablesOpen(open); if (!open) { setSelectedPhase(null); setIsAddDeliverableOpen(false); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <Dialog open={isDeliverablesOpen} onOpenChange={(open) => { setIsDeliverablesOpen(open); if (!open) { setSelectedPhase(null); setIsAddDeliverableOpen(false); setEditingDeliverable(null); } }}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Deliverables — {selectedPhase?.name}</DialogTitle>
             <DialogDescription>Manage deliverables for this phase.</DialogDescription>
@@ -3101,7 +3131,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Due Date</TableHead>
+                    <TableHead>Assigned To</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -3111,7 +3143,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         <p className="font-medium">{d.name}</p>
                         <p className="text-xs text-muted-foreground">{d.description}</p>
                       </TableCell>
-                      <TableCell>{formatDate(d.dueDate || d.due_date)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDate(d.dueDate || d.due_date)}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {(() => {
+                          const uid = d.assigned_to || d.assignedTo;
+                          if (!uid) return <span className="text-muted-foreground text-xs">Unassigned</span>;
+                          const u = allUsers?.find((u: any) => u.id === uid);
+                          return u ? (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username) : 'Unknown';
+                        })()}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={
                           d.status === 'approved' ? 'bg-green-50 text-green-700' :
@@ -3123,10 +3163,103 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           {d.status?.charAt(0).toUpperCase() + d.status?.slice(1).replace('_', ' ')}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditDeliverable(d)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+
+              {editingDeliverable && (
+                <Card className="border-blue-200 bg-blue-50/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Edit Deliverable: {editingDeliverable.name}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Form {...deliverableForm}>
+                      <form onSubmit={deliverableForm.handleSubmit((data) => updateDeliverableMutation.mutate({ id: editingDeliverable.id, data }))} className="space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <FormField control={deliverableForm.control} name="dueDate" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Due Date</FormLabel>
+                              <FormControl><Input type="date" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={deliverableForm.control} name="status" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Status</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="submitted">Submitted</SelectItem>
+                                  <SelectItem value="approved">Approved</SelectItem>
+                                  <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                        </div>
+                        <FormField control={deliverableForm.control} name="assignedTo" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Assigned To</FormLabel>
+                            <Select onValueChange={(val) => field.onChange(val ? Number(val) : undefined)} value={field.value?.toString() || ""}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select assignee" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                {(() => {
+                                  const users = allUsers?.filter((u: any) => u.isActive) || [];
+                                  const hierarchy: Record<string, number> = { 'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2, 'Manager': 3, 'Employee': 4 };
+                                  const grouped: Record<string, any[]> = {};
+                                  users.forEach((u: any) => {
+                                    const r = u.role || 'Employee';
+                                    if (!grouped[r]) grouped[r] = [];
+                                    grouped[r].push(u);
+                                  });
+                                  return Object.keys(grouped)
+                                    .sort((a, b) => (hierarchy[a] ?? 99) - (hierarchy[b] ?? 99))
+                                    .map((role) => (
+                                      <SelectGroup key={role}>
+                                        <SelectLabel className="font-semibold text-blue-600">{role}s</SelectLabel>
+                                        {grouped[role]
+                                          .sort((a: any, b: any) => ((a.firstName || a.username) as string).localeCompare(b.firstName || b.username))
+                                          .map((u: any) => (
+                                            <SelectItem key={u.id} value={String(u.id)}>
+                                              {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectGroup>
+                                    ));
+                                })()}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <FormField control={deliverableForm.control} name="notes" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Notes</FormLabel>
+                            <FormControl><Textarea {...field} placeholder="Notes" rows={2} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                        <div className="flex justify-end gap-2 pt-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => setEditingDeliverable(null)}>Cancel</Button>
+                          <Button type="submit" size="sm" disabled={updateDeliverableMutation.isPending}>
+                            {updateDeliverableMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save Changes
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </CardContent>
+                </Card>
+              )}
             )}
           </div>
         </DialogContent>
