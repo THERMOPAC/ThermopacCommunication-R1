@@ -10618,11 +10618,16 @@ const FREEZE_GUARD_EXEMPT_ROUTES = new Set([
 ]);
 
 async function auditFreezeGuardCoverage() {
-  const { readFileSync } = await import('fs');
+  const { readFileSync, existsSync } = await import('fs');
   const { join, dirname } = await import('path');
   const { fileURLToPath } = await import('url');
   const __auditDirname = dirname(fileURLToPath(import.meta.url));
-  const source: string = readFileSync(join(__auditDirname, 'project-routes.ts'), 'utf8');
+  const sourceFile = join(__auditDirname, 'project-routes.ts');
+  if (!existsSync(sourceFile)) {
+    console.log(`[Freeze-Audit] ⏭️ Skipped — source file not available in production build`);
+    return;
+  }
+  const source: string = readFileSync(sourceFile, 'utf8');
 
   const routePattern = /app\.(post|patch|put)\(\s*['"`](\/api\/[^'"`]+)['"`]/g;
   const allWriteRoutes: string[] = [];

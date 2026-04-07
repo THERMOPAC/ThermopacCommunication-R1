@@ -48,6 +48,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  try {
   // PRIORITY: Inspection Document DELETE route MUST be before registerRoutes
   app.delete('/api/quality/inspection-documents/:inspectionOrderNumber/:tabName/:recordId/documents/:documentId', async (req: any, res: any) => {
     console.log(`🚨🚨🚨 PRIORITY DELETE ENDPOINT HIT! 🚨🚨🚨`);
@@ -269,7 +270,8 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  const isDev = app.get("env") === "development" && !process.argv.includes("dist/index.js");
+  if (isDev) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
@@ -281,7 +283,6 @@ app.use((req, res, next) => {
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
     
@@ -295,4 +296,8 @@ app.use((req, res, next) => {
       console.error('❌ Failed to start attendance midnight processor:', error);
     }
   });
+  } catch (error) {
+    console.error('🚨 FATAL: Server startup failed:', error);
+    process.exit(1);
+  }
 })();
