@@ -487,14 +487,14 @@ export async function executeOfferConversion(
       } else {
         const taskResult = await client.query(
           `INSERT INTO tasks
-           (title, description, status, priority, assigned_to, created_by, due_date, created_at)
-           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, NOW())
+           (title, description, status, priority, assigned_to, created_by, due_date, start_date, finish_date, created_at)
+           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, $5, $6, NOW())
            RETURNING id`,
           [
             `Map offer item to master item: ${(offerItem.description || '').substring(0, 80)}`,
             `Offer ${offer.offer_number} item #${offerItem.id} (${offerItem.product_code || 'no code'}) "${offerItem.description}" needs to be mapped to a master item before it can be added to EPC project ${operationalCode}. Order: ${orderNumber}`,
             epcParams.managerId, userId,
-            epcParams.startDate
+            epcParams.startDate, epcParams.targetEndDate
           ]
         );
         await client.query(
@@ -549,14 +549,14 @@ export async function executeOfferConversion(
       } else {
         const taskResult = await client.query(
           `INSERT INTO tasks
-           (title, description, status, priority, assigned_to, created_by, due_date, created_at)
-           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, NOW())
+           (title, description, status, priority, assigned_to, created_by, due_date, start_date, finish_date, created_at)
+           VALUES ($1, $2, 'pending', 'high', $3, $4, $5, $5, $6, NOW())
            RETURNING id`,
           [
             `Map offer child item to master item: ${(childItem.description || '').substring(0, 80)}`,
             `Offer ${offer.offer_number} child item #${childItem.id} (${childItem.product_code || 'no code'}) "${childItem.description}" needs to be mapped to a master item. Parent offer item: #${childItem.parent_item_id}. EPC project: ${operationalCode}. Order: ${orderNumber}`,
             epcParams.managerId, userId,
-            epcParams.startDate
+            epcParams.startDate, epcParams.targetEndDate
           ]
         );
         await client.query(
