@@ -1942,34 +1942,28 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             filteredProjectItems.map((item) => (
                               <TableRow key={item.id}>
                                 <TableCell className="w-6">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      console.log("Navigate to master item:", item);
-                                      if (item.masterItem?.id) {
-                                        // Store the master item ID and return page in sessionStorage
+                                  {item.masterItem?.id ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         const returnPath = window.location.pathname + window.location.search;
-                                        console.log('Storing return path:', returnPath);
                                         sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
                                         sessionStorage.setItem('returnToPage', returnPath);
-                                        // Navigate to Item Master page
                                         navigate("/item-master");
-                                      } else {
-                                        toast({
-                                          title: "Error",
-                                          description: "Could not find master item information",
-                                          variant: "destructive",
-                                        });
-                                      }
-                                    }}
-                                    className="h-6 w-6 p-0"
-                                    title="Edit in Master Items"
-                                  >
-                                    <ArrowRight className="h-4 w-4 text-amber-500" />
-                                  </Button>
+                                      }}
+                                      className="h-6 w-6 p-0"
+                                      title="Edit in Master Items"
+                                    >
+                                      <ArrowRight className="h-4 w-4 text-amber-500" />
+                                    </Button>
+                                  ) : (
+                                    <span className="h-6 w-6 inline-flex items-center justify-center text-muted-foreground" title="No master item linked">
+                                      <ArrowRight className="h-4 w-4 opacity-25" />
+                                    </span>
+                                  )}
                                 </TableCell>
                                 <TableCell>{item.itemCode || item.masterItem?.itemCode || "N/A"}</TableCell>
                                 <TableCell>{item.description || item.masterItem?.description || item.notes || "N/A"}</TableCell>
