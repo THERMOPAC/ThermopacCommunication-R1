@@ -280,6 +280,10 @@ export function setupFileStorageRoutes(app: Router) {
    * Only creates physical directories for custom paths not in templates
    */
   app.post('/api/storage/directories', ensureAuthenticated, async (req: Request, res: Response) => {
+    return res.status(403).json({
+      error: 'Legacy File Storage is now read-only. All new documents must be uploaded through Document Control (TPEL structure).',
+      code: 'LEGACY_STORAGE_LOCKED'
+    });
     try {
       const { financialYear, projectCode, department, subDirectory } = req.body;
       
@@ -470,6 +474,10 @@ export function setupFileStorageRoutes(app: Router) {
    * Creates a signed URL for direct browser-to-GCS upload
    */
   app.post('/api/storage/upload-url', ensureAuthenticated, async (req: Request, res: Response) => {
+    return res.status(403).json({
+      error: 'Legacy File Storage is now read-only. All new documents must be uploaded through Document Control (TPEL structure).',
+      code: 'LEGACY_STORAGE_LOCKED'
+    });
     try {
       const { 
         financialYear, 
@@ -562,6 +570,10 @@ export function setupFileStorageRoutes(app: Router) {
    * Delete a file from GCS
    */
   app.delete('/api/storage/files', ensureAuthenticated, async (req: Request, res: Response) => {
+    return res.status(403).json({
+      error: 'Legacy File Storage is now read-only. File deletion must be managed through Document Control.',
+      code: 'LEGACY_STORAGE_LOCKED'
+    });
     try {
       const { filePath } = req.body;
       
@@ -596,6 +608,10 @@ export function setupFileStorageRoutes(app: Router) {
    * For cases where direct browser-to-GCS upload isn't feasible
    */
   app.post('/api/storage/upload', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
+    return res.status(403).json({
+      error: 'Legacy File Storage is now read-only. All new documents must be uploaded through Document Control (TPEL structure).',
+      code: 'LEGACY_STORAGE_LOCKED'
+    });
     try {
       // Add extensive debugging for production troubleshooting
       console.log('🔍 File upload initiated by user:', req.user?.username || 'Unknown');
