@@ -2266,7 +2266,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <FileStorage 
                         projectId={parseInt(projectId)}
                         projectCode={project.code}
-                        financialYear={project.financialYear || project.financial_year}
+                        financialYear={project.financialYear}
                       />
                     )}
                   </div>
@@ -2338,29 +2338,29 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               </Badge>
             </div>
             <p className="text-gray-500 text-sm">Project Code: {project.code}</p>
-            {project.project_origin === 'sales_offer' && project.source_order_number && (
+            {project.projectOrigin === 'sales_offer' && project.sourceOrderNumber && (
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-200">
-                  Source: Order #{project.source_order_number}
-                  {project.source_offer_revision != null && ` (Rev ${project.source_offer_revision})`}
+                  Source: Order #{project.sourceOrderNumber}
+                  {project.sourceOfferRevision != null && ` (Rev ${project.sourceOfferRevision})`}
                 </Badge>
               </div>
             )}
             <p className="mt-2">{project.description}</p>
             <p className="text-muted-foreground text-sm mt-2">
               <span className="inline-flex items-center gap-1 mr-4">
-                <Calendar className="h-4 w-4" /> Started: {formatDate(project.start_date)}
+                <Calendar className="h-4 w-4" /> Started: {formatDate(project.startDate)}
               </span>
               <span className="inline-flex items-center gap-1">
-                <Clock className="h-4 w-4" /> Target End: {formatDate(project.target_end_date)}
+                <Clock className="h-4 w-4" /> Target End: {formatDate(project.targetEndDate)}
               </span>
             </p>
             <p className="text-muted-foreground text-sm mt-2">
               <span className="inline-flex items-center gap-1 mr-4">
-                <Building className="h-4 w-4" /> Customer: {project.client_name || "None"}
+                <Building className="h-4 w-4" /> Customer: {project.clientName || "None"}
               </span>
               <span className="inline-flex items-center gap-1">
-                <FileText className="h-4 w-4" /> Financial Year: {project.financial_year || "Not set"}
+                <FileText className="h-4 w-4" /> Financial Year: {project.financialYear || "Not set"}
               </span>
             </p>
           </div>
@@ -2479,7 +2479,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <div className="relative">
                       <div className="absolute -left-[23px] bg-primary rounded-full h-4 w-4 border-4 border-background"></div>
                       <p className="font-medium">Project Created</p>
-                      <p className="text-muted-foreground text-sm">{formatDate(project.created_at)}</p>
+                      <p className="text-muted-foreground text-sm">{formatDate(project.createdAt)}</p>
                     </div>
                   )}
                   {phases?.filter(p => p.status === 'completed').map((p) => (
@@ -2923,7 +2923,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <FileStorage 
                     projectId={parseInt(id)}
                     projectCode={project.code}
-                    financialYear={project.financialYear || project.financial_year}
+                    financialYear={project.financialYear}
                   />
                 )}
               </CardContent>
