@@ -489,10 +489,29 @@ export async function executeOfferConversion(
       ]},
     ];
     for (const phase of defaultPhases) {
+      const phaseLeadMap: Record<string, string> = {
+        'Design & Engineering': 'Design',
+        'Procurement': 'Purchase',
+        'Manufacturing': 'Production',
+        'Quality Control & Inspection': 'Quality Control',
+        'Dispatch & Logistics': 'Administration',
+        'Installation & Commissioning': 'After Sales',
+      };
+      const dept = phaseLeadMap[phase.name];
+      let leadId = userId;
+      if (dept) {
+        const leadResult = await client.query(
+          `SELECT id FROM users WHERE department = $1 AND is_active = true AND role IN ('General Manager', 'Senior Manager', 'Manager')
+           ORDER BY CASE role WHEN 'General Manager' THEN 1 WHEN 'Senior Manager' THEN 2 WHEN 'Manager' THEN 3 END
+           LIMIT 1`,
+          [dept]
+        );
+        if (leadResult.rows.length > 0) leadId = leadResult.rows[0].id;
+      }
       const phaseResult = await client.query(
         `INSERT INTO project_phases (project_id, name, description, "order", start_date, target_end_date, phase_lead_id, status, progress, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', 0, NOW(), NOW()) RETURNING id`,
-        [project.id, phase.name, phase.description, phase.order, epcParams.startDate, epcParams.targetEndDate, userId]
+        [project.id, phase.name, phase.description, phase.order, epcParams.startDate, epcParams.targetEndDate, leadId]
       );
       const phaseId = phaseResult.rows[0].id;
       for (const deliv of phase.deliverables) {
