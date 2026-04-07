@@ -2590,11 +2590,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       const userActive = m.user?.isActive ?? m.isActive ?? true;
                       const joinDate = m.joinedAt || m.joined_date || m.createdAt || m.created_at;
                       const memberRole = m.role || 'team_member';
-                      const displayName = (() => {
-                        const u = allUsers?.find((u: any) => u.id === (m.userId || m.user_id || m.user?.id));
-                        if (u && u.firstName && u.lastName) return `${u.firstName} ${u.lastName}`;
-                        return userName;
-                      })();
+                      const userObj = allUsers?.find((u: any) => u.id === (m.userId || m.user_id || m.user?.id));
+                      const displayName = (userObj && userObj.firstName && userObj.lastName) ? `${userObj.firstName} ${userObj.lastName}` : userName;
+                      const systemRole = userObj?.role || m.user?.role || '';
+                      const department = userObj?.department || '';
                       return (
                         <TableRow key={m.id}>
                           <TableCell>
@@ -2609,9 +2608,14 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={getRoleColor(memberRole)}>
-                              {memberRole.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge variant="outline" className={getRoleColor(memberRole)}>
+                                {memberRole.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                              </Badge>
+                              {systemRole && (
+                                <p className="text-xs text-muted-foreground">{systemRole}{department ? ` — ${department}` : ''}</p>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>{formatDate(joinDate)}</TableCell>
                           <TableCell>
