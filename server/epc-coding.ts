@@ -97,10 +97,7 @@ export async function generateOperationalCode(
   const seqResult = await tx.execute(
     sql`SELECT COALESCE(MAX(CAST(project_seq AS INTEGER)), 0) + 1 AS next_seq
         FROM projects
-        WHERE continent_code = ${continentCode}
-          AND country_code = ${countryCode}
-          AND customer_id = ${customerId}
-          AND fy_code = ${fyCode}`
+        WHERE fy_code = ${fyCode}`
   );
   const nextSeq = (seqResult.rows[0] as any).next_seq;
   const projectSeq = String(nextSeq).padStart(3, '0');
