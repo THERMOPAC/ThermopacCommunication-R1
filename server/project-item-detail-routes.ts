@@ -423,7 +423,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
       if (itemResponse.ok) {
         try { sapResult = JSON.parse(itemResponse.body); } catch { sapResult = { ItemCode: pi.itemCode }; }
         console.log(`[SAP Sync] Item created successfully: ${pi.itemCode}`);
-      } else if (itemResponse.statusCode === 400 && itemResponse.body?.includes('-2035')) {
+      } else if (itemResponse.statusCode === 400 && (itemResponse.body?.includes('-2035') || itemResponse.body?.includes('already exists') || itemResponse.body?.includes('-10'))) {
         console.log(`[SAP Sync] Item already exists in SAP, attempting PATCH update: ${pi.itemCode}`);
         const patchPayload = { ...sapItemPayload };
         delete (patchPayload as any).ItemCode;
