@@ -425,7 +425,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                     <Input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.dwg,.dxf,.dwf,.png,.jpg,.jpeg,.tif,.tiff"
+                      accept=".pdf"
                       onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                       className="flex-1"
                     />
