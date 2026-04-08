@@ -396,18 +396,20 @@ export function setupProjectItemDetailRoutes(app: Router) {
       const requestHeaders = { 'Content-Type': 'application/json', 'Cookie': cookieStr };
 
       const uom = pi.uom || 'Nos';
-      const sapItemPayload = {
+      const sapItemPayload: Record<string, any> = {
         ItemCode: pi.itemCode,
         ItemName: pi.description || pi.itemCode,
         BarCode: pi.codeBars,
-        ItmsGrpCod: 104,
+        ItemsGroupCode: 104,
         SalesUnit: uom,
         PurchaseUnit: uom,
         InventoryUOM: uom,
         ItemType: 'itItems',
         ValidFor: 'tYES',
-        U_ProjectCode: project?.projectCode || '',
       };
+      if (project?.projectCode) {
+        sapItemPayload.U_ProjectCode = project.projectCode;
+      }
 
       console.log(`[SAP Sync] Attempting to create/update item in SAP B1: ${pi.itemCode} (BarCode: ${pi.codeBars})`);
 

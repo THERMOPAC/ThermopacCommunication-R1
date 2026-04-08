@@ -371,7 +371,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 </div>
               )}
               <div className="mt-2 text-xs text-muted-foreground">
-                SAP payload: ItemCode={item.itemCode}, BarCode={item.codeBars}, ItmsGrpCod=104, UOM={item.uom || 'Nos'}
+                SAP payload: ItemCode={item.itemCode}, BarCode={item.codeBars}, ItemsGroupCode=104, UOM={item.uom || 'Nos'}
               </div>
             </div>
           </TabsContent>
