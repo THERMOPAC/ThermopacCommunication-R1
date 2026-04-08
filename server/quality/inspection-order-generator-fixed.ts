@@ -220,12 +220,9 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     // Generate sample inspection order number formats for preview
     const nextSeqNumber = existingInspectionOrders.length + 1;
     
-    // Split project code - handle both old FY format (2526-1) and new calendar year format (2025-1)
-    const projectCodeParts = project.code.split('-');
-    const year = projectCodeParts[0];
-    const projectNumber = projectCodeParts[1];
+    const year = (project as any).fyCode || project.code.split('-')[0];
+    const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
     
-    // Format for individual orders
     const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-[1..${filteredMakeParentItems.length}]`;
     const buyInspectionOrderNumber = `IO-${year}-${projectNumber}-B-[1..${filteredBuyParentItems.length}]`;
     const componentInspectionOrderNumber = `IO-${year}-${projectNumber}-C-[1..${filteredComponentItems.length}]`;
@@ -406,10 +403,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create individual inspection orders for each Make parent item
     if (filteredMakeParentItems.length > 0) {
-      // Extract project number from the project code - handle both old and new format
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       console.log(`Creating ${filteredMakeParentItems.length} make item inspection orders`);
       
@@ -479,12 +474,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     }
     
-    // Create individual inspection orders for each Buy parent item
     if (filteredBuyParentItems.length > 0) {
-      // Extract project number from the project code - handle both old and new format
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       console.log(`Creating ${filteredBuyParentItems.length} buy item inspection orders`);
       
@@ -556,10 +548,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     
     // Create individual inspection orders for each component item
     if (filteredComponentItems.length > 0) {
-      // Extract project number from the project code - handle both old and new format
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       console.log(`Creating ${filteredComponentItems.length} component inspection orders`);
       

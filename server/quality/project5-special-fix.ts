@@ -37,10 +37,8 @@ export const generateInspectionOrdersForProject5 = async (req: Request, res: Res
       return res.status(404).json({ error: 'Project not found' });
     }
     
-    // Extract year and project number from project code (e.g., "2025-3")
-    const projectCodeParts = project.code.split('-');
-    const year = projectCodeParts[0] || '2025';
-    const projectNumber = projectCodeParts[1] || '3';
+    const year = (project as any).fyCode || project.code.split('-')[0] || '2025';
+    const projectNumber = (project as any).projectSeq || project.code.split('-')[1] || '3';
     
     console.log(`Working with project: ${project.name} (${project.code})`);
     

@@ -127,10 +127,8 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
       const makeItemPreviewItems = mapItemsToPreview(makeItems, true);
       const buyItemPreviewItems = mapItemsToPreview(buyItems, true);
       
-      // Split project code
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       // Format for individual orders
       const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-[1..${makeItems.length}]`;
@@ -442,10 +440,8 @@ export const previewInspectionOrders = async (req: Request, res: Response) => {
     // Generate sample inspection order number formats for preview
     const nextSeqNumber = existingInspectionOrders.length + 1;
     
-    // Split project code - handle both old FY format (2526-1) and new calendar year format (2025-1)
-    const projectCodeParts = project.code.split('-');
-    const year = projectCodeParts[0];
-    const projectNumber = projectCodeParts[1];
+    const year = (project as any).fyCode || project.code.split('-')[0];
+    const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
     
     // Format for individual orders
     const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-[1..${filteredMakeItems.length}]`;
@@ -684,12 +680,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
     }
     console.log(`Max order number for this project: ${maxOrderNumber}`);
     
-    // Create individual inspection orders for each Make item
     if (filteredMakeItems.length > 0) {
-      // Extract project number from the project code - handle both old and new format
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       console.log(`Creating ${filteredMakeItems.length} make item inspection orders`);
       
@@ -760,12 +753,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     }
     
-    // Create individual inspection orders for each Buy item
     if (filteredBuyItems.length > 0) {
-      // Extract project number from the project code - handle both old and new format
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       console.log(`Creating ${filteredBuyItems.length} buy item inspection orders`);
       
@@ -836,12 +826,9 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       }
     }
     
-    // Create individual inspection orders for each component item
     if (filteredComponentItems.length > 0) {
-      // Extract project number from the project code - handle both old and new format
-      const projectCodeParts = project.code.split('-');
-      const year = projectCodeParts[0];
-      const projectNumber = projectCodeParts[1];
+      const year = (project as any).fyCode || project.code.split('-')[0];
+      const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
       
       console.log(`Creating ${filteredComponentItems.length} component inspection orders`);
       

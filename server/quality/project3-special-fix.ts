@@ -116,10 +116,8 @@ export const generateInspectionOrdersForProject3 = async (req: Request, res: Res
     
     console.log(`Current max order number: ${maxOrderNumber}`);
     
-    // 9. Generate new inspection orders
-    const projectCodeParts = project.code.split('-');
-    const year = projectCodeParts[0];
-    const projectNumber = projectCodeParts[1];
+    const year = (project as any).fyCode || project.code.split('-')[0];
+    const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
     
     // 10. Prepare for orders generation
     const createdInspectionOrders = [];
@@ -464,10 +462,8 @@ export const previewInspectionOrdersForProject3 = async (req: Request, res: Resp
     const makeItemPreviewItems = mapItemsToPreview(filteredMakeItems, true);
     const buyItemPreviewItems = mapItemsToPreview(filteredBuyItems, true);
     
-    // 9. Generate sample inspection order numbers for preview
-    const projectCodeParts = project.code.split('-');
-    const year = projectCodeParts[0];
-    const projectNumber = projectCodeParts[1];
+    const year = (project as any).fyCode || project.code.split('-')[0];
+    const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
     
     // Format for individual orders
     const makeInspectionOrderNumber = `IO-${year}-${projectNumber}-M-[1..${filteredMakeItems.length}]`;
