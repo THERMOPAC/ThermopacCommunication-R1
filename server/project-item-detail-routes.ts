@@ -364,7 +364,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
           url: `${sapServiceUrl}/Login`,
           headers: { 'Content-Type': 'application/json' },
           body: {
-            CompanyDB: process.env.SAP_COMPANY_DB || 'TPEL_LIVE',
+            CompanyDB: process.env.SAP_COMPANY_DB || 'TPEL_TEST_120326',
             UserName: process.env.SAP_USERNAME,
             Password: process.env.SAP_PASSWORD,
           },

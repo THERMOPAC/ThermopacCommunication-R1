@@ -21,7 +21,7 @@ function parseSapCookies(setCookieHeaders: string | string[] | undefined): strin
 }
 
 function getSapCompanyDb(req?: express.Request): string {
-  return req?.sapSession?.companyDb || process.env.SAP_COMPANY_DB || 'TPEL_LIVE';
+  return req?.sapSession?.companyDb || process.env.SAP_COMPANY_DB || 'TPEL_TEST_120326';
 }
 
 function getSapLoginBody(req?: express.Request): string {
