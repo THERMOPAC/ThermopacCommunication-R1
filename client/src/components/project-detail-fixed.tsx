@@ -527,6 +527,17 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     });
   }, []);
   
+  useEffect(() => {
+    if (Object.keys(childrenMap).length > 0) {
+      setExpandedItems(prev => {
+        if (prev.size > 0) return prev;
+        const next = new Set(prev);
+        Object.keys(childrenMap).forEach(k => next.add(Number(k)));
+        return next;
+      });
+    }
+  }, [childrenMap]);
+
   // Fetch customers for use in edit form
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['/api/customers'],
@@ -2809,8 +2820,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           const isExpanded = expandedItems.has(item.id);
                           const children = hasChildren && isExpanded ? childrenMap[item.id] : [];
                           return (
-                            <>
-                              <TableRow key={item.id} className={depth > 0 ? "bg-muted/30" : ""}>
+                            <React.Fragment key={`item-${item.id}`}>
+                              <TableRow className={depth > 0 ? "bg-muted/30" : ""}>
                                 <TableCell className="w-6">
                                   <div className="flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
                                     {hasChildren ? (
@@ -2930,7 +2941,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 </TableCell>
                               </TableRow>
                               {children.map((child: any) => renderItemRow(child, depth + 1))}
-                            </>
+                            </React.Fragment>
                           );
                         };
                         return rootItems.map((item: any) => renderItemRow(item, 0));
