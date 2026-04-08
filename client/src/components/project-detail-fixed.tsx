@@ -2786,8 +2786,8 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[3%]"></TableHead>
-                      <TableHead className="w-[20%]">Item Code</TableHead>
-                      <TableHead className="w-[22%]">Description</TableHead>
+                      <TableHead className="w-[18%]">Item Code</TableHead>
+                      <TableHead className="w-[25%]">Description</TableHead>
                       <TableHead className="w-[6%]">Quantity</TableHead>
                       <TableHead className="w-[5%]">UOM</TableHead>
                       <TableHead className="w-[6%]">Make/Buy</TableHead>
