@@ -112,7 +112,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
 
       if (req.file) {
         const geo = await resolveProjectGeoCodes(pi.projectId);
-        const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
+        const ext = 'pdf';
         gcsObjectPath = buildDrawingGcsPath(
           geo.continentCode, geo.countryCode, geo.customerShortCode,
           geo.fyCode, geo.operationalCode,
