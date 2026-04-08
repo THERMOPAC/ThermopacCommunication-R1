@@ -109,23 +109,12 @@ export async function generateOperationalCode(
   return { operationalCode, projectSeq };
 }
 
-export async function generateProjectItemCode(
-  projectId: number,
+export function buildProjectItemCode(
   baseItemCode: string,
   fyCode: string,
-  client: any
-): Promise<string> {
-  const prefix = `P${fyCode}-`;
-  const result = await client.query(
-    `SELECT COALESCE(MAX(
-       CAST(SUBSTRING(item_code FROM '-P\\d{4}-(\\d{3})$') AS INTEGER)
-     ), 0) + 1 AS next_seq
-     FROM project_items
-     WHERE project_id = $1`,
-    [projectId]
-  );
-  const nextSeq = result.rows[0].next_seq;
-  return `${baseItemCode}-${prefix}${String(nextSeq).padStart(3, '0')}`;
+  projectSeq: string
+): string {
+  return `${baseItemCode}-P${fyCode}-${projectSeq}`;
 }
 
 export async function generateDocumentNumber(

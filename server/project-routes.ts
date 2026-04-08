@@ -1337,13 +1337,8 @@ export function setupProjectRoutes(app: express.Express) {
       }
       
       let itemCode = req.body.itemCode || req.body.item_code || '';
-      if (itemCode && (project as any).fy_code) {
-        const client = await pool.connect();
-        try {
-          itemCode = await epcCoding.generateProjectItemCode(projectId, itemCode, (project as any).fy_code, client);
-        } finally {
-          client.release();
-        }
+      if (itemCode && (project as any).fy_code && (project as any).project_seq) {
+        itemCode = epcCoding.buildProjectItemCode(itemCode, (project as any).fy_code, (project as any).project_seq);
       }
 
       const itemData = insertProjectItemSchema.parse({

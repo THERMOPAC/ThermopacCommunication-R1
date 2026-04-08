@@ -571,7 +571,7 @@ export async function executeOfferConversion(
 
     for (const offerItem of parentItems) {
       const baseItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
-      const projectItemCode = await epcCoding.generateProjectItemCode(project.id, baseItemCode, fyCode, client);
+      const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
       const masterItemId = offerItem.product_code
         ? await findOrCreateMasterItem(
             client, offerItem.product_code, offerItem.description,
@@ -611,7 +611,7 @@ export async function executeOfferConversion(
         : null;
 
       const baseItemCode = customerBpCode ? `${customerBpCode}-${childItem.product_code || ''}` : (childItem.product_code || '');
-      const projectItemCode = await epcCoding.generateProjectItemCode(project.id, baseItemCode, fyCode, client);
+      const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
       const masterItemId = childItem.product_code
         ? await findOrCreateMasterItem(
             client, childItem.product_code, childItem.description,
