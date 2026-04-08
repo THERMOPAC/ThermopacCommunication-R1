@@ -18,6 +18,135 @@ import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { gcsStorage } from './utils/gcs-storage';
 import { SapHttpsClient } from './sap-b1-integration/sap-https-client';
 
+export async function syncProjectItemToSap(pi: any): Promise<{ sapResult?: any; error?: string }> {
+  const sapCompanyDB = process.env.SAP_COMPANY_DB;
+  const sapUsername = process.env.SAP_USERNAME;
+  const sapPassword = process.env.SAP_PASSWORD;
+
+  if (!sapCompanyDB) return { error: 'SAP_COMPANY_DB environment secret is not set' };
+  if (!sapUsername || !sapPassword) return { error: 'SAP_USERNAME or SAP_PASSWORD environment secret is not set' };
+  if (!pi.codeBars || pi.codeBars.length !== 16) return { error: 'Project item must have a valid 16-character CodeBars' };
+  if (!pi.itemCode) return { error: 'Project item must have an item code' };
+
+  const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+  const sapClient = new SapHttpsClient();
+
+  console.log(`[SAP Sync] Connecting to CompanyDB: ${sapCompanyDB} for item: ${pi.itemCode}`);
+
+  let loginResponse;
+  try {
+    loginResponse = await sapClient.request({
+      method: 'POST',
+      url: `${sapServiceUrl}/Login`,
+      headers: { 'Content-Type': 'application/json' },
+      body: { CompanyDB: sapCompanyDB, UserName: sapUsername, Password: sapPassword },
+      timeout: 30000,
+    });
+  } catch (connErr: any) {
+    const errMsg = `SAP connection failed: ${connErr.message}`;
+    await db.update(projectItems).set({ sapSynced: false, sapSyncError: errMsg, updatedAt: new Date() }).where(eq(projectItems.id, pi.id));
+    return { error: errMsg };
+  }
+
+  if (loginResponse.statusCode !== 200) {
+    const errMsg = `SAP login failed (${loginResponse.statusCode}): ${loginResponse.body?.substring(0, 200) || 'Unknown error'}`;
+    await db.update(projectItems).set({ sapSynced: false, sapSyncError: errMsg, updatedAt: new Date() }).where(eq(projectItems.id, pi.id));
+    return { error: errMsg };
+  }
+
+  const setCookieHeaders = loginResponse.headers['set-cookie'];
+  const cookieArr = Array.isArray(setCookieHeaders) ? setCookieHeaders : setCookieHeaders ? [setCookieHeaders] : [];
+  const cookieStr = cookieArr.map((h: string) => h.split(';')[0].trim()).filter(Boolean).join('; ');
+  const requestHeaders = { 'Content-Type': 'application/json', 'Cookie': cookieStr };
+
+  const uom = pi.uom || 'Nos';
+  const sapItemPayload: Record<string, any> = {
+    ItemCode: pi.itemCode,
+    ItemName: pi.description || pi.itemCode,
+    BarCode: pi.codeBars,
+    ItemsGroupCode: 104,
+    SalesUnit: uom,
+    PurchaseUnit: uom,
+    InventoryUOM: uom,
+    ItemType: 'itItems',
+  };
+
+  console.log(`[SAP Sync] Attempting to create/update item: ${pi.itemCode} (BarCode: ${pi.codeBars})`);
+
+  let itemResponse = await sapClient.request({
+    method: 'POST',
+    url: `${sapServiceUrl}/Items`,
+    headers: requestHeaders,
+    body: sapItemPayload,
+    timeout: 30000,
+  });
+
+  let sapResult: any = {};
+  let syncError: string | null = null;
+
+  if (itemResponse.ok) {
+    try { sapResult = JSON.parse(itemResponse.body); } catch { sapResult = { ItemCode: pi.itemCode }; }
+    console.log(`[SAP Sync] Item created successfully: ${pi.itemCode}`);
+  } else if (itemResponse.statusCode === 400 && (itemResponse.body?.includes('-2035') || itemResponse.body?.includes('already exists') || itemResponse.body?.includes('-10'))) {
+    console.log(`[SAP Sync] Item already exists, attempting PATCH update: ${pi.itemCode}`);
+    const patchPayload = { ...sapItemPayload };
+    delete (patchPayload as any).ItemCode;
+
+    const patchResponse = await sapClient.request({
+      method: 'PATCH',
+      url: `${sapServiceUrl}/Items('${encodeURIComponent(pi.itemCode)}')`,
+      headers: requestHeaders,
+      body: patchPayload,
+      timeout: 30000,
+    });
+
+    if (patchResponse.ok || patchResponse.statusCode === 204) {
+      sapResult = { ItemCode: pi.itemCode, updated: true };
+      console.log(`[SAP Sync] Item updated successfully: ${pi.itemCode}`);
+    } else {
+      syncError = `SAP update failed (${patchResponse.statusCode}): ${patchResponse.body?.substring(0, 300)}`;
+      console.error(`[SAP Sync] Update failed:`, syncError);
+    }
+  } else {
+    syncError = `SAP create failed (${itemResponse.statusCode}): ${itemResponse.body?.substring(0, 300)}`;
+    console.error(`[SAP Sync] Create failed:`, syncError);
+  }
+
+  try { await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders }); } catch { }
+
+  if (syncError) {
+    await db.update(projectItems).set({ sapSynced: false, sapSyncError: syncError, updatedAt: new Date() }).where(eq(projectItems.id, pi.id));
+    return { error: syncError };
+  }
+
+  await db.update(projectItems).set({ sapSynced: true, sapSyncedAt: new Date(), sapSyncError: null, updatedAt: new Date() }).where(eq(projectItems.id, pi.id));
+  return { sapResult };
+}
+
+export async function syncProjectItemsToSapBatch(projectId: number): Promise<{ synced: number; failed: number; errors: string[] }> {
+  const items = await db.select().from(projectItems).where(eq(projectItems.projectId, projectId));
+  let synced = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const item of items) {
+    if (!item.itemCode || !item.codeBars || item.codeBars.length !== 16) {
+      console.log(`[SAP Batch Sync] Skipping item ${item.id} — missing itemCode or CodeBars`);
+      continue;
+    }
+    const result = await syncProjectItemToSap(item);
+    if (result.error) {
+      failed++;
+      errors.push(`${item.itemCode}: ${result.error}`);
+    } else {
+      synced++;
+    }
+  }
+
+  console.log(`[SAP Batch Sync] Project ${projectId}: ${synced} synced, ${failed} failed`);
+  return { synced, failed, errors };
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 100 * 1024 * 1024 },
@@ -351,139 +480,15 @@ export function setupProjectItemDetailRoutes(app: Router) {
         return res.status(400).json({ message: 'Project item must have an item code before SAP sync' });
       }
 
-      const projResult = await db.select().from(projects).where(eq(projects.id, pi.projectId));
-      const project = projResult.length > 0 ? projResult[0] : null;
+      const result = await syncProjectItemToSap(pi);
 
-      const sapCompanyDB = process.env.SAP_COMPANY_DB;
-      const sapUsername = process.env.SAP_USERNAME;
-      const sapPassword = process.env.SAP_PASSWORD;
-
-      if (!sapCompanyDB) {
-        return res.status(500).json({ message: 'SAP_COMPANY_DB environment secret is not set' });
+      if (result.error) {
+        return res.status(502).json({ message: result.error });
       }
-      if (!sapUsername || !sapPassword) {
-        return res.status(500).json({ message: 'SAP_USERNAME or SAP_PASSWORD environment secret is not set' });
-      }
-
-      const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
-      const sapClient = new SapHttpsClient();
-
-      console.log(`[SAP Sync] Connecting to CompanyDB: ${sapCompanyDB}`);
-
-      let loginResponse;
-      try {
-        loginResponse = await sapClient.request({
-          method: 'POST',
-          url: `${sapServiceUrl}/Login`,
-          headers: { 'Content-Type': 'application/json' },
-          body: {
-            CompanyDB: sapCompanyDB,
-            UserName: sapUsername,
-            Password: sapPassword,
-          },
-          timeout: 30000,
-        });
-      } catch (connErr: any) {
-        console.error('SAP B1 login connection error:', connErr.message);
-        await db.update(projectItems).set({
-          sapSynced: false,
-          sapSyncError: `SAP connection failed: ${connErr.message}`,
-          updatedAt: new Date(),
-        }).where(eq(projectItems.id, projectItemId));
-        return res.status(502).json({ message: `SAP connection failed: ${connErr.message}` });
-      }
-
-      if (loginResponse.statusCode !== 200) {
-        const errDetail = loginResponse.body?.substring(0, 200) || 'Unknown error';
-        await db.update(projectItems).set({
-          sapSynced: false,
-          sapSyncError: `SAP login failed (${loginResponse.statusCode}): ${errDetail}`,
-          updatedAt: new Date(),
-        }).where(eq(projectItems.id, projectItemId));
-        return res.status(502).json({ message: `SAP login failed: ${loginResponse.statusCode}` });
-      }
-
-      const setCookieHeaders = loginResponse.headers['set-cookie'];
-      const cookieArr = Array.isArray(setCookieHeaders) ? setCookieHeaders : setCookieHeaders ? [setCookieHeaders] : [];
-      const cookieStr = cookieArr.map((h: string) => h.split(';')[0].trim()).filter(Boolean).join('; ');
-      const requestHeaders = { 'Content-Type': 'application/json', 'Cookie': cookieStr };
-
-      const uom = pi.uom || 'Nos';
-      const sapItemPayload: Record<string, any> = {
-        ItemCode: pi.itemCode,
-        ItemName: pi.description || pi.itemCode,
-        BarCode: pi.codeBars,
-        ItemsGroupCode: 104,
-        SalesUnit: uom,
-        PurchaseUnit: uom,
-        InventoryUOM: uom,
-        ItemType: 'itItems',
-      };
-
-      console.log(`[SAP Sync] Attempting to create/update item in SAP B1: ${pi.itemCode} (BarCode: ${pi.codeBars})`);
-
-      let itemResponse = await sapClient.request({
-        method: 'POST',
-        url: `${sapServiceUrl}/Items`,
-        headers: requestHeaders,
-        body: sapItemPayload,
-        timeout: 30000,
-      });
-
-      let sapResult: any = {};
-      let syncError: string | null = null;
-
-      if (itemResponse.ok) {
-        try { sapResult = JSON.parse(itemResponse.body); } catch { sapResult = { ItemCode: pi.itemCode }; }
-        console.log(`[SAP Sync] Item created successfully: ${pi.itemCode}`);
-      } else if (itemResponse.statusCode === 400 && (itemResponse.body?.includes('-2035') || itemResponse.body?.includes('already exists') || itemResponse.body?.includes('-10'))) {
-        console.log(`[SAP Sync] Item already exists in SAP, attempting PATCH update: ${pi.itemCode}`);
-        const patchPayload = { ...sapItemPayload };
-        delete (patchPayload as any).ItemCode;
-
-        const patchResponse = await sapClient.request({
-          method: 'PATCH',
-          url: `${sapServiceUrl}/Items('${encodeURIComponent(pi.itemCode)}')`,
-          headers: requestHeaders,
-          body: patchPayload,
-          timeout: 30000,
-        });
-
-        if (patchResponse.ok || patchResponse.statusCode === 204) {
-          sapResult = { ItemCode: pi.itemCode, updated: true };
-          console.log(`[SAP Sync] Item updated successfully: ${pi.itemCode}`);
-        } else {
-          syncError = `SAP update failed (${patchResponse.statusCode}): ${patchResponse.body?.substring(0, 300)}`;
-          console.error(`[SAP Sync] Update failed:`, syncError);
-        }
-      } else {
-        syncError = `SAP create failed (${itemResponse.statusCode}): ${itemResponse.body?.substring(0, 300)}`;
-        console.error(`[SAP Sync] Create failed:`, syncError);
-      }
-
-      try {
-        await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders });
-      } catch { }
-
-      if (syncError) {
-        await db.update(projectItems).set({
-          sapSynced: false,
-          sapSyncError: syncError,
-          updatedAt: new Date(),
-        }).where(eq(projectItems.id, projectItemId));
-        return res.status(502).json({ message: syncError });
-      }
-
-      await db.update(projectItems).set({
-        sapSynced: true,
-        sapSyncedAt: new Date(),
-        sapSyncError: null,
-        updatedAt: new Date(),
-      }).where(eq(projectItems.id, projectItemId));
 
       res.json({
         message: `Item ${pi.itemCode} synced to SAP B1 successfully`,
-        sapResult,
+        sapResult: result.sapResult,
         codeBars: pi.codeBars,
         itemCode: pi.itemCode,
         syncedAt: new Date().toISOString(),

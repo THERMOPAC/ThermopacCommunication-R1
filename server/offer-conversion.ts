@@ -763,6 +763,21 @@ export async function executeOfferConversion(
 
     await client.query('COMMIT');
 
+    try {
+      const { syncProjectItemsToSapBatch } = await import('./project-item-detail-routes');
+      console.log(`[offer-conversion] Starting automatic SAP B1 sync for project ${project.id} (${itemsCreated} items)`);
+      syncProjectItemsToSapBatch(project.id).then(result => {
+        console.log(`[offer-conversion] SAP B1 auto-sync complete for project ${project.id}: ${result.synced} synced, ${result.failed} failed`);
+        if (result.errors.length > 0) {
+          console.error(`[offer-conversion] SAP B1 sync errors:`, result.errors);
+        }
+      }).catch(err => {
+        console.error(`[offer-conversion] SAP B1 auto-sync failed for project ${project.id}:`, err.message);
+      });
+    } catch (sapErr: any) {
+      console.error(`[offer-conversion] Could not start SAP B1 auto-sync:`, sapErr.message);
+    }
+
     if (confirmedArtifactId) {
       const primaryArtifactId = confirmedArtifactId;
       try {
