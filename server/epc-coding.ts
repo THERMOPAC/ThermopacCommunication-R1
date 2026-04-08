@@ -116,13 +116,14 @@ export function buildProjectItemCode(
 
 export async function generateCodeBars(
   fyCode: string,
+  projectSeq: string,
   client: any
 ): Promise<string> {
-  const seqName = `codebars_seq_${fyCode}`;
+  const seqName = `codebars_seq_${fyCode}_${projectSeq}`;
   await client.query(`CREATE SEQUENCE IF NOT EXISTS ${seqName} START 1 INCREMENT 1`);
   const result = await client.query(`SELECT nextval('${seqName}') AS seq`);
-  const seq = String(result.rows[0].seq).padStart(11, '0');
-  return `P${fyCode}${seq}`;
+  const seq = String(result.rows[0].seq).padStart(8, '0');
+  return `P${fyCode}${projectSeq}${seq}`;
 }
 
 export async function generateDocumentNumber(

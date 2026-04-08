@@ -1342,10 +1342,10 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       let codeBars: string | undefined;
-      if ((project as any).fy_code) {
+      if ((project as any).fy_code && (project as any).project_seq) {
         const client = await pool.connect();
         try {
-          codeBars = await epcCoding.generateCodeBars((project as any).fy_code, client);
+          codeBars = await epcCoding.generateCodeBars((project as any).fy_code, (project as any).project_seq, client);
         } finally {
           client.release();
         }
