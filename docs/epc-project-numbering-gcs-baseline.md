@@ -133,10 +133,15 @@
 | CR | Commissioning Readiness | `epc_commissioning_readiness` | `cr_number` | Per project | `{PC}-CR-{NNNN}` |
 | BR | Billing Readiness | `epc_billing_readiness` | `br_number` | Per project | `{PC}-BR-{NNNN}` |
 | INV | Invoice (EPC) | `epc_invoices` | `invoice_number` | Per project | `{PC}-INV-{NNNN}` |
-| MOM | Minutes of Meeting | *(if table exists)* | *(tbd)* | Per project | `{PC}-MOM-{NNNN}` |
-| NCR | Non-Conformance Report | `non_conformance_reports` | *(number column)* | Per project | `{PC}-NCR-{NNNN}` |
-| ECR | Engineering Change Request | `engineering_change_requests` | *(number column)* | Per project | `{PC}-ECR-{NNNN}` |
-| ECN | Engineering Change Notice | `engineering_change_notices` | *(number column)* | Per project | `{PC}-ECN-{NNNN}` |
+| NCR | Non-Conformance Report | `non_conformance_reports` | `ncr_number` | Per project | `{PC}-NCR-{NNNN}` |
+| ECR | Engineering Change Request | `engineering_change_requests` | `document_number` | Per project | `{PC}-ECR-{NNNN}` |
+| ECN | Engineering Change Notice | `engineering_change_notices` | `document_number` | Per project | `{PC}-ECN-{NNNN}` |
+
+**NOT IMPLEMENTED (no table exists):**
+
+| Doc Type | Status |
+|----------|--------|
+| MOM | No table exists in schema or DB. Sequence engine supports it for future use. Not in migration scope. |
 
 `{PC}` = ProjectCode = `{FY}-{NNN}` (e.g., `2627-001`)
 
@@ -147,11 +152,11 @@
 | Concept | Authoritative (EPC) | Legacy (Reference) | Migration Action |
 |---------|---------------------|-------------------|-----------------|
 | Work Orders | `epc_work_orders` | `work_orders` | Renumber both; legacy WO uses same sequence via `getNextDocSeq` |
-| Purchase Orders | `epc_purchase_orders` | `purchase_orders` *(if exists)* | Renumber EPC; update legacy project_code if table exists |
-| Dispatch | `epc_dispatch_readiness`, `epc_dispatch_records` | `dispatch_records`, `dispatch_items`, `dispatch_documents` | Renumber EPC; update legacy project references |
-| Invoices | `epc_invoices` (project-scoped EPC doc) | `invoices` (finance-module FY-global) | Renumber EPC INV only; finance INV untouched |
-| Commissioning | `epc_commissioning_readiness` | *(none)* | Renumber |
-| Billing Readiness | `epc_billing_readiness` | *(none)* | Renumber |
+| Purchase Orders | `epc_purchase_orders` (0 rows) | `purchase_orders` (0 rows, no `project_code` col) | No migration action — both empty |
+| Dispatch | `epc_dispatch_readiness` (0 rows), `epc_dispatch_records` (0 rows) | `dispatch_records` (0 rows, no `project_code` col) | No migration action — all empty |
+| Invoices | `epc_invoices` (0 rows, project-scoped EPC doc) | `invoices` (finance-module FY-global) | No EPC migration (empty); finance INV untouched |
+| Commissioning | `epc_commissioning_readiness` (0 rows) | *(none)* | No migration action — empty |
+| Billing Readiness | `epc_billing_readiness` (0 rows) | *(none)* | No migration action — empty |
 
 ---
 
@@ -288,35 +293,48 @@ FROM ranked r WHERE wo.id = r.id;
 
 ### 11.4 EPC Document Number Reset
 
-For every table in Section 4.2 that has existing rows, apply:
+Only tables with existing rows are renumbered. As of 2026-04-08, only `epc_drawing_controls` (13 rows) has data:
 
 ```sql
+-- DWG (epc_drawing_controls — 13 rows)
 WITH ranked AS (
   SELECT t.id, p.code,
     ROW_NUMBER() OVER (PARTITION BY t.project_id ORDER BY t.id) AS new_seq
-  FROM {table} t JOIN projects p ON p.id = t.project_id
+  FROM epc_drawing_controls t JOIN projects p ON p.id = t.project_id
 )
-UPDATE {table} t SET
-  {number_column} = r.code || '-{DOC_TYPE}-' || LPAD(r.new_seq::TEXT, 4, '0')
+UPDATE epc_drawing_controls t SET
+  dwg_control_number = r.code || '-DWG-' || LPAD(r.new_seq::TEXT, 4, '0')
 FROM ranked r WHERE t.id = r.id;
 ```
 
+All other EPC tables (epc_work_orders, epc_purchase_orders, epc_bom_headers, item_planning_records, procurement_execution_records, production_execution_records, quality_planning_records, po_preparation_records, wo_preparation_records, inspection_execution_records, epc_dispatch_readiness, epc_dispatch_records, epc_commissioning_readiness, epc_billing_readiness, epc_invoices, non_conformance_reports, engineering_change_requests, engineering_change_notices) have **0 rows** — no renumbering action needed.
+
 ### 11.5 Sequence Seeding
 
+Only seed for document types that have existing data:
+
 ```sql
--- PROJECT (FY-scoped)
+-- PROJECT (FY-scoped — from 10 projects)
 INSERT INTO doc_sequences (doc_type, fy_code, project_id, next_seq)
   SELECT 'PROJECT', fy_code, NULL,
     COALESCE(MAX(CAST(project_seq AS INTEGER)), 0) + 1
   FROM projects GROUP BY fy_code
   ON CONFLICT DO NOTHING;
 
--- All project-scoped types (template):
+-- WO (from legacy work_orders — 165 rows)
 INSERT INTO doc_sequences (doc_type, fy_code, project_id, next_seq)
-  SELECT '{DOC_TYPE}', NULL, project_id, COUNT(*) + 1
-  FROM {table} GROUP BY project_id
+  SELECT 'WO', NULL, project_id, COUNT(*) + 1
+  FROM work_orders GROUP BY project_id
+  ON CONFLICT DO NOTHING;
+
+-- DWG (from epc_drawing_controls — 13 rows)
+INSERT INTO doc_sequences (doc_type, fy_code, project_id, next_seq)
+  SELECT 'DWG', NULL, project_id, COUNT(*) + 1
+  FROM epc_drawing_controls GROUP BY project_id
   ON CONFLICT DO NOTHING;
 ```
+
+All other doc types have 0 rows — no seeding needed. Sequences will be created on first use via `INSERT ON CONFLICT` in `getNextDocSeq()`.
 
 ### 11.6 GCS Object Migration
 
@@ -354,9 +372,77 @@ INSERT INTO doc_sequences (doc_type, fy_code, project_id, next_seq)
 7. GCS migration uses the same approach as the prior EPC→TPEL migration.
 8. All child document types use 4-digit (NNNN) sequences — no exceptions.
 
-### Open Items Needing Confirmation During Implementation
+### Confirmed Schema Facts (Resolved 2026-04-08)
 
-1. **MOM table:** Does a `meeting_minutes` or equivalent project-scoped table exist? If not, MOM sequence seeding is skipped.
-2. **NCR/ECR/ECN number columns:** Exact column names to be confirmed from schema during implementation.
-3. **Legacy `purchase_orders` table:** Confirm whether it exists and has data requiring migration.
-4. **Legacy `dispatch_records` project_code column:** Confirm whether this column exists and needs updating.
+All open items have been resolved by direct inspection of `shared/schema.ts` and live database queries.
+
+#### 1. MOM Table: NOT IMPLEMENTED
+
+No `meeting_minutes`, `mom_`, or `minutes_of_meeting` table exists in the schema or database.
+**Decision:** MOM is removed from migration scope. No sequence seeding for MOM. The `DOC_TYPE_ABBR` entry and `getNextDocSeq` support remain available for future use, but no migration action is taken.
+
+#### 2. NCR / ECR / ECN — Confirmed Schema
+
+| Doc Type | Table Name | Number Column | PK | project_id FK | Existing Rows |
+|----------|-----------|---------------|-----|---------------|---------------|
+| NCR | `non_conformance_reports` | `ncr_number` (text, unique) | `id` serial | `project_id` NOT NULL, FK→projects(CASCADE) | **0 rows** |
+| ECR | `engineering_change_requests` | `document_number` (text) | `id` serial | `project_id` nullable, FK→projects | **0 rows** |
+| ECN | `engineering_change_notices` | `document_number` (text) | `id` serial | `project_id` nullable, FK→projects | **0 rows** |
+
+**Decision:** All three tables exist but have zero rows. No migration renumbering or sequence seeding needed. Schema support (DOC_TYPE_ABBR entries, getNextDocSeq) is implemented for future use.
+
+**Note:** ECR/ECN `project_id` is nullable (item-level records may not have a project). The sequence engine requires `project_id` — callers must supply it. If `project_id` is NULL at creation time, the document number is not generated via the sequence engine.
+
+#### 3. Legacy `purchase_orders` — Confirmed Schema
+
+| Attribute | Value |
+|-----------|-------|
+| Table exists | Yes |
+| Columns | `id` serial PK, `purchase_order_number` text unique, `project_id` FK→projects, `vendor_id` FK→vendors, etc. |
+| Has `project_code` column? | **No** — only `project_id` FK |
+| Existing rows | **0 rows** |
+
+**Decision:** Table exists but has zero rows and no `project_code` column. No migration action required. Not in migration scope.
+
+#### 4. Legacy `dispatch_records` — Confirmed Schema
+
+| Attribute | Value |
+|-----------|-------|
+| Table exists | Yes |
+| Columns | `id` serial PK, `project_id` FK→projects, `dispatch_number` text, `dispatch_date`, etc. |
+| Has `project_code` column? | **No** — only `project_id` FK |
+| Existing rows | **0 rows** |
+
+**Decision:** Table exists but has zero rows and no `project_code` column. No migration action required. Not in migration scope.
+
+#### 5. Current Data Summary (Live DB as of 2026-04-08)
+
+| Table | Rows | Migration Action |
+|-------|------|-----------------|
+| `projects` | 10 | Renumber codes |
+| `work_orders` | 165 | Renumber work_order_number + project_code |
+| `epc_drawing_controls` | 13 | Renumber dwg_control_number |
+| `epc_work_orders` | 0 | No action |
+| `epc_purchase_orders` | 0 | No action |
+| `epc_bom_headers` | 0 | No action |
+| `item_planning_records` | 0 | No action |
+| `procurement_execution_records` | 0 | No action |
+| `production_execution_records` | 0 | No action |
+| `quality_planning_records` | 0 | No action |
+| `po_preparation_records` | 0 | No action |
+| `wo_preparation_records` | 0 | No action |
+| `inspection_execution_records` | 0 | No action |
+| `epc_dispatch_readiness` | 0 | No action |
+| `epc_dispatch_records` | 0 | No action |
+| `epc_commissioning_readiness` | 0 | No action |
+| `epc_billing_readiness` | 0 | No action |
+| `epc_invoices` | 0 | No action |
+| `non_conformance_reports` | 0 | No action |
+| `engineering_change_requests` | 0 | No action |
+| `engineering_change_notices` | 0 | No action |
+| `purchase_orders` (legacy) | 0 | Not in scope |
+| `dispatch_records` (legacy) | 0 | Not in scope |
+
+**Tables with data requiring migration:** `projects` (10), `work_orders` (165), `epc_drawing_controls` (13).
+**Sequence seeding required for:** PROJECT (from projects), WO (from work_orders), DWG (from epc_drawing_controls).
+**All other doc types:** Zero rows — no migration or seeding action.
