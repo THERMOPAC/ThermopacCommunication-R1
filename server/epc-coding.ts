@@ -85,11 +85,11 @@ export async function generateOperationalCode(
   customerId: number,
   fyCode: string,
   tx: any
-): Promise<{ operationalCode: string; projectSeq: string }> {
+): Promise<{ projectCode: string; projectSeq: string }> {
   const { getNextProjectSeq } = await import('./doc-sequence-service');
   const projectSeq = await getNextProjectSeq(fyCode, tx);
   const projectCode = `${fyCode}-${projectSeq}`;
-  return { operationalCode: projectCode, projectSeq };
+  return { projectCode, projectSeq };
 }
 
 export function buildProjectItemCode(

@@ -1723,7 +1723,6 @@ export const projects = pgTable('projects', {
   countryCode: varchar('country_code', { length: 2 }).notNull(),
   fyCode: varchar('fy_code', { length: 4 }).notNull(),
   projectSeq: varchar('project_seq', { length: 3 }).notNull(),
-  operationalCode: varchar('operational_code', { length: 26 }).notNull().unique(),
   legacyCode: varchar('legacy_code', { length: 20 }),
 
   sourceOfferId: integer('source_offer_id').references(() => offers.id).unique(),

@@ -714,9 +714,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         };
       });
       
-      // Generate sample work order numbers for preview
-      const nextSeqNumber = existingWorkOrders.length + 1;
-      const parentWorkOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
+      const parentWorkOrderNumber = `${project.code}-WO-PREVIEW`;
       
       // If after filtering out existing work orders we have no components left, check if we should show a 'no items' message
       if (filteredMakeParentItems.length === 0 && filteredVirtualComponents.length === 0) {
@@ -814,8 +812,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     const endDate = new Date();
     endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
     
-    // Generate sequence numbers for work orders
-    let seqNumberCounter = existingWorkOrders.length + 1;
+    const { getNextDocSeq } = await import('../doc-sequence-service');
     
     // Step 12: Create parent work orders first
     for (const parentItem of filteredMakeParentItems) {
@@ -828,20 +825,13 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
         continue;
       }
       
-      let workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-      
-      // Ensure uniqueness
-      while (existingWorkOrderNumbers.has(workOrderNumber)) {
-        seqNumberCounter++;
-        workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-      }
+      const woSeq = await getNextDocSeq('WO', projectId, db);
+      const workOrderNumber = `${project.code}-WO-${woSeq}`;
       
       existingWorkOrderNumbers.add(workOrderNumber);
-      // Also mark this item code as having a work order now
       if (masterItem.itemCode) {
         existingItemCodesWithWorkOrders.add(masterItem.itemCode);
       }
-      seqNumberCounter++;
       
       // Create parent work order
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Item'}`;
@@ -1058,19 +1048,9 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       console.log(`Will create work order for component ${masterItem.itemCode}`);
       
       
-      // Use parent's work order number with a child sequence number (e.g., WO-2526-3-1-1)
-      // Start with child sequence number 1
-      let childSequence = 1;
-      let workOrderNumber = `${parentInfo.workOrderNumber}-${childSequence}`;
+      const childWoSeq = await getNextDocSeq('WO', projectId, db);
+      const workOrderNumber = `${project.code}-WO-${childWoSeq}`;
       
-      // Check if this work order number already exists
-      while (existingWorkOrderNumbers.has(workOrderNumber)) {
-        // Increment the child sequence number
-        childSequence++;
-        workOrderNumber = `${parentInfo.workOrderNumber}-${childSequence}`;
-      }
-      
-      // Add to our tracking set
       existingWorkOrderNumbers.add(workOrderNumber);
       // Also mark this item code as having a work order now
       existingItemCodesWithWorkOrders.add(masterItem.itemCode);

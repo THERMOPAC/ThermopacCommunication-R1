@@ -366,25 +366,13 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
     const endDate = new Date();
     endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
     
-    // OPTIMIZATION: Generate work order numbers without database queries
-    let seqNumberCounter = existingWorkOrders.length + 1;
+    const { getNextDocSeq } = await import('../doc-sequence-service');
     const workOrderNumbers: { [key: string]: string } = {};
     
-    // Parent work order numbers
-    parentItems.forEach((_, index) => {
-      let workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-      
-      // Ensure uniqueness
-      while (existingWorkOrderNumbers.has(workOrderNumber)) {
-        seqNumberCounter++;
-        workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-      }
-      
-      // Store the work order number
-      workOrderNumbers[`parent-${index}`] = workOrderNumber;
-      existingWorkOrderNumbers.add(workOrderNumber); // Add to set to prevent duplicates
-      seqNumberCounter++;
-    });
+    for (let index = 0; index < parentItems.length; index++) {
+      const seq = await getNextDocSeq('WO', projectId, db);
+      workOrderNumbers[`parent-${index}`] = `${project.code}-WO-${seq}`;
+    }
     
     console.timeEnd('work-order-number-generation');
     
@@ -480,21 +468,8 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
       // Either use parent's work order number with suffix or create a new one
       let workOrderNumber;
       
-      if (parentInfo) {
-        workOrderNumber = `${parentInfo.workOrderNumber}-SUB`;
-      } else {
-        // Create a new work order number for this child
-        workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-        
-        // Ensure uniqueness
-        while (existingWorkOrderNumbers.has(workOrderNumber)) {
-          seqNumberCounter++;
-          workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-        }
-        
-        existingWorkOrderNumbers.add(workOrderNumber);
-        seqNumberCounter++;
-      }
+      const childSeq = await getNextDocSeq('WO', projectId, db);
+      workOrderNumber = `${project.code}-WO-${childSeq}`;
       
       // Create a title and description
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;

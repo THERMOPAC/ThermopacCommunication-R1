@@ -175,28 +175,11 @@ export async function generateWorkOrdersForNewComponents(req: Request, res: Resp
     
     const createdWorkOrders = [];
     
-    // Get the highest work order number for this project
-    const lastWorkOrderQuery = await db.execute(sql`
-      SELECT work_order_number 
-      FROM work_orders 
-      WHERE project_id = ${projectId}
-        AND work_order_number LIKE 'WO-' || ${project.code} || '-%'
-      ORDER BY id DESC 
-      LIMIT 1
-    `);
+    const { getNextDocSeq } = await import('../doc-sequence-service');
     
-    let nextWorkOrderNumber = 1;
-    if (lastWorkOrderQuery.rows && lastWorkOrderQuery.rows.length > 0) {
-      const lastNumber = lastWorkOrderQuery.rows[0].work_order_number;
-      const match = lastNumber.match(/WO-.*-(\d+)$/);
-      if (match) {
-        nextWorkOrderNumber = parseInt(match[1]) + 1;
-      }
-    }
-    
-    // Create work orders for each new component
     for (const component of newComponents) {
-      const workOrderNumber = `WO-${project.code}-${nextWorkOrderNumber}`;
+      const woSeq = await getNextDocSeq('WO', projectId, db);
+      const workOrderNumber = `${project.code}-WO-${woSeq}`;
       const title = `${component.componentItemCode} - ${component.componentDescription}`;
       const description = `Work order for sub-component: ${component.componentItemCode} (parent: ${component.parentItemCode})`;
       
@@ -255,7 +238,6 @@ export async function generateWorkOrdersForNewComponents(req: Request, res: Resp
         quantity: component.quantity
       });
       
-      nextWorkOrderNumber++;
     }
     
     console.log(`✅ Successfully created ${createdWorkOrders.length} work orders for new sub-components`);

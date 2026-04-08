@@ -404,21 +404,21 @@ export async function executeOfferConversion(
        (name, description, code, project_type, status, priority, financial_year,
         customer_id, client_name, start_date, target_end_date,
         estimated_budget, currency, progress, manager_id, created_by,
-        continent_code, country_code, fy_code, project_seq, operational_code,
+        continent_code, country_code, fy_code, project_seq,
         source_offer_id, source_offer_revision, source_order_number, source_conversion_id, project_origin,
         created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'planning', $5, $6,
                $7, $8, $9, $10,
                $11, $12, 0, $13, $14,
-               $15, $16, $17, $18, $19,
-               $20, $21, $22, $23, 'sales_offer',
+               $15, $16, $17, $18,
+               $19, $20, $21, $22, 'sales_offer',
                NOW(), NOW())
        RETURNING *`,
       [
         projectName, projectDescription, projectCode, projectType, priority, financialYear,
         offer.customer_id, customerName, epcParams.startDate, epcParams.targetEndDate,
         offer.total_amount, projectCurrency, epcParams.managerId, userId,
-        continentCode, countryCode, fyCode, projectSeq, projectCode,
+        continentCode, countryCode, fyCode, projectSeq,
         offerId, offer.revision || 0, orderNumber, conversionId
       ]
     );

@@ -641,8 +641,8 @@ export function setupProductionRoutes(app: Router) {
           },
           itemCount: componentPreviewItems.length,
           items: componentPreviewItems,
-          parentWorkOrderNumber: `WO-${project.code}-${nextSeqNumber}`,
-          childWorkOrderNumber: `WO-${project.code}-${nextSeqNumber + 1}`,
+          parentWorkOrderNumber: `${project.code}-WO-PREVIEW`,
+          childWorkOrderNumber: `${project.code}-WO-PREVIEW`,
           message: `Found ${componentPreviewItems.length} sub-assembly components that need work orders`
         });
       }
@@ -669,13 +669,8 @@ export function setupProductionRoutes(app: Router) {
       where: eq(workOrders.projectId, projectId),
     });
     
-    // Calculate the next sequential numbers
-    const nextParentSeqNumber = workOrderCount.length + 1;
-    const nextChildSeqNumber = workOrderCount.length + 2;
-    
-    // Generate unique work order numbers with sequential numbering using the format WO-[ProjectCode]-[SequentialNumber]
-    const parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber}`;
-    const childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber}`;
+    const parentWorkOrderNumber = `${project.code}-WO-PREVIEW`;
+    const childWorkOrderNumber = `${project.code}-WO-PREVIEW`;
     
     res.status(200).json({
       project: {
@@ -989,25 +984,13 @@ export function setupProductionRoutes(app: Router) {
       const endDate = new Date();
       endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
       
-      // OPTIMIZATION: Generate work order numbers without database queries
-      let seqNumberCounter = existingWorkOrders.length + 1;
+      const { getNextDocSeq } = await import('./doc-sequence-service');
       const workOrderNumbers: { [key: string]: string } = {};
       
-      // Parent work order numbers
-      parentItems.forEach((_, index) => {
-        let workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-        
-        // Ensure uniqueness
-        while (existingWorkOrderNumbers.has(workOrderNumber)) {
-          seqNumberCounter++;
-          workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-        }
-        
-        // Store the work order number
-        workOrderNumbers[`parent-${index}`] = workOrderNumber;
-        existingWorkOrderNumbers.add(workOrderNumber); // Add to set to prevent duplicates
-        seqNumberCounter++;
-      });
+      for (let index = 0; index < parentItems.length; index++) {
+        const seq = await getNextDocSeq('WO', projectId, db);
+        workOrderNumbers[`parent-${index}`] = `${project.code}-WO-${seq}`;
+      }
       
       console.timeEnd('work-order-number-generation');
       
@@ -1103,21 +1086,8 @@ export function setupProductionRoutes(app: Router) {
         // Either use parent's work order number with suffix or create a new one
         let workOrderNumber;
         
-        if (parentInfo) {
-          workOrderNumber = `${parentInfo.workOrderNumber}-SUB`;
-        } else {
-          // Create a new work order number for this child
-          workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-          
-          // Ensure uniqueness
-          while (existingWorkOrderNumbers.has(workOrderNumber)) {
-            seqNumberCounter++;
-            workOrderNumber = `WO-${project.code}-${seqNumberCounter}`;
-          }
-          
-          existingWorkOrderNumbers.add(workOrderNumber);
-          seqNumberCounter++;
-        }
+        const childSeq = await getNextDocSeq('WO', projectId, db);
+        workOrderNumber = `${project.code}-WO-${childSeq}`;
         
         // Create a title and description
         const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
@@ -1390,24 +1360,11 @@ export function setupProductionRoutes(app: Router) {
       // OPTIMIZATION: Create a set of existing work order numbers for faster lookups
       const existingWorkOrderNumbers = new Set(allWorkOrdersByNumber.map(wo => wo.workOrderNumber));
       
-      // OPTIMIZATION: Pre-generate work order numbers without database queries
-      // Calculate initial sequential numbers
-      const nextParentSeqNumber = existingWorkOrders.length + 1;
-      const nextChildSeqNumber = existingWorkOrders.length + 2;
-      
-      // Generate work order numbers upfront
-      let parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber}`;
-      let childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber}`;
-      
-      // Ensure uniqueness without multiple database queries
-      while (existingWorkOrderNumbers.has(parentWorkOrderNumber)) {
-        parentWorkOrderNumber = `WO-${project.code}-${nextParentSeqNumber + 1}`;
-      }
-      
-      // Ensure uniqueness without multiple database queries
-      while (existingWorkOrderNumbers.has(childWorkOrderNumber) || childWorkOrderNumber === parentWorkOrderNumber) {
-        childWorkOrderNumber = `WO-${project.code}-${nextChildSeqNumber + 1}`;
-      }
+      const { getNextDocSeq: getNextDocSeq2 } = await import('./doc-sequence-service');
+      const parentWoSeq = await getNextDocSeq2('WO', projectId, db);
+      const parentWorkOrderNumber = `${project.code}-WO-${parentWoSeq}`;
+      const childWoSeq = await getNextDocSeq2('WO', projectId, db);
+      const childWorkOrderNumber = `${project.code}-WO-${childWoSeq}`;
       
       // OPTIMIZATION: Create arrays in a single pass through the items
       const parentItems: typeof makeItems = [];
@@ -1791,27 +1748,11 @@ export function setupProductionRoutes(app: Router) {
       });
       let nextSeqNumber = existingWorkOrderCount.length + 1;
       
-      // If workOrderNumber not provided by client, generate one with sequential numbering
-      // following the standard format: WO-[ProjectCode]-[SequentialNumber]
       const workOrderData = { ...req.body };
       if (!workOrderData.workOrderNumber) {
-        let workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
-        
-        // Ensure the generated work order number is unique
-        let workOrderExists = await db.query.workOrders.findFirst({
-          where: eq(workOrders.workOrderNumber, workOrderNumber)
-        });
-        
-        // If a work order with this number already exists, increment until we find a unique one
-        while (workOrderExists) {
-          nextSeqNumber++;
-          workOrderNumber = `WO-${project.code}-${nextSeqNumber}`;
-          workOrderExists = await db.query.workOrders.findFirst({
-            where: eq(workOrders.workOrderNumber, workOrderNumber)
-          });
-        }
-        
-        workOrderData.workOrderNumber = workOrderNumber;
+        const { getNextDocSeq: getNextDocSeq3 } = await import('./doc-sequence-service');
+        const woSeq = await getNextDocSeq3('WO', req.body.projectId, db);
+        workOrderData.workOrderNumber = `${project.code}-WO-${woSeq}`;
       }
       
       // Create work order

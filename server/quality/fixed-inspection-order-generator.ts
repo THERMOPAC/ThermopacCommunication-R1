@@ -445,8 +445,8 @@ export const generateInspectionOrders = async (req: Request, res: Response) => {
       console.log(`[FILTERING] Skipped ${skippedItemCount} items that already have inspection orders`);
     }
     
-    // Extract project number from the project code
-    const [financialYear, projectNumber] = project.code.split('-');
+    const financialYear = (project as any).fyCode || project.code.split('-')[0];
+    const projectNumber = (project as any).projectSeq || project.code.split('-')[1];
     
     // Find the next available numbers for each type
     const existingMakeNumbers = existingInspectionOrders

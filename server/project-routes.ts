@@ -239,14 +239,13 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       const project = await db.transaction(async (tx) => {
-        const { operationalCode: projectCode, projectSeq } = await epcCoding.generateOperationalCode(
+        const { projectCode, projectSeq } = await epcCoding.generateOperationalCode(
           continentCode, countryCode, req.body.customerId, fyCode, tx
         );
 
         const projectData = insertProjectSchema.parse({
           ...req.body,
           code: projectCode,
-          operationalCode: projectCode,
           continentCode,
           countryCode,
           fyCode,

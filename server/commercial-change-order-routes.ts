@@ -37,7 +37,7 @@ router.post('/change-orders', ensureAuthenticated, ensureManager, async (req: Re
     }
 
     const projectResult = await pool.query(
-      `SELECT p.id, p.source_offer_id, p.source_order_number, p.code as operational_code,
+      `SELECT p.id, p.source_offer_id, p.source_order_number, p.code as project_code,
               o.customer_id, o.status AS offer_status
        FROM projects p
        JOIN offers o ON o.id = p.source_offer_id
