@@ -12089,12 +12089,3 @@ export const epcDocuments = pgTable('epc_documents', {
 export const insertEpcDocumentSchema = createInsertSchema(epcDocuments).omit({ id: true, uploadedAt: true });
 export type EpcDocument = typeof epcDocuments.$inferSelect;
 export type InsertEpcDocument = z.infer<typeof insertEpcDocumentSchema>;
-
-export const docSequences = pgTable('doc_sequences', {
-  id: serial('id').primaryKey(),
-  docType: text('doc_type').notNull(),
-  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-  nextSeq: integer('next_seq').notNull().default(1),
-});
-
-export type DocSequence = typeof docSequences.$inferSelect;
