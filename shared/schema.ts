@@ -1991,6 +1991,11 @@ export const projectItems = pgTable('project_items', {
   productCode: text('product_code'),
   inheritedMasterRevision: text('inherited_master_revision'),
   deviationNotes: text('deviation_notes'),
+
+  codeBars: varchar('code_bars', { length: 16 }),
+  sapSynced: boolean('sap_synced').default(false),
+  sapSyncedAt: timestamp('sap_synced_at'),
+  sapSyncError: text('sap_sync_error'),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

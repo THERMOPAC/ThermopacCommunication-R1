@@ -572,6 +572,7 @@ export async function executeOfferConversion(
     for (const offerItem of parentItems) {
       const baseItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
       const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
+      const codeBars = await epcCoding.generateCodeBars(fyCode, client);
       const masterItemId = offerItem.product_code
         ? await findOrCreateMasterItem(
             client, offerItem.product_code, offerItem.description,
@@ -581,19 +582,19 @@ export async function executeOfferConversion(
 
       const piResult = await client.query(
         `INSERT INTO project_items
-         (project_id, project_code, item_id, item_code, description, uom, make_or_buy,
+         (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
           quantity, estimated_cost, notes, status, source,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Make',
-          $7, $8, $9, 'Not Started', 'sales_offer',
-          $10, $11, $12, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Make',
+          $8, $9, $10, 'Not Started', 'sales_offer',
+          $11, $12, $13, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          projectItemCode, offerItem.description, offerItem.unit || 'set',
+          projectItemCode, codeBars, offerItem.description, offerItem.unit || 'set',
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           offerId, offerItem.id, orderNumber
@@ -612,6 +613,7 @@ export async function executeOfferConversion(
 
       const baseItemCode = customerBpCode ? `${customerBpCode}-${childItem.product_code || ''}` : (childItem.product_code || '');
       const projectItemCode = epcCoding.buildProjectItemCode(baseItemCode, fyCode, projectSeq);
+      const codeBars = await epcCoding.generateCodeBars(fyCode, client);
       const masterItemId = childItem.product_code
         ? await findOrCreateMasterItem(
             client, childItem.product_code, childItem.description,
@@ -621,20 +623,20 @@ export async function executeOfferConversion(
 
       const piResult = await client.query(
         `INSERT INTO project_items
-         (project_id, project_code, item_id, item_code, description, uom, make_or_buy,
+         (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
           quantity, estimated_cost, notes, status, source,
           parent_project_item_id,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'Make',
-          $7, $8, $9, 'Not Started', 'sales_offer',
-          $10, $11, $12, $13, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Make',
+          $8, $9, $10, 'Not Started', 'sales_offer',
+          $11, $12, $13, $14, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          projectItemCode, childItem.description, childItem.unit || 'set',
+          projectItemCode, codeBars, childItem.description, childItem.unit || 'set',
           childItem.quantity, childItem.total_price,
           childItem.description,
           parentProjectItemId,

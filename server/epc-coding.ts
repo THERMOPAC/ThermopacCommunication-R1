@@ -117,6 +117,17 @@ export function buildProjectItemCode(
   return `${baseItemCode}-P${fyCode}-${projectSeq}`;
 }
 
+export async function generateCodeBars(
+  fyCode: string,
+  client: any
+): Promise<string> {
+  const seqName = `codebars_seq_${fyCode}`;
+  await client.query(`CREATE SEQUENCE IF NOT EXISTS ${seqName} START 1 INCREMENT 1`);
+  const result = await client.query(`SELECT nextval('${seqName}') AS seq`);
+  const seq = String(result.rows[0].seq).padStart(11, '0');
+  return `P${fyCode}${seq}`;
+}
+
 export async function generateDocumentNumber(
   projectId: number,
   docTypeAbbr: string,
