@@ -1965,9 +1965,9 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[4%]"></TableHead>
-                            <TableHead>Item Code</TableHead>
-                            <TableHead>Description</TableHead>
+                            <TableHead className="w-[3%]"></TableHead>
+                            <TableHead className="min-w-[260px]">Item Code</TableHead>
+                            <TableHead className="min-w-[300px]">Description</TableHead>
                             <TableHead>Quantity</TableHead>
                             <TableHead>UOM</TableHead>
                             <TableHead>Make/Buy</TableHead>
@@ -2785,15 +2785,15 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <Table className="min-w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[4%]"></TableHead>
-                      <TableHead className="w-[13%]">Item Code</TableHead>
-                      <TableHead className="w-[17%]">Description</TableHead>
-                      <TableHead className="w-[7%]">Quantity</TableHead>
-                      <TableHead className="w-[7%]">UOM</TableHead>
-                      <TableHead className="w-[7%]">Make/Buy</TableHead>
+                      <TableHead className="w-[3%]"></TableHead>
+                      <TableHead className="w-[20%]">Item Code</TableHead>
+                      <TableHead className="w-[22%]">Description</TableHead>
+                      <TableHead className="w-[6%]">Quantity</TableHead>
+                      <TableHead className="w-[5%]">UOM</TableHead>
+                      <TableHead className="w-[6%]">Make/Buy</TableHead>
                       <TableHead className="w-[10%]">Drawing No</TableHead>
-                      <TableHead className="w-[12%]">Status</TableHead>
-                      <TableHead className="w-[23%] text-center">Actions</TableHead>
+                      <TableHead className="w-[10%]">Status</TableHead>
+                      <TableHead className="w-[18%] text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
