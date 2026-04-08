@@ -547,7 +547,7 @@ export async function executeOfferConversion(
       client: any, productCode: string, description: string, unit: string,
       estimatedCost: string, hsnSacCode: string | null, bpCode: string
     ): Promise<number> {
-      const masterItemCode = bpCode ? `${bpCode}-${productCode}` : productCode;
+      const masterItemCode = productCode;
       const existing = await client.query(
         `SELECT id FROM master_items WHERE item_code = $1 LIMIT 1`,
         [masterItemCode]
