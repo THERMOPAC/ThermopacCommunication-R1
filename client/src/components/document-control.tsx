@@ -497,38 +497,41 @@ function FolderDetailView({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {revDocs.map((doc) => (
-                          <TableRow key={doc.id} className="text-xs">
-                            <TableCell className="py-2">
-                              <div className="flex items-center gap-2">
-                                {getFileIcon(doc.fileName)}
-                                <span className="font-medium truncate max-w-[200px]" title={doc.fileName}>
-                                  {doc.fileName}
-                                </span>
-                                {revDocs.length > 1 && (
-                                  <Badge variant="outline" className="text-[10px]">
-                                    #{doc.seqNumber}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2">{formatFileSize(doc.fileSize)}</TableCell>
-                            <TableCell className="py-2">{doc.uploaderName || "—"}</TableCell>
-                            <TableCell className="py-2">
-                              {format(new Date(doc.uploadedAt), "dd MMM yyyy HH:mm")}
-                            </TableCell>
-                            <TableCell className="py-2 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2"
-                                onClick={() => onDownload(doc.id)}
-                              >
-                                <Download className="h-3.5 w-3.5 mr-1" />
-                                Download
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                        {revDocs.map((doc, idx) => (
+                          <>
+                            <TableRow key={doc.id} className={`text-xs ${idx < revDocs.length - 1 ? "border-b-0" : ""}`}>
+                              <TableCell className="py-2 pb-1">
+                                <div className="flex items-center gap-2">
+                                  {getFileIcon(doc.fileName)}
+                                  <span className="font-medium truncate max-w-[200px]" title={doc.fileName}>
+                                    {doc.fileName}
+                                  </span>
+                                  {revDocs.length > 1 && (
+                                    <Badge variant="outline" className="text-[10px]">
+                                      #{doc.seqNumber}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <code className="text-[10px] text-muted-foreground font-mono break-all block mt-1">{doc.gcsObjectPath}</code>
+                              </TableCell>
+                              <TableCell className="py-2">{formatFileSize(doc.fileSize)}</TableCell>
+                              <TableCell className="py-2">{doc.uploaderName || "—"}</TableCell>
+                              <TableCell className="py-2">
+                                {format(new Date(doc.uploadedAt), "dd MMM yyyy HH:mm")}
+                              </TableCell>
+                              <TableCell className="py-2 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2"
+                                  onClick={() => onDownload(doc.id)}
+                                >
+                                  <Download className="h-3.5 w-3.5 mr-1" />
+                                  Download
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          </>
                         ))}
                       </TableBody>
                     </Table>
