@@ -1336,8 +1336,19 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(400).json({ error: `Invalid source value. Allowed: ${VALID_SOURCES.join(', ')}` });
       }
       
+      let itemCode = req.body.itemCode || req.body.item_code || '';
+      if (itemCode && (project as any).fy_code) {
+        const client = await pool.connect();
+        try {
+          itemCode = await epcCoding.generateProjectItemCode(projectId, itemCode, (project as any).fy_code, client);
+        } finally {
+          client.release();
+        }
+      }
+
       const itemData = insertProjectItemSchema.parse({
         ...req.body,
+        itemCode: itemCode || req.body.itemCode || req.body.item_code,
         source: itemSource,
         projectId,
         projectCode: project.code,

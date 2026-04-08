@@ -570,7 +570,8 @@ export async function executeOfferConversion(
     }
 
     for (const offerItem of parentItems) {
-      const orderItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
+      const baseItemCode = customerBpCode ? `${customerBpCode}-${offerItem.product_code || ''}` : (offerItem.product_code || '');
+      const projectItemCode = await epcCoding.generateProjectItemCode(project.id, baseItemCode, fyCode, client);
       const masterItemId = offerItem.product_code
         ? await findOrCreateMasterItem(
             client, offerItem.product_code, offerItem.description,
@@ -592,7 +593,7 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          orderItemCode, offerItem.description, offerItem.unit || 'set',
+          projectItemCode, offerItem.description, offerItem.unit || 'set',
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           offerId, offerItem.id, orderNumber
@@ -609,7 +610,8 @@ export async function executeOfferConversion(
         ? offerItemIdToProjectItemId[childItem.parent_item_id] || null
         : null;
 
-      const orderItemCode = customerBpCode ? `${customerBpCode}-${childItem.product_code || ''}` : (childItem.product_code || '');
+      const baseItemCode = customerBpCode ? `${customerBpCode}-${childItem.product_code || ''}` : (childItem.product_code || '');
+      const projectItemCode = await epcCoding.generateProjectItemCode(project.id, baseItemCode, fyCode, client);
       const masterItemId = childItem.product_code
         ? await findOrCreateMasterItem(
             client, childItem.product_code, childItem.description,
@@ -632,7 +634,7 @@ export async function executeOfferConversion(
          RETURNING id`,
         [
           project.id, operationalCode, masterItemId,
-          orderItemCode, childItem.description, childItem.unit || 'set',
+          projectItemCode, childItem.description, childItem.unit || 'set',
           childItem.quantity, childItem.total_price,
           childItem.description,
           parentProjectItemId,
