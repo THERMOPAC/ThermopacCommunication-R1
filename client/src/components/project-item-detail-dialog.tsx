@@ -277,8 +277,8 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 <div className="mt-1 text-sm bg-muted rounded px-3 py-2">{item.sourceOrderNumber || "-"}</div>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawing No (Legacy)</label>
-                <div className="mt-1 text-sm bg-muted rounded px-3 py-2">{item.masterItem?.drawingNo || "-"}</div>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">CodeBars (SAP BarCode)</label>
+                <div className="mt-1 font-mono text-sm bg-amber-50 border border-amber-200 rounded px-3 py-2">{item.codeBars || "-"}</div>
               </div>
             </div>
 
