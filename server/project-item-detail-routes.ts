@@ -354,8 +354,21 @@ export function setupProjectItemDetailRoutes(app: Router) {
       const projResult = await db.select().from(projects).where(eq(projects.id, pi.projectId));
       const project = projResult.length > 0 ? projResult[0] : null;
 
+      const sapCompanyDB = process.env.SAP_COMPANY_DB;
+      const sapUsername = process.env.SAP_USERNAME;
+      const sapPassword = process.env.SAP_PASSWORD;
+
+      if (!sapCompanyDB) {
+        return res.status(500).json({ message: 'SAP_COMPANY_DB environment secret is not set' });
+      }
+      if (!sapUsername || !sapPassword) {
+        return res.status(500).json({ message: 'SAP_USERNAME or SAP_PASSWORD environment secret is not set' });
+      }
+
       const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
       const sapClient = new SapHttpsClient();
+
+      console.log(`[SAP Sync] Connecting to CompanyDB: ${sapCompanyDB}`);
 
       let loginResponse;
       try {
@@ -364,9 +377,9 @@ export function setupProjectItemDetailRoutes(app: Router) {
           url: `${sapServiceUrl}/Login`,
           headers: { 'Content-Type': 'application/json' },
           body: {
-            CompanyDB: process.env.SAP_COMPANY_DB || 'TPEL_TEST_120326',
-            UserName: process.env.SAP_USERNAME,
-            Password: process.env.SAP_PASSWORD,
+            CompanyDB: sapCompanyDB,
+            UserName: sapUsername,
+            Password: sapPassword,
           },
           timeout: 30000,
         });

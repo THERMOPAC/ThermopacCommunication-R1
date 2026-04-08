@@ -21,7 +21,9 @@ function parseSapCookies(setCookieHeaders: string | string[] | undefined): strin
 }
 
 function getSapCompanyDb(req?: express.Request): string {
-  return req?.sapSession?.companyDb || process.env.SAP_COMPANY_DB || 'TPEL_TEST_120326';
+  const db = req?.sapSession?.companyDb || process.env.SAP_COMPANY_DB;
+  if (!db) throw new Error('SAP_COMPANY_DB environment secret is not set');
+  return db;
 }
 
 function getSapLoginBody(req?: express.Request): string {
