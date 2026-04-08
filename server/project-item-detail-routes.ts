@@ -7,7 +7,8 @@ import {
   engineeringChangeNotices,
   changeDocuments,
   users,
-  projectItems
+  projectItems,
+  projects
 } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { resolveProjectGeoCodes } from './epc-coding';
@@ -15,6 +16,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { gcsStorage } from './utils/gcs-storage';
+import { SapHttpsClient } from './sap-b1-integration/sap-https-client';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -335,5 +337,151 @@ export function setupProjectItemDetailRoutes(app: Router) {
     }
   });
 
-  console.log('Project Item Detail routes registered at /api/project-items/:id/drawings, /ecr, /ecn');
+  app.post('/api/project-items/:projectItemId/sap-sync', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectItemId = parseInt(req.params.projectItemId);
+      const piResult = await db.select().from(projectItems).where(eq(projectItems.id, projectItemId));
+      if (piResult.length === 0) return res.status(404).json({ message: 'Project item not found' });
+      const pi = piResult[0];
+
+      if (!pi.codeBars || pi.codeBars.length !== 16) {
+        return res.status(400).json({ message: 'Project item must have a valid 16-character CodeBars before SAP sync' });
+      }
+      if (!pi.itemCode) {
+        return res.status(400).json({ message: 'Project item must have an item code before SAP sync' });
+      }
+
+      const projResult = await db.select().from(projects).where(eq(projects.id, pi.projectId));
+      const project = projResult.length > 0 ? projResult[0] : null;
+
+      const sapServiceUrl = 'https://59.152.52.58:50000/b1s/v1';
+      const sapClient = new SapHttpsClient();
+
+      let loginResponse;
+      try {
+        loginResponse = await sapClient.request({
+          method: 'POST',
+          url: `${sapServiceUrl}/Login`,
+          headers: { 'Content-Type': 'application/json' },
+          body: {
+            CompanyDB: process.env.SAP_COMPANY_DB || 'TPEL_LIVE',
+            UserName: process.env.SAP_USERNAME,
+            Password: process.env.SAP_PASSWORD,
+          },
+          timeout: 30000,
+        });
+      } catch (connErr: any) {
+        console.error('SAP B1 login connection error:', connErr.message);
+        await db.update(projectItems).set({
+          sapSynced: false,
+          sapSyncError: `SAP connection failed: ${connErr.message}`,
+          updatedAt: new Date(),
+        }).where(eq(projectItems.id, projectItemId));
+        return res.status(502).json({ message: `SAP connection failed: ${connErr.message}` });
+      }
+
+      if (loginResponse.statusCode !== 200) {
+        const errDetail = loginResponse.body?.substring(0, 200) || 'Unknown error';
+        await db.update(projectItems).set({
+          sapSynced: false,
+          sapSyncError: `SAP login failed (${loginResponse.statusCode}): ${errDetail}`,
+          updatedAt: new Date(),
+        }).where(eq(projectItems.id, projectItemId));
+        return res.status(502).json({ message: `SAP login failed: ${loginResponse.statusCode}` });
+      }
+
+      const setCookieHeaders = loginResponse.headers['set-cookie'];
+      const cookieArr = Array.isArray(setCookieHeaders) ? setCookieHeaders : setCookieHeaders ? [setCookieHeaders] : [];
+      const cookieStr = cookieArr.map((h: string) => h.split(';')[0].trim()).filter(Boolean).join('; ');
+      const requestHeaders = { 'Content-Type': 'application/json', 'Cookie': cookieStr };
+
+      const uom = pi.uom || 'Nos';
+      const sapItemPayload = {
+        ItemCode: pi.itemCode,
+        ItemName: pi.description || pi.itemCode,
+        BarCode: pi.codeBars,
+        ItmsGrpCod: 104,
+        SalesUnit: uom,
+        PurchaseUnit: uom,
+        InventoryUOM: uom,
+        ItemType: 'itItems',
+        ValidFor: 'tYES',
+        U_ProjectCode: project?.projectCode || '',
+      };
+
+      console.log(`[SAP Sync] Attempting to create/update item in SAP B1: ${pi.itemCode} (BarCode: ${pi.codeBars})`);
+
+      let itemResponse = await sapClient.request({
+        method: 'POST',
+        url: `${sapServiceUrl}/Items`,
+        headers: requestHeaders,
+        body: sapItemPayload,
+        timeout: 30000,
+      });
+
+      let sapResult: any = {};
+      let syncError: string | null = null;
+
+      if (itemResponse.ok) {
+        try { sapResult = JSON.parse(itemResponse.body); } catch { sapResult = { ItemCode: pi.itemCode }; }
+        console.log(`[SAP Sync] Item created successfully: ${pi.itemCode}`);
+      } else if (itemResponse.statusCode === 400 && itemResponse.body?.includes('-2035')) {
+        console.log(`[SAP Sync] Item already exists in SAP, attempting PATCH update: ${pi.itemCode}`);
+        const patchPayload = { ...sapItemPayload };
+        delete (patchPayload as any).ItemCode;
+
+        const patchResponse = await sapClient.request({
+          method: 'PATCH',
+          url: `${sapServiceUrl}/Items('${encodeURIComponent(pi.itemCode)}')`,
+          headers: requestHeaders,
+          body: patchPayload,
+          timeout: 30000,
+        });
+
+        if (patchResponse.ok || patchResponse.statusCode === 204) {
+          sapResult = { ItemCode: pi.itemCode, updated: true };
+          console.log(`[SAP Sync] Item updated successfully: ${pi.itemCode}`);
+        } else {
+          syncError = `SAP update failed (${patchResponse.statusCode}): ${patchResponse.body?.substring(0, 300)}`;
+          console.error(`[SAP Sync] Update failed:`, syncError);
+        }
+      } else {
+        syncError = `SAP create failed (${itemResponse.statusCode}): ${itemResponse.body?.substring(0, 300)}`;
+        console.error(`[SAP Sync] Create failed:`, syncError);
+      }
+
+      try {
+        await sapClient.request({ method: 'POST', url: `${sapServiceUrl}/Logout`, headers: requestHeaders });
+      } catch { }
+
+      if (syncError) {
+        await db.update(projectItems).set({
+          sapSynced: false,
+          sapSyncError: syncError,
+          updatedAt: new Date(),
+        }).where(eq(projectItems.id, projectItemId));
+        return res.status(502).json({ message: syncError });
+      }
+
+      await db.update(projectItems).set({
+        sapSynced: true,
+        sapSyncedAt: new Date(),
+        sapSyncError: null,
+        updatedAt: new Date(),
+      }).where(eq(projectItems.id, projectItemId));
+
+      res.json({
+        message: `Item ${pi.itemCode} synced to SAP B1 successfully`,
+        sapResult,
+        codeBars: pi.codeBars,
+        itemCode: pi.itemCode,
+        syncedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error('SAP sync error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  console.log('Project Item Detail routes registered at /api/project-items/:id/drawings, /ecr, /ecn, /sap-sync');
 }

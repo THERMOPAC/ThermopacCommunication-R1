@@ -167,6 +167,18 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
     },
   });
 
+  const sapSyncMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", `/api/project-items/${item.id}/sap-sync`);
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "SAP Sync Successful", description: `Item ${data.itemCode} synced with BarCode ${data.codeBars}` });
+    },
+    onError: (err: any) => {
+      toast({ title: "SAP Sync Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const addEcrMutation = useMutation({
     mutationFn: async (data: any) => {
       return apiRequest("POST", `/api/project-items/${item.id}/ecr`, data);
@@ -326,7 +338,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
 
             <div className="border-t pt-3">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">SAP Sync Status</label>
-              <div className="mt-1 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-3">
                 {item.sapSynced ? (
                   <Badge variant="default" className="bg-green-600">
                     <CheckCircle className="h-3 w-3 mr-1" /> Synced
@@ -339,9 +351,27 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                     {format(new Date(item.sapSyncedAt), "dd MMM yyyy HH:mm")}
                   </span>
                 )}
-                {item.sapSyncError && (
-                  <span className="text-xs text-red-600">{item.sapSyncError}</span>
-                )}
+                <Button
+                  size="sm"
+                  variant={item.sapSynced ? "outline" : "default"}
+                  disabled={!item.codeBars || sapSyncMutation.isPending}
+                  onClick={() => sapSyncMutation.mutate()}
+                  className="ml-auto"
+                >
+                  {sapSyncMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Syncing...</>
+                  ) : (
+                    <><Upload className="h-4 w-4 mr-1" /> {item.sapSynced ? "Re-sync to SAP" : "Sync to SAP B1"}</>
+                  )}
+                </Button>
+              </div>
+              {(item.sapSyncError || sapSyncMutation.isError) && (
+                <div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">
+                  {(sapSyncMutation.error as any)?.message || item.sapSyncError}
+                </div>
+              )}
+              <div className="mt-2 text-xs text-muted-foreground">
+                SAP payload: ItemCode={item.itemCode}, BarCode={item.codeBars}, ItmsGrpCod=104, UOM={item.uom || 'Nos'}
               </div>
             </div>
           </TabsContent>
