@@ -283,56 +283,69 @@ export default function DocumentControl({ projectId }: { projectId: number }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {folders.map((folder) => (
-          <FolderCard
-            key={folder.folderCode}
-            folder={folder}
-            onClick={() => setSelectedFolder(folder.folderCode)}
-          />
-        ))}
-      </div>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[80px]">Code</TableHead>
+              <TableHead>Folder Name</TableHead>
+              <TableHead className="w-[100px]">Mode</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[130px]">Last Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {folders.map((folder) => {
+              const colorClass = FOLDER_COLORS[folder.folderCode] || "";
+              return (
+                <TableRow
+                  key={folder.folderCode}
+                  className={`cursor-pointer hover:bg-muted/50 ${colorClass}`}
+                  onClick={() => setSelectedFolder(folder.folderCode)}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4 text-primary/70 shrink-0" />
+                      <span className="text-sm">{folder.docType}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">{folder.name}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs text-muted-foreground">
+                      {folder.uploadMode === "multi" ? "Multi-file" : "Single"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {folder.hasDocument ? (
+                      <Badge variant="default" className="bg-green-600 text-xs">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Rev {folder.currentRevision}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        Empty
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {folder.lastUpdated ? (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(folder.lastUpdated), "dd MMM yyyy")}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
-  );
-}
-
-function FolderCard({ folder, onClick }: { folder: FolderStatus; onClick: () => void }) {
-  const colorClass = FOLDER_COLORS[folder.folderCode] || "bg-gray-50 border-gray-200";
-
-  return (
-    <Card
-      className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] border ${colorClass}`}
-      onClick={onClick}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-primary/70" />
-            <span className="font-medium text-sm">{folder.docType}</span>
-          </div>
-          {folder.hasDocument ? (
-            <Badge variant="default" className="bg-green-600 text-xs">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Rev {folder.currentRevision}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              Empty
-            </Badge>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{folder.name}</p>
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-          <span>{folder.uploadMode === "multi" ? "Multi-file" : "Single file"}</span>
-          {folder.lastUpdated && (
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {format(new Date(folder.lastUpdated), "dd MMM yyyy")}
-            </span>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
