@@ -34,7 +34,7 @@ export function setupEpcMonitoringRoutes(app: Router) {
           EXTRACT(DAY FROM NOW() - edc.created_at)::int AS age_days,
           p.code AS project_code,
           p.name AS project_name,
-          p.operational_code
+          p.code AS operational_code
         FROM epc_drawing_controls edc
         JOIN projects p ON p.id = edc.project_id
         WHERE edc.status = 'pending_upload'

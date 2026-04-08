@@ -122,7 +122,7 @@ const STALE_SNAPSHOT_MINUTES = 10;
 
 async function checkIdempotencyInTx(offerId: number, client: any): Promise<ConversionResult | null> {
   const snapResult = await client.query(
-    `SELECT s.*, p.operational_code, p.name as project_name, p.status as project_status, p.id as pid
+    `SELECT s.*, p.code as project_code, p.name as project_name, p.status as project_status, p.id as pid
      FROM offer_conversion_snapshots s
      LEFT JOIN projects p ON p.id = s.project_id
      WHERE s.offer_id = $1 AND s.conversion_status != 'recovered'
@@ -138,7 +138,7 @@ async function checkIdempotencyInTx(offerId: number, client: any): Promise<Conve
       offer: offerResult.rows[0],
       project: {
         id: snap.pid,
-        operationalCode: snap.operational_code,
+        code: snap.project_code,
         name: snap.project_name,
         status: snap.project_status,
       },
@@ -376,14 +376,9 @@ export async function executeOfferConversion(
       [snapshotId]
     );
 
-    const seqResult = await client.query(
-      `SELECT COALESCE(MAX(CAST(project_seq AS INTEGER)), 0) + 1 AS next_seq
-       FROM projects
-       WHERE continent_code = $1 AND country_code = $2 AND customer_id = $3 AND fy_code = $4`,
-      [continentCode, countryCode, offer.customer_id, fyCode]
-    );
-    const nextSeq = seqResult.rows[0].next_seq;
-    const projectSeq = String(nextSeq).padStart(3, '0');
+    const { getNextProjectSeq } = await import('./doc-sequence-service');
+    const projectSeq = await getNextProjectSeq(fyCode, client);
+    const projectCode = `${fyCode}-${projectSeq}`;
 
     const custResult = await client.query(
       `SELECT short_code, bp_name, bp_code FROM customers WHERE id = $1`, [offer.customer_id]
@@ -394,7 +389,6 @@ export async function executeOfferConversion(
     const shortCode = custResult.rows[0].short_code;
     const customerName = custResult.rows[0].bp_name;
     const customerBpCode = custResult.rows[0].bp_code || '';
-    const operationalCode = `TP-${continentCode}-${countryCode}-${shortCode}-${fyCode}-${projectSeq}`;
 
     const projectName = offer.subject || `EPC Project - ${customerName}`;
     const projectDescription = [
@@ -421,10 +415,10 @@ export async function executeOfferConversion(
                NOW(), NOW())
        RETURNING *`,
       [
-        projectName, projectDescription, operationalCode, projectType, priority, financialYear,
+        projectName, projectDescription, projectCode, projectType, priority, financialYear,
         offer.customer_id, customerName, epcParams.startDate, epcParams.targetEndDate,
         offer.total_amount, projectCurrency, epcParams.managerId, userId,
-        continentCode, countryCode, fyCode, projectSeq, operationalCode,
+        continentCode, countryCode, fyCode, projectSeq, projectCode,
         offerId, offer.revision || 0, orderNumber, conversionId
       ]
     );
@@ -593,7 +587,7 @@ export async function executeOfferConversion(
          DO NOTHING
          RETURNING id`,
         [
-          project.id, operationalCode, masterItemId,
+          project.id, projectCode, masterItemId,
           projectItemCode, codeBars, offerItem.description, offerItem.unit || 'set',
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
@@ -635,7 +629,7 @@ export async function executeOfferConversion(
          DO NOTHING
          RETURNING id`,
         [
-          project.id, operationalCode, masterItemId,
+          project.id, projectCode, masterItemId,
           projectItemCode, codeBars, childItem.description, childItem.unit || 'set',
           childItem.quantity, childItem.total_price,
           childItem.description,
@@ -671,7 +665,7 @@ export async function executeOfferConversion(
         orderNumber,
         snapshotId,
         projectId: project.id,
-        operationalCode,
+        projectCode,
         itemsCreated,
         itemsPendingMapping: itemsPendingMapping.length,
         convertedBy: userId,
@@ -783,7 +777,7 @@ export async function executeOfferConversion(
       try {
         const baselineLabel = `Baseline Order — ${orderNumber}`;
         const attachResult = await attachConfirmedArtifactToEpc(
-          primaryArtifactId, project.id, operationalCode, offerId, offer.offer_number, userId, baselineLabel
+          primaryArtifactId, project.id, projectCode, offerId, offer.offer_number, userId, baselineLabel
         );
         if (attachResult.success) {
           console.log(`[offer-conversion] EPC attachment ${attachResult.epcAttachmentId} created for artifact ${primaryArtifactId}`);
@@ -795,14 +789,14 @@ export async function executeOfferConversion(
              VALUES ($1, 'quotation_pdf_attachment_failed', $2, 'offer-conversion', NOW(), false)`,
             [project.id, JSON.stringify({
               artifactId: primaryArtifactId, offerId, offerNumber: offer.offer_number,
-              projectId: project.id, operationalCode, error: attachResult.error,
+              projectId: project.id, projectCode, error: attachResult.error,
             })]
           );
           const { createEpcTask } = await import('./epc-task-helpers');
           await createEpcTask({
             projectId: project.id, entityType: 'project', recordId: project.id,
             actionCode: 'quotation_pdf_attachment_repair',
-            title: `Quotation PDF attachment failed for project ${operationalCode}`,
+            title: `Quotation PDF attachment failed for project ${projectCode}`,
             description: `The confirmed quotation PDF (artifact #${primaryArtifactId}) could not be attached to the EPC project. Error: ${attachResult.error}. Manual repair required.`,
             assignedTo: epcParams.managerId, createdBy: userId, priority: 'Medium', dueDays: 2,
           });
@@ -818,7 +812,7 @@ export async function executeOfferConversion(
       offer: updatedOffer.rows[0],
       project: {
         id: project.id,
-        operationalCode: project.operational_code,
+        code: project.code,
         name: project.name,
         status: project.status,
       },

@@ -27,7 +27,7 @@ function buildSlotGcsPath(
   countryCode: string,
   customerShortCode: string,
   fyCode: string,
-  operationalCode: string,
+  projectSeq: string,
   docTypeCode: string,
   revision: string,
   seqNumber: number,
@@ -42,7 +42,7 @@ function buildSlotGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${operationalCode}/${docTypeCode}/${rev}/${seq}-${safeLabel}.${ext}`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docTypeCode}/${rev}/${seq}-${safeLabel}.${ext}`;
 }
 
 function validateExtension(fileName: string, allowedExtensions: string[]): { valid: boolean; ext: string; message?: string } {
@@ -343,7 +343,7 @@ export function setupDocumentControlRoutes(app: Express) {
             geo.countryCode,
             geo.customerShortCode,
             geo.fyCode,
-            geo.operationalCode,
+            geo.projectSeq,
             docType.code,
             nextRevision,
             seqNumber,

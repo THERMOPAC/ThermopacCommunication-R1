@@ -374,9 +374,9 @@ export function OffersContent() {
       apiRequest('PATCH', `/api/sales-marketing/offers/${id}/status`, { status: 'Order Confirmed', epcParams }),
     onSuccess: (result: any) => {
       if (result.alreadyConverted) {
-        toast({ title: "Already Converted", description: `Project ${result.project?.operationalCode} already exists for this offer.` });
+        toast({ title: "Already Converted", description: `Project ${result.project?.code} already exists for this offer.` });
       } else {
-        toast({ title: "Order Confirmed", description: `EPC Project ${result.project?.operationalCode} created. Order: ${result.orderNumber}` });
+        toast({ title: "Order Confirmed", description: `EPC Project ${result.project?.code} created. Order: ${result.orderNumber}` });
       }
       setConversionResult(result);
       setConversionErrors([]);
@@ -932,7 +932,7 @@ export function OffersContent() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <Label className="text-muted-foreground">Project Code</Label>
-                    <p className="font-mono font-medium">{conversionResult.project?.operationalCode}</p>
+                    <p className="font-mono font-medium">{conversionResult.project?.code}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Order Number</Label>

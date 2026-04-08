@@ -363,7 +363,7 @@ export function setupDispatchRoutes(app: Router) {
         ? await findEpcDispatchRecord(dispatchNumber, project.id)
         : null;
 
-      if (dspCutoverEnabled && epcDispatch && project.operational_code) {
+      if (dspCutoverEnabled && epcDispatch && project.code) {
         const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
         const documentNumber = epcDispatch.dispatch_number;
 
@@ -402,7 +402,7 @@ export function setupDispatchRoutes(app: Router) {
 
           const gcsObjectPath = epcCoding.buildEpcGcsPath(
             geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
-            geo.operationalCode, 'DSP', documentNumber,
+            geo.projectSeq, 'DSP', documentNumber,
             null, attachmentSeq, attachmentLabel, fileName
           );
 

@@ -27,13 +27,13 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
 
 const MANAGER_PLUS_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 
-async function resolveProjectFromCode(projectCode: string): Promise<{ id: number; operationalCode: string | null } | null> {
+async function resolveProjectFromCode(projectCodeStr: string): Promise<{ id: number; code: string | null } | null> {
   const result = await db.execute(
-    sql`SELECT id, operational_code FROM projects WHERE code = ${projectCode} LIMIT 1`
+    sql`SELECT id, code FROM projects WHERE code = ${projectCodeStr} LIMIT 1`
   );
   if (result.rows.length === 0) return null;
   const row = result.rows[0] as any;
-  return { id: row.id, operationalCode: row.operational_code };
+  return { id: row.id, code: row.code };
 }
 
 async function enforceFileAccessControl(

@@ -86,24 +86,10 @@ export async function generateOperationalCode(
   fyCode: string,
   tx: any
 ): Promise<{ operationalCode: string; projectSeq: string }> {
-  const custResult = await tx.execute(
-    sql`SELECT short_code FROM customers WHERE id = ${customerId}`
-  );
-  if (custResult.rows.length === 0) {
-    throw new Error(`Customer not found: ${customerId}`);
-  }
-  const shortCode = (custResult.rows[0] as any).short_code;
-
-  const seqResult = await tx.execute(
-    sql`SELECT COALESCE(MAX(CAST(project_seq AS INTEGER)), 0) + 1 AS next_seq
-        FROM projects
-        WHERE fy_code = ${fyCode}`
-  );
-  const nextSeq = (seqResult.rows[0] as any).next_seq;
-  const projectSeq = String(nextSeq).padStart(3, '0');
-  const operationalCode = `TP-${continentCode}-${countryCode}-${shortCode}-${fyCode}-${projectSeq}`;
-
-  return { operationalCode, projectSeq };
+  const { getNextProjectSeq } = await import('./doc-sequence-service');
+  const projectSeq = await getNextProjectSeq(fyCode, tx);
+  const projectCode = `${fyCode}-${projectSeq}`;
+  return { operationalCode: projectCode, projectSeq };
 }
 
 export function buildProjectItemCode(
@@ -138,23 +124,16 @@ export async function generateDocumentNumber(
   }
 
   const projectResult = await tx.execute(
-    sql`SELECT operational_code FROM projects WHERE id = ${projectId}`
+    sql`SELECT code FROM projects WHERE id = ${projectId}`
   );
   if (projectResult.rows.length === 0) {
     throw new Error(`Project not found: ${projectId}`);
   }
-  const operationalCode = (projectResult.rows[0] as any).operational_code;
+  const projectCode = (projectResult.rows[0] as any).code;
 
-  const prefix = `${operationalCode}-${docTypeAbbr}-`;
-  const seqResult = await tx.execute(
-    sql.raw(
-      `SELECT COALESCE(MAX(CAST(SUBSTRING(${docType.column} FROM '-(\\d{4})$') AS INTEGER)), 0) + 1 AS next_seq
-       FROM ${docType.table}
-       WHERE project_id = ${projectId}`
-    )
-  );
-  const nextSeq = (seqResult.rows[0] as any).next_seq;
-  return `${prefix}${String(nextSeq).padStart(4, '0')}`;
+  const { getNextDocSeq } = await import('./doc-sequence-service');
+  const seq = await getNextDocSeq(docTypeAbbr, projectId, tx);
+  return `${projectCode}-${docTypeAbbr}-${seq}`;
 }
 
 export const REVISION_CONTROLLED_TYPES = new Set(['DWG', 'BOM']);
@@ -164,7 +143,7 @@ export function buildEpcGcsPath(
   countryCode: string,
   customerShortCode: string,
   fyCode: string,
-  operationalCode: string,
+  projectSeq: string,
   docType: string,
   documentNumber: string,
   revisionCode: string | null,
@@ -180,15 +159,15 @@ export function buildEpcGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${operationalCode}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
 }
 
 export async function resolveProjectGeoCodes(projectId: number, txOrDb?: any): Promise<{
-  continentCode: string; countryCode: string; customerShortCode: string; fyCode: string; operationalCode: string;
+  continentCode: string; countryCode: string; customerShortCode: string; fyCode: string; projectCode: string; projectSeq: string;
 }> {
   const executor = txOrDb || db;
   const result = await executor.execute(
-    sql`SELECT p.operational_code, p.fy_code,
+    sql`SELECT p.code, p.fy_code, p.project_seq,
                c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
         FROM projects p
         JOIN customers c ON c.id = p.customer_id
@@ -214,7 +193,8 @@ export async function resolveProjectGeoCodes(projectId: number, txOrDb?: any): P
     countryCode,
     customerShortCode: row.short_code,
     fyCode: row.fy_code,
-    operationalCode: row.operational_code,
+    projectCode: row.code,
+    projectSeq: row.project_seq,
   };
 }
 

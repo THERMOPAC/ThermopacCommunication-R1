@@ -52,9 +52,9 @@ async function lookupParentEntity(docType: string, parentEntityId: number, proje
   return result.rows.length > 0 ? result.rows[0] as any : null;
 }
 
-async function getProjectOperationalCode(projectId: number): Promise<string | null> {
-  const r = await db.execute(sql`SELECT operational_code FROM projects WHERE id = ${projectId}`);
-  return r.rows.length > 0 ? (r.rows[0] as any).operational_code : null;
+async function getProjectCode(projectId: number): Promise<string | null> {
+  const r = await db.execute(sql`SELECT code FROM projects WHERE id = ${projectId}`);
+  return r.rows.length > 0 ? (r.rows[0] as any).code : null;
 }
 
 export function setupEpcDocumentRoutes(app: express.Express) {
@@ -89,8 +89,8 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
 
       const geo = await epcCoding.resolveProjectGeoCodes(projectId);
-      if (!geo.operationalCode) {
-        return res.status(400).json({ error: 'Project does not have an operational code' });
+      if (!geo.projectCode) {
+        return res.status(400).json({ error: 'Project does not have a project code' });
       }
 
       const isRevisionControlled = epcCoding.REVISION_CONTROLLED_TYPES.has(docType);
@@ -134,7 +134,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
 
         const gcsObjectPath = epcCoding.buildEpcGcsPath(
           geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
-          geo.operationalCode, docType, documentNumber,
+          geo.projectSeq, docType, documentNumber,
           revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
         );
 

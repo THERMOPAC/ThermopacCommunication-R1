@@ -135,7 +135,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
         const client2 = await pool.connect();
         try {
           const projRes = await client2.query(
-            `SELECT p.id as project_id, p.operational_code, p.fy_code,
+            `SELECT p.id as project_id, p.code, p.project_seq, p.fy_code,
                     c.continent_code, c.country_code, c.short_code
              FROM projects p
              JOIN customers c ON c.id = p.customer_id
@@ -143,10 +143,10 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
              WHERE io.inspection_order_number = $1 LIMIT 1`,
             [inspectionOrderNumber]
           );
-          if (projRes.rows.length > 0 && projRes.rows[0].operational_code && projRes.rows[0].continent_code && projRes.rows[0].country_code) {
+          if (projRes.rows.length > 0 && projRes.rows[0].code && projRes.rows[0].continent_code && projRes.rows[0].country_code) {
             const r = projRes.rows[0];
             const label = `${formattedTabName}_${recordId}`;
-            filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.operational_code}/INS/${inspectionOrderNumber}/A/1-${label}.${fileExtension}`;
+            filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/A/1-${label}.${fileExtension}`;
             console.log(`uploadInspectionDocument: EPC_UPLOAD_CUTOVER enabled, using TPEL path: ${filePath}`);
           } else {
             useEpcPath = false;

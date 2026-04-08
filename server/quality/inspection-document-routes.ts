@@ -263,16 +263,16 @@ router.get("/:inspectionOrderNumber/Final%20Dossier/dossier", ensureAuthenticate
         let epcLegacyPrefix: string | null = null;
         try {
           const projResult = await db.execute(
-            sql`SELECT p.operational_code, p.fy_code, c.continent_code, c.country_code, c.short_code
+            sql`SELECT p.code, p.project_seq, p.fy_code, c.continent_code, c.country_code, c.short_code
                 FROM projects p JOIN customers c ON c.id = p.customer_id
                 WHERE p.id = ${inspection.projectId} LIMIT 1`
           );
           if (projResult.rows.length > 0) {
             const pr = projResult.rows[0] as any;
-            if (pr.operational_code) {
-              epcLegacyPrefix = `EPC/${pr.operational_code}/INS/${inspectionOrderNumber}/`;
+            if (pr.code) {
+              epcLegacyPrefix = `EPC/${pr.code}/INS/${inspectionOrderNumber}/`;
               if (pr.continent_code && pr.country_code && pr.short_code && pr.fy_code) {
-                epcTpelPrefix = `TPEL/${pr.continent_code}/${pr.country_code}/${pr.short_code}/${pr.fy_code}/${pr.operational_code}/INS/${inspectionOrderNumber}/`;
+                epcTpelPrefix = `TPEL/${pr.continent_code}/${pr.country_code}/${pr.short_code}/${pr.fy_code}/${pr.project_seq}/INS/${inspectionOrderNumber}/`;
               }
             }
           }
@@ -555,16 +555,16 @@ router.get("/:inspectionOrderNumber/:tabName/:recordId/documents", ensureAuthent
           let epcLegacyPrefix2: string | null = null;
           try {
             const projRes2 = await db.execute(
-              sql`SELECT p.operational_code, p.fy_code, c.continent_code, c.country_code, c.short_code
+              sql`SELECT p.code, p.project_seq, p.fy_code, c.continent_code, c.country_code, c.short_code
                   FROM projects p JOIN customers c ON c.id = p.customer_id
                   WHERE p.id = ${inspection.projectId} LIMIT 1`
             );
             if (projRes2.rows.length > 0) {
               const pr2 = projRes2.rows[0] as any;
-              if (pr2.operational_code) {
-                epcLegacyPrefix2 = `EPC/${pr2.operational_code}/INS/${inspectionOrderNumber}/`;
+              if (pr2.code) {
+                epcLegacyPrefix2 = `EPC/${pr2.code}/INS/${inspectionOrderNumber}/`;
                 if (pr2.continent_code && pr2.country_code && pr2.short_code && pr2.fy_code) {
-                  epcTpelPrefix2 = `TPEL/${pr2.continent_code}/${pr2.country_code}/${pr2.short_code}/${pr2.fy_code}/${pr2.operational_code}/INS/${inspectionOrderNumber}/`;
+                  epcTpelPrefix2 = `TPEL/${pr2.continent_code}/${pr2.country_code}/${pr2.short_code}/${pr2.fy_code}/${pr2.project_seq}/INS/${inspectionOrderNumber}/`;
                 }
               }
             }

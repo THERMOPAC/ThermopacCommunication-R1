@@ -37,7 +37,7 @@ router.post('/change-orders', ensureAuthenticated, ensureManager, async (req: Re
     }
 
     const projectResult = await pool.query(
-      `SELECT p.id, p.source_offer_id, p.source_order_number, p.operational_code,
+      `SELECT p.id, p.source_offer_id, p.source_order_number, p.code as operational_code,
               o.customer_id, o.status AS offer_status
        FROM projects p
        JOIN offers o ON o.id = p.source_offer_id
@@ -332,10 +332,10 @@ async function handleApproval(cco: any, body: any, user: any): Promise<{ error?:
   );
 
   const project = await pool.query(
-    `SELECT operational_code FROM projects WHERE id = $1`,
+    `SELECT code FROM projects WHERE id = $1`,
     [cco.project_id]
   );
-  const projectCode = project.rows[0]?.operational_code || '';
+  const projectCode = project.rows[0]?.code || '';
 
   const confirmedArtifact = confirmedArtifactCheck.rows[0];
   const changeLabel = `Change Order CO${String(cco.sequence).padStart(2, '0')} — ${formatChangeType(cco.change_type)}`;

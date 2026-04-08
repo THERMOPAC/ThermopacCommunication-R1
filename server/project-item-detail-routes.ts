@@ -164,13 +164,13 @@ function buildDrawingGcsPath(
   countryCode: string,
   customerShortCode: string,
   fyCode: string,
-  operationalCode: string,
+  projectSeq: string,
   itemCode: string,
   codeBars: string,
   revision: string,
   ext: string
 ): string {
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${operationalCode}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
 }
 
 export function setupProjectItemDetailRoutes(app: Router) {
@@ -185,7 +185,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
       if (!pi.codeBars) return res.status(400).json({ message: 'Project item has no CodeBars assigned' });
 
       const geo = await resolveProjectGeoCodes(pi.projectId);
-      const basePath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.operationalCode}/${pi.itemCode}/DWG`;
+      const basePath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/${pi.itemCode}/DWG`;
       const examplePath = `${basePath}/${pi.codeBars}_rev-00.pdf`;
 
       res.json({
@@ -197,7 +197,8 @@ export function setupProjectItemDetailRoutes(app: Router) {
         countryCode: geo.countryCode,
         customerShortCode: geo.customerShortCode,
         fyCode: geo.fyCode,
-        operationalCode: geo.operationalCode,
+        projectCode: geo.projectCode,
+        projectSeq: geo.projectSeq,
       });
     } catch (error: any) {
       console.error('Error getting GCS path:', error);
@@ -249,7 +250,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
         const ext = 'pdf';
         gcsObjectPath = buildDrawingGcsPath(
           geo.continentCode, geo.countryCode, geo.customerShortCode,
-          geo.fyCode, geo.operationalCode,
+          geo.fyCode, geo.projectSeq,
           pi.itemCode!, pi.codeBars!, revision, ext
         );
         checksumSha256 = crypto.createHash('sha256').update(req.file.buffer).digest('hex');

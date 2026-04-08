@@ -1448,7 +1448,7 @@ export function setupSalesMarketingRoutes(app: Express) {
 
       const { pool: dbPool } = await import('./db');
       const snapResult = await dbPool.query(
-        `SELECT s.project_id, p.operational_code FROM offer_conversion_snapshots s
+        `SELECT s.project_id, p.code FROM offer_conversion_snapshots s
          JOIN projects p ON p.id = s.project_id
          WHERE s.offer_id = $1 AND s.conversion_status = 'completed'
          LIMIT 1`,
@@ -1457,12 +1457,12 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (snapResult.rows.length === 0) {
         return res.status(400).json({ error: 'No completed conversion found for this offer' });
       }
-      const { project_id, operational_code } = snapResult.rows[0];
+      const { project_id, code: projectCode } = snapResult.rows[0];
       const offerResult = await dbPool.query(`SELECT offer_number FROM offers WHERE id = $1`, [artifact.offer_id]);
       const offerNumber = offerResult.rows[0]?.offer_number || '';
 
       const result = await attachConfirmedArtifactToEpc(
-        artifactId, project_id, operational_code, artifact.offer_id, offerNumber, user.id
+        artifactId, project_id, projectCode, artifact.offer_id, offerNumber, user.id
       );
 
       if (result.success) {
