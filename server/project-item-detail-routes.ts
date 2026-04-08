@@ -405,7 +405,6 @@ export function setupProjectItemDetailRoutes(app: Router) {
         PurchaseUnit: uom,
         InventoryUOM: uom,
         ItemType: 'itItems',
-        Valid: 'tYES',
       };
 
       console.log(`[SAP Sync] Attempting to create/update item in SAP B1: ${pi.itemCode} (BarCode: ${pi.codeBars})`);
