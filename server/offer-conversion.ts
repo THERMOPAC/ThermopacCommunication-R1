@@ -545,11 +545,9 @@ export async function executeOfferConversion(
 
     async function findOrCreateMasterItem(
       client: any, productCode: string, description: string, unit: string,
-      estimatedCost: string, hsnSacCode: string | null, bpCode: string,
-      itemFyCode: string, itemProjectSeq: string
+      estimatedCost: string, hsnSacCode: string | null, bpCode: string
     ): Promise<number> {
-      const baseCode = bpCode ? `${bpCode}-${productCode}` : productCode;
-      const masterItemCode = epcCoding.buildProjectItemCode(baseCode, itemFyCode, itemProjectSeq);
+      const masterItemCode = bpCode ? `${bpCode}-${productCode}` : productCode;
       const existing = await client.query(
         `SELECT id FROM master_items WHERE item_code = $1 LIMIT 1`,
         [masterItemCode]
