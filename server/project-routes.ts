@@ -1345,7 +1345,12 @@ export function setupProjectRoutes(app: express.Express) {
       if ((project as any).fy_code && (project as any).project_seq) {
         const client = await pool.connect();
         try {
-          codeBars = await epcCoding.generateCodeBars((project as any).fy_code, (project as any).project_seq, client);
+          let bpCode = req.body.bpCode || '';
+          if (!bpCode && (project as any).customer_id) {
+            const custRes = await client.query('SELECT bp_code FROM customers WHERE id = $1', [(project as any).customer_id]);
+            bpCode = custRes.rows[0]?.bp_code || '';
+          }
+          codeBars = await epcCoding.generateCodeBars(bpCode, (project as any).fy_code, (project as any).project_seq, client);
         } finally {
           client.release();
         }

@@ -115,6 +115,7 @@ export function buildProjectItemCode(
 }
 
 export async function generateCodeBars(
+  bpCode: string,
   fyCode: string,
   projectSeq: string,
   client: any
@@ -122,8 +123,8 @@ export async function generateCodeBars(
   const seqName = `codebars_seq_${fyCode}_${projectSeq}`;
   await client.query(`CREATE SEQUENCE IF NOT EXISTS ${seqName} START 1 INCREMENT 1`);
   const result = await client.query(`SELECT nextval('${seqName}') AS seq`);
-  const seq = String(result.rows[0].seq).padStart(8, '0');
-  return `P${fyCode}${projectSeq}${seq}`;
+  const seq = String(result.rows[0].seq).padStart(3, '0');
+  return `${bpCode}${fyCode}${projectSeq}${seq}`;
 }
 
 export async function generateDocumentNumber(
