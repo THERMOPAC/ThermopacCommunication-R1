@@ -106,6 +106,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProjectItemsImport } from "@/components/project-items-import";
+import ProjectItemDetailDialog from "@/components/project-item-detail-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -1447,154 +1448,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       </Dialog>
 
       {/* Project Item Detail Dialog */}
-      <Dialog open={isProjectItemDetailOpen} onOpenChange={setIsProjectItemDetailOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Boxes className="h-5 w-5 text-amber-500" />
-              Project Item Details
-            </DialogTitle>
-            <DialogDescription>
-              Full details for this project-level item.
-            </DialogDescription>
-          </DialogHeader>
-          {detailProjectItem && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Item Code</label>
-                  <div className="mt-1 font-mono text-sm bg-muted rounded px-3 py-2 break-all">
-                    {detailProjectItem.itemCode || detailProjectItem.masterItem?.itemCode || "N/A"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">CodeBars (SAP BarCode)</label>
-                  <div className="mt-1 font-mono text-sm bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                    {detailProjectItem.codeBars || "-"}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</label>
-                <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                  {detailProjectItem.description || detailProjectItem.masterItem?.description || "N/A"}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Quantity</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.quantity || "0"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">UOM</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.uom || detailProjectItem.masterItem?.uom || "N/A"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Make / Buy</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.makeOrBuy || detailProjectItem.masterItem?.makeOrBuy || "N/A"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drawing No</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.masterItem?.drawingNo || "-"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</label>
-                  <div className="mt-1">
-                    <Badge variant={
-                      detailProjectItem.status === "Completed" ? "default" :
-                      detailProjectItem.status === "Under Construction" ? "secondary" :
-                      detailProjectItem.status === "Cancelled" ? "destructive" :
-                      "outline"
-                    }>
-                      {detailProjectItem.status || "Not Started"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">BP Code</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.bpCode || "-"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Product Code</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.productCode || "-"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Source</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.source || "-"}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Source Order</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.sourceOrderNumber || "-"}
-                  </div>
-                </div>
-              </div>
-
-              {detailProjectItem.notes && (
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</label>
-                  <div className="mt-1 text-sm bg-muted rounded px-3 py-2">
-                    {detailProjectItem.notes}
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t pt-3">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">SAP Sync Status</label>
-                <div className="mt-1 flex items-center gap-2">
-                  {detailProjectItem.sapSynced ? (
-                    <Badge variant="default" className="bg-green-600">
-                      <CheckCircle className="h-3 w-3 mr-1" /> Synced
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Not Synced
-                    </Badge>
-                  )}
-                  {detailProjectItem.sapSyncedAt && (
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(detailProjectItem.sapSyncedAt), "dd MMM yyyy HH:mm")}
-                    </span>
-                  )}
-                  {detailProjectItem.sapSyncError && (
-                    <span className="text-xs text-red-600">{detailProjectItem.sapSyncError}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsProjectItemDetailOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isProjectItemDetailOpen && detailProjectItem && (
+        <ProjectItemDetailDialog
+          item={detailProjectItem}
+          open={isProjectItemDetailOpen}
+          onOpenChange={setIsProjectItemDetailOpen}
+        />
+      )}
       
       {/* Status Update Confirmation Dialog */}
       <Dialog

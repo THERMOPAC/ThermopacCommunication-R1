@@ -2001,6 +2001,30 @@ export const projectItems = pgTable('project_items', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const projectItemDrawings = pgTable('project_item_drawings', {
+  id: serial('id').primaryKey(),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  drawingNumber: varchar('drawing_number', { length: 80 }).notNull(),
+  title: text('title').notNull(),
+  revision: varchar('revision', { length: 10 }).notNull().default('00'),
+  revisionDate: timestamp('revision_date').defaultNow().notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('Draft'),
+  format: varchar('format', { length: 10 }),
+  sheetSize: varchar('sheet_size', { length: 10 }),
+  scale: varchar('scale', { length: 20 }),
+  gcsObjectPath: text('gcs_object_path'),
+  checksumSha256: text('checksum_sha256'),
+  fileSize: integer('file_size'),
+  fileName: text('file_name'),
+  mimeType: varchar('mime_type', { length: 100 }),
+  supersededById: integer('superseded_by_id'),
+  notes: text('notes'),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const itemPlanningRecords = pgTable('item_planning_records', {
   id: serial('id').primaryKey(),
   planningNumber: varchar('planning_number', { length: 35 }).unique(),

@@ -24,6 +24,7 @@ import { setupProcurementRoutes } from "./procurement-routes";
 import { setupQualityRoutes } from "./quality-routes";
 import { setupDispatchRoutes } from "./dispatch-routes";
 import { setupEngineeringChangeRoutes } from "./engineering-change-routes";
+import { setupProjectItemDetailRoutes } from "./project-item-detail-routes";
 import { setupEpcDocumentRoutes } from "./epc-document-routes";
 import { setupDocumentControlRoutes } from "./document-control-routes";
 import { registerEpcPermissionRoutes } from "./epc-permission-routes";
@@ -840,6 +841,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Set up engineering change routes
   setupEngineeringChangeRoutes(app);
+  
+  // Set up project item detail routes (drawings, ECR/ECN per project item)
+  setupProjectItemDetailRoutes(app);
 
   setupEpcDocumentRoutes(app);
   setupDocumentControlRoutes(app);
