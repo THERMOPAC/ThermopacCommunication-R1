@@ -545,12 +545,14 @@ export async function executeOfferConversion(
 
     async function findOrCreateMasterItem(
       client: any, productCode: string, description: string, unit: string,
-      estimatedCost: string, hsnSacCode: string | null, bpCode: string
+      estimatedCost: string, hsnSacCode: string | null, bpCode: string,
+      itemFyCode: string, itemProjectSeq: string
     ): Promise<number> {
-      const orderItemCode = bpCode ? `${bpCode}-${productCode}` : productCode;
+      const baseCode = bpCode ? `${bpCode}-${productCode}` : productCode;
+      const masterItemCode = epcCoding.buildProjectItemCode(baseCode, itemFyCode, itemProjectSeq);
       const existing = await client.query(
         `SELECT id FROM master_items WHERE item_code = $1 LIMIT 1`,
-        [orderItemCode]
+        [masterItemCode]
       );
       if (existing.rows.length > 0) {
         return existing.rows[0].id;
@@ -561,7 +563,7 @@ export async function executeOfferConversion(
          VALUES ($1, $2, $3, 'Make', $4, $5, NOW(), NOW())
          RETURNING id`,
         [
-          orderItemCode, description, unit || 'set',
+          masterItemCode, description, unit || 'set',
           estimatedCost || null,
           hsnSacCode ? `HSN/SAC: ${hsnSacCode}` : null
         ]
