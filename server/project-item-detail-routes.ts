@@ -9,7 +9,17 @@ import {
   users,
   projectItems
 } from '@shared/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
+import { resolveProjectGeoCodes } from './epc-coding';
+import multer from 'multer';
+import crypto from 'crypto';
+import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
+import { gcsStorage } from './utils/gcs-storage';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -18,7 +28,51 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
   res.status(401).send('Unauthorized');
 }
 
+function buildDrawingGcsPath(
+  continentCode: string,
+  countryCode: string,
+  customerShortCode: string,
+  fyCode: string,
+  operationalCode: string,
+  itemCode: string,
+  codeBars: string,
+  revision: string,
+  ext: string
+): string {
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${operationalCode}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
+}
+
 export function setupProjectItemDetailRoutes(app: Router) {
+
+  app.get('/api/project-items/:projectItemId/gcs-path', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectItemId = parseInt(req.params.projectItemId);
+      const piResult = await db.select().from(projectItems).where(eq(projectItems.id, projectItemId));
+      if (piResult.length === 0) return res.status(404).json({ message: 'Project item not found' });
+      const pi = piResult[0];
+
+      if (!pi.codeBars) return res.status(400).json({ message: 'Project item has no CodeBars assigned' });
+
+      const geo = await resolveProjectGeoCodes(pi.projectId);
+      const basePath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.operationalCode}/${pi.itemCode}/DWG`;
+      const examplePath = `${basePath}/${pi.codeBars}_rev-00.pdf`;
+
+      res.json({
+        basePath,
+        examplePath,
+        codeBars: pi.codeBars,
+        itemCode: pi.itemCode,
+        continentCode: geo.continentCode,
+        countryCode: geo.countryCode,
+        customerShortCode: geo.customerShortCode,
+        fyCode: geo.fyCode,
+        operationalCode: geo.operationalCode,
+      });
+    } catch (error: any) {
+      console.error('Error getting GCS path:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
   app.get('/api/project-items/:projectItemId/drawings', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const projectItemId = parseInt(req.params.projectItemId);
@@ -34,7 +88,7 @@ export function setupProjectItemDetailRoutes(app: Router) {
     }
   });
 
-  app.post('/api/project-items/:projectItemId/drawings', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/project-items/:projectItemId/drawings', ensureAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
     try {
       const projectItemId = parseInt(req.params.projectItemId);
       const user = req.user as any;
@@ -45,12 +99,40 @@ export function setupProjectItemDetailRoutes(app: Router) {
       }
       const pi = piResult[0];
 
+      if (!pi.codeBars) {
+        return res.status(400).json({ message: 'Project item has no CodeBars — cannot upload drawing' });
+      }
+
+      const revision = req.body.revision || '00';
+      let gcsObjectPath: string | null = null;
+      let checksumSha256: string | null = null;
+      let fileSize: number | null = null;
+      let fileName: string | null = null;
+      let mimeType: string | null = null;
+
+      if (req.file) {
+        const geo = await resolveProjectGeoCodes(pi.projectId);
+        const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
+        gcsObjectPath = buildDrawingGcsPath(
+          geo.continentCode, geo.countryCode, geo.customerShortCode,
+          geo.fyCode, geo.operationalCode,
+          pi.itemCode!, pi.codeBars!, revision, ext
+        );
+        checksumSha256 = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+        fileSize = req.file.size;
+        fileName = req.file.originalname;
+        mimeType = req.file.mimetype;
+
+        await uploadFileWithDiagnostics(gcsObjectPath, req.file.buffer, req.file.mimetype);
+        console.log(`Drawing uploaded to GCS: ${gcsObjectPath}`);
+      }
+
       const drawingData = {
         projectItemId,
         projectId: pi.projectId,
-        drawingNumber: req.body.drawingNumber,
+        drawingNumber: pi.codeBars!,
         title: req.body.title,
-        revision: req.body.revision || '00',
+        revision,
         revisionDate: new Date(),
         status: req.body.status || 'Draft',
         format: req.body.format || null,
@@ -58,6 +140,11 @@ export function setupProjectItemDetailRoutes(app: Router) {
         scale: req.body.scale || null,
         notes: req.body.notes || null,
         uploadedBy: user.id,
+        gcsObjectPath,
+        checksumSha256,
+        fileSize,
+        fileName,
+        mimeType,
       };
 
       const result = await db.insert(projectItemDrawings).values(drawingData).returning();

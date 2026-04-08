@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -42,8 +42,9 @@ import {
   Plus,
   Loader2,
   Trash2,
-  Edit,
+  Upload,
   AlertTriangle,
+  FolderOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -60,13 +61,13 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
   const [isAddDrawingOpen, setIsAddDrawingOpen] = useState(false);
   const [isAddEcrOpen, setIsAddEcrOpen] = useState(false);
   const [isAddEcnOpen, setIsAddEcnOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [drawingForm, setDrawingForm] = useState({
-    drawingNumber: "",
     title: "",
     revision: "00",
     status: "Draft",
-    format: "",
     sheetSize: "",
     scale: "",
     notes: "",
@@ -83,6 +84,15 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
     implementationDetails: "",
     resultingRevision: "",
     notes: "",
+  });
+
+  const gcsPathQuery = useQuery({
+    queryKey: ['/api/project-items', item.id, 'gcs-path'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/project-items/${item.id}/gcs-path`);
+      return res as any;
+    },
+    enabled: open,
   });
 
   const drawingsQuery = useQuery({
@@ -113,17 +123,37 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
   });
 
   const addDrawingMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest("POST", `/api/project-items/${item.id}/drawings`, data);
+    mutationFn: async (data: { title: string; revision: string; status: string; sheetSize: string; scale: string; notes: string; file: File | null }) => {
+      const formData = new FormData();
+      formData.append('title', data.title);
+      formData.append('revision', data.revision);
+      formData.append('status', data.status);
+      if (data.sheetSize) formData.append('sheetSize', data.sheetSize);
+      if (data.scale) formData.append('scale', data.scale);
+      if (data.notes) formData.append('notes', data.notes);
+      if (data.file) formData.append('file', data.file);
+
+      const res = await fetch(`/api/project-items/${item.id}/drawings`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Upload failed');
+      }
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/project-items', item.id, 'drawings'] });
       setIsAddDrawingOpen(false);
-      setDrawingForm({ drawingNumber: "", title: "", revision: "00", status: "Draft", format: "", sheetSize: "", scale: "", notes: "" });
-      toast({ title: "Drawing added successfully" });
+      setDrawingForm({ title: "", revision: "00", status: "Draft", sheetSize: "", scale: "", notes: "" });
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      toast({ title: "Drawing uploaded successfully" });
     },
     onError: (err: any) => {
-      toast({ title: "Error adding drawing", description: err.message, variant: "destructive" });
+      toast({ title: "Error uploading drawing", description: err.message, variant: "destructive" });
     },
   });
 
@@ -170,6 +200,11 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
   const drawings = drawingsQuery.data || [];
   const ecrs = ecrQuery.data || [];
   const ecns = ecnQuery.data || [];
+  const gcsInfo = gcsPathQuery.data;
+
+  const previewGcsPath = gcsInfo
+    ? `${gcsInfo.basePath}/${gcsInfo.codeBars}_rev-${drawingForm.revision}.${selectedFile ? selectedFile.name.split('.').pop()?.toLowerCase() : 'pdf'}`
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -324,11 +359,11 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
               <div className="border rounded-lg p-4 mb-4 bg-muted/30 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs font-medium">Drawing Number *</label>
+                    <label className="text-xs font-medium">Drawing No (CodeBars)</label>
                     <Input
-                      value={drawingForm.drawingNumber}
-                      onChange={(e) => setDrawingForm(f => ({ ...f, drawingNumber: e.target.value }))}
-                      placeholder="e.g., DWG-001"
+                      value={item.codeBars || ""}
+                      disabled
+                      className="bg-muted cursor-not-allowed font-mono"
                     />
                   </div>
                   <div>
@@ -342,7 +377,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   <div>
-                    <label className="text-xs font-medium">Revision</label>
+                    <label className="text-xs font-medium">Revision *</label>
                     <Input
                       value={drawingForm.revision}
                       onChange={(e) => setDrawingForm(f => ({ ...f, revision: e.target.value }))}
@@ -385,6 +420,29 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                   </div>
                 </div>
                 <div>
+                  <label className="text-xs font-medium">Upload Drawing File</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.dwg,.dxf,.dwf,.png,.jpg,.jpeg,.tif,.tiff"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      className="flex-1"
+                    />
+                    {selectedFile && (
+                      <Badge variant="outline" className="whitespace-nowrap">
+                        {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                {previewGcsPath && (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                    <label className="text-xs font-medium text-blue-700">GCS Path Preview</label>
+                    <div className="mt-0.5 font-mono text-xs text-blue-900 break-all">{previewGcsPath}</div>
+                  </div>
+                )}
+                <div>
                   <label className="text-xs font-medium">Notes</label>
                   <Textarea
                     value={drawingForm.notes}
@@ -394,14 +452,17 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                   />
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={() => setIsAddDrawingOpen(false)}>Cancel</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setIsAddDrawingOpen(false); setSelectedFile(null); }}>Cancel</Button>
                   <Button
                     size="sm"
-                    disabled={!drawingForm.drawingNumber || !drawingForm.title || addDrawingMutation.isPending}
-                    onClick={() => addDrawingMutation.mutate(drawingForm)}
+                    disabled={!drawingForm.title || !selectedFile || addDrawingMutation.isPending}
+                    onClick={() => addDrawingMutation.mutate({ ...drawingForm, file: selectedFile })}
                   >
-                    {addDrawingMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                    Save Drawing
+                    {addDrawingMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Uploading...</>
+                    ) : (
+                      <><Upload className="h-4 w-4 mr-1" /> Upload Drawing</>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -413,7 +474,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
                 <p>No drawings registered for this item yet.</p>
-                <p className="text-sm">Click "Add Drawing" to register a drawing revision.</p>
+                <p className="text-sm">Click "Add Drawing" to upload a drawing revision.</p>
               </div>
             ) : (
               <Table>
@@ -423,6 +484,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                     <TableHead>Title</TableHead>
                     <TableHead>Rev</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>File</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -430,7 +492,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 <TableBody>
                   {drawings.map((dwg: any) => (
                     <TableRow key={dwg.id}>
-                      <TableCell className="font-mono text-sm">{dwg.drawingNumber}</TableCell>
+                      <TableCell className="font-mono text-xs">{dwg.drawingNumber}</TableCell>
                       <TableCell>{dwg.title}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{dwg.revision}</Badge>
@@ -444,6 +506,11 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                         }>
                           {dwg.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {dwg.fileName ? (
+                          <span className="text-blue-600">{dwg.fileName}</span>
+                        ) : "-"}
                       </TableCell>
                       <TableCell className="text-xs">
                         {dwg.revisionDate ? format(new Date(dwg.revisionDate), "dd MMM yyyy") : "-"}
@@ -463,6 +530,23 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 </TableBody>
               </Table>
             )}
+
+            {/* GCS Path at bottom */}
+            <div className="mt-4 border-t pt-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">GCS Storage Path</label>
+              </div>
+              {gcsPathQuery.isLoading ? (
+                <div className="text-xs text-muted-foreground">Loading...</div>
+              ) : gcsInfo ? (
+                <div className="font-mono text-xs bg-slate-50 border rounded px-3 py-2 break-all text-slate-700">
+                  {gcsInfo.basePath}/{gcsInfo.codeBars}_rev-XX.ext
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">Path not available</div>
+              )}
+            </div>
           </TabsContent>
 
           {/* ECR & ECN Tab */}
