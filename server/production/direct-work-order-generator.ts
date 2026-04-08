@@ -813,6 +813,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
     endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
     
     const { getNextDocSeq } = await import('../doc-sequence-service');
+    const { assertChildDocNumber } = await import('../epc-guardrails');
     
     // Step 12: Create parent work orders first
     for (const parentItem of filteredMakeParentItems) {
@@ -827,6 +828,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       const woSeq = await getNextDocSeq('WO', projectId, db);
       const workOrderNumber = `${project.code}-WO-${woSeq}`;
+      assertChildDocNumber(workOrderNumber, 'direct-work-order-generator(parent)');
       
       existingWorkOrderNumbers.add(workOrderNumber);
       if (masterItem.itemCode) {
@@ -1050,6 +1052,7 @@ export async function generateDirectWorkOrders(req: Request, res: Response) {
       
       const childWoSeq = await getNextDocSeq('WO', projectId, db);
       const workOrderNumber = `${project.code}-WO-${childWoSeq}`;
+      assertChildDocNumber(workOrderNumber, 'direct-work-order-generator(child)');
       
       existingWorkOrderNumbers.add(workOrderNumber);
       // Also mark this item code as having a work order now

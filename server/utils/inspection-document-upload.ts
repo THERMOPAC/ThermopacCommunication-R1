@@ -147,6 +147,8 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
             const r = projRes.rows[0];
             const label = `${formattedTabName}_${recordId}`;
             filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/A/1-${label}.${fileExtension}`;
+            const { assertGcsPath } = await import('../epc-guardrails');
+            assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
             console.log(`uploadInspectionDocument: EPC_UPLOAD_CUTOVER enabled, using TPEL path: ${filePath}`);
           } else {
             useEpcPath = false;

@@ -240,11 +240,14 @@ export async function generateWorkOrders(req: Request, res: Response) {
     endDate.setDate(today.getDate() + 30); // 30 days schedule
     
     const { getNextDocSeq } = await import('../doc-sequence-service');
+    const { assertChildDocNumber } = await import('../epc-guardrails');
     const parentWorkOrderMap: Record<string, string> = {};
     
     for (let index = 0; index < parentItems.length; index++) {
       const seq = await getNextDocSeq('WO', projectId, db);
-      parentWorkOrderMap[`parent-${index}`] = `${project.code}-WO-${seq}`;
+      const woNum = `${project.code}-WO-${seq}`;
+      assertChildDocNumber(woNum, 'work-order-generator.generateWorkOrders(parent)');
+      parentWorkOrderMap[`parent-${index}`] = woNum;
     }
     
     // Prepare bulk insert arrays
@@ -330,8 +333,8 @@ export async function generateWorkOrders(req: Request, res: Response) {
       
       const woSeq = await getNextDocSeq('WO', projectId, db);
       const workOrderNumber = `${project.code}-WO-${woSeq}`;
+      assertChildDocNumber(workOrderNumber, 'work-order-generator.generateWorkOrders(child)');
       
-      // Create title and description
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
       const description = parentItemId 
         ? `Sub-assembly component for parent item ${masterItemsMap.get(parentItemId)?.itemCode || ''}`

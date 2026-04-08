@@ -3,6 +3,12 @@ const CHILD_DOC_RE = /^\d{4}-\d{3}-[A-Z]{2,4}-\d{4}$/;
 const GCS_PATH_RE = /^TPEL\/[A-Z]{2}\/[A-Z]{2}\/[A-Z0-9]{3,5}\/\d{4}\/\d{3}\//;
 const LEGACY_TP_PREFIX_RE = /^TP-/;
 
+function logViolation(type: string, value: string, context: string, error: string): void {
+  console.error(
+    `[EPC-GUARDRAIL-VIOLATION] type=${type} value="${value}" context="${context}" error="${error}" timestamp=${new Date().toISOString()}`
+  );
+}
+
 export function validateProjectCode(code: string): { valid: boolean; error?: string } {
   if (LEGACY_TP_PREFIX_RE.test(code)) {
     return { valid: false, error: `Legacy TP- prefix detected: "${code}". Project codes must use {FY}-{NNN} format.` };
@@ -47,23 +53,26 @@ export function validateGcsPath(path: string): { valid: boolean; error?: string 
   return { valid: true };
 }
 
-export function assertProjectCode(code: string): void {
+export function assertProjectCode(code: string, context: string = 'unknown'): void {
   const result = validateProjectCode(code);
   if (!result.valid) {
+    logViolation('PROJECT_CODE', code, context, result.error!);
     throw new Error(`EPC Guardrail Violation: ${result.error}`);
   }
 }
 
-export function assertChildDocNumber(docNumber: string): void {
+export function assertChildDocNumber(docNumber: string, context: string = 'unknown'): void {
   const result = validateChildDocNumber(docNumber);
   if (!result.valid) {
+    logViolation('CHILD_DOC_NUMBER', docNumber, context, result.error!);
     throw new Error(`EPC Guardrail Violation: ${result.error}`);
   }
 }
 
-export function assertGcsPath(path: string): void {
+export function assertGcsPath(path: string, context: string = 'unknown'): void {
   const result = validateGcsPath(path);
   if (!result.valid) {
+    logViolation('GCS_PATH', path, context, result.error!);
     throw new Error(`EPC Guardrail Violation: ${result.error}`);
   }
 }

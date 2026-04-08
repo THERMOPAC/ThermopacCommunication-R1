@@ -87,8 +87,10 @@ export async function generateOperationalCode(
   tx: any
 ): Promise<{ projectCode: string; projectSeq: string }> {
   const { getNextProjectSeq } = await import('./doc-sequence-service');
+  const { assertProjectCode } = await import('./epc-guardrails');
   const projectSeq = await getNextProjectSeq(fyCode, tx);
   const projectCode = `${fyCode}-${projectSeq}`;
+  assertProjectCode(projectCode, 'epc-coding.generateOperationalCode');
   return { projectCode, projectSeq };
 }
 
@@ -131,9 +133,14 @@ export async function generateDocumentNumber(
   }
   const projectCode = (projectResult.rows[0] as any).code;
 
+  const { assertProjectCode, assertChildDocNumber } = await import('./epc-guardrails');
+  assertProjectCode(projectCode, `epc-coding.generateDocumentNumber(${docTypeAbbr})`);
+
   const { getNextDocSeq } = await import('./doc-sequence-service');
   const seq = await getNextDocSeq(docTypeAbbr, projectId, tx);
-  return `${projectCode}-${docTypeAbbr}-${seq}`;
+  const docNumber = `${projectCode}-${docTypeAbbr}-${seq}`;
+  assertChildDocNumber(docNumber, `epc-coding.generateDocumentNumber(${docTypeAbbr})`);
+  return docNumber;
 }
 
 export const REVISION_CONTROLLED_TYPES = new Set(['DWG', 'BOM']);
@@ -159,7 +166,10 @@ export function buildEpcGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
+  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
+  const { assertGcsPath } = require('./epc-guardrails');
+  assertGcsPath(path, 'epc-coding.buildEpcGcsPath');
+  return path;
 }
 
 export async function resolveProjectGeoCodes(projectId: number, txOrDb?: any): Promise<{

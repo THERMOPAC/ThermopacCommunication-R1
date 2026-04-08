@@ -359,6 +359,9 @@ export function setupDocumentControlRoutes(app: Express) {
             });
           }
 
+          const { assertGcsPath } = await import('./epc-guardrails');
+          assertGcsPath(gcsPath, 'document-control-routes.upload');
+
           const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
           if (!uploadResult.successful) {
             await cleanupGcsObjects(uploadedPaths);

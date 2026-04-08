@@ -985,11 +985,14 @@ export function setupProductionRoutes(app: Router) {
       endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
       
       const { getNextDocSeq } = await import('./doc-sequence-service');
+      const { assertChildDocNumber } = await import('./epc-guardrails');
       const workOrderNumbers: { [key: string]: string } = {};
       
       for (let index = 0; index < parentItems.length; index++) {
         const seq = await getNextDocSeq('WO', projectId, db);
-        workOrderNumbers[`parent-${index}`] = `${project.code}-WO-${seq}`;
+        const woNum = `${project.code}-WO-${seq}`;
+        assertChildDocNumber(woNum, 'production-routes.generate-optimized(parent)');
+        workOrderNumbers[`parent-${index}`] = woNum;
       }
       
       console.timeEnd('work-order-number-generation');
@@ -1088,6 +1091,7 @@ export function setupProductionRoutes(app: Router) {
         
         const childSeq = await getNextDocSeq('WO', projectId, db);
         workOrderNumber = `${project.code}-WO-${childSeq}`;
+        assertChildDocNumber(workOrderNumber, 'production-routes.generate-optimized(child)');
         
         // Create a title and description
         const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
@@ -1361,10 +1365,13 @@ export function setupProductionRoutes(app: Router) {
       const existingWorkOrderNumbers = new Set(allWorkOrdersByNumber.map(wo => wo.workOrderNumber));
       
       const { getNextDocSeq: getNextDocSeq2 } = await import('./doc-sequence-service');
+      const { assertChildDocNumber: assertChildDocNumber2 } = await import('./epc-guardrails');
       const parentWoSeq = await getNextDocSeq2('WO', projectId, db);
       const parentWorkOrderNumber = `${project.code}-WO-${parentWoSeq}`;
+      assertChildDocNumber2(parentWorkOrderNumber, 'production-routes.generate-hierarchical(parent)');
       const childWoSeq = await getNextDocSeq2('WO', projectId, db);
       const childWorkOrderNumber = `${project.code}-WO-${childWoSeq}`;
+      assertChildDocNumber2(childWorkOrderNumber, 'production-routes.generate-hierarchical(child)');
       
       // OPTIMIZATION: Create arrays in a single pass through the items
       const parentItems: typeof makeItems = [];
@@ -1751,8 +1758,10 @@ export function setupProductionRoutes(app: Router) {
       const workOrderData = { ...req.body };
       if (!workOrderData.workOrderNumber) {
         const { getNextDocSeq: getNextDocSeq3 } = await import('./doc-sequence-service');
+        const { assertChildDocNumber: assertChildDocNumber3 } = await import('./epc-guardrails');
         const woSeq = await getNextDocSeq3('WO', req.body.projectId, db);
         workOrderData.workOrderNumber = `${project.code}-WO-${woSeq}`;
+        assertChildDocNumber3(workOrderData.workOrderNumber, 'production-routes.POST-work-orders');
       }
       
       // Create work order

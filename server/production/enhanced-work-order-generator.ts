@@ -176,10 +176,12 @@ export async function generateWorkOrdersForNewComponents(req: Request, res: Resp
     const createdWorkOrders = [];
     
     const { getNextDocSeq } = await import('../doc-sequence-service');
+    const { assertChildDocNumber } = await import('../epc-guardrails');
     
     for (const component of newComponents) {
       const woSeq = await getNextDocSeq('WO', projectId, db);
       const workOrderNumber = `${project.code}-WO-${woSeq}`;
+      assertChildDocNumber(workOrderNumber, 'enhanced-work-order-generator');
       const title = `${component.componentItemCode} - ${component.componentDescription}`;
       const description = `Work order for sub-component: ${component.componentItemCode} (parent: ${component.parentItemCode})`;
       

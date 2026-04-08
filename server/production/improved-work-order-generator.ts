@@ -367,11 +367,14 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
     endDate.setDate(today.getDate() + 30); // Default to 30 days schedule
     
     const { getNextDocSeq } = await import('../doc-sequence-service');
+    const { assertChildDocNumber } = await import('../epc-guardrails');
     const workOrderNumbers: { [key: string]: string } = {};
     
     for (let index = 0; index < parentItems.length; index++) {
       const seq = await getNextDocSeq('WO', projectId, db);
-      workOrderNumbers[`parent-${index}`] = `${project.code}-WO-${seq}`;
+      const woNum = `${project.code}-WO-${seq}`;
+      assertChildDocNumber(woNum, 'improved-work-order-generator.generateImprovedWorkOrders(parent)');
+      workOrderNumbers[`parent-${index}`] = woNum;
     }
     
     console.timeEnd('work-order-number-generation');
@@ -470,8 +473,8 @@ export async function generateImprovedWorkOrders(req: Request, res: Response) {
       
       const childSeq = await getNextDocSeq('WO', projectId, db);
       workOrderNumber = `${project.code}-WO-${childSeq}`;
+      assertChildDocNumber(workOrderNumber, 'improved-work-order-generator.generateImprovedWorkOrders(child)');
       
-      // Create a title and description
       const title = `${masterItem.itemCode} - ${masterItem.description || 'Component'}`;
       const description = parentItemId 
         ? `Sub-assembly component for parent item ${masterItemsMap.get(parentItemId)?.itemCode || ''}`

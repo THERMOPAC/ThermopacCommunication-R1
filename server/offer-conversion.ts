@@ -377,8 +377,10 @@ export async function executeOfferConversion(
     );
 
     const { getNextProjectSeq } = await import('./doc-sequence-service');
+    const { assertProjectCode } = await import('./epc-guardrails');
     const projectSeq = await getNextProjectSeq(fyCode, client);
     const projectCode = `${fyCode}-${projectSeq}`;
+    assertProjectCode(projectCode, 'offer-conversion.executeOfferConversion');
 
     const custResult = await client.query(
       `SELECT short_code, bp_name, bp_code FROM customers WHERE id = $1`, [offer.customer_id]

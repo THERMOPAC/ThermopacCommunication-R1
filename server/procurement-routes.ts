@@ -573,7 +573,8 @@ export function setupProcurementRoutes(app: Router) {
           // Use the stored vendorId from the item
           const vendorId = item.vendorId || 0;
           
-          // Generate purchase order number: PO-{Project Code}-{Sequence}
+          const { assertProjectCode } = await import('./epc-guardrails');
+          assertProjectCode(project.code, 'procurement-routes.generate-purchase-orders');
           const poNumber = `PO-${project.code}-${nextPOSequence}`;
           
           // Create purchase order
