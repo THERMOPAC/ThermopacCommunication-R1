@@ -1984,7 +1984,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             <TableHead>Quantity</TableHead>
                             <TableHead>UOM</TableHead>
                             <TableHead>Make/Buy</TableHead>
-                            <TableHead>Drawing No</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
@@ -2015,7 +2014,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <TableCell>{item.quantity}</TableCell>
                                 <TableCell>{item.uom || item.masterItem?.uom || "N/A"}</TableCell>
                                 <TableCell>{item.makeOrBuy || item.masterItem?.makeOrBuy || "N/A"}</TableCell>
-                                <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                                 <TableCell>
                                   <Select 
                                     value={item.status || "Not Started"}
@@ -2795,24 +2793,23 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       <TableHead className="w-[15%]">Item Code</TableHead>
                       <TableHead className="w-[22%]">Description</TableHead>
                       <TableHead className="w-[12%]">CodeBars</TableHead>
-                      <TableHead className="w-[5%]">Quantity</TableHead>
+                      <TableHead className="w-[6%]">Quantity</TableHead>
                       <TableHead className="w-[5%]">UOM</TableHead>
-                      <TableHead className="w-[5%]">Make/Buy</TableHead>
-                      <TableHead className="w-[9%]">Drawing No</TableHead>
-                      <TableHead className="w-[9%]">Status</TableHead>
-                      <TableHead className="w-[15%] text-center">Actions</TableHead>
+                      <TableHead className="w-[6%]">Make/Buy</TableHead>
+                      <TableHead className="w-[10%]">Status</TableHead>
+                      <TableHead className="w-[18%] text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingItems ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-4">
+                        <TableCell colSpan={9} className="text-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin mx-auto" />
                         </TableCell>
                       </TableRow>
                     ) : projectItems?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center py-4">
+                        <TableCell colSpan={9} className="text-center py-4">
                           <div className="flex flex-col items-center justify-center text-muted-foreground">
                             <Boxes className="h-10 w-10 mb-2" />
                             <p>No project items yet</p>
@@ -2878,7 +2875,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                 <TableCell>{item.quantity}</TableCell>
                                 <TableCell>{item.uom || item.masterItem?.uom || "N/A"}</TableCell>
                                 <TableCell>{item.makeOrBuy || item.masterItem?.makeOrBuy || "N/A"}</TableCell>
-                                <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
                                 <TableCell>
                                   <Select 
                                     defaultValue={item.status || "Not Started"} 
