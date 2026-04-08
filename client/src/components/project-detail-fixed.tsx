@@ -92,7 +92,10 @@ import {
   Trash2,
   MoreVertical,
   FolderPlus,
-  ArrowRight
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  CornerDownRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -211,6 +214,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [isEditItemOpen, setIsEditItemOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   
   // State for status update confirmation
   const [isStatusUpdateConfirmOpen, setIsStatusUpdateConfirmOpen] = useState(false);
@@ -498,6 +502,30 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
              drawingNo.includes(searchLower);
     });
   }, [projectItems, searchTerm]);
+
+  const { rootItems, childrenMap } = useMemo(() => {
+    const items = filteredProjectItems || [];
+    const cMap: Record<number, any[]> = {};
+    const roots: any[] = [];
+    for (const item of items) {
+      if (item.parentProjectItemId) {
+        if (!cMap[item.parentProjectItemId]) cMap[item.parentProjectItemId] = [];
+        cMap[item.parentProjectItemId].push(item);
+      } else {
+        roots.push(item);
+      }
+    }
+    return { rootItems: roots, childrenMap: cMap };
+  }, [filteredProjectItems]);
+
+  const toggleExpand = useCallback((itemId: number) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
   
   // Fetch customers for use in edit form
   const { data: customers, isLoading: isLoadingCustomers } = useQuery({
@@ -2739,6 +2767,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <CardTitle className="text-lg">Project Items</CardTitle>
                 <CardDescription>
                   {projectItems?.length || 0} items
+                  {Object.keys(childrenMap).length > 0 && ` (${rootItems.length} top-level)`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -2774,111 +2803,138 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      projectItems?.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="w-6">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log("Navigate to master item:", item);
-                                if (item.masterItem?.id) {
-                                  // Store the master item ID and return page in sessionStorage
-                                  const returnPath = window.location.pathname + window.location.search;
-                                  console.log('Storing return path (second instance):', returnPath);
-                                  sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
-                                  sessionStorage.setItem('returnToPage', returnPath);
-                                  // Navigate to Item Master page
-                                  navigate("/item-master");
-                                } else {
-                                  toast({
-                                    title: "Error",
-                                    description: "Could not find master item information",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
-                              className="h-6 w-6 p-0"
-                              title="Edit in Master Items"
-                            >
-                              <ArrowRight className="h-4 w-4 text-amber-500" />
-                            </Button>
-                          </TableCell>
-                          <TableCell className="truncate max-w-0">{item.itemCode || item.masterItem?.itemCode || "N/A"}</TableCell>
-                          <TableCell className="truncate max-w-0">
-                            <div className="truncate" title={item.description || item.masterItem?.description || item.notes || "N/A"}>
-                              {item.description || item.masterItem?.description || item.notes || "N/A"}
-                            </div>
-                          </TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.uom || item.masterItem?.uom || "N/A"}</TableCell>
-                          <TableCell>{item.makeOrBuy || item.masterItem?.makeOrBuy || "N/A"}</TableCell>
-                          <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
-                          <TableCell>
-                            <Select 
-                              defaultValue={item.status || "Not Started"} 
-                              onValueChange={(value) => updateProjectItemStatus(item.id, value)}
-                            >
-                              <SelectTrigger className="h-8 w-full">
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Not Started">Not Started</SelectItem>
-                                <SelectItem value="Drawing Received">Drawing Received</SelectItem>
-                                <SelectItem value="Material Received">Material Received</SelectItem>
-                                <SelectItem value="Under Construction">Under Construction</SelectItem>
-                                <SelectItem value="Completed">Completed</SelectItem>
-                                <SelectItem value="On Hold">On Hold</SelectItem>
-                                <SelectItem value="Cancelled">Cancelled</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-
-                          <TableCell>
-                            <div className="flex items-center justify-center space-x-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-blue-600"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log("Edit item clicked");
-                                  setSelectedItem(item);
-                                  itemForm.reset({
-                                    itemCode: item.masterItem?.itemCode || "",
-                                    description: item.masterItem?.description || "",
-                                    quantity: item.quantity || 1,
-                                    uom: item.masterItem?.uom || "",
-                                    makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
-                                    drawingNo: item.masterItem?.drawingNo || "",
-                                    status: item.status || "Not Started",
-                                  });
-                                  setIsEditItemOpen(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-red-600"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log("Delete item clicked");
-                                  setSelectedItem(item);
-                                  setIsDeleteConfirmOpen(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      (() => {
+                        const renderItemRow = (item: any, depth: number = 0) => {
+                          const hasChildren = !!(childrenMap[item.id] && childrenMap[item.id].length > 0);
+                          const isExpanded = expandedItems.has(item.id);
+                          const children = hasChildren && isExpanded ? childrenMap[item.id] : [];
+                          return (
+                            <>
+                              <TableRow key={item.id} className={depth > 0 ? "bg-muted/30" : ""}>
+                                <TableCell className="w-6">
+                                  <div className="flex items-center" style={{ paddingLeft: `${depth * 20}px` }}>
+                                    {hasChildren ? (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          toggleExpand(item.id);
+                                        }}
+                                        className="h-6 w-6 p-0 mr-1"
+                                        title={isExpanded ? "Collapse" : "Expand"}
+                                      >
+                                        {isExpanded ? (
+                                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                      </Button>
+                                    ) : depth > 0 ? (
+                                      <CornerDownRight className="h-3.5 w-3.5 text-muted-foreground mr-1" />
+                                    ) : null}
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (item.masterItem?.id) {
+                                          const returnPath = window.location.pathname + window.location.search;
+                                          sessionStorage.setItem('editMasterItemId', item.masterItem.id.toString());
+                                          sessionStorage.setItem('returnToPage', returnPath);
+                                          navigate("/item-master");
+                                        } else {
+                                          toast({
+                                            title: "Error",
+                                            description: "Could not find master item information",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }}
+                                      className="h-6 w-6 p-0"
+                                      title="Edit in Master Items"
+                                    >
+                                      <ArrowRight className="h-4 w-4 text-amber-500" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="truncate max-w-0">{item.itemCode || item.masterItem?.itemCode || "N/A"}</TableCell>
+                                <TableCell className="truncate max-w-0">
+                                  <div className="truncate" title={item.description || item.masterItem?.description || item.notes || "N/A"}>
+                                    {item.description || item.masterItem?.description || item.notes || "N/A"}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{item.quantity}</TableCell>
+                                <TableCell>{item.uom || item.masterItem?.uom || "N/A"}</TableCell>
+                                <TableCell>{item.makeOrBuy || item.masterItem?.makeOrBuy || "N/A"}</TableCell>
+                                <TableCell>{item.masterItem?.drawingNo || "-"}</TableCell>
+                                <TableCell>
+                                  <Select 
+                                    defaultValue={item.status || "Not Started"} 
+                                    onValueChange={(value) => updateProjectItemStatus(item.id, value)}
+                                  >
+                                    <SelectTrigger className="h-8 w-full">
+                                      <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Not Started">Not Started</SelectItem>
+                                      <SelectItem value="Drawing Received">Drawing Received</SelectItem>
+                                      <SelectItem value="Material Received">Material Received</SelectItem>
+                                      <SelectItem value="Under Construction">Under Construction</SelectItem>
+                                      <SelectItem value="Completed">Completed</SelectItem>
+                                      <SelectItem value="On Hold">On Hold</SelectItem>
+                                      <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center justify-center space-x-2">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0 text-blue-600"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSelectedItem(item);
+                                        itemForm.reset({
+                                          itemCode: item.masterItem?.itemCode || "",
+                                          description: item.masterItem?.description || "",
+                                          quantity: item.quantity || 1,
+                                          uom: item.masterItem?.uom || "",
+                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                          drawingNo: item.masterItem?.drawingNo || "",
+                                          status: item.status || "Not Started",
+                                        });
+                                        setIsEditItemOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0 text-red-600"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setSelectedItem(item);
+                                        setIsDeleteConfirmOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                              {children.map((child: any) => renderItemRow(child, depth + 1))}
+                            </>
+                          );
+                        };
+                        return rootItems.map((item: any) => renderItemRow(item, 0));
+                      })()
                     )}
                   </TableBody>
                 </Table>
