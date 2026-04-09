@@ -831,11 +831,11 @@ const ItemMasterManagement: React.FC = () => {
         </div>
         <div className="flex gap-2">
           {canCreate && (
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Button onClick={() => setIsCreateDialogOpen(true)} disabled>
               <Plus className="mr-2 h-4 w-4" /> Create Item
             </Button>
           )}
-          {canCreate && <MasterItemsImport />}
+          {canCreate && <MasterItemsImport disabled />}
         </div>
       </div>
 

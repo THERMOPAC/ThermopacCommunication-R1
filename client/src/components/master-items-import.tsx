@@ -17,7 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { canManageContent } from '@/lib/permissions';
 
-const MasterItemsImport: React.FC = () => {
+const MasterItemsImport: React.FC<{ disabled?: boolean }> = ({ disabled }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -184,7 +184,7 @@ const MasterItemsImport: React.FC = () => {
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="ml-2">
+        <Button variant="outline" className="ml-2" disabled={disabled}>
           <Upload className="h-4 w-4 mr-2" /> Import Items
         </Button>
       </DialogTrigger>
