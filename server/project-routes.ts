@@ -270,34 +270,47 @@ export function setupProjectRoutes(app: express.Express) {
         isActive: true
       });
       
-      // Create default EPC lifecycle phases (7 phases)
-      const phaseNames = [
-        'Engineering & Design',
-        'Procurement',
-        'Production / Manufacturing',
-        'Quality Assurance',
-        'Dispatch & Shipping',
-        'Project Commissioning',
-        'After-Sales & Warranty',
+      // Create default EPC lifecycle phases (6 phases) with department-based leads
+      const epcPhases = [
+        { name: 'Design & Engineering', description: 'Engineering design, drawings, and technical documentation', department: 'Design' },
+        { name: 'Procurement', description: 'Material procurement, vendor selection, and purchase orders', department: 'Purchase' },
+        { name: 'Manufacturing', description: 'Fabrication, assembly, and shop-floor production', department: 'Production' },
+        { name: 'Quality Control & Inspection', description: 'Quality checks, inspections, and testing', department: 'Quality Control' },
+        { name: 'Dispatch & Logistics', description: 'Packing, dispatch, and shipping coordination', department: 'Administration' },
+        { name: 'Installation & Commissioning', description: 'Site installation, commissioning, and handover', department: 'After Sales' },
       ];
       let startDate = new Date(project.startDate);
       
       const projectDuration = new Date(project.targetEndDate).getTime() - startDate.getTime();
-      const phaseDuration = projectDuration / phaseNames.length;
+      const phaseDuration = projectDuration / epcPhases.length;
+
+      const deptLeadRows = await db.execute(
+        sql`SELECT DISTINCT ON (department) id, department, role
+            FROM users
+            WHERE is_active = true AND department IS NOT NULL
+              AND role IN ('Senior Manager', 'Manager', 'General Manager', 'Senior Executive')
+            ORDER BY department,
+              CASE role WHEN 'Senior Manager' THEN 1 WHEN 'Manager' THEN 2 WHEN 'General Manager' THEN 3 WHEN 'Senior Executive' THEN 4 END`
+      );
+      const deptLeadMap: Record<string, number> = {};
+      for (const row of deptLeadRows.rows as any[]) {
+        deptLeadMap[row.department] = row.id;
+      }
       
-      for (let i = 0; i < phaseNames.length; i++) {
+      for (let i = 0; i < epcPhases.length; i++) {
         const phaseStartDate = new Date(startDate.getTime() + (i * phaseDuration));
         const phaseEndDate = new Date(phaseStartDate.getTime() + phaseDuration);
+        const leadId = deptLeadMap[epcPhases[i].department] || userId;
         
         await storage.createProjectPhase({
           projectId: project.id,
-          name: phaseNames[i],
-          description: `${phaseNames[i]} phase for project ${project.name}`,
-          order: i + 1, // Using order instead of phaseNumber
+          name: epcPhases[i].name,
+          description: epcPhases[i].description,
+          order: i + 1,
           startDate: phaseStartDate,
           targetEndDate: phaseEndDate,
           status: 'pending',
-          phaseLeadId: userId
+          phaseLeadId: leadId
         });
       }
       
