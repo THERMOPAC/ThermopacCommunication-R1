@@ -149,16 +149,35 @@ export async function executeProjectCancellationCascade(
   const pmId = await resolveManagerId(projectId);
   const allSnapshots: SnapshotRecord[] = [];
 
-  const existingSnaps = await pool.query(
-    `SELECT COUNT(*) FROM project_cancellation_snapshots WHERE project_id = $1 AND restored = false`,
-    [projectId]
-  );
-  if (parseInt(existingSnaps.rows[0].count, 10) > 0) {
-    console.log(`[EPC-Cascade] Project ${projectId} already has ${existingSnaps.rows[0].count} unrestored snapshots — clearing stale snapshots before re-cascade`);
-    await pool.query(
-      `DELETE FROM project_cancellation_snapshots WHERE project_id = $1 AND restored = false`,
-      [projectId]
+  const lastCancelEvt = await pool.query(`
+    SELECT emitted_at FROM project_workflow_events
+    WHERE project_id = $1 AND event_name = 'project_cancellation_cascade'
+    ORDER BY emitted_at DESC LIMIT 1
+  `, [projectId]);
+  const lastRestoreEvt = await pool.query(`
+    SELECT emitted_at FROM project_workflow_events
+    WHERE project_id = $1 AND event_name = 'project_restoration_cascade'
+    ORDER BY emitted_at DESC LIMIT 1
+  `, [projectId]);
+
+  const lastCancelTs = lastCancelEvt.rows.length > 0
+    ? new Date(lastCancelEvt.rows[0].emitted_at).getTime() : 0;
+  const lastRestoreTs = lastRestoreEvt.rows.length > 0
+    ? new Date(lastRestoreEvt.rows[0].emitted_at).getTime() : 0;
+
+  if (lastCancelTs > 0 && lastCancelTs > lastRestoreTs) {
+    const staleSnaps = await pool.query(
+      `SELECT COUNT(*) FROM project_cancellation_snapshots WHERE project_id = $1 AND cancelled_at >= $2::timestamptz AND restored = false`,
+      [projectId, new Date(lastCancelTs).toISOString()]
     );
+    const staleCount = parseInt(staleSnaps.rows[0].count, 10);
+    if (staleCount > 0) {
+      console.log(`[EPC-Cascade] Project ${projectId}: clearing ${staleCount} stale snapshots from last cancel (no reopen in between)`);
+      await pool.query(
+        `DELETE FROM project_cancellation_snapshots WHERE project_id = $1 AND cancelled_at >= $2::timestamptz AND restored = false`,
+        [projectId, new Date(lastCancelTs).toISOString()]
+      );
+    }
   }
 
   // ─── 1. Tasks ────────────────────────────────────────
