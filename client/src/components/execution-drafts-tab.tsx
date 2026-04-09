@@ -71,12 +71,12 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
 
   const { data: drafts, isLoading } = useQuery<any[]>({
     queryKey: ["/api/projects", projectId, "execution-drafts"],
-    queryFn: () => apiRequest(`/api/projects/${projectId}/execution-drafts`),
+    queryFn: () => apiRequest("GET", `/api/projects/${projectId}/execution-drafts`),
   });
 
   const { data: summary } = useQuery<any>({
     queryKey: ["/api/projects", projectId, "execution-drafts", "summary"],
-    queryFn: () => apiRequest(`/api/projects/${projectId}/execution-drafts/summary`),
+    queryFn: () => apiRequest("GET", `/api/projects/${projectId}/execution-drafts/summary`),
   });
 
   const invalidateDrafts = () => {
@@ -84,7 +84,7 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
   };
 
   const generateMutation = useMutation({
-    mutationFn: () => apiRequest(`/api/projects/${projectId}/execution-drafts/generate`, { method: "POST" }),
+    mutationFn: () => apiRequest("POST", `/api/projects/${projectId}/execution-drafts/generate`),
     onSuccess: (data: any) => {
       toast({ title: "Drafts Generated", description: `Created ${data.created} drafts, ${data.notApplicable} not applicable.` });
       invalidateDrafts();
@@ -96,7 +96,7 @@ export default function ExecutionDraftsTab({ projectId }: ExecutionDraftsTabProp
 
   const actionMutation = useMutation({
     mutationFn: ({ draftId, action, body }: { draftId: number; action: string; body?: any }) =>
-      apiRequest(`/api/execution-drafts/${draftId}/${action}`, { method: "POST", body: body ? JSON.stringify(body) : undefined, headers: body ? { "Content-Type": "application/json" } : undefined }),
+      apiRequest("POST", `/api/execution-drafts/${draftId}/${action}`, body),
     onSuccess: (data: any) => {
       toast({ title: "Success", description: data.message || "Action completed" });
       invalidateDrafts();
