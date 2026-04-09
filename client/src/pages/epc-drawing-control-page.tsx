@@ -396,7 +396,7 @@ export default function EpcDrawingControlPage() {
                     .filter((p: any) => ['active', 'planning'].includes(p.status))
                     .map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                      {p.clientName || p.client_name || '—'} — {p.code || '—'} ({p.name})
+                      {p.clientName || p.client_name || '—'} — {p.code || '—'}
                     </SelectItem>
                   ))}
                 </SelectContent>
