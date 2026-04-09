@@ -5,6 +5,10 @@ import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, r
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
+function auditLog(event: string, details: Record<string, any>) {
+  console.log(`[DWAR-AUDIT] ${event}`, JSON.stringify({ timestamp: new Date().toISOString(), ...details }));
+}
+
 const router = Router();
 
 router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -63,7 +67,7 @@ router.get('/available-tasks', ensureAuthenticated, async (req: Request, res: Re
     res.json([...regularTasks, ...recurringWithPrefix]);
   } catch (error) {
     console.error('Error fetching available tasks:', error);
-    res.json([]);
+    res.status(500).json({ error: 'DWAR_TASKS_FETCH_FAILED', message: 'Unable to fetch available tasks' });
   }
 });
 
@@ -117,7 +121,7 @@ router.get('/todays-completed-tasks', ensureAuthenticated, async (req: Request, 
     res.json(allCompleted);
   } catch (error) {
     console.error('Error fetching today\'s completed tasks:', error);
-    res.json([]);
+    res.status(500).json({ error: 'DWAR_COMPLETED_TASKS_FETCH_FAILED', message: 'Unable to fetch completed tasks' });
   }
 });
 
@@ -126,87 +130,117 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
   try {
     const { taskId, timeSpent, status } = req.body;
     const userId = req.user!.id;
+
+    if (!taskId || isNaN(Number(taskId))) {
+      return res.status(400).json({ error: 'INVALID_TASK_ID', message: 'taskId is required and must be a number' });
+    }
+
     const today = new Date().toISOString().split('T')[0];
 
-    // Get or create today's DWAR
-    let [todayReport] = await db
-      .select()
-      .from(dailyWorkReports)
-      .where(and(
-        eq(dailyWorkReports.userId, userId),
-        eq(dailyWorkReports.reportDate, today)
-      ));
+    const result = await db.transaction(async (tx) => {
+      let [todayReport] = await tx
+        .select()
+        .from(dailyWorkReports)
+        .where(and(
+          eq(dailyWorkReports.userId, userId),
+          eq(dailyWorkReports.reportDate, today)
+        ));
 
-    if (!todayReport) {
-      [todayReport] = await db
-        .insert(dailyWorkReports)
-        .values({
-          userId,
-          reportDate: today,
-          activities: [],
-          priorityTasks: [],
-          status: 'draft'
+      if (!todayReport) {
+        const inserted = await tx.execute(sql`
+          INSERT INTO daily_work_reports (user_id, report_date, activities, priority_tasks, status, created_at, updated_at)
+          VALUES (${userId}, ${today}, '[]'::jsonb, '[]'::jsonb, 'draft', NOW(), NOW())
+          ON CONFLICT (user_id, report_date) DO NOTHING
+          RETURNING *
+        `);
+        if (inserted.rows && inserted.rows.length > 0) {
+          todayReport = inserted.rows[0] as any;
+        } else {
+          [todayReport] = await tx
+            .select()
+            .from(dailyWorkReports)
+            .where(and(
+              eq(dailyWorkReports.userId, userId),
+              eq(dailyWorkReports.reportDate, today)
+            ));
+        }
+      }
+
+      if (todayReport.status !== 'draft') {
+        auditLog('BLOCKED_STATUS_VIOLATION', { userId, reportId: todayReport.id, currentStatus: todayReport.status, action: 'auto-activity' });
+        return { __error: 'NOT_DRAFT' };
+      }
+
+      const existingActivities: any[] = Array.isArray(todayReport.activities) ? todayReport.activities : [];
+      const numericTaskId = Number(taskId);
+      const alreadyExists = existingActivities.some((a: any) =>
+        a.taskId === numericTaskId ||
+        a.taskId === taskId ||
+        (String(a.taskId) === String(taskId))
+      );
+      if (alreadyExists) {
+        return { __error: 'DUPLICATE' };
+      }
+
+      const [task] = await tx
+        .select()
+        .from(tasks)
+        .where(eq(tasks.id, numericTaskId));
+
+      if (!task) {
+        return { __error: 'TASK_NOT_FOUND' };
+      }
+
+      const newActivity = {
+        type: 'Task Work',
+        description: task.title,
+        timeSpent: timeSpent || 1,
+        plannedHours: 1,
+        priority: task.priority?.toLowerCase() || 'medium',
+        status: status === 'completed' ? 'completed' : 'in_progress',
+        taskId: task.id,
+        blockedReason: ''
+      };
+
+      const updatedActivities = [...existingActivities, newActivity];
+      const totalHours = updatedActivities.reduce((s, a) => s + (a.timeSpent || 0), 0);
+      const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
+      const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
+
+      const scores = calculateAllScores(updatedActivities, null, null);
+
+      const [updatedReport] = await tx
+        .update(dailyWorkReports)
+        .set({
+          activities: updatedActivities,
+          hoursWorked: totalHours,
+          tasksCompleted: completedTasks,
+          tasksInProgress: inProgressTasks,
+          productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
+          qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
+          efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
+          collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
+          updatedAt: new Date()
         })
+        .where(and(
+          eq(dailyWorkReports.id, todayReport.id),
+          eq(dailyWorkReports.userId, userId)
+        ))
         .returning();
+
+      return { report: updatedReport, activity: newActivity };
+    });
+
+    if ('__error' in result) {
+      if (result.__error === 'NOT_DRAFT') return res.status(400).json({ error: 'DWAR_NOT_DRAFT', message: 'Cannot modify a report that is not in draft status' });
+      if (result.__error === 'DUPLICATE') return res.status(409).json({ error: 'DWAR_DUPLICATE_ACTIVITY', message: 'This task has already been added to today\'s DWAR' });
+      if (result.__error === 'TASK_NOT_FOUND') return res.status(404).json({ error: 'TASK_NOT_FOUND', message: 'Task not found' });
     }
-
-    if (todayReport.status !== 'draft') {
-      return res.status(400).json({ error: 'Cannot modify a report that is not in draft status' });
-    }
-
-    const existingActivities: any[] = Array.isArray(todayReport.activities) ? todayReport.activities : [];
-    const alreadyExists = existingActivities.some((a: any) => a.taskId === taskId);
-    if (alreadyExists) {
-      return res.status(409).json({ error: 'This task has already been added to today\'s DWAR' });
-    }
-
-    const [task] = await db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.id, taskId));
-
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    const newActivity = {
-      type: 'Task Work',
-      description: task.title,
-      timeSpent: timeSpent || 1,
-      plannedHours: 1, // Default planned hours
-      priority: task.priority?.toLowerCase() || 'medium',
-      status: status === 'completed' ? 'completed' : 'in_progress',
-      taskId: task.id,
-      blockedReason: ''
-    };
-
-    const updatedActivities = [...(Array.isArray(todayReport.activities) ? todayReport.activities : []), newActivity];
-    const totalHours = updatedActivities.reduce((sum, a) => sum + (a.timeSpent || 0), 0);
-    const completedTasks = updatedActivities.filter(a => a.status === 'completed').length;
-    const inProgressTasks = updatedActivities.filter(a => a.status === 'in_progress').length;
-
-    const scores = calculateAllScores(updatedActivities, null, null);
-
-    const [updatedReport] = await db
-      .update(dailyWorkReports)
-      .set({
-        activities: updatedActivities,
-        hoursWorked: totalHours,
-        tasksCompleted: completedTasks,
-        tasksInProgress: inProgressTasks,
-        productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
-        qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
-        efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
-        collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
-        updatedAt: new Date()
-      })
-      .where(eq(dailyWorkReports.id, todayReport.id))
-      .returning();
 
     res.json({ 
       message: 'Task activity auto-added to DWAR', 
-      report: updatedReport,
-      activity: newActivity 
+      report: (result as any).report,
+      activity: (result as any).activity 
     });
 
   } catch (error) {
@@ -524,45 +558,41 @@ router.get('/today', ensureAuthenticated, async (req: Request, res: Response) =>
     const userId = req.user!.id;
     const today = new Date().toISOString().split('T')[0];
 
-    let [todayReport] = await db
-      .select()
-      .from(dailyWorkReports)
-      .where(and(
-        eq(dailyWorkReports.userId, userId),
-        eq(dailyWorkReports.reportDate, today)
-      ));
+    const todayReport = await db.transaction(async (tx) => {
+      let [report] = await tx
+        .select()
+        .from(dailyWorkReports)
+        .where(and(
+          eq(dailyWorkReports.userId, userId),
+          eq(dailyWorkReports.reportDate, today)
+        ));
 
-    if (!todayReport) {
-      try {
-        [todayReport] = await db
-          .insert(dailyWorkReports)
-          .values({
-            userId,
-            reportDate: today,
-            activities: [],
-            priorityTasks: [],
-            status: 'draft'
-          })
-          .returning();
-      } catch (insertErr: any) {
-        if (insertErr.code === '23505') {
-          [todayReport] = await db
+      if (!report) {
+        const inserted = await tx.execute(sql`
+          INSERT INTO daily_work_reports (user_id, report_date, activities, priority_tasks, status, created_at, updated_at)
+          VALUES (${userId}, ${today}, '[]'::jsonb, '[]'::jsonb, 'draft', NOW(), NOW())
+          ON CONFLICT (user_id, report_date) DO NOTHING
+          RETURNING *
+        `);
+        if (inserted.rows && inserted.rows.length > 0) {
+          report = inserted.rows[0] as any;
+        } else {
+          [report] = await tx
             .select()
             .from(dailyWorkReports)
             .where(and(
               eq(dailyWorkReports.userId, userId),
               eq(dailyWorkReports.reportDate, today)
             ));
-        } else {
-          throw insertErr;
         }
       }
-    }
+      return report;
+    });
 
     res.json(todayReport);
   } catch (error) {
     console.error('Error getting today\'s DWAR:', error);
-    res.status(500).json({ error: 'Failed to get today\'s report' });
+    res.status(500).json({ error: 'DWAR_TODAY_FETCH_FAILED', message: 'Unable to get or create today\'s report' });
   }
 });
 
@@ -573,79 +603,104 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
     const userId = req.user!.id;
     const rawData = req.body;
 
-    const [existingReport] = await db
-      .select({ 
-        planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
-        tomorrowPlans: dailyWorkReports.tomorrowPlans,
-        userId: dailyWorkReports.userId,
-        status: dailyWorkReports.status
-      })
-      .from(dailyWorkReports)
-      .where(and(
-        eq(dailyWorkReports.id, reportId),
-        eq(dailyWorkReports.userId, userId)
-      ));
-
-    if (!existingReport) {
-      return res.status(404).json({ error: 'Report not found or access denied' });
+    const blockedFields = ['status', 'approvedBy', 'approvedAt', 'submittedAt',
+      'productivityScore', 'qualityScore', 'efficiencyRating', 'collaborationScore',
+      'managerRating', 'managerFeedback', 'planFollowThroughScore', 'planFollowThroughDetails'];
+    const injectedFields = blockedFields.filter(f => f in rawData);
+    if (injectedFields.length > 0) {
+      auditLog('BLOCKED_FIELD_INJECTION', { userId, reportId, injectedFields });
     }
 
-    if (existingReport.status !== 'draft') {
-      return res.status(400).json({ error: 'Cannot update a report that is not in draft status' });
-    }
+    const updatedReport = await db.transaction(async (tx) => {
+      const [existingReport] = await tx
+        .select({ 
+          planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
+          tomorrowPlans: dailyWorkReports.tomorrowPlans,
+          userId: dailyWorkReports.userId,
+          status: dailyWorkReports.status
+        })
+        .from(dailyWorkReports)
+        .where(and(
+          eq(dailyWorkReports.id, reportId),
+          eq(dailyWorkReports.userId, userId)
+        ));
 
-    const allowedFields = [
-      'activities', 'hoursWorked', 'tasksCompleted', 'tasksInProgress',
-      'challenges', 'issuesEncountered', 'supportRequired',
-      'tomorrowPlans', 'priorityTasks',
-      'satisfactionRating', 'challengeLevel', 'blockedTasks'
-    ];
-    const sanitizedData: Record<string, any> = {};
-    for (const key of allowedFields) {
-      if (key in rawData) {
-        sanitizedData[key] = rawData[key];
+      if (!existingReport) {
+        auditLog('BLOCKED_OWNERSHIP_VIOLATION', { userId, reportId, action: 'update' });
+        return null;
       }
-    }
 
-    if (sanitizedData.satisfactionRating !== undefined) {
-      const rating = Number(sanitizedData.satisfactionRating);
-      if (isNaN(rating) || rating < 1 || rating > 5) {
-        return res.status(400).json({ error: 'satisfactionRating must be between 1 and 5' });
+      if (existingReport.status !== 'draft') {
+        auditLog('BLOCKED_STATUS_VIOLATION', { userId, reportId, currentStatus: existingReport.status, action: 'update' });
+        return { __error: 'NOT_DRAFT' };
       }
-      sanitizedData.satisfactionRating = rating;
-    }
-    if (sanitizedData.challengeLevel !== undefined) {
-      const level = Number(sanitizedData.challengeLevel);
-      if (isNaN(level) || level < 1 || level > 5) {
-        return res.status(400).json({ error: 'challengeLevel must be between 1 and 5' });
+
+      const allowedFields = [
+        'activities', 'hoursWorked', 'tasksCompleted', 'tasksInProgress',
+        'challenges', 'issuesEncountered', 'supportRequired',
+        'tomorrowPlans', 'priorityTasks',
+        'satisfactionRating', 'challengeLevel', 'blockedTasks'
+      ];
+      const sanitizedData: Record<string, any> = {};
+      for (const key of allowedFields) {
+        if (key in rawData) {
+          sanitizedData[key] = rawData[key];
+        }
       }
-      sanitizedData.challengeLevel = level;
-    }
 
-    const ftScore = existingReport.planFollowThroughScore;
-    const followThroughScore = (ftScore !== null && ftScore !== undefined && Number(ftScore) > 0) ? Number(ftScore) : null;
+      if (sanitizedData.satisfactionRating !== undefined) {
+        const rating = Number(sanitizedData.satisfactionRating);
+        if (isNaN(rating) || rating < 1 || rating > 5) {
+          return { __error: 'INVALID_SATISFACTION_RATING' };
+        }
+        sanitizedData.satisfactionRating = rating;
+      }
+      if (sanitizedData.challengeLevel !== undefined) {
+        const level = Number(sanitizedData.challengeLevel);
+        if (isNaN(level) || level < 1 || level > 5) {
+          return { __error: 'INVALID_CHALLENGE_LEVEL' };
+        }
+        sanitizedData.challengeLevel = level;
+      }
 
-    const activitiesForScoring = sanitizedData.activities || [];
-    const scores = calculateAllScores(activitiesForScoring, followThroughScore, null);
+      const ftScore = existingReport.planFollowThroughScore;
+      const followThroughScore = (ftScore !== null && ftScore !== undefined && Number(ftScore) > 0) ? Number(ftScore) : null;
 
-    const [updatedReport] = await db
-      .update(dailyWorkReports)
-      .set({
-        ...sanitizedData,
-        productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
-        qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
-        efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
-        collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
-        updatedAt: new Date()
-      })
-      .where(and(
-        eq(dailyWorkReports.id, reportId),
-        eq(dailyWorkReports.userId, userId)
-      ))
-      .returning();
+      const activitiesForScoring = sanitizedData.activities || [];
+      const scores = calculateAllScores(activitiesForScoring, followThroughScore, null);
+
+      const [updated] = await tx
+        .update(dailyWorkReports)
+        .set({
+          ...sanitizedData,
+          productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
+          qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
+          efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
+          collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(dailyWorkReports.id, reportId),
+          eq(dailyWorkReports.userId, userId)
+        ))
+        .returning();
+
+      return updated || null;
+    });
 
     if (!updatedReport) {
-      return res.status(404).json({ error: 'Report not found or access denied' });
+      return res.status(404).json({ error: 'DWAR_NOT_FOUND', message: 'Report not found or access denied' });
+    }
+    if ('__error' in updatedReport) {
+      if (updatedReport.__error === 'NOT_DRAFT') {
+        return res.status(400).json({ error: 'DWAR_NOT_DRAFT', message: 'Cannot update a report that is not in draft status' });
+      }
+      if (updatedReport.__error === 'INVALID_SATISFACTION_RATING') {
+        return res.status(400).json({ error: 'INVALID_FIELD', message: 'satisfactionRating must be between 1 and 5' });
+      }
+      if (updatedReport.__error === 'INVALID_CHALLENGE_LEVEL') {
+        return res.status(400).json({ error: 'INVALID_FIELD', message: 'challengeLevel must be between 1 and 5' });
+      }
     }
 
     res.json(updatedReport);
@@ -661,22 +716,54 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
     const reportId = parseInt(req.params.id);
     const userId = req.user!.id;
 
-    const [updatedReport] = await db
-      .update(dailyWorkReports)
-      .set({
-        status: 'submitted',
-        submittedAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(and(
-        eq(dailyWorkReports.id, reportId),
-        eq(dailyWorkReports.userId, userId),
-        eq(dailyWorkReports.status, 'draft')
-      ))
-      .returning();
+    const updatedReport = await db.transaction(async (tx) => {
+      const [report] = await tx
+        .select({ id: dailyWorkReports.id, userId: dailyWorkReports.userId, status: dailyWorkReports.status, activities: dailyWorkReports.activities })
+        .from(dailyWorkReports)
+        .where(and(
+          eq(dailyWorkReports.id, reportId),
+          eq(dailyWorkReports.userId, userId)
+        ));
+
+      if (!report) {
+        auditLog('BLOCKED_OWNERSHIP_VIOLATION', { userId, reportId, action: 'submit' });
+        return null;
+      }
+
+      if (report.status !== 'draft') {
+        auditLog('BLOCKED_STATUS_VIOLATION', { userId, reportId, currentStatus: report.status, action: 'submit' });
+        return { __error: 'NOT_DRAFT' };
+      }
+
+      const activities: any[] = Array.isArray(report.activities) ? report.activities : [];
+      const scores = calculateAllScores(activities, null, null);
+
+      const [submitted] = await tx
+        .update(dailyWorkReports)
+        .set({
+          status: 'submitted',
+          submittedAt: new Date(),
+          productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
+          qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
+          efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
+          collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(dailyWorkReports.id, reportId),
+          eq(dailyWorkReports.userId, userId),
+          eq(dailyWorkReports.status, 'draft')
+        ))
+        .returning();
+
+      return submitted || null;
+    });
 
     if (!updatedReport) {
-      return res.status(404).json({ error: 'Report not found or already submitted' });
+      return res.status(404).json({ error: 'DWAR_NOT_FOUND', message: 'Report not found or access denied' });
+    }
+    if ('__error' in updatedReport) {
+      return res.status(400).json({ error: 'DWAR_NOT_DRAFT', message: 'Report is not in draft status' });
     }
 
     // Auto-checkout functionality
@@ -836,25 +923,24 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
 router.get('/my-reports', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { startDate, endDate, status, limit = 20, offset = 0 } = req.query;
-
-    let query = db
-      .select()
-      .from(dailyWorkReports)
-      .where(eq(dailyWorkReports.userId, userId));
+    const { startDate, endDate, status } = req.query;
+    const parsedLimit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
+    const parsedOffset = Math.max(Number(req.query.offset) || 0, 0);
 
     const conditions = [eq(dailyWorkReports.userId, userId)];
     if (startDate) conditions.push(gte(dailyWorkReports.reportDate, startDate as string));
     if (endDate) conditions.push(lte(dailyWorkReports.reportDate, endDate as string));
-    if (status) conditions.push(eq(dailyWorkReports.status, status as string));
+    if (status && ['draft', 'submitted', 'approved', 'rejected'].includes(status as string)) {
+      conditions.push(eq(dailyWorkReports.status, status as string));
+    }
 
     const reports = await db
       .select()
       .from(dailyWorkReports)
       .where(and(...conditions))
       .orderBy(desc(dailyWorkReports.reportDate))
-      .limit(Number(limit))
-      .offset(Number(offset));
+      .limit(parsedLimit)
+      .offset(parsedOffset);
 
     res.json(reports);
   } catch (error) {
@@ -902,58 +988,85 @@ router.get('/admin/pending', ensureAuthenticated, async (req: Request, res: Resp
 router.post('/admin/review/:id', ensureAuthenticated, async (req: Request, res: Response) => {
   try {
     if (!['Superuser', 'Manager', 'Senior Manager'].includes(req.user!.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+      return res.status(403).json({ error: 'INSUFFICIENT_PERMISSIONS', message: 'Insufficient permissions' });
     }
 
     const reportId = parseInt(req.params.id);
+    const reviewerId = req.user!.id;
     const { action, managerFeedback, managerRating } = req.body;
 
     if (!['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ error: 'Invalid action. Must be approve or reject' });
+      return res.status(400).json({ error: 'INVALID_ACTION', message: 'Action must be approve or reject' });
     }
 
+    let validatedRating: number | undefined;
     if (managerRating !== undefined && managerRating !== null) {
       const rating = Number(managerRating);
       if (isNaN(rating) || rating < 1 || rating > 5) {
-        return res.status(400).json({ error: 'managerRating must be between 1 and 5' });
+        return res.status(400).json({ error: 'INVALID_RATING', message: 'managerRating must be between 1 and 5' });
+      }
+      validatedRating = Math.min(Math.max(Math.round(rating), 1), 5);
+    }
+
+    const updatedReport = await db.transaction(async (tx) => {
+      const [reportToReview] = await tx
+        .select({ userId: dailyWorkReports.userId, status: dailyWorkReports.status, activities: dailyWorkReports.activities })
+        .from(dailyWorkReports)
+        .where(eq(dailyWorkReports.id, reportId));
+
+      if (!reportToReview) {
+        return null;
+      }
+
+      if (reportToReview.userId === reviewerId) {
+        auditLog('BLOCKED_SELF_REVIEW', { reviewerId, reportId, action });
+        return { __error: 'SELF_REVIEW' };
+      }
+
+      if (reportToReview.status !== 'submitted') {
+        auditLog('BLOCKED_STATUS_VIOLATION', { reviewerId, reportId, currentStatus: reportToReview.status, action: 'admin-review' });
+        return { __error: 'NOT_SUBMITTED' };
+      }
+
+      const activities: any[] = Array.isArray(reportToReview.activities) ? reportToReview.activities : [];
+      const scores = calculateAllScores(activities, null, validatedRating);
+
+      const [updated] = await tx
+        .update(dailyWorkReports)
+        .set({
+          status: action === 'approve' ? 'approved' : 'rejected',
+          approvedBy: reviewerId,
+          approvedAt: new Date(),
+          managerFeedback: managerFeedback || undefined,
+          managerRating: validatedRating,
+          productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : undefined,
+          qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : undefined,
+          efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : undefined,
+          collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : undefined,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(dailyWorkReports.id, reportId),
+          eq(dailyWorkReports.status, 'submitted')
+        ))
+        .returning();
+
+      return updated || null;
+    });
+
+    if (!updatedReport) {
+      return res.status(404).json({ error: 'DWAR_NOT_FOUND', message: 'Report not found' });
+    }
+    if ('__error' in updatedReport) {
+      if (updatedReport.__error === 'SELF_REVIEW') {
+        return res.status(403).json({ error: 'DWAR_SELF_REVIEW_BLOCKED', message: 'You cannot review your own DWAR' });
+      }
+      if (updatedReport.__error === 'NOT_SUBMITTED') {
+        return res.status(400).json({ error: 'DWAR_NOT_SUBMITTED', message: 'Report is not in submitted status' });
       }
     }
 
-    const [reportToReview] = await db
-      .select({ userId: dailyWorkReports.userId })
-      .from(dailyWorkReports)
-      .where(eq(dailyWorkReports.id, reportId));
-
-    if (!reportToReview) {
-      return res.status(404).json({ error: 'Report not found' });
-    }
-
-    if (reportToReview.userId === req.user!.id) {
-      return res.status(403).json({ error: 'You cannot review your own DWAR' });
-    }
-
-    const [updatedReport] = await db
-      .update(dailyWorkReports)
-      .set({
-        status: action === 'approve' ? 'approved' : 'rejected',
-        approvedBy: req.user!.id,
-        approvedAt: new Date(),
-        managerFeedback,
-        managerRating: managerRating ? Math.min(Math.max(parseInt(managerRating), 1), 5) : undefined,
-        updatedAt: new Date()
-      })
-      .where(and(
-        eq(dailyWorkReports.id, reportId),
-        eq(dailyWorkReports.status, 'submitted')
-      ))
-      .returning();
-
-    if (!updatedReport) {
-      return res.status(404).json({ error: 'Report not found or not in submitted status' });
-    }
-
-    // Calculate monthly KPIs after approval
-    await calculateMonthlyKPIs(updatedReport.userId);
+    await calculateMonthlyKPIs((updatedReport as any).userId);
 
     res.json({ message: `Report ${action}d successfully`, report: updatedReport });
   } catch (error) {
