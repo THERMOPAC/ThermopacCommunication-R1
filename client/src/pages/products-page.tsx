@@ -1023,7 +1023,7 @@ export default function ProductsPage() {
         </Tabs>
 
         <Dialog open={isProductDialogOpen} onOpenChange={(open) => { if (!open) { setIsProductDialogOpen(false); setEditingProduct(null); } }}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Product" : "Create Product"}</DialogTitle>
               <DialogDescription>
@@ -1032,28 +1032,21 @@ export default function ProductsPage() {
             </DialogHeader>
 
             <Form {...productForm}>
-              <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
-                <div className="space-y-4">
+              <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={productForm.control}
                     name="itemFamily"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Family <span className="text-destructive">*</span></FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={handleSelectFamily}
-                        >
+                        <Select value={field.value} onValueChange={handleSelectFamily}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Item Family" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Item Family" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {familyOptions.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.code}>
-                                {opt.code} - {opt.label}
-                              </SelectItem>
+                              <SelectItem key={opt.id} value={opt.code}>{opt.code} - {opt.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -1068,20 +1061,13 @@ export default function ProductsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Property 1 <span className="text-destructive">*</span></FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={handleSelectProp1}
-                        >
+                        <Select value={field.value} onValueChange={handleSelectProp1}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Property 1" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Property 1" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {property1Options.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.code}>
-                                {opt.code} - {opt.label}
-                              </SelectItem>
+                              <SelectItem key={opt.id} value={opt.code}>{opt.code} - {opt.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -1096,20 +1082,13 @@ export default function ProductsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Property 2 <span className="text-destructive">*</span></FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={handleSelectProp2}
-                        >
+                        <Select value={field.value} onValueChange={handleSelectProp2}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Property 2" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Property 2" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {property2Options.map((opt) => (
-                              <SelectItem key={opt.id} value={opt.code}>
-                                {opt.code} - {opt.label}
-                              </SelectItem>
+                              <SelectItem key={opt.id} value={opt.code}>{opt.code} - {opt.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -1124,7 +1103,6 @@ export default function ProductsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Property 3 <span className="text-destructive">*</span></FormLabel>
-                        <FormDescription className="text-xs">Starts with digits, optionally followed by text (e.g. 1000, 2000 LPH, 1000000 KCAL/H)</FormDescription>
                         <FormControl>
                           <Input
                             {...field}
@@ -1143,14 +1121,14 @@ export default function ProductsPage() {
                 </div>
 
                 {liveProductCode && (
-                  <div className="rounded-md border p-3 bg-muted/50 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium text-muted-foreground">Product Code:</Label>
+                  <div className="rounded-md border p-2 bg-muted/50 flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">Code:</span>
                       <span className="font-mono font-semibold">{liveProductCode}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium text-muted-foreground">Description:</Label>
-                      <span className="text-sm">{liveDescription}</span>
+                    <div className="flex items-center gap-1 truncate">
+                      <span className="text-muted-foreground">Desc:</span>
+                      <span className="truncate">{liveDescription}</span>
                     </div>
                   </div>
                 )}
@@ -1162,17 +1140,14 @@ export default function ProductsPage() {
                     <FormItem>
                       <FormLabel>Description Override (optional)</FormLabel>
                       <FormControl>
-                        <Input
-                          {...field}
-                          placeholder={liveDescription || "Auto-generated from attributes"}
-                        />
+                        <Input {...field} placeholder={liveDescription || "Auto-generated from attributes"} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
                   <FormField
                     control={productForm.control}
                     name="unit"
@@ -1181,9 +1156,7 @@ export default function ProductsPage() {
                         <FormLabel>Unit <span className="text-destructive">*</span></FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Unit" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Unit" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {unitOptions.map((u) => (
@@ -1218,30 +1191,30 @@ export default function ProductsPage() {
                         <FormLabel>Currency <span className="text-destructive">*</span></FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Currency" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Currency" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="USD">USD - US Dollar</SelectItem>
-                            <SelectItem value="EUR">EUR - Euro</SelectItem>
-                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                            <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                            <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                            <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                            <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
-                            <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
-                            <SelectItem value="CHF">CHF - Swiss Franc</SelectItem>
-                            <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                            <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
-                            <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="EUR">EUR</SelectItem>
+                            <SelectItem value="GBP">GBP</SelectItem>
+                            <SelectItem value="INR">INR</SelectItem>
+                            <SelectItem value="AED">AED</SelectItem>
+                            <SelectItem value="SAR">SAR</SelectItem>
+                            <SelectItem value="JPY">JPY</SelectItem>
+                            <SelectItem value="CNY">CNY</SelectItem>
+                            <SelectItem value="CHF">CHF</SelectItem>
+                            <SelectItem value="CAD">CAD</SelectItem>
+                            <SelectItem value="AUD">AUD</SelectItem>
+                            <SelectItem value="SGD">SGD</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                </div>
 
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={productForm.control}
                     name="category"
@@ -1250,9 +1223,7 @@ export default function ProductsPage() {
                         <FormLabel>Product Category <span className="text-destructive">*</span></FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Category" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Finish Goods">Finish Goods</SelectItem>
@@ -1279,7 +1250,9 @@ export default function ProductsPage() {
                       </FormItem>
                     )}
                   />
+                </div>
 
+                <div className="grid grid-cols-3 gap-3">
                   <FormField
                     control={productForm.control}
                     name="drawingNumber"
@@ -1302,9 +1275,7 @@ export default function ProductsPage() {
                         <FormLabel>Make / Buy</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value || 'Make'}>
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select Make or Buy" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Make or Buy" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Make">Make</SelectItem>
@@ -1327,9 +1298,7 @@ export default function ProductsPage() {
                           value={field.value ? String(field.value) : "none"}
                         >
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select vendor" />
-                            </SelectTrigger>
+                            <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">-- None --</SelectItem>
@@ -1344,30 +1313,31 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                <FormField
-                  control={productForm.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-3">
-                      <FormLabel className="mt-0">Active</FormLabel>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); }}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={createProductMutation.isPending || updateProductMutation.isPending}>
-                    {(createProductMutation.isPending || updateProductMutation.isPending) && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <div className="flex items-center justify-between pt-1">
+                  <FormField
+                    control={productForm.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-3">
+                        <FormLabel className="mt-0">Active</FormLabel>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                      </FormItem>
                     )}
-                    {editingProduct ? "Update Product" : "Create Product"}
-                  </Button>
-                </DialogFooter>
+                  />
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => { setIsProductDialogOpen(false); setEditingProduct(null); }}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createProductMutation.isPending || updateProductMutation.isPending}>
+                      {(createProductMutation.isPending || updateProductMutation.isPending) && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {editingProduct ? "Update Product" : "Create Product"}
+                    </Button>
+                  </div>
+                </div>
               </form>
             </Form>
           </DialogContent>
