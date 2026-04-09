@@ -12181,3 +12181,32 @@ export const projectCancellationSnapshots = pgTable('project_cancellation_snapsh
 });
 
 export type ProjectCancellationSnapshot = typeof projectCancellationSnapshots.$inferSelect;
+
+export const gcsFileIndex = pgTable('gcs_file_index', {
+  id: serial('id').primaryKey(),
+  bucketName: varchar('bucket_name', { length: 100 }).notNull(),
+  filePath: text('file_path').notNull().unique(),
+  fileName: text('file_name').notNull(),
+  folderPath: text('folder_path').notNull(),
+  continentCode: varchar('continent_code', { length: 5 }),
+  continentName: varchar('continent_name', { length: 100 }),
+  countryCode: varchar('country_code', { length: 5 }),
+  countryName: varchar('country_name', { length: 100 }),
+  customerCode: varchar('customer_code', { length: 10 }),
+  customerName: varchar('customer_name', { length: 255 }),
+  fyCode: varchar('fy_code', { length: 10 }),
+  fyLabel: varchar('fy_label', { length: 20 }),
+  projectCode: varchar('project_code', { length: 50 }),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  docType: varchar('doc_type', { length: 20 }),
+  revision: varchar('revision', { length: 20 }),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }),
+  contentType: varchar('content_type', { length: 100 }),
+  isResolved: boolean('is_resolved').notNull().default(true),
+  unresolvedFields: text('unresolved_fields').array(),
+  gcsUpdatedAt: timestamp('gcs_updated_at'),
+  lastSyncedAt: timestamp('last_synced_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type GcsFileIndex = typeof gcsFileIndex.$inferSelect;
