@@ -30,6 +30,7 @@ type EpcDocumentPanelProps = {
   parentStatus?: string;
   userRole: string;
   compact?: boolean;
+  gcsPathPreview?: string;
 };
 
 type Attachment = {
@@ -88,6 +89,7 @@ export default function EpcDocumentPanel({
   parentStatus,
   userRole,
   compact = false,
+  gcsPathPreview,
 }: EpcDocumentPanelProps) {
   const { toast } = useToast();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -462,9 +464,15 @@ export default function EpcDocumentPanel({
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
+              {gcsPathPreview && (
+                <div className="bg-slate-50 border rounded px-3 py-2">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">GCS Upload Path</label>
+                  <div className="font-mono text-[11px] text-slate-700 break-all mt-0.5">{gcsPathPreview}</div>
+                </div>
+              )}
               <div>
-                <label className="text-sm font-medium block mb-1">Label</label>
-                <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g. GA Drawing, Material Spec..." />
+                <label className="text-sm font-medium block mb-1">Attachment Label</label>
+                <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g. GA Drawing, Material Specification, Weld Map..." />
               </div>
               <div>
                 <label className="text-sm font-medium block mb-1">File</label>

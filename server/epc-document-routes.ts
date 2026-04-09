@@ -47,7 +47,8 @@ async function lookupParentEntity(docType: string, parentEntityId: number, proje
     return null;
   }
   const extraCols = (docType === 'DWG' || docType === 'BOM') ? ', revision_code, is_current' : '';
-  const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, project_id, status${extraCols} FROM ${mapping.table} WHERE id = $1 AND project_id = $2`;
+  const piJoin = (docType === 'DWG') ? ', project_item_id' : '';
+  const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, project_id, status${extraCols}${piJoin} FROM ${mapping.table} WHERE id = $1 AND project_id = $2`;
   const result = await db.execute(sql.raw(queryText, [parentEntityId, projectId]));
   return result.rows.length > 0 ? result.rows[0] as any : null;
 }
@@ -132,11 +133,30 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         );
         const attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
-        const gcsObjectPath = epcCoding.buildEpcGcsPath(
-          geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
-          geo.projectSeq, docType, documentNumber,
-          revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
-        );
+        let gcsObjectPath: string;
+        if (docType === 'DWG' && parent.project_item_id) {
+          const piRow = await tx.execute(
+            sql`SELECT item_code, code_bars FROM project_items WHERE id = ${parent.project_item_id}`
+          );
+          const piData = piRow.rows[0] as any;
+          if (piData?.code_bars) {
+            const ext = req.file!.originalname.split('.').pop()?.toLowerCase() || 'pdf';
+            const rev = revisionCode || '00';
+            gcsObjectPath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/${piData.item_code}/DWG/${piData.code_bars}_rev-${rev}.${ext}`;
+          } else {
+            gcsObjectPath = epcCoding.buildEpcGcsPath(
+              geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+              geo.projectSeq, docType, documentNumber,
+              revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
+            );
+          }
+        } else {
+          gcsObjectPath = epcCoding.buildEpcGcsPath(
+            geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
+            geo.projectSeq, docType, documentNumber,
+            revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
+          );
+        }
 
         const [inserted] = await tx.insert(epcDocumentAttachments).values({
           parentEntityType: ENTITY_TABLE_MAP[docType].table,

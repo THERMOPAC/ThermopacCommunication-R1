@@ -657,12 +657,9 @@ export default function EpcDrawingControlPage() {
                                     </div>
 
                                     {projectId && (
-                                      <EpcDocumentPanel
+                                      <DwgDocumentPanelWithGcs
                                         projectId={projectId}
-                                        docType="DWG"
-                                        parentEntityId={rec.id}
-                                        documentNumber={rec.dwg_control_number}
-                                        parentStatus={rec.status}
+                                        rec={rec}
                                         userRole={userRole}
                                       />
                                     )}
@@ -994,5 +991,30 @@ function DetailRow({ label, value, mono }: { label: string; value?: string | nul
       <span className="text-[9px] text-muted-foreground shrink-0">{label}</span>
       <span className={`text-[10px] text-right ${mono ? "font-mono" : ""}`}>{value || "—"}</span>
     </div>
+  );
+}
+
+function DwgDocumentPanelWithGcs({ projectId, rec, userRole }: { projectId: number; rec: any; userRole: string }) {
+  const gcsPathQuery = useQuery({
+    queryKey: ['/api/project-items', rec.project_item_id, 'gcs-path'],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/project-items/${rec.project_item_id}/gcs-path`);
+      return res as any;
+    },
+    enabled: !!rec.project_item_id,
+  });
+  const gcsInfo = gcsPathQuery.data;
+  const gcsPreview = gcsInfo ? `${gcsInfo.basePath}/${gcsInfo.codeBars}_rev-${rec.revision_code || 'XX'}.pdf` : undefined;
+
+  return (
+    <EpcDocumentPanel
+      projectId={projectId}
+      docType="DWG"
+      parentEntityId={rec.id}
+      documentNumber={rec.dwg_control_number}
+      parentStatus={rec.status}
+      userRole={userRole}
+      gcsPathPreview={gcsPreview}
+    />
   );
 }
