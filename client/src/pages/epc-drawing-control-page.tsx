@@ -165,7 +165,6 @@ export default function EpcDrawingControlPage() {
   const [filterMfgReleased, setFilterMfgReleased] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<DrawingControl | null>(null);
 
@@ -183,11 +182,6 @@ export default function EpcDrawingControlPage() {
   const [clientApprovedBy, setClientApprovedBy] = useState("");
   const [clientApprovalNotes, setClientApprovalNotes] = useState("");
 
-  const [createForm, setCreateForm] = useState({
-    projectItemId: "", masterItemId: "", drawingNumber: "", drawingTitle: "",
-    drawingRevision: "", drawingPurpose: "general", notes: "",
-    clientApprovalRequired: false, procurementReleaseRequired: true, manufacturingReleaseRequired: true,
-  });
   const [editForm, setEditForm] = useState({
     drawingNumber: "", drawingTitle: "", drawingRevision: "", drawingCategory: "",
     disciplineCode: "", drawingPurpose: "general", notes: "",
@@ -209,17 +203,6 @@ export default function EpcDrawingControlPage() {
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "drawing-controls"] });
   }
-
-  const createMutation = useMutation({
-    mutationFn: async (body: any) => apiRequest("POST", `/api/projects/${projectId}/drawing-controls`, body),
-    onSuccess: (data: any) => {
-      toast({ title: "Drawing Control Created", description: data.message || "Created successfully" });
-      invalidateAll();
-      setCreateDialogOpen(false);
-      setCreateForm({ projectItemId: "", masterItemId: "", drawingNumber: "", drawingTitle: "", drawingRevision: "", drawingPurpose: "general", notes: "", clientApprovalRequired: false, procurementReleaseRequired: true, manufacturingReleaseRequired: true });
-    },
-    onError: (err: any) => toast({ title: "Create failed", description: err.message, variant: "destructive" }),
-  });
 
   const editMutation = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: any }) => apiRequest("PATCH", `/api/drawing-controls/${id}`, body),
@@ -357,23 +340,6 @@ export default function EpcDrawingControlPage() {
     editMutation.mutate({ id: editTarget.id, body: editForm });
   }
 
-  function handleCreateSubmit() {
-    if (!createForm.projectItemId) return;
-    const item = projectItems.find((i: any) => i.id === parseInt(createForm.projectItemId));
-    createMutation.mutate({
-      projectItemId: parseInt(createForm.projectItemId),
-      masterItemId: item?.master_item_id || parseInt(createForm.masterItemId),
-      drawingNumber: createForm.drawingNumber || null,
-      drawingTitle: createForm.drawingTitle || null,
-      drawingRevision: createForm.drawingRevision || null,
-      drawingPurpose: createForm.drawingPurpose,
-      notes: createForm.notes || null,
-      clientApprovalRequired: createForm.clientApprovalRequired,
-      procurementReleaseRequired: createForm.procurementReleaseRequired,
-      manufacturingReleaseRequired: createForm.manufacturingReleaseRequired,
-    });
-  }
-
   const selectedProject = projects.find((p: any) => p.id === projectId);
 
   return (
@@ -471,13 +437,6 @@ export default function EpcDrawingControlPage() {
                   <Switch id="allRevs" checked={showAllRevisions} onCheckedChange={setShowAllRevisions} className="scale-75" />
                   <Label htmlFor="allRevs" className="text-[10px] text-muted-foreground cursor-pointer">All Revisions</Label>
                 </div>
-                {userLevel <= 3 && (
-                  <div className="ml-auto">
-                    <Button size="sm" className="h-8 text-xs" onClick={() => setCreateDialogOpen(true)}>
-                      <Plus className="h-3.5 w-3.5 mr-1" /> New DWG Control
-                    </Button>
-                  </div>
-                )}
               </div>
 
               <Card className="shadow-sm">
@@ -691,106 +650,6 @@ export default function EpcDrawingControlPage() {
               </Card>
             </>
           )}
-
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Create Drawing Control</DialogTitle>
-                <DialogDescription>
-                  New DWG control for {selectedProject?.name || "this project"}. Initial revision will be A (draft).
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-                <div>
-                  <Label className="text-xs font-medium">Project Item *</Label>
-                  <Select value={createForm.projectItemId} onValueChange={(v) => {
-                    const item = projectItems.find((i: any) => i.id === parseInt(v));
-                    setCreateForm(f => ({
-                      ...f, projectItemId: v, masterItemId: item?.master_item_id?.toString() || "",
-                      drawingNumber: item?.code_bars || "",
-                      procurementReleaseRequired: item?.make_or_buy === "Buy" || !item?.make_or_buy,
-                      manufacturingReleaseRequired: item?.make_or_buy === "Make" || !item?.make_or_buy,
-                    }));
-                  }}>
-                    <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="Select item..." /></SelectTrigger>
-                    <SelectContent>
-                      {projectItems.map((item: any) => (
-                        <SelectItem key={item.id} value={item.id.toString()} className="text-xs">
-                          {item.item_code} — {item.description || item.item_description} ({item.make_or_buy || "—"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {createForm.projectItemId && (() => {
-                    const item = projectItems.find((i: any) => i.id === parseInt(createForm.projectItemId));
-                    if (!item) return null;
-                    return (
-                      <div className="mt-1.5 p-2 bg-muted/50 rounded text-[10px] space-y-0.5">
-                        <div><span className="font-medium">Item Code:</span> {item.item_code}</div>
-                        <div><span className="font-medium">Description:</span> {item.description || item.item_description}</div>
-                        <div><span className="font-medium">Barcode:</span> {item.code_bars || <span className="text-muted-foreground italic">Not set</span>}</div>
-                        <div><span className="font-medium">Classification:</span> {item.make_or_buy || "Not set"}</div>
-                        <div><span className="font-medium">Initial Revision:</span> A (draft)</div>
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs font-medium">Drawing No (Barcode)</Label>
-                    <Input className="h-8 text-xs mt-1" value={createForm.drawingNumber} onChange={(e) => setCreateForm(f => ({ ...f, drawingNumber: e.target.value }))} placeholder="Auto-filled from item barcode" />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium">Drawing Title</Label>
-                    <Input className="h-8 text-xs mt-1" value={createForm.drawingTitle} onChange={(e) => setCreateForm(f => ({ ...f, drawingTitle: e.target.value }))} placeholder="e.g. General Assembly" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs font-medium">Drawing Revision</Label>
-                    <Input className="h-8 text-xs mt-1" value={createForm.drawingRevision} onChange={(e) => setCreateForm(f => ({ ...f, drawingRevision: e.target.value }))} placeholder="e.g. 0, A" />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium">Purpose</Label>
-                    <Select value={createForm.drawingPurpose} onValueChange={(v) => setCreateForm(f => ({ ...f, drawingPurpose: v }))}>
-                      <SelectTrigger className="h-8 text-xs mt-1"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {["general", "procurement", "manufacturing", "construction"].map(p => (
-                          <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs font-medium">Notes</Label>
-                  <Textarea className="text-xs mt-1 min-h-[50px]" value={createForm.notes} onChange={(e) => setCreateForm(f => ({ ...f, notes: e.target.value }))} placeholder="Optional notes..." />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <div className="text-xs font-medium">Release & Approval Configuration</div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px]">Procurement Release Required</Label>
-                    <Switch checked={createForm.procurementReleaseRequired} onCheckedChange={(v) => setCreateForm(f => ({ ...f, procurementReleaseRequired: v }))} className="scale-75" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px]">Manufacturing Release Required</Label>
-                    <Switch checked={createForm.manufacturingReleaseRequired} onCheckedChange={(v) => setCreateForm(f => ({ ...f, manufacturingReleaseRequired: v }))} className="scale-75" />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-[10px]">Client Approval Required</Label>
-                    <Switch checked={createForm.clientApprovalRequired} onCheckedChange={(v) => setCreateForm(f => ({ ...f, clientApprovalRequired: v }))} className="scale-75" />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateSubmit} disabled={createMutation.isPending || !createForm.projectItemId}>
-                  {createMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Create
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
             <DialogContent className="max-w-lg">
