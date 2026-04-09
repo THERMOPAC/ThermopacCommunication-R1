@@ -171,7 +171,7 @@ export async function resolveAssignee(
   preferredRole?: string
 ): Promise<number | null> {
   const executor = tx || db;
-  const AUTHORIZED_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+  const AUTHORIZED_ROLES = ['Senior Executive', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 
   try {
     if (preferredRole && AUTHORIZED_ROLES.includes(preferredRole)) {

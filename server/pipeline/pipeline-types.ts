@@ -43,8 +43,8 @@ export const PRIORITY_MAP: Record<DraftDocType, string> = {
   IO: 'Medium',
 };
 
-export const APPROVAL_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
-export const ACTION_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+export const APPROVAL_ROLES = ['Senior Executive', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+export const ACTION_ROLES = ['Senior Executive', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 
 export interface DraftGenerationSummary {
   projectId: number;
