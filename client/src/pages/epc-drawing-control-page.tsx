@@ -388,13 +388,15 @@ export default function EpcDrawingControlPage() {
             </div>
             <div className="flex items-center gap-2">
               <Select value={projectId?.toString() || ""} onValueChange={(v) => { setProjectId(parseInt(v)); setExpandedId(null); }}>
-                <SelectTrigger className="w-[260px] h-8 text-xs">
+                <SelectTrigger className="w-[360px] h-8 text-xs">
                   <SelectValue placeholder="Select project..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((p: any) => (
+                  {projects
+                    .filter((p: any) => ['active', 'planning'].includes(p.status))
+                    .map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
-                      {p.name} ({p.code || "—"})
+                      {p.clientName || p.client_name || '—'} — {p.code || '—'} ({p.name})
                     </SelectItem>
                   ))}
                 </SelectContent>
