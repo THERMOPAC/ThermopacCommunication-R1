@@ -649,7 +649,7 @@ function GapsTab({
   );
 }
 
-const DEPARTMENTS = ["Accounts", "Administration", "After Sales", "Design", "Marketing", "Production", "Purchase", "Quality Control", "Stores"];
+const DEPARTMENTS = ["Accounts", "Administration", "After Sales", "Design", "Marketing", "Production", "Projects", "Purchase", "Quality Control", "Stores"];
 const PAGE_LABELS: Record<string, string> = {
   "project-dashboard": "Project Dashboard",
   "projects": "Projects",

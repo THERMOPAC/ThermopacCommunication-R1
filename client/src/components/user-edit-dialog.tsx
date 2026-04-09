@@ -628,6 +628,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
                         <SelectItem value="General">General</SelectItem>
                         <SelectItem value="Marketing">Marketing</SelectItem>
                         <SelectItem value="Production">Production</SelectItem>
+                        <SelectItem value="Projects">Projects</SelectItem>
                         <SelectItem value="Purchase">Purchase</SelectItem>
                         <SelectItem value="Quality Control">Quality Control</SelectItem>
                         <SelectItem value="Stores">Stores</SelectItem>

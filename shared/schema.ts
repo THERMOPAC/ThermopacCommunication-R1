@@ -742,6 +742,7 @@ export const departments = [
   "Design",
   "Marketing",
   "Production",
+  "Projects",
   "Purchase",
   "Quality Control",
   "Stores",
