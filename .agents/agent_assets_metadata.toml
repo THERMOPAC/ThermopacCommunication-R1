@@ -126,3 +126,9 @@ id = "YTuc72ruBhkgGfi7fzvcx"
 uri = "file://docs/epc-execution-drafts-design.md"
 type = "text"
 title = "EPC Execution Plan — Unified Automation Design (v3 Implementation Baseline, 1172 lines)"
+
+[[outputs]]
+id = "nLNBLgFMNoQP2VRH2MeRG"
+uri = "file://docs/edcf-baseline-v1.0.md"
+type = "text"
+title = "THERMOPAC EDCF Baseline v1.0"
