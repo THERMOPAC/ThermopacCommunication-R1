@@ -39,8 +39,9 @@ async function lookupParentEntity(docType: string, parentEntityId: number, proje
   const mapping = ENTITY_TABLE_MAP[docType];
   if (!mapping) return null;
   if (docType === 'QTN') {
-    const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, status FROM ${mapping.table} WHERE id = $1`;
-    const result = await db.execute(sql.raw(queryText, [parentEntityId]));
+    const result = await db.execute(
+      sql`SELECT id, ${sql.raw(mapping.numberColumn)} AS document_number, status FROM ${sql.raw(mapping.table)} WHERE id = ${parentEntityId}`
+    );
     if (result.rows.length > 0) {
       return { ...(result.rows[0] as any), project_id: projectId };
     }
@@ -48,8 +49,9 @@ async function lookupParentEntity(docType: string, parentEntityId: number, proje
   }
   const extraCols = (docType === 'DWG' || docType === 'BOM') ? ', revision_code, is_current' : '';
   const piJoin = (docType === 'DWG') ? ', project_item_id' : '';
-  const queryText = `SELECT id, ${mapping.numberColumn} AS document_number, project_id, status${extraCols}${piJoin} FROM ${mapping.table} WHERE id = $1 AND project_id = $2`;
-  const result = await db.execute(sql.raw(queryText, [parentEntityId, projectId]));
+  const result = await db.execute(
+    sql`SELECT id, ${sql.raw(mapping.numberColumn)} AS document_number, project_id, status${sql.raw(extraCols)}${sql.raw(piJoin)} FROM ${sql.raw(mapping.table)} WHERE id = ${parentEntityId} AND project_id = ${projectId}`
+  );
   return result.rows.length > 0 ? result.rows[0] as any : null;
 }
 
@@ -699,8 +701,9 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       const parentMapping = ENTITY_TABLE_MAP[attachment.doc_type];
       let parentStatus = 'draft';
       if (parentMapping) {
-        const parentQueryText = `SELECT status FROM ${parentMapping.table} WHERE id = $1`;
-        const parentResult = await db.execute(sql.raw(parentQueryText, [attachment.parent_entity_id]));
+        const parentResult = await db.execute(
+          sql`SELECT status FROM ${sql.raw(parentMapping.table)} WHERE id = ${attachment.parent_entity_id}`
+        );
         if (parentResult.rows.length > 0) {
           parentStatus = (parentResult.rows[0] as any).status;
         }
