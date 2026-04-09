@@ -120,3 +120,9 @@ id = "mFmhOsh8rjW-XxeIuLiKs"
 uri = "file://.local/epc-migration-implementation-plan.md"
 type = "text"
 title = "EPC File Governance — Implementation Plan (Phase 0 + Wave 1)"
+
+[[outputs]]
+id = "YTuc72ruBhkgGfi7fzvcx"
+uri = "file://docs/epc-execution-drafts-design.md"
+type = "text"
+title = "EPC Execution Drafts — Unified Automation Design (708 lines)"
