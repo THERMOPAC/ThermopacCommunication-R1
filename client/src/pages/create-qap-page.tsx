@@ -766,7 +766,7 @@ export default function CreateQAPPage() {
           </div>
           
           <div class="qap-details">
-            <p><strong>Project:</strong> ${selectedProject.code} - ${selectedProject.name}</p>
+            <p><strong>Project:</strong> ${selectedProject.code} — ${selectedProject.clientName || selectedProject.name}</p>
             <p><strong>Customer:</strong> ${selectedCustomer?.bpName || "N/A"}</p>
             <p><strong>Equipment Type:</strong> ${values.category}</p>
             <p><strong>PO Number:</strong> ${values.poNumber || "N/A"}</p>
@@ -1024,7 +1024,7 @@ export default function CreateQAPPage() {
                           <SelectContent>
                             {projects.map((project) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.code} - {project.clientName || project.name}
+                                {project.code} — {project.clientName || project.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

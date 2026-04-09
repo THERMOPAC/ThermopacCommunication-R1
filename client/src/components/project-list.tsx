@@ -1229,9 +1229,7 @@ export default function ProjectList() {
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-3 h-3 rounded-full ${project.status === 'active' ? 'bg-green-500' : project.status === 'completed' ? 'bg-blue-500' : 'bg-gray-400'}`}></div>
-                    <span className="font-mono text-sm text-gray-500">{project.code}</span>
-                    <span className="font-medium">{project.clientName || project.name}</span>
-                    {project.clientName && <span className="text-xs text-muted-foreground truncate max-w-[200px]">{project.name}</span>}
+                    <span className="font-medium">{project.code} — {project.clientName || project.name}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs rounded-full px-2 py-0.5 ${getPriorityColor(project.priority)}`}>

@@ -1588,7 +1588,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.name}</span></div>
+            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.clientName || project?.name}</span></div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Cancellation Type <span className="text-destructive">*</span></label>
               <select
@@ -1659,7 +1659,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.name}</span></div>
+            <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.clientName || project?.name}</span></div>
             <div className="text-sm">Current Status: <span className="font-bold text-red-600">Canceled</span> → <span className="font-bold text-blue-600">{pendingReopenData?.status === 'on_hold' ? 'On Hold' : 'Planning'}</span></div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Reopen Reason <span className="text-destructive">*</span></label>

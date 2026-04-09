@@ -6282,7 +6282,7 @@ export default function InspectionsPage() {
                   <SelectContent>
                     {Array.isArray(projects) && projects.map((project: any) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.code}: {project.clientName || project.name}
+                        {project.code} — {project.clientName || project.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -9876,7 +9876,7 @@ export default function InspectionsPage() {
                             <SelectContent>
                               {Array.isArray(projects) && projects.map((project: any) => (
                                 <SelectItem key={project.id} value={project.id.toString()}>
-                                  {project.code}: {project.clientName || project.name}
+                                  {project.code} — {project.clientName || project.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>

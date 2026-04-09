@@ -466,7 +466,7 @@ export default function DispatchShippingPage() {
             <TableRow key={dispatch.id}>
               <TableCell>{dispatch.id}</TableCell>
               <TableCell>
-                {dispatch.project?.code} - {dispatch.project?.name}
+                {dispatch.project?.code} — {dispatch.project?.clientName || dispatch.project?.name}
               </TableCell>
               <TableCell>{format(new Date(dispatch.dispatch_date), 'dd/MM/yyyy')}</TableCell>
               <TableCell>{dispatch.gate_pass_number}</TableCell>
@@ -936,7 +936,7 @@ export default function DispatchShippingPage() {
                       <SelectContent>
                         {projects && projects.map((project: Project) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.code} - {project.clientName || project.name}
+                            {project.code} — {project.clientName || project.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
