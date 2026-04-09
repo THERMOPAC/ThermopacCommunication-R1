@@ -104,6 +104,10 @@ export default function ProductsPage() {
     queryKey: ['/api/sales-marketing/product-children'],
   });
 
+  const { data: sapVendors = [] } = useQuery<{code: string; name: string}[]>({
+    queryKey: ['/api/sap/vendors'],
+  });
+
   const familyOptions = useMemo(() =>
     attributeOptions.filter((o) => o.attributeType === "item_family" && o.isActive),
     [attributeOptions]
@@ -1271,9 +1275,20 @@ export default function ProductsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Preferred Vendor</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g. SAP Vendor Name" />
-                        </FormControl>
+                        <Select
+                          onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)}
+                          value={field.value || "__none__"}
+                        >
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select SAP vendor" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="__none__">-- None --</SelectItem>
+                            {sapVendors.map((v) => (
+                              <SelectItem key={v.code} value={v.name}>{v.code} - {v.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

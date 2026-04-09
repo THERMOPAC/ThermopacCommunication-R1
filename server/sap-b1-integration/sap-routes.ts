@@ -1452,6 +1452,56 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
 });
 
 /**
+ * GET SAP Vendor List (Business Partners with type cSupplier)
+ */
+router.get('/vendors', ensureAuthenticated, async (req, res) => {
+  try {
+    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
+    const sapUsername = process.env.SAP_USERNAME;
+    const sapPassword = process.env.SAP_PASSWORD;
+    const sapCompanyDb = process.env.SAP_COMPANY_DB;
+
+    const https = await import('https');
+    const agent = new https.Agent({ rejectUnauthorized: false });
+
+    const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ CompanyDB: sapCompanyDb, UserName: sapUsername, Password: sapPassword }),
+      agent,
+      signal: AbortSignal.timeout(10000)
+    } as any);
+
+    if (!loginResponse.ok) {
+      return res.status(502).json({ success: false, error: 'Failed to connect to SAP' });
+    }
+
+    const loginData = await loginResponse.json() as any;
+    const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
+
+    const vendorsResponse = await fetch(
+      `${publicServiceLayerUrl}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$orderby=CardName asc&$top=500`,
+      { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Cookie': sessionCookie }, agent } as any
+    );
+
+    if (!vendorsResponse.ok) {
+      return res.status(502).json({ success: false, error: 'Failed to fetch vendors from SAP' });
+    }
+
+    const vendorsData = await vendorsResponse.json() as any;
+    const vendors = (vendorsData.value || []).map((v: any) => ({
+      code: v.CardCode,
+      name: v.CardName,
+    }));
+
+    res.json(vendors);
+  } catch (error) {
+    console.error('Error fetching SAP vendors:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch SAP vendor list' });
+  }
+});
+
+/**
  * Vendors Only Sync
  */
 router.post('/sync/vendors', ensureAuthenticated, async (req, res) => {
