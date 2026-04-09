@@ -2571,7 +2571,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             const leadId = phase.phase_lead_id || phase.lead_id;
                             if (!leadId) return 'Not assigned';
                             const lead = allUsers?.find((u: any) => u.id === leadId);
-                            return lead ? (lead.firstName && lead.lastName ? `${lead.firstName} ${lead.lastName}` : lead.username) : 'Not assigned';
+                            if (!lead) return 'Not assigned';
+                            const displayName = lead.firstName && lead.lastName ? `${lead.firstName} ${lead.lastName}` : lead.username;
+                            const roleLabel = lead.role || '';
+                            const deptLabel = lead.department || '';
+                            const tail = [roleLabel, deptLabel].filter(Boolean).join(', ');
+                            return tail ? <>{displayName} <span className="text-muted-foreground text-xs">({tail})</span></> : displayName;
                           })()}
                         </p>
                       </div>
