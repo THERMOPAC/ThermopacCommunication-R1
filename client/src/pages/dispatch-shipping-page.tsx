@@ -936,7 +936,7 @@ export default function DispatchShippingPage() {
                       <SelectContent>
                         {projects && projects.map((project: Project) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.code} - {project.name}
+                            {project.code} - {project.clientName || project.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

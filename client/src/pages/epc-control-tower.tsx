@@ -202,7 +202,7 @@ export default function EpcControlTower() {
                     {(summary?.projects || []).map((p: any) => (
                       <tr key={p.id} className="border-b hover:bg-muted/50">
                         <td className="py-2 font-medium">
-                          {p.code} — {p.name}
+                          {p.code} — {p.clientName || p.name}
                           {p.project_origin === 'sales_offer' && (
                             <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
                               Order {p.source_order_number}
@@ -795,7 +795,7 @@ export default function EpcControlTower() {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground mb-1.5">Projects Without Manager ({ownership.projectsNoManager.length})</p>
                       {ownership.projectsNoManager.map((p: any) => (
-                        <div key={p.id} className="text-xs py-1 border-b last:border-0 font-medium">{p.code} — {p.name}</div>
+                        <div key={p.id} className="text-xs py-1 border-b last:border-0 font-medium">{p.code} — {p.clientName || p.name}</div>
                       ))}
                     </div>
                   )}
