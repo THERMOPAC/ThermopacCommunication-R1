@@ -1,8 +1,8 @@
 # EPC Execution Drafts — Unified Automation Design
 
-**Status:** DRAFT — Pending Review & Approval  
+**Status:** DRAFT v2 — Revised with task assignment, SLA, scope & compatibility rules  
 **Author:** Agent  
-**Date:** 2026-04-08  
+**Date:** 2026-04-09  
 **Scope:** Automated DO/WO/PO/IO draft generation at Offer-to-Order conversion  
 **Baseline Dependency:** `docs/epc-project-numbering-gcs-baseline.md` (v6-final)
 
@@ -11,21 +11,24 @@
 ## Table of Contents
 
 1. [Overview](#1-overview)
-2. [Document Numbering Rules](#2-document-numbering-rules)
-3. [Number Generation Timing & Immutability](#3-number-generation-timing--immutability)
-4. [Concurrency Safety & Uniqueness](#4-concurrency-safety--uniqueness)
-5. [Worked Examples](#5-worked-examples)
-6. [Schema Changes](#6-schema-changes)
-7. [Draft Generation Flow](#7-draft-generation-flow)
-8. [Dependency Rules](#8-dependency-rules)
-9. [Approval Task Flow](#9-approval-task-flow)
-10. [Data Mapping](#10-data-mapping)
-11. [Failure Handling](#11-failure-handling)
-12. [API Endpoints](#12-api-endpoints)
-13. [UI Design](#13-ui-design)
-14. [Audit & Control](#14-audit--control)
-15. [Impact on Existing Services](#15-impact-on-existing-services)
-16. [Future Pipeline Integration](#16-future-pipeline-integration)
+2. [Scope & Backward Compatibility](#2-scope--backward-compatibility)
+3. [Document Numbering Rules](#3-document-numbering-rules)
+4. [Number Generation Timing & Immutability](#4-number-generation-timing--immutability)
+5. [Concurrency Safety & Uniqueness](#5-concurrency-safety--uniqueness)
+6. [Worked Examples](#6-worked-examples)
+7. [Schema Changes](#7-schema-changes)
+8. [Draft Generation Flow](#8-draft-generation-flow)
+9. [Dependency Rules](#9-dependency-rules)
+10. [Approval Task Assignment](#10-approval-task-assignment)
+11. [Task Due Date & SLA Rules](#11-task-due-date--sla-rules)
+12. [Approval Task Actions](#12-approval-task-actions)
+13. [Data Mapping](#13-data-mapping)
+14. [Failure Handling](#14-failure-handling)
+15. [API Endpoints](#15-api-endpoints)
+16. [UI Design](#16-ui-design)
+17. [Audit & Control](#17-audit--control)
+18. [Impact on Existing Services](#18-impact-on-existing-services)
+19. [Future Pipeline Integration](#19-future-pipeline-integration)
 
 ---
 
@@ -44,9 +47,51 @@ When an approved Offer is converted to a Project, the system must automatically 
 
 ---
 
-## 2. Document Numbering Rules
+## 2. Scope & Backward Compatibility
 
-### 2.1 Numbering Standard
+### 2.1 Activation Scope
+
+| Rule | Detail |
+|------|--------|
+| **New conversions only** | Draft generation runs ONLY on **new** Offer → Project conversions performed after this feature is deployed. |
+| **No retroactive generation** | Existing projects (IDs 1–18, 20+) are NOT touched. No drafts are generated, no numbering is changed, no workflows are altered. |
+| **Test project** | Project ID 19 is the designated test project for validating this feature during development and QA. |
+| **Opt-in for existing** | If an existing project needs draft generation in the future, a manual trigger (`POST /api/projects/:id/generate-drafts`) can be used — but this is never automatic. |
+
+### 2.2 Backward Compatibility Guarantees
+
+| Guarantee | Detail |
+|-----------|--------|
+| **Manual WO creation** | Existing `POST /api/epc-work-orders` route remains fully functional. Users can still create WOs manually for any project — old or new. |
+| **Manual PO creation** | Existing `POST /api/epc-purchase-orders` route remains fully functional. No changes to manual PO creation. |
+| **Manual IO creation** | Existing IO generators (`fixed-inspection-order-generator.ts`, WO-release triggers, PO-issuance triggers) remain fully functional and unchanged. |
+| **No forced draft generation** | Old projects never have `generateExecutionDrafts()` called automatically. The function only runs inside `executeOfferConversion()` for new conversions. |
+| **No numbering changes** | Existing WO/PO/IO numbers are not modified. The sequence engine continues from where it left off for each project. |
+| **No schema conflicts** | The new `execution_drafts` and `epc_drawing_orders` tables are additive — no columns added to existing tables, no column renames, no type changes. |
+| **Dual path** | For new projects, both paths work: (a) automated drafts from conversion, OR (b) manual creation using existing routes. They coexist without conflict. |
+
+### 2.3 What Changes for New Projects
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Offer → Project conversion | Creates project + items only | Creates project + items + execution drafts |
+| DO/WO/PO/IO creation | Entirely manual | Pre-numbered drafts created, approved via task workflow, then activated into real entities |
+| Document numbering | Assigned at manual creation time | Pre-assigned at conversion time (immutable) |
+| Approval workflow | No formal approval gate | Approval tasks with dependency rules (DO gates WO/PO) |
+
+### 2.4 Implementation Safety Rules
+
+1. **`generateExecutionDrafts()` is called ONLY inside `executeOfferConversion()`** — never from a cron job, startup script, or migration.
+2. **No migration script** runs against existing projects to backfill drafts.
+3. **Existing routes are not modified** — only new routes are added (`/api/execution-drafts/*`).
+4. **Existing tables are not altered** — `epc_work_orders`, `epc_purchase_orders`, `inspection_orders` schemas remain unchanged.
+5. **Feature flag check** (future): If needed, a `projects.automation_mode` column can gate whether a specific project uses draft generation or manual mode. Not implemented in Phase 1 — all new conversions generate drafts.
+
+---
+
+## 3. Document Numbering Rules
+
+### 3.1 Numbering Standard
 
 All document types follow the approved EPC numbering baseline. The key rule: **every document number is derived from the project code + document type + a 4-digit project-scoped sequence.**
 
@@ -65,7 +110,7 @@ Where:
 - `{NNNN}` = 4-digit document sequence within project (e.g., `0001`)
 - `{Cat}` = IO category: `M` (Make/in-process), `B` (Buy/incoming), `C` (Component)
 
-### 2.2 Doc Type Rule: DO (Drawing Order) — NEW
+### 3.2 Doc Type Rule: DO (Drawing Order) — NEW
 
 Drawing Order is a **new document type** being added to the EPC Document Type Registry.
 
@@ -81,7 +126,7 @@ Drawing Order is a **new document type** being added to the EPC Document Type Re
 
 **Rationale:** Drawing Orders track the formal request and approval for engineering drawings before production/procurement can begin. Currently managed via `epc_drawing_controls`, but those are drawing registrations — not drawing work orders. The DO represents the instruction to produce a drawing, which must be approved before WO/PO can proceed for custom items.
 
-### 2.3 Doc Type Rule: IO (Inspection Order) — EXISTING, SEPARATE FORMAT
+### 3.3 Doc Type Rule: IO (Inspection Order) — EXISTING, SEPARATE FORMAT
 
 Inspection Orders retain their existing format from the baseline:
 
@@ -97,7 +142,7 @@ Inspection Orders retain their existing format from the baseline:
 
 **IO format is NOT changed.** It follows its own numbering convention as documented in the baseline (Section 10 — Separate Numbering Systems). The `getNextDocSeq('IO', projectId)` function generates the sequence portion; the prefix and category are constructed by the IO generator.
 
-### 2.4 WO and PO — EXISTING, UNCHANGED
+### 3.4 WO and PO — EXISTING, UNCHANGED
 
 | Doc | Format | Example |
 |-----|--------|---------|
@@ -108,9 +153,9 @@ These follow the existing baseline rules. No format changes. The only change is 
 
 ---
 
-## 3. Number Generation Timing & Immutability
+## 4. Number Generation Timing & Immutability
 
-### 3.1 When Numbers Are Generated
+### 4.1 When Numbers Are Generated
 
 | Event | What Happens |
 |-------|-------------|
@@ -121,7 +166,7 @@ These follow the existing baseline rules. No format changes. The only change is 
 
 **Numbers are generated at draft creation time, NOT at activation time.**
 
-### 3.2 Immutability Rules
+### 4.2 Immutability Rules
 
 | Rule | Enforcement |
 |------|------------|
@@ -132,7 +177,7 @@ These follow the existing baseline rules. No format changes. The only change is 
 
 **No recycling. No reuse. Gaps are normal.**
 
-### 3.3 Guardrail Enforcement
+### 4.3 Guardrail Enforcement
 
 All generated numbers pass through the existing guardrail assertions:
 
@@ -147,9 +192,9 @@ The `DO` type must be added to the guardrails' `CHILD_DOC_RE` pattern and to the
 
 ---
 
-## 4. Concurrency Safety & Uniqueness
+## 5. Concurrency Safety & Uniqueness
 
-### 4.1 Sequence Engine (Existing — No Changes)
+### 5.1 Sequence Engine (Existing — No Changes)
 
 All numbers use the existing `doc_sequences` table with atomic `INSERT ... ON CONFLICT DO UPDATE`:
 
@@ -167,7 +212,7 @@ RETURNING next_seq
 - Unique constraint on `(doc_type, project_id)` WHERE `project_id IS NOT NULL`
 - Returns the consumed sequence number; caller pads to 4 digits
 
-### 4.2 Idempotency in Draft Generation
+### 5.2 Idempotency in Draft Generation
 
 Draft generation is idempotent per `(project_id, project_item_id, doc_type)`:
 
@@ -182,7 +227,7 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 - If only rejected/canceled drafts exist → create new draft with NEW number
 - Unique constraint: `UNIQUE(project_id, project_item_id, doc_type) WHERE status NOT IN ('rejected', 'canceled')`
 
-### 4.3 Uniqueness Guarantees
+### 5.3 Uniqueness Guarantees
 
 | Level | Guarantee | Mechanism |
 |-------|-----------|-----------|
@@ -193,9 +238,9 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 
 ---
 
-## 5. Worked Examples
+## 6. Worked Examples
 
-### 5.1 Scenario: Offer OFR-2627-005 converted to Project
+### 6.1 Scenario: Offer OFR-2627-005 converted to Project
 
 **Offer:** OFR-2627-005  
 **Customer:** LWA (Lubricating World Arabia)  
@@ -211,7 +256,7 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 | 3 | Expansion Tank ET-50 | Buy | 2 |
 | 4 | Temperature Sensor TS-K | Buy | 4 |
 
-### 5.2 Drafts Generated
+### 6.2 Drafts Generated
 
 **Item 1: Thermic Fluid Heater 10L (Make)**
 
@@ -247,7 +292,7 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 | PO | `2627-003-PO-0002` | `draft_system_generated` | None |
 | IO | `IO-2627-003-B-0002` | `draft_system_generated` | Independent |
 
-### 5.3 Sequence State After Generation
+### 6.3 Sequence State After Generation
 
 | doc_type | project_id | next_seq |
 |----------|-----------|----------|
@@ -256,7 +301,7 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 | PO | 42 | 3 (consumed 0001, 0002) |
 | IO | 42 | 5 (consumed 0001–0004) |
 
-### 5.4 Rejection & Re-draft Scenario
+### 6.4 Rejection & Re-draft Scenario
 
 If `2627-003-DO-0001` is rejected:
 - Draft status → `rejected`, rejection_remarks recorded
@@ -266,9 +311,9 @@ If `2627-003-DO-0001` is rejected:
 
 ---
 
-## 6. Schema Changes
+## 7. Schema Changes
 
-### 6.1 New Table: `execution_drafts`
+### 7.1 New Table: `execution_drafts`
 
 ```
 execution_drafts
@@ -304,7 +349,7 @@ execution_drafts
 └── INDEX(project_id, status)
 ```
 
-### 6.2 New Table: `epc_drawing_orders`
+### 7.2 New Table: `epc_drawing_orders`
 
 ```
 epc_drawing_orders
@@ -331,7 +376,7 @@ epc_drawing_orders
 ├── updated_at            timestamp NOT NULL DEFAULT NOW()
 ```
 
-### 6.3 Registry Updates
+### 7.3 Registry Updates
 
 **`DOC_TYPE_ABBR` in `server/epc-coding.ts` — add DO:**
 
@@ -343,7 +388,7 @@ epc_drawing_orders
 
 The existing regex `^\d{4}-\d{3}-[A-Z]{2,4}-\d{4}$` already matches `2627-001-DO-0001` (DO is 2 letters, within the 2–4 range).
 
-### 6.4 Baseline Update Required
+### 7.4 Baseline Update Required
 
 Add to `docs/epc-project-numbering-gcs-baseline.md` Section 4.2:
 
@@ -353,9 +398,9 @@ Add to `docs/epc-project-numbering-gcs-baseline.md` Section 4.2:
 
 ---
 
-## 7. Draft Generation Flow
+## 8. Draft Generation Flow
 
-### 7.1 Service: `generateExecutionDrafts(projectId, userId)`
+### 8.1 Service: `generateExecutionDrafts(projectId, userId)`
 
 ```
 ENTRY: Called at end of offer-conversion transaction
@@ -418,7 +463,7 @@ ENTRY: Called at end of offer-conversion transaction
    - Return error summary (safe for retry — idempotent)
 ```
 
-### 7.2 Transaction Safety
+### 8.2 Transaction Safety
 
 - All drafts for a project are created in ONE transaction
 - If any draft fails (sequence error, validation error, DB error) → entire batch rolls back
@@ -427,16 +472,16 @@ ENTRY: Called at end of offer-conversion transaction
 
 ---
 
-## 8. Dependency Rules
+## 9. Dependency Rules
 
-### 8.1 Dependency Matrix
+### 9.1 Dependency Matrix
 
 | Item Type | DO | WO | PO | IO |
 |-----------|----|----|----|----|
 | **Make (custom)** | No dependency | Blocked until DO approved | Blocked until DO approved (if Make item has purchased subs) | Independent |
 | **Buy (standard)** | Skipped | Skipped | No dependency | Independent |
 
-### 8.2 Dependency Enforcement
+### 9.2 Dependency Enforcement
 
 When a user attempts to **Approve** a draft:
 
@@ -452,7 +497,7 @@ When a user attempts to **Approve** a draft:
 3. If NO dependency → Allow approval
 ```
 
-### 8.3 Cascade on DO Approval
+### 9.3 Cascade on DO Approval
 
 When a DO draft is approved:
 - System checks all WO and PO drafts for the same `project_item_id`
@@ -462,9 +507,127 @@ When a DO draft is approved:
 
 ---
 
-## 9. Approval Task Flow
+## 10. Approval Task Assignment
 
-### 9.1 Task Actions
+### 10.1 Who Creates Each Task
+
+All approval tasks are created by the **system** during `generateExecutionDrafts()`, using `createEpcTask()` with `createdBy` set to the user who triggered the offer-to-project conversion. Tasks are never created manually — they are a byproduct of draft generation.
+
+| Draft Type | Task Created By | Trigger |
+|------------|----------------|---------|
+| DO | System (on behalf of converting user) | Draft generation at conversion |
+| WO | System (on behalf of converting user) | Draft generation at conversion |
+| PO | System (on behalf of converting user) | Draft generation at conversion |
+| IO | System (on behalf of converting user) | Draft generation at conversion |
+
+### 10.2 Task Assignment Matrix
+
+Each draft type is assigned to a specific role using the existing `resolveAssignee(projectId, phaseName, fallback)` function, which checks the project's phase-lead assignments first, then falls back.
+
+| Draft Type | Phase Name | Primary Assignee | Department |
+|------------|-----------|------------------|------------|
+| DO | `'Engineering'` | Engineering Phase Lead (Design department Senior Manager/Manager) | Design |
+| WO | `'Production'` | Production Phase Lead (Production department Senior Manager/Manager) | Production |
+| PO | `'Procurement'` | Procurement Phase Lead (Purchase department Senior Manager/Manager) | Purchase |
+| IO | `'Quality'` | Quality Phase Lead (Quality Control department Senior Manager/Manager) | Quality Control |
+
+### 10.3 Fallback Chain
+
+If the primary assignee is not found, the system follows this fallback chain (built into `resolveAssignee`):
+
+```
+1. Phase Lead → Check project_phases table for phase_lead_id matching the phase name
+   ↓ (not found)
+2. Project Manager → Check projects.manager_id
+   ↓ (not found)
+3. Converting User → The user who triggered the offer-to-project conversion (fallbackCreatedBy)
+```
+
+| Fallback Level | Who | When Used |
+|---------------|-----|-----------|
+| Level 1 (preferred) | Phase Lead for the relevant phase | Phase lead assigned on project |
+| Level 2 | Project Manager | No phase lead found |
+| Level 3 (guaranteed) | Converting User | No project manager found (should never happen in practice) |
+
+**No task is ever left unassigned.** The fallback chain always terminates at the converting user.
+
+### 10.4 Task Properties
+
+Each approval task is created with:
+
+| Property | Value |
+|----------|-------|
+| `status` | `'pending'` |
+| `source_type` | `'epc_automation'` |
+| `source_agent` | `'epc_lifecycle'` |
+| `category` | `'EPC'` |
+| `priority` | Varies by doc type (see Section 11) |
+| `title` | `"Approve {DocType} {DocNumber} for {ItemCode}"` |
+| `description` | Includes item details, dependency status, and `automationKey` for idempotency |
+| `automationKey` | `[automation_key:epc:execution_draft:{draftId}:approve]` |
+
+### 10.5 Idempotency
+
+The `automationKey` embedded in the task description prevents duplicate tasks. If `generateExecutionDrafts()` is retried (e.g., after a partial failure), `createEpcTask()` detects the existing task by key and returns its ID instead of creating a new one.
+
+---
+
+## 11. Task Due Date & SLA Rules
+
+### 11.1 Due Date Calculation
+
+Task due dates are calculated using the existing `computeBusinessDayDue(days)` function, which skips weekends (Saturday and Sunday). The number of business days varies by document type priority.
+
+| Draft Type | Default SLA (business days) | Priority | Rationale |
+|------------|---------------------------|----------|-----------|
+| DO | **5 days** | High | Drawing is the critical path for Make items — blocks WO and PO |
+| WO | **3 days** | High | Production planning needs quick turnaround after DO approval |
+| PO | **3 days** | High | Procurement lead time is often the longest — early approval needed |
+| IO | **5 days** | Medium | Inspection planning runs in parallel — not blocking other docs |
+
+### 11.2 Due Date Derivation
+
+```
+start_date  = today (date of conversion / draft generation)
+due_date    = computeBusinessDayDue(sla_days)   -- skips Sat/Sun
+finish_date = due_date                          -- same as due_date at creation
+```
+
+**Example:** If conversion happens on Monday April 13, 2026:
+- DO task due date: Friday April 18, 2026 (5 business days)
+- WO task due date: Wednesday April 16, 2026 (3 business days)
+- PO task due date: Wednesday April 16, 2026 (3 business days)
+- IO task due date: Friday April 18, 2026 (5 business days)
+
+### 11.3 Blocked Task Due Dates
+
+For WO and PO drafts that are blocked by a DO dependency:
+- The task is still created with the standard SLA due date
+- However, the task description notes: "This task is blocked until the Drawing Order is approved"
+- When the DO is approved and the WO/PO status moves to `pending_approval`, the due date is **recalculated** from the date the dependency was met
+- This ensures the approver gets a full SLA window from when they can actually act
+
+```
+on DO approval:
+  for each dependent WO/PO draft:
+    update task.start_date = today
+    update task.due_date = computeBusinessDayDue(sla_days)
+    update task.finish_date = task.due_date
+```
+
+### 11.4 SLA Overrides
+
+| Override | How | When |
+|----------|-----|------|
+| Project-level urgency | Future: `projects.priority` field can multiply SLA (e.g., urgent = 0.5x) | Not in Phase 1 |
+| Per-task manual override | Assignee can edit the task due date after creation | Always available |
+| Admin override | Manager can edit any task's due date | Always available |
+
+---
+
+## 12. Approval Task Actions
+
+### 12.1 Task Actions
 
 Each execution_draft has a linked approval task with 3 possible actions:
 
@@ -474,7 +637,7 @@ Each execution_draft has a linked approval task with 3 possible actions:
 | **Reject** | status → `rejected`, rejected_by set, rejection_remarks recorded | task → `completed` with rejection reason | Remarks mandatory. |
 | **Hold** | status → `on_hold`, hold_remarks recorded | task → `on_hold` | Optional remarks. |
 
-### 9.2 Status Flow
+### 12.2 Status Flow
 
 ```
 draft_system_generated
@@ -486,7 +649,7 @@ draft_system_generated
   └──→ canceled          (project canceled or item removed)
 ```
 
-### 9.3 Activation on Approval
+### 12.3 Activation on Approval
 
 When a draft is approved, the system creates the real entity in the authoritative table:
 
@@ -501,9 +664,9 @@ The `execution_drafts.activated_entity_id` and `activated_entity_type` are set t
 
 ---
 
-## 10. Data Mapping
+## 13. Data Mapping
 
-### 10.1 Source Data Snapshot
+### 13.1 Source Data Snapshot
 
 At draft creation, the following data is captured from Project + Items + BOM + Vendor:
 
@@ -523,7 +686,7 @@ At draft creation, the following data is captured from Project + Items + BOM + V
 | master_item_code | `master_items.item_code` | `source_data.master_item_code` |
 | master_item_description | `master_items.description` | `source_data.master_item_description` |
 
-### 10.2 Separate Fields — Not in Barcode
+### 13.2 Separate Fields — Not in Barcode
 
 Drawing number, revision, ECR, and ECN are stored as **separate named fields** in `source_data` JSON — never embedded in barcodes or composite strings. This ensures:
 - Each field is independently queryable
@@ -533,7 +696,7 @@ Drawing number, revision, ECR, and ECN are stored as **separate named fields** i
 
 ---
 
-## 11. Failure Handling
+## 14. Failure Handling
 
 | Failure | Behavior | Recovery |
 |---------|----------|----------|
@@ -555,7 +718,7 @@ generateExecutionDrafts(projectId) is safe to call multiple times:
 
 ---
 
-## 12. API Endpoints
+## 15. API Endpoints
 
 | Method | Path | Purpose | Auth |
 |--------|------|---------|------|
@@ -570,9 +733,9 @@ generateExecutionDrafts(projectId) is safe to call multiple times:
 
 ---
 
-## 13. UI Design
+## 16. UI Design
 
-### 13.1 Execution Drafts Tab
+### 16.1 Execution Drafts Tab
 
 New tab on the Project detail page: **"Execution Drafts"**
 
@@ -592,7 +755,7 @@ Layout: Card grid grouped by project item. Each item card shows:
 └──────────┴──────────┴──────────┴────────────┘
 ```
 
-### 13.2 Status Badges
+### 16.2 Status Badges
 
 | Status | Color | Badge |
 |--------|-------|-------|
@@ -604,7 +767,7 @@ Layout: Card grid grouped by project item. Each item card shows:
 | `canceled` | Dark grey | "Canceled" |
 | Blocked (dependency) | Blue outline | "Waiting for DO" |
 
-### 13.3 Summary Bar
+### 16.3 Summary Bar
 
 At the top of the tab:
 ```
@@ -613,9 +776,9 @@ Execution Drafts: 10 total | 3 Pending | 2 Blocked | 1 Approved | 0 Rejected | 4
 
 ---
 
-## 14. Audit & Control
+## 17. Audit & Control
 
-### 14.1 Fields Tracked on `execution_drafts`
+### 17.1 Fields Tracked on `execution_drafts`
 
 | Field | When Set |
 |-------|----------|
@@ -627,7 +790,7 @@ Execution Drafts: 10 total | 3 Pending | 2 Blocked | 1 Approved | 0 Rejected | 4
 | `created_at` | At creation |
 | `updated_at` | On every status change |
 
-### 14.2 Workflow Events
+### 17.2 Workflow Events
 
 Every status change writes to `project_workflow_events`:
 
@@ -640,7 +803,7 @@ Every status change writes to `project_workflow_events`:
 | `execution_draft.resumed` | `{ doc_type, doc_number, resumed_by }` |
 | `execution_draft.dependency_met` | `{ doc_type, doc_number, dependency_doc_type, dependency_doc_number }` |
 
-### 14.3 Full Audit Query
+### 17.3 Full Audit Query
 
 ```sql
 SELECT * FROM project_workflow_events
@@ -651,9 +814,9 @@ ORDER BY created_at;
 
 ---
 
-## 15. Impact on Existing Services
+## 18. Impact on Existing Services
 
-### 15.1 Files Modified
+### 18.1 Files Modified
 
 | File | Change |
 |------|--------|
@@ -663,7 +826,7 @@ ORDER BY created_at;
 | `shared/schema.ts` | Add `execution_drafts` and `epc_drawing_orders` tables |
 | `docs/epc-project-numbering-gcs-baseline.md` | Add DO to Section 4.2 document type registry |
 
-### 15.2 Files Created
+### 18.2 Files Created
 
 | File | Purpose |
 |------|---------|
@@ -673,7 +836,7 @@ ORDER BY created_at;
 | `server/pipeline/pipeline-types.ts` | TypeScript types |
 | `client/src/components/execution-drafts.tsx` | Frontend tab component |
 
-### 15.3 No Impact On
+### 18.3 No Impact On
 
 | System | Why |
 |--------|-----|
@@ -685,7 +848,7 @@ ORDER BY created_at;
 
 ---
 
-## 16. Future Pipeline Integration
+## 19. Future Pipeline Integration
 
 The `execution_drafts` system is designed to plug directly into the approved Pipeline Orchestrator:
 
