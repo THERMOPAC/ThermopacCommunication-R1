@@ -40,6 +40,7 @@ type Attachment = {
   mimeType: string;
   fileSizeBytes: number;
   checksumSha256: string;
+  gcsPath?: string;
   status: string;
   uploadedAt: string;
   uploadedBy: string;
@@ -263,8 +264,9 @@ export default function EpcDocumentPanel({
           <div className="flex items-center gap-1.5">
             <span>{getMimeIcon(att.mimeType)}</span>
             <div>
-              <div className="font-medium truncate max-w-[180px]">{att.label}</div>
-              <div className="text-[9px] text-muted-foreground truncate max-w-[180px]">{att.fileName}</div>
+              <div className="font-medium truncate max-w-[220px]">{att.label}</div>
+              <div className="text-[9px] text-muted-foreground truncate max-w-[220px]">{att.fileName}</div>
+              {att.gcsPath && <div className="text-[8px] text-blue-600/70 truncate max-w-[220px] font-mono" title={att.gcsPath}>{att.gcsPath}</div>}
             </div>
           </div>
         </TableCell>

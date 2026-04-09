@@ -487,7 +487,7 @@ export default function EpcDrawingControlPage() {
                       <TableRow>
                         <TableHead className="text-[10px] w-8"></TableHead>
                         <TableHead className="text-[10px]">DWG Control #</TableHead>
-                        <TableHead className="text-[10px]">Drawing #</TableHead>
+                        <TableHead className="text-[10px]">Drawing No</TableHead>
                         <TableHead className="text-[10px] text-center w-14">Rev</TableHead>
                         <TableHead className="text-[10px]">Item</TableHead>
                         <TableHead className="text-[10px] text-center">Status</TableHead>
@@ -582,7 +582,7 @@ export default function EpcDrawingControlPage() {
                                         </CardHeader>
                                         <CardContent className="px-3 pb-2 space-y-1">
                                           <DetailRow label="DWG Control #" value={rec.dwg_control_number} mono />
-                                          <DetailRow label="Drawing #" value={rec.drawing_number} />
+                                          <DetailRow label="Drawing No (Barcode)" value={rec.drawing_number} />
                                           <DetailRow label="Drawing Title" value={rec.drawing_title} />
                                           <DetailRow label="Drawing Revision" value={rec.drawing_revision} />
                                           <DetailRow label="Revision Code" value={`${rec.revision_code}${rec.is_current ? " (current)" : " (superseded)"}`} />
@@ -703,6 +703,7 @@ export default function EpcDrawingControlPage() {
                     const item = projectItems.find((i: any) => i.id === parseInt(v));
                     setCreateForm(f => ({
                       ...f, projectItemId: v, masterItemId: item?.master_item_id?.toString() || "",
+                      drawingNumber: item?.code_bars || "",
                       procurementReleaseRequired: item?.make_or_buy === "Buy" || !item?.make_or_buy,
                       manufacturingReleaseRequired: item?.make_or_buy === "Make" || !item?.make_or_buy,
                     }));
@@ -723,6 +724,7 @@ export default function EpcDrawingControlPage() {
                       <div className="mt-1.5 p-2 bg-muted/50 rounded text-[10px] space-y-0.5">
                         <div><span className="font-medium">Item Code:</span> {item.item_code}</div>
                         <div><span className="font-medium">Description:</span> {item.description || item.item_description}</div>
+                        <div><span className="font-medium">Barcode:</span> {item.code_bars || <span className="text-muted-foreground italic">Not set</span>}</div>
                         <div><span className="font-medium">Classification:</span> {item.make_or_buy || "Not set"}</div>
                         <div><span className="font-medium">Initial Revision:</span> A (draft)</div>
                       </div>
@@ -731,8 +733,8 @@ export default function EpcDrawingControlPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs font-medium">Drawing Number</Label>
-                    <Input className="h-8 text-xs mt-1" value={createForm.drawingNumber} onChange={(e) => setCreateForm(f => ({ ...f, drawingNumber: e.target.value }))} placeholder="e.g. GA-001" />
+                    <Label className="text-xs font-medium">Drawing No (Barcode)</Label>
+                    <Input className="h-8 text-xs mt-1" value={createForm.drawingNumber} onChange={(e) => setCreateForm(f => ({ ...f, drawingNumber: e.target.value }))} placeholder="Auto-filled from item barcode" />
                   </div>
                   <div>
                     <Label className="text-xs font-medium">Drawing Title</Label>
@@ -795,7 +797,7 @@ export default function EpcDrawingControlPage() {
               <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs font-medium">Drawing Number</Label>
+                    <Label className="text-xs font-medium">Drawing No (Barcode)</Label>
                     <Input className="h-8 text-xs mt-1" value={editForm.drawingNumber} onChange={(e) => setEditForm(f => ({ ...f, drawingNumber: e.target.value }))} />
                   </div>
                   <div>

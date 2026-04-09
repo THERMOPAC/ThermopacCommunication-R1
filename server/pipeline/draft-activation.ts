@@ -107,6 +107,16 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
   const itemDesc = sd.master_item_description || sd.item_description || null;
   const classification = sd.make_or_buy || sd.classification || null;
 
+  let itemBarcode: string | null = null;
+  if (draft.project_item_id) {
+    const piResult = await db.execute(
+      sql`SELECT code_bars FROM project_items WHERE id = ${draft.project_item_id}`
+    );
+    if (piResult.rows.length > 0) {
+      itemBarcode = (piResult.rows[0] as any).code_bars || null;
+    }
+  }
+
   const result = await db.execute(
     sql`INSERT INTO epc_drawing_orders
         (do_number, project_id, project_item_id, master_item_id, item_code, item_description,
@@ -122,6 +132,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const dwgControlNumber = await generateDocumentNumber(draft.project_id, 'DWG', db);
     const procReq = classification === 'Buy' || true;
     const mfgReq = classification === 'Make' || true;
+    const drawingNumber = itemBarcode || itemCode;
 
     await db.execute(
       sql`INSERT INTO epc_drawing_controls
@@ -134,7 +145,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
            status, notes, created_by)
           VALUES (${dwgControlNumber}, 'A', true, 'draft',
                   ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null},
-                  ${itemCode}, ${itemDesc}, ${'A'},
+                  ${drawingNumber}, ${itemDesc}, ${'A'},
                   ${itemCode}, ${itemDesc}, ${classification},
                   'general', ${procReq}, ${mfgReq},
                   false, 'not_required',
