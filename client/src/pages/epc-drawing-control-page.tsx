@@ -610,6 +610,13 @@ export default function EpcDrawingControlPage() {
                                           {rec.cancelled_at && <DetailRow label="Cancelled" value={`${new Date(rec.cancelled_at).toLocaleString()} — "${rec.cancel_reason}"`} />}
                                           {rec.superseded_at && <DetailRow label="Superseded" value={`${new Date(rec.superseded_at).toLocaleString()} — "${rec.supersession_reason}"`} />}
                                           {rec.supersedes_id && <DetailRow label="Supersedes" value={`Record #${rec.supersedes_id}`} />}
+                                          {rec.project_item_id && (
+                                            <>
+                                              <Separator className="my-1.5" />
+                                              <div className="text-[10px] font-medium text-muted-foreground mb-1">GCS Storage</div>
+                                              <GcsPathDisplay projectItemId={rec.project_item_id} revisionCode={rec.revision_code} />
+                                            </>
+                                          )}
                                         </CardContent>
                                       </Card>
 
@@ -994,16 +1001,31 @@ function DetailRow({ label, value, mono }: { label: string; value?: string | nul
   );
 }
 
-function DwgDocumentPanelWithGcs({ projectId, rec, userRole }: { projectId: number; rec: any; userRole: string }) {
-  const gcsPathQuery = useQuery({
-    queryKey: ['/api/project-items', rec.project_item_id, 'gcs-path'],
+function useGcsPath(projectItemId: number | null) {
+  return useQuery({
+    queryKey: ['/api/project-items', projectItemId, 'gcs-path'],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/project-items/${rec.project_item_id}/gcs-path`);
+      const res = await apiRequest("GET", `/api/project-items/${projectItemId}/gcs-path`);
       return res as any;
     },
-    enabled: !!rec.project_item_id,
+    enabled: !!projectItemId,
   });
-  const gcsInfo = gcsPathQuery.data;
+}
+
+function GcsPathDisplay({ projectItemId, revisionCode }: { projectItemId: number; revisionCode?: string }) {
+  const { data: gcsInfo, isLoading } = useGcsPath(projectItemId);
+  if (isLoading) return <div className="text-[9px] text-muted-foreground">Loading GCS path...</div>;
+  if (!gcsInfo) return <div className="text-[9px] text-muted-foreground">Path not available (no barcode)</div>;
+  const fullPath = `${gcsInfo.basePath}/${gcsInfo.codeBars}_rev-${revisionCode || 'XX'}.pdf`;
+  return (
+    <div className="font-mono text-[9px] bg-slate-50 border rounded px-2 py-1.5 break-all text-slate-700">
+      {fullPath}
+    </div>
+  );
+}
+
+function DwgDocumentPanelWithGcs({ projectId, rec, userRole }: { projectId: number; rec: any; userRole: string }) {
+  const { data: gcsInfo } = useGcsPath(rec.project_item_id);
   const gcsPreview = gcsInfo ? `${gcsInfo.basePath}/${gcsInfo.codeBars}_rev-${rec.revision_code || 'XX'}.pdf` : undefined;
 
   return (
