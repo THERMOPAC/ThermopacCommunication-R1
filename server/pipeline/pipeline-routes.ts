@@ -38,7 +38,7 @@ router.get('/api/projects/:projectId/execution-drafts', async (req: Request, res
                 act_user.username as activated_by_username
           FROM execution_drafts ed
           LEFT JOIN project_items pi ON pi.id = ed.project_item_id
-          LEFT JOIN master_items mi ON mi.id = pi.master_item_id
+          LEFT JOIN master_items mi ON mi.id = pi.item_id
           LEFT JOIN users gen_user ON gen_user.id = ed.generated_by_user_id
           LEFT JOIN users appr_user ON appr_user.id = ed.approved_by
           LEFT JOIN users rej_user ON rej_user.id = ed.rejected_by

@@ -21,11 +21,9 @@ interface ProjectItemRecord {
   description: string | null;
   quantity: string | null;
   uom: string | null;
-  specification: string | null;
   masterItemId: number | null;
   masterItemCode: string | null;
   masterItemDescription: string | null;
-  vendorId: number | null;
 }
 
 export async function generateExecutionDrafts(
@@ -57,11 +55,11 @@ export async function generateExecutionDrafts(
   };
 
   const itemsResult = await executor.execute(
-    sql`SELECT pi.id, pi.make_or_buy, pi.item_code, pi.description, pi.quantity, pi.uom, pi.specification,
-               pi.master_item_id, pi.vendor_id,
+    sql`SELECT pi.id, pi.make_or_buy, pi.item_code, pi.description, pi.quantity, pi.uom,
+               pi.item_id as master_item_id,
                mi.item_code as master_item_code, mi.description as master_item_description
         FROM project_items pi
-        LEFT JOIN master_items mi ON mi.id = pi.master_item_id
+        LEFT JOIN master_items mi ON mi.id = pi.item_id
         WHERE pi.project_id = ${projectId}
         ORDER BY pi.id`
   );
@@ -79,11 +77,9 @@ export async function generateExecutionDrafts(
       description: row.description as string | null,
       quantity: row.quantity as string | null,
       uom: row.uom as string | null,
-      specification: row.specification as string | null,
       masterItemId: row.master_item_id as number | null,
       masterItemCode: row.master_item_code as string | null,
       masterItemDescription: row.master_item_description as string | null,
-      vendorId: row.vendor_id as number | null,
     };
 
     const existing = await executor.execute(
@@ -224,15 +220,11 @@ function buildSourceData(item: ProjectItemRecord, docType: DraftDocType, isMake:
     make_or_buy: item.makeOrBuy,
     quantity: item.quantity,
     uom: item.uom,
-    specification: item.specification,
+    master_item_id: item.masterItemId,
     master_item_code: item.masterItemCode,
     master_item_description: item.masterItemDescription,
     item_code: item.itemCode,
   };
-
-  if (docType === 'PO' && item.vendorId) {
-    data.vendor_id = item.vendorId;
-  }
 
   if (docType === 'IO') {
     data.io_trigger_source = isMake ? 'wo_release' : 'po_issuance';
