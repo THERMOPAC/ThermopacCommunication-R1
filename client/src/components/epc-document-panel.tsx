@@ -207,10 +207,11 @@ export default function EpcDocumentPanel({
   });
 
   function handleUpload() {
-    if (!uploadFile || !uploadLabel.trim()) return;
+    const label = docType === "DWG" ? "Drawing PDF" : uploadLabel.trim();
+    if (!uploadFile || !label) return;
     const formData = new FormData();
     formData.append("file", uploadFile);
-    formData.append("attachment_label", uploadLabel.trim());
+    formData.append("attachment_label", label);
     uploadMutation.mutate(formData);
   }
 
@@ -470,19 +471,21 @@ export default function EpcDocumentPanel({
                   <div className="font-mono text-[11px] text-slate-700 break-all mt-0.5">{gcsPathPreview}</div>
                 </div>
               )}
+              {docType !== "DWG" && (
+                <div>
+                  <label className="text-sm font-medium block mb-1">Attachment Label</label>
+                  <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g. GA Drawing, Material Specification, Weld Map..." />
+                </div>
+              )}
               <div>
-                <label className="text-sm font-medium block mb-1">Attachment Label</label>
-                <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g. GA Drawing, Material Specification, Weld Map..." />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1">File</label>
-                <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+                <label className="text-sm font-medium block mb-1">File {docType === "DWG" && <span className="text-muted-foreground font-normal">(PDF only)</span>}</label>
+                <Input type="file" accept={docType === "DWG" ? ".pdf,application/pdf" : undefined} onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
                 {uploadFile && <p className="text-xs text-muted-foreground mt-1">{uploadFile.name} ({formatFileSize(uploadFile.size)})</p>}
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleUpload} disabled={uploadMutation.isPending || !uploadFile || !uploadLabel.trim()}>
+              <Button onClick={handleUpload} disabled={uploadMutation.isPending || !uploadFile || !(docType === "DWG" || uploadLabel.trim())}>
                 {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                 Upload
               </Button>
