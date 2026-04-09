@@ -475,7 +475,7 @@ export default function AfterSalesPage() {
                             <SelectItem value="none">No Project</SelectItem>
                             {Array.isArray(projects) && projects.map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
-                                {project.name}
+                                {project.code} — {project.clientName || project.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

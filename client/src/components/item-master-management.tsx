@@ -851,7 +851,7 @@ const ItemMasterManagement: React.FC = () => {
               <SelectItem value="all">All Projects</SelectItem>
               {projects?.map((project: any) => (
                 <SelectItem key={project.id} value={project.id.toString()}>
-                  {project.name} ({project.code}) {project.customerName ? `- ${project.customerName}` : ''}
+                  {project.code} — {project.clientName || project.name}
                 </SelectItem>
               ))}
             </SelectContent>

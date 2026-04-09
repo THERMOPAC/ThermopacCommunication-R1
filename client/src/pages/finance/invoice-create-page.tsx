@@ -1224,7 +1224,7 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                           <SelectItem value="none">No Project</SelectItem>
                           {projects?.map((project: any) => (
                             <SelectItem key={project.id} value={project.id.toString()}>
-                              {project.name} ({project.code})
+                              {project.code} — {project.clientName || project.name}
                             </SelectItem>
                           ))}
                         </SelectContent>

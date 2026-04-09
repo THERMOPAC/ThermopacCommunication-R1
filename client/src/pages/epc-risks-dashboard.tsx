@@ -458,7 +458,7 @@ export default function EpcRisksDashboard() {
                   <TableBody>
                     {projectSummary.map(p => (
                       <TableRow key={p.projectId}>
-                        <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                        <TableCell className="text-sm font-medium">{p.code} — {p.clientName || p.name}</TableCell>
                         <TableCell className="text-center">
                           {p.critical > 0 ? <Badge variant="destructive" className="text-xs">{p.critical}</Badge> : <span className="text-muted-foreground text-xs">0</span>}
                         </TableCell>

@@ -243,7 +243,7 @@ export default function EpcPurchaseOrdersPage() {
               </SelectTrigger>
               <SelectContent>
                 {projects.map((p: any) => (
-                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.name} ({p.code || "—"})</SelectItem>
+                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

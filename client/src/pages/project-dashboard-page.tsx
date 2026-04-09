@@ -285,9 +285,8 @@ export default function ProjectDashboardPage() {
                   {projects.slice(0, 10).map((project: ProjectData) => (
                     <div key={project.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex-1">
-                        <h3 className="font-medium">{project.name}</h3>
+                        <h3 className="font-medium">{project.code} — {project.clientName || project.name}</h3>
                         <p className="text-sm text-muted-foreground">{project.description}</p>
-                        <p className="text-sm text-muted-foreground">Customer: {project.clientName}</p>
                       </div>
                       <div className="flex items-center gap-4">
                         <Badge className={getStatusColor(project.status)}>
@@ -361,9 +360,9 @@ export default function ProjectDashboardPage() {
                 <div key={project.id} className="flex items-center gap-4 p-3 border rounded-lg">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                   <div className="flex-1">
-                    <p className="font-medium">{project.name}</p>
+                    <p className="font-medium">{project.code} — {project.clientName || project.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Status: {project.status} • Customer: {project.clientName}
+                      Status: {project.status}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

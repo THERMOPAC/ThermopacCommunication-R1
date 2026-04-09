@@ -444,7 +444,7 @@ export default function EpcExecutionControlPage() {
               <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select project…" /></SelectTrigger>
               <SelectContent>
                 {projects.map((p: any) => (
-                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.name} ({p.code || "—"})</SelectItem>
+                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
