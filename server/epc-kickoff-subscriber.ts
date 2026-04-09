@@ -9,18 +9,17 @@ import { eq, and, sql } from 'drizzle-orm';
 import type { AgentEvent } from './agents/framework/types';
 
 const EPC_MILESTONES = [
-  { stageNumber: 1, name: 'Order Acknowledgement', phase: 'Engineering & Design' },
-  { stageNumber: 2, name: 'GA Drawing Approval', phase: 'Engineering & Design' },
-  { stageNumber: 3, name: 'BOM Finalization', phase: 'Engineering & Design' },
+  { stageNumber: 1, name: 'Order Acknowledgement', phase: 'Design & Engineering' },
+  { stageNumber: 2, name: 'GA Drawing Approval', phase: 'Design & Engineering' },
+  { stageNumber: 3, name: 'BOM Finalization', phase: 'Design & Engineering' },
   { stageNumber: 4, name: 'Material Procurement Complete', phase: 'Procurement' },
-  { stageNumber: 5, name: 'Production Start', phase: 'Production / Manufacturing' },
-  { stageNumber: 6, name: 'Fabrication Complete', phase: 'Production / Manufacturing' },
-  { stageNumber: 7, name: 'Final Inspection & Testing', phase: 'Quality Assurance' },
-  { stageNumber: 8, name: 'Dispatch Readiness', phase: 'Dispatch & Shipping' },
-  { stageNumber: 9, name: 'Dispatch Complete', phase: 'Dispatch & Shipping' },
-  { stageNumber: 10, name: 'Commissioning Complete', phase: 'Project Commissioning' },
-  { stageNumber: 11, name: 'Customer Handover', phase: 'Project Commissioning' },
-  { stageNumber: 12, name: 'Warranty Start', phase: 'After-Sales & Warranty' },
+  { stageNumber: 5, name: 'Production Start', phase: 'Manufacturing' },
+  { stageNumber: 6, name: 'Fabrication Complete', phase: 'Manufacturing' },
+  { stageNumber: 7, name: 'Final Inspection & Testing', phase: 'Quality Control & Inspection' },
+  { stageNumber: 8, name: 'Dispatch Readiness', phase: 'Dispatch & Logistics' },
+  { stageNumber: 9, name: 'Dispatch Complete', phase: 'Dispatch & Logistics' },
+  { stageNumber: 10, name: 'Commissioning Complete', phase: 'Installation & Commissioning' },
+  { stageNumber: 11, name: 'Customer Handover', phase: 'Installation & Commissioning' },
 ];
 
 type AssignmentOwner = 'project_manager' | 'department';
@@ -33,25 +32,25 @@ interface KickoffTaskDef {
 }
 
 const KICKOFF_TASKS: KickoffTaskDef[] = [
-  { title: 'Prepare Project Execution Plan', phase: 'Engineering & Design', owner: 'project_manager' },
-  { title: 'Define Project Schedule & Milestones', phase: 'Engineering & Design', owner: 'project_manager' },
-  { title: 'Initiate GA Drawing', phase: 'Engineering & Design', owner: 'department', department: 'Design' },
-  { title: 'Prepare Preliminary BOM', phase: 'Engineering & Design', owner: 'department', department: 'Design' },
-  { title: 'Import Project Items from Order', phase: 'Engineering & Design', owner: 'project_manager' },
+  { title: 'Prepare Project Execution Plan', phase: 'Design & Engineering', owner: 'project_manager' },
+  { title: 'Define Project Schedule & Milestones', phase: 'Design & Engineering', owner: 'project_manager' },
+  { title: 'Initiate GA Drawing', phase: 'Design & Engineering', owner: 'department', department: 'Design' },
+  { title: 'Prepare Preliminary BOM', phase: 'Design & Engineering', owner: 'department', department: 'Design' },
+  { title: 'Import Project Items from Order', phase: 'Design & Engineering', owner: 'project_manager' },
   { title: 'Review Make/Buy Classification', phase: 'Procurement', owner: 'department', department: 'Purchase' },
   { title: 'Identify Critical Procurement Items', phase: 'Procurement', owner: 'department', department: 'Purchase' },
-  { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Assurance', owner: 'department', department: 'Quality Control' },
+  { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Control & Inspection', owner: 'department', department: 'Quality Control' },
 ];
 
 const STARTER_DELIVERABLES = [
-  { name: 'General Arrangement Drawing', phase: 'Engineering & Design' },
-  { name: 'Bill of Materials', phase: 'Engineering & Design' },
-  { name: 'Project Execution Plan', phase: 'Engineering & Design' },
-  { name: 'Project Item List (Initial Baseline Confirmed)', phase: 'Engineering & Design' },
-  { name: 'Quality Assurance Plan', phase: 'Quality Assurance' },
+  { name: 'General Arrangement Drawing', phase: 'Design & Engineering' },
+  { name: 'Bill of Materials', phase: 'Design & Engineering' },
+  { name: 'Project Execution Plan', phase: 'Design & Engineering' },
+  { name: 'Project Item List (Initial Baseline Confirmed)', phase: 'Design & Engineering' },
+  { name: 'Quality Assurance Plan', phase: 'Quality Control & Inspection' },
 ];
 
-const ROLE_PRIORITY = ['Senior Manager', 'Manager'];
+const ROLE_PRIORITY = ['Senior Manager', 'Manager', 'Senior Executive'];
 
 async function findDepartmentLead(tx: any, department: string): Promise<number | null> {
   for (const role of ROLE_PRIORITY) {
@@ -77,13 +76,12 @@ async function resolveTaskAssignment(
   phaseLeadId: number | null,
   managerId: number | null,
 ): Promise<AssignmentResult> {
-  if (phaseLeadId) {
-    return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead (user ${phaseLeadId})` };
-  }
-
   if (taskDef.owner === 'project_manager') {
     if (managerId) {
       return { assignedTo: managerId, method: 'project_manager', detail: `Project Manager (user ${managerId})` };
+    }
+    if (phaseLeadId) {
+      return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead fallback (user ${phaseLeadId})` };
     }
     return { assignedTo: null, method: 'unassigned', detail: 'No Project Manager configured' };
   }
@@ -93,7 +91,14 @@ async function resolveTaskAssignment(
     if (deptLeadId) {
       return { assignedTo: deptLeadId, method: 'department_lead', detail: `${taskDef.department} lead (user ${deptLeadId})` };
     }
+    if (phaseLeadId) {
+      return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead fallback for ${taskDef.department} (user ${phaseLeadId})` };
+    }
     return { assignedTo: null, method: 'unassigned', detail: `No Senior Manager or Manager found in ${taskDef.department}` };
+  }
+
+  if (phaseLeadId) {
+    return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead (user ${phaseLeadId})` };
   }
 
   return { assignedTo: null, method: 'unassigned', detail: 'No assignment rule matched' };
