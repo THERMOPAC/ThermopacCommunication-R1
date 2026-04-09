@@ -7,7 +7,7 @@ import {
   epcDrawingControls,
 } from '@shared/schema';
 import { requirePageAccess } from './utils/permission-utils';
-import { createEpcTask, createEpcAlert, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
+import { createEpcTask, createEpcAlert, createEpcAlertMulti, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
 

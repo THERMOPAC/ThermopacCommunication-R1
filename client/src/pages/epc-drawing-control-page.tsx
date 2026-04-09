@@ -626,15 +626,15 @@ export default function EpcDrawingControlPage() {
                                           )}
                                         </CardContent>
                                       </Card>
-                                    </div>
 
-                                    <DrawingEngineeringChanges
-                                      drawingControlId={rec.id}
-                                      dwgControlNumber={rec.dwg_control_number}
-                                      revisionCode={rec.revision_code}
-                                      userRole={userRole}
-                                      drawingStatus={rec.status}
-                                    />
+                                      <DrawingEngineeringChanges
+                                        drawingControlId={rec.id}
+                                        dwgControlNumber={rec.dwg_control_number}
+                                        revisionCode={rec.revision_code}
+                                        userRole={userRole}
+                                        drawingStatus={rec.status}
+                                      />
+                                    </div>
 
                                     {projectId && (
                                       <DwgDocumentPanelWithGcs
