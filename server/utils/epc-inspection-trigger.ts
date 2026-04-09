@@ -1,5 +1,6 @@
 import { pool } from '../db';
 import { createEpcTask, createEpcAlertMulti, resolveAssignee, resolveManagerId, resolveProjectCode } from '../epc-task-helpers';
+import { linkIODraftToTriggeredIO } from '../pipeline/draft-activation';
 
 interface InspectionTriggerResult {
   created: boolean;
@@ -155,6 +156,16 @@ async function createInspectionIfNeeded(params: CreateInspectionParams): Promise
   });
 
   console.log(`[INS-Trigger] Created ${newIO.inspection_order_number} for ${pi.item_code} (${sourceLabel} ${sourceNumber})`);
+
+  try {
+    await linkIODraftToTriggeredIO(
+      projectId, projectItemId,
+      newIO.inspection_order_number, newIO.id,
+      `${sourceLabel}_${sourceType}`
+    );
+  } catch (linkErr) {
+    console.error(`[INS-Trigger] Failed to link IO draft:`, linkErr);
+  }
 
   return {
     created: true,

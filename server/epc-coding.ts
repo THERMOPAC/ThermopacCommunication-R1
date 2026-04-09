@@ -46,6 +46,7 @@ export const DOC_TYPE_ABBR: Record<string, { table: string; column: string; labe
   'CR':  { table: 'epc_commissioning_readiness', column: 'cr_number', label: 'Commissioning Readiness' },
   'BR':  { table: 'epc_billing_readiness', column: 'br_number', label: 'Billing Readiness' },
   'INV': { table: 'epc_invoices', column: 'invoice_number', label: 'Invoice' },
+  'DO':  { table: 'epc_drawing_orders', column: 'do_number', label: 'Drawing Order' },
 };
 
 export function validateContinentCode(code: string): boolean {

@@ -12098,3 +12098,64 @@ export const docSequences = pgTable('doc_sequences', {
 });
 
 export type DocSequence = typeof docSequences.$inferSelect;
+
+export const executionDrafts = pgTable('execution_drafts', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  docType: varchar('doc_type', { length: 10 }).notNull(),
+  applicable: boolean('applicable').notNull().default(true),
+  docNumber: varchar('doc_number', { length: 30 }),
+  approvalStatus: varchar('approval_status', { length: 30 }).notNull().default('draft'),
+  activationStatus: varchar('activation_status', { length: 30 }).notNull().default('not_activated'),
+  generatedBy: varchar('generated_by', { length: 20 }).notNull().default('system'),
+  generatedByUserId: integer('generated_by_user_id').references(() => users.id),
+  approvedBy: integer('approved_by').references(() => users.id),
+  rejectedBy: integer('rejected_by').references(() => users.id),
+  rejectionRemarks: text('rejection_remarks'),
+  holdRemarks: text('hold_remarks'),
+  linkedTaskId: integer('linked_task_id'),
+  dependencyDocType: varchar('dependency_doc_type', { length: 10 }),
+  dependencyStatus: varchar('dependency_status', { length: 20 }).notNull().default('not_required'),
+  sourceData: jsonb('source_data').notNull().default({}),
+  activatedEntityId: integer('activated_entity_id'),
+  activatedEntityType: varchar('activated_entity_type', { length: 50 }),
+  activatedBy: integer('activated_by').references(() => users.id),
+  activatedAt: timestamp('activated_at'),
+  parentDraftId: integer('parent_draft_id'),
+  actualDocNumber: varchar('actual_doc_number', { length: 30 }),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertExecutionDraftSchema = createInsertSchema(executionDrafts).omit({ id: true, createdAt: true, updatedAt: true });
+export type ExecutionDraft = typeof executionDrafts.$inferSelect;
+export type InsertExecutionDraft = z.infer<typeof insertExecutionDraftSchema>;
+
+export const epcDrawingOrders = pgTable('epc_drawing_orders', {
+  id: serial('id').primaryKey(),
+  doNumber: varchar('do_number', { length: 30 }).notNull().unique(),
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectItemId: integer('project_item_id').notNull().references(() => projectItems.id, { onDelete: 'cascade' }),
+  masterItemId: integer('master_item_id').references(() => masterItems.id),
+  itemCode: varchar('item_code', { length: 100 }),
+  itemDescription: text('item_description'),
+  drawingType: varchar('drawing_type', { length: 30 }),
+  requiredByDate: timestamp('required_by_date'),
+  assignedTo: integer('assigned_to').references(() => users.id),
+  status: varchar('status', { length: 30 }).notNull().default('draft'),
+  drawingNo: varchar('drawing_no', { length: 100 }),
+  revision: varchar('revision', { length: 10 }),
+  linkedEcrNumber: varchar('linked_ecr_number', { length: 30 }),
+  linkedEcnNumber: varchar('linked_ecn_number', { length: 30 }),
+  linkedDwgControlId: integer('linked_dwg_control_id'),
+  notes: text('notes'),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const insertEpcDrawingOrderSchema = createInsertSchema(epcDrawingOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export type EpcDrawingOrder = typeof epcDrawingOrders.$inferSelect;
+export type InsertEpcDrawingOrder = z.infer<typeof insertEpcDrawingOrderSchema>;

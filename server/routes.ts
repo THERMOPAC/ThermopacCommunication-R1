@@ -29,6 +29,7 @@ import { setupEpcDocumentRoutes } from "./epc-document-routes";
 import { setupDocumentControlRoutes } from "./document-control-routes";
 import { registerEpcPermissionRoutes } from "./epc-permission-routes";
 import { default as afterSalesRoutes } from "./after-sales-routes";
+import { default as pipelineRoutes } from "./pipeline/pipeline-routes";
 import { default as modulePermissionRoutes } from "./module-permission-routes";
 import { default as standaloneRoutes } from "./standalone-routes";
 import { default as advanceTaxRoutes } from "./advance-tax-routes";
@@ -855,6 +856,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupEpcControlTowerRoutes } = await import('./epc-control-tower-routes');
   setupEpcControlTowerRoutes(app);
   
+  app.use(pipelineRoutes);
+
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);
 

@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
 import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact } from './utils/quotation-pdf-artifact';
+import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
 
 export interface EpcParams {
   continentCode: string;
@@ -810,6 +811,14 @@ export async function executeOfferConversion(
 
     const updatedOffer = await pool.query(`SELECT * FROM offers WHERE id = $1`, [offerId]);
 
+    let executionDraftSummary = null;
+    try {
+      executionDraftSummary = await generateExecutionDrafts(project.id, userId);
+      console.log(`[offer-conversion] Execution drafts generated: created=${executionDraftSummary.created}, notApplicable=${executionDraftSummary.notApplicable}, blocked=${executionDraftSummary.blocked}`);
+    } catch (draftErr: any) {
+      console.error(`[offer-conversion] Execution draft generation failed (non-blocking):`, draftErr);
+    }
+
     return {
       offer: updatedOffer.rows[0],
       project: {
@@ -823,6 +832,7 @@ export async function executeOfferConversion(
       conversionId,
       itemsCreated,
       itemsPendingMapping,
+      executionDraftSummary,
     };
   } catch (error: any) {
     await client.query('ROLLBACK');

@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import DocumentControl from "@/components/document-control";
 const CommercialChangesTab = lazy(() => import("@/components/commercial-changes-tab"));
+const ExecutionDraftsTab = lazy(() => import("@/components/execution-drafts-tab"));
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { 
   Form,
@@ -2421,6 +2422,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="document-control">Document Control</TabsTrigger>
             <TabsTrigger value="commercial">Commercial</TabsTrigger>
+            <TabsTrigger value="execution-drafts">Execution Drafts</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -2956,6 +2958,12 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
           <TabsContent value="commercial" className="space-y-4">
             <Suspense fallback={<Card><CardContent className="p-8 text-center"><div className="animate-pulse text-sm text-muted-foreground">Loading...</div></CardContent></Card>}>
               <CommercialChangesTab projectId={parseInt(id)} />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="execution-drafts" className="space-y-4">
+            <Suspense fallback={<Card><CardContent className="p-8 text-center"><div className="animate-pulse text-sm text-muted-foreground">Loading...</div></CardContent></Card>}>
+              <ExecutionDraftsTab projectId={parseInt(id)} />
             </Suspense>
           </TabsContent>
         </Tabs>
