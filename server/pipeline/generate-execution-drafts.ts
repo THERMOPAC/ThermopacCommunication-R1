@@ -4,7 +4,7 @@ import { getNextDocSeq } from '../doc-sequence-service';
 import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
 import {
   DraftDocType, ApprovalStatus, DependencyStatus,
-  DraftGenerationSummary, PHASE_MAP, SLA_DAYS, PRIORITY_MAP,
+  DraftGenerationSummary, DEPT_MAP, SLA_DAYS, PRIORITY_MAP,
 } from './pipeline-types';
 
 interface ProjectRecord {
@@ -157,7 +157,7 @@ export async function generateExecutionDrafts(
       const draftId = draftResult;
 
       if (approvalStatus === 'pending_approval') {
-        const assignee = await resolveAssignee(projectId, PHASE_MAP[docType], userId, executor);
+        const assignee = await resolveAssignee(projectId, DEPT_MAP[docType], userId, executor);
         const taskId = await createEpcTask({
           projectId,
           entityType: 'execution_draft',

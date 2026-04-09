@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
-import { PHASE_MAP, PRIORITY_MAP, SLA_DAYS } from './pipeline-types';
+import { DEPT_MAP, PRIORITY_MAP, SLA_DAYS } from './pipeline-types';
 import type { DraftDocType } from './pipeline-types';
 
 export async function activateDraft(
@@ -60,7 +60,7 @@ export async function activateDraft(
       return { success: true, entityId, entityType };
     }
 
-    const assignee = await resolveAssignee(draft.project_id, PHASE_MAP[docType] || 'Engineering', userId);
+    const assignee = await resolveAssignee(draft.project_id, DEPT_MAP[docType] || 'Design', userId);
     const entityLabel = docType === 'WO' ? 'Work Order' : 'Purchase Order';
     const taskId = await createEpcTask({
       projectId: draft.project_id,

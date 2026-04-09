@@ -1,11 +1,11 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
-import { APPROVAL_ROLES, ACTION_ROLES, PHASE_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
+import { APPROVAL_ROLES, ACTION_ROLES, DEPT_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
 
 export async function approveDraft(draftId: number, userId: number, userRole: string): Promise<{ success: boolean; error?: string }> {
   if (!APPROVAL_ROLES.includes(userRole)) {
-    return { success: false, error: 'Insufficient role. Senior Manager or above required for approval.' };
+    return { success: false, error: 'Insufficient role. Manager or above required for approval.' };
   }
 
   const draftResult = await db.execute(
@@ -230,7 +230,7 @@ async function cascadeDOApproval(projectId: number, projectItemId: number, doDoc
     );
 
     const docType = draft.doc_type as 'WO' | 'PO' | 'IO';
-    const assignee = await resolveAssignee(projectId, PHASE_MAP[docType] || 'Engineering', userId);
+    const assignee = await resolveAssignee(projectId, DEPT_MAP[docType] || 'Design', userId);
     const taskId = await createEpcTask({
       projectId,
       entityType: 'execution_draft',

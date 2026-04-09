@@ -165,21 +165,30 @@ export async function markTasksObsolete(entityType: string, recordId: number, re
 
 export async function resolveAssignee(
   projectId: number,
-  phaseName: string,
+  departmentName: string,
   fallbackCreatedBy?: number,
   tx?: any
 ): Promise<number | null> {
   const executor = tx || db;
 
   try {
-    const phaseResult = await executor.execute(
-      sql`SELECT phase_lead_id FROM project_phases
-          WHERE project_id = ${projectId} AND name ILIKE ${'%' + phaseName + '%'}
+    const deptMgr = await executor.execute(
+      sql`SELECT id, username, role FROM users
+          WHERE department = ${departmentName}
+            AND role IN ('Manager', 'Senior Manager', 'General Manager', 'Superuser')
+            AND is_active = true
+          ORDER BY CASE role
+            WHEN 'Senior Manager' THEN 1
+            WHEN 'Manager' THEN 2
+            WHEN 'General Manager' THEN 3
+            WHEN 'Superuser' THEN 4
+          END
           LIMIT 1`
     );
-    if (phaseResult.rows.length > 0) {
-      const leadId = (phaseResult.rows[0] as any).phase_lead_id;
-      if (leadId) return leadId;
+    if (deptMgr.rows.length > 0) {
+      const mgr = deptMgr.rows[0] as any;
+      console.log(`[EPC-Task] Assignee resolved: ${mgr.username} (${mgr.role}) from dept ${departmentName}`);
+      return mgr.id;
     }
 
     const pmResult = await executor.execute(
@@ -187,14 +196,30 @@ export async function resolveAssignee(
     );
     if (pmResult.rows.length > 0) {
       const managerId = (pmResult.rows[0] as any).manager_id;
-      if (managerId) return managerId;
+      if (managerId) {
+        console.log(`[EPC-Task] Dept ${departmentName} has no manager — falling back to Project Manager (user ${managerId})`);
+        return managerId;
+      }
+    }
+
+    const gmResult = await executor.execute(
+      sql`SELECT id FROM users
+          WHERE role IN ('General Manager', 'Superuser')
+            AND is_active = true
+          ORDER BY CASE role WHEN 'General Manager' THEN 1 WHEN 'Superuser' THEN 2 END
+          LIMIT 1`
+    );
+    if (gmResult.rows.length > 0) {
+      const gmId = (gmResult.rows[0] as any).id;
+      console.log(`[EPC-Task] No PM for project ${projectId} — falling back to higher authority (user ${gmId})`);
+      return gmId;
     }
 
     if (fallbackCreatedBy) return fallbackCreatedBy;
 
     return null;
   } catch (error) {
-    console.error(`[EPC-Task] Error resolving assignee for project ${projectId}, phase ${phaseName}:`, error);
+    console.error(`[EPC-Task] Error resolving assignee for project ${projectId}, dept ${departmentName}:`, error);
     return fallbackCreatedBy || null;
   }
 }

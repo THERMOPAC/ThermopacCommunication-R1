@@ -17,11 +17,11 @@ export type ActivationStatus =
 
 export type DependencyStatus = 'not_required' | 'blocked' | 'met';
 
-export const PHASE_MAP: Record<DraftDocType, string> = {
-  DO: 'Engineering',
+export const DEPT_MAP: Record<DraftDocType, string> = {
+  DO: 'Design',
   WO: 'Production',
-  PO: 'Procurement',
-  IO: 'Quality',
+  PO: 'Purchase',
+  IO: 'Quality Control',
 };
 
 export const SLA_DAYS: Record<DraftDocType, number> = {
@@ -38,7 +38,7 @@ export const PRIORITY_MAP: Record<DraftDocType, string> = {
   IO: 'Medium',
 };
 
-export const APPROVAL_ROLES = ['Senior Manager', 'General Manager', 'Superuser'];
+export const APPROVAL_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 export const ACTION_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 
 export interface DraftGenerationSummary {

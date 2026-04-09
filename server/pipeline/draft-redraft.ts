@@ -2,7 +2,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getNextDocSeq } from '../doc-sequence-service';
 import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
-import { PHASE_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
+import { DEPT_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
 import type { DraftDocType } from './pipeline-types';
 
 export async function redraftFromRejected(
@@ -61,7 +61,7 @@ export async function redraftFromRejected(
   );
   const newDraftId = (result.rows[0] as any).id;
 
-  const assignee = await resolveAssignee(draft.project_id, PHASE_MAP[docType] || 'Engineering', userId);
+  const assignee = await resolveAssignee(draft.project_id, DEPT_MAP[docType] || 'Design', userId);
   const taskId = await createEpcTask({
     projectId: draft.project_id,
     entityType: 'execution_draft',
