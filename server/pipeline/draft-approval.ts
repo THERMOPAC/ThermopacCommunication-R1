@@ -235,13 +235,13 @@ async function cascadeDOApproval(projectId: number, projectItemId: number, doDoc
   }
 }
 
-async function logWorkflowEvent(projectId: number, eventType: string, data: Record<string, any>) {
+async function logWorkflowEvent(projectId: number, eventName: string, data: Record<string, any>) {
   try {
     await db.execute(
-      sql`INSERT INTO project_workflow_events (project_id, event_type, event_data, created_at)
-          VALUES (${projectId}, ${eventType}, ${JSON.stringify(data)}::jsonb, NOW())`
+      sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+          VALUES (${projectId}, ${eventName}, ${JSON.stringify(data)}::jsonb, 'epc_pipeline', NOW())`
     );
   } catch (error) {
-    console.error(`[ExecutionDrafts] Failed to log workflow event ${eventType}:`, error);
+    console.error(`[ExecutionDrafts] Failed to log workflow event ${eventName}:`, error);
   }
 }
