@@ -6,7 +6,7 @@ import {
   engineeringChangeNotices,
   epcDrawingControls,
 } from '@shared/schema';
-import { requirePageAccess } from './utils/permission-utils';
+import { requirePageAccess, checkProjectMembership } from './utils/permission-utils';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
@@ -22,6 +22,16 @@ function ensureAuthenticated(req: Request, res: Response, next: express.NextFunc
 
 function roleLevel(role: string): number {
   return roleHierarchy[role] ?? 99;
+}
+
+async function verifyProjectAccess(userId: number, userRole: string, projectId: number, res: Response): Promise<boolean> {
+  const { isMember } = await checkProjectMembership(userId, userRole, projectId);
+  if (!isMember) {
+    console.warn(`[ECR/ECN_ACCESS_DENIED] userId=${userId} role=${userRole} projectId=${projectId}`);
+    res.status(403).json({ error: 'Project access denied', code: 'PROJECT_ACCESS_DENIED', projectId });
+    return false;
+  }
+  return true;
 }
 
 async function loadDrawingControl(id: number) {
@@ -55,6 +65,11 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
   app.get('/api/drawing-controls/:drawingControlId/ecr', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const drawingControlId = parseInt(req.params.drawingControlId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const dwg = await loadDrawingControl(drawingControlId);
+      if (!dwg) return res.status(404).json({ error: 'Drawing control record not found' });
+      if (!(await verifyProjectAccess(userId, userRole, dwg.project_id, res))) return;
       const results = await db.execute(sql`
         SELECT ecr.*, u.username AS requested_by_name, u2.username AS approved_by_name
         FROM engineering_change_requests ecr
@@ -73,6 +88,11 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
   app.get('/api/drawing-controls/:drawingControlId/ecn', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const drawingControlId = parseInt(req.params.drawingControlId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const dwg = await loadDrawingControl(drawingControlId);
+      if (!dwg) return res.status(404).json({ error: 'Drawing control record not found' });
+      if (!(await verifyProjectAccess(userId, userRole, dwg.project_id, res))) return;
       const results = await db.execute(sql`
         SELECT ecn.*, u.username AS issued_by_name, u2.username AS implemented_by_name,
                ecr.document_number AS ecr_document_number
@@ -93,6 +113,11 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
   app.get('/api/drawing-controls/:drawingControlId/ecr/approved', ensureAuthenticated, async (req: Request, res: Response) => {
     try {
       const drawingControlId = parseInt(req.params.drawingControlId);
+      const userId = (req.user as any)?.id;
+      const userRole = (req.user as any)?.role;
+      const dwg = await loadDrawingControl(drawingControlId);
+      if (!dwg) return res.status(404).json({ error: 'Drawing control record not found' });
+      if (!(await verifyProjectAccess(userId, userRole, dwg.project_id, res))) return;
       const results = await db.execute(sql`
         SELECT ecr.id, ecr.document_number, ecr.description, ecr.reason
         FROM engineering_change_requests ecr
@@ -119,6 +144,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
 
       const dwg = await loadDrawingControl(drawingControlId);
       if (!dwg) return res.status(404).json({ error: 'Drawing control record not found' });
+      if (!(await verifyProjectAccess(userId, userRole, dwg.project_id, res))) return;
 
       const { description, reason } = req.body;
       if (!description?.trim()) return res.status(400).json({ error: 'description is required' });
@@ -167,6 +193,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const ecrResult = await db.execute(sql`SELECT * FROM engineering_change_requests WHERE id = ${id}`);
       if (ecrResult.rows.length === 0) return res.status(404).json({ error: 'ECR not found' });
       const ecr = ecrResult.rows[0] as any;
+      if (!(await verifyProjectAccess(userId, userRole, ecr.project_id, res))) return;
 
       if (ecr.status !== 'Draft') {
         return res.status(400).json({ error: `Cannot submit: ECR status is '${ecr.status}', must be 'Draft'` });
@@ -214,6 +241,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const ecrResult = await db.execute(sql`SELECT * FROM engineering_change_requests WHERE id = ${id}`);
       if (ecrResult.rows.length === 0) return res.status(404).json({ error: 'ECR not found' });
       const ecr = ecrResult.rows[0] as any;
+      if (!(await verifyProjectAccess(userId, userRole, ecr.project_id, res))) return;
 
       if (ecr.status !== 'Submitted') {
         return res.status(400).json({ error: `Cannot approve: ECR status is '${ecr.status}', must be 'Submitted'` });
@@ -253,6 +281,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const ecrResult = await db.execute(sql`SELECT * FROM engineering_change_requests WHERE id = ${id}`);
       if (ecrResult.rows.length === 0) return res.status(404).json({ error: 'ECR not found' });
       const ecr = ecrResult.rows[0] as any;
+      if (!(await verifyProjectAccess(userId, userRole, ecr.project_id, res))) return;
 
       if (ecr.status !== 'Submitted') {
         return res.status(400).json({ error: `Cannot reject: ECR status is '${ecr.status}', must be 'Submitted'` });
@@ -294,6 +323,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
 
       const dwg = await loadDrawingControl(drawingControlId);
       if (!dwg) return res.status(404).json({ error: 'Drawing control record not found' });
+      if (!(await verifyProjectAccess(userId, userRole, dwg.project_id, res))) return;
 
       const { ecr_id, description, implementation_details } = req.body;
 
@@ -364,6 +394,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const ecnResult = await db.execute(sql`SELECT * FROM engineering_change_notices WHERE id = ${id}`);
       if (ecnResult.rows.length === 0) return res.status(404).json({ error: 'ECN not found' });
       const ecn = ecnResult.rows[0] as any;
+      if (!(await verifyProjectAccess(userId, userRole, ecn.project_id, res))) return;
 
       if (ecn.status !== 'Draft') {
         return res.status(400).json({ error: `Cannot issue: ECN status is '${ecn.status}', must be 'Draft'` });
@@ -400,6 +431,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const ecnResult = await db.execute(sql`SELECT * FROM engineering_change_notices WHERE id = ${id}`);
       if (ecnResult.rows.length === 0) return res.status(404).json({ error: 'ECN not found' });
       const ecn = ecnResult.rows[0] as any;
+      if (!(await verifyProjectAccess(userId, userRole, ecn.project_id, res))) return;
 
       if (ecn.status !== 'Issued') {
         return res.status(400).json({ error: `Cannot implement: ECN status is '${ecn.status}', must be 'Issued'` });
@@ -538,6 +570,7 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const ecnResult = await db.execute(sql`SELECT * FROM engineering_change_notices WHERE id = ${id}`);
       if (ecnResult.rows.length === 0) return res.status(404).json({ error: 'ECN not found' });
       const ecn = ecnResult.rows[0] as any;
+      if (!(await verifyProjectAccess(userId, userRole, ecn.project_id, res))) return;
 
       if (ecn.status !== 'Implemented') {
         return res.status(400).json({ error: `Cannot close: ECN status is '${ecn.status}', must be 'Implemented'` });
