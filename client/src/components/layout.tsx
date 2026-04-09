@@ -393,7 +393,6 @@ function Layout({ children }: LayoutProps) {
         { icon: Briefcase, label: "Projects", href: "/projects" },
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
-        { icon: ClipboardCheck, label: "Execution Control", href: "/execution-control" },
         ...(hasPageAccess("bom-controls") ? [{ icon: Layers, label: "BOM Controls", href: "/epc/bom-controls" }] : []),
         ...(hasPageAccess("drawing-controls") ? [{ icon: PenTool, label: "Drawing Controls", href: "/epc/drawing-controls" }] : []),
         ...(hasPageAccess("purchase-orders") ? [{ icon: ShoppingCart, label: "Purchase Orders", href: "/epc/purchase-orders" }] : []),
