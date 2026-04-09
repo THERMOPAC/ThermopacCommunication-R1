@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { format } from 'date-fns';
@@ -834,6 +834,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
     },
   });
 
+  const editDeliverableRef = useRef<HTMLDivElement>(null);
   const handleEditDeliverable = (d: any) => {
     setEditingDeliverable(d);
     deliverableForm.reset({
@@ -844,6 +845,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       notes: d.notes || "",
       assignedTo: d.assigned_to || d.assignedTo || undefined,
     });
+    setTimeout(() => editDeliverableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
   };
 
   const handleAddPhase = () => {
@@ -3250,7 +3252,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               </Table>
 
               {editingDeliverable && (
-                <Card className="border-blue-200 bg-blue-50/30">
+                <Card ref={editDeliverableRef} className="border-blue-200 bg-blue-50/30">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">Edit Deliverable: {editingDeliverable.name}</CardTitle>
                   </CardHeader>
