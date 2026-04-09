@@ -46,7 +46,9 @@ router.get('/dashboard', async (req: Request, res: Response) => {
 
     const findings = await db.execute(sql`
       SELECT f.*,
+        p.code as project_code,
         p.name as project_name,
+        p.client_name as client_name,
         mi.item_code as project_item_code,
         mi.description as project_item_description,
         (
@@ -93,19 +95,19 @@ router.get('/dashboard', async (req: Request, res: Response) => {
     `);
 
     const byProjectResult = await db.execute(sql`
-      SELECT f.project_id, p.name as project_name, f.status, f.severity, COUNT(*) as count
+      SELECT f.project_id, p.code as project_code, p.name as project_name, p.client_name as client_name, f.status, f.severity, COUNT(*) as count
       FROM epc_agent_findings f
       LEFT JOIN projects p ON f.project_id = p.id
       WHERE f.project_id IS NOT NULL
-      GROUP BY f.project_id, p.name, f.status, f.severity
-      ORDER BY p.name
+      GROUP BY f.project_id, p.code, p.name, p.client_name, f.status, f.severity
+      ORDER BY p.code
     `);
 
     const projectsResult = await db.execute(sql`
-      SELECT DISTINCT f.project_id, p.name as project_name
+      SELECT DISTINCT f.project_id, p.code as project_code, p.name as project_name, p.client_name as client_name
       FROM epc_agent_findings f
       JOIN projects p ON f.project_id = p.id
-      ORDER BY p.name
+      ORDER BY p.code
     `);
 
     res.json({
@@ -126,7 +128,9 @@ router.get('/finding/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const result = await db.execute(sql`
       SELECT f.*,
+        p.code as project_code,
         p.name as project_name,
+        p.client_name as client_name,
         mi.item_code as project_item_code,
         mi.description as project_item_description
       FROM epc_agent_findings f

@@ -224,7 +224,7 @@ export default function EpcRisksDashboard() {
     if (!data?.byProject) return [];
     const map: Record<number, { name: string; critical: number; risk: number; warning: number; resolved: number }> = {};
     for (const row of data.byProject) {
-      if (!map[row.project_id]) map[row.project_id] = { name: row.project_name, critical: 0, risk: 0, warning: 0, resolved: 0 };
+      if (!map[row.project_id]) map[row.project_id] = { code: row.project_code, name: row.project_name, clientName: row.client_name, critical: 0, risk: 0, warning: 0, resolved: 0 };
       if (row.status === 'resolved') { map[row.project_id].resolved += Number(row.count); continue; }
       if (row.severity === 'critical') map[row.project_id].critical += Number(row.count);
       else if (row.severity === 'risk') map[row.project_id].risk += Number(row.count);
@@ -379,7 +379,7 @@ export default function EpcRisksDashboard() {
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
             {(data?.projects || []).map((p: any) => (
-              <SelectItem key={p.project_id} value={String(p.project_id)}>{p.project_name}</SelectItem>
+              <SelectItem key={p.project_id} value={String(p.project_id)}>{p.project_code || ''} — {p.client_name || p.project_name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -560,7 +560,7 @@ export default function EpcRisksDashboard() {
                             <TableCell className="text-xs max-w-[200px] truncate" title={FINDING_TITLES[f.finding_code]}>
                               {FINDING_TITLES[f.finding_code] || f.finding_code}
                             </TableCell>
-                            <TableCell className="text-xs">{f.project_name || '—'}</TableCell>
+                            <TableCell className="text-xs">{f.project_code ? `${f.project_code} — ${f.client_name || f.project_name}` : '—'}</TableCell>
                             <TableCell className="text-xs max-w-[120px] truncate" title={f.project_item_description || ''}>
                               {f.project_item_code || '—'}
                             </TableCell>
