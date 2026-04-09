@@ -69,6 +69,10 @@ export function validateFyCode(code: string): boolean {
 }
 
 export function incrementRevisionCode(current: string): string {
+  if (/^\d+$/.test(current)) {
+    const num = parseInt(current, 10) + 1;
+    return num.toString().padStart(2, '0');
+  }
   if (current.length === 1) {
     if (current === 'Z') return 'AA';
     return String.fromCharCode(current.charCodeAt(0) + 1);

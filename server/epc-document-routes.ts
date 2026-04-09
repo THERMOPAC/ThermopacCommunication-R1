@@ -95,7 +95,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
 
       const isRevisionControlled = epcCoding.REVISION_CONTROLLED_TYPES.has(docType);
-      const revisionCode = isRevisionControlled ? (parent.revision_code || 'A') : null;
+      const revisionCode = isRevisionControlled ? (parent.revision_code || '00') : null;
       const documentNumber = parent.document_number;
 
       const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
@@ -545,7 +545,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       if (isRevControlled) {
         const grouped: Record<string, any> = {};
         for (const row of attachments.rows as any[]) {
-          const rev = row.revision_code || 'A';
+          const rev = row.revision_code || '00';
           if (!grouped[rev]) {
             grouped[rev] = {
               revisionCode: rev,

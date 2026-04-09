@@ -8779,7 +8779,7 @@ export function setupProjectRoutes(app: express.Express) {
 
         const inserted = await tx.insert(epcDrawingControls).values({
           dwgControlNumber,
-          revisionCode: 'A',
+          revisionCode: '00',
           isCurrent: true,
           revisionStatus: 'draft',
           projectId,

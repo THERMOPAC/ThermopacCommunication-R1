@@ -571,7 +571,7 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 <div className="text-xs text-muted-foreground">Loading...</div>
               ) : gcsInfo ? (
                 <div className="font-mono text-xs bg-slate-50 border rounded px-3 py-2 break-all text-slate-700">
-                  {gcsInfo.basePath}/{gcsInfo.codeBars}_rev-XX.pdf
+                  {gcsInfo.basePath}/{gcsInfo.codeBars}_rev-00.pdf
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground">Path not available</div>

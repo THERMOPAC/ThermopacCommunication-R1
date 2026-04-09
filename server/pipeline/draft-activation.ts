@@ -143,9 +143,9 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
            drawing_purpose, procurement_release_required, manufacturing_release_required,
            client_approval_required, client_approval_status,
            status, notes, created_by)
-          VALUES (${dwgControlNumber}, 'A', true, 'draft',
+          VALUES (${dwgControlNumber}, '00', true, 'draft',
                   ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null},
-                  ${drawingNumber}, ${itemDesc}, ${'A'},
+                  ${drawingNumber}, ${itemDesc}, ${'00'},
                   ${itemCode}, ${itemDesc}, ${classification},
                   'general', ${procReq}, ${mfgReq},
                   false, 'not_required',
