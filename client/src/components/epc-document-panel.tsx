@@ -705,8 +705,8 @@ export default function EpcDocumentPanel({
               />
             </div>
             <div>
-              <label className="text-sm font-medium block mb-1">File</label>
-              <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+              <label className="text-sm font-medium block mb-1">File {docType === "DWG" && <span className="text-muted-foreground font-normal">(PDF only)</span>}</label>
+              <Input type="file" accept={docType === "DWG" ? ".pdf,application/pdf" : undefined} onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
               {uploadFile && (
                 <p className="text-xs text-muted-foreground mt-1">
                   {uploadFile.name} ({formatFileSize(uploadFile.size)})
