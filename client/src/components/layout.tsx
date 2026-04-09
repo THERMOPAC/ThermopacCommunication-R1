@@ -273,6 +273,7 @@ function Layout({ children }: LayoutProps) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
+    { icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" },
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
     ...(user?.role === "Superuser" ? [{ 
@@ -406,8 +407,7 @@ function Layout({ children }: LayoutProps) {
         ...(hasPageAccess("epc-risks") ? [{ icon: Shield, label: "Risks", href: "/epc-risks" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "Permission Control", href: "/epc/permission-control" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Radar, label: "Control Tower", href: "/epc/control-tower" }] : []),
-        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: BarChart4, label: "Cutover Dashboard", href: "/epc/cutover-dashboard" }] : []),
-        { icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" }
+        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: BarChart4, label: "Cutover Dashboard", href: "/epc/cutover-dashboard" }] : [])
       ]
     }] : []),
     ...(hasViewPermission("Design Management") ? [{ 
