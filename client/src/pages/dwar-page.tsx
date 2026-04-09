@@ -240,6 +240,12 @@ export default function DwarPage() {
   // Submit DWAR mutation
   const submitReportMutation = useMutation({
     mutationFn: async () => {
+      await apiRequest("PUT", `/api/dwar/update/${todayReport?.id}`, {
+        challenges: localChallenges,
+        issuesEncountered: localIssuesEncountered,
+        supportRequired: localSupportRequired,
+        tomorrowPlans: localTomorrowPlans,
+      });
       return await apiRequest("POST", `/api/dwar/submit/${todayReport?.id}`, {});
     },
     onSuccess: (response: any) => {
