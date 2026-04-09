@@ -59,16 +59,16 @@ export async function createEpcTask(params: EpcTaskParams): Promise<number | nul
 
   try {
     const existing = await executor.execute(
-      sql`SELECT id FROM tasks
+      sql`SELECT id, status FROM tasks
           WHERE source_type = 'epc_automation'
             AND description LIKE ${'%' + automationKey + '%'}
-            AND status NOT IN ('completed', 'obsolete')
           LIMIT 1`
     );
 
     if (existing.rows.length > 0) {
-      console.log(`[EPC-Task] Idempotent skip: task already exists for ${automationKey}`);
-      return (existing.rows[0] as any).id;
+      const existingTask = existing.rows[0] as any;
+      console.log(`[EPC-Task] Idempotent skip: task #${existingTask.id} already exists (${existingTask.status}) for ${automationKey}`);
+      return existingTask.id;
     }
 
     const dueDate = computeBusinessDayDue(dueDays);
@@ -102,7 +102,6 @@ export async function createEpcAlert(params: EpcAlertParams): Promise<void> {
             WHERE user_id = ${params.userId}
               AND source_type = 'epc_automation'
               AND message LIKE ${'%' + alertKey + '%'}
-              AND status IN ('new', 'unread')
             LIMIT 1`
       );
       if (existing.rows.length > 0) {
