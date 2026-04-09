@@ -1456,43 +1456,30 @@ router.post('/sync/purchase', ensureAuthenticated, async (req, res) => {
  */
 router.get('/vendors', ensureAuthenticated, async (req, res) => {
   try {
-    const publicServiceLayerUrl = 'https://59.152.52.58:50000/b1s/v1';
-    const sapUsername = process.env.SAP_USERNAME;
-    const sapPassword = process.env.SAP_PASSWORD;
-    const sapCompanyDb = process.env.SAP_COMPANY_DB;
+    const { sapHttpsClient } = await import('./sap-https-client');
+    const sapUsername = process.env.SAP_USERNAME || '';
+    const sapPassword = process.env.SAP_PASSWORD || '';
+    const sapCompanyDb = process.env.SAP_COMPANY_DB || '';
 
-    const https = await import('https');
-    const agent = new https.Agent({ rejectUnauthorized: false });
+    const { sessionId } = await sapHttpsClient.login(sapUsername, sapPassword, sapCompanyDb);
 
-    const loginResponse = await fetch(`${publicServiceLayerUrl}/Login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ CompanyDB: sapCompanyDb, UserName: sapUsername, Password: sapPassword }),
-      agent,
-      signal: AbortSignal.timeout(10000)
-    } as any);
-
-    if (!loginResponse.ok) {
-      return res.status(502).json({ success: false, error: 'Failed to connect to SAP' });
-    }
-
-    const loginData = await loginResponse.json() as any;
-    const sessionCookie = `B1SESSION=${loginData.SessionId}; ROUTEID=${loginData.RouteId || '.node1'}`;
-
-    const vendorsResponse = await fetch(
-      `${publicServiceLayerUrl}/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$orderby=CardName asc&$top=500`,
-      { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Cookie': sessionCookie }, agent } as any
-    );
+    const vendorsResponse = await sapHttpsClient.authenticatedRequest(sessionId, {
+      method: 'GET',
+      url: `https://59.152.52.58:50000/b1s/v1/BusinessPartners?$filter=CardType eq 'cSupplier'&$select=CardCode,CardName&$top=500`,
+    });
 
     if (!vendorsResponse.ok) {
+      console.error('SAP vendors response error:', vendorsResponse.statusCode, vendorsResponse.body);
       return res.status(502).json({ success: false, error: 'Failed to fetch vendors from SAP' });
     }
 
-    const vendorsData = await vendorsResponse.json() as any;
+    const vendorsData = JSON.parse(vendorsResponse.body);
     const vendors = (vendorsData.value || []).map((v: any) => ({
       code: v.CardCode,
       name: v.CardName,
     }));
+
+    vendors.sort((a: any, b: any) => a.name.localeCompare(b.name));
 
     res.json(vendors);
   } catch (error) {
