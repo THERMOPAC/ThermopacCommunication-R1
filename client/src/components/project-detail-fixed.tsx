@@ -225,6 +225,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   const [statusUpdateDetails, setStatusUpdateDetails] = useState<{itemId: number, status: string, oldStatus: string, itemCode: string} | null>(null);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [cancellationType, setCancellationType] = useState('');
   const [pendingCancelData, setPendingCancelData] = useState<EditProjectValues | null>(null);
   const [isReopenConfirmOpen, setIsReopenConfirmOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState('');
@@ -1171,12 +1172,13 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   }
 
   function confirmCancellation() {
-    if (!pendingCancelData || cancelReason.trim().length < 10) return;
-    const payload = { ...pendingCancelData, cancelReason: cancelReason.trim() };
+    if (!pendingCancelData || cancelReason.trim().length < 10 || !cancellationType) return;
+    const payload = { ...pendingCancelData, cancelReason: cancelReason.trim(), cancellationType };
     updateProjectMutation.mutate(payload as any);
     setIsCancelConfirmOpen(false);
     setPendingCancelData(null);
     setCancelReason('');
+    setCancellationType('');
   }
 
   function confirmReopen() {
@@ -1573,20 +1575,35 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       </Dialog>
       
       {/* Project Cancellation Confirmation Dialog */}
-      <Dialog open={isCancelConfirmOpen} onOpenChange={(open) => { if (!open) { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); } }}>
-        <DialogContent className="sm:max-w-[480px]">
+      <Dialog open={isCancelConfirmOpen} onOpenChange={(open) => { if (!open) { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); setCancellationType(''); } }}>
+        <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" /> Cancel Project
             </DialogTitle>
             <DialogDescription>
-              This action is <strong>irreversible</strong>. Canceling this project will cascade to all child records
-              (planning, purchase orders, work orders, inspections, dispatch, commissioning, billing, invoices).
-              All active records will be frozen and marked as canceled.
+              Canceling this project will cascade to all child records. Draft/safe records will be <strong>canceled</strong>.
+              Active/financial records (issued POs, released WOs, shipped dispatches, invoices) will be placed <strong>on hold</strong> for mandatory review — they will NOT be auto-canceled.
+              A Superuser can reopen the project to restore safe records from the cancellation snapshot.
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
             <div className="text-sm font-medium">Project: <span className="font-bold">{project?.code} — {project?.name}</span></div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Cancellation Type <span className="text-destructive">*</span></label>
+              <select
+                value={cancellationType}
+                onChange={(e) => setCancellationType(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Select cancellation type...</option>
+                <option value="commercial">Commercial</option>
+                <option value="technical">Technical</option>
+                <option value="customer_request">Customer Request</option>
+                <option value="force_majeure">Force Majeure</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Cancellation Reason <span className="text-destructive">*</span></label>
               <Textarea
@@ -1600,15 +1617,25 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 <p className="text-xs text-destructive">Reason must be at least 10 characters.</p>
               )}
             </div>
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 space-y-1">
+              <div className="font-semibold">Impact Summary:</div>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Draft records (planning, BOMs, drawings, POs, WOs) → <strong>Canceled</strong></li>
+                <li>Active/issued records (POs, WOs, inspections) → <strong>On Hold for Review</strong></li>
+                <li>Released drawings → <strong>On Hold for Review</strong></li>
+                <li>Financial records (invoices, billing) → <strong>On Hold for Review</strong></li>
+                <li>A cancellation snapshot is saved for every affected record</li>
+              </ul>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); }}>
+            <Button variant="outline" onClick={() => { setIsCancelConfirmOpen(false); setPendingCancelData(null); setCancelReason(''); setCancellationType(''); }}>
               Go Back
             </Button>
             <Button
               variant="destructive"
               onClick={confirmCancellation}
-              disabled={cancelReason.trim().length < 10 || updateProjectMutation.isPending}
+              disabled={cancelReason.trim().length < 10 || !cancellationType || updateProjectMutation.isPending}
             >
               {updateProjectMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirm Cancellation

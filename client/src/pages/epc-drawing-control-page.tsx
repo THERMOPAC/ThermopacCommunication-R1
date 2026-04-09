@@ -39,6 +39,8 @@ const STATUS_STYLES: Record<string, string> = {
   released: "bg-green-100 text-green-700 border-green-300",
   superseded: "bg-orange-100 text-orange-600 border-orange-300",
   cancelled: "bg-red-50 text-red-500 border-red-200",
+  canceled: "bg-red-50 text-red-500 border-red-200",
+  on_hold_pending_cancellation_review: "bg-amber-100 text-amber-800 border-amber-400",
   pending_upload: "bg-amber-100 text-amber-700 border-amber-400",
   file_not_available: "bg-gray-100 text-gray-500 border-gray-300",
 };
@@ -46,6 +48,7 @@ const STATUS_STYLES: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   pending_upload: "Awaiting Upload",
   file_not_available: "No File",
+  on_hold_pending_cancellation_review: "On Hold (Cancellation)",
 };
 
 function StatusBadge({ status }: { status: string }) {

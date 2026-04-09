@@ -47,7 +47,7 @@ import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
 import { markAttachmentsSuperseded } from './epc-document-routes';
 import { isFeatureFlagEnabled } from './utils/epc-migration-helpers';
-import { executeProjectCancellationCascade, executeProjectRestorationCascade, isProjectFrozen, isProjectTerminal } from './utils/epc-project-cascade';
+import { executeProjectCancellationCascade, executeProjectRestorationCascade, isProjectFrozen, isProjectTerminal, ON_HOLD_STATUS } from './utils/epc-project-cascade';
 import { reconcileBomSupersession } from './utils/epc-bom-reconciliation';
 import { isDwgGateRequired } from './utils/epc-dwg-linking';
 import { triggerInspectionOnPoIssuance, triggerInspectionOnWoRelease } from './utils/epc-inspection-trigger';
@@ -409,6 +409,10 @@ export function setupProjectRoutes(app: express.Express) {
           if (!req.body.cancelReason || typeof req.body.cancelReason !== 'string' || req.body.cancelReason.trim().length < 10) {
             return res.status(400).json({ error: 'A cancellation reason of at least 10 characters is required.' });
           }
+          const validCancellationTypes = ['commercial', 'technical', 'customer_request', 'force_majeure', 'other'];
+          if (!req.body.cancellationType || !validCancellationTypes.includes(req.body.cancellationType)) {
+            return res.status(400).json({ error: 'A valid cancellation type is required (commercial, technical, customer_request, force_majeure, other).' });
+          }
         }
       }
 
@@ -480,7 +484,8 @@ export function setupProjectRoutes(app: express.Express) {
                 previousStatus: oldStatus
               }), String(userId)]);
             }
-            const cascadeResult = await executeProjectCancellationCascade(projectId, userId);
+            const cancellationType = req.body.cancellationType?.trim() || 'other';
+            const cascadeResult = await executeProjectCancellationCascade(projectId, userId, cancellationType, cancelReason);
             console.log(`[EPC-Cascade] Cancellation cascade completed for project ${project.code}`);
             return res.json({ ...updatedProject, cascadeResult });
           } catch (cascadeErr) {
@@ -494,6 +499,55 @@ export function setupProjectRoutes(app: express.Express) {
     } catch (error) {
       console.error(`Error updating project ${req.params.id}:`, error);
       res.status(400).json({ error: 'Failed to update project', details: error.message });
+    }
+  });
+
+  app.get('/api/projects/:id/cancellation-report', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+      const snapshots = await pool.query(`
+        SELECT module, table_name, record_id, status_before, status_after, key_data,
+               restoration_eligible, restored, cancellation_type, cancelled_at, restored_at
+        FROM project_cancellation_snapshots
+        WHERE project_id = $1
+        ORDER BY cancelled_at DESC, id
+      `, [projectId]);
+
+      const cancelEvent = await pool.query(`
+        SELECT event_payload, emitted_at, emitted_by FROM project_workflow_events
+        WHERE project_id = $1 AND event_name = 'project_cancellation_cascade'
+        ORDER BY emitted_at DESC LIMIT 1
+      `, [projectId]);
+
+      const grouped: Record<string, any[]> = {};
+      for (const s of snapshots.rows) {
+        if (!grouped[s.module]) grouped[s.module] = [];
+        grouped[s.module].push(s);
+      }
+
+      const summary = {
+        totalRecords: snapshots.rows.length,
+        canceled: snapshots.rows.filter((s: any) => s.status_after === 'canceled').length,
+        onHold: snapshots.rows.filter((s: any) => s.status_after === ON_HOLD_STATUS).length,
+        restored: snapshots.rows.filter((s: any) => s.restored).length,
+        pendingReview: snapshots.rows.filter((s: any) => !s.restoration_eligible && !s.restored).length,
+      };
+
+      res.json({
+        projectId,
+        cancellationType: cancelEvent.rows[0]?.event_payload?.cancellationType || null,
+        cancellationReason: cancelEvent.rows[0]?.event_payload?.cancellationReason || null,
+        cancelledAt: cancelEvent.rows[0]?.emitted_at || null,
+        cancelledBy: cancelEvent.rows[0]?.emitted_by || null,
+        summary,
+        modules: grouped,
+        snapshots: snapshots.rows,
+      });
+    } catch (error) {
+      console.error('Error fetching cancellation report:', error);
+      sendError(res, error);
     }
   });
 

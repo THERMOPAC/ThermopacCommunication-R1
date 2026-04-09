@@ -12160,3 +12160,21 @@ export const epcDrawingOrders = pgTable('epc_drawing_orders', {
 export const insertEpcDrawingOrderSchema = createInsertSchema(epcDrawingOrders).omit({ id: true, createdAt: true, updatedAt: true });
 export type EpcDrawingOrder = typeof epcDrawingOrders.$inferSelect;
 export type InsertEpcDrawingOrder = z.infer<typeof insertEpcDrawingOrderSchema>;
+
+export const projectCancellationSnapshots = pgTable('project_cancellation_snapshots', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull(),
+  module: varchar('module', { length: 100 }).notNull(),
+  tableName: varchar('table_name', { length: 100 }).notNull(),
+  recordId: integer('record_id').notNull(),
+  statusBefore: varchar('status_before', { length: 100 }).notNull(),
+  statusAfter: varchar('status_after', { length: 100 }).notNull(),
+  keyData: jsonb('key_data').default({}),
+  restorationEligible: boolean('restoration_eligible').notNull().default(false),
+  restored: boolean('restored').notNull().default(false),
+  cancellationType: varchar('cancellation_type', { length: 50 }),
+  cancelledAt: timestamp('cancelled_at').defaultNow(),
+  restoredAt: timestamp('restored_at'),
+});
+
+export type ProjectCancellationSnapshot = typeof projectCancellationSnapshots.$inferSelect;
