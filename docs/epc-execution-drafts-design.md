@@ -1,10 +1,11 @@
-# EPC Execution Drafts — Unified Automation Design
+# EPC Execution Plan — Unified Automation Design
 
-**Status:** DRAFT v2 — Revised with task assignment, SLA, scope & compatibility rules  
+**Status:** IMPLEMENTATION BASELINE v3 — Final corrections applied  
 **Author:** Agent  
 **Date:** 2026-04-09  
 **Scope:** Automated DO/WO/PO/IO draft generation at Offer-to-Order conversion  
-**Baseline Dependency:** `docs/epc-project-numbering-gcs-baseline.md` (v6-final)
+**Baseline Dependency:** `docs/epc-project-numbering-gcs-baseline.md` (v6-final)  
+**Usage:** This document is the implementation baseline. Each module must be confirmed against this document during development.
 
 ---
 
@@ -19,16 +20,19 @@
 7. [Schema Changes](#7-schema-changes)
 8. [Draft Generation Flow](#8-draft-generation-flow)
 9. [Dependency Rules](#9-dependency-rules)
-10. [Approval Task Assignment](#10-approval-task-assignment)
-11. [Task Due Date & SLA Rules](#11-task-due-date--sla-rules)
-12. [Approval Task Actions](#12-approval-task-actions)
-13. [Data Mapping](#13-data-mapping)
-14. [Failure Handling](#14-failure-handling)
-15. [API Endpoints](#15-api-endpoints)
-16. [UI Design](#16-ui-design)
-17. [Audit & Control](#17-audit--control)
-18. [Impact on Existing Services](#18-impact-on-existing-services)
-19. [Future Pipeline Integration](#19-future-pipeline-integration)
+10. [Approval Authority & Separation of Duties](#10-approval-authority--separation-of-duties)
+11. [Approval Task Assignment](#11-approval-task-assignment)
+12. [Task Due Date & SLA Rules](#12-task-due-date--sla-rules)
+13. [Approval vs Activation (Two-Phase)](#13-approval-vs-activation-two-phase)
+14. [IO Trigger Rules & Deduplication](#14-io-trigger-rules--deduplication)
+15. [Re-Draft Rules](#15-re-draft-rules)
+16. [Data Mapping](#16-data-mapping)
+17. [Failure Handling](#17-failure-handling)
+18. [API Endpoints](#18-api-endpoints)
+19. [UI Design](#19-ui-design)
+20. [Audit & Control](#20-audit--control)
+21. [Impact on Existing Services](#21-impact-on-existing-services)
+22. [Future Pipeline Integration](#22-future-pipeline-integration)
 
 ---
 
@@ -38,12 +42,14 @@ When an approved Offer is converted to a Project, the system must automatically 
 
 **Documents generated per project item:**
 
-| Doc Type | Full Name | When Applicable |
-|----------|-----------|----------------|
-| DO | Drawing Order | Make items (custom). Skipped for Buy items. |
-| WO | Work Order | Make items only |
-| PO | Purchase Order | Buy items, or Make items with purchased sub-components |
-| IO | Inspection Order | All items (incoming for Buy, in-process for Make) |
+| Doc Type | Full Name | When Applicable (`applicable`) |
+|----------|-----------|-------------------------------|
+| DO | Drawing Order | `true` for Make items. `false` for Buy items. |
+| WO | Work Order | `true` for Make items. `false` for Buy items. |
+| PO | Purchase Order | `true` for Buy items, or Make items with purchased sub-components. `false` otherwise. |
+| IO | Inspection Order | `true` for all items. Make → in-process (linked to WO). Buy → incoming (linked to PO). |
+
+**Key design principle:** Items where a doc type does not apply are marked `applicable = false` — they are NOT "skipped" or omitted. Every item has a row for every doc type, providing full visibility.
 
 ---
 
@@ -75,7 +81,7 @@ When an approved Offer is converted to a Project, the system must automatically 
 | Aspect | Before | After |
 |--------|--------|-------|
 | Offer → Project conversion | Creates project + items only | Creates project + items + execution drafts |
-| DO/WO/PO/IO creation | Entirely manual | Pre-numbered drafts created, approved via task workflow, then activated into real entities |
+| DO/WO/PO/IO creation | Entirely manual | Pre-numbered drafts created, approved via task workflow, then activated into real entities (two-phase) |
 | Document numbering | Assigned at manual creation time | Pre-assigned at conversion time (immutable) |
 | Approval workflow | No formal approval gate | Approval tasks with dependency rules (DO gates WO/PO) |
 
@@ -166,11 +172,13 @@ These follow the existing baseline rules. No format changes. The only change is 
 
 **Numbers are generated at draft creation time, NOT at activation time.**
 
+Numbers are ONLY generated for rows where `applicable = true`. Rows with `applicable = false` have `doc_number = NULL`.
+
 ### 4.2 Immutability Rules
 
 | Rule | Enforcement |
 |------|------------|
-| Once assigned, a doc number NEVER changes | `doc_number` column: `NOT NULL`, no UPDATE allowed after INSERT |
+| Once assigned, a doc number NEVER changes | `doc_number` column: no UPDATE allowed after INSERT |
 | Rejected drafts retain their number | Number is consumed. A new draft for the same item gets a NEW number. |
 | Held drafts retain their number | When released from hold, the original number is used. |
 | Deleted/canceled drafts consume the number | The sequence does not reset. Gaps are acceptable and expected. |
@@ -217,15 +225,14 @@ RETURNING next_seq
 Draft generation is idempotent per `(project_id, project_item_id, doc_type)`:
 
 ```sql
--- Before creating a draft, check:
 SELECT id FROM execution_drafts
 WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
-  AND status NOT IN ('rejected', 'canceled')
+  AND approval_status NOT IN ('rejected', 'canceled')
 ```
 
 - If an active draft exists → skip (do not create duplicate)
 - If only rejected/canceled drafts exist → create new draft with NEW number
-- Unique constraint: `UNIQUE(project_id, project_item_id, doc_type) WHERE status NOT IN ('rejected', 'canceled')`
+- Unique constraint: `UNIQUE(project_id, project_item_id, doc_type) WHERE approval_status NOT IN ('rejected', 'canceled')`
 
 ### 5.3 Uniqueness Guarantees
 
@@ -260,37 +267,39 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 
 **Item 1: Thermic Fluid Heater 10L (Make)**
 
-| Draft | Doc Number | Status | Dependency |
-|-------|-----------|--------|------------|
-| DO | `2627-003-DO-0001` | `draft_system_generated` | None |
-| WO | `2627-003-WO-0001` | `draft_system_generated` | Blocked until DO approved |
-| IO | `IO-2627-003-M-0001` | `draft_system_generated` | Independent |
+| Draft | Applicable | Doc Number | Approval Status | Dependency Status |
+|-------|-----------|-----------|-----------------|-------------------|
+| DO | `true` | `2627-003-DO-0001` | `pending_approval` | `not_required` |
+| WO | `true` | `2627-003-WO-0001` | `draft` | `blocked` (needs DO) |
+| PO | `false` | — | — | — |
+| IO | `true` | `IO-2627-003-M-0001` | `draft` | `not_required` |
 
 **Item 2: Control Panel CP-200 (Make)**
 
-| Draft | Doc Number | Status | Dependency |
-|-------|-----------|--------|------------|
-| DO | `2627-003-DO-0002` | `draft_system_generated` | None |
-| WO | `2627-003-WO-0002` | `draft_system_generated` | Blocked until DO approved |
-| IO | `IO-2627-003-M-0002` | `draft_system_generated` | Independent |
+| Draft | Applicable | Doc Number | Approval Status | Dependency Status |
+|-------|-----------|-----------|-----------------|-------------------|
+| DO | `true` | `2627-003-DO-0002` | `pending_approval` | `not_required` |
+| WO | `true` | `2627-003-WO-0002` | `draft` | `blocked` (needs DO) |
+| PO | `false` | — | — | — |
+| IO | `true` | `IO-2627-003-M-0002` | `draft` | `not_required` |
 
 **Item 3: Expansion Tank ET-50 (Buy)**
 
-| Draft | Doc Number | Status | Dependency |
-|-------|-----------|--------|------------|
-| DO | — | Skipped (Buy item) | — |
-| WO | — | Skipped (Buy item) | — |
-| PO | `2627-003-PO-0001` | `draft_system_generated` | None |
-| IO | `IO-2627-003-B-0001` | `draft_system_generated` | Independent |
+| Draft | Applicable | Doc Number | Approval Status | Dependency Status |
+|-------|-----------|-----------|-----------------|-------------------|
+| DO | `false` | — | — | — |
+| WO | `false` | — | — | — |
+| PO | `true` | `2627-003-PO-0001` | `pending_approval` | `not_required` |
+| IO | `true` | `IO-2627-003-B-0001` | `draft` | `not_required` |
 
 **Item 4: Temperature Sensor TS-K (Buy)**
 
-| Draft | Doc Number | Status | Dependency |
-|-------|-----------|--------|------------|
-| DO | — | Skipped (Buy item) | — |
-| WO | — | Skipped (Buy item) | — |
-| PO | `2627-003-PO-0002` | `draft_system_generated` | None |
-| IO | `IO-2627-003-B-0002` | `draft_system_generated` | Independent |
+| Draft | Applicable | Doc Number | Approval Status | Dependency Status |
+|-------|-----------|-----------|-----------------|-------------------|
+| DO | `false` | — | — | — |
+| WO | `false` | — | — | — |
+| PO | `true` | `2627-003-PO-0002` | `pending_approval` | `not_required` |
+| IO | `true` | `IO-2627-003-B-0002` | `draft` | `not_required` |
 
 ### 6.3 Sequence State After Generation
 
@@ -304,9 +313,11 @@ WHERE project_id = $1 AND project_item_id = $2 AND doc_type = $3
 ### 6.4 Rejection & Re-draft Scenario
 
 If `2627-003-DO-0001` is rejected:
-- Draft status → `rejected`, rejection_remarks recorded
+- Draft approval_status → `rejected`, rejection_remarks recorded
 - Original number `2627-003-DO-0001` is consumed (never reused)
-- User can request re-draft → new draft created with `2627-003-DO-0003`
+- Authorized user triggers re-draft → new draft created with `2627-003-DO-0003`
+- New approval task auto-created and assigned
+- Source data carried forward from original draft (see Section 15)
 - Sequence counter continues from 3
 
 ---
@@ -321,32 +332,50 @@ execution_drafts
 ├── project_id            integer FK → projects(id) NOT NULL
 ├── project_item_id       integer FK → project_items(id) NOT NULL
 ├── doc_type              varchar(10) NOT NULL  -- 'DO', 'WO', 'PO', 'IO'
-├── doc_number            varchar(30) NOT NULL  -- immutable after INSERT
-├── status                varchar(30) NOT NULL DEFAULT 'draft_system_generated'
-│                         -- draft_system_generated → pending_approval → approved | rejected | on_hold
+├── applicable            boolean NOT NULL DEFAULT true
+│                         -- false = this doc type does not apply to this item
+│                         -- (e.g., DO for Buy items). No number generated.
+├── doc_number            varchar(30) NULL
+│                         -- immutable after INSERT. NULL when applicable=false.
+├── approval_status       varchar(30) NOT NULL DEFAULT 'draft'
+│                         -- draft → pending_approval → approved | rejected | on_hold
+│                         -- NULL-equivalent for applicable=false rows: 'not_applicable'
+├── activation_status     varchar(30) NOT NULL DEFAULT 'not_activated'
+│                         -- not_activated → pending_activation → activated | activation_failed
+│                         -- Activation is a SEPARATE step AFTER approval.
 ├── generated_by          varchar(20) NOT NULL DEFAULT 'system'
 ├── approved_by           integer FK → users(id) NULL
 ├── rejected_by           integer FK → users(id) NULL
 ├── rejection_remarks     text NULL  -- required on rejection
 ├── hold_remarks          text NULL
 ├── linked_task_id        integer FK → tasks(id) NULL
-├── dependency_doc_type   varchar(10) NULL  -- e.g., 'DO' (what this draft depends on)
-├── dependency_met        boolean NOT NULL DEFAULT false
+├── dependency_doc_type   varchar(10) NULL
+│                         -- e.g., 'DO' (what this draft depends on)
+├── dependency_status     varchar(20) NOT NULL DEFAULT 'not_required'
+│                         -- not_required | blocked | met
+│                         -- not_required: no upstream dependency
+│                         -- blocked: upstream draft not yet approved
+│                         -- met: upstream draft approved, this draft can proceed
 ├── source_data           jsonb NOT NULL DEFAULT '{}'
 │                         -- { drawing_no, revision, ecr_number, ecn_number,
 │                         --   vendor_id, vendor_name, bom_header_id,
-│                         --   make_or_buy, quantity, uom, specification }
-├── activated_entity_id   integer NULL  -- ID of real WO/PO/IO/DO created on approval
+│                         --   make_or_buy, quantity, uom, specification,
+│                         --   io_trigger_source, io_inspection_type }
+├── activated_entity_id   integer NULL  -- ID of real WO/PO/IO/DO created on activation
 ├── activated_entity_type varchar(50) NULL  -- table name of the activated entity
+├── activated_by          integer FK → users(id) NULL
+├── activated_at          timestamp NULL
+├── parent_draft_id       integer FK → execution_drafts(id) NULL
+│                         -- points to the rejected draft this re-draft replaces
 ├── error_message         text NULL
 ├── created_at            timestamp NOT NULL DEFAULT NOW()
 ├── updated_at            timestamp NOT NULL DEFAULT NOW()
 │
 ├── UNIQUE(project_id, project_item_id, doc_type)
-│     WHERE status NOT IN ('rejected', 'canceled')
+│     WHERE approval_status NOT IN ('rejected', 'canceled', 'not_applicable')
 │     -- partial unique index: one active draft per item per type
 │
-└── INDEX(project_id, status)
+└── INDEX(project_id, approval_status)
 ```
 
 ### 7.2 New Table: `epc_drawing_orders`
@@ -415,46 +444,60 @@ ENTRY: Called at end of offer-conversion transaction
         - Query execution_drafts for active drafts for this item
         - If active drafts exist → skip this item (log: "already generated")
 
-     b. CLASSIFY ITEM
-        - If make_or_buy = 'Make':  generate DO, WO, IO(M)
-        - If make_or_buy = 'Buy':   generate PO, IO(B)
+     b. DETERMINE APPLICABILITY (not "skipped")
+        For each doc_type in [DO, WO, PO, IO]:
+          - DO:  applicable = (make_or_buy == 'Make')
+          - WO:  applicable = (make_or_buy == 'Make')
+          - PO:  applicable = (make_or_buy == 'Buy') OR (Make item has purchased subs)
+          - IO:  applicable = true (all items get IO)
 
-     c. FOR EACH applicable doc_type:
-        i.   GENERATE NUMBER
-             - DO/WO/PO: call getNextDocSeq(docType, projectId, tx)
-               → compose: `${projectCode}-${docType}-${seq}`
-               → assertChildDocNumber(number, context)
-             - IO: call getNextDocSeq('IO', projectId, tx)
-               → compose: `IO-${fyCode}-${projectSeq}-${category}-${seq}`
+     c. FOR EACH doc_type:
+        IF applicable = false:
+          - INSERT execution_draft row with:
+            applicable = false, doc_number = NULL,
+            approval_status = 'not_applicable',
+            activation_status = 'not_activated',
+            dependency_status = 'not_required'
+          - No number generated. No task created.
 
-        ii.  SNAPSHOT SOURCE DATA
-             - { drawing_no, revision, ecr, ecn, vendor_id, vendor_name,
-                 bom_header_id, make_or_buy, quantity, uom, specification,
-                 master_item_code, master_item_description }
+        IF applicable = true:
+          i.   GENERATE NUMBER
+               - DO/WO/PO: call getNextDocSeq(docType, projectId, tx)
+                 → compose: `${projectCode}-${docType}-${seq}`
+                 → assertChildDocNumber(number, context)
+               - IO: call getNextDocSeq('IO', projectId, tx)
+                 → compose: `IO-${fyCode}-${projectSeq}-${category}-${seq}`
 
-        iii. SET DEPENDENCY
-             - WO draft: dependency_doc_type = 'DO' (for Make items)
-             - PO draft: dependency_doc_type = 'DO' (for Make items with purchased subs)
-             - DO draft: dependency_doc_type = NULL (no dependency)
-             - IO draft: dependency_doc_type = NULL (independent)
-             - Buy items: no DO dependency
+          ii.  SNAPSHOT SOURCE DATA
+               - { drawing_no, revision, ecr, ecn, vendor_id, vendor_name,
+                   bom_header_id, make_or_buy, quantity, uom, specification,
+                   master_item_code, master_item_description,
+                   io_trigger_source, io_inspection_type }
 
-        iv.  INSERT execution_draft row
-             - status = 'draft_system_generated'
-             - generated_by = 'system'
+          iii. SET DEPENDENCY
+               - WO draft: dependency_doc_type='DO', dependency_status='blocked'
+               - PO draft for Make subs: dependency_doc_type='DO', dependency_status='blocked'
+               - PO draft for Buy items: dependency_status='not_required'
+               - DO draft: dependency_status='not_required'
+               - IO draft: dependency_status='not_required'
 
-        v.   CREATE APPROVAL TASK
-             - via createEpcTask() with automationKey
-             - title: "Approve {docType} {docNumber} for {itemCode}"
-             - assigned to: role-based (DO→Design Lead, WO→Production Lead,
-               PO→Procurement Lead, IO→Quality Lead)
-             - link task_id back to execution_draft
+          iv.  SET INITIAL APPROVAL STATUS
+               - If dependency_status = 'not_required': approval_status = 'pending_approval'
+               - If dependency_status = 'blocked': approval_status = 'draft'
+
+          v.   INSERT execution_draft row
+
+          vi.  CREATE APPROVAL TASK (only if approval_status = 'pending_approval')
+               - via createEpcTask() with automationKey
+               - title: "Approve {docType} {docNumber} for {itemCode}"
+               - assigned to: role-based (see Section 11)
+               - link task_id back to execution_draft
 
 5. COMMIT TRANSACTION
 
 6. RETURN summary:
-   { projectId, created: N, skipped: N, failed: N,
-     drafts: [{ doc_type, doc_number, project_item_id, status }] }
+   { projectId, created: N, not_applicable: N, blocked: N, failed: N,
+     drafts: [{ doc_type, doc_number, project_item_id, approval_status, applicable }] }
 
 7. ON ERROR:
    - ROLLBACK transaction (no partial drafts)
@@ -478,49 +521,94 @@ ENTRY: Called at end of offer-conversion transaction
 
 | Item Type | DO | WO | PO | IO |
 |-----------|----|----|----|----|
-| **Make (custom)** | No dependency | Blocked until DO approved | Blocked until DO approved (if Make item has purchased subs) | Independent |
-| **Buy (standard)** | Skipped | Skipped | No dependency | Independent |
+| **Make (custom)** | `not_required` | `blocked` until DO approved | `blocked` until DO approved (if Make item has purchased subs) | `not_required` |
+| **Buy (standard)** | `not_applicable` | `not_applicable` | `not_required` | `not_required` |
 
-### 9.2 Dependency Enforcement
+### 9.2 `dependency_status` Values
+
+| Value | Meaning |
+|-------|---------|
+| `not_required` | This draft has no upstream dependency. Can proceed to approval immediately. |
+| `blocked` | Upstream draft (identified by `dependency_doc_type`) not yet approved. Cannot be approved. |
+| `met` | Upstream draft has been approved. This draft can now proceed to approval. |
+
+### 9.3 Dependency Enforcement
 
 When a user attempts to **Approve** a draft:
 
 ```
-1. Check: does this draft have a dependency_doc_type?
+1. Check: does this draft have dependency_status = 'blocked'?
 2. If YES:
    a. Query: is there an approved execution_draft for the SAME project_item_id
       with doc_type = dependency_doc_type?
    b. If NO → BLOCK approval with message:
       "Cannot approve {docType} {docNumber}: Drawing Order {doNumber} must be
        approved first for item {itemCode}."
-   c. If YES → Allow approval, set dependency_met = true
-3. If NO dependency → Allow approval
+   c. If YES → Should not happen (cascade should have updated to 'met')
+3. If dependency_status = 'not_required' or 'met' → Allow approval
 ```
 
-### 9.3 Cascade on DO Approval
+### 9.4 Cascade on DO Approval
 
 When a DO draft is approved:
 - System checks all WO and PO drafts for the same `project_item_id`
-- Updates their `dependency_met = true`
-- Updates their status from `draft_system_generated` → `pending_approval`
+- Updates their `dependency_status` from `blocked` → `met`
+- Updates their `approval_status` from `draft` → `pending_approval`
+- Creates approval tasks for the newly unblocked drafts
 - Sends notification to assignees: "Drawing Order approved — WO/PO now ready for approval"
 
 ---
 
-## 10. Approval Task Assignment
+## 10. Approval Authority & Separation of Duties
 
-### 10.1 Who Creates Each Task
+### 10.1 Who Can Approve
+
+| Action | Authorized Roles | Additional Rule |
+|--------|-----------------|-----------------|
+| **Approve** | Senior Manager, General Manager, Superuser | Must NOT be the same user who triggered the offer-to-project conversion (separation of duties) |
+| **Reject** | Manager, Senior Manager, General Manager, Superuser | Rejection remarks mandatory |
+| **Hold** | Manager, Senior Manager, General Manager, Superuser | Optional remarks |
+| **Resume from Hold** | Manager, Senior Manager, General Manager, Superuser | — |
+
+### 10.2 Separation of Duties
+
+| Rule | Enforcement |
+|------|------------|
+| Creator ≠ Approver | The user whose `userId` is stored in `generated_by` (the converting user) CANNOT approve the draft. API returns 403: `"Separation of duties: the user who generated this draft cannot approve it."` |
+| Assignee can approve | The task assignee (phase lead) can approve if they meet the role requirement AND are not the creator. |
+| Manager override | A Senior Manager or above can approve any draft they did not create, even if they are not the task assignee. |
+| Self-rejection allowed | The creator CAN reject their own drafts (rejection is not a privilege escalation). |
+
+### 10.3 Enforcement Implementation
+
+```
+On POST /api/execution-drafts/:id/approve:
+  1. Load draft + linked conversion userId
+  2. Check: request.user.id !== draft.generated_by_user_id
+     → If same user → 403 "Separation of duties violation"
+  3. Check: request.user.role in ['Senior Manager', 'General Manager', 'Superuser']
+     → If not → 403 "Insufficient role for approval"
+  4. Check: dependency_status is 'not_required' or 'met'
+     → If 'blocked' → 400 "Dependency not met"
+  5. Proceed with approval
+```
+
+---
+
+## 11. Approval Task Assignment
+
+### 11.1 Who Creates Each Task
 
 All approval tasks are created by the **system** during `generateExecutionDrafts()`, using `createEpcTask()` with `createdBy` set to the user who triggered the offer-to-project conversion. Tasks are never created manually — they are a byproduct of draft generation.
 
 | Draft Type | Task Created By | Trigger |
 |------------|----------------|---------|
 | DO | System (on behalf of converting user) | Draft generation at conversion |
-| WO | System (on behalf of converting user) | Draft generation at conversion |
-| PO | System (on behalf of converting user) | Draft generation at conversion |
+| WO | System (on behalf of converting user) | Draft generation at conversion (task deferred until DO approved) |
+| PO | System (on behalf of converting user) | Draft generation at conversion (task deferred if Make-sub dependency) |
 | IO | System (on behalf of converting user) | Draft generation at conversion |
 
-### 10.2 Task Assignment Matrix
+### 11.2 Task Assignment Matrix
 
 Each draft type is assigned to a specific role using the existing `resolveAssignee(projectId, phaseName, fallback)` function, which checks the project's phase-lead assignments first, then falls back.
 
@@ -531,7 +619,7 @@ Each draft type is assigned to a specific role using the existing `resolveAssign
 | PO | `'Procurement'` | Procurement Phase Lead (Purchase department Senior Manager/Manager) | Purchase |
 | IO | `'Quality'` | Quality Phase Lead (Quality Control department Senior Manager/Manager) | Quality Control |
 
-### 10.3 Fallback Chain
+### 11.3 Fallback Chain
 
 If the primary assignee is not found, the system follows this fallback chain (built into `resolveAssignee`):
 
@@ -551,7 +639,7 @@ If the primary assignee is not found, the system follows this fallback chain (bu
 
 **No task is ever left unassigned.** The fallback chain always terminates at the converting user.
 
-### 10.4 Task Properties
+### 11.4 Task Properties
 
 Each approval task is created with:
 
@@ -561,20 +649,20 @@ Each approval task is created with:
 | `source_type` | `'epc_automation'` |
 | `source_agent` | `'epc_lifecycle'` |
 | `category` | `'EPC'` |
-| `priority` | Varies by doc type (see Section 11) |
+| `priority` | Varies by doc type (see Section 12) |
 | `title` | `"Approve {DocType} {DocNumber} for {ItemCode}"` |
 | `description` | Includes item details, dependency status, and `automationKey` for idempotency |
 | `automationKey` | `[automation_key:epc:execution_draft:{draftId}:approve]` |
 
-### 10.5 Idempotency
+### 11.5 Idempotency
 
 The `automationKey` embedded in the task description prevents duplicate tasks. If `generateExecutionDrafts()` is retried (e.g., after a partial failure), `createEpcTask()` detects the existing task by key and returns its ID instead of creating a new one.
 
 ---
 
-## 11. Task Due Date & SLA Rules
+## 12. Task Due Date & SLA Rules
 
-### 11.1 Due Date Calculation
+### 12.1 Due Date Calculation
 
 Task due dates are calculated using the existing `computeBusinessDayDue(days)` function, which skips weekends (Saturday and Sunday). The number of business days varies by document type priority.
 
@@ -585,7 +673,7 @@ Task due dates are calculated using the existing `computeBusinessDayDue(days)` f
 | PO | **3 days** | High | Procurement lead time is often the longest — early approval needed |
 | IO | **5 days** | Medium | Inspection planning runs in parallel — not blocking other docs |
 
-### 11.2 Due Date Derivation
+### 12.2 Due Date Derivation
 
 ```
 start_date  = today (date of conversion / draft generation)
@@ -599,23 +687,24 @@ finish_date = due_date                          -- same as due_date at creation
 - PO task due date: Wednesday April 16, 2026 (3 business days)
 - IO task due date: Friday April 18, 2026 (5 business days)
 
-### 11.3 Blocked Task Due Dates
+### 12.3 Blocked Task Due Dates
 
 For WO and PO drafts that are blocked by a DO dependency:
-- The task is still created with the standard SLA due date
-- However, the task description notes: "This task is blocked until the Drawing Order is approved"
-- When the DO is approved and the WO/PO status moves to `pending_approval`, the due date is **recalculated** from the date the dependency was met
+- The approval task is NOT created until the DO is approved (deferred task creation)
+- When the DO is approved and the WO/PO status moves to `pending_approval`, the task is created with the SLA calculated from that date
 - This ensures the approver gets a full SLA window from when they can actually act
 
 ```
 on DO approval:
   for each dependent WO/PO draft:
-    update task.start_date = today
-    update task.due_date = computeBusinessDayDue(sla_days)
-    update task.finish_date = task.due_date
+    update dependency_status = 'met'
+    update approval_status = 'pending_approval'
+    create approval task with:
+      start_date = today
+      due_date = computeBusinessDayDue(sla_days)
 ```
 
-### 11.4 SLA Overrides
+### 12.4 SLA Overrides
 
 | Override | How | When |
 |----------|-----|------|
@@ -625,48 +714,242 @@ on DO approval:
 
 ---
 
-## 12. Approval Task Actions
+## 13. Approval vs Activation (Two-Phase)
 
-### 12.1 Task Actions
+### 13.1 Design Principle
 
-Each execution_draft has a linked approval task with 3 possible actions:
-
-| Action | Effect on Draft | Effect on Task | Requirements |
-|--------|----------------|----------------|--------------|
-| **Approve** | status → `approved`, approved_by set, activated_entity created | task → `completed` | Dependency met. User has Manager+ role. |
-| **Reject** | status → `rejected`, rejected_by set, rejection_remarks recorded | task → `completed` with rejection reason | Remarks mandatory. |
-| **Hold** | status → `on_hold`, hold_remarks recorded | task → `on_hold` | Optional remarks. |
-
-### 12.2 Status Flow
+**Approval and activation are SEPARATE steps.** Approving a draft does NOT directly create the real entity (WO/PO/IO/DO). Instead:
 
 ```
-draft_system_generated
-  ├──→ pending_approval  (when dependency met, or no dependency)
-  │     ├──→ approved     (creates real entity, task completed)
-  │     ├──→ rejected     (remarks required, number consumed, task completed)
-  │     └──→ on_hold      (paused, task on hold)
-  │           └──→ pending_approval  (resumed from hold)
-  └──→ canceled          (project canceled or item removed)
+Phase 1: APPROVAL
+  - approval_status: draft → pending_approval → approved
+  - Validates authority, separation of duties, dependency
+  - Records who approved and when
+  - Does NOT create any entity in WO/PO/IO/DO tables
+
+Phase 2: ACTIVATION
+  - activation_status: not_activated → pending_activation → activated
+  - Triggered AFTER approval (can be immediate or deferred)
+  - Creates the real entity in the authoritative table
+  - Records activated_entity_id, activated_entity_type, activated_by, activated_at
+  - Can fail independently (e.g., missing BOM, vendor not set)
 ```
 
-### 12.3 Activation on Approval
+### 13.2 Why Two Phases
 
-When a draft is approved, the system creates the real entity in the authoritative table:
+| Reason | Detail |
+|--------|--------|
+| Audit separation | Approval = "this should happen." Activation = "this has been created." Clear accountability. |
+| Failure isolation | If entity creation fails (DB error, validation error), the approval is preserved. Admin retries activation without re-approving. |
+| Future flexibility | Activation can be batched, scheduled, or require additional data entry before entity creation. |
+| Rollback safety | An approved-but-not-activated draft can be un-approved without needing to delete a real entity. |
 
-| Draft Type | Creates Entity In | Key Fields Copied |
-|------------|------------------|-------------------|
-| DO | `epc_drawing_orders` | do_number, project_id, item data, assigned_to |
-| WO | `epc_work_orders` | wo_number, project_id, item data, BOM link |
-| PO | `epc_purchase_orders` | po_number, project_id, item data, vendor |
-| IO | `inspection_orders` | inspection_order_number, project_id, type, item data |
+### 13.3 `approval_status` Values
+
+| Value | Meaning |
+|-------|---------|
+| `not_applicable` | Doc type does not apply to this item (`applicable = false`) |
+| `draft` | System-generated, waiting for dependency or initial review |
+| `pending_approval` | Ready for approval (dependency met or not required) |
+| `approved` | Approved by authorized user |
+| `rejected` | Rejected with mandatory remarks |
+| `on_hold` | Paused by authorized user |
+| `canceled` | Project canceled or item removed |
+
+### 13.4 `activation_status` Values
+
+| Value | Meaning |
+|-------|---------|
+| `not_activated` | Default state. Entity not yet created. |
+| `pending_activation` | Approval granted, activation in progress. |
+| `activated` | Real entity created successfully. `activated_entity_id` is set. |
+| `activation_failed` | Entity creation failed. `error_message` explains why. Retryable. |
+
+### 13.5 Status Flow Diagram
+
+```
+applicable = false:
+  approval_status = 'not_applicable'
+  activation_status = 'not_activated'
+  (terminal — no further transitions)
+
+applicable = true:
+  approval_status:
+    draft
+      ├──→ pending_approval  (dependency met or not required)
+      │     ├──→ approved     (authorized user approves)
+      │     ├──→ rejected     (remarks required, number consumed)
+      │     └──→ on_hold      (paused)
+      │           └──→ pending_approval  (resumed)
+      └──→ canceled          (project canceled or item removed)
+
+  activation_status (only when approval_status = 'approved'):
+    not_activated
+      └──→ pending_activation
+            ├──→ activated          (entity created in target table)
+            └──→ activation_failed  (error recorded, retryable)
+```
+
+### 13.6 Activation on Each Type
+
+| Draft Type | Creates Entity In | Key Fields Copied | Activation Trigger |
+|------------|------------------|-------------------|--------------------|
+| DO | `epc_drawing_orders` | do_number, project_id, item data, assigned_to | Immediate after approval |
+| WO | `epc_work_orders` | wo_number, project_id, item data, BOM link | Immediate after approval |
+| PO | `epc_purchase_orders` | po_number, project_id, item data, vendor | Immediate after approval |
+| IO | `inspection_orders` | inspection_order_number, project_id, type, item data | Deferred — see Section 14 |
 
 The `execution_drafts.activated_entity_id` and `activated_entity_type` are set to point to the created record.
 
 ---
 
-## 13. Data Mapping
+## 14. IO Trigger Rules & Deduplication
 
-### 13.1 Source Data Snapshot
+### 14.1 Problem: Existing IO Generators
+
+The system already has three IO creation mechanisms:
+
+| Trigger | Source File | IO Type | When |
+|---------|-----------|---------|------|
+| Bulk generator | `fixed-inspection-order-generator.ts` | Mixed (M/B/C) | Manual trigger from Inspections page |
+| PO issuance | `epc-inspection-trigger.ts` → `triggerInspectionOnPoIssuance` | Incoming | When PO status → `issued` |
+| WO release | `epc-inspection-trigger.ts` → `triggerInspectionOnWoRelease` | In-process | When WO status → `released` |
+
+**Risk:** If execution drafts also create IOs on activation, there will be **duplicate IOs** — one from the draft and one from the existing trigger.
+
+### 14.2 Solution: Draft IO = Planning Placeholder, Activation Deferred to Trigger
+
+Draft IO rows serve as **planning placeholders** — they reserve the number and show the planned inspection in the Execution Drafts view. But IO activation (actual `inspection_orders` row creation) is **linked to the existing trigger system**, NOT to draft approval alone.
+
+| Item Type | IO Draft Behavior | Actual IO Creation |
+|-----------|------------------|--------------------|
+| **Make** | IO draft `applicable = true`, `io_trigger_source = 'wo_release'`, `io_inspection_type = 'in-process'` | IO is created by `triggerInspectionOnWoRelease` when the WO (activated from WO draft) is released. Draft IO activation_status updated to `activated` with entity link. |
+| **Buy** | IO draft `applicable = true`, `io_trigger_source = 'po_issuance'`, `io_inspection_type = 'incoming'` | IO is created by `triggerInspectionOnPoIssuance` when the PO (activated from PO draft) is issued. Draft IO activation_status updated to `activated` with entity link. |
+
+### 14.3 Deduplication Mechanism
+
+The existing IO triggers already have deduplication built in:
+
+```sql
+SELECT id, inspection_order_number FROM inspection_orders
+WHERE project_id = $1 AND item_id = $2
+  AND status NOT IN ('canceled')
+  AND ($3::text IS NULL OR inspection_type = $3)
+LIMIT 1
+```
+
+This prevents double-creation. The draft system adds an additional layer:
+
+1. **At draft creation:** IO draft is marked with `io_trigger_source` and `io_inspection_type` in `source_data`
+2. **At IO draft approval:** `approval_status → approved`, but `activation_status` remains `not_activated`
+3. **At WO release / PO issuance:** Existing trigger fires. If it creates an IO:
+   - System matches the new IO to the draft IO (by `project_id + project_item_id + doc_type`)
+   - Updates draft: `activation_status → activated`, `activated_entity_id → new IO id`
+4. **If trigger finds existing IO (dedup):** No new IO created, draft remains `not_activated` with note
+
+### 14.4 IO Draft Approval Flow
+
+```
+IO draft approval does NOT create an inspection_orders row.
+Instead, it signals: "This item's inspection plan is approved."
+
+The actual IO row is created later by:
+  - Make items: WO release trigger (in-process inspection)
+  - Buy items:  PO issuance trigger (incoming inspection)
+
+When the trigger creates the IO:
+  - The draft's doc_number is passed to the trigger as the preferred IO number
+  - If the trigger's own numbering conflicts, the trigger's number wins
+    (draft records the actual number used)
+```
+
+### 14.5 Backward Compatibility
+
+| Scenario | Behavior |
+|----------|----------|
+| Old project, manual WO release | Existing trigger fires normally. No draft exists. No conflict. |
+| New project, draft WO released | Trigger fires, finds draft IO, links them. Single IO created. |
+| New project, bulk IO generator used | Bulk generator creates IOs. Draft IOs remain `not_activated` (orphaned but harmless — visible in UI as "Created via bulk generator"). |
+
+---
+
+## 15. Re-Draft Rules
+
+### 15.1 When Re-Draft Happens
+
+A re-draft creates a new execution draft for a project item after the previous draft was **rejected**. It is the only way to get a new draft for an item that already had one.
+
+### 15.2 Who Can Trigger Re-Draft
+
+| Role | Can Trigger Re-Draft? |
+|------|----------------------|
+| Manager | Yes |
+| Senior Manager | Yes |
+| General Manager | Yes |
+| Superuser | Yes |
+| Employee | No |
+
+The re-draft can be triggered by the original converting user, the task assignee, or any Manager+ role. There is no separation-of-duties restriction on re-drafting (it is not an approval action).
+
+### 15.3 Re-Draft Process
+
+```
+POST /api/execution-drafts/:id/re-draft
+
+1. VALIDATE:
+   a. Original draft must have approval_status = 'rejected'
+   b. No other active draft exists for same (project_id, project_item_id, doc_type)
+   c. Requesting user has Manager+ role
+
+2. GENERATE NEW NUMBER:
+   a. Call getNextDocSeq(docType, projectId) — gets NEXT sequence number
+   b. New number is different from the rejected draft's number
+
+3. CREATE NEW DRAFT:
+   a. Copy source_data from original draft (carry forward)
+   b. Set parent_draft_id = original draft's ID
+   c. Set approval_status = 'pending_approval' (or 'draft' if dependency blocked)
+   d. Set activation_status = 'not_activated'
+   e. Set dependency_status based on current state of upstream drafts
+
+4. CREATE NEW APPROVAL TASK:
+   a. Auto-created via createEpcTask() — same assignment logic as original
+   b. New automationKey (uses new draft ID)
+   c. Task description references the rejected draft for context
+
+5. RETURN:
+   { old_draft_id, new_draft_id, new_doc_number, new_task_id }
+```
+
+### 15.4 Data Carry-Forward
+
+When a re-draft is created, the following data is carried forward from the rejected draft:
+
+| Field | Carried Forward? | Notes |
+|-------|-----------------|-------|
+| `source_data` (full JSON) | Yes | All item data, vendor, BOM, drawing info |
+| `doc_type` | Yes | Same type |
+| `project_id` | Yes | Same project |
+| `project_item_id` | Yes | Same item |
+| `dependency_doc_type` | Yes | Same dependency rule |
+| `doc_number` | **No** | New number generated |
+| `approval_status` | **No** | Reset to `draft` or `pending_approval` |
+| `activation_status` | **No** | Reset to `not_activated` |
+| `approved_by` / `rejected_by` | **No** | Cleared |
+| `linked_task_id` | **No** | New task created |
+
+### 15.5 Audit Trail
+
+- The new draft's `parent_draft_id` points to the rejected draft
+- The rejected draft is preserved with all its history (who rejected, remarks, timestamps)
+- Workflow event `execution_draft.re_drafted` logged with both old and new draft IDs
+- Full lineage queryable: original → rejected → re-draft → (approved or rejected again → ...)
+
+---
+
+## 16. Data Mapping
+
+### 16.1 Source Data Snapshot
 
 At draft creation, the following data is captured from Project + Items + BOM + Vendor:
 
@@ -685,8 +968,10 @@ At draft creation, the following data is captured from Project + Items + BOM + V
 | specification | `project_items.specification` | `source_data.specification` |
 | master_item_code | `master_items.item_code` | `source_data.master_item_code` |
 | master_item_description | `master_items.description` | `source_data.master_item_description` |
+| io_trigger_source | Derived from make_or_buy | `source_data.io_trigger_source` (`'wo_release'` or `'po_issuance'`) |
+| io_inspection_type | Derived from make_or_buy | `source_data.io_inspection_type` (`'in-process'` or `'incoming'`) |
 
-### 13.2 Separate Fields — Not in Barcode
+### 16.2 Separate Fields — Not in Barcode
 
 Drawing number, revision, ECR, and ECN are stored as **separate named fields** in `source_data` JSON — never embedded in barcodes or composite strings. This ensures:
 - Each field is independently queryable
@@ -696,7 +981,7 @@ Drawing number, revision, ECR, and ECN are stored as **separate named fields** i
 
 ---
 
-## 14. Failure Handling
+## 17. Failure Handling
 
 | Failure | Behavior | Recovery |
 |---------|----------|----------|
@@ -704,7 +989,7 @@ Drawing number, revision, ECR, and ECN are stored as **separate named fields** i
 | Sequence engine failure | Transaction rollback. Sequence not consumed. | Retry generates the correct next number. |
 | Guardrail assertion failure | Transaction rollback. Violation logged. | Fix the root cause (invalid project code, etc.), then retry. |
 | Task creation failure | Draft row exists but no task. | Background job detects orphan drafts and creates missing tasks. |
-| Activation failure (on approval) | Draft stays `pending_approval`. Error logged. | Admin can retry activation. Draft number is preserved. |
+| Activation failure (after approval) | `activation_status → activation_failed`, `error_message` set. `approval_status` remains `approved`. | Admin retries activation via `POST /api/execution-drafts/:id/activate`. No re-approval needed. |
 
 ### Retry Safety
 
@@ -712,98 +997,109 @@ Drawing number, revision, ECR, and ECN are stored as **separate named fields** i
 generateExecutionDrafts(projectId) is safe to call multiple times:
   - First call: creates all drafts
   - Second call: skips all items (active drafts exist)
-  - After rejection: creates new drafts only for rejected items
+  - After rejection: creates new drafts only for rejected items (via re-draft)
   - After partial failure + rollback: creates all drafts (none exist)
 ```
 
 ---
 
-## 15. API Endpoints
+## 18. API Endpoints
 
 | Method | Path | Purpose | Auth |
 |--------|------|---------|------|
 | POST | `/api/projects/:id/generate-drafts` | Trigger draft generation (also called automatically at conversion) | Manager+ |
 | GET | `/api/projects/:id/execution-drafts` | List all drafts for a project, grouped by item | Authenticated |
 | GET | `/api/execution-drafts/:id` | Get single draft detail with audit trail | Authenticated |
-| POST | `/api/execution-drafts/:id/approve` | Approve a draft → creates real entity | Manager+ |
+| POST | `/api/execution-drafts/:id/approve` | Approve a draft (separation of duties enforced) | Senior Manager+ |
+| POST | `/api/execution-drafts/:id/activate` | Activate an approved draft → create real entity | Senior Manager+ |
 | POST | `/api/execution-drafts/:id/reject` | Reject a draft (remarks required) | Manager+ |
 | POST | `/api/execution-drafts/:id/hold` | Put draft on hold | Manager+ |
 | POST | `/api/execution-drafts/:id/resume` | Resume from hold → pending_approval | Manager+ |
-| POST | `/api/execution-drafts/:id/re-draft` | Create new draft for a rejected item | Manager+ |
+| POST | `/api/execution-drafts/:id/re-draft` | Create new draft for a rejected item (carry-forward) | Manager+ |
 
 ---
 
-## 16. UI Design
+## 19. UI Design
 
-### 16.1 Execution Drafts Tab
+### 19.1 Execution Drafts Tab
 
 New tab on the Project detail page: **"Execution Drafts"**
 
 Layout: Card grid grouped by project item. Each item card shows:
 
 ```
-┌─────────────────────────────────────────────┐
-│ Item: Thermic Fluid Heater 10L  [Make]      │
-│ Code: 2627-003-P2627-003-001                │
+┌──────────────────────────────────────────────────────────┐
+│ Item: Thermic Fluid Heater 10L  [Make]                   │
 ├──────────┬──────────┬──────────┬────────────┤
 │ DO       │ WO       │ PO       │ IO         │
-│ DO-0001  │ WO-0001  │ —        │ IO-M-0001  │
-│ ●Pending │ ⊘Blocked │          │ ●Pending   │
-│ [Approve]│ Needs DO │          │ [Approve]  │
-│ [Reject] │          │          │ [Reject]   │
-│ [Hold]   │          │          │ [Hold]     │
+│ DO-0001  │ WO-0001  │ N/A      │ IO-M-0001  │
+│ ●Approved│ ⊘Blocked │          │ ●Pending   │
+│ ○Not Act.│ Needs DO │          │ ○Awaiting  │
+│          │          │          │  WO release│
+│ [Activate]│         │          │            │
 └──────────┴──────────┴──────────┴────────────┘
 ```
 
-### 16.2 Status Badges
+### 19.2 Status Badges
 
 | Status | Color | Badge |
 |--------|-------|-------|
-| `draft_system_generated` | Grey | "Draft" |
+| `not_applicable` | Light grey | "N/A" |
+| `draft` (approval) | Grey | "Draft" |
 | `pending_approval` | Yellow | "Pending Approval" |
 | `approved` | Green | "Approved" |
 | `rejected` | Red | "Rejected" |
 | `on_hold` | Orange | "On Hold" |
 | `canceled` | Dark grey | "Canceled" |
-| Blocked (dependency) | Blue outline | "Waiting for DO" |
+| `blocked` (dependency) | Blue outline | "Waiting for DO" |
+| `not_activated` | White dot | "Not Activated" |
+| `activated` | Green dot | "Activated" |
+| `activation_failed` | Red dot | "Activation Failed" |
 
-### 16.3 Summary Bar
+### 19.3 Summary Bar
 
 At the top of the tab:
 ```
-Execution Drafts: 10 total | 3 Pending | 2 Blocked | 1 Approved | 0 Rejected | 4 Draft
+Execution Drafts: 16 total | 4 N/A | 3 Pending | 2 Blocked | 1 Approved | 0 Rejected | 6 Draft
+Activation: 1 Activated | 0 Failed | 11 Pending
 ```
 
 ---
 
-## 17. Audit & Control
+## 20. Audit & Control
 
-### 17.1 Fields Tracked on `execution_drafts`
+### 20.1 Fields Tracked on `execution_drafts`
 
 | Field | When Set |
 |-------|----------|
 | `generated_by` | At creation (`'system'` for auto-generated) |
-| `approved_by` | On approval (user ID) |
+| `approved_by` | On approval (user ID — must differ from generated_by) |
 | `rejected_by` | On rejection (user ID) |
 | `rejection_remarks` | On rejection (mandatory) |
 | `hold_remarks` | On hold (optional) |
+| `activated_by` | On activation (user ID) |
+| `activated_at` | On activation (timestamp) |
+| `parent_draft_id` | On re-draft (links to rejected predecessor) |
 | `created_at` | At creation |
 | `updated_at` | On every status change |
 
-### 17.2 Workflow Events
+### 20.2 Workflow Events
 
 Every status change writes to `project_workflow_events`:
 
 | Event Type | Data |
 |------------|------|
-| `execution_draft.created` | `{ doc_type, doc_number, project_item_id, generated_by }` |
-| `execution_draft.approved` | `{ doc_type, doc_number, approved_by, activated_entity_id }` |
+| `execution_draft.created` | `{ doc_type, doc_number, project_item_id, generated_by, applicable }` |
+| `execution_draft.approved` | `{ doc_type, doc_number, approved_by }` |
+| `execution_draft.activated` | `{ doc_type, doc_number, activated_by, activated_entity_id, activated_entity_type }` |
+| `execution_draft.activation_failed` | `{ doc_type, doc_number, error_message }` |
 | `execution_draft.rejected` | `{ doc_type, doc_number, rejected_by, rejection_remarks }` |
 | `execution_draft.held` | `{ doc_type, doc_number, held_by, hold_remarks }` |
 | `execution_draft.resumed` | `{ doc_type, doc_number, resumed_by }` |
 | `execution_draft.dependency_met` | `{ doc_type, doc_number, dependency_doc_type, dependency_doc_number }` |
+| `execution_draft.re_drafted` | `{ old_draft_id, new_draft_id, old_doc_number, new_doc_number, triggered_by }` |
 
-### 17.3 Full Audit Query
+### 20.3 Full Audit Query
 
 ```sql
 SELECT * FROM project_workflow_events
@@ -814,9 +1110,9 @@ ORDER BY created_at;
 
 ---
 
-## 18. Impact on Existing Services
+## 21. Impact on Existing Services
 
-### 18.1 Files Modified
+### 21.1 Files Modified
 
 | File | Change |
 |------|--------|
@@ -824,31 +1120,36 @@ ORDER BY created_at;
 | `server/epc-guardrails.ts` | No change needed — DO already matches `CHILD_DOC_RE` |
 | `server/offer-conversion.ts` | Add call to `generateExecutionDrafts()` after project creation |
 | `shared/schema.ts` | Add `execution_drafts` and `epc_drawing_orders` tables |
+| `server/utils/epc-inspection-trigger.ts` | Add draft-linking: after IO creation, find matching draft IO and update `activation_status` |
 | `docs/epc-project-numbering-gcs-baseline.md` | Add DO to Section 4.2 document type registry |
 
-### 18.2 Files Created
+### 21.2 Files Created
 
 | File | Purpose |
 |------|---------|
 | `server/pipeline/generate-execution-drafts.ts` | Core draft generation service |
-| `server/pipeline/draft-approval.ts` | Approve/reject/hold logic + activation |
+| `server/pipeline/draft-approval.ts` | Approve/reject/hold logic (Phase 1) |
+| `server/pipeline/draft-activation.ts` | Entity creation logic (Phase 2) |
+| `server/pipeline/draft-redraft.ts` | Re-draft logic with carry-forward |
 | `server/pipeline/pipeline-routes.ts` | API endpoints |
 | `server/pipeline/pipeline-types.ts` | TypeScript types |
 | `client/src/components/execution-drafts.tsx` | Frontend tab component |
 
-### 18.3 No Impact On
+### 21.3 No Impact On
 
 | System | Why |
 |--------|-----|
 | Existing WO/PO creation routes | These remain available for manual creation. Drafts are an additional pathway. |
-| Existing IO generators | IO generation from WO release/PO issuance remains unchanged. Draft IO is a pre-generation for planning visibility. |
+| Existing IO generators (bulk) | Bulk IO generator remains unchanged. If it creates an IO for an item that has a draft, the draft is linked to the IO after the fact. |
+| Existing IO triggers (WO release / PO issuance) | These remain the primary IO creation mechanism. Draft IO approval does not create IOs — the triggers do. Draft is linked after trigger fires. |
 | Existing BOM/DWG flows | BOM and Drawing Control are upstream inputs, not affected by draft generation. |
 | EPC numbering guardrails | DO already matches the regex. No guardrail changes needed. |
 | GCS paths | No GCS paths involved in draft generation. Paths are created when documents are activated and files are attached. |
+| Existing projects (IDs 1–18, 20+) | Completely untouched. No retroactive draft generation. No schema changes to existing tables. |
 
 ---
 
-## 19. Future Pipeline Integration
+## 22. Future Pipeline Integration
 
 The `execution_drafts` system is designed to plug directly into the approved Pipeline Orchestrator:
 
@@ -856,15 +1157,16 @@ The `execution_drafts` system is designed to plug directly into the approved Pip
 |---------------|----------------------|
 | S2 (Offer → Project) | `generateExecutionDrafts()` runs automatically |
 | S5 (Planning Release) | Can auto-approve DO drafts in Express/Full Auto mode |
-| S10 (WO/PO Created) | Draft approval activates entities (replaces manual creation) |
-| S12 (IO Generated) | Draft IO activation replaces trigger-based IO generation |
+| S10 (WO/PO Created) | Draft approval + activation replaces manual creation |
+| S12 (IO Generated) | IO trigger fires on WO release / PO issuance; draft linked |
 
 The `automation_mode` on projects (Manual/Assisted/Express/Full Auto) will control whether draft approval tasks wait for humans or auto-advance.
 
 ---
 
-**END OF DESIGN DOCUMENT**
+**END OF IMPLEMENTATION BASELINE**
 
-**Action Required:** Review and approve before implementation begins.
-
-**Baseline Update Required:** Adding DO to the EPC Project Numbering baseline requires a new audit per the production guardrail policy.
+**Document Title:** EPC Execution Plan — Unified Automation Design  
+**Version:** v3-final  
+**Status:** Implementation Baseline  
+**Rule:** Each module must be confirmed against this document during development. Any deviation requires explicit approval and document revision before proceeding.
