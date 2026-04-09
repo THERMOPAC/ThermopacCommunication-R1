@@ -5441,8 +5441,8 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
-      if (['canceled', 'superseded', 'issued'].includes(po.status)) {
-        return sendBusinessError(res, `Cannot edit: PO is in terminal status '${po.status}'.`);
+      if (['canceled', 'superseded', 'issued', ON_HOLD_STATUS].includes(po.status)) {
+        return sendBusinessError(res, `Cannot edit: PO is in status '${po.status}'.`);
       }
 
       const { vendorId, vendorName, paymentTerms, deliveryTerms, poNotes, totalAmount } = req.body || {};
@@ -5599,8 +5599,8 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(po, req.user as any, 'strict', req, res))) return;
 
-      if (['canceled', 'superseded'].includes(po.status)) {
-        return sendBusinessError(res, `Cannot cancel: PO is already '${po.status}'.`);
+      if (['canceled', 'superseded', ON_HOLD_STATUS].includes(po.status)) {
+        return sendBusinessError(res, `Cannot cancel: PO is '${po.status}'.`);
       }
 
       await db.transaction(async (tx) => {
@@ -5922,8 +5922,8 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
-      if (['canceled', 'superseded', 'released'].includes(wo.status)) {
-        return sendBusinessError(res, `Cannot edit: WO is in terminal status '${wo.status}'.`);
+      if (['canceled', 'superseded', 'released', ON_HOLD_STATUS].includes(wo.status)) {
+        return sendBusinessError(res, `Cannot edit: WO is in status '${wo.status}'.`);
       }
 
       const { manufacturingNotes, woNotes, estimatedUnitCost, estimatedTotalCost, drawingNo, drawingRevision } = req.body || {};
@@ -6080,8 +6080,8 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await enforceWriteOwnership(wo, req.user as any, 'strict', req, res))) return;
 
-      if (['canceled', 'superseded'].includes(wo.status)) {
-        return sendBusinessError(res, `Cannot cancel: WO is already '${wo.status}'.`);
+      if (['canceled', 'superseded', ON_HOLD_STATUS].includes(wo.status)) {
+        return sendBusinessError(res, `Cannot cancel: WO is '${wo.status}'.`);
       }
 
       await db.transaction(async (tx) => {
@@ -9192,8 +9192,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
       const rec = results.rows[0] as any;
 
-      if (['canceled', 'superseded'].includes(rec.status)) {
-        return sendBusinessError(res, `Already ${rec.status}.`);
+      if (['canceled', 'superseded', ON_HOLD_STATUS].includes(rec.status)) {
+        return sendBusinessError(res, `Cannot cancel: record is '${rec.status}'.`);
       }
       if (rec.status === 'released') {
         return sendBusinessError(res, 'Cannot cancel a released drawing control. Supersede it instead.');
@@ -9241,8 +9241,8 @@ export function setupProjectRoutes(app: express.Express) {
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
       const rec = results.rows[0] as any;
 
-      if (['canceled', 'superseded'].includes(rec.status)) {
-        return sendBusinessError(res, `Already ${rec.status}.`);
+      if (['canceled', 'superseded', ON_HOLD_STATUS].includes(rec.status)) {
+        return sendBusinessError(res, `Cannot supersede: record is '${rec.status}'.`);
       }
       if (!rec.is_current) {
         return sendBusinessError(res, 'Cannot supersede a non-current revision.');

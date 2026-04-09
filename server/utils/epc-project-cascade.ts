@@ -149,6 +149,18 @@ export async function executeProjectCancellationCascade(
   const pmId = await resolveManagerId(projectId);
   const allSnapshots: SnapshotRecord[] = [];
 
+  const existingSnaps = await pool.query(
+    `SELECT COUNT(*) FROM project_cancellation_snapshots WHERE project_id = $1 AND restored = false`,
+    [projectId]
+  );
+  if (parseInt(existingSnaps.rows[0].count, 10) > 0) {
+    console.log(`[EPC-Cascade] Project ${projectId} already has ${existingSnaps.rows[0].count} unrestored snapshots — clearing stale snapshots before re-cascade`);
+    await pool.query(
+      `DELETE FROM project_cancellation_snapshots WHERE project_id = $1 AND restored = false`,
+      [projectId]
+    );
+  }
+
   // ─── 1. Tasks ────────────────────────────────────────
   // Safe: pending → canceled (restoration eligible)
   const t1a = await pool.query(`
