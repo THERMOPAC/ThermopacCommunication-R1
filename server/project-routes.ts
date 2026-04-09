@@ -770,8 +770,13 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(403).json({ error: 'Not authorized to add deliverables to this phase' });
       }
       
+      const bodyWithDefaults = { ...req.body };
+      if (!bodyWithDefaults.assignedTo && phase.phaseLeadId) {
+        bodyWithDefaults.assignedTo = phase.phaseLeadId;
+      }
+
       const deliverableData = insertDeliverableSchema.parse({
-        ...req.body,
+        ...bodyWithDefaults,
         phaseId,
         projectId: phase.projectId
       });

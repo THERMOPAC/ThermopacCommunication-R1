@@ -800,10 +800,11 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
   });
 
   const createDeliverableMutation = useMutation({
-    mutationFn: async ({ phaseId, data }: { phaseId: number; data: DeliverableFormValues }) => {
+    mutationFn: async ({ phaseId, data, phaseLeadId }: { phaseId: number; data: DeliverableFormValues; phaseLeadId?: number }) => {
       return await apiRequest("POST", `/api/phases/${phaseId}/deliverables`, {
         ...data,
         projectId: parseInt(projectId),
+        assignedTo: data.assignedTo || phaseLeadId || null,
       });
     },
     onSuccess: () => {
@@ -901,7 +902,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },
-    enabled: isAddMemberOpen || isEditMemberOpen,
+    enabled: isAddMemberOpen || isEditMemberOpen || isDeliverablesOpen,
   });
 
   const addMemberMutation = useMutation({
@@ -3135,7 +3136,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
               <Card className="border-dashed">
                 <CardContent className="pt-4">
                   <Form {...deliverableForm}>
-                    <form onSubmit={deliverableForm.handleSubmit((data) => createDeliverableMutation.mutate({ phaseId: selectedPhase?.id, data }))} className="space-y-3">
+                    <form onSubmit={deliverableForm.handleSubmit((data) => createDeliverableMutation.mutate({ phaseId: selectedPhase?.id, data, phaseLeadId: selectedPhase?.phase_lead_id || selectedPhase?.lead_id }))} className="space-y-3">
                       <FormField control={deliverableForm.control} name="name" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Name</FormLabel>
@@ -3221,7 +3222,10 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                           const uid = d.assigned_to || d.assignedTo;
                           if (!uid) return <span className="text-muted-foreground text-xs">Unassigned</span>;
                           const u = allUsers?.find((u: any) => u.id === uid);
-                          return u ? (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username) : 'Unknown';
+                          if (!u) return 'Unknown';
+                          const name = u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username;
+                          const tail = [u.role, u.department].filter(Boolean).join(', ');
+                          return tail ? <>{name} <span className="text-muted-foreground text-xs">({tail})</span></> : name;
                         })()}
                       </TableCell>
                       <TableCell>
