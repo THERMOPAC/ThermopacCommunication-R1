@@ -232,6 +232,7 @@ export default function InspectionsPage() {
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [showAllInspProjects, setShowAllInspProjects] = useState(false);
   const [keepProjectVisible, setKeepProjectVisible] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isGeneratingOrders, setIsGeneratingOrders] = useState(false);
@@ -6280,13 +6281,19 @@ export default function InspectionsPage() {
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.isArray(projects) && projects.map((project: any) => (
+                    {Array.isArray(projects) && (showAllInspProjects ? projects : projects.filter((p: any) => p.status === 'active').concat(
+                      selectedProject && !projects.filter((p: any) => p.status === 'active').find((p: any) => p.id === selectedProject) ? projects.filter((p: any) => p.id === selectedProject) : []
+                    )).map((project: any) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
                         {project.code} — {project.clientName || project.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Checkbox id="showAllInspProjects" checked={showAllInspProjects} onCheckedChange={(v) => setShowAllInspProjects(!!v)} className="h-3.5 w-3.5" />
+                  <label htmlFor="showAllInspProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                </div>
               </div>
               
               <div className="flex items-center space-x-2">
@@ -9874,7 +9881,7 @@ export default function InspectionsPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {Array.isArray(projects) && projects.map((project: any) => (
+                              {Array.isArray(projects) && (showAllInspProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                                 <SelectItem key={project.id} value={project.id.toString()}>
                                   {project.code} — {project.clientName || project.name}
                                 </SelectItem>

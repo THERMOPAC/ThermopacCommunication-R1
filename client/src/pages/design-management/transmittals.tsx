@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -61,6 +62,7 @@ interface DrawingTransmittal {
 }
 
 export default function TransmittalsPage() {
+  const [showAllDesignTxProjects, setShowAllDesignTxProjects] = useState(false);
   const [selectedTab, setSelectedTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -197,13 +199,17 @@ export default function TransmittalsPage() {
                         <SelectValue placeholder="Select project" />
                       </SelectTrigger>
                       <SelectContent>
-                        {designProjects.map((project: any) => (
+                        {(showAllDesignTxProjects ? designProjects : designProjects.filter((p: any) => p.status === 'active')).map((project: any) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
-                            {project.designProjectName} - {project.projectName}
+                            {project.projectCode} — {project.designProjectName || project.projectName}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Checkbox id="showAllDesignTxProjects" checked={showAllDesignTxProjects} onCheckedChange={(v) => setShowAllDesignTxProjects(!!v)} className="h-3.5 w-3.5" />
+                      <label htmlFor="showAllDesignTxProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="transmittalNumber">Transmittal Number</Label>

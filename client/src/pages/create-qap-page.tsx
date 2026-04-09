@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Helmet } from "react-helmet";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
@@ -127,6 +128,7 @@ export default function CreateQAPPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [showAllQapProjects, setShowAllQapProjects] = useState(false);
   const [selectedProjectCode, setSelectedProjectCode] = useState<string>("");
   const [qapItems, setQapItems] = useState<QapItem[]>([
     {
@@ -1022,13 +1024,17 @@ export default function CreateQAPPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {projects.map((project) => (
+                            {(showAllQapProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
                                 {project.code} — {project.clientName || project.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Checkbox id="showAllQapProjects" checked={showAllQapProjects} onCheckedChange={(v) => setShowAllQapProjects(!!v)} className="h-3.5 w-3.5" />
+                          <label htmlFor="showAllQapProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

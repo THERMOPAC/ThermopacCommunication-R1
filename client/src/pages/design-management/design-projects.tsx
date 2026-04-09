@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useLocation } from "wouter";
 
 interface Project {
@@ -50,6 +51,7 @@ interface ProjectItem {
 }
 
 export default function DesignProjectsPage() {
+  const [showAllDesignProjects, setShowAllDesignProjects] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [location] = useLocation();
 
@@ -148,14 +150,18 @@ export default function DesignProjectsPage() {
                     No projects available
                   </SelectItem>
                 ) : (
-                  projects.map((project) => (
+                  (showAllDesignProjects ? projects : projects.filter((p) => p.status === 'active')).map((project) => (
                     <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.projectName} ({project.projectCode}) – {project.customerName}
+                      {project.projectCode} — {project.customerName || project.projectName}
                     </SelectItem>
                   ))
                 )}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Checkbox id="showAllDesignProjects" checked={showAllDesignProjects} onCheckedChange={(v) => setShowAllDesignProjects(!!v)} className="h-3.5 w-3.5" />
+              <label htmlFor="showAllDesignProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+            </div>
           </div>
 
           {/* Selected Project Info */}

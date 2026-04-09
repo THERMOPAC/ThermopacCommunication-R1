@@ -3,6 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useProjectFilter } from "@/hooks/use-project-filter";
+import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,6 +191,7 @@ export default function EpcDrawingControlPage() {
   });
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
+  const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, projectId);
   const { data: drawingControls = [], isLoading, error: recordsError } = useQuery<DrawingControl[]>({
     queryKey: ["/api/projects", projectId, "drawing-controls"],
     queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
@@ -361,15 +364,17 @@ export default function EpcDrawingControlPage() {
                   <SelectValue placeholder="Select project..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects
-                    .filter((p: any) => ['active', 'planning'].includes(p.status))
-                    .map((p: any) => (
+                  {filteredProjects.map((p: any) => (
                     <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
                       {p.code} — {p.clientName || p.client_name || p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-1.5">
+                <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
+                <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
+              </div>
               <Button size="sm" variant="outline" className="h-8" onClick={invalidateAll}>
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>

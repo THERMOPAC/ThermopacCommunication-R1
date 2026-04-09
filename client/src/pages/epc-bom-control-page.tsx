@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useProjectFilter } from "@/hooks/use-project-filter";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
@@ -117,6 +119,7 @@ export default function EpcBomControlPage() {
   const [lineForm, setLineForm] = useState({ componentItemId: "", quantityPerUnit: "1", componentSpecification: "", estimatedUnitCost: "", procurementLeadTimeDays: "", preferredVendor: "", notes: "" });
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
+  const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, selectedProjectId);
   const { data: bomHeaders = [], isLoading, error: recordsError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "bom-headers"],
     queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/bom-headers`) : Promise.resolve([]),
@@ -414,11 +417,15 @@ export default function EpcBomControlPage() {
           <Select value={selectedProjectId ? String(selectedProjectId) : ""} onValueChange={(v) => { setSelectedProjectId(parseInt(v)); setExpandedRow(null); }}>
             <SelectTrigger className="w-52 h-8 text-xs"><SelectValue placeholder="Select Project" /></SelectTrigger>
             <SelectContent>
-              {projects.map((p: any) => (
+              {filteredProjects.map((p: any) => (
                 <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-1.5">
+            <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
+            <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
+          </div>
 
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />

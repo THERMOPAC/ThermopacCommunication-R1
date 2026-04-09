@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
@@ -107,6 +108,7 @@ type DispatchDocument = {
 
 export default function DispatchShippingPage() {
   const { toast } = useToast();
+  const [showAllDspProjects, setShowAllDspProjects] = useState(false);
   const [activeTab, setActiveTab] = useState("dispatch-list");
   const [selectedDispatch, setSelectedDispatch] = useState<DispatchRecord | null>(null);
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -934,13 +936,17 @@ export default function DispatchShippingPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {projects && projects.map((project: Project) => (
+                        {projects && (showAllDspProjects ? projects : projects.filter((p: Project) => p.status === 'active')).map((project: Project) => (
                           <SelectItem key={project.id} value={project.id.toString()}>
                             {project.code} — {project.clientName || project.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Checkbox id="showAllDspProjects" checked={showAllDspProjects} onCheckedChange={(v) => setShowAllDspProjects(!!v)} className="h-3.5 w-3.5" />
+                      <label htmlFor="showAllDspProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

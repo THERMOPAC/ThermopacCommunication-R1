@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1482,6 +1483,7 @@ function DisciplineSection({ disciplineName, disciplineKey, icon: IconComponent,
 
 // Project Basic Drawings Section Component
 function ProjectBasicDrawingsSection() {
+  const [showAllDrProjects, setShowAllDrProjects] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [showAllRevisions, setShowAllRevisions] = useState<boolean>(false);
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('process');
@@ -1651,13 +1653,17 @@ function ProjectBasicDrawingsSection() {
                   <SelectValue placeholder="Select a project to manage basic drawings" />
                 </SelectTrigger>
               <SelectContent>
-                {designProjects.map((project: any) => (
+                {(showAllDrProjects ? designProjects : designProjects.filter((p: any) => p.status === 'active')).map((project: any) => (
                   <SelectItem key={project.id} value={project.id.toString()}>
-                    {project.projectName} ({project.projectCode}) - {project.customerName}
+                    {project.projectCode} — {project.customerName || project.projectName}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Checkbox id="showAllDrProjects" checked={showAllDrProjects} onCheckedChange={(v) => setShowAllDrProjects(!!v)} className="h-3.5 w-3.5" />
+              <label htmlFor="showAllDrProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+            </div>
             </div>
             
             {selectedProjectId && (
@@ -1856,6 +1862,7 @@ export default function DrawingRegistryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showAllDrProjFilter, setShowAllDrProjFilter] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [showAllRevisions, setShowAllRevisions] = useState(false);
   const [selectedDrawing, setSelectedDrawing] = useState<DesignDrawing | null>(null);
@@ -2086,13 +2093,17 @@ export default function DrawingRegistryPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Projects</SelectItem>
-                    {designProjects.map((project: any) => (
+                    {(showAllDrProjFilter ? designProjects : designProjects.filter((p: any) => p.status === 'active')).map((project: any) => (
                       <SelectItem key={project.id} value={project.id.toString()}>
-                        {project.designProjectName || project.projectName} ({project.projectCode}) – {project.customerName || project.projectName}
+                        {project.projectCode} — {project.customerName || project.designProjectName || project.projectName}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Checkbox id="showAllDrProjFilter" checked={showAllDrProjFilter} onCheckedChange={(v) => setShowAllDrProjFilter(!!v)} className="h-3.5 w-3.5" />
+                  <label htmlFor="showAllDrProjFilter" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Label htmlFor="revision-toggle" className="text-sm font-medium text-gray-700">

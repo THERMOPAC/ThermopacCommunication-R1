@@ -99,6 +99,7 @@ export default function ProductionPlanningPage() {
   const [, navigate] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [showAllProdProjects, setShowAllProdProjects] = useState(false);
   const [isGeneratingWorkOrders, setIsGeneratingWorkOrders] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
@@ -655,13 +656,19 @@ export default function ProductionPlanningPage() {
                       <SelectValue placeholder="Select a project" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projects?.map((project: any) => (
+                      {(showAllProdProjects ? projects : projects?.filter((p: any) => p.status === 'active').concat(
+                        selectedProject && !projects?.filter((p: any) => p.status === 'active').find((p: any) => p.id === selectedProject) ? projects?.filter((p: any) => p.id === selectedProject) : []
+                      ))?.map((project: any) => (
                         <SelectItem key={project.id} value={project.id.toString()}>
                           {project.code} — {project.clientName || project.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <Checkbox id="showAllProdProjects" checked={showAllProdProjects} onCheckedChange={(v) => setShowAllProdProjects(!!v)} className="h-3.5 w-3.5" />
+                    <label htmlFor="showAllProdProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                  </div>
                 </div>
 
                 {/* Keep Visible checkbox */}
@@ -955,7 +962,7 @@ export default function ProductionPlanningPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {projects?.map((project: any) => (
+                              {(showAllProdProjects ? projects : projects?.filter((p: any) => p.status === 'active'))?.map((project: any) => (
                                 <SelectItem key={project.id} value={project.id.toString()}>
                                   {project.code} — {project.clientName || project.name}
                                 </SelectItem>

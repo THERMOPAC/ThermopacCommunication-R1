@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ interface StandardsStats {
 }
 
 export default function ReportsAnalyticsPage() {
+  const [showAllDesignRptProjects, setShowAllDesignRptProjects] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('month');
   const [reportType, setReportType] = useState<string>('overview');
@@ -192,13 +194,17 @@ export default function ReportsAnalyticsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Projects</SelectItem>
-                  {designProjects.map((project) => (
+                  {(showAllDesignRptProjects ? designProjects : designProjects.filter((p: any) => p.status === 'active')).map((project: any) => (
                     <SelectItem key={project.id} value={project.id.toString()}>
-                      {project.designProjectName} ({project.projectCode})
+                      {project.projectCode} — {project.designProjectName}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-1.5 mt-1">
+                <Checkbox id="showAllDesignRptProjects" checked={showAllDesignRptProjects} onCheckedChange={(v) => setShowAllDesignRptProjects(!!v)} className="h-3.5 w-3.5" />
+                <label htmlFor="showAllDesignRptProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium mb-2 block">Date Range</label>

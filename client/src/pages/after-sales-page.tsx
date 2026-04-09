@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -60,6 +61,7 @@ type ServiceRequestFormValues = z.infer<typeof serviceRequestSchema>;
 export default function AfterSalesPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isCreatingRequest, setIsCreatingRequest] = useState(false);
+  const [showAllAsProjects, setShowAllAsProjects] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -473,13 +475,17 @@ export default function AfterSalesPage() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="none">No Project</SelectItem>
-                            {Array.isArray(projects) && projects.map((project: any) => (
+                            {Array.isArray(projects) && (showAllAsProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
                                 {project.code} — {project.clientName || project.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Checkbox id="showAllAsProjects" checked={showAllAsProjects} onCheckedChange={(v) => setShowAllAsProjects(!!v)} className="h-3.5 w-3.5" />
+                          <label htmlFor="showAllAsProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

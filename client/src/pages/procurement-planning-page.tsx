@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Helmet } from "react-helmet";
 import { Loader2 } from "lucide-react";
 import Layout from "@/components/layout";
@@ -63,6 +64,7 @@ export default function ProcurementPlanningPage() {
   // State for project purchase orders dialog
   const [poGenerationDialogOpen, setPoGenerationDialogOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [showAllProcProjects, setShowAllProcProjects] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const { toast } = useToast();
 
@@ -369,7 +371,7 @@ export default function ProcurementPlanningPage() {
                           <SelectValue placeholder="Select Project" />
                         </SelectTrigger>
                         <SelectContent>
-                          {projects.map((project: any) => (
+                          {(showAllProcProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                             <SelectItem key={project.id} value={project.code}>
                               {project.code} — {project.clientName || project.name}
                             </SelectItem>
@@ -488,13 +490,17 @@ export default function ProcurementPlanningPage() {
                             <SelectValue placeholder="Select a project" />
                           </SelectTrigger>
                           <SelectContent>
-                            {projects.map((project: any) => (
+                            {(showAllProcProjects ? projects : projects.filter((p: any) => p.status === 'active')).map((project: any) => (
                               <SelectItem key={project.id} value={project.id.toString()}>
                                 {project.code} — {project.clientName || project.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Checkbox id="showAllProcProjects" checked={showAllProcProjects} onCheckedChange={(v) => setShowAllProcProjects(!!v)} className="h-3.5 w-3.5" />
+                          <label htmlFor="showAllProcProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                        </div>
                       </div>
                     </div>
                     

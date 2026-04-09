@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -49,6 +50,7 @@ type MaterialIdentificationFormValues = z.infer<typeof materialIdentificationSch
 export default function MaterialIdentificationPage({ params }: { params?: { id?: string } }) {
   const { toast } = useToast();
   const [selectedProject, setSelectedProject] = useState<number | null>(null);
+  const [showAllMiProjects, setShowAllMiProjects] = useState(false);
   const [location, navigate] = useLocation();
   const [routeMatch, routeParams] = useRoute('/quality/material-identification/:id');
   
@@ -672,9 +674,9 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {projects
-                                  .filter(project => project.status === 'active')
-                                  .map((project) => (
+                                {(showAllMiProjects ? projects : projects.filter(project => project.status === 'active').concat(
+                                  selectedProject && !projects.filter(p => p.status === 'active').find(p => p.id === selectedProject) ? projects.filter(p => p.id === selectedProject) : []
+                                )).map((project) => (
                                     <SelectItem key={project.id} value={project.id.toString()}>
                                       {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
                                     </SelectItem>
@@ -683,6 +685,10 @@ export default function MaterialIdentificationPage({ params }: { params?: { id?:
                               </SelectContent>
                             </Select>
                           )}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Checkbox id="showAllMiProjects" checked={showAllMiProjects} onCheckedChange={(v) => setShowAllMiProjects(!!v)} className="h-3.5 w-3.5" />
+                            <label htmlFor="showAllMiProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       );

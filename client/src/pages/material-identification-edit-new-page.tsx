@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { z } from "zod";
@@ -111,6 +112,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
   const keepParam = urlParams.get('keep');
   
   // State to track select field values
+  const [showAllMiProjects, setShowAllMiProjects] = useState(false);
   const [specificationValue, setSpecificationValue] = useState("");
   const [materialGradeValue, setMaterialGradeValue] = useState("");
   const [materialStatusValue, setMaterialStatusValue] = useState("");
@@ -433,9 +435,7 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {projects
-                                .filter(project => project.status === 'active')
-                                .map((project) => (
+                              {(showAllMiProjects ? projects : projects.filter(project => project.status === 'active')).map((project) => (
                                   <SelectItem key={project.id} value={project.id.toString()}>
                                     {project.code || project.projectCode || project.projectNumber || `Project ${project.id}`}
                                   </SelectItem>
@@ -443,6 +443,10 @@ export default function MaterialIdentificationEditNewPage({ params }: MaterialId
                               }
                             </SelectContent>
                           </Select>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Checkbox id="showAllMiEditNewProjects" checked={showAllMiProjects} onCheckedChange={(v) => setShowAllMiProjects(!!v)} className="h-3.5 w-3.5" />
+                            <label htmlFor="showAllMiEditNewProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

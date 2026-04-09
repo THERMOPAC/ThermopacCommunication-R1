@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useProjectFilter } from "@/hooks/use-project-filter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -11,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -106,6 +108,7 @@ export default function EpcWorkOrdersPage() {
   const [editForm, setEditForm] = useState({ manufacturingNotes: "", woNotes: "", estimatedUnitCost: "", estimatedTotalCost: "", drawingNo: "", drawingRevision: "" });
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
+  const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, selectedProjectId);
   const { data: workOrders = [], isLoading, error: recordsError } = useQuery<any[]>({
     queryKey: ["/api/projects", selectedProjectId, "epc-work-orders"],
     queryFn: () => selectedProjectId ? fetchWithProjectAccess(`/api/projects/${selectedProjectId}/epc-work-orders`) : Promise.resolve([]),
@@ -250,11 +253,15 @@ export default function EpcWorkOrdersPage() {
                 <SelectValue placeholder="Select project…" />
               </SelectTrigger>
               <SelectContent>
-                {projects.map((p: any) => (
-                  <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
-                ))}
+                {filteredProjects.map((p: any) => (
+                    <SelectItem key={p.id} value={String(p.id)} className="text-xs">{p.code} — {p.clientName || p.name}</SelectItem>
+                  ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex items-center gap-1.5 pb-1">
+            <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
+            <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
           </div>
           <div className="w-52 relative">
             <Label className="text-[10px]">Search</Label>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -118,6 +119,7 @@ interface InvoiceCreatePageProps {
 export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreatePageProps) {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
+  const [showAllInvProjects, setShowAllInvProjects] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   
   // Extract invoice ID from URL if in edit mode
@@ -1222,13 +1224,17 @@ export default function InvoiceCreatePage({ isEditMode = false }: InvoiceCreateP
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">No Project</SelectItem>
-                          {projects?.map((project: any) => (
+                          {(showAllInvProjects ? projects : projects?.filter((p: any) => p.status === 'active'))?.map((project: any) => (
                             <SelectItem key={project.id} value={project.id.toString()}>
                               {project.code} — {project.clientName || project.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Checkbox id="showAllInvProjects" checked={showAllInvProjects} onCheckedChange={(v) => setShowAllInvProjects(!!v)} className="h-3.5 w-3.5" />
+                        <label htmlFor="showAllInvProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

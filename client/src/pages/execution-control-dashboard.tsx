@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/use-auth";
 import { usePagePermissions } from "@/hooks/use-page-permissions";
 import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
@@ -671,11 +672,16 @@ export default function ExecutionControlDashboard() {
     queryKey: ["/api/projects/item-counts"],
   });
 
+  const [showAllExecProjects, setShowAllExecProjects] = useState(false);
   const activeProjects = useMemo(() => {
-    const filtered = projects.filter((p: any) => p.status === "active" || p.status === "planning");
-    filtered.sort((a: any, b: any) => ((itemCounts[b.id] || 0) - (itemCounts[a.id] || 0)));
-    return filtered;
-  }, [projects, itemCounts]);
+    const base = showAllExecProjects ? projects : projects.filter((p: any) => p.status === "active" || p.status === "planning");
+    if (!showAllExecProjects && selectedProjectId && !base.find((p: any) => String(p.id) === selectedProjectId)) {
+      const selected = projects.find((p: any) => String(p.id) === selectedProjectId);
+      if (selected) base.push(selected);
+    }
+    base.sort((a: any, b: any) => ((itemCounts[b.id] || 0) - (itemCounts[a.id] || 0)));
+    return base;
+  }, [projects, itemCounts, showAllExecProjects, selectedProjectId]);
 
   useEffect(() => {
     if (!selectedProjectId && activeProjects.length > 0) {
@@ -1649,6 +1655,10 @@ export default function ExecutionControlDashboard() {
                     })}
                   </SelectContent>
                 </Select>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Checkbox id="showAllExecProjects" checked={showAllExecProjects} onCheckedChange={(v) => setShowAllExecProjects(!!v)} className="h-3.5 w-3.5" />
+                  <label htmlFor="showAllExecProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All Projects</label>
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Search Items</label>
