@@ -492,11 +492,12 @@ export default function EpcDrawingControlPage() {
                         <TableHead className="text-[10px] text-center">Manufacturing</TableHead>
                         <TableHead className="text-[10px] text-center">Client</TableHead>
                         <TableHead className="text-[10px]">Purpose</TableHead>
+                        <TableHead className="text-[10px] text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
-                        <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">No drawing controls found.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={11} className="text-center text-sm text-muted-foreground py-8">No drawing controls found.</TableCell></TableRow>
                       ) : filtered.map((rec) => {
                         const isExpanded = expandedId === rec.id;
                         const actions = getAvailableActions(rec);
@@ -529,11 +530,40 @@ export default function EpcDrawingControlPage() {
                                 ) : <span className="text-[8px] text-muted-foreground">N/R</span>}
                               </TableCell>
                               <TableCell className="text-[10px] py-1.5 capitalize">{rec.drawing_purpose || "—"}</TableCell>
+                              <TableCell className="text-center py-1.5">
+                                {actions.length > 0 ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                    {actions.slice(0, 2).map((a) => {
+                                      const Icon = a.icon;
+                                      return (
+                                        <Tooltip key={a.key}>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant={a.variant}
+                                              className="h-6 px-2 text-[9px]"
+                                              onClick={(e) => { e.stopPropagation(); executeAction(a, rec); }}
+                                            >
+                                              <Icon className="h-3 w-3 mr-1" /> {a.label}
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="left" className="text-xs">{a.label}</TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    })}
+                                    {actions.length > 2 && (
+                                      <span className="text-[8px] text-muted-foreground">+{actions.length - 2}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-[8px] text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
                             </TableRow>
 
                             {isExpanded && (
                               <TableRow className="bg-muted/10">
-                                <TableCell colSpan={10} className="p-3">
+                                <TableCell colSpan={11} className="p-3">
                                   <div className="space-y-3">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       <Card className="shadow-sm">
