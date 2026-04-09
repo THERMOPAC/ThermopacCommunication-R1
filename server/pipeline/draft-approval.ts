@@ -32,13 +32,19 @@ export async function approveDraft(draftId: number, userId: number, userRole: st
     return { success: false, error: `Dependency not met. ${draft.dependency_doc_type} must be approved first.` };
   }
 
-  await db.execute(
+  const updateResult = await db.execute(
     sql`UPDATE execution_drafts
         SET approval_status = 'approved',
             approved_by = ${userId},
             updated_at = NOW()
-        WHERE id = ${draftId}`
+        WHERE id = ${draftId}
+          AND approval_status = 'pending_approval'
+        RETURNING id`
   );
+
+  if (updateResult.rows.length === 0) {
+    return { success: false, error: 'Draft state changed by another request. Approval not applied.' };
+  }
 
   await db.execute(
     sql`UPDATE tasks SET status = 'completed', completed_at = NOW()
@@ -81,14 +87,20 @@ export async function rejectDraft(draftId: number, userId: number, userRole: str
     return { success: false, error: `Draft in status "${draft.approval_status}" cannot be rejected.` };
   }
 
-  await db.execute(
+  const rejectUpdate = await db.execute(
     sql`UPDATE execution_drafts
         SET approval_status = 'rejected',
             rejected_by = ${userId},
             rejection_remarks = ${remarks.trim()},
             updated_at = NOW()
-        WHERE id = ${draftId}`
+        WHERE id = ${draftId}
+          AND approval_status IN ('pending_approval', 'draft', 'on_hold')
+        RETURNING id`
   );
+
+  if (rejectUpdate.rows.length === 0) {
+    return { success: false, error: 'Draft state changed by another request. Rejection not applied.' };
+  }
 
   await db.execute(
     sql`UPDATE tasks SET status = 'completed', completed_at = NOW()
@@ -122,13 +134,19 @@ export async function holdDraft(draftId: number, userId: number, userRole: strin
     return { success: false, error: `Draft in status "${draft.approval_status}" cannot be put on hold.` };
   }
 
-  await db.execute(
+  const holdUpdate = await db.execute(
     sql`UPDATE execution_drafts
         SET approval_status = 'on_hold',
             hold_remarks = ${remarks?.trim() || null},
             updated_at = NOW()
-        WHERE id = ${draftId}`
+        WHERE id = ${draftId}
+          AND approval_status = 'pending_approval'
+        RETURNING id`
   );
+
+  if (holdUpdate.rows.length === 0) {
+    return { success: false, error: 'Draft state changed by another request. Hold not applied.' };
+  }
 
   await db.execute(
     sql`UPDATE tasks SET status = 'on_hold'
@@ -162,13 +180,19 @@ export async function resumeDraft(draftId: number, userId: number, userRole: str
     return { success: false, error: `Draft in status "${draft.approval_status}" cannot be resumed. Must be "on_hold".` };
   }
 
-  await db.execute(
+  const resumeUpdate = await db.execute(
     sql`UPDATE execution_drafts
         SET approval_status = 'pending_approval',
             hold_remarks = NULL,
             updated_at = NOW()
-        WHERE id = ${draftId}`
+        WHERE id = ${draftId}
+          AND approval_status = 'on_hold'
+        RETURNING id`
   );
+
+  if (resumeUpdate.rows.length === 0) {
+    return { success: false, error: 'Draft state changed by another request. Resume not applied.' };
+  }
 
   await db.execute(
     sql`UPDATE tasks SET status = 'pending'
