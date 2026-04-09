@@ -7,6 +7,7 @@ import { useProjectFilter } from "@/hooks/use-project-filter";
 import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
+import DrawingEngineeringChanges from "@/components/drawing-engineering-changes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -626,6 +627,14 @@ export default function EpcDrawingControlPage() {
                                         </CardContent>
                                       </Card>
                                     </div>
+
+                                    <DrawingEngineeringChanges
+                                      drawingControlId={rec.id}
+                                      dwgControlNumber={rec.dwg_control_number}
+                                      revisionCode={rec.revision_code}
+                                      userRole={userRole}
+                                      drawingStatus={rec.status}
+                                    />
 
                                     {projectId && (
                                       <DwgDocumentPanelWithGcs
