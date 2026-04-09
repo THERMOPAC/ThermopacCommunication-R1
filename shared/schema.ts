@@ -9756,6 +9756,8 @@ export const products = pgTable('products', {
   category: text('category'),
   hsnSacCode: text('hsn_sac_code'),
   drawingNumber: text('drawing_number'),
+  makeOrBuy: text('make_or_buy').default('Make'),
+  preferredVendorId: integer('preferred_vendor_id'),
   isActive: boolean('is_active').default(true),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow(),

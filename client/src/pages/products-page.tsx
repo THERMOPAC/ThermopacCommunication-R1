@@ -42,6 +42,8 @@ const productFormSchema = z.object({
   category: z.string().min(1, "Product Category is required"),
   hsnSacCode: z.string().min(1, "HSN/SAC Code is required"),
   drawingNumber: z.string().optional(),
+  makeOrBuy: z.string().default('Make'),
+  preferredVendorId: z.number().nullable().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -101,6 +103,10 @@ export default function ProductsPage() {
 
   const { data: productChildLinks = [] } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/product-children'],
+  });
+
+  const { data: vendors = [] } = useQuery<any[]>({
+    queryKey: ['/api/vendors'],
   });
 
   const familyOptions = useMemo(() =>
@@ -177,7 +183,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      drawingNumber: "", isActive: true,
+      drawingNumber: "", makeOrBuy: "Make", preferredVendorId: null, isActive: true,
     },
   });
 
@@ -237,6 +243,8 @@ export default function ProductsPage() {
         category: data.category || null,
         hsnSacCode: data.hsnSacCode || null,
         drawingNumber: data.drawingNumber || null,
+        makeOrBuy: data.makeOrBuy || 'Make',
+        preferredVendorId: data.preferredVendorId || null,
       };
       return apiRequest('POST', '/api/sales-marketing/products', payload);
     },
@@ -262,6 +270,8 @@ export default function ProductsPage() {
         category: data.category || null,
         hsnSacCode: data.hsnSacCode || null,
         drawingNumber: data.drawingNumber || null,
+        makeOrBuy: data.makeOrBuy || 'Make',
+        preferredVendorId: data.preferredVendorId || null,
       };
       return apiRequest('PATCH', `/api/sales-marketing/products/${id}`, payload);
     },
@@ -406,7 +416,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      drawingNumber: "", isActive: true,
+      drawingNumber: "", makeOrBuy: "Make", preferredVendorId: null, isActive: true,
     });
     setIsProductDialogOpen(true);
   };
@@ -436,6 +446,8 @@ export default function ProductsPage() {
       category: product.category || "Finish Goods",
       hsnSacCode: product.hsnSacCode || "",
       drawingNumber: product.drawingNumber || "",
+      makeOrBuy: (product as any).makeOrBuy || "Make",
+      preferredVendorId: (product as any).preferredVendorId || null,
       isActive: product.isActive ?? true,
     });
     setIsProductDialogOpen(true);
@@ -698,6 +710,7 @@ export default function ProductsPage() {
                         <TableHead>Product Code</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Category</TableHead>
+                        <TableHead>Make/Buy</TableHead>
                         <TableHead>Unit</TableHead>
                         <TableHead className="text-center w-[70px]">Qty</TableHead>
                         <TableHead className="text-right">Unit Price</TableHead>
@@ -731,6 +744,11 @@ export default function ProductsPage() {
                               </TableCell>
                               <TableCell>{product.description}</TableCell>
                               <TableCell>{product.category || "-"}</TableCell>
+                              <TableCell>
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${(product as any).makeOrBuy === 'Buy' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                  {(product as any).makeOrBuy || 'Make'}
+                                </span>
+                              </TableCell>
                               <TableCell>{product.unit}</TableCell>
                               <TableCell className="text-center text-muted-foreground">—</TableCell>
                               <TableCell className="text-right">{product.currency || "USD"} {parseFloat(product.unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -1271,6 +1289,55 @@ export default function ProductsPage() {
                         <FormControl>
                           <Input {...field} placeholder="e.g. DWG-001" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={productForm.control}
+                    name="makeOrBuy"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Make / Buy</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || 'Make'}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Make or Buy" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Make">Make</SelectItem>
+                            <SelectItem value="Buy">Buy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={productForm.control}
+                    name="preferredVendorId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Preferred Vendor</FormLabel>
+                        <Select
+                          onValueChange={(val) => field.onChange(val === "none" ? null : Number(val))}
+                          value={field.value ? String(field.value) : "none"}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select vendor" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">-- None --</SelectItem>
+                            {vendors.filter((v: any) => v.isActive !== false).map((v: any) => (
+                              <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
