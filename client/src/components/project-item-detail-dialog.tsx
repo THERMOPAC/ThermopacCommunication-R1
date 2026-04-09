@@ -407,11 +407,11 @@ export default function ProjectItemDetailDialog({ item, open, onOpenChange }: Pr
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   <div>
-                    <label className="text-xs font-medium">Revision *</label>
+                    <label className="text-xs font-medium">Revision</label>
                     <Input
                       value={drawingForm.revision}
-                      onChange={(e) => setDrawingForm(f => ({ ...f, revision: e.target.value }))}
-                      placeholder="00"
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
                     />
                   </div>
                   <div>
