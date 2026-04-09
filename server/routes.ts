@@ -857,6 +857,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { setupEpcMonitoringRoutes } = await import('./epc-monitoring-routes');
   setupEpcMonitoringRoutes(app);
 
+  const { setupGcsDashboardRoutes } = await import('./gcs-dashboard-routes');
+  setupGcsDashboardRoutes(app);
+
+  const { startAutoSync } = await import('./gcs-dashboard-service');
+  startAutoSync();
+
   const { setupEpcControlTowerRoutes } = await import('./epc-control-tower-routes');
   setupEpcControlTowerRoutes(app);
   

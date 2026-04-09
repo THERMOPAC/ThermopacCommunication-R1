@@ -212,6 +212,21 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
 
           const fyLabel = fyCodeToLabel(parsed.fyCode);
 
+          const assuranceFlags: string[] = [];
+          const pathDepth = file.name.split('/').length;
+          if (parsed.root !== 'TPEL') {
+            assuranceFlags.push('non_tpel_path');
+          }
+          if (parsed.root === 'TPEL' && parsed.projectCode && !project) {
+            assuranceFlags.push('orphan_no_project_match');
+          }
+          if (parsed.root === 'TPEL' && !parsed.projectCode && pathDepth > 2) {
+            assuranceFlags.push('misplaced_no_project_folder');
+          }
+          if (unresolvedFields.length > 0) {
+            assuranceFlags.push('unresolved_mapping');
+          }
+
           const metadata = file.metadata || {};
           const sizeBytes = metadata.size ? parseInt(metadata.size as string, 10) : null;
           const contentType = (metadata.contentType as string) || null;
@@ -224,13 +239,14 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
               customer_code, customer_name, fy_code, fy_label,
               project_code, project_id, doc_type, revision,
               size_bytes, content_type, is_resolved, unresolved_fields,
-              gcs_updated_at, last_synced_at
+              assurance_flags, gcs_updated_at, last_synced_at
             ) VALUES (
               ${bucketName}, ${file.name}, ${parsed.fileName}, ${parsed.folderPath},
               ${parsed.continentCode}, ${continentName || parsed.continentCode}, ${parsed.countryCode}, ${countryName || parsed.countryCode},
               ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
               ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType}, ${parsed.revision},
               ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? unresolvedFields : null},
+              ${assuranceFlags.length > 0 ? assuranceFlags : null},
               ${updatedAt}, NOW()
             )
             ON CONFLICT (file_path) DO UPDATE SET
@@ -252,6 +268,7 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
               content_type = EXCLUDED.content_type,
               is_resolved = EXCLUDED.is_resolved,
               unresolved_fields = EXCLUDED.unresolved_fields,
+              assurance_flags = EXCLUDED.assurance_flags,
               gcs_updated_at = EXCLUDED.gcs_updated_at,
               last_synced_at = NOW()
           `);

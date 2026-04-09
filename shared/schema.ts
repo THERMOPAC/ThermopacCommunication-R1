@@ -12204,9 +12204,24 @@ export const gcsFileIndex = pgTable('gcs_file_index', {
   contentType: varchar('content_type', { length: 100 }),
   isResolved: boolean('is_resolved').notNull().default(true),
   unresolvedFields: text('unresolved_fields').array(),
+  assuranceFlags: text('assurance_flags').array(),
   gcsUpdatedAt: timestamp('gcs_updated_at'),
   lastSyncedAt: timestamp('last_synced_at').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 export type GcsFileIndex = typeof gcsFileIndex.$inferSelect;
+
+export const gcsAccessPermissions = pgTable('gcs_access_permissions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+  accessLevel: varchar('access_level', { length: 20 }).notNull().default('viewer'),
+  grantedBy: integer('granted_by').notNull().references(() => users.id),
+  grantedAt: timestamp('granted_at').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  notes: text('notes'),
+});
+
+export type GcsAccessPermission = typeof gcsAccessPermissions.$inferSelect;

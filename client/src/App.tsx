@@ -178,6 +178,7 @@ function Router() {
       <ProtectedRoute path="/epc/permission-control" component={() => <ProjectsProduction.EpcPermissionDashboard />} />
       <ProtectedRoute path="/epc/cutover-dashboard" component={() => <ProjectsProduction.EpcCutoverDashboard />} />
       <ProtectedRoute path="/epc/control-tower" component={() => <ProjectsProduction.EpcControlTower />} />
+      <ProtectedRoute path="/gcs-dashboard" component={() => <ProjectsProduction.GcsDashboardPage />} />
       <ProtectedRoute path="/projects" component={() => <ProjectsProduction.ProjectsPage />} />
       <ProtectedRoute path="/projects/:id" component={(props: any) => <ProjectsProduction.ProjectDetailPage {...props} />} />
       <ProtectedRoute path="/customers" component={() => <ProjectsProduction.CustomersPage />} />
