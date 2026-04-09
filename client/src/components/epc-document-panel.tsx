@@ -596,19 +596,6 @@ export default function EpcDocumentPanel({
             )}
           </div>
           <div className="flex items-center gap-1">
-            {isRevControlled && documentNumber && (
-              <Select value={downloadContext} onValueChange={setDownloadContext}>
-                <SelectTrigger className="h-5 text-[8px] w-[90px] px-1.5">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general" className="text-[10px]">General</SelectItem>
-                  <SelectItem value="procurement" className="text-[10px]">Procurement</SelectItem>
-                  <SelectItem value="manufacturing" className="text-[10px]">Manufacturing</SelectItem>
-                  <SelectItem value="inspection" className="text-[10px]">Inspection</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
             {hasAnyAttachments && documentNumber && (
               <>
                 <Tooltip>
@@ -618,7 +605,7 @@ export default function EpcDocumentPanel({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
-                    Download ({downloadContext} context)
+                    Download latest attachment
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
