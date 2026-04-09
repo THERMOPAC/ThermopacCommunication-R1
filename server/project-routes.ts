@@ -8654,8 +8654,8 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
-        return sendPermissionError(res, 'Manager or above required to create drawing controls.');
+      if (roleHierarchy[userRole] > roleHierarchy['Senior Executive']) {
+        return sendPermissionError(res, 'Senior Executive or above required to create drawing controls.');
       }
       const projectId = parseInt(req.params.projectId);
       if (!(await guardProjectNotFrozen(projectId, res))) return;

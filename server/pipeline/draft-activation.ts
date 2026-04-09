@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
 import { ROUTING_MAP, PRIORITY_MAP, SLA_DAYS } from './pipeline-types';
 import type { DraftDocType } from './pipeline-types';
+import { generateDocumentNumber } from '../epc-coding';
 
 export async function activateDraft(
   draftId: number,
@@ -102,18 +103,47 @@ export async function activateDraft(
 
 async function activateDrawingOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
   const sd = draft.source_data || {};
+  const itemCode = sd.item_code || sd.master_item_code || null;
+  const itemDesc = sd.master_item_description || sd.item_description || null;
+  const classification = sd.make_or_buy || sd.classification || null;
 
   const result = await db.execute(
     sql`INSERT INTO epc_drawing_orders
         (do_number, project_id, project_item_id, master_item_id, item_code, item_description,
          status, created_by)
         VALUES (${draft.doc_number}, ${draft.project_id}, ${draft.project_item_id},
-                ${sd.master_item_id || null}, ${sd.item_code || sd.master_item_code || null},
-                ${sd.master_item_description || sd.item_description || null},
+                ${sd.master_item_id || null}, ${itemCode}, ${itemDesc},
                 'open', ${userId})
         RETURNING id`
   );
-  return { entityId: (result.rows[0] as any).id, entityType: 'epc_drawing_orders' };
+  const doEntityId = (result.rows[0] as any).id;
+
+  try {
+    const dwgControlNumber = await generateDocumentNumber(draft.project_id, 'DWG', db);
+    const procReq = classification === 'Buy' || true;
+    const mfgReq = classification === 'Make' || true;
+
+    await db.execute(
+      sql`INSERT INTO epc_drawing_controls
+          (dwg_control_number, revision_code, is_current, revision_status,
+           project_id, project_item_id, master_item_id,
+           item_code, item_description, classification_snapshot,
+           drawing_purpose, procurement_release_required, manufacturing_release_required,
+           client_approval_required, client_approval_status,
+           status, notes, created_by)
+          VALUES (${dwgControlNumber}, 'A', true, 'draft',
+                  ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null},
+                  ${itemCode}, ${itemDesc}, ${classification},
+                  'general', ${procReq}, ${mfgReq},
+                  false, 'not_required',
+                  'draft', ${'Auto-created from Drawing Order ' + draft.doc_number}, ${userId})`
+    );
+    console.log(`[DraftActivation] Created drawing control ${dwgControlNumber} from DO ${draft.doc_number}`);
+  } catch (err: any) {
+    console.error(`[DraftActivation] Warning: Failed to auto-create drawing control for DO ${draft.doc_number}:`, err.message);
+  }
+
+  return { entityId: doEntityId, entityType: 'epc_drawing_orders' };
 }
 
 export async function linkEntityToDraft(
