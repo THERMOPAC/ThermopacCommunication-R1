@@ -41,9 +41,8 @@ const productFormSchema = z.object({
   currency: z.string().min(1, "Currency is required"),
   category: z.string().min(1, "Product Category is required"),
   hsnSacCode: z.string().min(1, "HSN/SAC Code is required"),
-  drawingNumber: z.string().optional(),
   makeOrBuy: z.string().default('Make'),
-  preferredVendorId: z.number().nullable().optional(),
+  preferredVendor: z.string().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -103,10 +102,6 @@ export default function ProductsPage() {
 
   const { data: productChildLinks = [] } = useQuery<any[]>({
     queryKey: ['/api/sales-marketing/product-children'],
-  });
-
-  const { data: vendors = [] } = useQuery<any[]>({
-    queryKey: ['/api/vendors'],
   });
 
   const familyOptions = useMemo(() =>
@@ -183,7 +178,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      drawingNumber: "", makeOrBuy: "Make", preferredVendorId: null, isActive: true,
+      makeOrBuy: "Make", preferredVendor: "", isActive: true,
     },
   });
 
@@ -242,9 +237,8 @@ export default function ProductsPage() {
         unitPrice: data.unitPrice,
         category: data.category || null,
         hsnSacCode: data.hsnSacCode || null,
-        drawingNumber: data.drawingNumber || null,
         makeOrBuy: data.makeOrBuy || 'Make',
-        preferredVendorId: data.preferredVendorId || null,
+        preferredVendor: data.preferredVendor || null,
       };
       return apiRequest('POST', '/api/sales-marketing/products', payload);
     },
@@ -269,9 +263,8 @@ export default function ProductsPage() {
         unitPrice: data.unitPrice,
         category: data.category || null,
         hsnSacCode: data.hsnSacCode || null,
-        drawingNumber: data.drawingNumber || null,
         makeOrBuy: data.makeOrBuy || 'Make',
-        preferredVendorId: data.preferredVendorId || null,
+        preferredVendor: data.preferredVendor || null,
       };
       return apiRequest('PATCH', `/api/sales-marketing/products/${id}`, payload);
     },
@@ -416,7 +409,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      drawingNumber: "", makeOrBuy: "Make", preferredVendorId: null, isActive: true,
+      makeOrBuy: "Make", preferredVendor: "", isActive: true,
     });
     setIsProductDialogOpen(true);
   };
@@ -445,9 +438,8 @@ export default function ProductsPage() {
       currency: product.currency || "USD",
       category: product.category || "Finish Goods",
       hsnSacCode: product.hsnSacCode || "",
-      drawingNumber: product.drawingNumber || "",
       makeOrBuy: (product as any).makeOrBuy || "Make",
-      preferredVendorId: (product as any).preferredVendorId || null,
+      preferredVendor: (product as any).preferredVendor || "",
       isActive: product.isActive ?? true,
     });
     setIsProductDialogOpen(true);
@@ -1252,21 +1244,7 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    control={productForm.control}
-                    name="drawingNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Drawing Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g. DWG-001" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+                <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={productForm.control}
                     name="makeOrBuy"
@@ -1289,24 +1267,13 @@ export default function ProductsPage() {
 
                   <FormField
                     control={productForm.control}
-                    name="preferredVendorId"
+                    name="preferredVendor"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Preferred Vendor</FormLabel>
-                        <Select
-                          onValueChange={(val) => field.onChange(val === "none" ? null : Number(val))}
-                          value={field.value ? String(field.value) : "none"}
-                        >
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="none">-- None --</SelectItem>
-                            {vendors.filter((v: any) => v.isActive !== false).map((v: any) => (
-                              <SelectItem key={v.id} value={String(v.id)}>{v.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. SAP Vendor Name" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
