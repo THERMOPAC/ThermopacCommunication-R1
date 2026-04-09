@@ -935,7 +935,11 @@ export default function DwarPage() {
         <CardContent>
           {todaysCompletedTasks && todaysCompletedTasks.length > 0 ? (
             <div className="space-y-3">
-              {todaysCompletedTasks.map((task, index) => (
+              {todaysCompletedTasks.map((task, index) => {
+                const alreadyAdded = (todayReport?.activities || []).some(
+                  (a: any) => a.taskId === task.id || (a.description === task.title && a.status === 'completed')
+                );
+                return (
                 <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-green-50">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -946,18 +950,23 @@ export default function DwarPage() {
                       <Badge variant="default" className="bg-green-600">
                         Completed
                       </Badge>
+                      {alreadyAdded && (
+                        <Badge variant="outline" className="text-green-700 border-green-300 bg-green-100">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Added
+                        </Badge>
+                      )}
                     </div>
                     {task.description && (
                       <p className="text-sm text-muted-foreground">{task.description}</p>
                     )}
                     <p className="text-xs text-green-600 mt-1">✓ Task completed today</p>
                   </div>
-                  {todayReport?.status === 'draft' && (
+                  {todayReport?.status === 'draft' && !alreadyAdded && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        // Auto-add this completed task as an activity
                         const newActivity = {
                           type: 'Task Work',
                           description: task.title,
@@ -988,7 +997,8 @@ export default function DwarPage() {
                     </Button>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
