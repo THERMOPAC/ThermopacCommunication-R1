@@ -17,11 +17,16 @@ export type ActivationStatus =
 
 export type DependencyStatus = 'not_required' | 'blocked' | 'met';
 
-export const DEPT_MAP: Record<DraftDocType, string> = {
-  DO: 'Design',
-  WO: 'Production',
-  PO: 'Purchase',
-  IO: 'Quality Control',
+export interface RoutingTarget {
+  department: string;
+  preferredRole: string;
+}
+
+export const ROUTING_MAP: Record<DraftDocType, RoutingTarget> = {
+  DO: { department: 'Projects',        preferredRole: 'Senior Executive' },
+  WO: { department: 'Production',      preferredRole: 'Manager' },
+  PO: { department: 'Purchase',        preferredRole: 'Senior Executive' },
+  IO: { department: 'Quality Control', preferredRole: 'Senior Executive' },
 };
 
 export const SLA_DAYS: Record<DraftDocType, number> = {

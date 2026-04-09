@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
-import { APPROVAL_ROLES, ACTION_ROLES, DEPT_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
+import { APPROVAL_ROLES, ACTION_ROLES, ROUTING_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
 
 export async function approveDraft(draftId: number, userId: number, userRole: string): Promise<{ success: boolean; error?: string }> {
   if (!APPROVAL_ROLES.includes(userRole)) {
@@ -230,7 +230,8 @@ async function cascadeDOApproval(projectId: number, projectItemId: number, doDoc
     );
 
     const docType = draft.doc_type as 'WO' | 'PO' | 'IO';
-    const assignee = await resolveAssignee(projectId, DEPT_MAP[docType] || 'Design', userId);
+    const routing = ROUTING_MAP[docType as keyof typeof ROUTING_MAP] || { department: 'Projects', preferredRole: 'Senior Executive' };
+    const assignee = await resolveAssignee(projectId, routing.department, userId, undefined, routing.preferredRole);
     const taskId = await createEpcTask({
       projectId,
       entityType: 'execution_draft',

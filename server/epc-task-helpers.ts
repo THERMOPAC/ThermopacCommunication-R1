@@ -167,19 +167,40 @@ export async function resolveAssignee(
   projectId: number,
   departmentName: string,
   fallbackCreatedBy?: number,
-  tx?: any
+  tx?: any,
+  preferredRole?: string
 ): Promise<number | null> {
   const executor = tx || db;
+  const AUTHORIZED_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 
   try {
+    if (preferredRole && AUTHORIZED_ROLES.includes(preferredRole)) {
+      const exact = await executor.execute(
+        sql`SELECT id, username, role FROM users
+            WHERE department = ${departmentName}
+              AND role = ${preferredRole}
+              AND is_active = true
+            LIMIT 1`
+      );
+      if (exact.rows.length > 0) {
+        const u = exact.rows[0] as any;
+        console.log(`[EPC-Task] Assignee resolved: ${u.username} (${u.role}) from dept ${departmentName} [preferred match]`);
+        return u.id;
+      }
+    }
+
+    if (preferredRole && !AUTHORIZED_ROLES.includes(preferredRole)) {
+      console.log(`[EPC-Task] Preferred role ${preferredRole} in ${departmentName} cannot approve — auto-escalating`);
+    }
+
     const deptMgr = await executor.execute(
       sql`SELECT id, username, role FROM users
           WHERE department = ${departmentName}
             AND role IN ('Manager', 'Senior Manager', 'General Manager', 'Superuser')
             AND is_active = true
           ORDER BY CASE role
-            WHEN 'Senior Manager' THEN 1
-            WHEN 'Manager' THEN 2
+            WHEN 'Manager' THEN 1
+            WHEN 'Senior Manager' THEN 2
             WHEN 'General Manager' THEN 3
             WHEN 'Superuser' THEN 4
           END
@@ -187,7 +208,7 @@ export async function resolveAssignee(
     );
     if (deptMgr.rows.length > 0) {
       const mgr = deptMgr.rows[0] as any;
-      console.log(`[EPC-Task] Assignee resolved: ${mgr.username} (${mgr.role}) from dept ${departmentName}`);
+      console.log(`[EPC-Task] Assignee resolved: ${mgr.username} (${mgr.role}) from dept ${departmentName} [escalated from ${preferredRole || 'none'}]`);
       return mgr.id;
     }
 
@@ -197,7 +218,7 @@ export async function resolveAssignee(
     if (pmResult.rows.length > 0) {
       const managerId = (pmResult.rows[0] as any).manager_id;
       if (managerId) {
-        console.log(`[EPC-Task] Dept ${departmentName} has no manager — falling back to Project Manager (user ${managerId})`);
+        console.log(`[EPC-Task] Dept ${departmentName} has no authorized approver — falling back to Project Manager (user ${managerId})`);
         return managerId;
       }
     }
