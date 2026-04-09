@@ -12,7 +12,8 @@ function getAllowedRoles(currentRole: string | undefined): string[] {
     'General Manager': 1,
     'Senior Manager': 2,
     'Manager': 3,
-    'Employee': 4
+    'Senior Executive': 4,
+    'Employee': 5
   };
 
   const currentLevel = roleLevels[currentRole];

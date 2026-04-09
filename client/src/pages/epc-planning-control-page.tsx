@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
-  Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, Employee: 4,
+  Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, "Senior Executive": 4, Employee: 5,
 };
 
 type StatusType = "draft" | "under_review" | "released" | "canceled" | "superseded";
@@ -80,7 +80,7 @@ export default function EpcPlanningControlPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const userRole = (user as any)?.role || "Employee";
-  const userLevel = roleHierarchy[userRole] ?? 4;
+  const userLevel = roleHierarchy[userRole] ?? 5;
   const userId = (user as any)?.id;
 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);

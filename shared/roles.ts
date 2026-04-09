@@ -2,7 +2,8 @@ export const roles = [
   "Superuser",
   "General Manager",
   "Senior Manager",
-  "Manager", 
+  "Manager",
+  "Senior Executive",
   "Employee"
 ] as const;
 
@@ -11,11 +12,11 @@ export const roleHierarchy: Record<string, number> = {
   "General Manager": 1,
   "Senior Manager": 2,
   "Manager": 3,
-  "Employee": 4
+  "Senior Executive": 4,
+  "Employee": 5
 };
 
 export function canManage(managerRole: string | undefined, subordinateRole: string | undefined): boolean {
-  // If either role is missing or doesn't exist in the hierarchy, default to false
   if (!managerRole || !subordinateRole || 
       roleHierarchy[managerRole] === undefined || roleHierarchy[subordinateRole] === undefined) {
     return false;

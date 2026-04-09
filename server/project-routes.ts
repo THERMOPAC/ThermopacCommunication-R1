@@ -7447,7 +7447,7 @@ export function setupProjectRoutes(app: express.Express) {
         'utilitiesConfirmed', 'documentationComplete', 'installationRequired',
       ];
       const hasChecklistUpdate = checklistFields.some(f => req.body[f] !== undefined);
-      if (hasChecklistUpdate && roleHierarchy[userRole] > 3) {
+      if (hasChecklistUpdate && roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to update commissioning checklist items.');
       }
 
@@ -7615,7 +7615,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       const result = await db.execute(query);
       const rows = result.rows;
-      if (roleHierarchy[user.role] > 3) {
+      if (roleHierarchy[user.role] > roleHierarchy['Manager']) {
         const amountFields = ['total_amount', 'gross_amount', 'net_amount', 'tax_amount', 'discount_amount'];
         for (const row of rows as any[]) {
           for (const f of amountFields) { if (f in row) row[f] = null; }
@@ -7661,7 +7661,7 @@ export function setupProjectRoutes(app: express.Express) {
         return denyRecordAccess(res, req);
       }
 
-      if (roleHierarchy[user.role] > 3) {
+      if (roleHierarchy[user.role] > roleHierarchy['Manager']) {
         const amountFields = ['total_amount', 'gross_amount', 'net_amount', 'tax_amount', 'discount_amount'];
         for (const f of amountFields) { if (f in record) record[f] = null; }
       }
@@ -8106,7 +8106,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       const result = await db.execute(query);
       const rows = result.rows;
-      if (roleHierarchy[user.role] > 3) {
+      if (roleHierarchy[user.role] > roleHierarchy['Manager']) {
         const amountFields = ['gross_amount', 'net_amount', 'tax_amount', 'amount_paid', 'amount_outstanding', 'discount_amount'];
         for (const row of rows as any[]) {
           for (const f of amountFields) { if (f in row) row[f] = null; }
@@ -8152,7 +8152,7 @@ export function setupProjectRoutes(app: express.Express) {
         return denyRecordAccess(res, req);
       }
 
-      if (roleHierarchy[user.role] > 3) {
+      if (roleHierarchy[user.role] > roleHierarchy['Manager']) {
         const amountFields = ['gross_amount', 'net_amount', 'tax_amount', 'amount_paid', 'amount_outstanding', 'discount_amount'];
         for (const f of amountFields) { if (f in record) record[f] = null; }
       }
@@ -8649,7 +8649,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/projects/:projectId/drawing-controls', ensureAuthenticated, requirePageAccess('drawing-controls'), requireProjectMembership(), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to create drawing controls.');
       }
       const projectId = parseInt(req.params.projectId);
@@ -8764,7 +8764,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/submit-for-review', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to submit drawing controls for review.');
       }
       const id = parseInt(req.params.id);
@@ -8823,7 +8823,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { reviewNote, recommendation } = req.body;
 
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to review drawing controls.');
       }
 
@@ -9014,7 +9014,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userRole = (req.user as any)?.role;
       const { gateType } = req.body;
 
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to toggle release gates.');
       }
 
@@ -9076,7 +9076,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/client-approval', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to record client approval.');
       }
       const id = parseInt(req.params.id);
@@ -9297,7 +9297,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/revert-to-draft', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to revert drawing controls to draft.');
       }
       const id = parseInt(req.params.id);
@@ -9334,7 +9334,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/drawing-controls/:id', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to edit drawing controls.');
       }
       const id = parseInt(req.params.id);
@@ -9447,7 +9447,7 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!(await guardProjectNotFrozen(projectId, res))) return;
 
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to create BOMs.');
       }
       const { projectItemId, masterItemId, drawingControlId, bomType, bomRevision, bomTitle, bomDescription, notes } = req.body;
@@ -9526,7 +9526,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to edit BOMs.');
       }
 
@@ -9566,7 +9566,7 @@ export function setupProjectRoutes(app: express.Express) {
       if (!(await guardRecordProjectNotFrozen('epc_bom_headers', id, res))) return;
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to submit BOMs for review.');
       }
       const { submissionNote } = req.body;
@@ -10001,7 +10001,7 @@ export function setupProjectRoutes(app: express.Express) {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to revert BOMs to draft.');
       }
 
@@ -10531,7 +10531,7 @@ export function setupProjectRoutes(app: express.Express) {
       const bomHeaderId = parseInt(req.params.bomHeaderId);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to add BOM lines.');
       }
 
@@ -10599,7 +10599,7 @@ export function setupProjectRoutes(app: express.Express) {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to edit BOM lines.');
       }
 
@@ -10647,7 +10647,7 @@ export function setupProjectRoutes(app: express.Express) {
       const id = parseInt(req.params.id);
       const userId = (req.user as any)?.id;
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > 3) {
+      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
         return sendPermissionError(res, 'Manager or above required to delete BOM lines.');
       }
 

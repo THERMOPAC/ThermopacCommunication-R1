@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
-  Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, Employee: 4,
+  Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, "Senior Executive": 4, Employee: 5,
 };
 
 function userRoleLevel(role: string): number {

@@ -1,5 +1,5 @@
 // Role hierarchy from lowest to highest
-const roleHierarchy = ['Employee', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+const roleHierarchy = ['Employee', 'Senior Executive', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 
 /**
  * Checks if a user can manage content based on their role and the minimum required role

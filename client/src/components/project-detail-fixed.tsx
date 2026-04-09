@@ -3281,7 +3281,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                               <SelectContent>
                                 {(() => {
                                   const users = allUsers?.filter((u: any) => u.isActive) || [];
-                                  const hierarchy: Record<string, number> = { 'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2, 'Manager': 3, 'Employee': 4 };
+                                  const hierarchy: Record<string, number> = { 'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2, 'Manager': 3, 'Senior Executive': 4, 'Employee': 5 };
                                   const grouped: Record<string, any[]> = {};
                                   users.forEach((u: any) => {
                                     const r = u.role || 'Employee';
@@ -3349,7 +3349,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                     <SelectContent>
                       {(() => {
                         const available = allUsers?.filter((u: any) => u.isActive && !members?.some((m: any) => m.userId === u.id)) || [];
-                        const hierarchy: Record<string, number> = { 'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2, 'Manager': 3, 'Employee': 4 };
+                        const hierarchy: Record<string, number> = { 'Superuser': 0, 'General Manager': 1, 'Senior Manager': 2, 'Manager': 3, 'Senior Executive': 4, 'Employee': 5 };
                         const grouped: Record<string, any[]> = {};
                         available.forEach((u: any) => {
                           const r = u.role || 'Employee';

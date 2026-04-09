@@ -312,7 +312,7 @@ export default function LoansAdvancesPage() {
   const activeLoansCount = filteredLoans.filter((l: any) => l.status === 'active').length;
   const activeAdvancesCount = filteredAdvances.filter((a: any) => a.status === 'active').length;
 
-  const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Employee': 4 };
+  const roleOrder: Record<string, number> = { 'Superuser': 0, 'Manager': 1, 'General Manager': 2, 'Senior Manager': 3, 'Senior Executive': 4, 'Employee': 5 };
   const sortedUsers = [...users].sort((a: any, b: any) => {
     const ra = roleOrder[a.role] ?? 5;
     const rb = roleOrder[b.role] ?? 5;

@@ -244,7 +244,7 @@ export async function checkDeptPagePermission(department: string | null | undefi
 
 export async function checkPagePermission(userId: number, role: string, department: string | null | undefined, pageKey: string): Promise<boolean> {
   if (role === "Superuser") return true;
-  const level = roleHierarchy[role] ?? 4;
+  const level = roleHierarchy[role] ?? 5;
   if (level <= 2) return true;
 
   const userOverride = await checkUserPageOverride(userId, pageKey);
@@ -256,7 +256,7 @@ export async function checkPagePermission(userId: number, role: string, departme
 export async function getAllPagePermissionsForUser(userId: number, role: string, department: string | null | undefined): Promise<Record<string, boolean>> {
   const { epcPageKeys } = await import('../../shared/schema');
 
-  if (role === "Superuser" || (roleHierarchy[role] ?? 4) <= 2) {
+  if (role === "Superuser" || (roleHierarchy[role] ?? 5) <= 2) {
     const result: Record<string, boolean> = {};
     for (const key of epcPageKeys) result[key] = true;
     return result;
@@ -304,7 +304,7 @@ export function requirePageAccess(pageKey: string) {
 }
 
 export async function checkProjectMembership(userId: number, role: string, projectId: number): Promise<{ isMember: boolean; visibilityScope: string }> {
-  const level = roleHierarchy[role] ?? 4;
+  const level = roleHierarchy[role] ?? 5;
   if (role === "Superuser" || level <= 2) return { isMember: true, visibilityScope: 'project_all' };
 
   const rows = await db.select({ id: projectMembers.id, visibilityScope: projectMembers.visibilityScope })
@@ -353,7 +353,7 @@ export interface OwnershipFilterConfig {
 const SM_PLUS_LEVEL = 2;
 
 function isSmPlus(role: string): boolean {
-  const level = roleHierarchy[role] ?? 4;
+  const level = roleHierarchy[role] ?? 5;
   return role === "Superuser" || level <= SM_PLUS_LEVEL;
 }
 
