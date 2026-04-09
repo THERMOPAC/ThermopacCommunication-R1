@@ -389,6 +389,23 @@ export const monthlyKpiSummary = pgTable('monthly_kpi_summary', {
   // UNIQUE(user_id, month, year)
 });
 
+// DWAR Audit Log - persistent, queryable audit trail for all DWAR/KPI operations
+export const dwarAuditLog = pgTable('dwar_audit_log', {
+  id: serial('id').primaryKey(),
+  event: varchar('event', { length: 100 }).notNull(),
+  actorId: integer('actor_id').references(() => users.id),
+  actorType: varchar('actor_type', { length: 20 }).notNull().default('user'),
+  targetUserId: integer('target_user_id').references(() => users.id),
+  reportId: integer('report_id'),
+  year: integer('year'),
+  month: integer('month'),
+  details: jsonb('details').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type DwarAuditLog = typeof dwarAuditLog.$inferSelect;
+export type InsertDwarAuditLog = typeof dwarAuditLog.$inferInsert;
+
 // Leave Management Tables
 export const leaveTypes = pgTable('leave_types', {
   id: serial('id').primaryKey(),

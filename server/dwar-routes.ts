@@ -1,12 +1,36 @@
 import { sendError, sendValidationError, sendNotFound, sendPermissionError, sendBusinessError } from './utils/error-response';
 import { Router, Request, Response } from 'express';
 import { db } from './db';
-import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns, notifications } from '@shared/schema';
+import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns, notifications, dwarAuditLog } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
 
-function auditLog(event: string, details: Record<string, any>) {
-  console.log(`[DWAR-AUDIT] ${event}`, JSON.stringify({ timestamp: new Date().toISOString(), ...details }));
+async function auditLog(
+  event: string,
+  opts: {
+    actorId?: number | null;
+    actorType?: 'user' | 'system';
+    targetUserId?: number | null;
+    reportId?: number | null;
+    year?: number | null;
+    month?: number | null;
+    details?: Record<string, any>;
+  }
+) {
+  try {
+    await db.insert(dwarAuditLog).values({
+      event,
+      actorId: opts.actorId ?? null,
+      actorType: opts.actorType ?? 'user',
+      targetUserId: opts.targetUserId ?? null,
+      reportId: opts.reportId ?? null,
+      year: opts.year ?? null,
+      month: opts.month ?? null,
+      details: opts.details ?? {},
+    });
+  } catch (e) {
+    console.error(`[DWAR-AUDIT] Failed to persist audit event ${event}:`, e);
+  }
 }
 
 const router = Router();
@@ -167,7 +191,7 @@ router.post('/auto-activity-from-task', ensureAuthenticated, async (req: Request
       }
 
       if (todayReport.status !== 'draft') {
-        auditLog('BLOCKED_STATUS_VIOLATION', { userId, reportId: todayReport.id, currentStatus: todayReport.status, action: 'auto-activity' });
+        await auditLog('BLOCKED_STATUS_VIOLATION', { actorId: userId, targetUserId: userId, reportId: todayReport.id, details: { currentStatus: todayReport.status, action: 'auto-activity' } });
         return { __error: 'NOT_DRAFT' };
       }
 
@@ -520,6 +544,9 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
     );
 
     if (todayReport && result.details.hasYesterdayPlans) {
+      const oldFtScore = todayReport.planFollowThroughScore != null ? Number(todayReport.planFollowThroughScore) : null;
+      const newFtScore = result.score;
+
       await db.update(dailyWorkReports)
         .set({
           planFollowThroughScore: result.score !== null ? result.score.toString() : null,
@@ -530,6 +557,21 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
           eq(dailyWorkReports.id, todayReport.id),
           eq(dailyWorkReports.userId, userId)
         ));
+
+      await auditLog('FOLLOW_THROUGH_SCORE_WRITE', {
+        actorId: userId,
+        actorType: 'user',
+        targetUserId: userId,
+        reportId: todayReport.id,
+        details: {
+          trigger: 'plan-follow-through-check',
+          oldScore: oldFtScore,
+          newScore: newFtScore,
+          matchRate: result.details.matchRate,
+          plannedCount: result.details.plannedCount,
+          matchedCount: result.details.matchedCount,
+        },
+      });
     }
 
     res.json({
@@ -626,7 +668,7 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
       'managerRating', 'managerFeedback', 'planFollowThroughScore', 'planFollowThroughDetails'];
     const injectedFields = blockedFields.filter(f => f in rawData);
     if (injectedFields.length > 0) {
-      auditLog('BLOCKED_FIELD_INJECTION', { userId, reportId, injectedFields });
+      await auditLog('BLOCKED_FIELD_INJECTION', { actorId: userId, targetUserId: userId, reportId, details: { injectedFields } });
     }
 
     const updatedReport = await db.transaction(async (tx) => {
@@ -644,12 +686,12 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
         ));
 
       if (!existingReport) {
-        auditLog('BLOCKED_OWNERSHIP_VIOLATION', { userId, reportId, action: 'update' });
+        await auditLog('BLOCKED_OWNERSHIP_VIOLATION', { actorId: userId, targetUserId: userId, reportId, details: { action: 'update' } });
         return null;
       }
 
       if (existingReport.status !== 'draft') {
-        auditLog('BLOCKED_STATUS_VIOLATION', { userId, reportId, currentStatus: existingReport.status, action: 'update' });
+        await auditLog('BLOCKED_STATUS_VIOLATION', { actorId: userId, targetUserId: userId, reportId, details: { currentStatus: existingReport.status, action: 'update' } });
         return { __error: 'NOT_DRAFT' };
       }
 
@@ -748,12 +790,12 @@ router.post('/submit/:id', ensureAuthenticated, async (req: Request, res: Respon
         ));
 
       if (!report) {
-        auditLog('BLOCKED_OWNERSHIP_VIOLATION', { userId, reportId, action: 'submit' });
+        await auditLog('BLOCKED_OWNERSHIP_VIOLATION', { actorId: userId, targetUserId: userId, reportId, details: { action: 'submit' } });
         return null;
       }
 
       if (report.status !== 'draft') {
-        auditLog('BLOCKED_STATUS_VIOLATION', { userId, reportId, currentStatus: report.status, action: 'submit' });
+        await auditLog('BLOCKED_STATUS_VIOLATION', { actorId: userId, targetUserId: userId, reportId, details: { currentStatus: report.status, action: 'submit' } });
         return { __error: 'NOT_DRAFT' };
       }
 
@@ -1032,7 +1074,17 @@ router.post('/admin/review/:id', ensureAuthenticated, async (req: Request, res: 
 
     const updatedReport = await db.transaction(async (tx) => {
       const [reportToReview] = await tx
-        .select({ userId: dailyWorkReports.userId, status: dailyWorkReports.status, activities: dailyWorkReports.activities })
+        .select({
+          userId: dailyWorkReports.userId,
+          status: dailyWorkReports.status,
+          activities: dailyWorkReports.activities,
+          productivityScore: dailyWorkReports.productivityScore,
+          qualityScore: dailyWorkReports.qualityScore,
+          efficiencyRating: dailyWorkReports.efficiencyRating,
+          collaborationScore: dailyWorkReports.collaborationScore,
+          planFollowThroughScore: dailyWorkReports.planFollowThroughScore,
+          managerRating: dailyWorkReports.managerRating,
+        })
         .from(dailyWorkReports)
         .where(eq(dailyWorkReports.id, reportId));
 
@@ -1041,17 +1093,35 @@ router.post('/admin/review/:id', ensureAuthenticated, async (req: Request, res: 
       }
 
       if (reportToReview.userId === reviewerId) {
-        auditLog('BLOCKED_SELF_REVIEW', { reviewerId, reportId, action });
+        await auditLog('BLOCKED_SELF_REVIEW', { actorId: reviewerId, targetUserId: reportToReview.userId, reportId, details: { action } });
         return { __error: 'SELF_REVIEW' };
       }
 
       if (reportToReview.status !== 'submitted') {
-        auditLog('BLOCKED_STATUS_VIOLATION', { reviewerId, reportId, currentStatus: reportToReview.status, action: 'admin-review' });
+        await auditLog('BLOCKED_STATUS_VIOLATION', { actorId: reviewerId, targetUserId: reportToReview.userId, reportId, details: { currentStatus: reportToReview.status, action: 'admin-review' } });
         return { __error: 'NOT_SUBMITTED' };
       }
 
+      const oldScores = {
+        productivityScore: reportToReview.productivityScore != null ? Number(reportToReview.productivityScore) : null,
+        qualityScore: reportToReview.qualityScore != null ? Number(reportToReview.qualityScore) : null,
+        efficiencyRating: reportToReview.efficiencyRating != null ? Number(reportToReview.efficiencyRating) : null,
+        collaborationScore: reportToReview.collaborationScore != null ? Number(reportToReview.collaborationScore) : null,
+        planFollowThroughScore: reportToReview.planFollowThroughScore != null ? Number(reportToReview.planFollowThroughScore) : null,
+        managerRating: reportToReview.managerRating ?? null,
+      };
+
       const activities: any[] = Array.isArray(reportToReview.activities) ? reportToReview.activities : [];
       const scores = calculateAllScores(activities, null, validatedRating);
+
+      const newScores = {
+        productivityScore: scores.productivity !== null ? Number(scores.productivity.toFixed(2)) : null,
+        qualityScore: scores.quality !== null ? Number(scores.quality.toFixed(2)) : null,
+        efficiencyRating: scores.efficiency !== null ? Number(scores.efficiency.toFixed(2)) : null,
+        collaborationScore: scores.collaboration !== null ? Number(scores.collaboration.toFixed(2)) : null,
+        planFollowThroughScore: oldScores.planFollowThroughScore,
+        managerRating: validatedRating ?? null,
+      };
 
       const [updated] = await tx
         .update(dailyWorkReports)
@@ -1072,6 +1142,21 @@ router.post('/admin/review/:id', ensureAuthenticated, async (req: Request, res: 
           eq(dailyWorkReports.status, 'submitted')
         ))
         .returning();
+
+      if (updated) {
+        await auditLog('REVIEW_SCORE_DELTA', {
+          actorId: reviewerId,
+          targetUserId: reportToReview.userId,
+          reportId,
+          details: {
+            action,
+            oldScores,
+            newScores,
+            managerFeedback: managerFeedback || null,
+            reportDate: updated.reportDate,
+          },
+        });
+      }
 
       return updated || null;
     });
@@ -1160,16 +1245,37 @@ router.post('/kpi/recalculate', ensureAuthenticated, async (req: Request, res: R
       .where(eq(users.isActive, true));
 
     const results: { userId: number; username: string; score: number }[] = [];
+    const failures: { userId: number; username: string; error: string }[] = [];
     for (const u of allUsers) {
       try {
         const kpi = await calculateMonthlyKPIs(u.id, targetYear, targetMonth);
         results.push({ userId: u.id, username: u.username, score: kpi?.overallPerformanceScore || 0 });
-      } catch (err) {
+      } catch (err: any) {
         console.error(`KPI recalc failed for user ${u.id}:`, err);
+        failures.push({ userId: u.id, username: u.username, error: err?.message || 'Unknown error' });
       }
     }
 
-    res.json({ message: `Recalculated KPIs for ${results.length} users`, year: targetYear, month: targetMonth, results });
+    const reason = req.body.reason || null;
+
+    await auditLog('BATCH_KPI_RECALCULATION', {
+      actorId: req.user!.id,
+      actorType: 'user',
+      year: targetYear,
+      month: targetMonth,
+      details: {
+        route: 'POST /api/dwar/kpi/recalculate',
+        totalUsersAttempted: allUsers.length,
+        successCount: results.length,
+        failureCount: failures.length,
+        outcome: failures.length === 0 ? 'success' : (results.length === 0 ? 'failure' : 'partial'),
+        reason,
+        failures: failures.length > 0 ? failures : undefined,
+        sourceReportIds: results.map(r => r.userId),
+      },
+    });
+
+    res.json({ message: `Recalculated KPIs for ${results.length} users`, year: targetYear, month: targetMonth, results, failures: failures.length > 0 ? failures : undefined });
   } catch (error) {
     console.error('Error recalculating KPIs:', error);
     sendError(res, error);
@@ -1284,6 +1390,29 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
     performanceGrade,
     lastUpdated: new Date()
   };
+
+  await auditLog('KPI_CALCULATION', {
+    actorType: 'system',
+    targetUserId: userId,
+    year,
+    month,
+    details: {
+      sourceDwarIds: submittedReports.map(r => r.id),
+      sourceDwarDates: submittedReports.map(r => r.reportDate),
+      totalDwarRecords: dwarData.length,
+      submittedCount: submittedReports.length,
+      rejectedCount: rejectedReports.length,
+      attendanceRecordCount: attendanceData.length,
+      computedValues: {
+        averageProductivityScore: kpiData.averageProductivityScore,
+        averageQualityScore: kpiData.averageQualityScore,
+        averageEfficiencyRating: kpiData.averageEfficiencyRating,
+        averageCollaborationScore: kpiData.averageCollaborationScore,
+        overallPerformanceScore: kpiData.overallPerformanceScore,
+        performanceGrade: kpiData.performanceGrade,
+      },
+    },
+  });
 
   const upsertResult = await db.execute(sql`
     INSERT INTO monthly_kpi_summary (
