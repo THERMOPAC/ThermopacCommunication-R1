@@ -329,6 +329,21 @@ function calculateAllScores(activities: any[], followThroughScore: number | null
   return { productivity, efficiency, collaboration, quality };
 }
 
+function sanitizeActivities(activities: any[]): any[] {
+  if (!Array.isArray(activities)) return [];
+  return activities.map(a => ({
+    type: typeof a.type === 'string' ? a.type.substring(0, 200) : '',
+    description: typeof a.description === 'string' ? a.description.substring(0, 1000) : '',
+    timeSpent: Math.min(Math.max(Number(a.timeSpent) || 0, 0), 24),
+    plannedHours: Math.min(Math.max(Number(a.plannedHours) || 0, 0), 24),
+    priority: ['high', 'medium', 'low'].includes(a.priority) ? a.priority : 'medium',
+    status: ['pending', 'in_progress', 'completed', 'blocked'].includes(a.status) ? a.status : 'pending',
+    taskId: a.taskId != null ? Number(a.taskId) || undefined : undefined,
+    blockedReason: typeof a.blockedReason === 'string' ? a.blockedReason.substring(0, 500) : '',
+    collaborative: a.collaborative === true,
+  }));
+}
+
 function extractKeywords(text: string): string[] {
   const stopWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'and', 'but', 'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each', 'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'because', 'as', 'if', 'when', 'where', 'how', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'work', 'complete', 'finish', 'start', 'continue', 'need', 'plan', 'today', 'tomorrow']);
   return text.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
@@ -511,7 +526,10 @@ router.get('/plan-follow-through', ensureAuthenticated, async (req: Request, res
           planFollowThroughDetails: result.details,
           updatedAt: new Date()
         })
-        .where(eq(dailyWorkReports.id, todayReport.id));
+        .where(and(
+          eq(dailyWorkReports.id, todayReport.id),
+          eq(dailyWorkReports.userId, userId)
+        ));
     }
 
     res.json({
@@ -661,6 +679,10 @@ router.put('/update/:id', ensureAuthenticated, async (req: Request, res: Respons
           return { __error: 'INVALID_CHALLENGE_LEVEL' };
         }
         sanitizedData.challengeLevel = level;
+      }
+
+      if (sanitizedData.activities !== undefined) {
+        sanitizedData.activities = sanitizeActivities(sanitizedData.activities);
       }
 
       const ftScore = existingReport.planFollowThroughScore;
@@ -1082,7 +1104,10 @@ router.get('/kpi/:userId/:year/:month', ensureAuthenticated, async (req: Request
     const year = parseInt(req.params.year);
     const month = parseInt(req.params.month);
 
-    // Check if user can access this data
+    if (isNaN(userId) || isNaN(year) || isNaN(month) || month < 1 || month > 12 || year < 2020 || year > 2100) {
+      return res.status(400).json({ error: 'INVALID_KPI_PARAMS', message: 'Invalid userId, year, or month' });
+    }
+
     if (userId !== req.user!.id && !['Superuser', 'Manager', 'Senior Manager'].includes(req.user!.role)) {
       return res.status(403).json({ error: 'Access denied' });
     }
@@ -1122,8 +1147,12 @@ router.post('/kpi/recalculate', ensureAuthenticated, async (req: Request, res: R
     }
 
     const { year, month } = req.body;
-    const targetYear = year || new Date().getFullYear();
-    const targetMonth = month || (new Date().getMonth() + 1);
+    const targetYear = Number(year) || new Date().getFullYear();
+    const targetMonth = Number(month) || (new Date().getMonth() + 1);
+
+    if (targetMonth < 1 || targetMonth > 12 || targetYear < 2020 || targetYear > 2100) {
+      return res.status(400).json({ error: 'INVALID_KPI_PARAMS', message: 'Invalid year or month' });
+    }
 
     const allUsers = await db
       .select({ id: users.id, username: users.username })
@@ -1256,30 +1285,48 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
     lastUpdated: new Date()
   };
 
-  try {
-    const [updatedKpi] = await db
-      .update(monthlyKpiSummary)
-      .set(kpiData)
-      .where(and(
-        eq(monthlyKpiSummary.userId, userId),
-        eq(monthlyKpiSummary.year, year),
-        eq(monthlyKpiSummary.month, month)
-      ))
-      .returning();
+  const upsertResult = await db.execute(sql`
+    INSERT INTO monthly_kpi_summary (
+      user_id, month, year, total_working_days, days_present, days_absent, days_late,
+      total_hours_worked, overtime_hours, attendance_percentage, total_tasks_completed,
+      average_productivity_score, average_quality_score, average_efficiency_rating,
+      average_collaboration_score, dwar_submission_rate, average_manager_rating,
+      total_approved_reports, total_rejected_reports, overall_performance_score,
+      performance_grade, last_updated
+    ) VALUES (
+      ${kpiData.userId}, ${kpiData.month}, ${kpiData.year}, ${kpiData.totalWorkingDays},
+      ${kpiData.daysPresent}, ${kpiData.daysAbsent}, ${kpiData.daysLate},
+      ${kpiData.totalHoursWorked}, ${kpiData.overtimeHours}, ${kpiData.attendancePercentage},
+      ${kpiData.totalTasksCompleted}, ${kpiData.averageProductivityScore}, ${kpiData.averageQualityScore},
+      ${kpiData.averageEfficiencyRating}, ${kpiData.averageCollaborationScore},
+      ${kpiData.dwarSubmissionRate}, ${kpiData.averageManagerRating},
+      ${kpiData.totalApprovedReports}, ${kpiData.totalRejectedReports},
+      ${kpiData.overallPerformanceScore}, ${kpiData.performanceGrade}, NOW()
+    )
+    ON CONFLICT (user_id, month, year) DO UPDATE SET
+      total_working_days = EXCLUDED.total_working_days,
+      days_present = EXCLUDED.days_present,
+      days_absent = EXCLUDED.days_absent,
+      days_late = EXCLUDED.days_late,
+      total_hours_worked = EXCLUDED.total_hours_worked,
+      overtime_hours = EXCLUDED.overtime_hours,
+      attendance_percentage = EXCLUDED.attendance_percentage,
+      total_tasks_completed = EXCLUDED.total_tasks_completed,
+      average_productivity_score = EXCLUDED.average_productivity_score,
+      average_quality_score = EXCLUDED.average_quality_score,
+      average_efficiency_rating = EXCLUDED.average_efficiency_rating,
+      average_collaboration_score = EXCLUDED.average_collaboration_score,
+      dwar_submission_rate = EXCLUDED.dwar_submission_rate,
+      average_manager_rating = EXCLUDED.average_manager_rating,
+      total_approved_reports = EXCLUDED.total_approved_reports,
+      total_rejected_reports = EXCLUDED.total_rejected_reports,
+      overall_performance_score = EXCLUDED.overall_performance_score,
+      performance_grade = EXCLUDED.performance_grade,
+      last_updated = NOW()
+    RETURNING *
+  `);
 
-    if (updatedKpi) {
-      return updatedKpi;
-    }
-  } catch (error) {
-    // If update fails, insert new record
-  }
-
-  const [newKpi] = await db
-    .insert(monthlyKpiSummary)
-    .values(kpiData)
-    .returning();
-
-  return newKpi;
+  return upsertResult.rows?.[0] || kpiData;
 }
 
 export default router;
