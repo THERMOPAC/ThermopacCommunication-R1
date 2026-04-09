@@ -410,7 +410,7 @@ export async function executeOfferConversion(
         continent_code, country_code, fy_code, project_seq,
         source_offer_id, source_offer_revision, source_order_number, source_conversion_id, project_origin,
         created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'planning', $5, $6,
+       VALUES ($1, $2, $3, $4, 'active', $5, $6,
                $7, $8, $9, $10,
                $11, $12, 0, $13, $14,
                $15, $16, $17, $18,
