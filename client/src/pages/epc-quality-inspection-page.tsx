@@ -208,8 +208,14 @@ export default function EpcQualityInspectionPage() {
     setActionTarget({ rec, action, tab: activeTab });
     setActionNote("");
     setActionResult("pass");
-    setScheduledDate("");
-    setAssignedInspector("");
+    if (action.key === "schedule") {
+      setScheduledDate(new Date().toISOString().split("T")[0]);
+      const qcInspector = allUsers.find((u: any) => u.isActive && u.department === "Quality Control" && u.role === "Senior Executive");
+      setAssignedInspector(qcInspector ? String(qcInspector.id) : "");
+    } else {
+      setScheduledDate("");
+      setAssignedInspector("");
+    }
     setActionDialogOpen(true);
   }
 
