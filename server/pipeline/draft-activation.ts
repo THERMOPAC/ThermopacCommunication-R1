@@ -186,37 +186,44 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const uom = sd.uom || 'set';
   const classification = sd.make_or_buy || 'Make';
   const projectItemId = draft.project_item_id;
+  const isService = classification.toLowerCase() === 'service';
 
+  const planningType = isService ? 'service' : 'make';
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
         (project_id, project_item_id, master_item_id, planning_type, status)
-        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'make', 'active')
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, 'active')
         RETURNING id`
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
 
-  let productionNumber: string | null = null;
-  try {
-    productionNumber = await generateDocumentNumber(draft.project_id, 'MFG', db);
-  } catch (e) {
-    console.warn(`[DraftActivation] Could not generate production number, proceeding without it`);
+  let executionRecordId: number | null = null;
+  let woPrepId: number | null = null;
+
+  if (!isService) {
+    let productionNumber: string | null = null;
+    try {
+      productionNumber = await generateDocumentNumber(draft.project_id, 'MFG', db);
+    } catch (e) {
+      console.warn(`[DraftActivation] Could not generate production number, proceeding without it`);
+    }
+
+    const productionAssignee = await resolveAssignee(draft.project_id, 'Production', userId, undefined, 'Manager');
+
+    const execResult = await db.execute(
+      sql`INSERT INTO production_execution_records
+          (project_id, project_item_id, planning_record_id, master_item_id,
+           item_code, item_description, item_specification, uom,
+           drawing_no, drawing_revision, quantity, make_classification,
+           production_number, status, created_by, assigned_to)
+          VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${masterItemId},
+                  ${itemCode}, ${itemDesc}, ${sd.item_specification || null}, ${uom},
+                  ${sd.drawing_no || null}, ${sd.drawing_revision || null}, ${quantity}, ${classification},
+                  ${productionNumber}, 'active', ${userId}, ${productionAssignee})
+          RETURNING id`
+    );
+    executionRecordId = (execResult.rows[0] as any).id;
   }
-
-  const productionAssignee = await resolveAssignee(draft.project_id, 'Production', userId, undefined, 'Manager');
-
-  const execResult = await db.execute(
-    sql`INSERT INTO production_execution_records
-        (project_id, project_item_id, planning_record_id, master_item_id,
-         item_code, item_description, item_specification, uom,
-         drawing_no, drawing_revision, quantity, make_classification,
-         production_number, status, created_by, assigned_to)
-        VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${masterItemId},
-                ${itemCode}, ${itemDesc}, ${sd.item_specification || null}, ${uom},
-                ${sd.drawing_no || null}, ${sd.drawing_revision || null}, ${quantity}, ${classification},
-                ${productionNumber}, 'active', ${userId}, ${productionAssignee})
-        RETURNING id`
-  );
-  const executionRecordId = (execResult.rows[0] as any).id;
 
   const woPrepResult = await db.execute(
     sql`INSERT INTO wo_preparation_records
@@ -228,7 +235,11 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
                 ${classification}, 'ready', ${userId})
         RETURNING id`
   );
-  const woPrepId = (woPrepResult.rows[0] as any).id;
+  woPrepId = (woPrepResult.rows[0] as any).id;
+
+  const woCreatedBy = isService
+    ? await resolveAssignee(draft.project_id, 'Projects', userId, undefined, 'Senior Executive')
+    : userId;
 
   const epcWoResult = await db.execute(
     sql`INSERT INTO epc_work_orders
@@ -239,38 +250,40 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
         VALUES (${draft.doc_number}, ${draft.project_id}, ${projectItemId},
                 ${planningRecordId}, ${executionRecordId},
                 ${woPrepId}, ${masterItemId}, ${itemCode}, ${itemDesc}, ${uom},
-                ${quantity}, ${classification}, 'draft', ${userId},
+                ${quantity}, ${classification}, 'draft', ${woCreatedBy},
                 ${'Auto-created from Execution Draft ' + draft.doc_number})
         RETURNING id`
   );
   const woEntityId = (epcWoResult.rows[0] as any).id;
 
   let qualityPlanId: number | null = null;
-  try {
-    const qpNumber = await generateDocumentNumber(draft.project_id, 'QPL', db);
-    const qpResult = await db.execute(
-      sql`INSERT INTO quality_planning_records
-          (project_id, project_item_id, master_item_id, source_context,
-           item_code, item_description, uom, quantity,
-           quality_requirement_type, quality_plan_number, quality_notes,
-           status, created_by, created_at, updated_at)
-          VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'work_order',
-                  ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
-                  'standard_inspection', ${qpNumber},
-                  ${'Auto-created from WO activation ' + draft.doc_number},
-                  'draft', ${userId}, NOW(), NOW())
-          RETURNING id`
-    );
-    qualityPlanId = (qpResult.rows[0] as any).id;
-    await db.execute(
-      sql`UPDATE epc_work_orders SET quality_plan_id = ${qualityPlanId}, updated_at = NOW() WHERE id = ${woEntityId}`
-    );
-    console.log(`[DraftActivation] Quality plan ${qpNumber} (id=${qualityPlanId}) created for WO #${woEntityId}`);
-  } catch (qpErr) {
-    console.error(`[DraftActivation] Non-critical: failed to create quality plan for WO #${woEntityId}`, qpErr);
+  if (!isService) {
+    try {
+      const qpNumber = await generateDocumentNumber(draft.project_id, 'QPL', db);
+      const qpResult = await db.execute(
+        sql`INSERT INTO quality_planning_records
+            (project_id, project_item_id, master_item_id, source_context,
+             item_code, item_description, uom, quantity,
+             quality_requirement_type, quality_plan_number, quality_notes,
+             status, created_by, created_at, updated_at)
+            VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'work_order',
+                    ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
+                    'standard_inspection', ${qpNumber},
+                    ${'Auto-created from WO activation ' + draft.doc_number},
+                    'draft', ${userId}, NOW(), NOW())
+            RETURNING id`
+      );
+      qualityPlanId = (qpResult.rows[0] as any).id;
+      await db.execute(
+        sql`UPDATE epc_work_orders SET quality_plan_id = ${qualityPlanId}, updated_at = NOW() WHERE id = ${woEntityId}`
+      );
+      console.log(`[DraftActivation] Quality plan ${qpNumber} (id=${qualityPlanId}) created for WO #${woEntityId}`);
+    } catch (qpErr) {
+      console.error(`[DraftActivation] Non-critical: failed to create quality plan for WO #${woEntityId}`, qpErr);
+    }
   }
 
-  console.log(`[DraftActivation] WO chain: planning #${planningRecordId} → execution #${executionRecordId} → wo_prep #${woPrepId} → epc_work_order #${woEntityId} → quality_plan #${qualityPlanId}`);
+  console.log(`[DraftActivation] WO chain (${classification}): planning #${planningRecordId} → execution #${executionRecordId} → wo_prep #${woPrepId} → epc_work_order #${woEntityId} → quality_plan #${qualityPlanId}`);
   return { entityId: woEntityId, entityType: 'epc_work_orders' };
 }
 
