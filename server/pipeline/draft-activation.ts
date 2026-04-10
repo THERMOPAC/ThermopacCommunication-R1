@@ -189,10 +189,13 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const isService = classification.toLowerCase() === 'service';
 
   const planningType = isService ? 'service' : 'make';
+  const planningAssignee = isService
+    ? await resolveAssignee(draft.project_id, 'Projects', userId, undefined, 'Senior Executive')
+    : await resolveAssignee(draft.project_id, 'Production', userId, undefined, 'Manager');
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
-        (project_id, project_item_id, master_item_id, planning_type, status)
-        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, 'active')
+        (project_id, project_item_id, master_item_id, planning_type, status, created_by, assigned_to)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, ${planningType}, 'active', ${userId}, ${planningAssignee})
         RETURNING id`
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
