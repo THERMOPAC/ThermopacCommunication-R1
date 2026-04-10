@@ -250,7 +250,7 @@ export function OffersContent() {
   const [conversionResult, setConversionResult] = useState<any>(null);
   const [epcFormData, setEpcFormData] = useState({
     continentCode: '', countryCode: '', projectType: '', priority: 'Medium',
-    startDate: '', targetEndDate: '', managerId: 0,
+    startDate: '', targetEndDate: '', managerId: 0, automationMode: 'full_auto' as 'manual' | 'full_auto',
   });
   const [conversionErrors, setConversionErrors] = useState<any[]>([]);
 
@@ -1034,6 +1034,26 @@ export function OffersContent() {
                       })()}
                       readOnly className="bg-muted cursor-not-allowed"
                     />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-3 bg-amber-50 dark:bg-amber-950/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-medium">Automation Mode</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {epcFormData.automationMode === 'full_auto'
+                          ? 'Pipeline will auto-approve and activate all execution drafts (DO/WO/PO/IO)'
+                          : 'Execution drafts created as pending — manual approval required'}
+                      </p>
+                    </div>
+                    <Select value={epcFormData.automationMode} onValueChange={(v) => setEpcFormData(p => ({ ...p, automationMode: v as 'manual' | 'full_auto' }))}>
+                      <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full_auto">Full Auto</SelectItem>
+                        <SelectItem value="manual">Manual</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
