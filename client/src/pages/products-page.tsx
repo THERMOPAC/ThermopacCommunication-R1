@@ -741,7 +741,7 @@ export default function ProductsPage() {
                               <TableCell>{product.description}</TableCell>
                               <TableCell>{product.category || "-"}</TableCell>
                               <TableCell>
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${(product as any).makeOrBuy === 'Buy' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${(product as any).makeOrBuy === 'Buy' ? 'bg-blue-100 text-blue-700' : (product as any).makeOrBuy === 'Service' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
                                   {(product as any).makeOrBuy || 'Make'}
                                 </span>
                               </TableCell>
@@ -1262,6 +1262,7 @@ export default function ProductsPage() {
                           <SelectContent>
                             <SelectItem value="Make">Make</SelectItem>
                             <SelectItem value="Buy">Buy</SelectItem>
+                            <SelectItem value="Service">Service</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

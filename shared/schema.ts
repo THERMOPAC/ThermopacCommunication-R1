@@ -2346,7 +2346,7 @@ export const insertMasterItemSchema = createInsertSchema(masterItems, {
   itemCode: z.string().min(1),
   description: z.string().min(1),
   uom: z.string().min(1),
-  makeOrBuy: z.enum(['Make', 'Buy']).nullable().optional().transform(v => v === null ? undefined : v),
+  makeOrBuy: z.enum(['Make', 'Buy', 'Service']).nullable().optional().transform(v => v === null ? undefined : v),
   drawingNo: z.string().nullable().optional().transform(v => v === null ? undefined : v),
   standardCost: z.number().nullable().optional().transform(v => v === null ? undefined : v),
   supplier: z.string().nullable().optional().transform(v => v === null ? '' : v),
@@ -5100,7 +5100,7 @@ export const insertInspectionOrderSchema = createInsertSchema(inspectionOrders)
   .extend({
     status: z.enum(['pending', 'in_progress', 'completed', 'canceled']),
     inspectionType: z.enum(['incoming', 'in-process', 'final', 'dimensional', 'visual']),
-    makeOrBuy: z.enum(['Make', 'Buy']).optional(),
+    makeOrBuy: z.enum(['Make', 'Buy', 'Service']).optional(),
     plannedDate: z.string().optional().transform(dateStringToDate),
     completedDate: z.string().optional().transform(dateStringToDate),
     ndtData: z.string().optional(),

@@ -124,7 +124,7 @@ const formSchema = z.object({
   uom: z.string()
     .min(1, { message: "Unit of Measurement is required" })
     .max(20, { message: "UOM must be 20 characters or less" }),
-  makeOrBuy: z.enum(["Make", "Buy"]).nullable().optional(),
+  makeOrBuy: z.enum(["Make", "Buy", "Service"]).nullable().optional(),
   drawingNo: z.string().nullable().optional(),
   standardCost: z.number().nullable().optional(),
   supplier: z.string().nullable().optional(),
@@ -772,7 +772,7 @@ const ItemMasterManagement: React.FC = () => {
         description: currentItem.description,
         specification: currentItem.specification || "",
         uom: currentItem.uom,
-        makeOrBuy: currentItem.makeOrBuy as "Make" | "Buy" | null,
+        makeOrBuy: currentItem.makeOrBuy as "Make" | "Buy" | "Service" | null,
         drawingNo: currentItem.drawingNo || "",
         standardCost: currentItem.standardCost,
         supplier: currentItem.supplier || "",
@@ -1061,6 +1061,7 @@ const ItemMasterManagement: React.FC = () => {
                         <SelectContent>
                           <SelectItem value="Make">Make</SelectItem>
                           <SelectItem value="Buy">Buy</SelectItem>
+                          <SelectItem value="Service">Service</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1316,6 +1317,7 @@ const ItemMasterManagement: React.FC = () => {
                             <SelectContent>
                               <SelectItem value="Make">Make</SelectItem>
                               <SelectItem value="Buy">Buy</SelectItem>
+                              <SelectItem value="Service">Service</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

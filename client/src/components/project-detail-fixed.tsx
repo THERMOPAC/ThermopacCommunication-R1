@@ -123,7 +123,7 @@ const editItemSchema = z.object({
   description: z.string().min(1, "Description is required"),
   quantity: z.number().min(1, "Quantity must be at least 1"),
   uom: z.string().min(1, "Unit of Measure is required"),
-  makeOrBuy: z.enum(["Make", "Buy"]),
+  makeOrBuy: z.enum(["Make", "Buy", "Service"]),
   drawingNo: z.string().optional(),
   status: z.enum([
     "Not Started",
@@ -2087,7 +2087,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                           description: item.masterItem?.description || "",
                                           quantity: item.quantity || 1,
                                           uom: item.masterItem?.uom || "",
-                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy" | "Service") || "Buy",
                                           drawingNo: item.masterItem?.drawingNo || "",
                                         });
                                         setIsEditItemOpen(true);
@@ -2946,7 +2946,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                                           description: item.masterItem?.description || "",
                                           quantity: item.quantity || 1,
                                           uom: item.masterItem?.uom || "",
-                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy") || "Buy",
+                                          makeOrBuy: (item.masterItem?.makeOrBuy as "Make" | "Buy" | "Service") || "Buy",
                                           drawingNo: item.masterItem?.drawingNo || "",
                                           status: item.status || "Not Started",
                                         });
