@@ -146,8 +146,7 @@ export default function EpcWorkOrdersPage() {
 
   const lifecycleMutation = useMutation({
     mutationFn: async ({ id, action, body }: { id: number; action: string; body: any }) => {
-      const res = await apiRequest("POST", `/api/epc-work-orders/${id}/${action}`, body);
-      return res.json();
+      return await apiRequest("POST", `/api/epc-work-orders/${id}/${action}`, body);
     },
     onSuccess: (data) => {
       toast({ title: "Success", description: data.message });
@@ -162,8 +161,7 @@ export default function EpcWorkOrdersPage() {
 
   const editMutation = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: any }) => {
-      const res = await apiRequest("PATCH", `/api/epc-work-orders/${id}`, body);
-      return res.json();
+      return await apiRequest("PATCH", `/api/epc-work-orders/${id}`, body);
     },
     onSuccess: (data) => {
       toast({ title: "Updated", description: data.message });
