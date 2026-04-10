@@ -9109,6 +9109,43 @@ export function setupProjectRoutes(app: express.Express) {
             releasedForProcurement: updates.releasedForProcurement || rec.released_for_procurement,
             releasedForManufacturing: updates.releasedForManufacturing || rec.released_for_manufacturing,
           })}::jsonb, 'drawing_control', NOW())`);
+
+        const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
+
+        if (rec.assigned_to) {
+          await createEpcTask({
+            projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'released_notification',
+            title: `Drawing ${rec.dwg_control_number} Released — ${dwgProjectCode}`,
+            description: `Your drawing ${rec.dwg_control_number} (${rec.item_description || rec.item_code || ''}) has been released for project ${dwgProjectCode}.`,
+            assignedTo: rec.assigned_to, createdBy: userId, priority: 'Low', dueDays: 0, tx,
+          });
+        }
+
+        const procReleased = updates.releasedForProcurement || rec.released_for_procurement;
+        if (procReleased) {
+          const procAssignee = await resolveAssignee(rec.project_id, 'Projects', userId, tx);
+          if (procAssignee) {
+            await createEpcTask({
+              projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'procurement_released',
+              title: `Drawing Released for Procurement — ${rec.dwg_control_number} — ${dwgProjectCode}`,
+              description: `Drawing ${rec.dwg_control_number} (${rec.item_description || rec.item_code || ''}) has been released for procurement. Please proceed with purchase planning.`,
+              assignedTo: procAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+            });
+          }
+        }
+
+        const mfgReleased = updates.releasedForManufacturing || rec.released_for_manufacturing;
+        if (mfgReleased) {
+          const mfgAssignee = await resolveAssignee(rec.project_id, 'Projects', userId, tx);
+          if (mfgAssignee) {
+            await createEpcTask({
+              projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'manufacturing_released',
+              title: `Drawing Released for Manufacturing — ${rec.dwg_control_number} — ${dwgProjectCode}`,
+              description: `Drawing ${rec.dwg_control_number} (${rec.item_description || rec.item_code || ''}) has been released for manufacturing. Please proceed with production planning.`,
+              assignedTo: mfgAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+            });
+          }
+        }
       });
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} released by user ${userId}`);
