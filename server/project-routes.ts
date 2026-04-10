@@ -88,7 +88,7 @@ async function guardProjectNotFrozen(projectId: number, res: Response): Promise<
 async function resolveProjectIdFromRecord(table: string, idColumn: string, recordId: number): Promise<number | null> {
   const projectIdLookups: Record<string, string> = {
     'item_planning_records': `SELECT pi.project_id FROM item_planning_records ipr JOIN project_items pi ON pi.id = ipr.project_item_id WHERE ipr.id = $1`,
-    'quality_plans': `SELECT pi.project_id FROM quality_plans qp JOIN item_planning_records ipr ON ipr.id = qp.planning_record_id JOIN project_items pi ON pi.id = ipr.project_item_id WHERE qp.id = $1`,
+    'quality_planning_records': `SELECT qpr.project_id FROM quality_planning_records qpr WHERE qpr.id = $1`,
     'inspection_executions': `SELECT ie.project_id FROM inspection_executions ie WHERE ie.id = $1`,
     'po_preparation_records': `SELECT ppr.project_id FROM po_preparation_records ppr WHERE ppr.id = $1`,
     'wo_preparation_records': `SELECT wpr.project_id FROM wo_preparation_records wpr WHERE wpr.id = $1`,
@@ -3814,7 +3814,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/quality-plans/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('quality_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
 
       const existing = await db.execute(sql`SELECT * FROM quality_planning_records WHERE id = ${id}`);
@@ -3848,7 +3848,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('quality_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
 
@@ -3886,7 +3886,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('quality_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
       const { preparationNote } = req.body || {};
@@ -3966,7 +3966,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('quality_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
 
@@ -4009,7 +4009,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('quality_plans', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('quality_planning_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid quality plan ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
