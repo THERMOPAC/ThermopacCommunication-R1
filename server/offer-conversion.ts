@@ -428,7 +428,7 @@ export async function executeOfferConversion(
         offer.total_amount, projectCurrency, epcParams.managerId, userId,
         continentCode, countryCode, fyCode, projectSeq,
         offerId, offer.revision || 0, orderNumber, conversionId,
-        epcParams.automationMode || 'manual'
+        epcParams.automationMode || 'full_auto'
       ]
     );
     const project = projectInsert.rows[0];
@@ -843,8 +843,7 @@ export async function executeOfferConversion(
     }
 
     let automationResult = null;
-    const automationMode = epcParams.automationMode || 'manual';
-    console.log(`[offer-conversion] automationMode=${automationMode} (raw=${epcParams.automationMode})`);
+    const automationMode = epcParams.automationMode || 'full_auto';
     if (automationMode === 'full_auto' && executionDraftSummary) {
       try {
         console.log(`[offer-conversion] Full-auto mode: triggering pipeline for project ${project.id}`);
