@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -138,6 +139,7 @@ export default function EpcControlTower() {
   const pt = summary?.projectTasks || { total: 0, completed: 0, unassigned: 0 };
 
   return (
+    <Layout>
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
       <div className="flex items-center justify-between">
         <div>
@@ -949,5 +951,6 @@ export default function EpcControlTower() {
         </Card>
       </div>
     </div>
+    </Layout>
   );
 }
