@@ -267,12 +267,37 @@ export async function executeProjectCancellationCascade(
   }
   result.dwgOnHold = d3b.rows.length;
 
+  // ─── 3b. Drawing Orders ────────────────────────────────
+  const do3c = await pool.query(`
+    SELECT id, status, do_number FROM epc_drawing_orders
+    WHERE project_id = $1
+      AND status IN ('open', 'draft')
+  `, [projectId]);
+  for (const r of do3c.rows) {
+    allSnapshots.push({ module: 'Drawing Orders', table_name: 'epc_drawing_orders', record_id: r.id, status_before: r.status, status_after: 'canceled', key_data: { do_number: r.do_number }, restoration_eligible: true });
+  }
+  if (do3c.rows.length > 0) {
+    await pool.query(`UPDATE epc_drawing_orders SET status = 'canceled', updated_at = NOW() WHERE id = ANY($1)`, [do3c.rows.map((r: any) => r.id)]);
+  }
+
+  const do3d = await pool.query(`
+    SELECT id, status, do_number FROM epc_drawing_orders
+    WHERE project_id = $1
+      AND status IN ('in_progress', 'completed')
+  `, [projectId]);
+  for (const r of do3d.rows) {
+    allSnapshots.push({ module: 'Drawing Orders', table_name: 'epc_drawing_orders', record_id: r.id, status_before: r.status, status_after: ON_HOLD_STATUS, key_data: { do_number: r.do_number }, restoration_eligible: false });
+  }
+  if (do3d.rows.length > 0) {
+    await pool.query(`UPDATE epc_drawing_orders SET status = $2, updated_at = NOW() WHERE id = ANY($1)`, [do3d.rows.map((r: any) => r.id), ON_HOLD_STATUS]);
+  }
+
   // ─── 4. Planning Records ─────────────────────────────
   // Safe: draft → canceled
   const p4a = await pool.query(`
     SELECT id, status FROM item_planning_records
     WHERE project_item_id IN (SELECT id FROM project_items WHERE project_id = $1)
-      AND status = 'draft'
+      AND status IN ('draft', 'active')
   `, [projectId]);
   for (const r of p4a.rows) {
     allSnapshots.push({ module: 'Planning', table_name: 'item_planning_records', record_id: r.id, status_before: r.status, status_after: 'canceled', key_data: {}, restoration_eligible: true });
@@ -360,6 +385,22 @@ export async function executeProjectCancellationCascade(
     await pool.query(`UPDATE epc_work_orders SET status = $2, updated_at = NOW() WHERE id = ANY($1)`, [wo6b.rows.map((r: any) => r.id), ON_HOLD_STATUS]);
   }
   result.woOnHold = wo6b.rows.length;
+
+  // ─── 6b. Execution Drafts + Production + WO Prep ─────
+  await pool.query(`
+    UPDATE execution_drafts SET activation_status = 'canceled', updated_at = NOW()
+    WHERE project_id = $1 AND activation_status NOT IN ('canceled')
+  `, [projectId]);
+
+  await pool.query(`
+    UPDATE production_execution_records SET status = 'canceled', updated_at = NOW()
+    WHERE project_id = $1 AND status NOT IN ('canceled')
+  `, [projectId]);
+
+  await pool.query(`
+    UPDATE wo_preparation_records SET status = 'canceled', updated_at = NOW()
+    WHERE project_id = $1 AND status NOT IN ('canceled')
+  `, [projectId]);
 
   // Create review task for on-hold POs/WOs
   if (result.poOnHold > 0 || result.woOnHold > 0) {
