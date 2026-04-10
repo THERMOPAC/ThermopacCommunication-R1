@@ -844,6 +844,7 @@ export async function executeOfferConversion(
 
     let automationResult = null;
     const automationMode = epcParams.automationMode || 'manual';
+    console.log(`[offer-conversion] automationMode=${automationMode} (raw=${epcParams.automationMode})`);
     if (automationMode === 'full_auto' && executionDraftSummary) {
       try {
         console.log(`[offer-conversion] Full-auto mode: triggering pipeline for project ${project.id}`);
