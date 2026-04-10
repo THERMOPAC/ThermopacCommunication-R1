@@ -8965,7 +8965,14 @@ export function setupProjectRoutes(app: express.Express) {
           })}::jsonb, 'drawing_control', NOW())`);
 
         if (recommendation === 'approve' || recommendation === 'approve_with_comments') {
-          const dwgApproveAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+          let dwgApproveAssignee: number | null = null;
+          const reviewerMgr = await tx.execute(sql`SELECT reporting_manager_id FROM users WHERE id = ${userId} AND is_active = true`);
+          if (reviewerMgr.rows.length > 0 && (reviewerMgr.rows[0] as any).reporting_manager_id) {
+            dwgApproveAssignee = (reviewerMgr.rows[0] as any).reporting_manager_id;
+          }
+          if (!dwgApproveAssignee) {
+            dwgApproveAssignee = await resolveAssignee(rec.project_id, 'Design', userId, tx);
+          }
           const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
           await createEpcTask({
             projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'approve',
@@ -9031,13 +9038,12 @@ export function setupProjectRoutes(app: express.Express) {
             dwgId: id, dwgControlNumber: rec.dwg_control_number, approvedBy: userId,
           })}::jsonb, 'drawing_control', NOW())`);
 
-        const dwgReleaseAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
         const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
         await createEpcTask({
           projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'release',
           title: `Release Drawing ${rec.dwg_control_number} for ${dwgProjectCode}`,
-          description: `Drawing ${rec.dwg_control_number} has been approved. It is now pending release by a Senior Manager.`,
-          assignedTo: dwgReleaseAssignee, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
+          description: `Drawing ${rec.dwg_control_number} has been approved. It is now pending release.`,
+          assignedTo: userId, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
         });
       });
 
