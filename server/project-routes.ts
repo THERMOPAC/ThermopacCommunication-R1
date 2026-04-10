@@ -5978,29 +5978,35 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve a manually created work order.');
       }
 
-      await db.transaction(async (tx) => {
-        await tx.update(epcWorkOrders)
-          .set({
-            status: 'approved', approvedBy: userId, approvedAt: new Date(),
-            approvalNote: approvalNote || null, updatedAt: new Date(),
-          })
-          .where(eq(epcWorkOrders.id, id));
+      await db.update(epcWorkOrders)
+        .set({
+          status: 'approved', approvedBy: userId, approvedAt: new Date(),
+          approvalNote: approvalNote || null, updatedAt: new Date(),
+        })
+        .where(eq(epcWorkOrders.id, id));
 
-        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+      try {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${wo.project_id}, 'epc_work_order.approved', ${JSON.stringify({
             epcWoId: id, woNumber: wo.wo_number, approvedBy: userId, approvalNote,
             projectItemId: wo.project_item_id, woPrepId: wo.wo_preparation_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
+      } catch (evtErr) {
+        console.error(`[EPC-WO] Non-critical: failed to insert workflow event for ${wo.wo_number}`, evtErr);
+      }
 
-        const woReleaseAssignee = await resolveAssignee(wo.project_id, 'Production', userId, tx);
-        const woRelProjectCode = await resolveProjectCode(wo.project_id, tx);
+      try {
+        const woReleaseAssignee = await resolveAssignee(wo.project_id, 'Production', userId);
+        const woRelProjectCode = await resolveProjectCode(wo.project_id);
         await createEpcTask({
           projectId: wo.project_id, entityType: 'work_order', recordId: id, actionCode: 'release',
           title: `Release EPC WO ${wo.wo_number} for ${woRelProjectCode}`,
           description: `Work order ${wo.wo_number} has been approved and is ready to be released by a Senior Manager.`,
-          assignedTo: woReleaseAssignee, createdBy: userId, priority: 'High', dueDays: 1, tx,
+          assignedTo: woReleaseAssignee, createdBy: userId, priority: 'High', dueDays: 1,
         });
-      });
+      } catch (taskErr) {
+        console.error(`[EPC-WO] Non-critical: failed to create release task for ${wo.wo_number}`, taskErr);
+      }
 
       console.log(`[EPC-WO] Work order ${wo.wo_number} approved by user ${userId}`);
       res.json({ success: true, message: `Work order ${wo.wo_number} approved`, id, newStatus: 'approved' });
@@ -6043,20 +6049,22 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Self-action prevented: the creator cannot also release the same work order.');
       }
 
-      await db.transaction(async (tx) => {
-        await tx.update(epcWorkOrders)
-          .set({
-            status: 'released', releasedBy: userId, releasedAt: new Date(),
-            releaseNote: releaseNote || null, updatedAt: new Date(),
-          })
-          .where(eq(epcWorkOrders.id, id));
+      await db.update(epcWorkOrders)
+        .set({
+          status: 'released', releasedBy: userId, releasedAt: new Date(),
+          releaseNote: releaseNote || null, updatedAt: new Date(),
+        })
+        .where(eq(epcWorkOrders.id, id));
 
-        await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+      try {
+        await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${wo.project_id}, 'epc_work_order.released', ${JSON.stringify({
             epcWoId: id, woNumber: wo.wo_number, releasedBy: userId, releaseNote,
             projectItemId: wo.project_item_id, woPrepId: wo.wo_preparation_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
-      });
+      } catch (evtErr) {
+        console.error(`[EPC-WO] Non-critical: failed to insert workflow event for ${wo.wo_number}`, evtErr);
+      }
 
       console.log(`[EPC-WO] Work order ${wo.wo_number} released by user ${userId}`);
 
