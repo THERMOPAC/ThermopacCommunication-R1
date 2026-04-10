@@ -84,7 +84,7 @@ function Router() {
       <ProtectedRoute path="/profile" component={() => <Employee.ProfilePage />} />
       <ProtectedRoute path="/leaderboard" component={() => <Employee.LeaderboardPage />} />
       <ProtectedRoute path="/recurring-tasks" component={() => <Employee.RecurringTasksPage />} />
-      <ProtectedRoute path="/loans-advances" component={() => <Employee.LoansAdvancesPage />} />
+      <ProtectedRoute path="/loans-advances" component={() => <Layout><Employee.LoansAdvancesPage /></Layout>} />
 
       {/* Sales and Marketing Routes */}
       <ProtectedRoute path="/radar" component={() => <SalesMarketing.RadarPage />} />
@@ -137,9 +137,9 @@ function Router() {
       <ProtectedRoute path="/finance/tools" component={() => <Finance.FinanceToolsPage />} />
       <ProtectedRoute path="/finance/gl-mapping" component={() => <Finance.GlMappingPage />} />
       <ProtectedRoute path="/finance/statutory/tds" component={() => <Finance.TdsCompliancePage />} />
-      <ProtectedRoute path="/finance/statutory/pf" component={() => <Finance.PfCompliancePage />} />
-      <ProtectedRoute path="/finance/statutory/esic" component={() => <Finance.EsicCompliancePage />} />
-      <ProtectedRoute path="/finance/statutory/pt" component={() => <Finance.PtCompliancePage />} />
+      <ProtectedRoute path="/finance/statutory/pf" component={() => <Layout><Finance.PfCompliancePage /></Layout>} />
+      <ProtectedRoute path="/finance/statutory/esic" component={() => <Layout><Finance.EsicCompliancePage /></Layout>} />
+      <ProtectedRoute path="/finance/statutory/pt" component={() => <Layout><Finance.PtCompliancePage /></Layout>} />
       <ProtectedRoute path="/finance/company-income-tax" component={() => <Finance.CompanyIncomeTaxPage />} />
       
       {/* Administration Module Routes */}
