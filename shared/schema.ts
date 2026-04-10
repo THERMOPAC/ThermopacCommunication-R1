@@ -1751,6 +1751,10 @@ export const projects = pgTable('projects', {
   sourceOrderNumber: varchar('source_order_number', { length: 15 }),
   sourceConversionId: uuid('source_conversion_id'),
   projectOrigin: varchar('project_origin', { length: 20 }),
+
+  automationMode: varchar('automation_mode', { length: 20 }).default('manual'),
+  automationRunId: uuid('automation_run_id'),
+  automationCompletedAt: timestamp('automation_completed_at'),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)
@@ -2190,6 +2194,9 @@ export const qualityPlanningRecords = pgTable('quality_planning_records', {
   cancelReason: text('cancel_reason'),
   createdBy: integer('created_by').references(() => users.id),
   assignedTo: integer('assigned_to').references(() => users.id),
+  createdSourceType: varchar('created_source_type', { length: 20 }).default('manual'),
+  createdSourceRef: varchar('created_source_ref', { length: 100 }),
+  automationRunId: uuid('automation_run_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -2320,6 +2327,9 @@ export const inspectionExecutionRecords = pgTable('inspection_execution_records'
   cancelReason: text('cancel_reason'),
   createdBy: integer('created_by').references(() => users.id),
   assignedTo: integer('assigned_to').references(() => users.id),
+  createdSourceType: varchar('created_source_type', { length: 20 }).default('manual'),
+  createdSourceRef: varchar('created_source_ref', { length: 100 }),
+  automationRunId: uuid('automation_run_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -11225,6 +11235,9 @@ export const epcPurchaseOrders = pgTable('epc_purchase_orders', {
   qualityFailureReason: text("quality_failure_reason"),
   qualityFailedInspectionId: integer("quality_failed_inspection_id"),
   createdBy: integer("created_by").references(() => users.id),
+  createdSourceType: varchar("created_source_type", { length: 20 }).default('manual'),
+  createdSourceRef: varchar("created_source_ref", { length: 100 }),
+  automationRunId: uuid("automation_run_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -11300,6 +11313,9 @@ export const epcWorkOrders = pgTable('epc_work_orders', {
   qualityFailureReason: text("quality_failure_reason"),
   qualityFailedInspectionId: integer("quality_failed_inspection_id"),
   createdBy: integer("created_by").references(() => users.id),
+  createdSourceType: varchar("created_source_type", { length: 20 }).default('manual'),
+  createdSourceRef: varchar("created_source_ref", { length: 100 }),
+  automationRunId: uuid("automation_run_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -12147,6 +12163,9 @@ export const executionDrafts = pgTable('execution_drafts', {
   parentDraftId: integer('parent_draft_id'),
   actualDocNumber: varchar('actual_doc_number', { length: 30 }),
   errorMessage: text('error_message'),
+  createdSourceType: varchar('created_source_type', { length: 20 }).default('manual'),
+  createdSourceRef: varchar('created_source_ref', { length: 100 }),
+  automationRunId: uuid('automation_run_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -12174,6 +12193,9 @@ export const epcDrawingOrders = pgTable('epc_drawing_orders', {
   linkedDwgControlId: integer('linked_dwg_control_id'),
   notes: text('notes'),
   createdBy: integer('created_by').notNull().references(() => users.id),
+  createdSourceType: varchar('created_source_type', { length: 20 }).default('manual'),
+  createdSourceRef: varchar('created_source_ref', { length: 100 }),
+  automationRunId: uuid('automation_run_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -12243,3 +12265,27 @@ export const gcsAccessPermissions = pgTable('gcs_access_permissions', {
 });
 
 export type GcsAccessPermission = typeof gcsAccessPermissions.$inferSelect;
+
+export const automationPipelineRuns = pgTable('automation_pipeline_runs', {
+  id: serial('id').primaryKey(),
+  runId: uuid('run_id').notNull().unique(),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  status: varchar('status', { length: 30 }).notNull().default('running'),
+  currentPhase: integer('current_phase').notNull().default(1),
+  currentStep: varchar('current_step', { length: 100 }),
+  triggerUserId: integer('trigger_user_id').notNull().references(() => users.id),
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+  heartbeatAt: timestamp('heartbeat_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+  failedAt: timestamp('failed_at'),
+  failureStep: varchar('failure_step', { length: 100 }),
+  failureMessage: text('failure_message'),
+  failureEntityId: integer('failure_entity_id'),
+  failureEntityType: varchar('failure_entity_type', { length: 50 }),
+  stepResults: jsonb('step_results').notNull().default({}),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const insertAutomationPipelineRunSchema = createInsertSchema(automationPipelineRuns).omit({ id: true, createdAt: true });
+export type AutomationPipelineRun = typeof automationPipelineRuns.$inferSelect;
+export type InsertAutomationPipelineRun = z.infer<typeof insertAutomationPipelineRunSchema>;

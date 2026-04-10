@@ -6,6 +6,7 @@ import * as epcCoding from './epc-coding';
 import { VALID_PROJECT_ITEM_SOURCES, type ProjectItemSource } from '@shared/schema';
 import { freezeConfirmedArtifact, attachConfirmedArtifactToEpc, storeQuotationPdfArtifact } from './utils/quotation-pdf-artifact';
 import { generateExecutionDrafts } from './pipeline/generate-execution-drafts';
+import { executeFullAutoPipeline } from './pipeline/full-auto-orchestrator';
 
 export interface EpcParams {
   continentCode: string;
@@ -15,6 +16,7 @@ export interface EpcParams {
   startDate: string;
   targetEndDate: string;
   managerId: number;
+  automationMode?: 'manual' | 'full_auto';
 }
 
 interface ValidationFailure {
@@ -31,6 +33,7 @@ interface ConversionResult {
   itemsCreated: number;
   itemsPendingMapping: Array<{ offerItemId: number; description: string; taskId: number }>;
   alreadyConverted?: boolean;
+  automationResult?: any;
 }
 
 function deriveFyCode(): string {
@@ -409,12 +412,14 @@ export async function executeOfferConversion(
         estimated_budget, currency, progress, manager_id, created_by,
         continent_code, country_code, fy_code, project_seq,
         source_offer_id, source_offer_revision, source_order_number, source_conversion_id, project_origin,
+        automation_mode,
         created_at, updated_at)
        VALUES ($1, $2, $3, $4, 'active', $5, $6,
                $7, $8, $9, $10,
                $11, $12, 0, $13, $14,
                $15, $16, $17, $18,
                $19, $20, $21, $22, 'sales_offer',
+               $23,
                NOW(), NOW())
        RETURNING *`,
       [
@@ -422,7 +427,8 @@ export async function executeOfferConversion(
         offer.customer_id, customerName, epcParams.startDate, epcParams.targetEndDate,
         offer.total_amount, projectCurrency, epcParams.managerId, userId,
         continentCode, countryCode, fyCode, projectSeq,
-        offerId, offer.revision || 0, orderNumber, conversionId
+        offerId, offer.revision || 0, orderNumber, conversionId,
+        epcParams.automationMode || 'manual'
       ]
     );
     const project = projectInsert.rows[0];
@@ -819,6 +825,19 @@ export async function executeOfferConversion(
       console.error(`[offer-conversion] Execution draft generation failed (non-blocking):`, draftErr);
     }
 
+    let automationResult = null;
+    const automationMode = epcParams.automationMode || 'manual';
+    if (automationMode === 'full_auto' && executionDraftSummary) {
+      try {
+        console.log(`[offer-conversion] Full-auto mode: triggering pipeline for project ${project.id}`);
+        automationResult = await executeFullAutoPipeline(project.id, userId);
+        console.log(`[offer-conversion] Full-auto pipeline ${automationResult.success ? 'completed' : 'failed'}: run=${automationResult.runId}`);
+      } catch (autoErr: any) {
+        console.error(`[offer-conversion] Full-auto pipeline error (non-blocking):`, autoErr);
+        automationResult = { success: false, error: autoErr.message };
+      }
+    }
+
     return {
       offer: updatedOffer.rows[0],
       project: {
@@ -826,6 +845,7 @@ export async function executeOfferConversion(
         code: project.code,
         name: project.name,
         status: project.status,
+        automationMode,
       },
       orderNumber,
       snapshotId,
@@ -833,6 +853,7 @@ export async function executeOfferConversion(
       itemsCreated,
       itemsPendingMapping,
       executionDraftSummary,
+      automationResult,
     };
   } catch (error: any) {
     await client.query('ROLLBACK');

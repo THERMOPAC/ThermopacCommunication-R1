@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
+import { pool } from '../db';
 import { sql } from 'drizzle-orm';
 import { generateExecutionDrafts } from './generate-execution-drafts';
 import { approveDraft, rejectDraft, holdDraft, resumeDraft } from './draft-approval';
 import { activateDraft, linkEntityToDraft } from './draft-activation';
 import { redraftFromRejected } from './draft-redraft';
+import { executeFullAutoPipeline } from './full-auto-orchestrator';
 
 const router = Router();
 
@@ -252,6 +254,73 @@ router.patch('/api/execution-drafts/:draftId/applicability', async (req: Request
     );
 
     res.json({ success: true, message: `Draft #${draftId} applicability set to ${applicable}` });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/api/projects/:projectId/full-auto-pipeline', async (req: Request, res: Response) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (!['Superuser', 'General Manager', 'Senior Manager'].includes(user.role)) {
+    return res.status(403).json({ error: 'Insufficient role. Senior Manager or above required.' });
+  }
+
+  const projectId = parseInt(req.params.projectId);
+  if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+  try {
+    const projectCheck = await pool.query(
+      `SELECT id, automation_mode, status FROM projects WHERE id = $1`,
+      [projectId]
+    );
+    if (projectCheck.rows.length === 0) return res.status(404).json({ error: 'Project not found' });
+
+    const project = projectCheck.rows[0];
+    if (project.automation_mode !== 'full_auto') {
+      await pool.query(
+        `UPDATE projects SET automation_mode = 'full_auto', updated_at = NOW() WHERE id = $1`,
+        [projectId]
+      );
+    }
+
+    const result = await executeFullAutoPipeline(projectId, user.id);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/api/projects/:projectId/automation-status', async (req: Request, res: Response) => {
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  const projectId = parseInt(req.params.projectId);
+  if (isNaN(projectId)) return res.status(400).json({ error: 'Invalid project ID' });
+
+  try {
+    const runs = await pool.query(
+      `SELECT run_id, status, current_phase, current_step, trigger_user_id,
+              started_at, heartbeat_at, completed_at, failed_at,
+              failure_step, failure_message, step_results
+       FROM automation_pipeline_runs
+       WHERE project_id = $1
+       ORDER BY created_at DESC
+       LIMIT 5`,
+      [projectId]
+    );
+
+    const projectInfo = await pool.query(
+      `SELECT automation_mode, automation_run_id, automation_completed_at
+       FROM projects WHERE id = $1`,
+      [projectId]
+    );
+
+    res.json({
+      project: projectInfo.rows[0] || {},
+      runs: runs.rows,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
