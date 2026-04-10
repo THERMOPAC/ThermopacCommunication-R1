@@ -32,6 +32,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
           p.id, p.code, p.name, p.status, p.manager_id,
           p.start_date, p.target_end_date, p.project_origin, p.source_order_number,
           u.username as manager_name,
+          c.bp_name as customer_name,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id AND ks.is_completed = true) as completed_stages,
           (SELECT COUNT(*)::int FROM project_key_stages ks WHERE ks.project_id = p.id) as total_stages,
           (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id AND d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE) as overdue_deliverables,
@@ -39,6 +40,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
           (SELECT COUNT(*)::int FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id WHERE pt.project_id = p.id AND t.assigned_to IS NULL AND t.status != 'completed') as unassigned_tasks
         FROM projects p
         LEFT JOIN users u ON p.manager_id = u.id
+        LEFT JOIN customers c ON p.customer_id = c.id
         WHERE p.status IN ('active', 'planning')
         ORDER BY p.id
       `);

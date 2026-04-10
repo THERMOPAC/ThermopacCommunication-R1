@@ -202,7 +202,7 @@ export default function EpcControlTower() {
                     {(summary?.projects || []).map((p: any) => (
                       <tr key={p.id} className="border-b hover:bg-muted/50">
                         <td className="py-2 font-medium">
-                          {p.code} — {p.clientName || p.name}
+                          {p.code} — {p.customer_name || p.name}
                           {p.project_origin === 'sales_offer' && (
                             <Badge variant="outline" className="ml-2 bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px]">
                               Order {p.source_order_number}
