@@ -401,6 +401,7 @@ export const dwarAuditLog = pgTable('dwar_audit_log', {
   month: integer('month'),
   details: jsonb('details').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  integrityHash: varchar('integrity_hash', { length: 64 }),
 });
 
 export type DwarAuditLog = typeof dwarAuditLog.$inferSelect;

@@ -4,6 +4,30 @@ import { db } from './db';
 import { dailyWorkReports, monthlyKpiSummary, attendanceRecords, users, tasks, recurringTasks, recurringPatterns, notifications, dwarAuditLog } from '@shared/schema';
 import { eq, and, gte, lte, desc, sql, avg, sum, count } from 'drizzle-orm';
 import { ensureAuthenticated } from './auth-middleware';
+import { createHash } from 'crypto';
+
+function computeAuditHash(record: {
+  event: string;
+  actorId: number | null;
+  actorType: string;
+  targetUserId: number | null;
+  reportId: number | null;
+  year: number | null;
+  month: number | null;
+  details: Record<string, any>;
+}): string {
+  const payload = JSON.stringify({
+    event: record.event,
+    actorId: record.actorId,
+    actorType: record.actorType,
+    targetUserId: record.targetUserId,
+    reportId: record.reportId,
+    year: record.year,
+    month: record.month,
+    details: record.details,
+  });
+  return createHash('sha256').update(payload).digest('hex');
+}
 
 async function auditLog(
   event: string,
@@ -18,7 +42,7 @@ async function auditLog(
   }
 ) {
   try {
-    await db.insert(dwarAuditLog).values({
+    const record = {
       event,
       actorId: opts.actorId ?? null,
       actorType: opts.actorType ?? 'user',
@@ -27,6 +51,10 @@ async function auditLog(
       year: opts.year ?? null,
       month: opts.month ?? null,
       details: opts.details ?? {},
+    };
+    await db.insert(dwarAuditLog).values({
+      ...record,
+      integrityHash: computeAuditHash(record),
     });
   } catch (e) {
     console.error(`[DWAR-AUDIT] Failed to persist audit event ${event}:`, e);
