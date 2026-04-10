@@ -558,13 +558,18 @@ export async function executeOfferConversion(
       if (existing.rows.length > 0) {
         return existing.rows[0].id;
       }
+      const productRow = await client.query(
+        `SELECT make_or_buy FROM products WHERE product_code = $1 LIMIT 1`,
+        [productCode]
+      );
+      const makeOrBuy = productRow.rows.length > 0 ? (productRow.rows[0].make_or_buy || 'Make') : 'Make';
       const created = await client.query(
         `INSERT INTO master_items
          (item_code, description, uom, make_or_buy, estimated_cost, notes, created_at, updated_at)
-         VALUES ($1, $2, $3, 'Make', $4, $5, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
          RETURNING id`,
         [
-          masterItemCode, description, unit || 'set',
+          masterItemCode, description, unit || 'set', makeOrBuy,
           estimatedCost || null,
           hsnSacCode ? `HSN/SAC: ${hsnSacCode}` : null
         ]
@@ -583,21 +588,27 @@ export async function executeOfferConversion(
           )
         : null;
 
+      let itemMakeOrBuy = 'Make';
+      if (masterItemId) {
+        const miRow = await client.query(`SELECT make_or_buy FROM master_items WHERE id = $1`, [masterItemId]);
+        if (miRow.rows.length > 0 && miRow.rows[0].make_or_buy) itemMakeOrBuy = miRow.rows[0].make_or_buy;
+      }
+
       const piResult = await client.query(
         `INSERT INTO project_items
          (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
           quantity, estimated_cost, notes, status, source,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Make',
-          $8, $9, $10, 'Not Started', 'sales_offer',
-          $11, $12, $13, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+          $9, $10, $11, 'Not Started', 'sales_offer',
+          $12, $13, $14, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
         [
           project.id, projectCode, masterItemId,
-          projectItemCode, codeBars, offerItem.description, offerItem.unit || 'set',
+          projectItemCode, codeBars, offerItem.description, offerItem.unit || 'set', itemMakeOrBuy,
           offerItem.quantity, offerItem.total_price,
           offerItem.description,
           offerId, offerItem.id, orderNumber
@@ -624,22 +635,28 @@ export async function executeOfferConversion(
           )
         : null;
 
+      let childMakeOrBuy = 'Make';
+      if (masterItemId) {
+        const miRow = await client.query(`SELECT make_or_buy FROM master_items WHERE id = $1`, [masterItemId]);
+        if (miRow.rows.length > 0 && miRow.rows[0].make_or_buy) childMakeOrBuy = miRow.rows[0].make_or_buy;
+      }
+
       const piResult = await client.query(
         `INSERT INTO project_items
          (project_id, project_code, item_id, item_code, code_bars, description, uom, make_or_buy,
           quantity, estimated_cost, notes, status, source,
           parent_project_item_id,
           source_offer_id, source_offer_item_id, source_order_number, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'Make',
-          $8, $9, $10, 'Not Started', 'sales_offer',
-          $11, $12, $13, $14, NOW(), NOW())
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+          $9, $10, $11, 'Not Started', 'sales_offer',
+          $12, $13, $14, $15, NOW(), NOW())
          ON CONFLICT (source_order_number, source_offer_item_id)
            WHERE source_order_number IS NOT NULL AND source_offer_item_id IS NOT NULL
          DO NOTHING
          RETURNING id`,
         [
           project.id, projectCode, masterItemId,
-          projectItemCode, codeBars, childItem.description, childItem.unit || 'set',
+          projectItemCode, codeBars, childItem.description, childItem.unit || 'set', childMakeOrBuy,
           childItem.quantity, childItem.total_price,
           childItem.description,
           parentProjectItemId,
