@@ -230,7 +230,32 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   );
   const woEntityId = (epcWoResult.rows[0] as any).id;
 
-  console.log(`[DraftActivation] WO chain: planning #${planningRecordId} → execution #${executionRecordId} → wo_prep #${woPrepId} → epc_work_order #${woEntityId}`);
+  let qualityPlanId: number | null = null;
+  try {
+    const qpNumber = await generateDocumentNumber(draft.project_id, 'QPL');
+    const qpResult = await db.execute(
+      sql`INSERT INTO quality_planning_records
+          (project_id, project_item_id, master_item_id, source_context,
+           item_code, item_description, uom, quantity,
+           quality_requirement_type, quality_plan_number, quality_notes,
+           status, created_by, created_at, updated_at)
+          VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'work_order',
+                  ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
+                  'standard_inspection', ${qpNumber},
+                  ${'Auto-created from WO activation ' + draft.doc_number},
+                  'draft', ${userId}, NOW(), NOW())
+          RETURNING id`
+    );
+    qualityPlanId = (qpResult.rows[0] as any).id;
+    await db.execute(
+      sql`UPDATE epc_work_orders SET quality_plan_id = ${qualityPlanId}, updated_at = NOW() WHERE id = ${woEntityId}`
+    );
+    console.log(`[DraftActivation] Quality plan ${qpNumber} (id=${qualityPlanId}) created for WO #${woEntityId}`);
+  } catch (qpErr) {
+    console.error(`[DraftActivation] Non-critical: failed to create quality plan for WO #${woEntityId}`, qpErr);
+  }
+
+  console.log(`[DraftActivation] WO chain: planning #${planningRecordId} → execution #${executionRecordId} → wo_prep #${woPrepId} → epc_work_order #${woEntityId} → quality_plan #${qualityPlanId}`);
   return { entityId: woEntityId, entityType: 'epc_work_orders' };
 }
 
