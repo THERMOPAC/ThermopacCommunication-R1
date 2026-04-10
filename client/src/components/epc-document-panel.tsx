@@ -581,6 +581,7 @@ export default function EpcDocumentPanel({
   }
 
   return (
+    <TooltipProvider>
     <Card className="shadow-sm">
       <CardHeader className="py-2 px-3">
         <CardTitle className="text-[11px] font-medium flex items-center justify-between">
@@ -779,5 +780,6 @@ export default function EpcDocumentPanel({
       {renderHistoryDialog()}
       {canViewAccessLog && renderAccessLogDialog()}
     </Card>
+    </TooltipProvider>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useProjectFilter } from "@/hooks/use-project-filter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
@@ -332,8 +332,8 @@ export default function EpcWorkOrdersPage() {
                   const actions = getAvailableActions(wo);
                   const canEdit = userLevel <= 3 && !["canceled", "superseded", "released"].includes(wo.status);
                   return (
-                    <>
-                      <TableRow key={wo.id} className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : wo.id)}>
+                    <Fragment key={wo.id}>
+                      <TableRow className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : wo.id)}>
                         <TableCell className="py-1.5">
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </TableCell>
@@ -500,7 +500,7 @@ export default function EpcWorkOrdersPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
