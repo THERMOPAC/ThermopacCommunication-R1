@@ -126,6 +126,7 @@ type DrawingControl = {
   superseded_at: string | null;
   supersession_reason: string | null;
   supersedes_id: number | null;
+  attachment_count: number;
 };
 
 type ActionDef = {
@@ -142,7 +143,7 @@ type ActionDef = {
 };
 
 const LIFECYCLE_ACTIONS: ActionDef[] = [
-  { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 3, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote" },
+  { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 3, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote", extraCheck: (r) => (r.attachment_count || 0) > 0 },
   { key: "review", label: "Review", icon: Eye, variant: "default", minRoleLevel: 3, statusRequired: ["under_review"], needsNote: true, noteLabel: "Review Note", noteKey: "reviewNote" },
   { key: "approve", label: "Approve", icon: CheckCircle2, variant: "default", minRoleLevel: 2, statusRequired: ["under_review"], extraCheck: (r) => !!r.reviewed_by },
   { key: "release", label: "Release", icon: ShieldCheck, variant: "default", minRoleLevel: 2, statusRequired: ["approved"], needsNote: true, noteLabel: "Release Note", noteKey: "releaseNote" },
@@ -523,6 +524,8 @@ export default function EpcDrawingControlPage() {
                                       <span className="text-[8px] text-muted-foreground">+{actions.length - 2}</span>
                                     )}
                                   </div>
+                                ) : rec.status === "draft" && (rec.attachment_count || 0) === 0 ? (
+                                  <span className="text-[8px] text-amber-600 flex items-center gap-1 justify-center"><UploadCloud className="h-3 w-3" /> Upload drawing first</span>
                                 ) : (
                                   <span className="text-[8px] text-muted-foreground">—</span>
                                 )}
@@ -598,6 +601,8 @@ export default function EpcDrawingControlPage() {
                                                 ? "No actions available — record is terminal."
                                                 : rec.status === "pending_upload"
                                                 ? "Upload a file to activate this record before lifecycle actions become available."
+                                                : rec.status === "draft" && (rec.attachment_count || 0) === 0
+                                                ? "Upload at least one drawing file below before submitting for review."
                                                 : "No actions available for your role on this record."}
                                             </p>
                                           ) : (

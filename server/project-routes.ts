@@ -8703,7 +8703,16 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       const results = await db.execute(
-        sql`SELECT * FROM epc_drawing_controls WHERE project_id = ${projectId} ORDER BY created_at DESC`
+        sql`SELECT dc.*, COALESCE(att.cnt, 0)::int AS attachment_count
+            FROM epc_drawing_controls dc
+            LEFT JOIN (
+              SELECT parent_entity_id, COUNT(*)::int AS cnt
+              FROM epc_document_attachments
+              WHERE parent_entity_type = 'drawing_control' AND doc_type = 'DWG' AND status = 'active'
+              GROUP BY parent_entity_id
+            ) att ON att.parent_entity_id = dc.id
+            WHERE dc.project_id = ${projectId}
+            ORDER BY dc.created_at DESC`
       );
       res.json(results.rows);
     } catch (error) {
@@ -8862,6 +8871,12 @@ export function setupProjectRoutes(app: express.Express) {
 
       if (!rec.drawing_number) {
         return sendBusinessError(res, 'Cannot submit: drawing number is required before review submission.');
+      }
+
+      const attCheck = await db.execute(sql`SELECT COUNT(*)::int AS cnt FROM epc_document_attachments WHERE parent_entity_type = 'drawing_control' AND parent_entity_id = ${id} AND doc_type = 'DWG' AND status = 'active'`);
+      const attCount = (attCheck.rows[0] as any)?.cnt || 0;
+      if (attCount === 0) {
+        return sendBusinessError(res, 'Cannot submit: at least one drawing file must be uploaded before submitting for review.');
       }
 
       await db.transaction(async (tx) => {
