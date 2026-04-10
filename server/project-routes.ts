@@ -6038,11 +6038,13 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
 
-      if (wo.approved_by === userId) {
+      const isSystemGenerated = wo.wo_notes && wo.wo_notes.startsWith('Auto-created from Execution Draft');
+
+      if (wo.approved_by === userId && !isSystemGenerated) {
         return sendBusinessError(res, 'Self-action prevented: the approver cannot also release the same work order. A different authorized user must release it.');
       }
 
-      if (wo.created_by === userId) {
+      if (wo.created_by === userId && !isSystemGenerated) {
         return sendBusinessError(res, 'Self-action prevented: the creator cannot also release the same work order.');
       }
 
