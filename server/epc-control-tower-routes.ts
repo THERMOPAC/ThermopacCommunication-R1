@@ -633,7 +633,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
 
       const pendingInspections = await pool.query(`
         SELECT
-          ier.id, ier.inspection_order_number, ier.inspection_type, ier.status,
+          ier.id, ier.inspection_number, ier.inspection_type, ier.status,
           ier.project_item_id, ier.created_at,
           EXTRACT(DAY FROM (NOW() - ier.created_at))::int as age_days,
           mi.item_code, mi.description as item_description,
