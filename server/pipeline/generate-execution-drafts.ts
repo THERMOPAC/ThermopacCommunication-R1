@@ -93,11 +93,13 @@ export async function generateExecutionDrafts(
       continue;
     }
 
-    const isMake = (item.makeOrBuy || '').toLowerCase() === 'make';
+    const classification = (item.makeOrBuy || 'Make').toLowerCase();
+    const isMake = classification === 'make';
+    const isService = classification === 'service';
     const docTypes: DraftDocType[] = ['DO', 'WO', 'PO', 'IO'];
 
     for (const docType of docTypes) {
-      const applicable = getApplicability(docType, isMake);
+      const applicable = getApplicability(docType, isMake, isService);
 
       if (!applicable) {
         await insertDraft(executor, {
@@ -134,8 +136,8 @@ export async function generateExecutionDrafts(
         docNumber = `${project.code}-${docType}-${seq}`;
       }
 
-      const depDocType = getDependencyDocType(docType, isMake);
-      const depStatus = getDependencyStatus(docType, isMake);
+      const depDocType = getDependencyDocType(docType, isMake, isService);
+      const depStatus = isService ? 'not_required' as DependencyStatus : getDependencyStatus(docType, isMake);
       const approvalStatus: ApprovalStatus = depStatus === 'blocked' ? 'draft' : 'pending_approval';
 
       const sourceData = buildSourceData(item, docType, isMake);
@@ -196,7 +198,10 @@ export async function generateExecutionDrafts(
   return summary;
 }
 
-function getApplicability(docType: DraftDocType, isMake: boolean): boolean {
+function getApplicability(docType: DraftDocType, isMake: boolean, isService: boolean = false): boolean {
+  if (isService) {
+    return docType === 'WO';
+  }
   switch (docType) {
     case 'DO': return isMake;
     case 'WO': return isMake;
@@ -206,7 +211,8 @@ function getApplicability(docType: DraftDocType, isMake: boolean): boolean {
   }
 }
 
-function getDependencyDocType(docType: DraftDocType, isMake: boolean): string | null {
+function getDependencyDocType(docType: DraftDocType, isMake: boolean, isService: boolean = false): string | null {
+  if (isService) return null;
   if (docType === 'WO' && isMake) return 'DO';
   return null;
 }
