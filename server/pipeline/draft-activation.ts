@@ -61,9 +61,27 @@ export async function activateDraft(
       return { success: true, entityId, entityType };
     }
 
+    if (docType === 'WO') {
+      const { entityId, entityType } = await activateWorkOrder(draft, userId);
+
+      await db.execute(
+        sql`UPDATE execution_drafts
+            SET activation_status = 'activated',
+                activated_entity_id = ${entityId},
+                activated_entity_type = ${entityType},
+                activated_by = ${userId},
+                activated_at = NOW(),
+                updated_at = NOW()
+            WHERE id = ${draftId}`
+      );
+
+      console.log(`[DraftActivation] WO ${draft.doc_number} → work_order #${entityId}`);
+      return { success: true, entityId, entityType, message: `Work Order ${draft.doc_number} created successfully.` };
+    }
+
     const routing = ROUTING_MAP[docType as keyof typeof ROUTING_MAP] || { department: 'Projects', preferredRole: 'Senior Executive' };
     const assignee = await resolveAssignee(draft.project_id, routing.department, userId, undefined, routing.preferredRole);
-    const entityLabel = docType === 'WO' ? 'Work Order' : 'Purchase Order';
+    const entityLabel = 'Purchase Order';
     const taskId = await createEpcTask({
       projectId: draft.project_id,
       entityType: 'execution_draft',
@@ -157,6 +175,38 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
   }
 
   return { entityId: doEntityId, entityType: 'epc_drawing_orders' };
+}
+
+async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
+  const sd = draft.source_data || {};
+  const itemCode = sd.item_code || sd.master_item_code || '';
+  const itemDesc = sd.master_item_description || sd.item_description || '';
+  const quantity = parseInt(sd.quantity, 10) || 1;
+
+  const projResult = await db.execute(
+    sql`SELECT code FROM projects WHERE id = ${draft.project_id}`
+  );
+  const projectCode = projResult.rows.length > 0 ? (projResult.rows[0] as any).code : '';
+
+  const today = new Date();
+  const plannedEnd = new Date(today);
+  plannedEnd.setDate(plannedEnd.getDate() + 30);
+
+  const result = await db.execute(
+    sql`INSERT INTO work_orders
+        (project_id, project_code, work_order_number, title, description,
+         status, priority, planned_start_date, planned_end_date,
+         quantity, supervisor_id, created_by)
+        VALUES (${draft.project_id}, ${projectCode}, ${draft.doc_number},
+                ${itemDesc || `Work Order for ${itemCode}`},
+                ${'Auto-created from Execution Draft ' + draft.doc_number + '. Item: ' + itemCode + ', Quantity: ' + sd.quantity + ' ' + (sd.uom || '')},
+                'draft', 'High', ${today.toISOString()}, ${plannedEnd.toISOString()},
+                ${quantity}, ${userId}, ${userId})
+        RETURNING id`
+  );
+  const woEntityId = (result.rows[0] as any).id;
+
+  return { entityId: woEntityId, entityType: 'work_orders' };
 }
 
 export async function linkEntityToDraft(
