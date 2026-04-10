@@ -8703,7 +8703,8 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       const projectId = parseInt(req.params.projectId);
       const results = await db.execute(
-        sql`SELECT dc.*, COALESCE(att.cnt, 0)::int AS attachment_count
+        sql`SELECT dc.*, COALESCE(att.cnt, 0)::int AS attachment_count,
+                   u_assigned.username AS assigned_to_name, u_assigned.department AS assigned_to_department
             FROM epc_drawing_controls dc
             LEFT JOIN (
               SELECT parent_entity_id, COUNT(*)::int AS cnt
@@ -8711,6 +8712,7 @@ export function setupProjectRoutes(app: express.Express) {
               WHERE parent_entity_type = 'drawing_control' AND doc_type = 'DWG' AND status = 'active'
               GROUP BY parent_entity_id
             ) att ON att.parent_entity_id = dc.id
+            LEFT JOIN users u_assigned ON u_assigned.id = dc.assigned_to
             WHERE dc.project_id = ${projectId}
             ORDER BY dc.created_at DESC`
       );

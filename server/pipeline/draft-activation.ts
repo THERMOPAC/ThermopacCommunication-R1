@@ -144,6 +144,11 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const mfgReq = classification === 'Make' || true;
     const drawingNumber = itemBarcode || itemCode;
 
+    const designAssignee = await db.execute(
+      sql`SELECT id FROM users WHERE department = 'Design' AND role = 'Senior Executive' AND is_active = true LIMIT 1`
+    );
+    const designAssigneeId = designAssignee.rows.length > 0 ? (designAssignee.rows[0] as any).id : null;
+
     await db.execute(
       sql`INSERT INTO epc_drawing_controls
           (dwg_control_number, revision_code, is_current, revision_status,
@@ -152,16 +157,16 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
            item_code, item_description, classification_snapshot,
            drawing_purpose, procurement_release_required, manufacturing_release_required,
            client_approval_required, client_approval_status,
-           status, notes, created_by)
+           status, notes, created_by, assigned_to)
           VALUES (${dwgControlNumber}, '00', true, 'draft',
                   ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null},
                   ${drawingNumber}, ${itemDesc}, ${'00'},
                   ${itemCode}, ${itemDesc}, ${classification},
                   'general', ${procReq}, ${mfgReq},
                   false, 'not_required',
-                  'draft', ${'Auto-created from Drawing Order ' + draft.doc_number}, ${userId})`
+                  'draft', ${'Auto-created from Drawing Order ' + draft.doc_number}, ${userId}, ${designAssigneeId})`
     );
-    console.log(`[DraftActivation] Created drawing control ${dwgControlNumber} from DO ${draft.doc_number}`);
+    console.log(`[DraftActivation] Created drawing control ${dwgControlNumber} from DO ${draft.doc_number} (assigned to user ${designAssigneeId})`);
   } catch (err: any) {
     console.error(`[DraftActivation] Warning: Failed to auto-create drawing control for DO ${draft.doc_number}:`, err.message);
   }

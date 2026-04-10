@@ -461,12 +461,13 @@ export default function EpcDrawingControlPage() {
                         <TableHead className="text-[10px] text-center">Manufacturing</TableHead>
                         <TableHead className="text-[10px] text-center">Client</TableHead>
                         <TableHead className="text-[10px]">Purpose</TableHead>
+                        <TableHead className="text-[10px]">Assigned To</TableHead>
                         <TableHead className="text-[10px] text-center">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filtered.length === 0 ? (
-                        <TableRow><TableCell colSpan={11} className="text-center text-sm text-muted-foreground py-8">No drawing controls found.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">No drawing controls found.</TableCell></TableRow>
                       ) : filtered.map((rec) => {
                         const isExpanded = expandedId === rec.id;
                         const actions = getAvailableActions(rec);
@@ -499,6 +500,11 @@ export default function EpcDrawingControlPage() {
                                 ) : <span className="text-[8px] text-muted-foreground">N/R</span>}
                               </TableCell>
                               <TableCell className="text-[10px] py-1.5 capitalize">{rec.drawing_purpose || "—"}</TableCell>
+                              <TableCell className="text-[10px] py-1.5">
+                                {rec.assigned_to_name ? (
+                                  <span className="text-[10px]">{rec.assigned_to_name}</span>
+                                ) : <span className="text-[8px] text-muted-foreground italic">Unassigned</span>}
+                              </TableCell>
                               <TableCell className="text-center py-1.5">
                                 {actions.length > 0 ? (
                                   <div className="flex items-center justify-center gap-1">
@@ -534,7 +540,7 @@ export default function EpcDrawingControlPage() {
 
                             {isExpanded && (
                               <TableRow className="bg-muted/10">
-                                <TableCell colSpan={11} className="p-3">
+                                <TableCell colSpan={12} className="p-3">
                                   <div className="space-y-3">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       <Card className="shadow-sm">
