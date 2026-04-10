@@ -245,8 +245,8 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
               ${parsed.continentCode}, ${continentName || parsed.continentCode}, ${parsed.countryCode}, ${countryName || parsed.countryCode},
               ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
               ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType}, ${parsed.revision},
-              ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? unresolvedFields : null},
-              ${assuranceFlags.length > 0 ? assuranceFlags : null},
+              ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? sql`${'{' + unresolvedFields.join(',') + '}'}::text[]` : null},
+              ${assuranceFlags.length > 0 ? sql`${'{' + assuranceFlags.join(',') + '}'}::text[]` : null},
               ${updatedAt}, NOW()
             )
             ON CONFLICT (file_path) DO UPDATE SET
