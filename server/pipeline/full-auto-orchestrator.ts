@@ -266,6 +266,17 @@ async function executePhase2(ctx: AutomationContext, results: StepResult[]): Pro
     );
   }
 
+  await pool.query(
+    `UPDATE execution_drafts
+     SET dependency_status = 'met', updated_at = NOW()
+     WHERE project_id = $1 AND doc_type = 'WO' AND dependency_status = 'blocked' AND applicable = true
+       AND project_item_id NOT IN (
+         SELECT project_item_id FROM execution_drafts
+         WHERE project_id = $1 AND doc_type = 'DO' AND applicable = true
+       )`,
+    [ctx.projectId]
+  );
+
   const woDrafts = await pool.query(
     `SELECT id, doc_type, doc_number, approval_status
      FROM execution_drafts
