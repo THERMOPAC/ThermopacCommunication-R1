@@ -8863,7 +8863,7 @@ export function setupProjectRoutes(app: express.Express) {
       const userId = (req.user as any)?.id;
       const { submissionNote } = req.body;
 
-      const results = await db.execute(sql`SELECT * FROM epc_drawing_controls WHERE id = ${id}`);
+      const results = await db.execute(sql`SELECT dc.*, u_asgn.username AS assigned_to_name FROM epc_drawing_controls dc LEFT JOIN users u_asgn ON u_asgn.id = dc.assigned_to WHERE dc.id = ${id}`);
       if (results.rows.length === 0) return sendNotFound(res, 'Drawing control record not found');
       const rec = results.rows[0] as any;
 
@@ -8895,12 +8895,21 @@ export function setupProjectRoutes(app: express.Express) {
             dwgId: id, dwgControlNumber: rec.dwg_control_number, submittedBy: userId,
           })}::jsonb, 'drawing_control', NOW())`);
 
-        const dwgReviewAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        let dwgReviewAssignee: number | null = null;
+        if (rec.assigned_to) {
+          const mgrResult = await tx.execute(sql`SELECT reporting_manager_id FROM users WHERE id = ${rec.assigned_to} AND is_active = true`);
+          if (mgrResult.rows.length > 0 && (mgrResult.rows[0] as any).reporting_manager_id) {
+            dwgReviewAssignee = (mgrResult.rows[0] as any).reporting_manager_id;
+          }
+        }
+        if (!dwgReviewAssignee) {
+          dwgReviewAssignee = await resolveAssignee(rec.project_id, 'Design', userId, tx);
+        }
         const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
         await createEpcTask({
           projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'review',
           title: `Review Drawing ${rec.dwg_control_number} for ${dwgProjectCode}`,
-          description: `Drawing ${rec.dwg_control_number} has been submitted for review. Please review and provide your recommendation (approve/reject).`,
+          description: `Drawing ${rec.dwg_control_number} has been submitted for review by ${rec.assigned_to_name || 'engineer'}. Please review and provide your recommendation (approve/reject).`,
           assignedTo: dwgReviewAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
         });
       });
