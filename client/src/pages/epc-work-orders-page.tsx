@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from "react";
+import { useState, useMemo } from "react";
 import { useProjectFilter } from "@/hooks/use-project-filter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest, fetchWithProjectAccess } from "@/lib/queryClient";
@@ -331,9 +331,8 @@ export default function EpcWorkOrdersPage() {
                   const isExpanded = expandedRow === wo.id;
                   const actions = getAvailableActions(wo);
                   const canEdit = userLevel <= 3 && !["canceled", "superseded", "released"].includes(wo.status);
-                  return (
-                    <Fragment key={wo.id}>
-                      <TableRow className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : wo.id)}>
+                  return [
+                      <TableRow key={wo.id} className={`cursor-pointer hover:bg-muted/40 ${isExpanded ? "bg-muted/30" : ""}`} onClick={() => setExpandedRow(isExpanded ? null : wo.id)}>
                         <TableCell className="py-1.5">
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </TableCell>
@@ -375,8 +374,8 @@ export default function EpcWorkOrdersPage() {
                             ))}
                           </div>
                         </TableCell>
-                      </TableRow>
-                      {isExpanded && (
+                      </TableRow>,
+                      isExpanded ? (
                         <TableRow key={`${wo.id}-detail`}>
                           <TableCell colSpan={10} className="p-0 bg-muted/10">
                             <div className="p-3 space-y-3">
@@ -499,9 +498,8 @@ export default function EpcWorkOrdersPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      )}
-                    </Fragment>
-                  );
+                      ) : null,
+                  ];
                 })}
               </TableBody>
             </Table>
