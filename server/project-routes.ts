@@ -4345,6 +4345,47 @@ export function setupProjectRoutes(app: express.Express) {
           })}::jsonb, 'lifecycle_action', NOW())`);
       });
 
+      if (result === 'pass' || result === 'conditional_pass') {
+        try {
+          const piResult = await db.execute(sql`SELECT pi.id, pi.master_item_id, pi.item_code, pi.item_description, pi.uom, pi.quantity, pi.classification
+            FROM project_items pi WHERE pi.id = ${record.project_item_id}`);
+          if (piResult.rows.length > 0) {
+            const pi = piResult.rows[0] as any;
+            const drNumber = await epcCoding.generateDocumentNumber(record.project_id, 'DR', db);
+            const sourceType = pi.classification === 'Buy' ? 'purchase_order' : 'work_order';
+            const drInsert = await db.execute(
+              sql`INSERT INTO epc_dispatch_readiness
+                  (dr_number, project_id, project_item_id, master_item_id,
+                   inspection_execution_id, quality_plan_id,
+                   item_code, item_description, uom, quantity,
+                   quality_clearance_date, quality_clearance_reference,
+                   source_type, status, created_by, created_at)
+                  VALUES (${drNumber}, ${record.project_id}, ${record.project_item_id}, ${pi.master_item_id},
+                          ${id}, ${record.quality_plan_id},
+                          ${pi.item_code}, ${pi.item_description}, ${pi.uom || 'EA'}, ${pi.quantity || 1},
+                          NOW(), ${'Inspection ' + id + ' - ' + result},
+                          ${sourceType}, 'ready', ${userId}, NOW())
+                  RETURNING id`
+            );
+            const drId = (drInsert.rows[0] as any)?.id;
+            console.log(`[InspectionExec] Auto-created dispatch readiness ${drNumber} for project item ${record.project_item_id}`);
+
+            const projAssignee = await resolveAssignee(record.project_id, 'Projects', userId);
+            if (projAssignee && drId) {
+              const projCode = await resolveProjectCode(record.project_id);
+              await createEpcTask({
+                projectId: record.project_id, entityType: 'dispatch_readiness', recordId: drId, actionCode: 'prepare_dispatch',
+                title: `Prepare Dispatch ${drNumber} — ${projCode}`,
+                description: `Item ${pi.item_description || pi.item_code} has passed inspection and is ready for dispatch. Please prepare packaging and shipping details.`,
+                assignedTo: projAssignee, createdBy: userId, priority: 'High', dueDays: 3,
+              });
+            }
+          }
+        } catch (drErr: any) {
+          console.error(`[InspectionExec] Warning: Failed to auto-create dispatch readiness:`, drErr.message);
+        }
+      }
+
       console.log(`[InspectionExec] Record ${id} completed with result '${result}' by user ${userId}. Quality linkage: POs=${qualityLinkage.linkedPOs}, WOs=${qualityLinkage.linkedWOs}`);
       res.json({ success: true, message: 'Inspection execution completed', id, newStatus: 'completed', result, qualityLinkage });
     } catch (error) {
@@ -6945,6 +6986,55 @@ export function setupProjectRoutes(app: express.Express) {
             actualDeliveryDate: actualDeliveryDate || new Date().toISOString(),
           })}::jsonb, 'dispatch_execution', NOW())`);
       });
+
+      try {
+        const existingBr = await db.execute(
+          sql`SELECT id FROM epc_billing_readiness WHERE dispatch_record_id = ${id} AND billing_basis = 'dispatch' AND status NOT IN ('canceled', 'superseded')`
+        );
+        if (existingBr.rows.length === 0) {
+          const brNumber = await epcCoding.generateDocumentNumber(d.project_id, 'BR', db);
+          const brInsert = await db.execute(
+            sql`INSERT INTO epc_billing_readiness
+                (br_number, project_id, project_item_id, dispatch_record_id,
+                 dispatch_readiness_id, epc_purchase_order_id, epc_work_order_id,
+                 inspection_execution_id, quality_plan_id, master_item_id,
+                 billing_basis, item_code, item_description, item_specification,
+                 uom, quantity, currency, tax_applicable,
+                 dispatch_number, dispatch_date, delivery_date,
+                 source_type, status, created_by, created_at)
+                VALUES (${brNumber}, ${d.project_id}, ${d.project_item_id}, ${id},
+                        ${d.dispatch_readiness_id || null}, ${d.epc_purchase_order_id || null}, ${d.epc_work_order_id || null},
+                        ${d.inspection_execution_id || null}, ${d.quality_plan_id || null}, ${d.master_item_id || null},
+                        'dispatch', ${d.item_code || null}, ${d.item_description || null}, ${d.item_specification || null},
+                        ${d.uom || null}, ${d.quantity || d.dispatch_quantity || null}, 'INR', true,
+                        ${d.dispatch_number}, ${d.dispatch_date || null}, ${actualDeliveryDate ? new Date(actualDeliveryDate) : new Date()},
+                        ${d.source_type || 'purchase_order'}, 'draft', ${userId}, NOW())
+                RETURNING id`
+          );
+          const brId = (brInsert.rows[0] as any)?.id;
+          console.log(`[DISP] Auto-created billing readiness ${brNumber} for dispatch ${d.dispatch_number}`);
+
+          await db.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+            VALUES (${d.project_id}, 'billing_readiness.created', ${JSON.stringify({
+              brId, brNumber, billingBasis: 'dispatch',
+              dispatchRecordId: id, projectItemId: d.project_item_id, createdBy: userId,
+              autoCreated: true,
+            })}::jsonb, 'dispatch_delivery_trigger', NOW())`);
+
+          const finAssignee = await resolveAssignee(d.project_id, 'Finance', userId);
+          if (finAssignee && brId) {
+            const projCode = await resolveProjectCode(d.project_id);
+            await createEpcTask({
+              projectId: d.project_id, entityType: 'billing_readiness', recordId: brId, actionCode: 'review_billing',
+              title: `Review Billing ${brNumber} — ${projCode}`,
+              description: `Dispatch ${d.dispatch_number} has been delivered. Billing readiness ${brNumber} created for item ${d.item_description || d.item_code || 'N/A'}. Please review and submit for approval.`,
+              assignedTo: finAssignee, createdBy: userId, priority: 'High', dueDays: 5,
+            });
+          }
+        }
+      } catch (brErr: any) {
+        console.error(`[DISP] Warning: Failed to auto-create billing readiness for ${d.dispatch_number}:`, brErr.message);
+      }
 
       console.log(`[DISP] ${d.dispatch_number} delivered, confirmed by user ${userId}`);
       res.json({ success: true, message: `${d.dispatch_number} marked as delivered`, id, newStatus: 'delivered' });

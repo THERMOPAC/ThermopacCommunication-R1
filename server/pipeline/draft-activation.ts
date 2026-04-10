@@ -170,9 +170,10 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const dwgRecordId = (dwgInsertResult.rows[0] as any)?.id;
     console.log(`[DraftActivation] Created drawing control ${dwgControlNumber} from DO ${draft.doc_number} (assigned to user ${designAssigneeId})`);
 
+    const projCodeResult = await db.execute(sql`SELECT project_code FROM projects WHERE id = ${draft.project_id}`);
+    const projCode = projCodeResult.rows.length > 0 ? (projCodeResult.rows[0] as any).project_code : '';
+
     if (designAssigneeId && dwgRecordId) {
-      const projCodeResult = await db.execute(sql`SELECT project_code FROM projects WHERE id = ${draft.project_id}`);
-      const projCode = projCodeResult.rows.length > 0 ? (projCodeResult.rows[0] as any).project_code : '';
       await createEpcTask({
         projectId: draft.project_id, entityType: 'drawing_control', recordId: dwgRecordId, actionCode: 'upload',
         title: `Upload Drawing ${dwgControlNumber} for ${projCode}`,
@@ -180,6 +181,36 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
         assignedTo: designAssigneeId, createdBy: userId, priority: 'Medium', dueDays: 5,
       });
       console.log(`[DraftActivation] Created upload task for ${dwgControlNumber} assigned to user ${designAssigneeId}`);
+    }
+
+    try {
+      const bomNumber = await generateDocumentNumber(draft.project_id, 'BOM', db);
+      const bomInsert = await db.execute(
+        sql`INSERT INTO epc_bom_headers
+            (bom_number, project_id, project_item_id, master_item_id, drawing_control_id,
+             bom_type, bom_title, bom_description, item_code, item_description,
+             classification_snapshot, drawing_number, drawing_revision,
+             status, created_by, assigned_to)
+            VALUES (${bomNumber}, ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null}, ${dwgRecordId},
+                    'assembly', ${'BOM for ' + (itemDesc || itemCode)}, ${'Auto-created from Drawing Order ' + draft.doc_number},
+                    ${itemCode}, ${itemDesc},
+                    ${classification}, ${drawingNumber}, ${'00'},
+                    'draft', ${userId}, ${designAssigneeId})
+            RETURNING id`
+      );
+      const bomId = (bomInsert.rows[0] as any)?.id;
+      console.log(`[DraftActivation] Created BOM ${bomNumber} linked to DWG ${dwgControlNumber}`);
+
+      if (designAssigneeId && bomId) {
+        await createEpcTask({
+          projectId: draft.project_id, entityType: 'bom_header', recordId: bomId, actionCode: 'prepare',
+          title: `Prepare BOM ${bomNumber} for ${projCode}`,
+          description: `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created for project ${projCode}. Please add BOM lines and submit for review.`,
+          assignedTo: designAssigneeId, createdBy: userId, priority: 'Medium', dueDays: 7,
+        });
+      }
+    } catch (bomErr: any) {
+      console.error(`[DraftActivation] Warning: Failed to auto-create BOM for DO ${draft.doc_number}:`, bomErr.message);
     }
   } catch (err: any) {
     console.error(`[DraftActivation] Warning: Failed to auto-create drawing control for DO ${draft.doc_number}:`, err.message);
