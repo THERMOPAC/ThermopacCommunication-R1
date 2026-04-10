@@ -9136,7 +9136,8 @@ export function setupProjectRoutes(app: express.Express) {
 
         const mfgReleased = updates.releasedForManufacturing || rec.released_for_manufacturing;
         if (mfgReleased) {
-          const mfgAssignee = await resolveAssignee(rec.project_id, 'Projects', userId, tx);
+          const prodMgrResult = await tx.execute(sql`SELECT id FROM users WHERE department = 'Production' AND role = 'Manager' AND is_active = true LIMIT 1`);
+          const mfgAssignee = prodMgrResult.rows.length > 0 ? (prodMgrResult.rows[0] as any).id : await resolveAssignee(rec.project_id, 'Production', userId, tx);
           if (mfgAssignee) {
             await createEpcTask({
               projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'manufacturing_released',
