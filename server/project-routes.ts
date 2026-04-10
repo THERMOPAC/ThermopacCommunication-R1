@@ -89,7 +89,7 @@ async function resolveProjectIdFromRecord(table: string, idColumn: string, recor
   const projectIdLookups: Record<string, string> = {
     'item_planning_records': `SELECT pi.project_id FROM item_planning_records ipr JOIN project_items pi ON pi.id = ipr.project_item_id WHERE ipr.id = $1`,
     'quality_planning_records': `SELECT qpr.project_id FROM quality_planning_records qpr WHERE qpr.id = $1`,
-    'inspection_executions': `SELECT ie.project_id FROM inspection_executions ie WHERE ie.id = $1`,
+    'inspection_execution_records': `SELECT ie.project_id FROM inspection_execution_records ie WHERE ie.id = $1`,
     'po_preparation_records': `SELECT ppr.project_id FROM po_preparation_records ppr WHERE ppr.id = $1`,
     'wo_preparation_records': `SELECT wpr.project_id FROM wo_preparation_records wpr WHERE wpr.id = $1`,
     'epc_purchase_orders': `SELECT pi.project_id FROM epc_purchase_orders epo JOIN project_items pi ON pi.id = epo.project_item_id WHERE epo.id = $1`,
@@ -4133,7 +4133,7 @@ export function setupProjectRoutes(app: express.Express) {
   app.patch('/api/inspection-executions/:id', ensureAuthenticated, requirePageAccess('quality-inspection'), async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
 
       const existing = await db.execute(sql`SELECT * FROM inspection_execution_records WHERE id = ${id}`);
@@ -4170,7 +4170,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { scheduledDate, inspectorId } = req.body || {};
@@ -4214,7 +4214,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
 
@@ -4253,7 +4253,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { result, findings, measurementData } = req.body || {};
@@ -4356,7 +4356,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { failureReason, findings } = req.body || {};
@@ -4493,7 +4493,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { cancelReason } = req.body || {};
@@ -4536,7 +4536,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { reworkNotes } = req.body || {};
@@ -4576,7 +4576,7 @@ export function setupProjectRoutes(app: express.Express) {
     try {
       if (!requireMinRole(req, res, 'Senior Manager')) return;
       const id = parseInt(req.params.id);
-      if (!(await guardRecordProjectNotFrozen('inspection_executions', id, res))) return;
+      if (!(await guardRecordProjectNotFrozen('inspection_execution_records', id, res))) return;
       if (isNaN(id)) return sendValidationError(res, 'Invalid inspection execution ID');
       const userId = (req.user as any)?.id;
       const { closingNotes } = req.body || {};
