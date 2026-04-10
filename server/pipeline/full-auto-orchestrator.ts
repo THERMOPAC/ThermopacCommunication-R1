@@ -679,7 +679,7 @@ async function executePhase4(ctx: AutomationContext, results: StepResult[]): Pro
           entityId: qualityPlanId, entityType: 'quality_planning_records',
         });
       } else {
-        const qpNumber = await generateDocumentNumber(ctx.projectId, 'QPL');
+        const qpNumber = await generateDocumentNumber(ctx.projectId, 'QPL', db);
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
@@ -750,7 +750,7 @@ async function executePhase4(ctx: AutomationContext, results: StepResult[]): Pro
           entityId: existingInsp.rows[0].id, entityType: 'inspection_execution_records',
         });
       } else {
-        const inspNumber = await generateDocumentNumber(ctx.projectId, 'INS');
+        const inspNumber = await generateDocumentNumber(ctx.projectId, 'INS', db);
 
         const qcInspector = await pool.query(
           `SELECT id FROM users

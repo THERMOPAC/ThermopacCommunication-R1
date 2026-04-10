@@ -197,7 +197,7 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
 
   let productionNumber: string | null = null;
   try {
-    productionNumber = await generateDocumentNumber(draft.project_id, 'MFG');
+    productionNumber = await generateDocumentNumber(draft.project_id, 'MFG', db);
   } catch (e) {
     console.warn(`[DraftActivation] Could not generate production number, proceeding without it`);
   }
@@ -247,7 +247,7 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
 
   let qualityPlanId: number | null = null;
   try {
-    const qpNumber = await generateDocumentNumber(draft.project_id, 'QPL');
+    const qpNumber = await generateDocumentNumber(draft.project_id, 'QPL', db);
     const qpResult = await db.execute(
       sql`INSERT INTO quality_planning_records
           (project_id, project_item_id, master_item_id, source_context,
