@@ -6037,9 +6037,6 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot release: WO has failed quality inspection. Resolve the NCR before releasing.`);
       }
 
-      if (wo.quality_status === 'pending_inspection') {
-        return sendBusinessError(res, `Cannot release: WO is pending quality inspection clearance.`);
-      }
 
       if (wo.approved_by === userId) {
         return sendBusinessError(res, 'Self-action prevented: the approver cannot also release the same work order. A different authorized user must release it.');
