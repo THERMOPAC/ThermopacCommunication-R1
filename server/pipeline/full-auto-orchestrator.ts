@@ -503,7 +503,9 @@ async function autoApproveAndReleaseWOs(ctx: AutomationContext, results: StepRes
           });
         }
         try {
-          await linkIODraftToTriggeredIO(ctx.projectId, wo.project_item_id, ctx.triggerUserId);
+          if (insResult.created && insResult.inspectionOrderNumber && insResult.inspectionOrderId) {
+            await linkIODraftToTriggeredIO(ctx.projectId, wo.project_item_id, insResult.inspectionOrderNumber, insResult.inspectionOrderId, 'work_order');
+          }
           if (insResult.inspectionOrderId) {
             await emitEvent(ctx, 'full_auto.io_draft_linked', {
               runId: ctx.runId, ioId: insResult.inspectionOrderId,
@@ -634,7 +636,9 @@ async function autoApproveAndIssuePOs(ctx: AutomationContext, results: StepResul
           });
         }
         try {
-          await linkIODraftToTriggeredIO(ctx.projectId, po.project_item_id, ctx.triggerUserId);
+          if (insResult.created && insResult.inspectionOrderNumber && insResult.inspectionOrderId) {
+            await linkIODraftToTriggeredIO(ctx.projectId, po.project_item_id, insResult.inspectionOrderNumber, insResult.inspectionOrderId, 'purchase_order');
+          }
         } catch (linkErr) {
           console.error(`${LOG_PREFIX} Non-critical: IO draft link failed for PO ${po.po_number}`, linkErr);
         }

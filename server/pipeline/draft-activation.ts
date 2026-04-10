@@ -79,33 +79,25 @@ export async function activateDraft(
       return { success: true, entityId, entityType, message: `Work Order ${draft.doc_number} created successfully.` };
     }
 
-    const routing = ROUTING_MAP[docType as keyof typeof ROUTING_MAP] || { department: 'Projects', preferredRole: 'Senior Executive' };
-    const assignee = await resolveAssignee(draft.project_id, routing.department, userId, undefined, routing.preferredRole);
-    const entityLabel = 'Purchase Order';
-    const taskId = await createEpcTask({
-      projectId: draft.project_id,
-      entityType: 'execution_draft',
-      recordId: draftId,
-      actionCode: `create_${docType.toLowerCase()}`,
-      title: `Create ${entityLabel} ${draft.doc_number}`,
-      description: `Approved execution draft ${draft.doc_number} is ready for ${entityLabel} creation.\nItem: ${draft.source_data?.item_code || draft.source_data?.master_item_code || ''}\nQuantity: ${draft.source_data?.quantity || 'N/A'}\nUOM: ${draft.source_data?.uom || 'N/A'}\n\nPlease create the ${entityLabel} via the standard workflow and link it back to this draft.`,
-      assignedTo: assignee,
-      createdBy: userId,
-      priority: PRIORITY_MAP[docType] || 'High',
-      dueDays: SLA_DAYS[docType] || 3,
-    });
+    if (docType === 'PO') {
+      const { entityId, entityType } = await activatePurchaseOrder(draft, userId);
 
-    if (taskId) {
       await db.execute(
-        sql`UPDATE execution_drafts SET linked_task_id = ${taskId} WHERE id = ${draftId}`
+        sql`UPDATE execution_drafts
+            SET activation_status = 'activated',
+                activated_entity_id = ${entityId},
+                activated_entity_type = ${entityType},
+                activated_by = ${userId},
+                activated_at = NOW(),
+                updated_at = NOW()
+            WHERE id = ${draftId}`
       );
+
+      console.log(`[DraftActivation] PO ${draft.doc_number} → purchase_order #${entityId}`);
+      return { success: true, entityId, entityType, message: `Purchase Order ${draft.doc_number} created successfully.` };
     }
 
-    console.log(`[DraftActivation] ${docType} ${draft.doc_number} → pending_activation (task #${taskId})`);
-    return {
-      success: true,
-      message: `${entityLabel} draft approved. A task has been created for ${entityLabel} creation via the standard workflow.`,
-    };
+    return { success: false, error: `Unknown doc type: ${docType}` };
   } catch (error: any) {
     await db.execute(
       sql`UPDATE execution_drafts
@@ -324,6 +316,35 @@ export async function linkEntityToDraft(
 
   console.log(`[DraftActivation] Draft #${draftId} linked to ${entityType} #${entityId}`);
   return { success: true };
+}
+
+async function activatePurchaseOrder(draft: any, userId: number): Promise<{ entityId: number; entityType: string }> {
+  const sd = draft.source_data || {};
+  const itemCode = sd.item_code || sd.master_item_code || '';
+  const itemDesc = sd.master_item_description || sd.item_description || '';
+  const quantity = parseFloat(sd.quantity) || 1;
+  const masterItemId = sd.master_item_id;
+  const uom = sd.uom || 'set';
+  const classification = sd.make_or_buy || 'Buy';
+  const projectItemId = draft.project_item_id;
+
+  const poAssignee = await resolveAssignee(draft.project_id, 'Purchase', userId, undefined, 'Senior Executive');
+
+  const poResult = await db.execute(
+    sql`INSERT INTO epc_purchase_orders
+        (po_number, project_id, project_item_id, master_item_id,
+         status, created_by,
+         po_notes)
+        VALUES (${draft.doc_number}, ${draft.project_id}, ${projectItemId},
+                ${masterItemId},
+                'draft', ${poAssignee},
+                ${'Auto-created from Execution Draft ' + draft.doc_number})
+        RETURNING id`
+  );
+  const poEntityId = (poResult.rows[0] as any).id;
+
+  console.log(`[DraftActivation] PO chain: epc_purchase_order #${poEntityId} (${classification})`);
+  return { entityId: poEntityId, entityType: 'epc_purchase_orders' };
 }
 
 export async function linkIODraftToTriggeredIO(

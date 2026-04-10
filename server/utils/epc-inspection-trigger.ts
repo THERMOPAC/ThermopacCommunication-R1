@@ -80,7 +80,7 @@ async function createInspectionIfNeeded(params: CreateInspectionParams): Promise
   }
 
   const piResult = await pool.query(
-    `SELECT pi.id, pi.item_id, pi.quantity, pi.drawing_no,
+    `SELECT pi.id, pi.item_id, pi.quantity, mi.drawing_no,
             mi.item_code, mi.description, mi.make_or_buy
      FROM project_items pi
      JOIN master_items mi ON mi.id = pi.item_id
