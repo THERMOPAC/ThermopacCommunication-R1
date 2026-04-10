@@ -178,8 +178,7 @@ export default function EpcQualityInspectionPage() {
 
   const lifecycleMutation = useMutation({
     mutationFn: async ({ id, action, prefix, body }: { id: number; action: string; prefix: string; body: any }) => {
-      const res = await apiRequest("POST", `/api/${prefix}/${id}/${action}`, body);
-      return res.json();
+      return await apiRequest("POST", `/api/${prefix}/${id}/${action}`, body);
     },
     onSuccess: (data) => {
       toast({ title: "Success", description: data.message });
