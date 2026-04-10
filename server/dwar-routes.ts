@@ -1486,4 +1486,112 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
   return upsertResult.rows?.[0] || kpiData;
 }
 
+function verifyAuditRecords(records: any[]): {
+  totalChecked: number;
+  totalPassed: number;
+  totalFailed: number;
+  totalSkipped: number;
+  failedRecordIds: number[];
+  mismatches: { id: number; storedHash: string; computedHash: string; event: string; createdAt: any }[];
+} {
+  let totalPassed = 0;
+  let totalFailed = 0;
+  let totalSkipped = 0;
+  const failedRecordIds: number[] = [];
+  const mismatches: { id: number; storedHash: string; computedHash: string; event: string; createdAt: any }[] = [];
+
+  for (const row of records) {
+    if (!row.integrityHash) {
+      totalSkipped++;
+      continue;
+    }
+    const recomputed = computeAuditHash({
+      event: row.event,
+      actorId: row.actorId,
+      actorType: row.actorType,
+      targetUserId: row.targetUserId,
+      reportId: row.reportId,
+      year: row.year,
+      month: row.month,
+      details: row.details ?? {},
+    });
+    if (recomputed === row.integrityHash) {
+      totalPassed++;
+    } else {
+      totalFailed++;
+      failedRecordIds.push(row.id);
+      mismatches.push({
+        id: row.id,
+        storedHash: row.integrityHash,
+        computedHash: recomputed,
+        event: row.event,
+        createdAt: row.createdAt,
+      });
+    }
+  }
+
+  return { totalChecked: records.length, totalPassed, totalFailed, totalSkipped, failedRecordIds, mismatches };
+}
+
+router.get('/audit/verify', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    if (req.user!.role !== 'Superuser') {
+      return res.status(403).json({ error: 'INSUFFICIENT_PERMISSIONS', message: 'Only superusers can verify audit integrity' });
+    }
+
+    const { id, startDate, endDate, userId, event } = req.query;
+
+    const conditions: any[] = [];
+
+    if (id) {
+      const recordId = parseInt(id as string);
+      if (isNaN(recordId)) {
+        return res.status(400).json({ error: 'INVALID_PARAM', message: 'id must be a number' });
+      }
+      conditions.push(eq(dwarAuditLog.id, recordId));
+    }
+
+    if (startDate) {
+      conditions.push(gte(dwarAuditLog.createdAt, new Date(startDate as string)));
+    }
+    if (endDate) {
+      const end = new Date(endDate as string);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(lte(dwarAuditLog.createdAt, end));
+    }
+
+    if (userId) {
+      const uid = parseInt(userId as string);
+      if (isNaN(uid)) {
+        return res.status(400).json({ error: 'INVALID_PARAM', message: 'userId must be a number' });
+      }
+      conditions.push(eq(dwarAuditLog.actorId, uid));
+    }
+
+    if (event) {
+      conditions.push(eq(dwarAuditLog.event, event as string));
+    }
+
+    if (conditions.length === 0) {
+      return res.status(400).json({ error: 'MISSING_FILTER', message: 'Provide at least one filter: id, startDate/endDate, userId, or event' });
+    }
+
+    const records = await db
+      .select()
+      .from(dwarAuditLog)
+      .where(and(...conditions))
+      .orderBy(dwarAuditLog.id);
+
+    const result = verifyAuditRecords(records);
+
+    res.json({
+      verification: result.totalFailed === 0 && result.totalSkipped === 0 ? 'PASS' : (result.totalFailed > 0 ? 'FAIL' : 'PASS_WITH_SKIPS'),
+      ...result,
+    });
+  } catch (error) {
+    console.error('Error verifying audit integrity:', error);
+    sendError(res, error);
+  }
+});
+
 export default router;
