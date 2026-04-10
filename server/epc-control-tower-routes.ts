@@ -21,11 +21,15 @@ function requireControlTowerAccess(req: Request, res: Response, next: Function) 
 
 export function setupEpcControlTowerRoutes(app: Express) {
 
-  app.get('/api/epc-control-tower/summary', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+  app.get('/api/epc-control-tower/summary', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
-      const projectSummary = await pool.query(`
-        SELECT status, COUNT(*)::int as count FROM projects GROUP BY status ORDER BY count DESC
-      `);
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const pidFilter = pidParam ? `AND p.id = $1` : '';
+      const pidArgs = pidParam ? [pidParam] : [];
+
+      const projectSummary = pidParam
+        ? await pool.query(`SELECT status, COUNT(*)::int as count FROM projects p WHERE 1=1 ${pidFilter} GROUP BY status ORDER BY count DESC`, pidArgs)
+        : await pool.query(`SELECT status, COUNT(*)::int as count FROM projects GROUP BY status ORDER BY count DESC`);
 
       const riskHealth = await pool.query(`
         SELECT 
@@ -41,9 +45,9 @@ export function setupEpcControlTowerRoutes(app: Express) {
         FROM projects p
         LEFT JOIN users u ON p.manager_id = u.id
         LEFT JOIN customers c ON p.customer_id = c.id
-        WHERE p.status IN ('active', 'planning')
+        WHERE p.status IN ('active', 'planning') ${pidFilter}
         ORDER BY p.id
-      `);
+      `, pidArgs);
 
       const projects = riskHealth.rows.map((p: any) => {
         let health = 'on_track';
@@ -56,24 +60,17 @@ export function setupEpcControlTowerRoutes(app: Express) {
       const healthCounts = { on_track: 0, at_risk: 0, delayed: 0, blocked: 0 };
       projects.forEach((p: any) => { healthCounts[p.health as keyof typeof healthCounts]++; });
 
-      const milestones = await pool.query(`
-        SELECT 
-          COUNT(*)::int as total,
-          COUNT(*) FILTER (WHERE is_completed = true)::int as completed
-        FROM project_key_stages
-      `);
+      const milestones = pidParam
+        ? await pool.query(`SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE is_completed = true)::int as completed FROM project_key_stages WHERE project_id = $1`, pidArgs)
+        : await pool.query(`SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE is_completed = true)::int as completed FROM project_key_stages`);
 
-      const deliverables = await pool.query(`
-        SELECT status, COUNT(*)::int as count FROM deliverables GROUP BY status
-      `);
+      const deliverables = pidParam
+        ? await pool.query(`SELECT status, COUNT(*)::int as count FROM deliverables WHERE project_id = $1 GROUP BY status`, pidArgs)
+        : await pool.query(`SELECT status, COUNT(*)::int as count FROM deliverables GROUP BY status`);
 
-      const projectTasks = await pool.query(`
-        SELECT 
-          COUNT(*)::int as total,
-          COUNT(*) FILTER (WHERE t.status = 'completed')::int as completed,
-          COUNT(*) FILTER (WHERE t.assigned_to IS NULL AND t.status != 'completed')::int as unassigned
-        FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id
-      `);
+      const projectTasks = pidParam
+        ? await pool.query(`SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE t.status = 'completed')::int as completed, COUNT(*) FILTER (WHERE t.assigned_to IS NULL AND t.status != 'completed')::int as unassigned FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id WHERE pt.project_id = $1`, pidArgs)
+        : await pool.query(`SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE t.status = 'completed')::int as completed, COUNT(*) FILTER (WHERE t.assigned_to IS NULL AND t.status != 'completed')::int as unassigned FROM tasks t JOIN project_tasks pt ON pt.task_id = t.id`);
 
       res.json({
         projectsByStatus: projectSummary.rows,
@@ -89,30 +86,41 @@ export function setupEpcControlTowerRoutes(app: Express) {
     }
   });
 
-  app.get('/api/epc-control-tower/pipeline', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+  app.get('/api/epc-control-tower/pipeline', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+
       const stages = [
-        { key: 'BOM', table: 'epc_bom_headers', statusCol: 'status', label: 'Bill of Materials' },
-        { key: 'DWG', table: 'epc_drawing_controls', statusCol: 'status', label: 'Drawing Controls' },
-        { key: 'PO', table: 'epc_purchase_orders', statusCol: 'status', label: 'Purchase Orders' },
-        { key: 'WO', table: 'epc_work_orders', statusCol: 'status', label: 'Work Orders' },
-        { key: 'INS', table: 'inspection_execution_records', statusCol: 'status', label: 'Inspections' },
-        { key: 'DSP', table: 'epc_dispatch_records', statusCol: 'status', label: 'Dispatch' },
-        { key: 'INV', table: 'epc_invoices', statusCol: 'status', label: 'Invoices' },
+        { key: 'BOM', table: 'epc_bom_headers', statusCol: 'status', label: 'Bill of Materials', piJoin: true },
+        { key: 'DWG', table: 'epc_drawing_controls', statusCol: 'status', label: 'Drawing Controls', piJoin: true },
+        { key: 'PO', table: 'epc_purchase_orders', statusCol: 'status', label: 'Purchase Orders', piJoin: true },
+        { key: 'WO', table: 'epc_work_orders', statusCol: 'status', label: 'Work Orders', piJoin: true },
+        { key: 'INS', table: 'inspection_execution_records', statusCol: 'status', label: 'Inspections', piJoin: true },
+        { key: 'DSP', table: 'epc_dispatch_records', statusCol: 'status', label: 'Dispatch', piJoin: true },
+        { key: 'INV', table: 'epc_invoices', statusCol: 'status', label: 'Invoices', piJoin: false },
       ];
 
       const pipeline = [];
       let prevCount = 0;
 
       for (const stage of stages) {
-        const countResult = await pool.query(`SELECT COUNT(*)::int as total FROM "${stage.table}"`);
+        const piJoinClause = pidParam && stage.piJoin ? `JOIN project_items pi ON t.project_item_id = pi.id WHERE pi.project_id = $1` : '';
+        const pidArgs = pidParam && stage.piJoin ? [pidParam] : [];
+
+        const countResult = pidParam && stage.piJoin
+          ? await pool.query(`SELECT COUNT(*)::int as total FROM "${stage.table}" t ${piJoinClause}`, pidArgs)
+          : await pool.query(`SELECT COUNT(*)::int as total FROM "${stage.table}"`);
         const total = countResult.rows[0].total;
 
-        const statusResult = await pool.query(`SELECT "${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" GROUP BY "${stage.statusCol}" ORDER BY count DESC`);
+        const statusResult = pidParam && stage.piJoin
+          ? await pool.query(`SELECT t."${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" t ${piJoinClause} GROUP BY t."${stage.statusCol}" ORDER BY count DESC`, pidArgs)
+          : await pool.query(`SELECT "${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" GROUP BY "${stage.statusCol}" ORDER BY count DESC`);
 
         let oldestRecord = null;
         try {
-          const agingResult = await pool.query(`SELECT MIN(created_at) as oldest FROM "${stage.table}"`);
+          const agingResult = pidParam && stage.piJoin
+            ? await pool.query(`SELECT MIN(t.created_at) as oldest FROM "${stage.table}" t ${piJoinClause}`, pidArgs)
+            : await pool.query(`SELECT MIN(created_at) as oldest FROM "${stage.table}"`);
           if (agingResult.rows[0]?.oldest) {
             const ageMs = Date.now() - new Date(agingResult.rows[0].oldest).getTime();
             oldestRecord = Math.floor(ageMs / (1000 * 60 * 60 * 24));
@@ -143,28 +151,34 @@ export function setupEpcControlTowerRoutes(app: Express) {
     }
   });
 
-  app.get('/api/epc-control-tower/bottlenecks', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+  app.get('/api/epc-control-tower/bottlenecks', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const pidFilterKs = pidParam ? `AND ks.project_id = $1` : '';
+      const pidFilterD = pidParam ? `AND d.project_id = $1` : '';
+      const pidFilterPt = pidParam ? `AND pt.project_id = $1` : '';
+      const pidArgs = pidParam ? [pidParam] : [];
+
       const overdueMilestones = await pool.query(`
         SELECT ks.id, ks.stage_name, ks.phase, p.target_end_date, p.code as project_code, p.name as project_name,
           CASE WHEN p.target_end_date IS NOT NULL AND p.target_end_date != ''
             THEN (CURRENT_DATE - p.target_end_date::date) ELSE 0 END as days_overdue
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
-        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date != '' AND p.target_end_date::date < CURRENT_DATE
+        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date != '' AND p.target_end_date::date < CURRENT_DATE ${pidFilterKs}
         ORDER BY days_overdue DESC
         LIMIT 20
-      `);
+      `, pidArgs);
 
       const overdueDeliverables = await pool.query(`
         SELECT d.id, d.name, d.due_date, d.status, p.code as project_code, p.name as project_name,
           (CURRENT_DATE - d.due_date::date) as days_overdue
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
-        WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE
+        WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE ${pidFilterD}
         ORDER BY days_overdue DESC
         LIMIT 20
-      `);
+      `, pidArgs);
 
       const overdueTasks = await pool.query(`
         SELECT t.id, t.title, t.due_date, t.status, t.priority, t.assigned_to,
@@ -174,10 +188,10 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
         LEFT JOIN users u ON t.assigned_to = u.id
-        WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE
+        WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE ${pidFilterPt}
         ORDER BY days_overdue DESC
         LIMIT 20
-      `);
+      `, pidArgs);
 
       res.json({
         overdueMilestones: overdueMilestones.rows,
@@ -195,48 +209,59 @@ export function setupEpcControlTowerRoutes(app: Express) {
     }
   });
 
-  app.get('/api/epc-control-tower/ownership-gaps', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+  app.get('/api/epc-control-tower/ownership-gaps', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const pidArgs = pidParam ? [pidParam] : [];
+
       const unassignedTasks = await pool.query(`
         SELECT t.id, t.title, t.description, t.priority, t.due_date, t.source_agent,
           p.code as project_code, p.name as project_name
         FROM tasks t
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
-        WHERE t.assigned_to IS NULL AND t.status != 'completed'
+        WHERE t.assigned_to IS NULL AND t.status != 'completed' ${pidParam ? 'AND pt.project_id = $1' : ''}
         ORDER BY t.priority DESC, t.due_date ASC
-      `);
+      `, pidArgs);
 
-      const kickoffWarnings = await pool.query(`
-        SELECT t.id, t.title, t.description, t.priority, t.due_date, t.status,
-          u.username as assigned_to_name
-        FROM tasks t
-        LEFT JOIN users u ON t.assigned_to = u.id
-        WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%'
-        ORDER BY t.created_at DESC
-      `);
+      const kickoffWarnings = pidParam
+        ? await pool.query(`
+            SELECT t.id, t.title, t.description, t.priority, t.due_date, t.status,
+              u.username as assigned_to_name
+            FROM tasks t
+            LEFT JOIN users u ON t.assigned_to = u.id
+            JOIN project_tasks pt ON pt.task_id = t.id
+            WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%' AND pt.project_id = $1
+            ORDER BY t.created_at DESC
+          `, pidArgs)
+        : await pool.query(`
+            SELECT t.id, t.title, t.description, t.priority, t.due_date, t.status,
+              u.username as assigned_to_name
+            FROM tasks t
+            LEFT JOIN users u ON t.assigned_to = u.id
+            WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%'
+            ORDER BY t.created_at DESC
+          `);
 
       const phasesNoLead = await pool.query(`
         SELECT pp.id, pp.name as phase_name, p.code as project_code, p.name as project_name
         FROM project_phases pp
         JOIN projects p ON pp.project_id = p.id
-        WHERE pp.phase_lead_id IS NULL AND p.status = 'active'
+        WHERE pp.phase_lead_id IS NULL AND p.status = 'active' ${pidParam ? 'AND pp.project_id = $1' : ''}
         ORDER BY p.code, pp."order"
-      `);
+      `, pidArgs);
 
-      const projectsNoManager = await pool.query(`
-        SELECT id, code, name, status FROM projects
-        WHERE manager_id IS NULL AND status IN ('active', 'planning')
-        ORDER BY code
-      `);
+      const projectsNoManager = pidParam
+        ? await pool.query(`SELECT id, code, name, status FROM projects WHERE manager_id IS NULL AND status IN ('active', 'planning') AND id = $1 ORDER BY code`, pidArgs)
+        : await pool.query(`SELECT id, code, name, status FROM projects WHERE manager_id IS NULL AND status IN ('active', 'planning') ORDER BY code`);
 
       const deliverablesNoOwner = await pool.query(`
         SELECT d.id, d.name, d.due_date, d.status, p.code as project_code, p.name as project_name
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
-        WHERE d.assigned_to IS NULL AND d.status != 'completed'
+        WHERE d.assigned_to IS NULL AND d.status != 'completed' ${pidParam ? 'AND d.project_id = $1' : ''}
         ORDER BY d.due_date ASC
-      `);
+      `, pidArgs);
 
       res.json({
         unassignedTasks: unassignedTasks.rows,
@@ -258,8 +283,12 @@ export function setupEpcControlTowerRoutes(app: Express) {
     }
   });
 
-  app.get('/api/epc-control-tower/stage-gates', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+  app.get('/api/epc-control-tower/stage-gates', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const pidFilter = pidParam ? `AND p.id = $1` : '';
+      const pidArgs = pidParam ? [pidParam] : [];
+
       const stageDefinitions = [
         { key: 'BOM', label: 'Bill of Materials', entry: 'Project item exists with master item', exit: 'BOM Released or Locked (is_current=true)' },
         { key: 'DWG', label: 'Drawing Control', entry: 'BOM exists for project item', exit: 'Drawing approved or released' },
@@ -322,9 +351,9 @@ export function setupEpcControlTowerRoutes(app: Express) {
         LEFT JOIN epc_bom_headers bh ON bh.project_item_id = pi.id AND bh.is_current = true
         LEFT JOIN epc_drawing_controls dc ON dc.project_item_id = pi.id AND dc.status NOT IN ('superseded')
         LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('canceled', 'superseded')
-        WHERE p.status NOT IN ('canceled', 'completed', 'closed')
+        WHERE p.status NOT IN ('canceled', 'completed', 'closed') ${pidFilter}
         ORDER BY p.code, mi.item_code
-      `);
+      `, pidArgs);
 
       const stageCounts = {
         BOM: { total: 0, ready: 0, notReady: 0, missing: 0 },
@@ -451,7 +480,9 @@ export function setupEpcControlTowerRoutes(app: Express) {
 
   app.get('/api/epc-control-tower/blocking-analysis', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
-      const projectFilter = req.query.projectId ? `AND p.id = ${parseInt(req.query.projectId as string)}` : '';
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const projectFilter = pidParam ? `AND p.id = $1` : '';
+      const pidArgs = pidParam ? [pidParam] : [];
 
       const items = await pool.query(`
         SELECT
@@ -490,7 +521,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         LEFT JOIN item_planning_records ipr ON ipr.project_item_id = pi.id AND ipr.status NOT IN ('canceled','superseded')
         WHERE p.status NOT IN ('canceled','completed','closed') ${projectFilter}
         ORDER BY p.code, mi.item_code
-      `);
+      `, pidArgs);
 
       const blockedItems: any[] = [];
       const stageSummary: Record<string, { blocked: number; items: any[] }> = {
@@ -594,8 +625,12 @@ export function setupEpcControlTowerRoutes(app: Express) {
     }
   });
 
-  app.get('/api/epc-control-tower/risk-indicators', ensureAuthenticated, requireControlTowerAccess, async (_req: Request, res: Response) => {
+  app.get('/api/epc-control-tower/risk-indicators', ensureAuthenticated, requireControlTowerAccess, async (req: Request, res: Response) => {
     try {
+      const pidParam = req.query.projectId ? parseInt(req.query.projectId as string) : null;
+      const pidFilter = pidParam ? `AND p.id = $1` : '';
+      const pidArgs = pidParam ? [pidParam] : [];
+
       const pendingInspections = await pool.query(`
         SELECT
           ier.id, ier.inspection_order_number, ier.inspection_type, ier.status,
@@ -608,10 +643,10 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN projects p ON pi.project_id = p.id
         LEFT JOIN master_items mi ON pi.item_id = mi.id
         WHERE ier.status NOT IN ('completed', 'canceled', 'closed')
-          AND p.status NOT IN ('canceled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidFilter}
         ORDER BY age_days DESC
         LIMIT 100
-      `);
+      `, pidArgs);
 
       const missingDrawings = await pool.query(`
         SELECT
@@ -626,10 +661,10 @@ export function setupEpcControlTowerRoutes(app: Express) {
         WHERE mi.make_or_buy IN ('Make', 'Assembly')
           AND p.status NOT IN ('canceled', 'completed', 'closed')
           AND bh.id IS NOT NULL AND bh.status IN ('released', 'locked')
-          AND dc.id IS NULL
+          AND dc.id IS NULL ${pidFilter}
         ORDER BY p.code, mi.item_code
         LIMIT 100
-      `);
+      `, pidArgs);
 
       const unreleasedPlanning = await pool.query(`
         SELECT
@@ -642,42 +677,76 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN projects p ON pi.project_id = p.id
         LEFT JOIN master_items mi ON pi.item_id = mi.id
         WHERE ipr.status NOT IN ('released', 'canceled', 'superseded')
-          AND p.status NOT IN ('canceled', 'completed', 'closed')
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidFilter}
         ORDER BY age_days DESC
         LIMIT 100
-      `);
+      `, pidArgs);
 
-      const stalePoWo = await pool.query(`
-        SELECT 'PO' as type, epo.id, epo.po_number as doc_number, epo.status, epo.quality_status,
-          epo.project_item_id, epo.created_at,
-          EXTRACT(DAY FROM (NOW() - epo.created_at))::int as age_days,
-          mi.item_code, mi.description as item_description,
-          p.code as project_code, p.name as project_name
-        FROM epc_purchase_orders epo
-        JOIN project_items pi ON epo.project_item_id = pi.id
-        JOIN projects p ON pi.project_id = p.id
-        LEFT JOIN master_items mi ON pi.item_id = mi.id
-        WHERE epo.status NOT IN ('canceled', 'superseded')
-          AND epo.quality_status != 'inspection_cleared'
-          AND p.status NOT IN ('canceled', 'completed', 'closed')
-          AND epo.created_at < NOW() - INTERVAL '14 days'
-        UNION ALL
-        SELECT 'WO' as type, ewo.id, ewo.wo_number as doc_number, ewo.status, ewo.quality_status,
-          ewo.project_item_id, ewo.created_at,
-          EXTRACT(DAY FROM (NOW() - ewo.created_at))::int as age_days,
-          mi.item_code, mi.description as item_description,
-          p.code as project_code, p.name as project_name
-        FROM epc_work_orders ewo
-        JOIN project_items pi ON ewo.project_item_id = pi.id
-        JOIN projects p ON pi.project_id = p.id
-        LEFT JOIN master_items mi ON pi.item_id = mi.id
-        WHERE ewo.status NOT IN ('canceled', 'superseded')
-          AND ewo.quality_status != 'inspection_cleared'
-          AND p.status NOT IN ('canceled', 'completed', 'closed')
-          AND ewo.created_at < NOW() - INTERVAL '14 days'
-        ORDER BY age_days DESC
-        LIMIT 100
-      `);
+      const stalePoWo = pidParam
+        ? await pool.query(`
+            SELECT 'PO' as type, epo.id, epo.po_number as doc_number, epo.status, epo.quality_status,
+              epo.project_item_id, epo.created_at,
+              EXTRACT(DAY FROM (NOW() - epo.created_at))::int as age_days,
+              mi.item_code, mi.description as item_description,
+              p.code as project_code, p.name as project_name
+            FROM epc_purchase_orders epo
+            JOIN project_items pi ON epo.project_item_id = pi.id
+            JOIN projects p ON pi.project_id = p.id
+            LEFT JOIN master_items mi ON pi.item_id = mi.id
+            WHERE epo.status NOT IN ('canceled', 'superseded')
+              AND epo.quality_status != 'inspection_cleared'
+              AND p.status NOT IN ('canceled', 'completed', 'closed')
+              AND epo.created_at < NOW() - INTERVAL '14 days'
+              AND p.id = $1
+            UNION ALL
+            SELECT 'WO' as type, ewo.id, ewo.wo_number as doc_number, ewo.status, ewo.quality_status,
+              ewo.project_item_id, ewo.created_at,
+              EXTRACT(DAY FROM (NOW() - ewo.created_at))::int as age_days,
+              mi.item_code, mi.description as item_description,
+              p.code as project_code, p.name as project_name
+            FROM epc_work_orders ewo
+            JOIN project_items pi ON ewo.project_item_id = pi.id
+            JOIN projects p ON pi.project_id = p.id
+            LEFT JOIN master_items mi ON pi.item_id = mi.id
+            WHERE ewo.status NOT IN ('canceled', 'superseded')
+              AND ewo.quality_status != 'inspection_cleared'
+              AND p.status NOT IN ('canceled', 'completed', 'closed')
+              AND ewo.created_at < NOW() - INTERVAL '14 days'
+              AND p.id = $1
+            ORDER BY age_days DESC
+            LIMIT 100
+          `, pidArgs)
+        : await pool.query(`
+            SELECT 'PO' as type, epo.id, epo.po_number as doc_number, epo.status, epo.quality_status,
+              epo.project_item_id, epo.created_at,
+              EXTRACT(DAY FROM (NOW() - epo.created_at))::int as age_days,
+              mi.item_code, mi.description as item_description,
+              p.code as project_code, p.name as project_name
+            FROM epc_purchase_orders epo
+            JOIN project_items pi ON epo.project_item_id = pi.id
+            JOIN projects p ON pi.project_id = p.id
+            LEFT JOIN master_items mi ON pi.item_id = mi.id
+            WHERE epo.status NOT IN ('canceled', 'superseded')
+              AND epo.quality_status != 'inspection_cleared'
+              AND p.status NOT IN ('canceled', 'completed', 'closed')
+              AND epo.created_at < NOW() - INTERVAL '14 days'
+            UNION ALL
+            SELECT 'WO' as type, ewo.id, ewo.wo_number as doc_number, ewo.status, ewo.quality_status,
+              ewo.project_item_id, ewo.created_at,
+              EXTRACT(DAY FROM (NOW() - ewo.created_at))::int as age_days,
+              mi.item_code, mi.description as item_description,
+              p.code as project_code, p.name as project_name
+            FROM epc_work_orders ewo
+            JOIN project_items pi ON ewo.project_item_id = pi.id
+            JOIN projects p ON pi.project_id = p.id
+            LEFT JOIN master_items mi ON pi.item_id = mi.id
+            WHERE ewo.status NOT IN ('canceled', 'superseded')
+              AND ewo.quality_status != 'inspection_cleared'
+              AND p.status NOT IN ('canceled', 'completed', 'closed')
+              AND ewo.created_at < NOW() - INTERVAL '14 days'
+            ORDER BY age_days DESC
+            LIMIT 100
+          `);
 
       res.json({
         pendingInspections: { count: pendingInspections.rows.length, items: pendingInspections.rows },

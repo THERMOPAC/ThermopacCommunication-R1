@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import Layout from "@/components/layout";
@@ -7,13 +8,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useProjectFilter } from "@/hooks/use-project-filter";
 import { 
   Activity, AlertTriangle, ArrowRight, BarChart3, CheckCircle2, 
   ChevronRight, Clock, Eye, FileWarning, Layers, 
   ShieldAlert, Users, XCircle, Radar, ExternalLink, GitBranch,
-  Search, Zap, Target, Timer, Hammer
+  Search, Zap, Target, Timer, Hammer, RefreshCw
 } from "lucide-react";
 
 function HealthBadge({ health }: { health: string }) {
@@ -80,33 +84,49 @@ function PipelineStage({ stage, isLast }: { stage: any; isLast: boolean }) {
 
 export default function EpcControlTower() {
   const [, navigate] = useLocation();
+  const [projectId, setProjectId] = useState<number | null>(null);
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["/api/projects"],
+  });
+
+  const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, projectId);
+
+  const qs = projectId ? `?projectId=${projectId}` : '';
 
   const { data: summary, isLoading: loadingSummary } = useQuery({
-    queryKey: ["/api/epc-control-tower/summary"],
+    queryKey: ["/api/epc-control-tower/summary", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/summary${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: pipeline, isLoading: loadingPipeline } = useQuery({
-    queryKey: ["/api/epc-control-tower/pipeline"],
+    queryKey: ["/api/epc-control-tower/pipeline", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/pipeline${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: bottlenecks, isLoading: loadingBottlenecks } = useQuery({
-    queryKey: ["/api/epc-control-tower/bottlenecks"],
+    queryKey: ["/api/epc-control-tower/bottlenecks", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/bottlenecks${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: ownership, isLoading: loadingOwnership } = useQuery({
-    queryKey: ["/api/epc-control-tower/ownership-gaps"],
+    queryKey: ["/api/epc-control-tower/ownership-gaps", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/ownership-gaps${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: stageGates, isLoading: loadingStageGates } = useQuery({
-    queryKey: ["/api/epc-control-tower/stage-gates"],
+    queryKey: ["/api/epc-control-tower/stage-gates", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/stage-gates${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: blocking, isLoading: loadingBlocking } = useQuery({
-    queryKey: ["/api/epc-control-tower/blocking-analysis"],
+    queryKey: ["/api/epc-control-tower/blocking-analysis", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/blocking-analysis${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: riskIndicators, isLoading: loadingRisk } = useQuery({
-    queryKey: ["/api/epc-control-tower/risk-indicators"],
+    queryKey: ["/api/epc-control-tower/risk-indicators", projectId],
+    queryFn: async () => { const r = await fetch(`/api/epc-control-tower/risk-indicators${qs}`, { credentials: 'include' }); return r.json(); },
   });
 
   const { data: docStatus, isLoading: loadingDocs } = useQuery({
@@ -146,9 +166,42 @@ export default function EpcControlTower() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Radar className="h-6 w-6" /> EPC Control Tower
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Program-level EPC monitoring — all projects</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {projectId ? `Filtered: ${(projects as any[]).find((p: any) => p.id === projectId)?.code || ''} — ${(projects as any[]).find((p: any) => p.id === projectId)?.clientName || (projects as any[]).find((p: any) => p.id === projectId)?.client_name || (projects as any[]).find((p: any) => p.id === projectId)?.name || ''}` : 'Program-level EPC monitoring — all projects'}
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Select
+            value={projectId?.toString() || "all"}
+            onValueChange={(v) => setProjectId(v === "all" ? null : parseInt(v))}
+          >
+            <SelectTrigger className="w-[360px] h-8 text-xs">
+              <SelectValue placeholder="Select project..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All Projects</SelectItem>
+              {filteredProjects.map((p: any) => (
+                <SelectItem key={p.id} value={p.id.toString()} className="text-xs">
+                  {p.code} — {p.clientName || p.client_name || p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1.5">
+            <Checkbox id="showAllProjects" checked={showAllProjects} onCheckedChange={(v) => setShowAllProjects(!!v)} className="h-3.5 w-3.5" />
+            <label htmlFor="showAllProjects" className="text-[10px] text-muted-foreground cursor-pointer select-none">Show All</label>
+          </div>
+          <Button size="sm" variant="outline" className="h-8" onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/summary"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/pipeline"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/bottlenecks"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/ownership-gaps"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/stage-gates"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/blocking-analysis"] });
+            queryClient.invalidateQueries({ queryKey: ["/api/epc-control-tower/risk-indicators"] });
+          }}>
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
           <button onClick={() => navigate("/epc/cutover-dashboard")} className="text-xs px-3 py-1.5 border rounded-md hover:bg-muted flex items-center gap-1">
             <ExternalLink className="h-3 w-3" /> Cutover Dashboard
           </button>
