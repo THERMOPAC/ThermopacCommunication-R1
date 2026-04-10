@@ -68,6 +68,7 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       const conditions: any[] = [accessFilter];
 
+      if (req.query.rootFolder) conditions.push(sql`file_path LIKE ${req.query.rootFolder + '%'}`);
       if (req.query.continent) conditions.push(sql`continent_code = ${req.query.continent}`);
       if (req.query.country) conditions.push(sql`country_code = ${req.query.country}`);
       if (req.query.customer) conditions.push(sql`customer_code = ${req.query.customer}`);
@@ -112,7 +113,7 @@ export function setupGcsDashboardRoutes(app: Express) {
       const projectIds = await getAccessibleProjectIds(user.id, user.role);
       const accessFilter = buildAccessFilter(projectIds);
 
-      const rows = await db.execute(sql`
+      const tpelRows = await db.execute(sql`
         SELECT
           continent_code, continent_name,
           country_code, country_name,
@@ -122,10 +123,23 @@ export function setupGcsDashboardRoutes(app: Express) {
           COUNT(*)::int AS file_count,
           COALESCE(SUM(size_bytes), 0)::bigint AS total_size
         FROM gcs_file_index
-        WHERE ${accessFilter}
+        WHERE ${accessFilter} AND SPLIT_PART(file_path, '/', 1) = 'TPEL'
         GROUP BY continent_code, continent_name, country_code, country_name,
                  customer_code, customer_name, fy_code, fy_label, project_code
         ORDER BY continent_name, country_name, customer_name, fy_code, project_code
+      `);
+
+      const nonTpelRows = await db.execute(sql`
+        SELECT
+          SPLIT_PART(file_path, '/', 1) AS root_folder,
+          SPLIT_PART(file_path, '/', 2) AS level2,
+          SPLIT_PART(file_path, '/', 3) AS level3,
+          COUNT(*)::int AS file_count,
+          COALESCE(SUM(size_bytes), 0)::bigint AS total_size
+        FROM gcs_file_index
+        WHERE SPLIT_PART(file_path, '/', 1) != 'TPEL'
+        GROUP BY root_folder, level2, level3
+        ORDER BY root_folder, level2, level3
       `);
 
       interface TreeNode {
@@ -134,11 +148,14 @@ export function setupGcsDashboardRoutes(app: Express) {
         fileCount: number;
         totalSize: number;
         children: Record<string, TreeNode>;
+        isNonTpel?: boolean;
       }
 
-      const root: TreeNode = { code: 'TPEL', name: 'TPEL', fileCount: 0, totalSize: 0, children: {} };
+      const bucketRoot: TreeNode = { code: 'thermopac_storage', name: 'thermopac_storage', fileCount: 0, totalSize: 0, children: {} };
 
-      for (const row of rows.rows) {
+      const tpelNode: TreeNode = { code: 'TPEL', name: 'TPEL/', fileCount: 0, totalSize: 0, children: {} };
+
+      for (const row of tpelRows.rows) {
         const r = row as any;
         const cc = r.continent_code || '_other';
         const co = r.country_code || '_other';
@@ -148,10 +165,10 @@ export function setupGcsDashboardRoutes(app: Express) {
         const count = parseInt(r.file_count) || 0;
         const size = parseInt(r.total_size) || 0;
 
-        if (!root.children[cc]) {
-          root.children[cc] = { code: cc, name: r.continent_name || cc, fileCount: 0, totalSize: 0, children: {} };
+        if (!tpelNode.children[cc]) {
+          tpelNode.children[cc] = { code: cc, name: r.continent_name || cc, fileCount: 0, totalSize: 0, children: {} };
         }
-        const ccNode = root.children[cc];
+        const ccNode = tpelNode.children[cc];
         ccNode.fileCount += count;
         ccNode.totalSize += size;
 
@@ -183,11 +200,54 @@ export function setupGcsDashboardRoutes(app: Express) {
         pcNode.fileCount += count;
         pcNode.totalSize += size;
 
-        root.fileCount += count;
-        root.totalSize += size;
+        tpelNode.fileCount += count;
+        tpelNode.totalSize += size;
       }
 
-      res.json(root);
+      bucketRoot.children['TPEL'] = tpelNode;
+      bucketRoot.fileCount += tpelNode.fileCount;
+      bucketRoot.totalSize += tpelNode.totalSize;
+
+      for (const row of nonTpelRows.rows) {
+        const r = row as any;
+        const rootFolder = r.root_folder;
+        const level2 = r.level2 || '';
+        const level3 = r.level3 || '';
+        const count = parseInt(r.file_count) || 0;
+        const size = parseInt(r.total_size) || 0;
+
+        if (!rootFolder) continue;
+
+        if (!bucketRoot.children[rootFolder]) {
+          bucketRoot.children[rootFolder] = { code: rootFolder, name: rootFolder + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const rootNode = bucketRoot.children[rootFolder];
+        rootNode.fileCount += count;
+        rootNode.totalSize += size;
+
+        if (level2) {
+          if (!rootNode.children[level2]) {
+            rootNode.children[level2] = { code: `${rootFolder}/${level2}`, name: level2 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+          }
+          const l2Node = rootNode.children[level2];
+          l2Node.fileCount += count;
+          l2Node.totalSize += size;
+
+          if (level3) {
+            if (!l2Node.children[level3]) {
+              l2Node.children[level3] = { code: `${rootFolder}/${level2}/${level3}`, name: level3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+            }
+            const l3Node = l2Node.children[level3];
+            l3Node.fileCount += count;
+            l3Node.totalSize += size;
+          }
+        }
+
+        bucketRoot.fileCount += count;
+        bucketRoot.totalSize += size;
+      }
+
+      res.json(bucketRoot);
     } catch (err) {
       console.error('[GCS-DASHBOARD] Tree error:', err);
       res.status(500).json({ error: 'Failed to build tree' });

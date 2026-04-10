@@ -71,10 +71,11 @@ interface TreeNode {
   fileCount: number;
   totalSize: number;
   children: Record<string, TreeNode>;
+  isNonTpel?: boolean;
 }
 
 function SidebarTree({ node, depth, onSelect, selectedPath }: {
-  node: TreeNode; depth: number; onSelect: (code: string, depth: number) => void;
+  node: TreeNode; depth: number; onSelect: (code: string, depth: number, isNonTpel?: boolean) => void;
   selectedPath: string;
 }) {
   const [expanded, setExpanded] = useState(depth < 1);
@@ -98,7 +99,7 @@ function SidebarTree({ node, depth, onSelect, selectedPath }: {
         style={{ paddingLeft: `${depth * 16 + 12}px` }}
         onClick={() => {
           if (hasChildren) setExpanded(!expanded);
-          onSelect(node.code, depth);
+          onSelect(node.code, depth, node.isNonTpel);
         }}
       >
         {hasChildren ? (
@@ -198,9 +199,21 @@ export default function GcsDashboardPage() {
     onError: () => toast({ title: "Sync failed", description: "Could not sync with Google Cloud Storage. Please try again.", variant: "destructive" }),
   });
 
-  const handleTreeSelect = (code: string, depth: number) => {
-    const filterKeys = ["", "continent", "country", "customer", "fy", "project"];
-    const key = filterKeys[depth];
+  const handleTreeSelect = (code: string, depth: number, isNonTpel?: boolean) => {
+    if (isNonTpel || (depth === 1 && code !== 'TPEL' && tree?.children?.[code]?.isNonTpel)) {
+      setFilters({ rootFolder: code + '/' });
+      setSelectedTreeNode(code);
+      setPage(1);
+      return;
+    }
+    if (depth === 1 && code === 'TPEL') {
+      setFilters({});
+      setSelectedTreeNode(code);
+      setPage(1);
+      return;
+    }
+    const tpelFilterKeys = ["", "", "continent", "country", "customer", "fy", "project"];
+    const key = tpelFilterKeys[depth];
     if (key) {
       setFilters(prev => ({ ...prev, [key]: code }));
       setSelectedTreeNode(code);
