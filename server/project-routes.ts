@@ -5973,8 +5973,9 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot approve: WO status is '${wo.status}', expected 'draft'.`);
       }
 
-      if (wo.created_by === userId) {
-        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve the same work order.');
+      const isSystemGenerated = wo.wo_preparation_id != null;
+      if (wo.created_by === userId && !isSystemGenerated) {
+        return sendBusinessError(res, 'Self-action prevented: the creator cannot also approve a manually created work order.');
       }
 
       await db.transaction(async (tx) => {
