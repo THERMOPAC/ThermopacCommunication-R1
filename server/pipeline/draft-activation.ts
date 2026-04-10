@@ -195,10 +195,23 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   );
   const planningRecordId = (planningResult.rows[0] as any).id;
 
+  let productionNumber: string | null = null;
+  try {
+    productionNumber = await generateDocumentNumber(draft.project_id, 'MFG');
+  } catch (e) {
+    console.warn(`[DraftActivation] Could not generate production number, proceeding without it`);
+  }
+
   const execResult = await db.execute(
     sql`INSERT INTO production_execution_records
-        (project_id, project_item_id, planning_record_id, master_item_id, quantity, status)
-        VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${masterItemId}, ${quantity}, 'active')
+        (project_id, project_item_id, planning_record_id, master_item_id,
+         item_code, item_description, item_specification, uom,
+         drawing_no, drawing_revision, quantity, make_classification,
+         production_number, status, created_by)
+        VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${masterItemId},
+                ${itemCode}, ${itemDesc}, ${sd.item_specification || null}, ${uom},
+                ${sd.drawing_no || null}, ${sd.drawing_revision || null}, ${quantity}, ${classification},
+                ${productionNumber}, 'active', ${userId})
         RETURNING id`
   );
   const executionRecordId = (execResult.rows[0] as any).id;
