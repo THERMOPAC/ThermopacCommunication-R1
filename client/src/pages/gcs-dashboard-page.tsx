@@ -237,7 +237,7 @@ export default function GcsDashboardPage() {
   const health = healthQuery.data;
 
   const healthScore = health
-    ? Math.max(0, Math.round(((health.totalFiles - health.unresolvedCount - health.orphanCount) / Math.max(health.totalFiles, 1)) * 100))
+    ? Math.max(0, Math.round(((health.totalFiles - health.unresolvedCount) / Math.max(health.totalFiles, 1)) * 100))
     : null;
 
   return (
