@@ -114,8 +114,10 @@ export default function EpcQualityInspectionPage() {
   const [actionNote, setActionNote] = useState("");
   const [actionResult, setActionResult] = useState<string>("pass");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [assignedInspector, setAssignedInspector] = useState<string>("");
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
+  const { data: allUsers = [] } = useQuery<any[]>({ queryKey: ["/api/users"] });
   const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, selectedProjectId);
 
   const { data: qpRecords = [], isLoading: qpLoading, error: qpError } = useQuery<any[]>({
@@ -207,6 +209,7 @@ export default function EpcQualityInspectionPage() {
     setActionNote("");
     setActionResult("pass");
     setScheduledDate("");
+    setAssignedInspector("");
     setActionDialogOpen(true);
   }
 
@@ -218,6 +221,7 @@ export default function EpcQualityInspectionPage() {
     if (action.noteKey && actionNote) body[action.noteKey] = actionNote;
     if (action.needsResult) body.result = actionResult;
     if (action.needsDate && scheduledDate) body.scheduledDate = scheduledDate;
+    if (action.key === "schedule" && assignedInspector) body.inspectorId = parseInt(assignedInspector);
     lifecycleMutation.mutate({ id: rec.id, action: action.key, prefix, body });
   }
 
@@ -646,6 +650,19 @@ export default function EpcQualityInspectionPage() {
                 <Input type="date" className="text-xs" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
               </div>
             )}
+            {actionTarget?.action.key === "schedule" && (
+              <div>
+                <Label className="text-xs">Assign Inspector *</Label>
+                <Select value={assignedInspector} onValueChange={setAssignedInspector}>
+                  <SelectTrigger className="text-xs"><SelectValue placeholder="Select inspector…" /></SelectTrigger>
+                  <SelectContent>
+                    {allUsers.filter((u: any) => u.isActive).map((u: any) => (
+                      <SelectItem key={u.id} value={String(u.id)} className="text-xs">{u.username} {u.role ? `(${u.role})` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {actionTarget?.action.needsResult && (
               <div>
                 <Label className="text-xs">Inspection Result *</Label>
@@ -670,7 +687,7 @@ export default function EpcQualityInspectionPage() {
                 size="sm"
                 variant={actionTarget?.action.variant || "default"}
                 onClick={executeAction}
-                disabled={lifecycleMutation.isPending || (actionTarget?.action.noteRequired && !actionNote) || (actionTarget?.action.needsDate && !scheduledDate)}
+                disabled={lifecycleMutation.isPending || (actionTarget?.action.noteRequired && !actionNote) || (actionTarget?.action.needsDate && !scheduledDate) || (actionTarget?.action.key === "schedule" && !assignedInspector)}
               >
                 {lifecycleMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
                 {actionTarget?.action.label}
