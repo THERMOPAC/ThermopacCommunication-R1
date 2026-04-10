@@ -328,22 +328,50 @@ async function activatePurchaseOrder(draft: any, userId: number): Promise<{ enti
   const classification = sd.make_or_buy || 'Buy';
   const projectItemId = draft.project_item_id;
 
-  const poAssignee = await resolveAssignee(draft.project_id, 'Purchase', userId, undefined, 'Senior Executive');
+  const purchaseAssignee = await resolveAssignee(draft.project_id, 'Purchase', userId, undefined, 'Senior Executive');
+
+  const planningResult = await db.execute(
+    sql`INSERT INTO item_planning_records
+        (project_id, project_item_id, master_item_id, planning_type, status, created_by, assigned_to)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'buy', 'active', ${userId}, ${purchaseAssignee})
+        RETURNING id`
+  );
+  const planningRecordId = (planningResult.rows[0] as any).id;
+
+  let poPrepNumber: string | null = null;
+  try {
+    poPrepNumber = await generateDocumentNumber(draft.project_id, 'POP', db);
+  } catch (e) {
+    console.warn(`[DraftActivation] Could not generate PO prep number, proceeding without it`);
+  }
+
+  const poPrepResult = await db.execute(
+    sql`INSERT INTO po_preparation_records
+        (project_id, project_item_id, planning_record_id, execution_record_id,
+         master_item_id, item_code, item_description, uom, quantity,
+         po_prep_number, status, created_by, assigned_to, created_at, updated_at)
+        VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${null},
+                ${masterItemId}, ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
+                ${poPrepNumber}, 'ready', ${userId}, ${purchaseAssignee}, NOW(), NOW())
+        RETURNING id`
+  );
+  const poPrepId = (poPrepResult.rows[0] as any).id;
 
   const poResult = await db.execute(
     sql`INSERT INTO epc_purchase_orders
-        (po_number, project_id, project_item_id, master_item_id,
+        (po_number, project_id, project_item_id, planning_record_id,
+         po_preparation_id, master_item_id,
          status, created_by,
          po_notes)
-        VALUES (${draft.doc_number}, ${draft.project_id}, ${projectItemId},
-                ${masterItemId},
-                'draft', ${poAssignee},
+        VALUES (${draft.doc_number}, ${draft.project_id}, ${projectItemId}, ${planningRecordId},
+                ${poPrepId}, ${masterItemId},
+                'draft', ${purchaseAssignee},
                 ${'Auto-created from Execution Draft ' + draft.doc_number})
         RETURNING id`
   );
   const poEntityId = (poResult.rows[0] as any).id;
 
-  console.log(`[DraftActivation] PO chain: epc_purchase_order #${poEntityId} (${classification})`);
+  console.log(`[DraftActivation] PO chain (${classification}): planning #${planningRecordId} → po_prep #${poPrepId} → epc_purchase_order #${poEntityId}`);
   return { entityId: poEntityId, entityType: 'epc_purchase_orders' };
 }
 

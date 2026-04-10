@@ -110,8 +110,9 @@ async function createInspectionIfNeeded(params: CreateInspectionParams): Promise
     `INSERT INTO inspection_orders (
        project_id, item_id, inspection_order_number, project_code,
        title, description, inspection_type, make_or_buy,
-       item_code, drawing_no, status, created_by, created_at, updated_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, NOW(), NOW())
+       item_code, drawing_no, status, sequence_number, quantity,
+       created_by, created_at, updated_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, NOW(), NOW())
      RETURNING id, inspection_order_number`,
     [
       projectId, projectItemId, ioNumber, projectCode,
@@ -119,6 +120,7 @@ async function createInspectionIfNeeded(params: CreateInspectionParams): Promise
       `Auto-created inspection order triggered by ${sourceLabel} ${sourceNumber} issuance/release for item ${pi.item_code} (${pi.description}).`,
       inspectionType, pi.make_or_buy,
       pi.item_code, pi.drawing_no || null,
+      seq, Math.round(parseFloat(pi.quantity) || 1),
       userId,
     ]
   );

@@ -400,10 +400,9 @@ async function autoApproveAndReleaseWOs(ctx: AutomationContext, results: StepRes
      FROM epc_work_orders w
      WHERE w.project_id = $1
        AND w.created_source_type = 'system'
-       AND w.automation_run_id = $2
        AND w.status = 'draft'
      ORDER BY w.id`,
-    [ctx.projectId, ctx.runId]
+    [ctx.projectId]
   );
 
   for (const wo of wos.rows) {
@@ -451,10 +450,9 @@ async function autoApproveAndReleaseWOs(ctx: AutomationContext, results: StepRes
      FROM epc_work_orders w
      WHERE w.project_id = $1
        AND w.created_source_type = 'system'
-       AND w.automation_run_id = $2
        AND w.status = 'approved'
      ORDER BY w.id`,
-    [ctx.projectId, ctx.runId]
+    [ctx.projectId]
   );
 
   for (const wo of approvedWos.rows) {
@@ -533,10 +531,9 @@ async function autoApproveAndIssuePOs(ctx: AutomationContext, results: StepResul
      FROM epc_purchase_orders p
      WHERE p.project_id = $1
        AND p.created_source_type = 'system'
-       AND p.automation_run_id = $2
        AND p.status = 'draft'
      ORDER BY p.id`,
-    [ctx.projectId, ctx.runId]
+    [ctx.projectId]
   );
 
   for (const po of pos.rows) {
@@ -585,10 +582,9 @@ async function autoApproveAndIssuePOs(ctx: AutomationContext, results: StepResul
      FROM epc_purchase_orders p
      WHERE p.project_id = $1
        AND p.created_source_type = 'system'
-       AND p.automation_run_id = $2
        AND p.status = 'approved'
      ORDER BY p.id`,
-    [ctx.projectId, ctx.runId]
+    [ctx.projectId]
   );
 
   for (const po of approvedPos.rows) {
@@ -667,10 +663,9 @@ async function executePhase4(ctx: AutomationContext, results: StepResult[]): Pro
      FROM epc_work_orders w
      WHERE w.project_id = $1
        AND w.created_source_type = 'system'
-       AND w.automation_run_id = $2
        AND w.status = 'released'
      ORDER BY w.id`,
-    [ctx.projectId, ctx.runId]
+    [ctx.projectId]
   );
 
   for (const wo of releasedWos.rows) {
