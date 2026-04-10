@@ -181,32 +181,57 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const sd = draft.source_data || {};
   const itemCode = sd.item_code || sd.master_item_code || '';
   const itemDesc = sd.master_item_description || sd.item_description || '';
-  const quantity = parseInt(sd.quantity, 10) || 1;
+  const quantity = parseFloat(sd.quantity) || 1;
+  const masterItemId = sd.master_item_id;
+  const uom = sd.uom || 'set';
+  const classification = sd.make_or_buy || 'Make';
+  const projectItemId = draft.project_item_id;
 
-  const projResult = await db.execute(
-    sql`SELECT code FROM projects WHERE id = ${draft.project_id}`
-  );
-  const projectCode = projResult.rows.length > 0 ? (projResult.rows[0] as any).code : '';
-
-  const today = new Date();
-  const plannedEnd = new Date(today);
-  plannedEnd.setDate(plannedEnd.getDate() + 30);
-
-  const result = await db.execute(
-    sql`INSERT INTO work_orders
-        (project_id, project_code, work_order_number, title, description,
-         status, priority, planned_start_date, planned_end_date,
-         quantity, supervisor_id, created_by)
-        VALUES (${draft.project_id}, ${projectCode}, ${draft.doc_number},
-                ${itemDesc || `Work Order for ${itemCode}`},
-                ${'Auto-created from Execution Draft ' + draft.doc_number + '. Item: ' + itemCode + ', Quantity: ' + sd.quantity + ' ' + (sd.uom || '')},
-                'draft', 'High', ${today.toISOString()}, ${plannedEnd.toISOString()},
-                ${quantity}, ${userId}, ${userId})
+  const planningResult = await db.execute(
+    sql`INSERT INTO item_planning_records
+        (project_id, project_item_id, master_item_id, planning_type, status)
+        VALUES (${draft.project_id}, ${projectItemId}, ${masterItemId}, 'make', 'active')
         RETURNING id`
   );
-  const woEntityId = (result.rows[0] as any).id;
+  const planningRecordId = (planningResult.rows[0] as any).id;
 
-  return { entityId: woEntityId, entityType: 'work_orders' };
+  const execResult = await db.execute(
+    sql`INSERT INTO production_execution_records
+        (project_id, project_item_id, planning_record_id, master_item_id, quantity, status)
+        VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${masterItemId}, ${quantity}, 'active')
+        RETURNING id`
+  );
+  const executionRecordId = (execResult.rows[0] as any).id;
+
+  const woPrepResult = await db.execute(
+    sql`INSERT INTO wo_preparation_records
+        (project_id, project_item_id, planning_record_id, execution_record_id,
+         master_item_id, item_code, item_description, uom, quantity,
+         make_classification, status, created_by)
+        VALUES (${draft.project_id}, ${projectItemId}, ${planningRecordId}, ${executionRecordId},
+                ${masterItemId}, ${itemCode}, ${itemDesc}, ${uom}, ${quantity},
+                ${classification}, 'ready', ${userId})
+        RETURNING id`
+  );
+  const woPrepId = (woPrepResult.rows[0] as any).id;
+
+  const epcWoResult = await db.execute(
+    sql`INSERT INTO epc_work_orders
+        (wo_number, project_id, project_item_id, planning_record_id, execution_record_id,
+         wo_preparation_id, master_item_id, item_code, item_description, uom,
+         quantity, make_classification, status, created_by,
+         wo_notes)
+        VALUES (${draft.doc_number}, ${draft.project_id}, ${projectItemId},
+                ${planningRecordId}, ${executionRecordId},
+                ${woPrepId}, ${masterItemId}, ${itemCode}, ${itemDesc}, ${uom},
+                ${quantity}, ${classification}, 'draft', ${userId},
+                ${'Auto-created from Execution Draft ' + draft.doc_number})
+        RETURNING id`
+  );
+  const woEntityId = (epcWoResult.rows[0] as any).id;
+
+  console.log(`[DraftActivation] WO chain: planning #${planningRecordId} → execution #${executionRecordId} → wo_prep #${woPrepId} → epc_work_order #${woEntityId}`);
+  return { entityId: woEntityId, entityType: 'epc_work_orders' };
 }
 
 export async function linkEntityToDraft(
