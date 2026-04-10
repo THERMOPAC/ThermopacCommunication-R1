@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import Layout from "@/components/layout";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -240,6 +241,7 @@ export default function GcsDashboardPage() {
     : null;
 
   return (
+    <Layout>
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="px-6 py-4">
@@ -1032,5 +1034,6 @@ export default function GcsDashboardPage() {
         </Tabs>
       </div>
     </div>
+    </Layout>
   );
 }

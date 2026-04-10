@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -83,6 +84,7 @@ export default function EpcCutoverDashboard() {
   const dsp = readiness?.dsp || {};
 
   return (
+    <Layout>
     <div className="container mx-auto px-4 py-6 space-y-6 max-w-7xl">
       <div className="flex items-center justify-between">
         <div>
@@ -563,5 +565,6 @@ export default function EpcCutoverDashboard() {
         </CardContent>
       </Card>
     </div>
+    </Layout>
   );
 }
