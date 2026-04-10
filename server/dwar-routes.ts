@@ -1483,7 +1483,7 @@ async function calculateMonthlyKPIs(userId: number, targetYear?: number, targetM
     RETURNING *
   `);
 
-  return upsertResult.rows?.[0] || kpiData;
+  return kpiData;
 }
 
 function verifyAuditRecords(records: any[]): {
