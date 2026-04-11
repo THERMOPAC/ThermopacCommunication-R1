@@ -5,45 +5,47 @@ import { llmEngine } from './llm-prompt-engine';
 import cron from 'node-cron';
 import PDFDocument from 'pdfkit';
 
+export const LLM_AUTO_EXECUTION = false;
+
 const router = Router();
 
-// Initialize scheduler for automated prompt execution
 let schedulerInitialized = false;
 
 function initializeScheduler() {
+  if (!LLM_AUTO_EXECUTION) {
+    console.log('[LLM Scheduler] DISABLED — LLM_AUTO_EXECUTION is false. No cron jobs registered. Use manual API triggers only.');
+    return;
+  }
+
   if (schedulerInitialized) return;
   
-  console.log('🤖 Initializing LLM Prompt Engine Scheduler...');
+  console.log('Initializing LLM Prompt Engine Scheduler...');
   
-  // Daily reports at 8 AM
   cron.schedule('0 8 * * *', async () => {
-    console.log('🌅 Running daily LLM prompts...');
+    console.log('Running daily LLM prompts...');
     await llmEngine.executeScheduledPrompts('daily');
   }, {
-    timezone: 'Asia/Kolkata' // Adjust to your timezone
+    timezone: 'Asia/Kolkata'
   });
 
-  // Weekly reports on Monday at 9 AM
   cron.schedule('0 9 * * 1', async () => {
-    console.log('📊 Running weekly LLM prompts...');
+    console.log('Running weekly LLM prompts...');
     await llmEngine.executeScheduledPrompts('weekly');
   }, {
     timezone: 'Asia/Kolkata'
   });
 
-  // Monthly reports on 1st at 10 AM
   cron.schedule('0 10 1 * *', async () => {
-    console.log('📈 Running monthly LLM prompts...');
+    console.log('Running monthly LLM prompts...');
     await llmEngine.executeScheduledPrompts('monthly');
   }, {
     timezone: 'Asia/Kolkata'
   });
 
   schedulerInitialized = true;
-  console.log('✅ LLM Scheduler initialized successfully');
+  console.log('LLM Scheduler initialized successfully');
 }
 
-// Initialize scheduler when routes are loaded
 initializeScheduler();
 
 // Get all prompts with pagination and filtering

@@ -727,8 +727,14 @@ Note: This system will not generate speculative or placeholder content. Only ver
 
   // Execute all active prompts for a given frequency
   async executeScheduledPrompts(frequency: string): Promise<void> {
+    const { LLM_AUTO_EXECUTION } = require('./llm-routes');
+    if (!LLM_AUTO_EXECUTION) {
+      console.log(`[LLM Engine] BLOCKED — executeScheduledPrompts('${frequency}') called but LLM_AUTO_EXECUTION is false. Skipping all prompts.`);
+      return;
+    }
+
     try {
-      console.log(`🔄 Executing scheduled prompts for frequency: ${frequency}`);
+      console.log(`Executing scheduled prompts for frequency: ${frequency}`);
 
       const promptsResult = await pool.query(
         'SELECT id, name FROM llm_prompts_registry WHERE frequency = $1 AND active = true ORDER BY priority DESC',
