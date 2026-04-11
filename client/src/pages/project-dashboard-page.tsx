@@ -40,6 +40,7 @@ interface ProjectStats {
 
 interface ProjectData {
   id: number;
+  code: string;
   name: string;
   description: string;
   clientName: string;
