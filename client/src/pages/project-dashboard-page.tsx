@@ -3,7 +3,6 @@ import Layout from "@/components/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   BarChart, 
@@ -22,13 +21,7 @@ import {
   AreaChart
 } from "recharts";
 import { 
-  TrendingUp, 
-  Clock, 
-  CheckCircle, 
-  AlertTriangle, 
   DollarSign,
-  Calendar,
-  Users,
   Target,
   Activity,
   Briefcase,
@@ -69,11 +62,11 @@ export default function ProjectDashboardPage() {
     queryKey: ["/api/projects"],
   });
 
-  const { data: workOrders = [], isLoading: workOrdersLoading } = useQuery({
+  const { isLoading: workOrdersLoading } = useQuery({
     queryKey: ["/api/production/work-orders"],
   });
 
-  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
+  const { isLoading: invoicesLoading } = useQuery({
     queryKey: ["/api/simple-finance/invoices-list"],
   });
 
