@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient as qc } from "@/lib/queryClient";
-import { GitPullRequest, FileCheck, Plus, Send, CheckCircle, XCircle, Play, Lock, Clock, Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
+import { apiRequest } from "@/lib/queryClient";
+import { GitPullRequest, FileCheck, Plus, Send, CheckCircle, XCircle, Play, Lock, Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
 
 const roleHierarchy: Record<string, number> = {
   Superuser: 0, "General Manager": 1, "Senior Manager": 2, Manager: 3, "Senior Executive": 4, Employee: 5,

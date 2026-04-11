@@ -22,9 +22,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Separator } from "@/components/ui/separator";
 import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
 import {
-  Loader2, Search, Filter, PenTool, Plus, Edit, Send, CheckCircle2, ShieldCheck,
+  Loader2, Search, Filter, PenTool, Edit, Send, CheckCircle2, ShieldCheck,
   Unlock, XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
-  RefreshCw, AlertTriangle, FileText, Eye, Lock, UserCheck, UploadCloud, FileX,
+  RefreshCw, AlertTriangle, FileText, Eye, UserCheck, UploadCloud, FileX,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -199,12 +199,6 @@ export default function EpcDrawingControlPage() {
     queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
     enabled: !!projectId,
   });
-  const { data: projectItems = [] } = useQuery<any[]>({
-    queryKey: ["/api/projects", projectId, "items"],
-    queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/items`),
-    enabled: !!projectId,
-  });
-
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "drawing-controls"] });
   }
@@ -344,8 +338,6 @@ export default function EpcDrawingControlPage() {
     if (!editTarget) return;
     editMutation.mutate({ id: editTarget.id, body: editForm });
   }
-
-  const selectedProject = projects.find((p: any) => p.id === projectId);
 
   return (
     <Layout>
