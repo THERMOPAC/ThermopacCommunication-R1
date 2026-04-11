@@ -89,8 +89,8 @@ export async function autoLinkUnlinkedDrawings(projectId: number, userId: number
   }
 
   await pool.query(
-    `INSERT INTO project_workflow_events (project_id, event_type, event_data, created_by, created_at)
-     VALUES ($1, 'dwg_auto_linking', $2, $3, NOW())`,
+    `INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
+     VALUES ($1, 'dwg_auto_linking', $2::jsonb, $3, NOW())`,
     [projectId, JSON.stringify(result), userId]
   );
 
