@@ -406,7 +406,7 @@ export default function UsageTrackerPage() {
                   <p>2. Copy the "Resource usage" dollar amount</p>
                   <p>3. Paste it into the Quick Log field above</p>
                   <p>4. The delta is auto-calculated from the previous entry</p>
-                  <p className="pt-1">Thresholds: <Badge variant="outline" className="text-yellow-600">50%</Badge> <Badge variant="outline" className="text-orange-600">75%</Badge> <Badge variant="outline" className="text-red-600">90%</Badge> <Badge variant="outline" className="text-red-700">100%</Badge></p>
+                  <span className="pt-1 block">Thresholds: <Badge variant="outline" className="text-yellow-600">50%</Badge> <Badge variant="outline" className="text-orange-600">75%</Badge> <Badge variant="outline" className="text-red-600">90%</Badge> <Badge variant="outline" className="text-red-700">100%</Badge></span>
                 </AlertDescription>
               </Alert>
             </CardContent>

@@ -274,7 +274,7 @@ function Layout({ children }: LayoutProps) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-    { icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" },
+    ...(hasViewPermission("GCS Dashboard" as Module) || user?.role === "Superuser" ? [{ icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" }] : []),
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
     ...(user?.role === "Superuser" ? [{ 
@@ -544,7 +544,7 @@ function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-xs uppercase tracking-wider text-gray-500 font-medium mb-2 px-3">Main</h3>
               <ul className="space-y-1">
-                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/appraisals' || item.href === '/' || item.href === '/gcs-dashboard' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/worker-agents' || item.href === '/alerts' || item.href === '/messages')).map((item, index) => {
+                {menuItems.filter(item => !item.isSubmenu && (item.href === '/attendance' || item.href === '/dwar' || item.href === '/leave-request' || item.href === '/appraisals' || item.href === '/' || item.href === '/tasks' || item.href === '/recurring-tasks' || item.href === '/business-intelligence' || item.href === '/llm-prompt-engine' || item.href === '/agent-dashboard' || item.href === '/worker-agents' || item.href === '/alerts' || item.href === '/messages')).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
                   
@@ -592,7 +592,8 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Quality Management' },
                     { type: 'single', href: '/project-commissioning', label: 'Project Commissioning' },
                     { type: 'single', href: '/dispatch-shipping', label: 'Dispatch & Shipping' },
-                    { type: 'single', href: '/after-sales', label: 'After-Sales' }
+                    { type: 'single', href: '/after-sales', label: 'After-Sales' },
+                    { type: 'single', href: '/gcs-dashboard', label: 'GCS Dashboard' }
                   ];
 
                   const submenuItems = menuItems.filter(item => item.isSubmenu);
@@ -605,7 +606,7 @@ function Layout({ children }: LayoutProps) {
                       
                       // Check if item exists and has permission (if required)
                       if (!item) return null;
-                      if (orderItem.label !== 'Emails' && !hasViewPermission(orderItem.label as Module)) return null;
+                      if (orderItem.label !== 'Emails' && !hasViewPermission(orderItem.label as Module) && user?.role !== 'Superuser') return null;
                       
                       const Icon = item.icon;
                       const isActive = item.href ? location === item.href : false;
