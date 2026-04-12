@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { createEpcTask } from '../epc-task-helpers';
-import { resolveEpcAssignee } from '../epc-assignment-engine';
+import { resolveEpcAssignee, requireEpcAssignee } from '../epc-assignment-engine';
 import { APPROVAL_ROLES, ACTION_ROLES, ROUTING_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
 
 export async function approveDraft(draftId: number, userId: number, userRole: string): Promise<{ success: boolean; error?: string }> {

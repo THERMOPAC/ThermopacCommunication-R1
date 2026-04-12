@@ -160,6 +160,21 @@ export async function resolveEpcAssignee(
   return { userId: null, method: 'unassigned', department: null, role: null, ruleId: rule.id, executionMode, warningMessage: warning };
 }
 
+export async function requireEpcAssignee(
+  workflowCode: string,
+  projectId: number,
+  triggeredBy: string,
+  tx?: any
+): Promise<AssignmentResult> {
+  const result = await resolveEpcAssignee(workflowCode, projectId, triggeredBy, tx);
+  if (result.userId === null) {
+    const msg = result.warningMessage || `No active user found for workflow '${workflowCode}'. Pipeline blocked — configure the assignment rule at EPC Assignment Control.`;
+    console.error(`[EPC-Assignment] PIPELINE BLOCKED — ${workflowCode} (project ${projectId}): ${msg}`);
+    throw new Error(`[EPC Assignment] Pipeline blocked: ${msg}`);
+  }
+  return result;
+}
+
 export async function testEpcAssignee(workflowCode: string): Promise<{
   rule: any;
   primaryUser: { id: number; username: string; department: string; role: string } | null;

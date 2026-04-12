@@ -6943,6 +6943,19 @@ export function setupProjectRoutes(app: express.Express) {
             projectItemId: d.project_item_id, transporterName: transporterName || d.transporter_name,
             vehicleNumber: vehicleNumber || d.vehicle_number,
           })}::jsonb, 'dispatch_execution', NOW())`);
+
+        try {
+          const dspConfirmResult = await resolveEpcAssignee('DSP_confirm', d.project_id, String(userId));
+          const dspProjectCode = await resolveProjectCode(d.project_id, tx);
+          await createEpcTask({
+            projectId: d.project_id, entityType: 'dispatch_record', recordId: id, actionCode: 'confirm_delivery',
+            title: `Confirm Delivery — ${d.dispatch_number} — ${dspProjectCode}`,
+            description: `Dispatch ${d.dispatch_number} has been shipped. Please confirm delivery once the consignment is received at site.`,
+            assignedTo: dspConfirmResult.userId, createdBy: userId, priority: 'High', dueDays: 7, tx,
+          });
+        } catch (taskErr) {
+          console.error(`[DISP] Non-critical: failed to create delivery confirmation task for ${d.dispatch_number}`, taskErr);
+        }
       });
 
       console.log(`[DISP] ${d.dispatch_number} shipped by user ${userId}`);
@@ -7367,6 +7380,19 @@ export function setupProjectRoutes(app: express.Express) {
           VALUES (${cr.project_id}, 'commissioning_readiness.preparation_started', ${JSON.stringify({
             crId: id, crNumber: cr.cr_number, preparedBy: userId, projectItemId: cr.project_item_id,
           })}::jsonb, 'commissioning', NOW())`);
+
+        try {
+          const comExecResult = await resolveEpcAssignee('COM_execute', cr.project_id, String(userId));
+          const comProjectCode = await resolveProjectCode(cr.project_id, tx);
+          await createEpcTask({
+            projectId: cr.project_id, entityType: 'commissioning_readiness', recordId: id, actionCode: 'execute',
+            title: `Execute Commissioning — ${cr.cr_number} — ${comProjectCode}`,
+            description: `Commissioning readiness ${cr.cr_number} is now under preparation. Please proceed with site commissioning activities, documentation, and test certificates.`,
+            assignedTo: comExecResult.userId, createdBy: userId, priority: 'High', dueDays: 7, tx,
+          });
+        } catch (taskErr) {
+          console.error(`[CR] Non-critical: failed to create COM_execute task for ${cr.cr_number}`, taskErr);
+        }
       });
 
       console.log(`[CR] ${cr.cr_number} moved to under_preparation by user ${userId}`);
@@ -7464,6 +7490,19 @@ export function setupProjectRoutes(app: express.Express) {
             crId: id, crNumber: cr.cr_number, commissionedBy: userId, projectItemId: cr.project_item_id,
             commissioningDate: commissioningDate || new Date().toISOString(),
           })}::jsonb, 'commissioning', NOW())`);
+
+        try {
+          const comVerifyResult = await resolveEpcAssignee('COM_verify', cr.project_id, String(userId));
+          const comVerProjCode = await resolveProjectCode(cr.project_id, tx);
+          await createEpcTask({
+            projectId: cr.project_id, entityType: 'commissioning_readiness', recordId: id, actionCode: 'verify',
+            title: `Verify & Sign Off Commissioning — ${cr.cr_number} — ${comVerProjCode}`,
+            description: `Commissioning ${cr.cr_number} has been executed. Please review test certificates, verify site readiness, and sign off the customer handover.`,
+            assignedTo: comVerifyResult.userId, createdBy: userId, priority: 'High', dueDays: 3, tx,
+          });
+        } catch (taskErr) {
+          console.error(`[CR] Non-critical: failed to create COM_verify task for ${cr.cr_number}`, taskErr);
+        }
       });
 
       console.log(`[CR] ${cr.cr_number} commissioned by user ${userId}`);

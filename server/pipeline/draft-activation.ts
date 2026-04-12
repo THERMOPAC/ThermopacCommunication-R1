@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { createEpcTask } from '../epc-task-helpers';
-import { resolveEpcAssignee } from '../epc-assignment-engine';
+import { resolveEpcAssignee, requireEpcAssignee } from '../epc-assignment-engine';
 import { ROUTING_MAP, PRIORITY_MAP, SLA_DAYS } from './pipeline-types';
 import type { DraftDocType } from './pipeline-types';
 import { generateDocumentNumber } from '../epc-coding';
@@ -145,7 +145,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const mfgReq = classification === 'Make' || true;
     const drawingNumber = itemBarcode || itemCode;
 
-    const dwgAssigneeResult = await resolveEpcAssignee('DWG_prepare', draft.project_id, String(userId));
+    const dwgAssigneeResult = await requireEpcAssignee('DWG_prepare', draft.project_id, String(userId));
     const designAssigneeId = dwgAssigneeResult.userId;
 
     const dwgInsertResult = await db.execute(
@@ -183,7 +183,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     }
 
     try {
-      const bomAssigneeResult = await resolveEpcAssignee('BOM_prepare', draft.project_id, String(userId));
+      const bomAssigneeResult = await requireEpcAssignee('BOM_prepare', draft.project_id, String(userId));
       const bomAssigneeId = bomAssigneeResult.userId;
       const bomNumber = await generateDocumentNumber(draft.project_id, 'BOM', db);
       const bomInsert = await db.execute(
@@ -233,8 +233,8 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
 
   const planningType = isService ? 'service' : 'make';
   const planningAssigneeResult = isService
-    ? await resolveEpcAssignee('PLN_prepare', draft.project_id, 'full_auto')
-    : await resolveEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
+    ? await requireEpcAssignee('PLN_prepare', draft.project_id, 'full_auto')
+    : await requireEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
   const planningAssignee = planningAssigneeResult.userId;
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
@@ -255,7 +255,7 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
       console.warn(`[DraftActivation] Could not generate production number, proceeding without it`);
     }
 
-    const productionAssigneeResult = await resolveEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
+    const productionAssigneeResult = await requireEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
     const productionAssignee = productionAssigneeResult.userId;
 
     const execResult = await db.execute(
@@ -383,7 +383,7 @@ async function activatePurchaseOrder(draft: any, userId: number): Promise<{ enti
   const classification = sd.make_or_buy || 'Buy';
   const projectItemId = draft.project_item_id;
 
-  const purchaseAssigneeResult = await resolveEpcAssignee('PO_prepare', draft.project_id, 'full_auto');
+  const purchaseAssigneeResult = await requireEpcAssignee('PO_prepare', draft.project_id, 'full_auto');
   const purchaseAssignee = purchaseAssigneeResult.userId;
 
   const planningResult = await db.execute(
