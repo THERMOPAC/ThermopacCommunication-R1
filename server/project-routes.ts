@@ -42,6 +42,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db, pool } from './db';
 import { checkModulePermissionMiddleware } from './middlewares/auth';
 import { createEpcTask, createEpcAlert, createEpcAlertMulti, markTasksObsolete, resolveAssignee, resolveProjectCode, resolveManagerId } from './epc-task-helpers';
+import { resolveEpcAssignee } from './epc-assignment-engine';
 import { checkModulePermission, requirePageAccess, requireProjectMembership, checkProjectMembership, buildOwnershipWhereClause, checkRecordOwnership, lookupCreatorDepartment, denyRecordAccess, enforceWriteOwnership, type OwnershipFilterConfig } from './utils/permission-utils';
 import { agentEventBus } from './agents/framework/event-bus';
 import * as epcCoding from './epc-coding';
@@ -4370,14 +4371,15 @@ export function setupProjectRoutes(app: express.Express) {
             const drId = (drInsert.rows[0] as any)?.id;
             console.log(`[InspectionExec] Auto-created dispatch readiness ${drNumber} for project item ${record.project_item_id}`);
 
-            const projAssignee = await resolveAssignee(record.project_id, 'Projects', userId);
-            if (projAssignee && drId) {
+            const dspAssigneeResult = await resolveEpcAssignee('DSP_prepare', record.project_id, String(userId));
+            const dspAssigneeId = dspAssigneeResult.userId;
+            if (dspAssigneeId && drId) {
               const projCode = await resolveProjectCode(record.project_id);
               await createEpcTask({
                 projectId: record.project_id, entityType: 'dispatch_readiness', recordId: drId, actionCode: 'prepare_dispatch',
                 title: `Prepare Dispatch ${drNumber} — ${projCode}`,
                 description: `Item ${pi.item_description || pi.item_code} has passed inspection and is ready for dispatch. Please prepare packaging and shipping details.`,
-                assignedTo: projAssignee, createdBy: userId, priority: 'High', dueDays: 3,
+                assignedTo: dspAssigneeId, createdBy: userId, priority: 'High', dueDays: 3,
               });
             }
           }
@@ -7021,14 +7023,15 @@ export function setupProjectRoutes(app: express.Express) {
               autoCreated: true,
             })}::jsonb, 'dispatch_delivery_trigger', NOW())`);
 
-          const finAssignee = await resolveAssignee(d.project_id, 'Finance', userId);
-          if (finAssignee && brId) {
+          const invAssigneeResult = await resolveEpcAssignee('INV_prepare', d.project_id, String(userId));
+          const invAssigneeId = invAssigneeResult.userId;
+          if (invAssigneeId && brId) {
             const projCode = await resolveProjectCode(d.project_id);
             await createEpcTask({
               projectId: d.project_id, entityType: 'billing_readiness', recordId: brId, actionCode: 'review_billing',
               title: `Review Billing ${brNumber} — ${projCode}`,
               description: `Dispatch ${d.dispatch_number} has been delivered. Billing readiness ${brNumber} created for item ${d.item_description || d.item_code || 'N/A'}. Please review and submit for approval.`,
-              assignedTo: finAssignee, createdBy: userId, priority: 'High', dueDays: 5,
+              assignedTo: invAssigneeId, createdBy: userId, priority: 'High', dueDays: 5,
             });
           }
         }

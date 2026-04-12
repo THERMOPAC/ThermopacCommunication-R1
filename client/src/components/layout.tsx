@@ -275,6 +275,7 @@ function Layout({ children }: LayoutProps) {
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     ...(hasViewPermission("GCS Dashboard") || user?.role === "Superuser" ? [{ icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" }] : []),
+    ...(hasViewPermission("EPC Assignment Control") || user?.role === "Superuser" ? [{ icon: ShieldCheck, label: "EPC Assignment Control", href: "/epc/assignment-control" }] : []),
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
     ...(user?.role === "Superuser" ? [{ 
@@ -594,7 +595,8 @@ function Layout({ children }: LayoutProps) {
                     { type: 'single', href: '/dispatch-shipping', label: 'Dispatch & Shipping' },
                     { type: 'single', href: '/after-sales', label: 'After-Sales' },
                     { type: 'single', href: '/gcs-dashboard', label: 'GCS Dashboard' },
-                    { type: 'single', href: '/usage-tracker', label: 'Usage Tracker' }
+                    { type: 'single', href: '/usage-tracker', label: 'Usage Tracker' },
+                    { type: 'single', href: '/epc/assignment-control', label: 'EPC Assignment Control' }
                   ];
 
                   const submenuItems = menuItems.filter(item => item.isSubmenu);

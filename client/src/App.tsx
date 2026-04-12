@@ -176,6 +176,7 @@ function Router() {
       <PageProtectedRoute path="/epc/quality-inspection" pageKey="quality-inspection" component={() => <ProjectsProduction.EpcQualityInspectionPage />} />
       <PageProtectedRoute path="/epc/dispatch-logistics" pageKey="dispatch-logistics" component={() => <ProjectsProduction.EpcDispatchLogisticsPage />} />
       <PageProtectedRoute path="/epc/commissioning-handover" pageKey="commissioning-handover" component={() => <ProjectsProduction.EpcCommissioningHandoverPage />} />
+      <ProtectedRoute path="/epc/assignment-control" component={() => <ProjectsProduction.EpcAssignmentControlPage />} />
       <ProtectedRoute path="/epc/permission-control" component={() => <ProjectsProduction.EpcPermissionDashboard />} />
       <ProtectedRoute path="/epc/cutover-dashboard" component={() => <ProjectsProduction.EpcCutoverDashboard />} />
       <ProtectedRoute path="/epc/control-tower" component={() => <ProjectsProduction.EpcControlTower />} />

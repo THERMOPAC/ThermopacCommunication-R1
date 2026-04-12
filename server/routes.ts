@@ -43,6 +43,8 @@ import { saveRoiStep, loadRoiProject, getRoiProjectProgress, deleteRoiProject } 
 // Temporarily disable main finance routes due to syntax errors
 // import { default as financeRoutes } from "./finance-routes";
 import { default as financeRoutes } from "./finance-routes-fixed";
+import epcAssignmentRoutes from "./epc-assignment-routes";
+import { seedEpcAssignmentRules } from "./seed-epc-assignment-rules";
 import paymentReferenceRoutes from "./test-route/payment-reference";
 import { default as simpleFinanceRoutes } from "./simple-finance-routes";
 import { default as directInvoiceRoutes } from "./direct-invoice-routes";
@@ -868,6 +870,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupEpcControlTowerRoutes(app);
   
   app.use(pipelineRoutes);
+  app.use(epcAssignmentRoutes);
+  seedEpcAssignmentRules().catch(err => console.error('[EPC-Assignment] Seed failed:', err));
 
   // Set up after-sales module routes
   app.use('/api/after-sales', afterSalesRoutes);

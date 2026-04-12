@@ -1,7 +1,8 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getNextDocSeq } from '../doc-sequence-service';
-import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
+import { createEpcTask } from '../epc-task-helpers';
+import { resolveEpcAssignee } from '../epc-assignment-engine';
 import { ROUTING_MAP, SLA_DAYS, PRIORITY_MAP } from './pipeline-types';
 import type { DraftDocType } from './pipeline-types';
 
@@ -61,8 +62,9 @@ export async function redraftFromRejected(
   );
   const newDraftId = (result.rows[0] as any).id;
 
-  const routing = ROUTING_MAP[docType as keyof typeof ROUTING_MAP] || { department: 'Projects', preferredRole: 'Senior Executive' };
-  const assignee = await resolveAssignee(draft.project_id, routing.department, userId, undefined, routing.preferredRole);
+  const workflowCodeMap: Record<string, string> = { DO: 'DWG_approve', WO: 'WO_approve', PO: 'PO_approve', IO: 'INS_execute' };
+  const assignment = await resolveEpcAssignee(workflowCodeMap[docType] || 'DWG_approve', draft.project_id, 'pipeline');
+  const assignee = assignment.userId;
   const taskId = await createEpcTask({
     projectId: draft.project_id,
     entityType: 'execution_draft',

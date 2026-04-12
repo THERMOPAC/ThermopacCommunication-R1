@@ -7,6 +7,7 @@ import {
 } from '@shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import type { AgentEvent } from './agents/framework/types';
+import { resolveEpcAssignee } from './epc-assignment-engine';
 
 const EPC_MILESTONES = [
   { stageNumber: 1, name: 'Order Acknowledgement', phase: 'Design & Engineering' },
@@ -22,24 +23,21 @@ const EPC_MILESTONES = [
   { stageNumber: 11, name: 'Customer Handover', phase: 'Installation & Commissioning' },
 ];
 
-type AssignmentOwner = 'project_manager' | 'department';
-
 interface KickoffTaskDef {
   title: string;
   phase: string;
-  owner: AssignmentOwner;
-  department?: string;
+  workflowCode: string;
 }
 
 const KICKOFF_TASKS: KickoffTaskDef[] = [
-  { title: 'Prepare Project Execution Plan', phase: 'Design & Engineering', owner: 'project_manager' },
-  { title: 'Define Project Schedule & Milestones', phase: 'Design & Engineering', owner: 'project_manager' },
-  { title: 'Initiate GA Drawing', phase: 'Design & Engineering', owner: 'department', department: 'Design' },
-  { title: 'Prepare Preliminary BOM', phase: 'Design & Engineering', owner: 'department', department: 'Design' },
-  { title: 'Import Project Items from Order', phase: 'Design & Engineering', owner: 'project_manager' },
-  { title: 'Review Make/Buy Classification', phase: 'Procurement', owner: 'department', department: 'Purchase' },
-  { title: 'Identify Critical Procurement Items', phase: 'Procurement', owner: 'department', department: 'Purchase' },
-  { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Control & Inspection', owner: 'department', department: 'Quality Control' },
+  { title: 'Prepare Project Execution Plan', phase: 'Design & Engineering', workflowCode: 'kickoff_pm' },
+  { title: 'Define Project Schedule & Milestones', phase: 'Design & Engineering', workflowCode: 'kickoff_pm' },
+  { title: 'Initiate GA Drawing', phase: 'Design & Engineering', workflowCode: 'kickoff_design' },
+  { title: 'Prepare Preliminary BOM', phase: 'Design & Engineering', workflowCode: 'kickoff_design' },
+  { title: 'Import Project Items from Order', phase: 'Design & Engineering', workflowCode: 'kickoff_pm' },
+  { title: 'Review Make/Buy Classification', phase: 'Procurement', workflowCode: 'kickoff_purchase' },
+  { title: 'Identify Critical Procurement Items', phase: 'Procurement', workflowCode: 'kickoff_purchase' },
+  { title: 'Prepare Quality Assurance Plan (QAP)', phase: 'Quality Control & Inspection', workflowCode: 'kickoff_qc' },
 ];
 
 const STARTER_DELIVERABLES = [
@@ -50,59 +48,6 @@ const STARTER_DELIVERABLES = [
   { name: 'Quality Assurance Plan', phase: 'Quality Control & Inspection' },
 ];
 
-const ROLE_PRIORITY = ['Senior Manager', 'Manager', 'Senior Executive'];
-
-async function findDepartmentLead(tx: any, department: string): Promise<number | null> {
-  for (const role of ROLE_PRIORITY) {
-    const result = await tx.execute(
-      sql`SELECT id FROM users WHERE department = ${department} AND role = ${role} AND is_active = true ORDER BY id LIMIT 1`
-    );
-    if (result.rows.length > 0) {
-      return (result.rows[0] as any).id;
-    }
-  }
-  return null;
-}
-
-interface AssignmentResult {
-  assignedTo: number | null;
-  method: 'phase_lead' | 'department_lead' | 'project_manager' | 'unassigned';
-  detail: string;
-}
-
-async function resolveTaskAssignment(
-  tx: any,
-  taskDef: KickoffTaskDef,
-  phaseLeadId: number | null,
-  managerId: number | null,
-): Promise<AssignmentResult> {
-  if (taskDef.owner === 'project_manager') {
-    if (managerId) {
-      return { assignedTo: managerId, method: 'project_manager', detail: `Project Manager (user ${managerId})` };
-    }
-    if (phaseLeadId) {
-      return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead fallback (user ${phaseLeadId})` };
-    }
-    return { assignedTo: null, method: 'unassigned', detail: 'No Project Manager configured' };
-  }
-
-  if (taskDef.owner === 'department' && taskDef.department) {
-    const deptLeadId = await findDepartmentLead(tx, taskDef.department);
-    if (deptLeadId) {
-      return { assignedTo: deptLeadId, method: 'department_lead', detail: `${taskDef.department} lead (user ${deptLeadId})` };
-    }
-    if (phaseLeadId) {
-      return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead fallback for ${taskDef.department} (user ${phaseLeadId})` };
-    }
-    return { assignedTo: null, method: 'unassigned', detail: `No Senior Manager or Manager found in ${taskDef.department}` };
-  }
-
-  if (phaseLeadId) {
-    return { assignedTo: phaseLeadId, method: 'phase_lead', detail: `Phase lead (user ${phaseLeadId})` };
-  }
-
-  return { assignedTo: null, method: 'unassigned', detail: 'No assignment rule matched' };
-}
 
 async function handleProjectKickoff(event: AgentEvent): Promise<void> {
   const { projectId, newStatus, oldStatus, changedBy, projectCode, projectName } = event.payload;
@@ -182,25 +127,24 @@ async function handleProjectKickoff(event: AgentEvent): Promise<void> {
 
       for (const taskDef of KICKOFF_TASKS) {
         const phaseInfo = phaseMap.get(taskDef.phase);
-        const phaseLeadId = phaseInfo?.leadId || null;
         const dueDate = phaseInfo?.endDate?.split('T')[0] || twoWeeksLater;
 
-        const assignment = await resolveTaskAssignment(tx, taskDef, phaseLeadId, managerId);
+        const assignment = await resolveEpcAssignee(taskDef.workflowCode, projectId, 'kickoff');
 
         let description = `Auto-created kickoff task for ${projectName || projectCode}`;
         if (assignment.method === 'unassigned') {
-          description = `⚠ ASSIGNMENT REQUIRED — ${assignment.detail}. Auto-created kickoff task for ${projectName || projectCode}`;
+          description = `⚠ ASSIGNMENT REQUIRED — ${assignment.warningMessage || 'No matching user found'}. Auto-created kickoff task for ${projectName || projectCode}`;
           unassignedTasks.push(taskDef.title);
         }
 
-        console.log(`[EPC-Kickoff] Task "${taskDef.title}" → ${assignment.method}: ${assignment.detail}`);
+        console.log(`[EPC-Kickoff] Task "${taskDef.title}" → ${assignment.method}: dept=${assignment.department} role=${assignment.role} user=${assignment.userId}`);
 
         const [newTask] = await tx.insert(tasksTable).values({
           title: taskDef.title,
           description,
           status: 'pending',
           priority: 'High',
-          assignedTo: assignment.assignedTo,
+          assignedTo: assignment.userId,
           createdBy: changedBy || managerId,
           createdAt: now,
           startDate: projectStartDate || now.split('T')[0],

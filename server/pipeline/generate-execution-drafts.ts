@@ -1,7 +1,8 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getNextDocSeq } from '../doc-sequence-service';
-import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
+import { createEpcTask } from '../epc-task-helpers';
+import { resolveEpcAssignee } from '../epc-assignment-engine';
 import {
   DraftDocType, ApprovalStatus, DependencyStatus,
   DraftGenerationSummary, ROUTING_MAP, SLA_DAYS, PRIORITY_MAP,
@@ -159,8 +160,9 @@ export async function generateExecutionDrafts(
       const draftId = draftResult;
 
       if (approvalStatus === 'pending_approval') {
-        const routing = ROUTING_MAP[docType];
-        const assignee = await resolveAssignee(projectId, routing.department, userId, executor, routing.preferredRole);
+        const workflowCodeMap: Record<DraftDocType, string> = { DO: 'DWG_approve', WO: 'WO_approve', PO: 'PO_approve', IO: 'INS_execute' };
+        const assignment = await resolveEpcAssignee(workflowCodeMap[docType], projectId, 'pipeline', executor);
+        const assignee = assignment.userId;
         const taskId = await createEpcTask({
           projectId,
           entityType: 'execution_draft',

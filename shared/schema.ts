@@ -26,7 +26,8 @@ export const modules = [
   "SAP Purchasing",
   "Employee Appraisal",
   "GCS Dashboard",
-  "Usage Tracker"
+  "Usage Tracker",
+  "EPC Assignment Control"
 ] as const;
 
 export type Module = typeof modules[number];
@@ -12319,3 +12320,42 @@ export const agentUsageDailyLog = pgTable('agent_usage_daily_log', {
 export const insertAgentUsageDailyLogSchema = createInsertSchema(agentUsageDailyLog).omit({ id: true, createdAt: true });
 export type AgentUsageDailyLog = typeof agentUsageDailyLog.$inferSelect;
 export type InsertAgentUsageDailyLog = z.infer<typeof insertAgentUsageDailyLogSchema>;
+
+export const epcAssignmentRules = pgTable('epc_assignment_rules', {
+  id: serial('id').primaryKey(),
+  workflowCode: text('workflow_code').notNull().unique(),
+  stageGate: text('stage_gate').notNull(),
+  actionType: text('action_type').notNull(),
+  department: text('department').notNull(),
+  role: text('role').notNull(),
+  fallbackDepartment: text('fallback_department'),
+  fallbackRole: text('fallback_role'),
+  isActive: boolean('is_active').notNull().default(true),
+  description: text('description'),
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertEpcAssignmentRuleSchema = createInsertSchema(epcAssignmentRules).omit({ id: true, createdAt: true, updatedAt: true });
+export type EpcAssignmentRule = typeof epcAssignmentRules.$inferSelect;
+export type InsertEpcAssignmentRule = z.infer<typeof insertEpcAssignmentRuleSchema>;
+
+export const epcAssignmentAuditLog = pgTable('epc_assignment_audit_log', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id'),
+  workflowCode: text('workflow_code').notNull(),
+  stageGate: text('stage_gate').notNull(),
+  actionType: text('action_type').notNull(),
+  ruleId: integer('rule_id').references(() => epcAssignmentRules.id),
+  resolutionMethod: text('resolution_method').notNull(),
+  resolvedDepartment: text('resolved_department'),
+  resolvedRole: text('resolved_role'),
+  resolvedUserId: integer('resolved_user_id'),
+  triggeredBy: text('triggered_by'),
+  warningMessage: text('warning_message'),
+  loggedAt: timestamp('logged_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type EpcAssignmentAuditLog = typeof epcAssignmentAuditLog.$inferSelect;

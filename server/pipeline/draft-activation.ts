@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
-import { createEpcTask, resolveAssignee } from '../epc-task-helpers';
+import { createEpcTask } from '../epc-task-helpers';
+import { resolveEpcAssignee } from '../epc-assignment-engine';
 import { ROUTING_MAP, PRIORITY_MAP, SLA_DAYS } from './pipeline-types';
 import type { DraftDocType } from './pipeline-types';
 import { generateDocumentNumber } from '../epc-coding';
@@ -144,10 +145,8 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const mfgReq = classification === 'Make' || true;
     const drawingNumber = itemBarcode || itemCode;
 
-    const designAssignee = await db.execute(
-      sql`SELECT id FROM users WHERE department = 'Design' AND role = 'Senior Executive' AND is_active = true LIMIT 1`
-    );
-    const designAssigneeId = designAssignee.rows.length > 0 ? (designAssignee.rows[0] as any).id : null;
+    const dwgAssigneeResult = await resolveEpcAssignee('DWG_prepare', draft.project_id, String(userId));
+    const designAssigneeId = dwgAssigneeResult.userId;
 
     const dwgInsertResult = await db.execute(
       sql`INSERT INTO epc_drawing_controls
@@ -184,6 +183,8 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     }
 
     try {
+      const bomAssigneeResult = await resolveEpcAssignee('BOM_prepare', draft.project_id, String(userId));
+      const bomAssigneeId = bomAssigneeResult.userId;
       const bomNumber = await generateDocumentNumber(draft.project_id, 'BOM', db);
       const bomInsert = await db.execute(
         sql`INSERT INTO epc_bom_headers
@@ -195,18 +196,18 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
                     'assembly', ${'BOM for ' + (itemDesc || itemCode)}, ${'Auto-created from Drawing Order ' + draft.doc_number},
                     ${itemCode}, ${itemDesc},
                     ${classification}, ${drawingNumber}, ${'00'},
-                    'draft', ${userId}, ${designAssigneeId})
+                    'draft', ${userId}, ${bomAssigneeId})
             RETURNING id`
       );
       const bomId = (bomInsert.rows[0] as any)?.id;
-      console.log(`[DraftActivation] Created BOM ${bomNumber} linked to DWG ${dwgControlNumber}`);
+      console.log(`[DraftActivation] Created BOM ${bomNumber} linked to DWG ${dwgControlNumber} (assigned to user ${bomAssigneeId})`);
 
-      if (designAssigneeId && bomId) {
+      if (bomAssigneeId && bomId) {
         await createEpcTask({
           projectId: draft.project_id, entityType: 'bom_header', recordId: bomId, actionCode: 'prepare',
           title: `Prepare BOM ${bomNumber} for ${projCode}`,
           description: `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created for project ${projCode}. Please add BOM lines and submit for review.`,
-          assignedTo: designAssigneeId, createdBy: userId, priority: 'Medium', dueDays: 7,
+          assignedTo: bomAssigneeId, createdBy: userId, priority: 'Medium', dueDays: 7,
         });
       }
     } catch (bomErr: any) {
@@ -231,9 +232,10 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   const isService = classification.toLowerCase() === 'service';
 
   const planningType = isService ? 'service' : 'make';
-  const planningAssignee = isService
-    ? await resolveAssignee(draft.project_id, 'Projects', userId, undefined, 'Senior Executive')
-    : await resolveAssignee(draft.project_id, 'Production', userId, undefined, 'Manager');
+  const planningAssigneeResult = isService
+    ? await resolveEpcAssignee('PLN_prepare', draft.project_id, 'full_auto')
+    : await resolveEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
+  const planningAssignee = planningAssigneeResult.userId;
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records
         (project_id, project_item_id, master_item_id, planning_type, status, created_by, assigned_to)
@@ -253,7 +255,8 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
       console.warn(`[DraftActivation] Could not generate production number, proceeding without it`);
     }
 
-    const productionAssignee = await resolveAssignee(draft.project_id, 'Production', userId, undefined, 'Manager');
+    const productionAssigneeResult = await resolveEpcAssignee('WO_prepare', draft.project_id, 'full_auto');
+    const productionAssignee = productionAssigneeResult.userId;
 
     const execResult = await db.execute(
       sql`INSERT INTO production_execution_records
@@ -282,9 +285,11 @@ async function activateWorkOrder(draft: any, userId: number): Promise<{ entityId
   );
   woPrepId = (woPrepResult.rows[0] as any).id;
 
-  const woCreatedBy = isService
-    ? await resolveAssignee(draft.project_id, 'Projects', userId, undefined, 'Senior Executive')
-    : userId;
+  let woCreatedBy = userId;
+  if (isService) {
+    const woCreatedByResult = await resolveEpcAssignee('PLN_prepare', draft.project_id, 'full_auto');
+    woCreatedBy = woCreatedByResult.userId ?? userId;
+  }
 
   const epcWoResult = await db.execute(
     sql`INSERT INTO epc_work_orders
@@ -378,7 +383,8 @@ async function activatePurchaseOrder(draft: any, userId: number): Promise<{ enti
   const classification = sd.make_or_buy || 'Buy';
   const projectItemId = draft.project_item_id;
 
-  const purchaseAssignee = await resolveAssignee(draft.project_id, 'Purchase', userId, undefined, 'Senior Executive');
+  const purchaseAssigneeResult = await resolveEpcAssignee('PO_prepare', draft.project_id, 'full_auto');
+  const purchaseAssignee = purchaseAssigneeResult.userId;
 
   const planningResult = await db.execute(
     sql`INSERT INTO item_planning_records

@@ -30,3 +30,4 @@ export const EpcPermissionDashboard = lazyWithRetry(() => import("@/pages/epc-pe
 export const EpcCutoverDashboard = lazyWithRetry(() => import("@/pages/epc-cutover-dashboard"));
 export const EpcControlTower = lazyWithRetry(() => import("@/pages/epc-control-tower"));
 export const GcsDashboardPage = lazyWithRetry(() => import("@/pages/gcs-dashboard-page"));
+export const EpcAssignmentControlPage = lazyWithRetry(() => import("@/pages/epc-assignment-control-page"));
