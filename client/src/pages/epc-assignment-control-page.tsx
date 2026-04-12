@@ -29,7 +29,13 @@ const GATE_LABELS: Record<string, string> = {
 
 const GATE_ORDER = ["BOM", "DWG", "PLN", "PO", "WO", "INS", "DSP", "COM", "INV"];
 
-const WIRED_GATES = new Set(["DWG", "WO", "PO", "INS", "BOM"]);
+const WIRED_GATES = new Set(["BOM", "DWG", "PLN", "PO", "WO", "INS", "DSP", "COM", "INV"]);
+
+function ModeBadge({ mode }: { mode: string }) {
+  if (mode === "auto")
+    return <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">Auto</Badge>;
+  return <Badge className="bg-slate-100 text-slate-700 border-slate-200 text-xs">Manual</Badge>;
+}
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "primary") return <Badge className="bg-green-100 text-green-800 border-green-200">✅ Primary</Badge>;
@@ -125,6 +131,7 @@ export default function EpcAssignmentControlPage() {
         fallbackDepartment: editingRule.fallback_department || null,
         fallbackRole: editingRule.fallback_role || null,
         isActive: editingRule.is_active,
+        executionMode: editingRule.execution_mode || 'manual',
         description: editingRule.description,
       },
     });
@@ -201,7 +208,8 @@ export default function EpcAssignmentControlPage() {
                                 <th className="text-left py-2 font-medium">Role</th>
                                 <th className="text-left py-2 font-medium">Fallback Dept</th>
                                 <th className="text-left py-2 font-medium">Fallback Role</th>
-                                <th className="text-center py-2 font-medium w-20">Active</th>
+                                <th className="text-center py-2 font-medium w-20">Mode</th>
+                                <th className="text-center py-2 font-medium w-16">Active</th>
                                 <th className="text-right py-2 font-medium w-32">Actions</th>
                               </tr>
                             </thead>
@@ -216,6 +224,9 @@ export default function EpcAssignmentControlPage() {
                                     <td className="py-2 text-blue-700">{rule.role}</td>
                                     <td className="py-2 text-muted-foreground">{rule.fallback_department || "—"}</td>
                                     <td className="py-2 text-muted-foreground">{rule.fallback_role || "—"}</td>
+                                    <td className="py-2 text-center">
+                                      <ModeBadge mode={rule.execution_mode || "manual"} />
+                                    </td>
                                     <td className="py-2 text-center">
                                       {rule.is_active
                                         ? <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
@@ -235,7 +246,7 @@ export default function EpcAssignmentControlPage() {
                                   </tr>
                                   {testResult[rule.workflow_code] && (
                                     <tr key={`test-${rule.id}`} className="bg-muted/30">
-                                      <td colSpan={7} className="px-3 py-2 text-sm">
+                                      <td colSpan={8} className="px-3 py-2 text-sm">
                                         {testResult[rule.workflow_code].resolution === "primary" && (
                                           <span className="text-green-700">✅ {testResult[rule.workflow_code].message}</span>
                                         )}
@@ -430,6 +441,17 @@ export default function EpcAssignmentControlPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <Label>Execution Mode</Label>
+                  <Select value={editingRule.execution_mode || "manual"} onValueChange={v => setEditingRule((r: any) => ({ ...r, execution_mode: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual — triggered by user action</SelectItem>
+                      <SelectItem value="auto">Auto — triggered by pipeline engine</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Auto = pipeline creates and assigns task automatically; Manual = user must initiate</p>
                 </div>
                 <div className="space-y-1">
                   <Label>Description</Label>

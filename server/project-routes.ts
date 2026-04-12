@@ -4508,9 +4508,14 @@ export function setupProjectRoutes(app: express.Express) {
           })}::jsonb, 'lifecycle_action', NOW())`);
 
         const inspItemDesc = record.item_description || record.item_code || 'Unknown Item';
-        const inspQualityLead = await resolveAssignee(record.project_id, 'Quality', userId, tx);
-        const inspProcLead = await resolveAssignee(record.project_id, 'Procurement', userId, tx);
-        const inspProdLead = await resolveAssignee(record.project_id, 'Production', userId, tx);
+        const [inspQcResult, inspProcResult, inspProdResult] = await Promise.all([
+          resolveEpcAssignee('INS_verify', record.project_id, String(userId)),
+          resolveEpcAssignee('PO_approve', record.project_id, String(userId)),
+          resolveEpcAssignee('WO_approve', record.project_id, String(userId)),
+        ]);
+        const inspQualityLead = inspQcResult.userId;
+        const inspProcLead = inspProcResult.userId;
+        const inspProdLead = inspProdResult.userId;
         const inspPM = await resolveManagerId(record.project_id, tx);
         return { inspItemDesc, inspQualityLead, inspProcLead, inspProdLead, inspPM };
       });
@@ -5468,13 +5473,13 @@ export function setupProjectRoutes(app: express.Express) {
           console.log(`[BOM-GATE] BYPASS: PO ${poNumber} created without BOM for project item ${prep.project_item_id} (Transitional mode)`);
         }
 
-        const poApproveAssignee = await resolveAssignee(prep.project_id, 'Procurement', userId, tx);
+        const poApproveResult = await resolveEpcAssignee('PO_approve', prep.project_id, String(userId));
         const poProjectCode = await resolveProjectCode(prep.project_id, tx);
         await createEpcTask({
           projectId: prep.project_id, entityType: 'purchase_order', recordId: newPO.id, actionCode: 'approve',
           title: `Approve EPC PO ${poNumber} for ${poProjectCode}`,
           description: `Purchase order ${poNumber} has been created and requires Manager approval. Vendor: ${prep.preferred_vendor_name || 'TBD'}. Amount: ${prep.estimated_total_cost || 'TBD'}.`,
-          assignedTo: poApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+          assignedTo: poApproveResult.userId, createdBy: userId, priority: 'High', dueDays: 2, tx,
         });
       });
 
@@ -5553,13 +5558,13 @@ export function setupProjectRoutes(app: express.Express) {
             projectItemId: po.project_item_id, poPrepId: po.po_preparation_id,
           })}::jsonb, 'lifecycle_action', NOW())`);
 
-        const poIssueAssignee = await resolveAssignee(po.project_id, 'Procurement', userId, tx);
+        const poIssueResult = await resolveEpcAssignee('PO_issue', po.project_id, String(userId));
         const poIssProjectCode = await resolveProjectCode(po.project_id, tx);
         await createEpcTask({
           projectId: po.project_id, entityType: 'purchase_order', recordId: id, actionCode: 'issue',
           title: `Issue EPC PO ${po.po_number} for ${poIssProjectCode}`,
           description: `Purchase order ${po.po_number} has been approved and is ready to be issued by a Senior Manager.`,
-          assignedTo: poIssueAssignee, createdBy: userId, priority: 'High', dueDays: 1, tx,
+          assignedTo: poIssueResult.userId, createdBy: userId, priority: 'High', dueDays: 1, tx,
         });
       });
 
@@ -5949,13 +5954,13 @@ export function setupProjectRoutes(app: express.Express) {
           console.log(`[BOM-GATE] BYPASS: WO ${woNumber} created without BOM for project item ${prep.project_item_id} (Transitional mode)`);
         }
 
-        const woApproveAssignee = await resolveAssignee(prep.project_id, 'Production', userId, tx);
+        const woApproveResult = await resolveEpcAssignee('WO_approve', prep.project_id, String(userId));
         const woProjectCode = await resolveProjectCode(prep.project_id, tx);
         await createEpcTask({
           projectId: prep.project_id, entityType: 'work_order', recordId: newWO.id, actionCode: 'approve',
           title: `Approve EPC WO ${woNumber} for ${woProjectCode}`,
           description: `Work order ${woNumber} has been created and requires Manager approval. Classification: ${prep.make_classification || 'N/A'}.`,
-          assignedTo: woApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+          assignedTo: woApproveResult.userId, createdBy: userId, priority: 'High', dueDays: 2, tx,
         });
       });
 
@@ -6039,13 +6044,13 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       try {
-        const woReleaseAssignee = await resolveAssignee(wo.project_id, 'Production', userId);
+        const woReleaseResult = await resolveEpcAssignee('WO_release', wo.project_id, String(userId));
         const woRelProjectCode = await resolveProjectCode(wo.project_id);
         await createEpcTask({
           projectId: wo.project_id, entityType: 'work_order', recordId: id, actionCode: 'release',
           title: `Release EPC WO ${wo.wo_number} for ${woRelProjectCode}`,
           description: `Work order ${wo.wo_number} has been approved and is ready to be released by a Senior Manager.`,
-          assignedTo: woReleaseAssignee, createdBy: userId, priority: 'High', dueDays: 1,
+          assignedTo: woReleaseResult.userId, createdBy: userId, priority: 'High', dueDays: 1,
         });
       } catch (taskErr) {
         console.error(`[EPC-WO] Non-critical: failed to create release task for ${wo.wo_number}`, taskErr);
@@ -8996,7 +9001,8 @@ export function setupProjectRoutes(app: express.Express) {
           }
         }
         if (!dwgReviewAssignee) {
-          dwgReviewAssignee = await resolveAssignee(rec.project_id, 'Design', userId, tx);
+          const dwgRevFallback = await resolveEpcAssignee('DWG_approve', rec.project_id, String(userId));
+          dwgReviewAssignee = dwgRevFallback.userId;
         }
         const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
         await createEpcTask({
@@ -9064,7 +9070,8 @@ export function setupProjectRoutes(app: express.Express) {
             dwgApproveAssignee = (reviewerMgr.rows[0] as any).reporting_manager_id;
           }
           if (!dwgApproveAssignee) {
-            dwgApproveAssignee = await resolveAssignee(rec.project_id, 'Design', userId, tx);
+            const dwgAppFallback = await resolveEpcAssignee('DWG_approve', rec.project_id, String(userId));
+            dwgApproveAssignee = dwgAppFallback.userId;
           }
           const dwgProjectCode = await resolveProjectCode(rec.project_id, tx);
           await createEpcTask({
@@ -9216,27 +9223,26 @@ export function setupProjectRoutes(app: express.Express) {
 
         const procReleased = updates.releasedForProcurement || rec.released_for_procurement;
         if (procReleased) {
-          const procAssignee = await resolveAssignee(rec.project_id, 'Projects', userId, tx);
-          if (procAssignee) {
+          const procAssigneeResult = await resolveEpcAssignee('PO_prepare', rec.project_id, String(userId));
+          if (procAssigneeResult.userId) {
             await createEpcTask({
               projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'procurement_released',
               title: `Drawing Released for Procurement — ${rec.dwg_control_number} — ${dwgProjectCode}`,
               description: `Drawing ${rec.dwg_control_number} (${rec.item_description || rec.item_code || ''}) has been released for procurement. Please proceed with purchase planning.`,
-              assignedTo: procAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+              assignedTo: procAssigneeResult.userId, createdBy: userId, priority: 'High', dueDays: 3, tx,
             });
           }
         }
 
         const mfgReleased = updates.releasedForManufacturing || rec.released_for_manufacturing;
         if (mfgReleased) {
-          const prodMgrResult = await tx.execute(sql`SELECT id FROM users WHERE department = 'Production' AND role = 'Manager' AND is_active = true LIMIT 1`);
-          const mfgAssignee = prodMgrResult.rows.length > 0 ? (prodMgrResult.rows[0] as any).id : await resolveAssignee(rec.project_id, 'Production', userId, tx);
-          if (mfgAssignee) {
+          const mfgAssigneeResult = await resolveEpcAssignee('WO_prepare', rec.project_id, String(userId));
+          if (mfgAssigneeResult.userId) {
             await createEpcTask({
               projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'manufacturing_released',
               title: `Drawing Released for Manufacturing — ${rec.dwg_control_number} — ${dwgProjectCode}`,
               description: `Drawing ${rec.dwg_control_number} (${rec.item_description || rec.item_code || ''}) has been released for manufacturing. Please proceed with production planning.`,
-              assignedTo: mfgAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+              assignedTo: mfgAssigneeResult.userId, createdBy: userId, priority: 'High', dueDays: 3, tx,
             });
           }
         }
@@ -9836,13 +9842,13 @@ export function setupProjectRoutes(app: express.Express) {
           updatedAt: new Date(),
         }).where(eq(epcBomHeaders.id, id));
 
-        const bomReviewAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const bomReviewResult = await resolveEpcAssignee('BOM_approve', rec.project_id, String(userId));
         const bomProjectCode = await resolveProjectCode(rec.project_id, tx);
         await createEpcTask({
           projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'review',
           title: `Review BOM ${rec.bom_number} for ${bomProjectCode}`,
           description: `BOM ${rec.bom_number} (${rec.bom_type}) has been submitted for review. Please review and provide your recommendation.`,
-          assignedTo: bomReviewAssignee, createdBy: userId, priority: 'High', dueDays: 3, tx,
+          assignedTo: bomReviewResult.userId, createdBy: userId, priority: 'High', dueDays: 3, tx,
         });
       });
 
@@ -9892,13 +9898,13 @@ export function setupProjectRoutes(app: express.Express) {
         }).where(eq(epcBomHeaders.id, id));
 
         if (recommendation === 'approve' || recommendation === 'approve_with_comments') {
-          const bomApproveAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+          const bomApproveResult = await resolveEpcAssignee('BOM_approve', rec.project_id, String(userId));
           const bomProjectCode = await resolveProjectCode(rec.project_id, tx);
           await createEpcTask({
             projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'approve',
             title: `Approve BOM ${rec.bom_number} for ${bomProjectCode}`,
             description: `BOM ${rec.bom_number} (${rec.bom_type}) has been reviewed with recommendation: ${recommendation}. Senior Manager approval is needed.`,
-            assignedTo: bomApproveAssignee, createdBy: userId, priority: 'High', dueDays: 2, tx,
+            assignedTo: bomApproveResult.userId, createdBy: userId, priority: 'High', dueDays: 2, tx,
           });
         }
       });
@@ -9949,13 +9955,13 @@ export function setupProjectRoutes(app: express.Express) {
           updatedAt: new Date(),
         }).where(eq(epcBomHeaders.id, id));
 
-        const bomReleaseAssignee = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
+        const bomReleaseResult = await resolveEpcAssignee('BOM_release', rec.project_id, String(userId));
         const bomProjectCode = await resolveProjectCode(rec.project_id, tx);
         await createEpcTask({
           projectId: rec.project_id, entityType: 'bom_header', recordId: id, actionCode: 'release',
           title: `Release BOM ${rec.bom_number} for ${bomProjectCode}`,
           description: `BOM ${rec.bom_number} (${rec.bom_type}) has been approved. It is now pending release by a Senior Manager.`,
-          assignedTo: bomReleaseAssignee, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
+          assignedTo: bomReleaseResult.userId, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
         });
       });
 

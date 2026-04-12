@@ -33,10 +33,14 @@ router.put('/api/epc-assignment-rules/:id', authenticateUser, async (req, res) =
   if (!isAdminOrGM(req)) return res.status(403).json({ error: 'Insufficient permissions' });
   try {
     const id = parseInt(req.params.id);
-    const { department, role, fallbackDepartment, fallbackRole, isActive, description } = req.body;
+    const { department, role, fallbackDepartment, fallbackRole, isActive, executionMode, description } = req.body;
 
     if (!department || !role) {
       return res.status(400).json({ error: 'department and role are required' });
+    }
+
+    if (executionMode && !['auto', 'manual'].includes(executionMode)) {
+      return res.status(400).json({ error: "executionMode must be 'auto' or 'manual'" });
     }
 
     const deptCheck = await db.execute(
@@ -69,6 +73,7 @@ router.put('/api/epc-assignment-rules/:id', authenticateUser, async (req, res) =
               fallback_department = ${fallbackDepartment || null},
               fallback_role = ${fallbackRole || null},
               is_active = ${isActive ?? true},
+              execution_mode = ${executionMode || 'manual'},
               description = ${description || null},
               updated_by = ${(req as any).user.id},
               updated_at = NOW()

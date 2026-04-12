@@ -7,16 +7,9 @@ export interface AssignmentResult {
   department: string | null;
   role: string | null;
   ruleId: number | null;
+  executionMode: 'auto' | 'manual';
   warningMessage?: string;
 }
-
-const ROLE_ORDER = `CASE role
-  WHEN 'Manager' THEN 1
-  WHEN 'Senior Manager' THEN 2
-  WHEN 'General Manager' THEN 3
-  WHEN 'Superuser' THEN 4
-  ELSE 5
-END`;
 
 async function findUserByDeptRole(
   department: string,
@@ -85,6 +78,8 @@ export async function resolveEpcAssignee(
     console.error(`[EPC-Assignment] Failed to load rule for ${workflowCode}:`, err);
   }
 
+  const executionMode: 'auto' | 'manual' = rule?.execution_mode === 'auto' ? 'auto' : 'manual';
+
   if (!rule) {
     const warning = `No active assignment rule found for workflow_code='${workflowCode}'`;
     console.warn(`[EPC-Assignment] ${warning}`);
@@ -92,7 +87,7 @@ export async function resolveEpcAssignee(
       projectId,
       workflowCode,
       stageGate: workflowCode.split('_')[0] || workflowCode,
-      actionType: workflowCode.split('_')[1] || 'unknown',
+      actionType: workflowCode.split('_').slice(1).join('_') || 'unknown',
       ruleId: null,
       resolutionMethod: 'unassigned',
       resolvedDepartment: null,
@@ -101,7 +96,7 @@ export async function resolveEpcAssignee(
       triggeredBy,
       warningMessage: warning,
     });
-    return { userId: null, method: 'unassigned', department: null, role: null, ruleId: null, warningMessage: warning };
+    return { userId: null, method: 'unassigned', department: null, role: null, ruleId: null, executionMode: 'manual', warningMessage: warning };
   }
 
   const primaryUserId = await findUserByDeptRole(rule.department, rule.role, executor);
@@ -121,7 +116,7 @@ export async function resolveEpcAssignee(
       triggeredBy,
       warningMessage: null,
     });
-    return { userId: primaryUserId, method: 'primary', department: rule.department, role: rule.role, ruleId: rule.id };
+    return { userId: primaryUserId, method: 'primary', department: rule.department, role: rule.role, ruleId: rule.id, executionMode };
   }
 
   if (rule.fallback_department && rule.fallback_role) {
@@ -142,7 +137,7 @@ export async function resolveEpcAssignee(
         triggeredBy,
         warningMessage: null,
       });
-      return { userId: fallbackUserId, method: 'fallback', department: rule.fallback_department, role: rule.fallback_role, ruleId: rule.id };
+      return { userId: fallbackUserId, method: 'fallback', department: rule.fallback_department, role: rule.fallback_role, ruleId: rule.id, executionMode };
     }
   }
 
@@ -162,7 +157,7 @@ export async function resolveEpcAssignee(
     triggeredBy,
     warningMessage: warning,
   });
-  return { userId: null, method: 'unassigned', department: null, role: null, ruleId: rule.id, warningMessage: warning };
+  return { userId: null, method: 'unassigned', department: null, role: null, ruleId: rule.id, executionMode, warningMessage: warning };
 }
 
 export async function testEpcAssignee(workflowCode: string): Promise<{
