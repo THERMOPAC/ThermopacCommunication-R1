@@ -504,7 +504,7 @@ function Layout({ children }: LayoutProps) {
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Diagnostics", href: "/tools" }] : []),
-    ...(user?.role === "Superuser" ? [{ icon: DollarSign, label: "Usage Tracker", href: "/usage-tracker" }] : []),
+    ...(hasViewPermission("Usage Tracker" as Module) || user?.role === "Superuser" ? [{ icon: DollarSign, label: "Usage Tracker", href: "/usage-tracker" }] : []),
     { icon: UserIcon, label: "Profile", href: "/profile" }
   ];
 
@@ -593,7 +593,8 @@ function Layout({ children }: LayoutProps) {
                     { type: 'single', href: '/project-commissioning', label: 'Project Commissioning' },
                     { type: 'single', href: '/dispatch-shipping', label: 'Dispatch & Shipping' },
                     { type: 'single', href: '/after-sales', label: 'After-Sales' },
-                    { type: 'single', href: '/gcs-dashboard', label: 'GCS Dashboard' }
+                    { type: 'single', href: '/gcs-dashboard', label: 'GCS Dashboard' },
+                    { type: 'single', href: '/usage-tracker', label: 'Usage Tracker' }
                   ];
 
                   const submenuItems = menuItems.filter(item => item.isSubmenu);
@@ -704,8 +705,7 @@ function Layout({ children }: LayoutProps) {
                   item.href === '/dwar' || 
                   item.href === '/recommendations' || 
                   item.href === '/leaderboard' || 
-                  item.href === '/emails' ||
-                  item.href === '/usage-tracker'
+                  item.href === '/emails'
                 ).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
