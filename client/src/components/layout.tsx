@@ -275,7 +275,6 @@ function Layout({ children }: LayoutProps) {
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     ...(hasViewPermission("GCS Dashboard") || user?.role === "Superuser" ? [{ icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" }] : []),
-    ...(hasViewPermission("EPC Assignment Control") || user?.role === "Superuser" ? [{ icon: ShieldCheck, label: "EPC Assignment Control", href: "/epc/assignment-control" }] : []),
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
     ...(user?.role === "Superuser" ? [{ 
@@ -408,6 +407,7 @@ function Layout({ children }: LayoutProps) {
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Radar, label: "Control Tower", href: "/epc/control-tower" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: BarChart4, label: "Cutover Dashboard", href: "/epc/cutover-dashboard" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "Permission Control", href: "/epc/permission-control" }] : []),
+        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: ShieldCheck, label: "EPC Assignment Control", href: "/epc/assignment-control" }] : []),
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
       ]
@@ -595,8 +595,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'single', href: '/dispatch-shipping', label: 'Dispatch & Shipping' },
                     { type: 'single', href: '/after-sales', label: 'After-Sales' },
                     { type: 'single', href: '/gcs-dashboard', label: 'GCS Dashboard' },
-                    { type: 'single', href: '/usage-tracker', label: 'Usage Tracker' },
-                    { type: 'single', href: '/epc/assignment-control', label: 'EPC Assignment Control' }
+                    { type: 'single', href: '/usage-tracker', label: 'Usage Tracker' }
                   ];
 
                   const submenuItems = menuItems.filter(item => item.isSubmenu);
