@@ -95,6 +95,7 @@ import { default as googleAdsRoutes } from "./google-ads-routes";
 import { default as legalManagementRoutes } from "./legal-management-routes";
 import { default as epcRisksRoutes } from "./epc-risks-routes";
 import { default as llmRoutes } from "./llm-routes";
+import { default as usageTrackerRoutes } from "./usage-tracker-routes";
 import { default as googleCalendarRoutes } from "./google-calendar-routes";
 import { default as designManagementRoutes } from "./design-management-routes";
 import { businessIntelligenceRoutes } from "./business-intelligence/business-intelligence-routes";
@@ -925,6 +926,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // LLM Prompt Engine routes registered at /api/llm
   app.use('/api/llm', llmRoutes);
   console.log('LLM Prompt Engine routes registered at /api/llm');
+
+  // Agent Usage Tracker routes
+  app.use('/api/usage-tracker', usageTrackerRoutes);
+  console.log('Usage tracker routes registered at /api/usage-tracker');
 
   // Timezone Detection API
   app.get('/api/timezone/detect', ensureAuthenticated, async (req: any, res: any) => {

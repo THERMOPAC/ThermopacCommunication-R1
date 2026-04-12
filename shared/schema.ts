@@ -12289,3 +12289,30 @@ export const automationPipelineRuns = pgTable('automation_pipeline_runs', {
 export const insertAutomationPipelineRunSchema = createInsertSchema(automationPipelineRuns).omit({ id: true, createdAt: true });
 export type AutomationPipelineRun = typeof automationPipelineRuns.$inferSelect;
 export type InsertAutomationPipelineRun = z.infer<typeof insertAutomationPipelineRunSchema>;
+
+export const agentUsageLimits = pgTable('agent_usage_limits', {
+  id: serial('id').primaryKey(),
+  monthlyLimitUnits: numeric('monthly_limit_units', { precision: 10, scale: 2 }).notNull().default('500'),
+  dailyLimitUnits: numeric('daily_limit_units', { precision: 10, scale: 2 }).notNull().default('50'),
+  softBlockEnabled: boolean('soft_block_enabled').notNull().default(true),
+  updatedBy: integer('updated_by').references(() => users.id),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertAgentUsageLimitSchema = createInsertSchema(agentUsageLimits).omit({ id: true, updatedAt: true });
+export type AgentUsageLimit = typeof agentUsageLimits.$inferSelect;
+export type InsertAgentUsageLimit = z.infer<typeof insertAgentUsageLimitSchema>;
+
+export const agentUsageDailyLog = pgTable('agent_usage_daily_log', {
+  id: serial('id').primaryKey(),
+  logDate: timestamp('log_date', { withTimezone: true }).notNull(),
+  estimatedUnits: numeric('estimated_units', { precision: 10, scale: 2 }).notNull().default('0'),
+  estimatedCost: numeric('estimated_cost', { precision: 10, scale: 2 }).notNull().default('0'),
+  notes: text('notes'),
+  loggedBy: integer('logged_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertAgentUsageDailyLogSchema = createInsertSchema(agentUsageDailyLog).omit({ id: true, createdAt: true });
+export type AgentUsageDailyLog = typeof agentUsageDailyLog.$inferSelect;
+export type InsertAgentUsageDailyLog = z.infer<typeof insertAgentUsageDailyLogSchema>;

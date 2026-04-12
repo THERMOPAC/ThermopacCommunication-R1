@@ -10,3 +10,4 @@ export const DiagnosticsPage = lazyWithRetry(() => import("@/pages/diagnostics-p
 export const GcsDiagnosticPage = lazyWithRetry(() => import("@/pages/gcs-diagnostic-page"));
 export const GcsTestPage = lazyWithRetry(() => import("@/pages/gcs-test-page"));
 export const SpecialFixesPage = lazyWithRetry(() => import("@/pages/special-fixes-page"));
+export const UsageTrackerPage = lazyWithRetry(() => import("@/pages/usage-tracker-page"));

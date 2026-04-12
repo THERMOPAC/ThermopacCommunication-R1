@@ -81,6 +81,7 @@ function Router() {
       <ProtectedRoute path="/alerts" component={() => <System.AlertsPage />} />
       <ProtectedRoute path="/emails" component={() => <System.EmailsPage />} />
       <SuperuserRoute path="/tools" component={() => <System.DiagnosticsPage />} />
+      <SuperuserRoute path="/usage-tracker" component={() => <System.UsageTrackerPage />} />
       <ProtectedRoute path="/profile" component={() => <Employee.ProfilePage />} />
       <ProtectedRoute path="/leaderboard" component={() => <Employee.LeaderboardPage />} />
       <ProtectedRoute path="/recurring-tasks" component={() => <Employee.RecurringTasksPage />} />

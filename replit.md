@@ -28,6 +28,7 @@ The system is a full-stack web application employing organized, hierarchical dat
     - **EPC Control Tower**: A program-level monitoring dashboard for project summaries, pipeline analysis, bottleneck identification, and risk indicators.
     - **EPC Cutover Readiness Dashboard**: Monitors migration progress, adoption of EPC features, and legacy system usage.
     - **Enterprise Document Control Framework (EDCF)**: Defines governed GCS roots, document types, and non-negotiable rules for document management, with an architecture for document registry, type registry, audit log, and access grants.
+    - **Agent Usage Tracker**: Local budget monitoring for Replit Agent Usage with configurable monthly/daily limits, warning thresholds at 50%/75%/90%/100%, soft-block messages, sidebar progress indicator (Superuser only), manual daily usage logging, and projected monthly cost display. Route: `/usage-tracker`, API: `/api/usage-tracker`.
 
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.

@@ -74,6 +74,7 @@ import {
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
 import { Module } from "@shared/schema";
+import UsageTrackerIndicator from "@/components/usage-tracker-indicator";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -503,6 +504,7 @@ function Layout({ children }: LayoutProps) {
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Diagnostics", href: "/tools" }] : []),
+    ...(user?.role === "Superuser" ? [{ icon: DollarSign, label: "Usage Tracker", href: "/usage-tracker" }] : []),
     { icon: UserIcon, label: "Profile", href: "/profile" }
   ];
 
@@ -701,7 +703,8 @@ function Layout({ children }: LayoutProps) {
                   item.href === '/dwar' || 
                   item.href === '/recommendations' || 
                   item.href === '/leaderboard' || 
-                  item.href === '/emails'
+                  item.href === '/emails' ||
+                  item.href === '/usage-tracker'
                 ).map((item, index) => {
                   const Icon = item.icon;
                   const isActive = item.href ? location === item.href : false;
@@ -731,6 +734,7 @@ function Layout({ children }: LayoutProps) {
 
           </div>
         </nav>
+        {user?.role === 'Superuser' && <UsageTrackerIndicator />}
       </aside>
 
       {/* Main Content */}
