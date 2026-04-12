@@ -274,7 +274,7 @@ function Layout({ children }: LayoutProps) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-    ...(hasViewPermission("GCS Dashboard" as Module) || user?.role === "Superuser" ? [{ icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" }] : []),
+    ...(hasViewPermission("GCS Dashboard") || user?.role === "Superuser" ? [{ icon: Database, label: "GCS Dashboard", href: "/gcs-dashboard" }] : []),
     { icon: CheckSquare, label: "Tasks", href: "/tasks" },
     { icon: Repeat, label: "Recurring Tasks", href: "/recurring-tasks" },
     ...(user?.role === "Superuser" ? [{ 
@@ -504,7 +504,7 @@ function Layout({ children }: LayoutProps) {
     { icon: Lightbulb, label: "Recommendations", href: "/recommendations" },
     { icon: Award, label: "Leaderboard", href: "/leaderboard" },
     ...(user?.role === "Superuser" ? [{ icon: Settings, label: "Diagnostics", href: "/tools" }] : []),
-    ...(hasViewPermission("Usage Tracker" as Module) || user?.role === "Superuser" ? [{ icon: DollarSign, label: "Usage Tracker", href: "/usage-tracker" }] : []),
+    ...(hasViewPermission("Usage Tracker") || user?.role === "Superuser" ? [{ icon: DollarSign, label: "Usage Tracker", href: "/usage-tracker" }] : []),
     { icon: UserIcon, label: "Profile", href: "/profile" }
   ];
 
