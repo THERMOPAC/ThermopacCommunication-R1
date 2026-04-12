@@ -12308,6 +12308,7 @@ export const agentUsageDailyLog = pgTable('agent_usage_daily_log', {
   logDate: timestamp('log_date', { withTimezone: true }).notNull(),
   estimatedUnits: numeric('estimated_units', { precision: 10, scale: 2 }).notNull().default('0'),
   estimatedCost: numeric('estimated_cost', { precision: 10, scale: 2 }).notNull().default('0'),
+  cumulativeTotal: numeric('cumulative_total', { precision: 10, scale: 2 }).notNull().default('0'),
   notes: text('notes'),
   loggedBy: integer('logged_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

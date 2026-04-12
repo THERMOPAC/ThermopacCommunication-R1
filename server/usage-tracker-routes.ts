@@ -83,7 +83,7 @@ router.get('/daily-log', ensureAuthenticated, async (req, res) => {
 
 router.post('/daily-log', ensureAuthenticated, ensureSuperuser, async (req, res) => {
   try {
-    const { logDate, estimatedUnits, estimatedCost, notes } = req.body;
+    const { logDate, estimatedUnits, estimatedCost, cumulativeTotal, notes } = req.body;
     const dateObj = new Date(logDate);
     const startOfDay = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
     const endOfDay = new Date(startOfDay);
@@ -101,6 +101,7 @@ router.post('/daily-log', ensureAuthenticated, ensureSuperuser, async (req, res)
         .set({
           estimatedUnits: String(estimatedUnits),
           estimatedCost: String(estimatedCost),
+          cumulativeTotal: String(cumulativeTotal || estimatedUnits),
           notes,
           loggedBy: (req as any).user?.id,
         })
@@ -113,10 +114,72 @@ router.post('/daily-log', ensureAuthenticated, ensureSuperuser, async (req, res)
       logDate: startOfDay,
       estimatedUnits: String(estimatedUnits),
       estimatedCost: String(estimatedCost),
+      cumulativeTotal: String(cumulativeTotal || estimatedUnits),
       notes,
       loggedBy: (req as any).user?.id,
     }).returning();
     res.json(created);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/quick-log', ensureAuthenticated, ensureSuperuser, async (req, res) => {
+  try {
+    const { currentTotal, notes } = req.body;
+    const cumTotal = parseFloat(currentTotal);
+    if (isNaN(cumTotal) || cumTotal < 0) {
+      return res.status(400).json({ error: 'Invalid total value' });
+    }
+
+    const allLogs = await db.select()
+      .from(agentUsageDailyLog)
+      .orderBy(desc(agentUsageDailyLog.logDate))
+      .limit(1);
+
+    const previousCumulative = allLogs.length > 0 ? parseFloat(allLogs[0].cumulativeTotal || '0') : 0;
+    const delta = Math.max(0, cumTotal - previousCumulative);
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const existing = await db.select()
+      .from(agentUsageDailyLog)
+      .where(and(
+        gte(agentUsageDailyLog.logDate, startOfDay),
+        lte(agentUsageDailyLog.logDate, endOfDay)
+      ));
+
+    if (existing.length > 0) {
+      const prevDayCum = allLogs.length > 0 && allLogs[0].id !== existing[0].id
+        ? parseFloat(allLogs[0].cumulativeTotal || '0')
+        : parseFloat(existing[0].cumulativeTotal || '0') - parseFloat(existing[0].estimatedUnits || '0');
+      const newDelta = Math.max(0, cumTotal - prevDayCum);
+
+      const [updated] = await db.update(agentUsageDailyLog)
+        .set({
+          estimatedUnits: String(Math.round(newDelta * 100) / 100),
+          estimatedCost: String(Math.round(newDelta * 100) / 100),
+          cumulativeTotal: String(Math.round(cumTotal * 100) / 100),
+          notes: notes || existing[0].notes,
+          loggedBy: (req as any).user?.id,
+        })
+        .where(eq(agentUsageDailyLog.id, existing[0].id))
+        .returning();
+      return res.json({ ...updated, delta: newDelta, previousCumulative: prevDayCum });
+    }
+
+    const [created] = await db.insert(agentUsageDailyLog).values({
+      logDate: startOfDay,
+      estimatedUnits: String(Math.round(delta * 100) / 100),
+      estimatedCost: String(Math.round(delta * 100) / 100),
+      cumulativeTotal: String(Math.round(cumTotal * 100) / 100),
+      notes,
+      loggedBy: (req as any).user?.id,
+    }).returning();
+    res.json({ ...created, delta, previousCumulative });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -134,7 +197,8 @@ router.get('/summary', ensureAuthenticated, async (_req, res) => {
 
     const monthlyLogs = await db.select()
       .from(agentUsageDailyLog)
-      .where(gte(agentUsageDailyLog.logDate, startOfMonth));
+      .where(gte(agentUsageDailyLog.logDate, startOfMonth))
+      .orderBy(desc(agentUsageDailyLog.logDate));
 
     const monthlyTotal = monthlyLogs.reduce((sum, log) => sum + parseFloat(log.estimatedUnits || '0'), 0);
 
@@ -144,10 +208,17 @@ router.get('/summary', ensureAuthenticated, async (_req, res) => {
     });
     const dailyTotal = todayLog ? parseFloat(todayLog.estimatedUnits || '0') : 0;
 
+    const lastLog = await db.select()
+      .from(agentUsageDailyLog)
+      .orderBy(desc(agentUsageDailyLog.logDate))
+      .limit(1);
+    const lastCumulativeTotal = lastLog.length > 0 ? parseFloat(lastLog[0].cumulativeTotal || '0') : 0;
+
     const monthlyLimit = limits ? parseFloat(limits.monthlyLimitUnits || '500') : 500;
     const dailyLimit = limits ? parseFloat(limits.dailyLimitUnits || '50') : 50;
     const monthlyPercent = monthlyLimit > 0 ? (monthlyTotal / monthlyLimit) * 100 : 0;
     const dailyPercent = dailyLimit > 0 ? (dailyTotal / dailyLimit) * 100 : 0;
+    const remainingDaily = Math.max(0, dailyLimit - dailyTotal);
 
     let warningLevel: 'none' | 'caution' | 'warning' | 'critical' | 'limit_reached' = 'none';
     const maxPercent = Math.max(monthlyPercent, dailyPercent);
@@ -163,6 +234,8 @@ router.get('/summary', ensureAuthenticated, async (_req, res) => {
       dailyTotal: Math.round(dailyTotal * 100) / 100,
       dailyLimit,
       dailyPercent: Math.round(dailyPercent * 10) / 10,
+      remainingDaily: Math.round(remainingDaily * 100) / 100,
+      lastCumulativeTotal: Math.round(lastCumulativeTotal * 100) / 100,
       warningLevel,
       softBlockEnabled: limits?.softBlockEnabled ?? true,
       daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
