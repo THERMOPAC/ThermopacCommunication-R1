@@ -172,19 +172,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    console.log(`Getting user with ID: ${id}`);
     const result = await db.select().from(users).where(eq(users.id, id));
-    const user = result[0] as User | undefined;
-    console.log(`Found user:`, this.redactSensitiveUserData(user));
-    return user;
+    return result[0] as User | undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    console.log(`Looking for user with username: ${username}`);
     const result = await db.select().from(users).where(eq(users.username, username));
-    const user = result[0] as User | undefined;
-    console.log(`Found user:`, this.redactSensitiveUserData(user));
-    return user;
+    return result[0] as User | undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
@@ -257,19 +251,13 @@ export class DatabaseStorage implements IStorage {
 
   // Reset token methods
   async getUserByEmail(email: string): Promise<User | undefined> {
-    console.log(`Looking for user with email: ${email}`);
     const result = await db.select().from(users).where(eq(users.email, email));
-    const user = result[0] as User | undefined;
-    console.log(`Found user:`, this.redactSensitiveUserData(user));
-    return user;
+    return result[0] as User | undefined;
   }
 
   async getUserByResetToken(resetToken: string): Promise<User | undefined> {
-    console.log(`Looking for user with reset token: ${resetToken.substring(0, 8)}...`);
     const result = await db.select().from(users).where(eq(users.resetToken, resetToken));
-    const user = result[0] as User | undefined;
-    console.log(`Found user:`, user ? user.username : 'None');
-    return user;
+    return result[0] as User | undefined;
   }
 
   async updateUserResetToken(id: number, resetToken: string, expiresAt: Date): Promise<void> {
