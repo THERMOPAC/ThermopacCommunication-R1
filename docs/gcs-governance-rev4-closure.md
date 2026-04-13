@@ -9,9 +9,9 @@
 
 ## 1. Approved Baseline Version Implemented
 
-**Rev 4 — GCS Governance Remediation + G8/R12 + Zero-Trust Hardening** is the finalized, accepted baseline. It supersedes and replaces all prior GCS governance baselines (Rev 1, Rev 2, Rev 3, EDCF-v1.0).
+**Rev 4 — GCS Governance Remediation + G8/R12 + Zero-Trust Hardening** is the finalized, accepted baseline. It is the implemented GCS governance baseline for all EPC document families covered in this module (DWG, QTN, INS, ECR, ECN, DSP, CO, TEMPLATE). It does not alter or supersede governance decisions for system-level document roots (QMS/, HR/, ACCOUNTS/, etc.) which are governed separately under their own frameworks.
 
-This baseline is **mandatory** for all future document flows. Any new upload handler, document family, or storage route added to the system must conform to every rule in Section 4 before being merged.
+This baseline is **mandatory** for all future document flows within its scope. Any new upload handler, document family, or storage route added to the system must conform to every rule in Section 4 before being merged.
 
 The system has been audited and confirmed:
 - **287/287** rows in `epc_document_attachments` at TPEL paths. Zero legacy paths.
@@ -150,60 +150,134 @@ Upload handlers must not catch geo resolution failures and fall back to a second
 
 ## 5. Sample Final Paths Per Document Family
 
-All paths confirmed from live database (`epc_document_attachments`) or derived from builder logic.
+Canonical patterns are derived directly from the approved builders in `server/epc-coding.ts` and `server/utils/inspection-document-upload.ts`. Live DB examples are taken from `epc_document_attachments` (confirmed 2026-04-13). Pre-R4 paths are noted where they differ from the R4 canonical — they are read-only legacy records; no new writes use those forms.
+
+Legend: `{CC}` = 2-letter continent code · `{CO}` = 2-letter country code · `{Cust}` = 3–5 char customer short code · `{FY}` = 4-digit fiscal year · `{NNN}` = 3-digit project sequence (e.g. `013`, `003`)
+
+---
 
 ### DWG — Design Drawing (revision-controlled)
+
+Builder: `buildDrawingGcsPath()` — `server/epc-coding.ts` L246–260  
+Pattern:
+```
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/{ItemCode}/DWG/{CodeBars}_rev-{rev}.{ext}
+```
+Live examples (DB-confirmed):
 ```
 TPEL/EU/TR/ACI/2627/013/C10308-CPS-HED-FOR-60-P2627-013/DWG/C103082627013007_rev-00.pdf
 TPEL/AS/SA/YAN/2627/003/C10295-CPS-PCP-FOR-200-P2627-003/DWG/C102952627003003_rev-00.pdf
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/{drawingNumber}/DWG/{drawingNumber}{YYYYNNN}{seq}_rev-{rr}.{ext}`
+Notes: `{ItemCode}` is the item/drawing code. `{CodeBars}` is the system-assigned code bars identifier. `{rev}` is the 2-digit revision index (e.g. `00`, `01`, `A`). DWG is revision-controlled; label is exempt from G8 vocabulary (stored as drawing title in `attachment_label`).
+
+---
 
 ### QTN — Quotation Document
+
+Builder: `buildEpcQtnGcsPath()` — `server/epc-coding.ts` L263–281  
+Pattern:
 ```
-TPEL/EU/TR/ACI/2627/2627-013/QTN/OFR-2627-0011/rev-na/001-baseline-order-2627-0012.pdf   ← pre-R4 label
-TPEL/AS/SA/YAN/2627/003/QTN/OFR-2627-0001/rev-na/001-quotation-document.pdf              ← R4 label
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QTN/{offerNumber}/rev-na/{seq}-{label}.pdf
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/QTN/{offerNumber}/rev-{rev}/{seq}-{label}.{ext}`
+R4 canonical example:
+```
+TPEL/AS/SA/YAN/2627/003/QTN/OFR-2627-0001/rev-na/001-quotation-document.pdf
+TPEL/EU/TR/ACI/2627/013/QTN/OFR-2627-0011/rev-na/001-quotation-document.pdf
+```
+Notes: Slot 5 is `{NNN}` (3-digit project sequence only — e.g. `003`, `013`). Pre-R4 DB records incorrectly used the full project code in that slot (e.g. `2627-013`) — those are legacy read-only rows. R4 default label is `quotation-document`. Revision slot is always `rev-na` for the quotation artifact.
+
+---
 
 ### INS — Inspection Document
+
+Builder: inline in `server/utils/inspection-document-upload.ts` L180  
+Pattern:
 ```
-TPEL/OC/NZ/WPC/2425/TP-OC-NZ-WPC-2425-001/INS/IO-2025-1-M-7/A/25-Visual_VI-2.pdf       ← pre-R4 label
-TPEL/OC/NZ/WPC/2425/TP-OC-NZ-WPC-2425-001/INS/IO-2025-1-M-7/rev-A/001-M7-drawing-inspection-report.pdf  ← R4 label
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/INS/{IONum}/rev-{rev}/{seq}-{drawingNumber}-{label}.{ext}
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/INS/{inspectionOrderNumber}/rev-{rev}/{seq}-{drawingNumber}-{label}.{ext}`
+R4 canonical example:
+```
+TPEL/OC/NZ/WPC/2425/001/INS/IO-2025-1-M-7/rev-A/025-m7-dwg-001-inspection-report.pdf
+TPEL/EU/TR/ACI/2627/013/INS/IO-2627-013-0003/rev-B/001-c10308-test-certificate.pdf
+```
+Notes: Slot 5 is `{NNN}` (3-digit sequence). `{IONum}` is the inspection order number. `{drawingNumber}` is the sanitised drawing reference from `req.body.drawingNumber`. `{rev}` is from `req.body.revision` (e.g. `A`, `B`). Pre-R4 DB records used full legacy project code in slot 5 and `/A/` as the revision notation — those are legacy read-only rows.
+
+---
 
 ### ECR — Engineering Change Request Document
+
+Builder: `buildEpcGcsPath()` — `server/epc-coding.ts` L153–178  
+Pattern:
 ```
-TPEL/EU/TR/ACI/2627/013/ECR/ECR-2627-013-0001/rev-na/001-affected-drawing.pdf
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECR/{ecrDocNumber}/rev-na/{seq}-{label}.{ext}
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECR/{ecrDocNumber}/rev-na/{seq}-{label}.{ext}`  
-*(No live records yet — first upload will produce this path. Guardrail asserted via `buildEpcGcsPath()`.)*
+Example:
+```
+TPEL/EU/TR/ACI/2627/013/ECR/2627-013-ECR-0001/rev-na/001-affected-drawing.pdf
+```
+Notes: No live DB records yet — first upload will produce this path. Project linkage (`project_id`) is mandatory; upload is rejected with HTTP 422 if absent. `rev-na` is correct for ECR attachments (not revision-controlled documents).
+
+---
 
 ### ECN — Engineering Change Notice Document
+
+Builder: `buildEpcGcsPath()` — `server/epc-coding.ts` L153–178  
+Pattern:
 ```
-TPEL/EU/TR/ACI/2627/013/ECN/ECN-2627-013-0001/rev-na/001-revised-drawing.pdf
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECN/{ecnDocNumber}/rev-na/{seq}-{label}.{ext}
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/ECN/{ecnDocNumber}/rev-na/{seq}-{label}.{ext}`
+Example:
+```
+TPEL/EU/TR/ACI/2627/013/ECN/2627-013-ECN-0001/rev-na/001-revised-drawing.pdf
+```
+Notes: Same constraints as ECR. Project linkage mandatory. `rev-na` is correct.
+
+---
 
 ### DSP — Dispatch Document
+
+Builder: `buildEpcGcsPath()` — `server/epc-coding.ts` L153–178  
+Pattern:
 ```
-TPEL/AS/SA/YAN/2627/003/DSP/DSP-2627-003-001/rev-na/001-dispatch-note.pdf
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/DSP/{dispatchNumber}/rev-na/{seq}-{label}.{ext}
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/DSP/{dispatchNumber}/rev-na/{seq}-{label}.{ext}`
+Example:
+```
+TPEL/AS/SA/YAN/2627/003/DSP/DSP-2627-003-0001/rev-na/001-dispatch-note.pdf
+```
+Notes: No live DB records yet (dispatch uploads write to `epc_document_attachments`; no records have been submitted). `rev-na` is correct for dispatch documents.
+
+---
 
 ### CO — Customer Order Document
+
+Builder: `buildEpcGcsPath()` — `server/epc-coding.ts` L153–178  
+Pattern:
 ```
-TPEL/EU/TR/ACI/2627/013/CO/PO-ACI-2025-001/rev-na/001-purchase-order.pdf
+TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/CO/{customerOrderNumber}/rev-{NN}/{seq}-{label}.{ext}
 ```
-*Pattern*: `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/CO/{customerOrderNumber}/rev-na/{seq}-{label}.{ext}`
+Example:
+```
+TPEL/EU/TR/ACI/2627/013/CO/PO-ACI-2025-001/rev-01/001-purchase-order.pdf
+TPEL/EU/TR/ACI/2627/013/CO/PO-ACI-2025-001/rev-02/001-amendment.pdf
+```
+Notes: `{NN}` is a 2-digit numeric revision (e.g. `01`, `02`) supplied by the uploader as `revisionCode`. CO documents are versioned by revision. `rev-na` must not be used for CO; the upload UI must require a revision code.
+
+---
 
 ### TEMPLATE — Offer Template
+
+Builder: `uploadTemplateToGcs()` — `server/sales-marketing-routes.ts` L30–45  
+Pattern:
+```
+TPEL/Templates/Offers/{templateSlug}/{seq}-{label}.{ext}
+```
+Example:
 ```
 TPEL/Templates/Offers/standard-quotation-2025/001-quotation-template.pdf
 TPEL/Templates/Offers/technical-cover-letter/001-cover-letter.pdf
 ```
-*Pattern*: `TPEL/Templates/Offers/{templateSlug}/{seq}-{label}.{ext}`
+Notes: `{templateSlug}` is derived from the template name (lowercased, non-alphanumeric → `-`). `{seq}` is a zero-padded 3-digit version counter. `assertGcsPath()` is called before every write. Label is from TEMPLATE vocabulary.
 
 ---
 
