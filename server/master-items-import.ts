@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
+import { ExcelJS, buildExcelBuffer, sheetToJson } from "./excel-utils";
 import { storage } from "./storage";
 
 // Authentication middleware
@@ -69,32 +69,10 @@ export function setupMasterItemsImportRoutes(app: Router) {
         }
       ];
 
-      // Create a new workbook
-      const workbook = XLSX.utils.book_new();
-      
-      // Create worksheet
-      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const excelBuffer = await buildExcelBuffer('Master Items', sampleData, [15, 30, 10, 12, 20]);
 
-      // Set column widths for better readability
-      worksheet['!cols'] = [
-        { wch: 15 }, // Item Code
-        { wch: 30 }, // Description
-        { wch: 10 }, // UOM
-        { wch: 12 }, // Make/Buy
-        { wch: 20 }  // Drawing No
-      ];
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Master Items');
-
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set headers for file download
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="master_items_sample.xlsx"');
-      
-      // Send the Excel file
       res.send(excelBuffer);
       
       console.log('Master items sample Excel file sent successfully');
@@ -131,11 +109,10 @@ export function setupMasterItemsImportRoutes(app: Router) {
         });
       }
 
-      // Read Excel file
-      const workbook = XLSX.read(req.file.buffer);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(req.file.buffer);
+      const worksheet = workbook.worksheets[0];
+      const jsonData: any[] = sheetToJson(worksheet);
 
       // Process the data
       const results = {

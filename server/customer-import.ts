@@ -1,6 +1,6 @@
 import express, { Request, Response, Router } from 'express';
 import multer from 'multer';
-import * as XLSX from 'xlsx';
+import { buildExcelBuffer } from './excel-utils';
 import { storage } from './storage';
 
 // Configure multer for memory storage (files are kept in memory as Buffer objects)
@@ -68,35 +68,12 @@ export function setupCustomerImportRoutes(app: Router) {
         }
       ];
 
-      // Create workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const columnWidths = [12, 30, 20, 25, 40, 40, 15, 15];
+      const excelBuffer = await buildExcelBuffer('Customer Data', sampleData, columnWidths);
 
-      // Set column widths for better readability
-      const columnWidths = [
-        { wch: 12 }, // BP Code
-        { wch: 30 }, // BP Name
-        { wch: 20 }, // Contact Person
-        { wch: 25 }, // E-Mail
-        { wch: 40 }, // Bill_To_Address
-        { wch: 40 }, // Ship_To_Address
-        { wch: 15 }, // Continent
-        { wch: 15 }  // Country Name
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer Data');
-
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=customer_import_sample.xlsx');
       res.setHeader('Content-Length', excelBuffer.length);
-
-      // Send the file
       res.send(excelBuffer);
     } catch (error) {
       console.error('Error generating sample Excel file:', error);
