@@ -204,14 +204,16 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
 
     const cycleIds = [...new Set(appraisals.map(a => a.cycleId))];
     let cycleStatusMap: Record<number, string> = {};
+    let cycleNameMap: Record<number, string> = {};
     if (cycleIds.length > 0) {
-      const cycles = await db.select({ id: appraisalCycles.id, status: appraisalCycles.status })
+      const cycles = await db.select({ id: appraisalCycles.id, status: appraisalCycles.status, name: appraisalCycles.name })
         .from(appraisalCycles)
         .where(inArray(appraisalCycles.id, cycleIds));
       cycleStatusMap = Object.fromEntries(cycles.map(c => [c.id, c.status]));
+      cycleNameMap = Object.fromEntries(cycles.map(c => [c.id, c.name]));
     }
 
-    const result = appraisals.map(a => ({ ...a, cycleStatus: cycleStatusMap[a.cycleId] ?? null }));
+    const result = appraisals.map(a => ({ ...a, cycleStatus: cycleStatusMap[a.cycleId] ?? null, cycleName: cycleNameMap[a.cycleId] ?? null }));
     res.json(result);
   } catch (error: any) {
     console.error('Error fetching appraisals:', error);

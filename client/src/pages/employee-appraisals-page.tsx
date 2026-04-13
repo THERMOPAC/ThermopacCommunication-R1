@@ -258,6 +258,7 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
               <TableRow>
                 <TableHead>Employee</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>Appraisal Cycle</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>L1 Reviewer</TableHead>
                 {view !== "my" && <TableHead>Score</TableHead>}
@@ -270,6 +271,11 @@ function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmpl
                 <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedId(a.id)}>
                   <TableCell className="font-medium">{a.employeeName}</TableCell>
                   <TableCell>{a.department || "-"}</TableCell>
+                  <TableCell>
+                    {a.cycleName
+                      ? <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300 ring-1 ring-inset ring-blue-700/10">{a.cycleName}</span>
+                      : <span className="text-muted-foreground text-xs">—</span>}
+                  </TableCell>
                   <TableCell><StatusBadge status={a.status} /></TableCell>
                   <TableCell>{a.l1ReviewerName}</TableCell>
                   {view !== "my" && <TableCell>{a.finalScore || a.overallCalculatedScore || "-"}</TableCell>}
