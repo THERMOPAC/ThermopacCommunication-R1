@@ -174,8 +174,8 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const dwgRecordId = (dwgInsertResult.rows[0] as any)?.id;
     console.log(`[DraftActivation] Created drawing control ${dwgControlNumber} from DO ${draft.doc_number} (assigned to user ${designAssigneeId})`);
 
-    const projCodeResult = await db.execute(sql`SELECT project_code FROM projects WHERE id = ${draft.project_id}`);
-    const projCode = projCodeResult.rows.length > 0 ? (projCodeResult.rows[0] as any).project_code : '';
+    const projCodeResult = await db.execute(sql`SELECT code FROM projects WHERE id = ${draft.project_id}`);
+    const projCode = projCodeResult.rows.length > 0 ? (projCodeResult.rows[0] as any).code : '';
 
     if (designAssigneeId && dwgRecordId) {
       await createEpcTask({
