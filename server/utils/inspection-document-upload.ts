@@ -143,8 +143,13 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
           const r = projRes.rows[0];
           const revision = (req as any).body?.revision || 'na';
           const seq = String(recordId).padStart(3, '0');
+          const rawDrawingNumber = (req as any).body?.drawingNumber || '';
+          const safeDrawingNumber = rawDrawingNumber.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
           const label = formattedTabName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${label}.${fileExtension}`;
+          const filenameParts = safeDrawingNumber
+            ? `${seq}-${safeDrawingNumber}-${label}`
+            : `${seq}-${label}`;
+          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${filenameParts}.${fileExtension}`;
           const { assertGcsPath } = await import('../epc-guardrails');
           assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
           console.log(`uploadInspectionDocument: Using governed TPEL path: ${filePath}`);

@@ -19,12 +19,17 @@ async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
   return url;
 }
 
-async function uploadTemplateToGcs(buffer: Buffer, subject: string, name: string, ext: string): Promise<string> {
-  const seq = Date.now();
-  const safeSubject = subject.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const safeLabel = `${safeName}-${seq}`;
-  const gcsPath = `TPEL/Templates/${safeSubject}/${safeLabel}.${ext}`;
+async function uploadTemplateToGcs(
+  buffer: Buffer,
+  name: string,
+  ext: string,
+  versionSeq: number = 1,
+): Promise<string> {
+  // Approved Rev 3 path: TPEL/Templates/Offers/{templateName}/{seq}-{label}.{ext}
+  const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const seq = String(versionSeq).padStart(3, '0');
+  const label = templateSlug;
+  const gcsPath = `TPEL/Templates/Offers/${templateSlug}/${seq}-${label}.${ext}`;
   const bucket = gcsClient.bucket(gcsBucketName);
   const file = bucket.file(gcsPath);
   await file.save(buffer, { contentType: 'application/pdf', metadata: { contentType: 'application/pdf' } });
@@ -981,7 +986,11 @@ export function setupSalesMarketingRoutes(app: Express) {
       let checksumSha256: string | undefined;
       try {
         const fileBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        gcsObjectPath = await uploadTemplateToGcs(fileBuffer, subject, name, ext);
+        // Derive version seq: count existing templates with same name to get next version
+        const { count: countResult } = await db.select({ count: sql<number>`COUNT(*)` }).from(offerTemplates)
+          .where(sql`LOWER(name) = LOWER(${name})`).then(r => r[0]);
+        const versionSeq = (Number(countResult) || 0) + 1;
+        gcsObjectPath = await uploadTemplateToGcs(fileBuffer, name, ext, versionSeq);
         checksumSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload failed, using local FS fallback:', gcsErr);
@@ -1061,7 +1070,17 @@ export function setupSalesMarketingRoutes(app: Express) {
       let newChecksum: string | undefined;
       try {
         const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
-        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.subject, existing.name, replaceExt);
+        // Derive next version seq from current gcsObjectPath or count of templates with same name
+        let nextSeq = 2;
+        if (existing.gcsObjectPath) {
+          const seqMatch = existing.gcsObjectPath.match(/\/(\d{3})-[^/]+\.[^/]+$/);
+          if (seqMatch) nextSeq = parseInt(seqMatch[1]) + 1;
+        } else {
+          const { count: countResult } = await db.select({ count: sql<number>`COUNT(*)` }).from(offerTemplates)
+            .where(sql`LOWER(name) = LOWER(${existing.name})`).then(r => r[0]);
+          nextSeq = (Number(countResult) || 1) + 1;
+        }
+        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq);
         newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload on replace failed:', gcsErr);
