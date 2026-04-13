@@ -299,7 +299,7 @@ export default function EpcPlanningControlPage() {
                         </TableCell>
                         <TableCell className="py-1.5 font-mono text-[10px] font-medium">{rec.planning_number || `PLN-${rec.id}`}</TableCell>
                         <TableCell className="py-1.5"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
-                        <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate">{rec.item_description || "—"}</TableCell>
+                        <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
                         <TableCell className="py-1.5 text-center">
                           <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${PLANNING_TYPE_COLORS[rec.planning_type] || ""}`}>
                             {rec.planning_type === "procurement" ? "Buy" : "Make"}
@@ -352,7 +352,7 @@ export default function EpcPlanningControlPage() {
                                       </h4>
                                       <div className="space-y-1">
                                         <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
-                                        <DetailRow label="Description" value={expandedDetail.item_description} />
+                                        <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
                                         {expandedDetail.source_bom_header_id && (
                                           <DetailRow label="Source BOM ID" value={expandedDetail.source_bom_header_id} />
                                         )}

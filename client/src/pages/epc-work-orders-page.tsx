@@ -391,7 +391,7 @@ export default function EpcWorkOrdersPage() {
                                         <DetailRow label="WO Number" value={expandedDetail.wo_number} mono />
                                         <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
                                         <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
-                                        <DetailRow label="Description" value={expandedDetail.item_description} />
+                                        <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
                                         <DetailRow label="Specification" value={expandedDetail.item_specification} />
                                         <DetailRow label="Quantity" value={`${expandedDetail.quantity || "—"} ${expandedDetail.uom || ""}`} />
                                         <DetailRow label="Notes" value={expandedDetail.wo_notes} />

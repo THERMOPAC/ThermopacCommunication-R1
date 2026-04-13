@@ -528,7 +528,7 @@ export default function EpcBomControlPage() {
                           <Badge className={`text-[8px] h-4 ${BOM_TYPE_COLORS[rec.bom_type] || "bg-gray-100"}`}>{rec.bom_type}</Badge>
                         </TableCell>
                         <TableCell><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
-                        <TableCell className="text-[10px] max-w-[200px] truncate">{rec.bom_title || rec.item_description || "—"}</TableCell>
+                        <TableCell className="text-[10px] max-w-[200px] truncate text-blue-600 font-medium">{rec.bom_title || rec.item_description || "—"}</TableCell>
                         <TableCell className="text-center text-[10px]">{rec.total_line_count || 0}</TableCell>
                         <TableCell>
                           <Badge className={`text-[8px] h-4 ${STATUS_COLORS[rec.status as StatusType] || ""}`}>
@@ -564,7 +564,7 @@ export default function EpcBomControlPage() {
                                   <DetailRow label="Revision" value={`Rev ${rec.bom_revision || rec.revision_code}`} mono />
                                   <DetailRow label="Type" value={rec.bom_type} />
                                   <DetailRow label="Item Code" value={<ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} />} />
-                                  <DetailRow label="Item Description" value={rec.item_description} />
+                                  <DetailRow label="Item Description" value={<span className="text-blue-600">{rec.item_description}</span>} />
                                   <DetailRow label="Classification" value={rec.classification_snapshot} />
                                   <DetailRow label="Drawing #" value={rec.drawing_number} mono />
                                   <DetailRow label="Drawing Rev" value={rec.drawing_revision} />

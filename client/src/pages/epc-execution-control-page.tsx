@@ -271,7 +271,7 @@ export default function EpcExecutionControlPage() {
                     </TableCell>
                     <TableCell className="py-1.5 font-mono text-[10px] font-medium">{recNum}</TableCell>
                     <TableCell className="py-1.5"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
-                    <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate">{rec.item_description || "—"}</TableCell>
+                    <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
                     <TableCell className="py-1.5 text-[10px] text-right font-mono">{rec.quantity || "—"} {rec.uom || ""}</TableCell>
                     <TableCell className="py-1.5 text-[10px] text-right font-mono">{formatAmount(rec.estimated_total_cost)}</TableCell>
                     <TableCell className="py-1.5 text-center">
@@ -331,7 +331,7 @@ export default function EpcExecutionControlPage() {
                                   </h4>
                                   <div className="space-y-1">
                                     <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
-                                    <DetailRow label="Description" value={expandedDetail.item_description} />
+                                    <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
                                     <DetailRow label="Specification" value={expandedDetail.item_specification} />
                                     <DetailRow label="UOM" value={expandedDetail.uom} />
                                     <Separator className="my-1" />
