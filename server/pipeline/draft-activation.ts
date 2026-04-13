@@ -183,24 +183,30 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     }
 
     try {
-      const bomAssigneeResult = await requireEpcAssignee('BOM_prepare', draft.project_id, String(userId));
-      const bomAssigneeId = bomAssigneeResult.userId;
+      // Use resolveEpcAssignee (not require) so BOM is always created even if assignee resolution fails
+      let bomAssigneeId: number | null = null;
+      try {
+        const bomAssigneeResult = await resolveEpcAssignee('BOM_prepare', draft.project_id, String(userId));
+        bomAssigneeId = bomAssigneeResult.userId || null;
+      } catch (assigneeErr: any) {
+        console.warn(`[DraftActivation] BOM_prepare assignee not resolved for DO ${draft.doc_number}: ${assigneeErr.message} — BOM will be created unassigned`);
+      }
       const bomNumber = await generateDocumentNumber(draft.project_id, 'BOM', db);
       const bomInsert = await db.execute(
         sql`INSERT INTO epc_bom_headers
             (bom_number, project_id, project_item_id, master_item_id, drawing_control_id,
              bom_type, bom_title, bom_description, item_code, item_description,
              classification_snapshot, drawing_number, drawing_revision,
-             status, created_by, assigned_to)
+             status, is_current, created_by, assigned_to)
             VALUES (${bomNumber}, ${draft.project_id}, ${draft.project_item_id}, ${sd.master_item_id || null}, ${dwgRecordId},
                     'assembly', ${'BOM for ' + (itemDesc || itemCode)}, ${'Auto-created from Drawing Order ' + draft.doc_number},
                     ${itemCode}, ${itemDesc},
                     ${classification}, ${drawingNumber}, ${'00'},
-                    'draft', ${userId}, ${bomAssigneeId})
+                    'draft', true, ${userId}, ${bomAssigneeId})
             RETURNING id`
       );
       const bomId = (bomInsert.rows[0] as any)?.id;
-      console.log(`[DraftActivation] Created BOM ${bomNumber} linked to DWG ${dwgControlNumber} (assigned to user ${bomAssigneeId})`);
+      console.log(`[DraftActivation] Created BOM ${bomNumber} linked to DWG ${dwgControlNumber} (assigned to user ${bomAssigneeId ?? 'unassigned'})`);
 
       if (bomAssigneeId && bomId) {
         await createEpcTask({
@@ -211,7 +217,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
         });
       }
     } catch (bomErr: any) {
-      console.error(`[DraftActivation] Warning: Failed to auto-create BOM for DO ${draft.doc_number}:`, bomErr.message);
+      console.error(`[DraftActivation] FAILED to auto-create BOM for DO ${draft.doc_number}:`, bomErr.message, bomErr.stack);
     }
   } catch (err: any) {
     console.error(`[DraftActivation] Warning: Failed to auto-create drawing control for DO ${draft.doc_number}:`, err.message);
