@@ -2147,6 +2147,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Distinct roles from active users, ordered by hierarchy
+  app.get("/api/users/roles", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const result = await db.execute(
+        sql`SELECT DISTINCT role FROM users WHERE is_active = true AND role IS NOT NULL ORDER BY role`
+      );
+      const ROLE_HIERARCHY = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive', 'Employee'];
+      const dbRoles = result.rows.map((r: any) => r.role as string);
+      const ordered = [
+        ...ROLE_HIERARCHY.filter(r => dbRoles.includes(r)),
+        ...dbRoles.filter(r => !ROLE_HIERARCHY.includes(r)).sort(),
+      ];
+      res.json(ordered);
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
   // Task Management Routes
   app.post("/api/tasks", async (req, res) => {
     try {

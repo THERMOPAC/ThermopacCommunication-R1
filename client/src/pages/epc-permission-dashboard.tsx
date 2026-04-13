@@ -46,6 +46,10 @@ export default function EpcPermissionDashboard() {
   const { user } = useAuth();
   const [simulateRole, setSimulateRole] = useState<string>("none");
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
+
+  const { data: availableRoles = [] } = useQuery<string[]>({
+    queryKey: ["/api/users/roles"],
+  });
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [gapSeverityFilter, setGapSeverityFilter] = useState<string>("all");
   const [gapCategoryFilter, setGapCategoryFilter] = useState<string>("all");
@@ -136,12 +140,9 @@ export default function EpcPermissionDashboard() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No simulation</SelectItem>
-                <SelectItem value="Superuser">Superuser</SelectItem>
-                <SelectItem value="General Manager">General Manager</SelectItem>
-                <SelectItem value="Senior Manager">Senior Manager</SelectItem>
-                <SelectItem value="Manager">Manager</SelectItem>
-                <SelectItem value="Senior Executive">Senior Executive</SelectItem>
-                <SelectItem value="Employee">Employee</SelectItem>
+                {availableRoles.map(role => (
+                  <SelectItem key={role} value={role}>{role}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -65,9 +65,14 @@ const ModulePermissionsManagement: React.FC = () => {
     queryFn: getQueryFn({ on401: "throw" })
   });
 
+  // Fetch distinct roles from DB (ordered by hierarchy server-side)
+  const { data: roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive', 'Employee'] } = useQuery<string[]>({
+    queryKey: ['/api/users/roles'],
+    queryFn: getQueryFn({ on401: "throw" }),
+  });
+
   // Group users by role with proper hierarchy following unified user dropdown standard
   const groupedUsers = React.useMemo(() => {
-    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive', 'Employee'];
     const groups: Record<string, User[]> = {};
     
     users?.forEach((user: User) => {
@@ -91,7 +96,7 @@ const ModulePermissionsManagement: React.FC = () => {
       role,
       users: groups[role]
     }));
-  }, [users]);
+  }, [users, roleOrder]);
   
   // Fetch role-based module permissions
   const { data: rolePermissions, isLoading: isLoadingRolePermissions } = useQuery<Record<string, Record<string, ModulePermission>>, Error>({
