@@ -1940,7 +1940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const users = await storage.getAllUsers();
-    res.json(users);
+    res.json(users.map(({ password: _pw, ...rest }) => rest));
   });
 
   // Optimized endpoint for user selection (dropdowns, etc.)
@@ -2635,18 +2635,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
     const subordinates = await storage.getSubordinates(req.user!.id);
-    res.json(subordinates);
+    res.json(subordinates.map(({ password: _pw, ...rest }) => rest));
   });
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      console.log('Registration attempt:', {
-        username: req.body.username,
-        role: req.body.role,
-        email: req.body.email,
-        countryCode: req.body.countryCode,
-        mobileNumber: req.body.mobileNumber
-      });
+      console.log('Registration attempt for role:', req.body.role);
 
       // If not authenticated, can only register as Employee
       if (!req.isAuthenticated()) {

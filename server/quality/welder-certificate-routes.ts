@@ -47,7 +47,6 @@ try {
     
     const credentialsString = process.env.GOOGLE_CLOUD_CREDENTIALS;
     console.log(`Credentials string length: ${credentialsString.length}`);
-    console.log(`First 20 chars: ${credentialsString.substring(0, 20)}...`);
     
     console.log('Attempting to parse Google Cloud credentials...');
     const credentials = JSON.parse(credentialsString);
@@ -61,7 +60,7 @@ try {
     };
     
     console.log('✅ Successfully parsed credentials JSON');
-    console.log(`Credential validation: ${JSON.stringify(validation)}`);
+    console.log(`Credential validation: ${JSON.stringify({ valid: Object.values(validation).every(Boolean) })}`);
     
     // Create GCS client with explicit credentials
     gcsClient = new Storage({
@@ -73,7 +72,6 @@ try {
     });
     
     console.log(`Using explicit GCS credentials with project: ${credentials.project_id}`);
-    console.log(`Service account: ${credentials.client_email}`);
   }
   
   console.log("GCS client created successfully for Welder Certificate routes");

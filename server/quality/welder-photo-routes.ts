@@ -289,7 +289,7 @@ export function registerWelderPhotoRoutes(app: any) {
             console.error('Error generating signed URL:', signedUrlError);
             // Use a public URL as fallback
             signedUrl = `https://storage.googleapis.com/${bucketName}/${standardPath}?v=${timestamp}`;
-            console.log('Using public URL fallback:', signedUrl);
+            console.log('Using public URL fallback for photo');
           }
           
           // Update the database with the photo path
@@ -481,7 +481,7 @@ export function registerWelderPhotoRoutes(app: any) {
             // Continue even without a signed URL - the upload was still successful
             // The client can fetch the URL separately through the existing photo URL endpoint
             signedUrl = `https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME || 'thermopac_storage'}/${standardPath}?v=${timestamp}`;
-            console.log('Using public URL as fallback:', signedUrl);
+            console.log('Using public URL as fallback for photo');
           }
           
           console.log('Direct file upload complete, updating database');

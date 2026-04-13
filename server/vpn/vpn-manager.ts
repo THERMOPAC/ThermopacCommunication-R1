@@ -67,9 +67,9 @@ export class VPNManager {
       // Create VPN configuration dynamically
       const vpnConfig = this.createVPNConfig(serverIP, username, password);
       
-      // Write temporary config file
+      // Write temporary config file with restrictive permissions (owner read/write only)
       const configPath = '/tmp/vpn_config.conf';
-      fs.writeFileSync(configPath, vpnConfig);
+      fs.writeFileSync(configPath, vpnConfig, { mode: 0o600 });
       
       // Start VPN connection using appropriate method
       await this.startVPNConnection(configPath);
@@ -149,7 +149,7 @@ file /etc/ppp/options.pptp
 ipparam ${serverIP}
 `;
 
-      fs.writeFileSync('/tmp/vpn_ppp_options', pppOptions);
+      fs.writeFileSync('/tmp/vpn_ppp_options', pppOptions, { mode: 0o600 });
 
       const pppProcess = spawn('pppd', ['call', '/tmp/vpn_ppp_options'], {
         stdio: 'pipe'
@@ -191,7 +191,7 @@ pppoptfile = /etc/ppp/options.l2tpd
 length bit = yes
 `;
 
-    fs.writeFileSync('/tmp/l2tpd.conf', l2tpConfig);
+    fs.writeFileSync('/tmp/l2tpd.conf', l2tpConfig, { mode: 0o600 });
 
     const pppOptions = `
 ipcp-accept-local
@@ -210,7 +210,7 @@ name ${username}
 password ${password}
 `;
 
-    fs.writeFileSync('/tmp/options.l2tpd', pppOptions);
+    fs.writeFileSync('/tmp/options.l2tpd', pppOptions, { mode: 0o600 });
 
     return new Promise((resolve, reject) => {
       const l2tpProcess = spawn('xl2tpd', ['-c', '/tmp/l2tpd.conf'], {

@@ -18,7 +18,6 @@ router.post('/connection/test', ensureAuthenticated, async (req, res) => {
 
     console.log('🔥 SAP CONNECTION TEST STARTED - Testing Service Layer');
     console.log('🔑 SAP Credentials Check:', {
-      sapUsername: username,
       passwordLength: password.length,
       sapCompanyDb: companyDb
     });
@@ -91,7 +90,6 @@ router.post('/credentials', ensureAuthenticated, async (req, res) => {
     process.env.SAP_COMPANY_DB = companyDb;
 
     console.log('🔐 SAP credentials updated:', {
-      username: username,
       companyDb: companyDb,
       passwordSet: !!password
     });

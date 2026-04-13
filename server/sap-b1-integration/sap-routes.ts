@@ -33,7 +33,7 @@ router.get('/connection/ssl-bypass-test', (req, res, next) => {
     const sapCompanyDb = process.env.SAP_COMPANY_DB;
 
     console.log('🧪 DIRECT SSL BYPASS TEST - Service Layer confirmed accessible');
-    console.log('🔑 Testing credentials:', { username: sapUsername, database: sapCompanyDb, passwordLength: sapPassword?.length });
+    console.log('🔑 Testing credentials:', { database: sapCompanyDb, passwordLength: sapPassword?.length });
     
     // Set global SSL bypass 
     process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
@@ -56,7 +56,7 @@ router.get('/connection/ssl-bypass-test', (req, res, next) => {
         Password: sapPassword
       };
       
-      console.log('📤 Login payload:', { CompanyDB: loginPayload.CompanyDB, UserName: loginPayload.UserName, PasswordLength: loginPayload.Password?.length });
+      console.log('📤 Login payload:', { CompanyDB: loginPayload.CompanyDB, PasswordLength: loginPayload.Password?.length });
       
       const response = await fetch(`${serviceLayerUrl}Login`, {
         method: 'POST',
@@ -417,7 +417,6 @@ router.get('/connection/status', ensureAuthenticated, async (req, res) => {
     console.log('🔥 SAP CONNECTION TEST STARTED - Testing Service Layer');
     console.log('🔑 SAP Credentials Check:', {
       serviceLayerUrl,
-      sapUsername,
       passwordLength: sapPassword?.length,
       sapCompanyDb
     });

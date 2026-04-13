@@ -637,16 +637,15 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
-      console.log('Unauthenticated user tried to access /api/user');
       return res.sendStatus(401);
     }
-    console.log(`Current user: ${req.user?.username}`);
-    res.json(req.user);
+    const { password: _pw, ...safeUser } = req.user as any;
+    res.json(safeUser);
   });
 
   app.get("/api/users", async (req, res) => {
-    const users = await storage.getAllUsers();
-    res.json(users);
+    const allUsers = await storage.getAllUsers();
+    res.json(allUsers.map(({ password: _pw, ...rest }) => rest));
   });
 
   // Test endpoint for Gmail SMTP functionality

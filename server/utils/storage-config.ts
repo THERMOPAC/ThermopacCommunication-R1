@@ -97,7 +97,6 @@ function createStorageClient() {
         // Parse the credentials from the environment variable
         const credentialsStr = process.env.GOOGLE_CLOUD_CREDENTIALS.trim();
         console.log(`Credentials string length: ${credentialsStr.length}`);
-        console.log(`First 20 chars: ${credentialsStr.substring(0, 20)}...`);
         
         // Check if the credentials start with a curly brace (JSON format)
         if (!credentialsStr.startsWith('{')) {
@@ -126,7 +125,7 @@ function createStorageClient() {
           hasPrivateKey: !!credentials.private_key,
         };
         
-        console.log('Credential validation:', JSON.stringify(validationResults));
+        console.log('Credential validation:', JSON.stringify({ valid: Object.values(validationResults).every(Boolean) }));
         
         if (!credentials.type || credentials.type !== 'service_account') {
           console.warn(`⚠️ WARNING: Credentials type is ${credentials.type || 'missing'}, should be "service_account"`);
@@ -146,7 +145,6 @@ function createStorageClient() {
         
         console.log('Using explicit GCS credentials with project:', 
           process.env.GOOGLE_CLOUD_PROJECT_ID || credentials.project_id);
-        console.log('Service account:', credentials.client_email);
           
         // Create a Storage client with explicit credentials
         return new Storage({
@@ -156,7 +154,6 @@ function createStorageClient() {
       } catch (parseError) {
         console.error('Error parsing GOOGLE_CLOUD_CREDENTIALS:', parseError);
         console.log('Credentials length:', process.env.GOOGLE_CLOUD_CREDENTIALS.length);
-        console.log('First 20 chars:', process.env.GOOGLE_CLOUD_CREDENTIALS.substring(0, 20) + '...');
         throw new Error('Failed to parse GOOGLE_CLOUD_CREDENTIALS. Please check the format.');
       }
     } else {

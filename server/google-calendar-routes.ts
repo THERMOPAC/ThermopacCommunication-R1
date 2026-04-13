@@ -25,10 +25,7 @@ router.get('/auth/google/calendar', ensureAuthenticated, (req, res) => {
     const state = encodeURIComponent(JSON.stringify(stateData));
     
     const authUrl = googleCalendarService.generateAuthUrl(state);
-    console.log('Generated Google Calendar OAuth URL:', authUrl);
-    console.log('Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 15) + '...');
-    console.log('Redirect URI:', process.env.GOOGLE_REDIRECT_URI);
-    console.log('State with user ID:', stateData);
+    console.log('Google Calendar OAuth URL generated successfully');
     
     // For debugging, let's also return the URL in JSON format if requested
     if (req.query.debug === 'true') {

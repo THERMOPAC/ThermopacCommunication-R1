@@ -39,7 +39,6 @@ async function createSapConnection() {
   const credentials = getSapCredentials();
   console.log('🔑 SAP Login with credentials:', {
     serviceLayerUrl: baseURL,
-    username: credentials.UserName,
     companyDb: credentials.CompanyDB,
     passwordSet: !!credentials.Password
   });

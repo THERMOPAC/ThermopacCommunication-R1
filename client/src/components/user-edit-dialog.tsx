@@ -318,10 +318,7 @@ export function UserEditDialog({ open, onOpenChange, user }: UserEditDialogProps
         cleanedData.password = data.password.trim();
       }
 
-      console.log('=== NEW EDIT USER REQUEST ===');
-      console.log('User ID:', user.id);
-      console.log('Clean data being sent:', cleanedData);
-      console.log('===============================');
+      console.log('Updating user with ID:', user.id);
 
       return apiRequest('PUT', `/api/admin/users/${user.id}`, cleanedData);
     },

@@ -235,7 +235,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
           });
           
           console.log(`File uploaded successfully to GCS: ${filePath}`);
-          console.log(`Signed URL: ${signedUrl}`);
+          console.log(`Signed URL generated successfully`);
           
           resolve({
             success: true,

@@ -300,11 +300,8 @@ router.put('/users/:id', ensureAuthenticated, async (req: Request, res: Response
     updateData.updatedAt = new Date();
     console.log('Final update data:', { ...updateData, password: updateData.password ? '[HIDDEN]' : undefined });
 
-    // Log each field type before database update
-    console.log('Type validation:');
-    for (const [key, value] of Object.entries(updateData)) {
-      console.log(`  ${key}: ${typeof value} = ${value}`);
-    }
+    // Validate field types before database update
+    console.log('Updating user with fields:', Object.keys(updateData).join(', '));
 
     const [updatedUser] = await db
       .update(users)

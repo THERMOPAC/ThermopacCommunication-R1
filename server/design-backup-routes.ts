@@ -351,7 +351,7 @@ router.get('/:id/download', async (req, res) => {
     
     try {
       const signedUrl = await generateSignedUrl(backupRecord.filePath);
-      console.log('Generated signed URL for backup download:', signedUrl);
+      console.log('Generated signed URL for backup download successfully');
       
       // Redirect to the signed URL
       res.redirect(signedUrl);

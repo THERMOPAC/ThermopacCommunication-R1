@@ -278,7 +278,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     const allUsers = await db.select().from(users);
-    console.log(`Getting all users:`, allUsers);
+    console.log(`Getting all users: ${allUsers.length} records`);
     return allUsers as User[];
   }
 

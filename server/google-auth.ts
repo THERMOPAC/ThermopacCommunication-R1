@@ -23,9 +23,7 @@ const redirectUri = process.env.GOOGLE_REDIRECT_URI || "https://thermopac-commun
 // 2. Add it to your Google Cloud Console under "Authorized redirect URIs"
 // 3. Then set it as GOOGLE_REDIRECT_URI in your Replit environment variables
 
-// Log the effective redirect URI for debugging
-console.log(`Google Auth using OAuth redirect URI: ${redirectUri}`);
-console.log(`Using OAuth redirect URI: ${redirectUri}`);
+// Redirect URI configured for OAuth flows
 
 // Require environment variables - no fallback values for security
 const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -35,10 +33,7 @@ if (!clientId || !clientSecret) {
   throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables are required');
 }
 
-// Log the credentials we're using (partially masked for security)
-console.log(`Google Auth using credential configuration:`);
-console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
-console.log(`- Client Secret: ${clientSecret.substring(0, 6)}...`);
+// OAuth credentials loaded from environment variables
 
 // Configure OAuth 2.0 client with the determined redirect URI and our credentials
 const oauth2Client = new google.auth.OAuth2(
@@ -200,7 +195,6 @@ export function setupGoogleAuth(app: Express) {
     }
     
     console.log('Processing manual authentication with code');
-    console.log('Raw input:', code.substring(0, 30) + '...');
     
     // Clean and validate the authorization code
     const cleanCode = sanitizeAuthCode(code);
@@ -217,10 +211,7 @@ export function setupGoogleAuth(app: Express) {
     
     try {
       // Exchange code for tokens
-      console.log('Attempting to exchange code for tokens with:');
-      console.log(`- Redirect URI: ${redirectUri}`);
-      console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
-      console.log(`- Using code (first 10 chars): ${cleanCode.substring(0, 10)}...`);
+      console.log('Attempting to exchange code for tokens');
       
       // Create a fresh OAuth client for each request
       const freshOAuthClient = new google.auth.OAuth2(

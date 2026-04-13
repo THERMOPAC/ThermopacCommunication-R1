@@ -21,20 +21,8 @@ if (process.env.GOOGLE_REDIRECT_URI && process.env.GOOGLE_REDIRECT_URI.includes(
 // Log the effective redirect URI for debugging
 console.log(`Using OAuth redirect URI: ${redirectUri}`);
 
-// Check OAuth credentials and add detailed logging
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  console.warn('WARNING: Missing Google OAuth credentials in environment variables');
-  console.warn('Google Mail integration will not work until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set');
-  // Output environment variable keys to help with debugging
-  console.warn('Environment variables available:', Object.keys(process.env).filter(key => !key.includes('PASSWORD') && !key.includes('SECRET')).join(', '));
-} else {
-  // Log OAuth configuration (with truncated sensitive data for security)
-  console.log('Google OAuth Configuration:');
-  console.log(`- Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 5) + '...' : 'MISSING'}`);
-  console.log(`- Client Secret: ${process.env.GOOGLE_CLIENT_SECRET ? '******' : 'MISSING'}`);
-  console.log(`- Redirect URI: ${redirectUri}`);
-  console.log(`- Client ID Length: ${process.env.GOOGLE_CLIENT_ID?.length || 0}`);
-  console.log(`- Client Secret Length: ${process.env.GOOGLE_CLIENT_SECRET?.length || 0}`);
+  console.warn('WARNING: Missing Google OAuth credentials — Google Mail integration will not work');
 }
 
 // Require environment variables - no fallback values for security
@@ -45,12 +33,7 @@ if (!clientId || !clientSecret) {
   throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables are required');
 }
 
-// Log the credentials we're using (partially masked for security)
-console.log(`Using credential configuration:`);
-console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
-console.log(`- Client Secret: ${clientSecret.substring(0, 6)}...`);
-console.log(`- Redirect URI: ${redirectUri}`);
-console.log(`- Environment variables present: GOOGLE_CLIENT_ID=${!!process.env.GOOGLE_CLIENT_ID}, GOOGLE_CLIENT_SECRET=${!!process.env.GOOGLE_CLIENT_SECRET}, GOOGLE_REDIRECT_URI=${!!process.env.GOOGLE_REDIRECT_URI}`);
+console.log(`Google OAuth credentials loaded. Redirect URI: ${redirectUri}`);
 
 // Create an OAuth2 client with explicit credentials
 export const oauth2Client = new OAuth2Client(
@@ -70,14 +53,7 @@ export const SCOPES = [
  */
 export function getAuthUrl(): string {
   // We are now using the hardcoded fallback credentials if env vars are not available
-  console.log('===== GENERATING OAUTH URL =====');
-  console.log('Using the following parameters:');
-  console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
-  console.log(`- Client ID Length: ${clientId.length} characters`);
-  console.log(`- Redirect URI: ${redirectUri}`);
-  console.log(`- Redirect URI Length: ${redirectUri.length} characters`);
-  console.log(`- Scopes: ${SCOPES.join(', ')}`);
-  console.log(`- Environment variables present: GOOGLE_CLIENT_ID=${!!process.env.GOOGLE_CLIENT_ID}, GOOGLE_CLIENT_SECRET=${!!process.env.GOOGLE_CLIENT_SECRET}, GOOGLE_REDIRECT_URI=${!!process.env.GOOGLE_REDIRECT_URI}`);
+  console.log('Generating OAuth URL...');
   
   try {
     // Create a fresh OAuth2 client specifically for this request to avoid any state issues
@@ -95,11 +71,7 @@ export function getAuthUrl(): string {
       redirect_uri: redirectUri // Explicitly set redirect URI
     });
     
-    console.log(`Successfully generated auth URL: ${authUrl.substring(0, 50)}...`);
-    
-    // Log the complete URL for debugging (careful with logs in production)
-    console.log('Complete OAuth URL for debugging:');
-    console.log(authUrl);
+    console.log(`Successfully generated auth URL`);
     
     return authUrl;
   } catch (error) {
@@ -119,13 +91,9 @@ export function getAuthUrl(): string {
 export async function getTokens(code: string) {
   // Sanitize the code first
   code = sanitizeAuthCode(code);
-  console.log(`Exchanging auth code for tokens (code length: ${code.length})`);
+  console.log('Exchanging auth code for tokens');
   
   try {
-    // Use the same client ID and redirect URI that we used for generating the auth URL
-    console.log(`Using credentials for token exchange:`);
-    console.log(`- Client ID: ${clientId.substring(0, 8)}...${clientId.substring(clientId.length - 5)}`);
-    console.log(`- Redirect URI: ${redirectUri}`);
     
     // Create a new OAuth client with our credentials to avoid the type errors
     const tokenOAuthClient = new OAuth2Client(

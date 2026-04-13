@@ -19,7 +19,7 @@ try {
       hasPrivateKey: !!gcsCredentials.private_key,
     };
     
-    console.log('Credential validation:', validation);
+    console.log('Credential validation:', { valid: Object.values(validation).every(Boolean) });
     
     if (!validation.hasType || !validation.hasProjectId || !validation.hasClientEmail || !validation.hasPrivateKey) {
       console.error('Google Cloud credentials are missing required fields.');

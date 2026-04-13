@@ -141,12 +141,11 @@ export default function UserManagement() {
         delete data.password;
       }
 
-      console.log('Updating user with data:', { id, ...data, password: '[REDACTED]' });
+      console.log('Updating user with ID:', id);
 
       try {
         // The apiRequest function handles all the request logic including JSON parsing
         const result = await apiRequest("PATCH", `/api/users/${id}`, data);
-        console.log('Update user API response:', result);
         return result;
       } catch (error) {
         console.error('Error caught in updateUserMutation:', error);

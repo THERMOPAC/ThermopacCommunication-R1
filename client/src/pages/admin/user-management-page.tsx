@@ -242,14 +242,8 @@ export default function UserManagementPage() {
         password: rawData.password?.trim() || undefined,
       };
       
-      console.log('=== FRONTEND UPDATE REQUEST ===');
-      console.log('Updating user:', id, 'with data:', data);
-      console.log('Data type check:', typeof data, data);
-      console.log('Stringified data:', JSON.stringify(data));
-      console.log('==================================');
       try {
         const result = await apiRequest('PUT', `/api/admin/users/${id}`, data);
-        console.log('Update successful, result:', result);
         return result;
       } catch (error) {
         console.error('Update failed with error:', error);
@@ -343,10 +337,6 @@ export default function UserManagementPage() {
   });
 
   const onSubmit = (values: UserFormValues) => {
-    console.log('Form submitted with values:', values);
-    console.log('Selected user:', selectedUser);
-    console.log('Form errors:', form.formState.errors);
-    
     // Custom validation for password in edit mode
     if (selectedUser) {
       // For updates, password is optional
@@ -354,7 +344,6 @@ export default function UserManagementPage() {
         form.setError('password', { message: 'Password must be at least 6 characters if provided' });
         return;
       }
-      console.log('Updating user with ID:', selectedUser.id);
       updateUserMutation.mutate({ ...values, id: selectedUser.id });
     } else {
       // For new users, password is required
