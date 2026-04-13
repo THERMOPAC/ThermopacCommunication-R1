@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { roles, roleHierarchy } from "@shared/roles";
+import { User } from "@shared/schema";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -72,12 +74,43 @@ export default function EmployeeAppraisalsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("my-appraisals");
+  const [filterEmployeeId, setFilterEmployeeId] = useState<number | null>(null);
 
   const { data: roleCheck } = useQuery<any>({
     queryKey: ["/api/appraisals/user/role-check"],
   });
 
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: user?.role === "Superuser" || user?.role === "HR" || user?.role === "Admin",
+  });
+
+  const { data: subordinates = [] } = useQuery<User[]>({
+    queryKey: ["/api/subordinates"],
+    enabled: !["Superuser", "HR", "Admin"].includes(user?.role || ""),
+  });
+
   const isHrOrSuperuser = user?.role === "Superuser" || user?.role === "HR";
+
+  const userPool: User[] = ["Superuser", "HR", "Admin"].includes(user?.role || "") ? allUsers : subordinates;
+
+  const sortedRoles = [...roles].sort((a, b) => roleHierarchy[a] - roleHierarchy[b]);
+  const groupedUsers = sortedRoles.reduce((acc, role) => {
+    const inRole = userPool.filter(u => u.role === role).sort((a, b) => {
+      const na = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+      const nb = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+      return na.localeCompare(nb);
+    });
+    if (inRole.length > 0) acc[role] = inRole;
+    return acc;
+  }, {} as Record<string, User[]>);
+
+  const selectedUserName = useMemo(() => {
+    if (!filterEmployeeId) return null;
+    const u = userPool.find(u => u.id === filterEmployeeId);
+    if (!u) return null;
+    return u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username;
+  }, [filterEmployeeId, userPool]);
 
   const tabs = useMemo(() => {
     const t = [{ id: "my-appraisals", label: "My Appraisals", icon: FileText }];
@@ -94,14 +127,58 @@ export default function EmployeeAppraisalsPage() {
     return t;
   }, [roleCheck, isHrOrSuperuser]);
 
+  const showFilter = userPool.length > 0;
+
   return (
     <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Award className="h-7 w-7 text-blue-600" /> Employee Appraisals</h1>
           <p className="text-sm text-muted-foreground mt-1">Performance evaluation and review management</p>
         </div>
+
+        {showFilter && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground font-medium whitespace-nowrap">Filter by Employee:</span>
+            <Select
+              value={filterEmployeeId !== null ? filterEmployeeId.toString() : "all"}
+              onValueChange={(v) => setFilterEmployeeId(v === "all" ? null : Number(v))}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="All Employees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {sortedRoles.map(role => {
+                  const usersInRole = groupedUsers[role];
+                  if (!usersInRole) return null;
+                  return (
+                    <SelectGroup key={role}>
+                      <SelectLabel className="text-xs text-muted-foreground">{role}</SelectLabel>
+                      {usersInRole.map(u => (
+                        <SelectItem key={u.id} value={u.id.toString()}>
+                          {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            {filterEmployeeId !== null && (
+              <Button variant="ghost" size="sm" className="text-muted-foreground h-9 px-2" onClick={() => setFilterEmployeeId(null)}>
+                ✕ Clear
+              </Button>
+            )}
+          </div>
+        )}
       </div>
+
+      {filterEmployeeId !== null && selectedUserName && (
+        <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-1.5 flex items-center gap-2">
+          <Users className="h-3.5 w-3.5" /> Showing appraisals for <strong>{selectedUserName}</strong>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex flex-wrap h-auto gap-1">
@@ -112,11 +189,11 @@ export default function EmployeeAppraisalsPage() {
           ))}
         </TabsList>
 
-        <TabsContent value="my-appraisals"><AppraisalListTab view="my" /></TabsContent>
-        <TabsContent value="team-review"><AppraisalListTab view="l1" /></TabsContent>
-        <TabsContent value="l2-review"><AppraisalListTab view="l2" /></TabsContent>
-        <TabsContent value="l3-approval"><AppraisalListTab view="l3" /></TabsContent>
-        <TabsContent value="all-appraisals"><AppraisalListTab view="all" /></TabsContent>
+        <TabsContent value="my-appraisals"><AppraisalListTab view="my" filterEmployeeId={filterEmployeeId} /></TabsContent>
+        <TabsContent value="team-review"><AppraisalListTab view="l1" filterEmployeeId={filterEmployeeId} /></TabsContent>
+        <TabsContent value="l2-review"><AppraisalListTab view="l2" filterEmployeeId={filterEmployeeId} /></TabsContent>
+        <TabsContent value="l3-approval"><AppraisalListTab view="l3" filterEmployeeId={filterEmployeeId} /></TabsContent>
+        <TabsContent value="all-appraisals"><AppraisalListTab view="all" filterEmployeeId={filterEmployeeId} /></TabsContent>
         <TabsContent value="cycles"><CyclesTab /></TabsContent>
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
         <TabsContent value="kpi-templates"><KpiTemplateLibraryTab /></TabsContent>
@@ -126,7 +203,7 @@ export default function EmployeeAppraisalsPage() {
   );
 }
 
-function AppraisalListTab({ view }: { view: string }) {
+function AppraisalListTab({ view, filterEmployeeId }: { view: string; filterEmployeeId?: number | null }) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -139,6 +216,12 @@ function AppraisalListTab({ view }: { view: string }) {
       return res.json();
     },
   });
+
+  const filteredAppraisals = useMemo(() => {
+    if (!appraisals) return [];
+    if (!filterEmployeeId) return appraisals;
+    return appraisals.filter((a: any) => a.employeeId === filterEmployeeId);
+  }, [appraisals, filterEmployeeId]);
 
   const deleteAppraisalMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/appraisals/${id}`),
@@ -163,10 +246,10 @@ function AppraisalListTab({ view }: { view: string }) {
         <CardTitle className="text-lg">
           {view === "my" ? "My Appraisals" : view === "l1" ? "Team Appraisals (L1 Review)" : view === "l2" ? "L2 Review Queue" : view === "l3" ? "L3 Approval Queue" : "All Appraisals"}
         </CardTitle>
-        <CardDescription>{appraisals?.length || 0} appraisal(s) found</CardDescription>
+        <CardDescription>{filteredAppraisals.length} appraisal(s) found{filterEmployeeId ? " (filtered)" : ""}</CardDescription>
       </CardHeader>
       <CardContent>
-        {!appraisals?.length ? (
+        {!filteredAppraisals.length ? (
           <div className="text-center py-8 text-muted-foreground">No appraisals found for this view.</div>
         ) : (
           <Table>
@@ -182,7 +265,7 @@ function AppraisalListTab({ view }: { view: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {appraisals.map((a: any) => (
+              {filteredAppraisals.map((a: any) => (
                 <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedId(a.id)}>
                   <TableCell className="font-medium">{a.employeeName}</TableCell>
                   <TableCell>{a.department || "-"}</TableCell>
