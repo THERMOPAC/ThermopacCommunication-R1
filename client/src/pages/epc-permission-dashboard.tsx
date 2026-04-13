@@ -17,8 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Shield, ShieldCheck, ShieldAlert, Eye, EyeOff, Check, X, AlertTriangle, Info, ChevronDown, ChevronRight, FileText, Lock, Users, Database, Settings, UserCog, Trash2, Clock, CheckCircle2, XCircle, RotateCcw, Download, History, GitBranch, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const ROLE_LABELS: Record<number, string> = { 0: "Superuser", 1: "General Manager", 2: "Senior Manager", 3: "Manager", 4: "Employee" };
-const ROLE_SHORT: Record<number, string> = { 0: "SU", 1: "GM", 2: "SM", 3: "Mgr", 4: "Emp" };
+const ROLE_LABELS: Record<number, string> = { 0: "Superuser", 1: "General Manager", 2: "Senior Manager", 3: "Manager", 4: "Senior Executive", 5: "Employee" };
+const ROLE_SHORT: Record<number, string> = { 0: "SU", 1: "GM", 2: "SM", 3: "Mgr", 4: "SE", 5: "Emp" };
 const SEVERITY_COLORS: Record<string, string> = {
   high: "bg-red-100 text-red-700 border-red-300",
   medium: "bg-amber-100 text-amber-700 border-amber-300",
@@ -285,7 +285,7 @@ function PageVisibilityTab({ pages, simulateRole }: { pages: any[]; simulateRole
                 <TableHead className="text-[10px] w-[200px]">Page</TableHead>
                 <TableHead className="text-[10px] w-[140px]">Route</TableHead>
                 <TableHead className="text-[10px] w-[100px]">Module Gate</TableHead>
-                {[4, 3, 2, 1, 0].map(level => (
+                {[5, 4, 3, 2, 1, 0].map(level => (
                   <TableHead key={level} className="text-[10px] text-center w-[60px]">{ROLE_SHORT[level]}</TableHead>
                 ))}
               </TableRow>
@@ -298,7 +298,7 @@ function PageVisibilityTab({ pages, simulateRole }: { pages: any[]; simulateRole
                   <TableCell className="text-[10px] py-1.5">
                     <Badge variant="outline" className="text-[8px] px-1 py-0">{p.moduleGate}</Badge>
                   </TableCell>
-                  {[4, 3, 2, 1, 0].map(level => (
+                  {[5, 4, 3, 2, 1, 0].map(level => (
                     <RoleCell key={level} allowed={p.visibilityByRole?.[level]} simulated={simulateRole !== "none" ? p.simulatedVisible : null} />
                   ))}
                 </TableRow>
@@ -354,7 +354,7 @@ function ActionMatrixTab({
                       <TableHead className="text-[10px] w-[180px]">Action</TableHead>
                       <TableHead className="text-[10px] w-[80px]">Min Role</TableHead>
                       <TableHead className="text-[10px] w-[140px]">Status Required</TableHead>
-                      {[4, 3, 2, 1, 0].map(level => (
+                      {[5, 4, 3, 2, 1, 0].map(level => (
                         <TableHead key={level} className="text-[10px] text-center w-[50px]">{ROLE_SHORT[level]}</TableHead>
                       ))}
                       <TableHead className="text-[10px] text-center w-[60px]">Aligned</TableHead>
@@ -377,7 +377,7 @@ function ActionMatrixTab({
                             <TableCell className="text-[9px] py-1.5 font-mono text-muted-foreground">
                               {a.statusRequired.join(", ")}
                             </TableCell>
-                            {[4, 3, 2, 1, 0].map(level => (
+                            {[5, 4, 3, 2, 1, 0].map(level => (
                               <RoleCell key={level} allowed={a.allowedByRole?.[level]} simulated={simulateRole !== "none" ? a.simulatedAllowed : null} />
                             ))}
                             <TableCell className="text-center py-1.5">
@@ -462,7 +462,7 @@ function DataRulesTab({ dataRules, simulateRole }: { dataRules: any[]; simulateR
               <TableHead className="text-[10px] w-[200px]">Data Type</TableHead>
               <TableHead className="text-[10px] w-[200px]">Location</TableHead>
               <TableHead className="text-[10px] w-[80px]">Min View Role</TableHead>
-              {[4, 3, 2, 1, 0].map(level => (
+              {[5, 4, 3, 2, 1, 0].map(level => (
                 <TableHead key={level} className="text-[10px] text-center w-[50px]">{ROLE_SHORT[level]}</TableHead>
               ))}
               <TableHead className="text-[10px] text-center w-[50px]">FE</TableHead>
@@ -480,7 +480,7 @@ function DataRulesTab({ dataRules, simulateRole }: { dataRules: any[]; simulateR
                       {ROLE_LABELS[d.minViewRole] || `Level ${d.minViewRole}`}
                     </Badge>
                   </TableCell>
-                  {[4, 3, 2, 1, 0].map(level => (
+                  {[5, 4, 3, 2, 1, 0].map(level => (
                     <RoleCell key={level} allowed={d.visibleByRole?.[level]} simulated={simulateRole !== "none" ? d.simulatedVisible : null} />
                   ))}
                   <TableCell className="text-center py-1.5">
