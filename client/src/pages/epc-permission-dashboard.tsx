@@ -682,6 +682,8 @@ function PageAccessControlTab() {
   const [overridePageKey, setOverridePageKey] = useState<string>("");
   const [overrideGranted, setOverrideGranted] = useState<boolean>(true);
   const [overrideReason, setOverrideReason] = useState<string>("");
+  const [filterUserId, setFilterUserId] = useState<string>("");
+  const [filterReason, setFilterReason] = useState<string>("");
 
   const { data: deptMatrix, isLoading: matrixLoading } = useQuery<any[]>({
     queryKey: ["/api/page-permissions/department-matrix"],
@@ -821,6 +823,51 @@ function PageAccessControlTab() {
 
   const allPageKeys = Object.keys(PAGE_LABELS);
 
+  const ROLE_LEVELS_BYPASS: Record<string, number> = {
+    Superuser: 0, GM: 1, SM: 2, Manager: 3, SE: 4, Employee: 5,
+  };
+
+  const effectivePerms = useMemo(() => {
+    if (!filterUserId) return null;
+    const uid = Number(filterUserId);
+    const u = (allUsers || []).find((x: any) => x.id === uid);
+    if (!u) return null;
+    const roleLevel = ROLE_LEVELS_BYPASS[u.role] ?? 5;
+    const isBypass = roleLevel <= 2;
+    return allPageKeys.map(pk => {
+      if (isBypass) return { pk, canView: true, source: "role-bypass" as const, overrideId: null };
+      const override = (userOverrides || []).find((o: any) => o.userId === uid && o.pageKey === pk);
+      if (override) {
+        return { pk, canView: override.canView ?? override.granted, source: "override" as const, overrideId: override.id };
+      }
+      const deptKey = `${u.department}::${pk}`;
+      const deptGrant = matrixMap[deptKey] ?? false;
+      return { pk, canView: deptGrant, source: "dept" as const, overrideId: null };
+    });
+  }, [filterUserId, allUsers, userOverrides, matrixMap, allPageKeys]);
+
+  const filterUser = useMemo(() =>
+    filterUserId ? (allUsers || []).find((x: any) => x.id === Number(filterUserId)) : null,
+  [filterUserId, allUsers]);
+
+  const handleFilterModeGrantToggle = (pk: string, currentlyGranted: boolean, source: string) => {
+    if (!filterUserId || !isSuperuser) return;
+    if (!filterReason.trim()) {
+      toast({ title: "Reason required", description: "Enter a reason before changing access.", variant: "destructive" });
+      return;
+    }
+    const uid = Number(filterUserId);
+    if (source === "override") {
+      if (currentlyGranted) {
+        deleteOverride.mutate({ userId: uid, pageKey: pk, auditReason: filterReason.trim() });
+      } else {
+        addOverride.mutate({ userId: uid, pageKey: pk, granted: true, auditReason: filterReason.trim() });
+      }
+    } else {
+      addOverride.mutate({ userId: uid, pageKey: pk, granted: !currentlyGranted, auditReason: filterReason.trim() });
+    }
+  };
+
   const handleEditModeToggle = (newValue: boolean) => {
     if (!newValue && pendingChanges.length > 0) {
       setShowDiscardDialog(true);
@@ -858,6 +905,109 @@ function PageAccessControlTab() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── USER FILTER (top-level) ── */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <UserCog className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-semibold">View / Edit Permissions by User</h3>
+            <Badge className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">User Filter</Badge>
+          </div>
+          <div className="flex items-end gap-3">
+            <div className="w-72 space-y-1">
+              <label className="text-[10px] font-medium text-muted-foreground">Select User</label>
+              <Select value={filterUserId} onValueChange={setFilterUserId}>
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Choose a user to inspect..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {(allUsers || [])
+                    .filter((u: any) => u.isActive)
+                    .sort((a: any, b: any) => (a.firstName || a.username).localeCompare(b.firstName || b.username))
+                    .map((u: any) => (
+                      <SelectItem key={u.id} value={String(u.id)} className="text-xs">
+                        {u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.username}
+                        {" — "}{u.department || "N/A"} ({u.role})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {filterUserId && isSuperuser && (
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-medium text-muted-foreground">Reason for any changes <span className="text-red-400">*</span></label>
+                <Input
+                  className="h-8 text-xs bg-background"
+                  placeholder="Enter audit reason before toggling..."
+                  value={filterReason}
+                  onChange={e => setFilterReason(e.target.value)}
+                />
+              </div>
+            )}
+            {filterUserId && (
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => { setFilterUserId(""); setFilterReason(""); }}>
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {filterUser && effectivePerms && (
+            <div className="mt-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">
+                  Showing effective page access for <strong>{filterUser.firstName ? `${filterUser.firstName} ${filterUser.lastName || ""}`.trim() : filterUser.username}</strong>
+                  {" "}·{" "}{filterUser.role}{" "}·{" "}{filterUser.department || "No dept"}
+                </span>
+                <span className="flex gap-1.5">
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-blue-300 text-blue-700 bg-blue-50">Dept default</Badge>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-violet-300 text-violet-700 bg-violet-50">Personal override</Badge>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-emerald-300 text-emerald-700 bg-emerald-50">Role bypass (SM+)</Badge>
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
+                {effectivePerms.map(({ pk, canView, source }) => {
+                  const isBypass = source === "role-bypass";
+                  const isOverride = source === "override";
+                  const bgColor = isBypass
+                    ? "bg-emerald-50 border-emerald-200"
+                    : isOverride
+                      ? canView ? "bg-violet-50 border-violet-200" : "bg-red-50 border-red-200"
+                      : canView ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200";
+                  const textColor = isBypass
+                    ? "text-emerald-700"
+                    : isOverride
+                      ? canView ? "text-violet-700" : "text-red-600"
+                      : canView ? "text-blue-700" : "text-gray-400";
+                  return (
+                    <div key={pk} className={`flex items-center justify-between rounded border px-2 py-1.5 ${bgColor}`}>
+                      <div className="min-w-0">
+                        <p className={`text-[10px] font-medium truncate ${textColor}`}>{PAGE_LABELS[pk]}</p>
+                        <p className="text-[9px] text-muted-foreground capitalize">
+                          {isBypass ? "bypass" : isOverride ? "override" : "dept"}
+                        </p>
+                      </div>
+                      {isSuperuser && !isBypass ? (
+                        <Switch
+                          checked={canView}
+                          onCheckedChange={() => handleFilterModeGrantToggle(pk, canView, source)}
+                          className="scale-75 ml-1 shrink-0"
+                          disabled={addOverride.isPending || deleteOverride.isPending}
+                        />
+                      ) : (
+                        <span className={`ml-1 text-[10px] font-bold shrink-0 ${canView ? "text-green-600" : "text-gray-300"}`}>
+                          {canView ? "✓" : "—"}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="pt-4">
           <div className="flex items-center justify-between mb-3">
