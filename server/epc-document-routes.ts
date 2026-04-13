@@ -8,6 +8,7 @@ import { ensureAuthenticated } from './auth-middleware';
 import { requireProjectMembership } from './utils/permission-utils';
 import * as epcCoding from './epc-coding';
 import { initializeGCS } from './utils/gcs-operations';
+import { validateLabel, getDocTypeLabelFamily } from '../shared/gcs-label-vocabulary';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -84,6 +85,17 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       const attachmentLabel = (req.body.attachmentLabel || req.body.attachment_label || '').trim();
       if (!attachmentLabel) {
         return res.status(400).json({ error: 'attachment_label is required' });
+      }
+
+      // G8: Validate label against controlled vocabulary (skip for DWG/BOM which use filename identity)
+      if (!epcCoding.REVISION_CONTROLLED_TYPES.has(docType)) {
+        const labelFamily = getDocTypeLabelFamily(docType);
+        if (!validateLabel(labelFamily, attachmentLabel)) {
+          return res.status(422).json({
+            error: `G8 violation: attachment_label must be selected from the ${labelFamily} controlled vocabulary. Free-text labels are not permitted.`,
+            family: labelFamily,
+          });
+        }
       }
 
       const parent = await lookupParentEntity(docType, parentEntityId, projectId);

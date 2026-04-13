@@ -22,6 +22,23 @@ const WITHDRAW_RELEASED_ROLES = ["Senior Manager", "General Manager", "Superuser
 const ACCESS_LOG_ROLES = ["General Manager", "Superuser"];
 const REVISION_CONTROLLED_TYPES = new Set(["DWG", "BOM"]);
 
+// G8: Controlled label vocabularies per EPC document family — must mirror shared/gcs-label-vocabulary.ts
+const EPC_LABEL_VOCABULARIES: Record<string, string[]> = {
+  ECR: ['change-request-form','supporting-analysis','affected-drawing','impact-assessment','cost-estimate','schedule-impact'],
+  ECN: ['change-notice','revised-drawing','updated-spec','implementation-record','close-out-report'],
+  DSP: ['dispatch-note','packing-list','gate-pass','lorry-receipt','e-way-bill','quality-release','delivery-challan'],
+  INS: ['inspection-report','test-certificate','witness-record','third-party-report','ndt-certificate','hardness-test','dimensional-report','material-traceability'],
+  CO:  ['letter-of-intent','purchase-order','advance-payment-proof','scope-of-supply','technical-specification','payment-terms','amendment'],
+  QTN: ['quotation-document','bill-of-quantities','commercial-terms','technical-offer','deviation-list','clarification'],
+  QTN_PRE: ['quotation-document','bill-of-quantities','commercial-terms','technical-offer','deviation-list','clarification','revised-offer'],
+  EPC_GENERAL: ['design-calc','datasheet','material-cert','test-report','vendor-doc','method-statement','approval-drawing','schedule','meeting-minutes','transmittal','site-instruction','weld-map','ndt-report','pressure-test','hydro-test'],
+};
+
+function getEpcLabelOptions(docType: string): string[] {
+  const dt = docType.toUpperCase();
+  return EPC_LABEL_VOCABULARIES[dt] || EPC_LABEL_VOCABULARIES['EPC_GENERAL'];
+}
+
 type EpcDocumentPanelProps = {
   projectId: number;
   docType: string;
@@ -471,10 +488,20 @@ export default function EpcDocumentPanel({
                   <div className="font-mono text-[11px] text-slate-700 break-all mt-0.5">{gcsPathPreview}</div>
                 </div>
               )}
-              {docType !== "DWG" && (
+              {!REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) && (
                 <div>
-                  <label className="text-sm font-medium block mb-1">Attachment Label</label>
-                  <Input value={uploadLabel} onChange={(e) => setUploadLabel(e.target.value)} placeholder="e.g. GA Drawing, Material Specification, Weld Map..." />
+                  <label className="text-sm font-medium block mb-1">Attachment Label <span className="text-red-500">*</span></label>
+                  <Select value={uploadLabel} onValueChange={setUploadLabel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a label from controlled vocabulary..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getEpcLabelOptions(docType).map(opt => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">Select from the approved label vocabulary for this document type.</p>
                 </div>
               )}
               <div>

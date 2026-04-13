@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import gcsClient, { bucketName } from './utils/storage-config';
 import { resolveProjectGeoCodes, buildEpcGcsPath } from './epc-coding';
 import crypto from 'crypto';
+import { validateLabel } from '../shared/gcs-label-vocabulary';
 
 // Helper functions for file handling
 function generateUniqueFileName(originalName: string): string {
@@ -383,6 +384,17 @@ export function setupEngineeringChangeRoutes(app: Router) {
         return res.status(404).json({ error: 'ECR not found' });
       }
       
+      // G8: Validate ECR label from controlled vocabulary BEFORE path construction
+      const ecrLabel = (req.body.documentType || '').trim().toLowerCase();
+      if (ecr.project_id) {
+        if (!ecrLabel || !validateLabel('ECR', ecrLabel)) {
+          return res.status(422).json({
+            error: 'G8 violation: documentType must be selected from the ECR controlled vocabulary. Free-text labels are not permitted.',
+            allowedValues: ['change-request-form','supporting-analysis','affected-drawing','impact-assessment','cost-estimate','schedule-impact'],
+          });
+        }
+      }
+
       // Resolve project geo-codes and build governed TPEL path
       let storagePath: string;
       let usedTpel = false;
@@ -395,11 +407,10 @@ export function setupEngineeringChangeRoutes(app: Router) {
                 FROM change_documents WHERE ecr_id = ${ecrId}`
           );
           const attachmentSeq = (seqResult.rows[0] as any).next_seq;
-          const labelRaw = (req.body.documentType || file.originalname).toLowerCase();
           storagePath = buildEpcGcsPath(
             geo.continentCode, geo.countryCode, geo.customerShortCode,
             geo.fyCode, geo.projectSeq, 'ECR', ecr.document_number,
-            null, attachmentSeq, labelRaw, file.originalname
+            null, attachmentSeq, ecrLabel, file.originalname
           );
           usedTpel = true;
         } catch {
@@ -459,6 +470,17 @@ export function setupEngineeringChangeRoutes(app: Router) {
       if (!ecn) {
         return res.status(404).json({ error: 'ECN not found' });
       }
+
+      // G8: Validate ECN label from controlled vocabulary BEFORE path construction
+      const ecnLabel = (req.body.documentType || '').trim().toLowerCase();
+      if (ecn.project_id) {
+        if (!ecnLabel || !validateLabel('ECN', ecnLabel)) {
+          return res.status(422).json({
+            error: 'G8 violation: documentType must be selected from the ECN controlled vocabulary. Free-text labels are not permitted.',
+            allowedValues: ['change-notice','revised-drawing','updated-spec','implementation-record','close-out-report'],
+          });
+        }
+      }
       
       // Resolve project geo-codes and build governed TPEL path
       let storagePath: string;
@@ -472,11 +494,10 @@ export function setupEngineeringChangeRoutes(app: Router) {
                 FROM change_documents WHERE ecn_id = ${ecnId}`
           );
           const attachmentSeq = (seqResult.rows[0] as any).next_seq;
-          const labelRaw = (req.body.documentType || file.originalname).toLowerCase();
           storagePath = buildEpcGcsPath(
             geo.continentCode, geo.countryCode, geo.customerShortCode,
             geo.fyCode, geo.projectSeq, 'ECN', ecn.document_number,
-            null, attachmentSeq, labelRaw, file.originalname
+            null, attachmentSeq, ecnLabel, file.originalname
           );
           usedTpel = true;
         } catch {

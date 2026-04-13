@@ -11,6 +11,7 @@ import * as path from 'path';
 import { storeQuotationPdfArtifact, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifact, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
 import crypto from 'crypto';
 import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
+import { validateLabel } from '../shared/gcs-label-vocabulary';
 
 async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
   const bucket = gcsClient.bucket(gcsBucketName);
@@ -24,11 +25,13 @@ async function uploadTemplateToGcs(
   name: string,
   ext: string,
   versionSeq: number = 1,
+  labelValue?: string,
 ): Promise<string> {
-  // Approved Rev 3 path: TPEL/Templates/Offers/{templateName}/{seq}-{label}.{ext}
+  // Approved Rev 4 path: TPEL/Templates/Offers/{templateSlug}/{seq}-{label}.{ext}
+  // G8: label must come from TEMPLATE controlled vocabulary
   const templateSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const seq = String(versionSeq).padStart(3, '0');
-  const label = templateSlug;
+  const label = labelValue || templateSlug;
   const gcsPath = `TPEL/Templates/Offers/${templateSlug}/${seq}-${label}.${ext}`;
   const bucket = gcsClient.bucket(gcsBucketName);
   const file = bucket.file(gcsPath);
@@ -978,8 +981,17 @@ export function setupSalesMarketingRoutes(app: Express) {
   router.post('/offer-templates', ensureAuthenticated, templateUpload.single('template'), async (req: Request, res: Response) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
-      const { name, subject, description, position, language, startPage, endPage } = req.body;
+      const { name, subject, description, position, language, startPage, endPage, label } = req.body;
       if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
+
+      // G8: Validate template label from controlled vocabulary
+      const templateLabel = (label || '').trim().toLowerCase();
+      if (!templateLabel || !validateLabel('TEMPLATE', templateLabel)) {
+        return res.status(422).json({
+          error: 'G8 violation: label must be selected from the Template controlled vocabulary. Free-text labels are not permitted.',
+          allowedValues: ['quotation-template','technical-submittal','cover-letter','bill-of-quantities','transmittal-template'],
+        });
+      }
 
       const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
       let gcsObjectPath: string | undefined;
@@ -990,7 +1002,7 @@ export function setupSalesMarketingRoutes(app: Express) {
         const { count: countResult } = await db.select({ count: sql<number>`COUNT(*)` }).from(offerTemplates)
           .where(sql`LOWER(name) = LOWER(${name})`).then(r => r[0]);
         const versionSeq = (Number(countResult) || 0) + 1;
-        gcsObjectPath = await uploadTemplateToGcs(fileBuffer, name, ext, versionSeq);
+        gcsObjectPath = await uploadTemplateToGcs(fileBuffer, name, ext, versionSeq, templateLabel);
         checksumSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload failed, using local FS fallback:', gcsErr);
@@ -1051,6 +1063,15 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
       if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded' });
 
+      // G8: Validate label if provided; otherwise derive from existing GCS path
+      const replaceTemplateLabel = (req.body.label || '').trim().toLowerCase();
+      if (replaceTemplateLabel && !validateLabel('TEMPLATE', replaceTemplateLabel)) {
+        return res.status(422).json({
+          error: 'G8 violation: label must be selected from the Template controlled vocabulary.',
+          allowedValues: ['quotation-template','technical-submittal','cover-letter','bill-of-quantities','transmittal-template'],
+        });
+      }
+
       const [existing] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
       if (!existing) return res.status(404).json({ error: 'Template not found' });
 
@@ -1080,7 +1101,13 @@ export function setupSalesMarketingRoutes(app: Express) {
             .where(sql`LOWER(name) = LOWER(${existing.name})`).then(r => r[0]);
           nextSeq = (Number(countResult) || 1) + 1;
         }
-        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq);
+        // Derive existing label from GCS path if not provided
+        let derivedLabel = replaceTemplateLabel;
+        if (!derivedLabel && existing.gcsObjectPath) {
+          const labelMatch = existing.gcsObjectPath.match(/\/\d{3}-([^/.]+)\.[^/]+$/);
+          if (labelMatch) derivedLabel = labelMatch[1];
+        }
+        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.name, replaceExt, nextSeq, derivedLabel || undefined);
         newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
       } catch (gcsErr) {
         console.warn('[offer-templates] GCS upload on replace failed:', gcsErr);

@@ -135,6 +135,16 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     }
     const safeDrawingNumber = rawDrawingNumber.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
 
+    // G8: label must come from INS controlled vocabulary — reject if absent or unrecognised
+    const insLabel = (req.body?.label || '').trim().toLowerCase();
+    const INS_ALLOWED = ['inspection-report','test-certificate','witness-record','third-party-report','ndt-certificate','hardness-test','dimensional-report','material-traceability'];
+    if (!insLabel || !INS_ALLOWED.includes(insLabel)) {
+      return {
+        success: false,
+        error: `G8 violation: label must be selected from the INS controlled vocabulary. Received: "${insLabel}". Allowed: ${INS_ALLOWED.join(', ')}.`,
+      };
+    }
+
     let filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
 
     try {
@@ -153,8 +163,7 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
           const r = projRes.rows[0];
           const revision = (req.body?.revision || 'na');
           const seq = String(recordId).padStart(3, '0');
-          const label = formattedTabName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${safeDrawingNumber}-${label}.${fileExtension}`;
+          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${safeDrawingNumber}-${insLabel}.${fileExtension}`;
           const { assertGcsPath } = await import('../epc-guardrails');
           assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
           console.log(`uploadInspectionDocument: Using governed TPEL path: ${filePath}`);

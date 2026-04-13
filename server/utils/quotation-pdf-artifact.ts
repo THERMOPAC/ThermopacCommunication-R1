@@ -223,7 +223,7 @@ export async function attachConfirmedArtifactToEpc(
     );
     const attachmentSeq = (seqResult.rows[0] as any).next_seq;
 
-    const epcLabel = attachmentLabel || 'Baseline Order Quotation';
+    const epcLabel = attachmentLabel || 'quotation-document';
     const epcGcsPath = buildEpcQtnGcsPath(
       continentCode, countryCode, proj.short_code,
       proj.fy_code, projectSeq, offerNumber,

@@ -87,7 +87,7 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
   const [selectedEcn, setSelectedEcn] = useState<ECN | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState('Drawing');
+  const [documentType, setDocumentType] = useState('');
   const [currentDocumentTarget, setCurrentDocumentTarget] = useState<{ type: 'ecr' | 'ecn', id: number } | null>(null);
   
   // Form data for ECR creation/editing
@@ -1112,22 +1112,24 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="document-type">Document Type</Label>
+              <Label htmlFor="document-type">Document Type <span className="text-red-500">*</span></Label>
               <Select
                 value={documentType}
                 onValueChange={setDocumentType}
               >
                 <SelectTrigger id="document-type">
-                  <SelectValue placeholder="Select a document type" />
+                  <SelectValue placeholder="Select from controlled vocabulary..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Drawing">Drawing</SelectItem>
-                  <SelectItem value="Specification">Specification</SelectItem>
-                  <SelectItem value="Instructions">Instructions</SelectItem>
-                  <SelectItem value="Authorization">Authorization</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {(currentDocumentTarget?.type === 'ecn'
+                    ? ['change-notice','revised-drawing','updated-spec','implementation-record','close-out-report']
+                    : ['change-request-form','supporting-analysis','affected-drawing','impact-assessment','cost-estimate','schedule-impact']
+                  ).map(opt => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground">Select from the approved {currentDocumentTarget?.type?.toUpperCase() || 'ECR'} label vocabulary.</p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="document-file">Select File</Label>

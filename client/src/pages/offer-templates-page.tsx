@@ -53,7 +53,10 @@ export default function OfferTemplatesPage() {
   const [formLanguage, setFormLanguage] = useState("English");
   const [formStartPage, setFormStartPage] = useState("");
   const [formEndPage, setFormEndPage] = useState("");
+  const [formLabel, setFormLabel] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const TEMPLATE_LABELS = ['quotation-template','technical-submittal','cover-letter','bill-of-quantities','transmittal-template'];
 
   const { data: templates = [], isLoading } = useQuery<OfferTemplate[]>({
     queryKey: ['/api/sales-marketing/offer-templates'],
@@ -91,6 +94,7 @@ export default function OfferTemplatesPage() {
     setFormLanguage("English");
     setFormStartPage("");
     setFormEndPage("");
+    setFormLabel("");
     setSelectedFile(null);
     setEditingTemplate(null);
     setIsFormOpen(false);
@@ -102,6 +106,10 @@ export default function OfferTemplatesPage() {
   const handleCreate = async () => {
     if (!formName || !formSubject) {
       toast({ title: "Name and Subject are required", variant: "destructive" });
+      return;
+    }
+    if (!formLabel) {
+      toast({ title: "Document Label is required", description: "Select a label from the controlled vocabulary.", variant: "destructive" });
       return;
     }
     if (!selectedFile) {
@@ -118,6 +126,7 @@ export default function OfferTemplatesPage() {
       formData.append('description', formDescription);
       formData.append('position', 'middle');
       formData.append('language', formLanguage);
+      formData.append('label', formLabel);
       if (formStartPage) formData.append('startPage', formStartPage);
       if (formEndPage) formData.append('endPage', formEndPage);
 
@@ -448,6 +457,20 @@ export default function OfferTemplatesPage() {
                   <p className="text-xs text-muted-foreground mt-1">Last page to include from template</p>
                 </div>
               </div>
+              {!editingTemplate && (
+                <div>
+                  <Label>Document Label <span className="text-destructive">*</span></Label>
+                  <Select value={formLabel} onValueChange={setFormLabel}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select from controlled vocabulary..." /></SelectTrigger>
+                    <SelectContent>
+                      {TEMPLATE_LABELS.map(l => (
+                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">Select the GCS label for this template file.</p>
+                </div>
+              )}
               {!editingTemplate && (
                 <div>
                   <Label>PDF File <span className="text-destructive">*</span></Label>

@@ -6,6 +6,7 @@ import { customerOrderDocuments, commercialChangeOrders, projects } from '@share
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { resolveProjectGeoCodes, buildEpcGcsPath } from './epc-coding';
 import { pool } from './db';
+import { validateLabel } from '../shared/gcs-label-vocabulary';
 import gcsClient, { bucketName } from './utils/storage-config';
 
 const router = Router();
@@ -37,6 +38,15 @@ router.post('/', ensureAuthenticated, upload.single('file'), async (req: Request
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     if (!projectId || !customerOrderNumber || !documentLabel) {
       return res.status(400).json({ error: 'projectId, customerOrderNumber, and documentLabel are required' });
+    }
+
+    // G8: Validate CO label from controlled vocabulary
+    const coLabel = (documentLabel || '').trim().toLowerCase();
+    if (!coLabel || !validateLabel('CO', coLabel)) {
+      return res.status(422).json({
+        error: 'G8 violation: documentLabel must be selected from the CO controlled vocabulary. Free-text labels are not permitted.',
+        allowedValues: ['letter-of-intent','purchase-order','advance-payment-proof','scope-of-supply','technical-specification','payment-terms','amendment'],
+      });
     }
 
     const pid = parseInt(projectId);

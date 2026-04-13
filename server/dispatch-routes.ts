@@ -8,6 +8,7 @@ import { initializeGCS } from './utils/gcs-operations';
 import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems, projects, epcDocumentAttachments, epcDocumentAccessLog } from '@shared/schema';
 import * as epcCoding from './epc-coding';
 import { findEpcDispatchRecord, resolveDispatchDocumentWithFallback } from './utils/epc-migration-helpers';
+import { validateLabel } from '../shared/gcs-label-vocabulary';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -340,6 +341,15 @@ export function setupDispatchRoutes(app: Router) {
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
+
+      // G8: Validate DSP label from controlled vocabulary before any path work
+      const dspLabel = (document_type || '').trim().toLowerCase();
+      if (!dspLabel || !validateLabel('DSP', dspLabel)) {
+        return res.status(422).json({
+          error: 'G8 violation: document_type must be selected from the DSP controlled vocabulary. Free-text labels are not permitted.',
+          allowedValues: ['dispatch-note','packing-list','gate-pass','lorry-receipt','e-way-bill','quality-release','delivery-challan'],
+        });
+      }
       
       const dispatch = await db.select().from(dispatchRecords).where(eq(dispatchRecords.id, dispatchId)).limit(1);
       
@@ -401,7 +411,7 @@ export function setupDispatchRoutes(app: Router) {
                 AND revision_code IS NULL`
           );
           const attachmentSeq = (seqResult.rows[0] as any).next_seq;
-          const attachmentLabel = (document_type || 'document').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          const attachmentLabel = dspLabel;
 
           const gcsObjectPath = epcCoding.buildEpcGcsPath(
             geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
