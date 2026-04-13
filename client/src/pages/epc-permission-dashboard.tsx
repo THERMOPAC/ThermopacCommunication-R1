@@ -673,6 +673,7 @@ const PAGE_LABELS: Record<string, string> = {
 
 function PageAccessControlTab() {
   const { user } = useAuth();
+  const isSuperuser = (user as any)?.role === 'Superuser';
   const { toast } = useToast();
   const [editMode, setEditMode] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -720,15 +721,30 @@ function PageAccessControlTab() {
 
   const submitChangeRequests = useMutation({
     mutationFn: async (changes: any[]) => {
-      await apiRequest("POST", "/api/epc-permissions/change-requests", { changes });
+      const body: any = { changes };
+      if (isSuperuser) {
+        body.emergencyOverride = true;
+        body.emergencyReason = "Superuser direct override";
+      }
+      const res = await apiRequest("POST", "/api/epc-permissions/change-requests", body);
+      const data = await res.json();
+      if (isSuperuser && data.changeIds?.length) {
+        await apiRequest("POST", `/api/epc-permissions/change-requests/${data.changeIds[0]}/apply`, {});
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/epc-permissions/change-requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/epc-permissions/summary"] });
       queryClient.invalidateQueries({ queryKey: ["/api/epc-permissions/audit-log"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-page-permissions"] });
       setPendingChanges([]);
       setEditMode(false);
-      toast({ title: "Change request submitted", description: "Changes require approval by another authorized user before they take effect." });
+      toast({
+        title: isSuperuser ? "Permissions updated" : "Change request submitted",
+        description: isSuperuser
+          ? "Changes applied immediately (Superuser override)."
+          : "Changes require approval by another authorized user before they take effect.",
+      });
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message || "Failed to submit", variant: "destructive" });
@@ -804,7 +820,6 @@ function PageAccessControlTab() {
   }, [serverPendingRequests]);
 
   const allPageKeys = Object.keys(PAGE_LABELS);
-  const isSuperuser = (user as any)?.role === 'Superuser';
 
   const handleEditModeToggle = (newValue: boolean) => {
     if (!newValue && pendingChanges.length > 0) {
@@ -865,14 +880,14 @@ function PageAccessControlTab() {
             <div className="p-2 mb-3 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-800 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                <span>Edit Mode: Changes are queued and require approval. {pendingChanges.length} change{pendingChanges.length !== 1 ? "s" : ""} queued.</span>
+                <span>Edit Mode: {isSuperuser ? "Changes apply immediately (Superuser override)." : "Changes are queued and require approval."} {pendingChanges.length} change{pendingChanges.length !== 1 ? "s" : ""} queued.</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {pendingChanges.length > 0 && (
                   <>
                     <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => setPendingChanges([])}>Clear</Button>
                     <Button size="sm" className="h-6 text-[10px] px-2" disabled={submitChangeRequests.isPending} onClick={() => submitChangeRequests.mutate(pendingChanges)}>
-                      {submitChangeRequests.isPending ? "Submitting..." : "Submit for Approval"}
+                      {submitChangeRequests.isPending ? "Applying..." : isSuperuser ? "Apply Now" : "Submit for Approval"}
                     </Button>
                   </>
                 )}
