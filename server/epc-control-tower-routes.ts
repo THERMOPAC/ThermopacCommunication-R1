@@ -109,8 +109,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         if (stage.piJoin) {
           // Always join through project_items → projects and exclude cancelled/completed/closed
           const whereClause = pidParam
-            ? `WHERE pi.project_id = $1 AND p.status NOT IN ('cancelled', 'completed', 'closed')`
-            : `WHERE p.status NOT IN ('cancelled', 'completed', 'closed')`;
+            ? `WHERE pi.project_id = $1 AND p.status NOT IN ('canceled', 'completed', 'closed')`
+            : `WHERE p.status NOT IN ('canceled', 'completed', 'closed')`;
           const pidArgs = pidParam ? [pidParam] : [];
 
           countResult = await pool.query(
@@ -130,8 +130,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         } else {
           // INV: epc_invoices has a direct project_id column
           const whereClause = pidParam
-            ? `WHERE t.project_id = $1 AND p.status NOT IN ('cancelled', 'completed', 'closed')`
-            : `WHERE p.status NOT IN ('cancelled', 'completed', 'closed')`;
+            ? `WHERE t.project_id = $1 AND p.status NOT IN ('canceled', 'completed', 'closed')`
+            : `WHERE p.status NOT IN ('canceled', 'completed', 'closed')`;
           const pidArgs = pidParam ? [pidParam] : [];
 
           countResult = await pool.query(
@@ -197,7 +197,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
         WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date != '' AND p.target_end_date::date < CURRENT_DATE
-          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidFilterKs}
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidFilterKs}
         ORDER BY days_overdue DESC
         LIMIT 20
       `, pidArgs);
@@ -208,7 +208,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
         WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE
-          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidFilterD}
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidFilterD}
         ORDER BY days_overdue DESC
         LIMIT 20
       `, pidArgs);
@@ -222,7 +222,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN projects p ON pt.project_id = p.id
         LEFT JOIN users u ON t.assigned_to = u.id
         WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE
-          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidFilterPt}
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidFilterPt}
         ORDER BY days_overdue DESC
         LIMIT 20
       `, pidArgs);
@@ -255,7 +255,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
         WHERE t.assigned_to IS NULL AND t.status != 'completed'
-          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidParam ? 'AND pt.project_id = $1' : ''}
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidParam ? 'AND pt.project_id = $1' : ''}
         ORDER BY t.priority DESC, t.due_date ASC
       `, pidArgs);
 
@@ -268,7 +268,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
             JOIN project_tasks pt ON pt.task_id = t.id
             JOIN projects p ON pt.project_id = p.id
             WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%'
-              AND p.status NOT IN ('cancelled', 'completed', 'closed') AND pt.project_id = $1
+              AND p.status NOT IN ('canceled', 'completed', 'closed') AND pt.project_id = $1
             ORDER BY t.created_at DESC
           `, pidArgs)
         : await pool.query(`
@@ -279,7 +279,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
             JOIN project_tasks pt ON pt.task_id = t.id
             JOIN projects p ON pt.project_id = p.id
             WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%'
-              AND p.status NOT IN ('cancelled', 'completed', 'closed')
+              AND p.status NOT IN ('canceled', 'completed', 'closed')
             ORDER BY t.created_at DESC
           `);
 
@@ -300,7 +300,7 @@ export function setupEpcControlTowerRoutes(app: Express) {
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
         WHERE d.assigned_to IS NULL AND d.status != 'completed'
-          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidParam ? 'AND d.project_id = $1' : ''}
+          AND p.status NOT IN ('canceled', 'completed', 'closed') ${pidParam ? 'AND d.project_id = $1' : ''}
         ORDER BY d.due_date ASC
       `, pidArgs);
 
