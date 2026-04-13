@@ -59,6 +59,20 @@ export async function executeFullAutoPipeline(
 
     await executePhase5(ctx, stepResults);
 
+    // Ensure BOMs exist for ALL project items (covers Buy/Service items with no Drawing Order)
+    ctx.currentStep = 'ensure_all_boms';
+    try {
+      const bomResult = await ensureBomsForAllProjectItems(projectId, triggerUserId);
+      if (bomResult.created > 0) {
+        console.log(`${LOG_PREFIX} BOM sweep: created ${bomResult.created} additional BOMs for project ${projectId}`);
+      }
+      if (bomResult.errors.length > 0) {
+        console.warn(`${LOG_PREFIX} BOM sweep errors:`, bomResult.errors);
+      }
+    } catch (bomSweepErr: any) {
+      console.error(`${LOG_PREFIX} BOM sweep failed (non-blocking): ${bomSweepErr.message}`);
+    }
+
     await completePipelineRun(ctx, stepResults);
 
     const duration = Date.now() - startedAt.getTime();
@@ -856,4 +870,99 @@ async function executePhase5(ctx: AutomationContext, results: StepResult[]): Pro
   }
 
   console.log(`${LOG_PREFIX} Phase 5 complete`);
+}
+
+// ─── BOM Auto-Create ─────────────────────────────────────────────────────────
+// Creates released BOMs for any project items that still have no BOM.
+// This covers Buy/Service items that never get Drawing Orders.
+export async function ensureBomsForAllProjectItems(
+  projectId: number,
+  triggeredBy: number,
+): Promise<{ created: number; errors: string[] }> {
+  const errors: string[] = [];
+  let created = 0;
+
+  // Get all items without a BOM
+  const missing = await pool.query(
+    `SELECT pi.id, pi.item_id as master_item_id, pi.item_code, pi.make_or_buy,
+            pi.source_offer_id, pi.source_offer_item_id,
+            oi.is_sub_item,
+            mi.item_code as master_code, mi.description as master_desc, mi.uom, mi.make_or_buy as master_mab
+     FROM project_items pi
+     LEFT JOIN offer_items oi ON oi.id = pi.source_offer_item_id
+     LEFT JOIN master_items mi ON mi.id = pi.item_id
+     WHERE pi.project_id = $1
+       AND NOT EXISTS (SELECT 1 FROM epc_bom_headers b WHERE b.project_item_id = pi.id)
+     ORDER BY pi.id`,
+    [projectId]
+  );
+
+  if (missing.rows.length === 0) return { created, errors };
+
+  // Get project code
+  const projRes = await pool.query(`SELECT code FROM projects WHERE id = $1`, [projectId]);
+  const projCode = projRes.rows[0]?.code || '';
+
+  for (const pi of missing.rows as any[]) {
+    try {
+      const bomNumber = await generateDocumentNumber(projectId, 'BOM', db);
+      const isOfferBacked = !!pi.source_offer_id;
+      const status = isOfferBacked ? 'released' : 'draft';
+      const classification = pi.make_or_buy || pi.master_mab || null;
+      const itemDesc = pi.master_desc || pi.item_code;
+
+      const bomInsert = await db.execute(
+        sql`INSERT INTO epc_bom_headers
+            (bom_number, project_id, project_item_id, master_item_id,
+             bom_type, bom_title, bom_description, item_code, item_description,
+             classification_snapshot, status, is_current, created_by)
+            VALUES (${bomNumber}, ${projectId}, ${pi.id}, ${pi.master_item_id || null},
+                    'assembly', ${'BOM for ' + itemDesc}, ${'Auto-created by full-auto pipeline'},
+                    ${pi.master_code || pi.item_code}, ${itemDesc},
+                    ${classification}, ${status}, true, ${triggeredBy})
+            RETURNING id`
+      );
+      const bomId = (bomInsert.rows[0] as any)?.id;
+      console.log(`${LOG_PREFIX} [BOM] Created ${bomNumber} for item ${pi.item_code} (${status})`);
+
+      // If main item from offer, populate BOM lines from offer sub-items
+      if (bomId && pi.source_offer_id && pi.is_sub_item === false) {
+        const subItems = await pool.query(
+          `SELECT oi.id, oi.quantity, oi.unit_price,
+                  pi2.item_id as master_item_id, mi.item_code as master_code,
+                  mi.description as master_desc, mi.uom, mi.make_or_buy
+           FROM offer_items oi
+           JOIN project_items pi2 ON pi2.project_id = $1 AND pi2.source_offer_item_id = oi.id
+           JOIN master_items mi ON mi.id = pi2.item_id
+           WHERE oi.offer_id = $2 AND oi.is_sub_item = true
+           ORDER BY oi.sort_order, oi.id`,
+          [projectId, pi.source_offer_id]
+        );
+        let lineNum = 1;
+        for (const sub of subItems.rows as any[]) {
+          await pool.query(
+            `INSERT INTO epc_bom_lines
+             (bom_header_id, line_number, component_item_id, component_item_code,
+              component_description, component_uom, component_make_or_buy,
+              quantity_per_unit, estimated_unit_cost, estimated_total_cost, planning_required)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)`,
+            [bomId, lineNum++, sub.master_item_id, sub.master_code,
+             sub.master_desc, sub.uom, sub.make_or_buy,
+             sub.quantity, sub.unit_price,
+             (parseFloat(sub.quantity) * parseFloat(sub.unit_price)) || null]
+          );
+        }
+        if (subItems.rows.length > 0) {
+          console.log(`${LOG_PREFIX} [BOM] Populated ${subItems.rows.length} lines for ${bomNumber} from offer ${pi.source_offer_id}`);
+        }
+      }
+      created++;
+    } catch (err: any) {
+      const msg = `BOM creation failed for item ${pi.item_code}: ${err.message}`;
+      errors.push(msg);
+      console.error(`${LOG_PREFIX} [BOM] ${msg}`);
+    }
+  }
+
+  return { created, errors };
 }
