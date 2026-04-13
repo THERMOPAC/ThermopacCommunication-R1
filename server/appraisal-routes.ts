@@ -202,7 +202,17 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
       .where(whereClause)
       .orderBy(desc(employeeAppraisals.createdAt));
 
-    res.json(appraisals);
+    const cycleIds = [...new Set(appraisals.map(a => a.cycleId))];
+    let cycleStatusMap: Record<number, string> = {};
+    if (cycleIds.length > 0) {
+      const cycles = await db.select({ id: appraisalCycles.id, status: appraisalCycles.status })
+        .from(appraisalCycles)
+        .where(inArray(appraisalCycles.id, cycleIds));
+      cycleStatusMap = Object.fromEntries(cycles.map(c => [c.id, c.status]));
+    }
+
+    const result = appraisals.map(a => ({ ...a, cycleStatus: cycleStatusMap[a.cycleId] ?? null }));
+    res.json(result);
   } catch (error: any) {
     console.error('Error fetching appraisals:', error);
     sendError(res, error);
@@ -518,6 +528,47 @@ router.get('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
     res.json(appraisal);
   } catch (error: any) {
     console.error('Error fetching appraisal:', error);
+    sendError(res, error);
+  }
+});
+
+// ==========================================
+// DELETE APPRAISAL (Superuser only, open + paused cycle)
+// ==========================================
+
+router.delete('/:id', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    if (user.role !== 'Superuser') {
+      return sendPermissionError(res, 'Only Superusers can delete appraisals.');
+    }
+
+    const id = parseInt(req.params.id);
+    const [appraisal] = await db.select().from(employeeAppraisals).where(eq(employeeAppraisals.id, id));
+    if (!appraisal) return sendNotFound(res, 'Appraisal');
+
+    if (appraisal.status !== 'open') {
+      return sendBusinessError(res, `Cannot delete: appraisal status is '${appraisal.status}'. Only 'open' appraisals can be deleted.`);
+    }
+
+    const [cycle] = await db.select().from(appraisalCycles).where(eq(appraisalCycles.id, appraisal.cycleId));
+    if (!cycle) return sendNotFound(res, 'Appraisal cycle');
+
+    if (cycle.status !== 'paused') {
+      return sendBusinessError(res, `Cannot delete: the appraisal cycle is '${cycle.status}'. The cycle must be paused before an appraisal can be deleted.`);
+    }
+
+    await db.delete(employeeAppraisals).where(eq(employeeAppraisals.id, id));
+
+    await logAudit('appraisal', id, 'appraisal_deleted', user.id, getUserDisplayName(user), false, {
+      employeeId: appraisal.employeeId, cycleId: appraisal.cycleId, cycleName: cycle.name,
+      previousStatus: appraisal.status, deletedBy: user.id,
+    });
+
+    console.log(`[Appraisal] Appraisal #${id} deleted by Superuser ${user.username} (cycle: ${cycle.name}, paused)`);
+    res.json({ success: true, message: `Appraisal deleted successfully.` });
+  } catch (error: any) {
+    console.error('Error deleting appraisal:', error);
     sendError(res, error);
   }
 });

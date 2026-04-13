@@ -128,6 +128,7 @@ export default function EmployeeAppraisalsPage() {
 
 function AppraisalListTab({ view }: { view: string }) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const { data: appraisals, isLoading } = useQuery<any[]>({
@@ -136,6 +137,17 @@ function AppraisalListTab({ view }: { view: string }) {
       const res = await fetch(`/api/appraisals?view=${view}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
+    },
+  });
+
+  const deleteAppraisalMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/appraisals/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appraisals"] });
+      toast({ title: "Appraisal deleted", description: "The appraisal has been removed." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Delete failed", description: getErrorMessage(err), variant: "destructive" });
     },
   });
 
@@ -181,6 +193,22 @@ function AppraisalListTab({ view }: { view: string }) {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="sm"><Eye className="h-4 w-4 mr-1" /> View</Button>
+                      {user?.role === 'Superuser' && a.status === 'open' && a.cycleStatus === 'paused' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={deleteAppraisalMutation.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Delete this appraisal for ${a.employeeName}? This action cannot be undone.`)) {
+                              deleteAppraisalMutation.mutate(a.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" /> Delete
+                        </Button>
+                      )}
                       {['approved', 'closed'].includes(a.status) && (
                         <Button
                           variant="ghost"
