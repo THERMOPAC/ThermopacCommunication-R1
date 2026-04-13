@@ -213,11 +213,77 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
       const bomId = (bomInsert.rows[0] as any)?.id;
       console.log(`[DraftActivation] Created BOM ${bomNumber} linked to DWG ${dwgControlNumber} (assigned to user ${bomAssigneeId ?? 'unassigned'})`);
 
+      // Auto-populate BOM lines from offer sub-items if this project item's offer item is the main (parent) item
+      let bomLinesCreated = 0;
+      if (bomId && draft.project_item_id) {
+        try {
+          // Get this project item's source offer item
+          const piOfferResult = await db.execute(
+            sql`SELECT pi.source_offer_item_id, pi.source_offer_id, oi.is_sub_item
+                FROM project_items pi
+                LEFT JOIN offer_items oi ON oi.id = pi.source_offer_item_id
+                WHERE pi.id = ${draft.project_item_id}`
+          );
+          const piOffer = piOfferResult.rows[0] as any;
+
+          // Only auto-populate for the main (non-sub) item
+          if (piOffer?.source_offer_id && piOffer?.is_sub_item === false) {
+            const offerId = piOffer.source_offer_id;
+            const mainOfferItemId = piOffer.source_offer_item_id;
+
+            // Find all offer sub-items — those with parent_item_id = mainOfferItemId OR (parent_item_id IS NULL AND is_sub_item = true)
+            const subItemsResult = await db.execute(
+              sql`SELECT oi.id as offer_item_id, oi.product_code, oi.description, oi.quantity, oi.unit, oi.unit_price,
+                         pi2.id as project_item_id, pi2.item_id as master_item_id, pi2.item_code as pi_item_code,
+                         mi.item_code as master_code, mi.description as master_desc, mi.uom, mi.make_or_buy, mi.standard_cost
+                  FROM offer_items oi
+                  LEFT JOIN project_items pi2 ON pi2.project_id = ${draft.project_id} AND pi2.source_offer_item_id = oi.id
+                  LEFT JOIN master_items mi ON mi.id = pi2.item_id
+                  WHERE oi.offer_id = ${offerId}
+                    AND oi.is_sub_item = true
+                    AND (oi.parent_item_id = ${mainOfferItemId} OR oi.parent_item_id IS NULL)
+                  ORDER BY oi.sort_order, oi.id`
+            );
+
+            let lineNum = 1;
+            for (const sub of subItemsResult.rows as any[]) {
+              if (!sub.master_item_id) {
+                console.warn(`[DraftActivation] BOM line skipped for offer sub-item ${sub.offer_item_id} — no master_item found in project_items`);
+                continue;
+              }
+              await db.execute(
+                sql`INSERT INTO epc_bom_lines
+                    (bom_header_id, line_number, component_item_id, component_item_code,
+                     component_description, component_uom, component_make_or_buy,
+                     quantity_per_unit, estimated_unit_cost, estimated_total_cost, planning_required)
+                    VALUES (${bomId}, ${lineNum}, ${sub.master_item_id}, ${sub.master_code || sub.product_code},
+                            ${sub.master_desc || sub.description}, ${sub.uom || sub.unit}, ${sub.make_or_buy || null},
+                            ${parseFloat(sub.quantity) || 1},
+                            ${sub.standard_cost || sub.unit_price || null},
+                            ${(parseFloat(sub.standard_cost || sub.unit_price || '0') * (parseFloat(sub.quantity) || 1)) || null},
+                            true)`
+              );
+              lineNum++;
+              bomLinesCreated++;
+            }
+            if (bomLinesCreated > 0) {
+              console.log(`[DraftActivation] Auto-populated ${bomLinesCreated} BOM lines for ${bomNumber} from offer ${offerId}`);
+            }
+          }
+        } catch (bomLineErr: any) {
+          console.warn(`[DraftActivation] BOM line auto-population failed for ${bomNumber}:`, bomLineErr.message);
+        }
+      }
+
+      const taskDesc = bomLinesCreated > 0
+        ? `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created with ${bomLinesCreated} lines auto-populated from the offer. Please review the lines and submit for approval.`
+        : `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created for project ${projCode}. Please add BOM lines and submit for review.`;
+
       if (bomAssigneeId && bomId) {
         await createEpcTask({
           projectId: draft.project_id, entityType: 'bom_header', recordId: bomId, actionCode: 'prepare',
           title: `Prepare BOM ${bomNumber} for ${projCode}`,
-          description: `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created for project ${projCode}. Please add BOM lines and submit for review.`,
+          description: taskDesc,
           assignedTo: bomAssigneeId, createdBy: userId, priority: 'Medium', dueDays: 7,
         });
       }
