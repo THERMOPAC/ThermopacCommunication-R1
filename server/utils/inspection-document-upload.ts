@@ -125,6 +125,16 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       formattedTabName = 'Hydrotest'; // Hydrotest tab maintains same name for GCS path consistency
     }
     
+    // G8 mandatory field: drawingNumber is required — reject immediately if absent
+    const rawDrawingNumber = (req.body?.drawingNumber || '').trim();
+    if (!rawDrawingNumber) {
+      return {
+        success: false,
+        error: 'drawingNumber is required for governed inspection document uploads. Upload rejected.',
+      };
+    }
+    const safeDrawingNumber = rawDrawingNumber.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
+
     let filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
 
     try {
@@ -141,15 +151,10 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
         );
         if (projRes.rows.length > 0 && projRes.rows[0].continent_code && projRes.rows[0].country_code && projRes.rows[0].short_code && projRes.rows[0].project_seq) {
           const r = projRes.rows[0];
-          const revision = (req as any).body?.revision || 'na';
+          const revision = (req.body?.revision || 'na');
           const seq = String(recordId).padStart(3, '0');
-          const rawDrawingNumber = (req as any).body?.drawingNumber || '';
-          const safeDrawingNumber = rawDrawingNumber.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
           const label = formattedTabName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-          const filenameParts = safeDrawingNumber
-            ? `${seq}-${safeDrawingNumber}-${label}`
-            : `${seq}-${label}`;
-          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${filenameParts}.${fileExtension}`;
+          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${safeDrawingNumber}-${label}.${fileExtension}`;
           const { assertGcsPath } = await import('../epc-guardrails');
           assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
           console.log(`uploadInspectionDocument: Using governed TPEL path: ${filePath}`);
