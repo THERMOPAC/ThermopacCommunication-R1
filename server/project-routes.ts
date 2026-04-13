@@ -5289,12 +5289,18 @@ export function setupProjectRoutes(app: express.Express) {
       const { whereSql, joinSql } = buildOwnershipWhereClause(user, visibilityScope, poOwnershipConfig, 'epo');
 
       let query = sql`SELECT epo.*, u1.username as created_by_name, u2.username as approved_by_name,
-                             u3.username as issued_by_name, v.name as vendor_display_name
+                             u3.username as issued_by_name, u4.username as cancelled_by_name,
+                             v.name as vendor_display_name,
+                             mi.item_code as item_code, mi.description as item_description,
+                             mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
+                             mi.specification as item_specification, mi.drawing_no as item_drawing_no
                       FROM epc_purchase_orders epo
                       LEFT JOIN users u1 ON epo.created_by = u1.id
                       LEFT JOIN users u2 ON epo.approved_by = u2.id
                       LEFT JOIN users u3 ON epo.issued_by = u3.id
-                      LEFT JOIN vendors v ON epo.vendor_id = v.id`;
+                      LEFT JOIN users u4 ON epo.cancelled_by = u4.id
+                      LEFT JOIN vendors v ON epo.vendor_id = v.id
+                      LEFT JOIN master_items mi ON epo.master_item_id = mi.id`;
       if (joinSql) query = sql`${query} ${joinSql}`;
       query = sql`${query} WHERE epo.project_id = ${projectId}`;
       if (whereSql) query = sql`${query} AND ${whereSql}`;
@@ -5317,12 +5323,18 @@ export function setupProjectRoutes(app: express.Express) {
 
       const result = await db.execute(
         sql`SELECT epo.*, u1.username as created_by_name, u2.username as approved_by_name,
-                   u3.username as issued_by_name, v.name as vendor_display_name
+                   u3.username as issued_by_name, u4.username as cancelled_by_name,
+                   v.name as vendor_display_name,
+                   mi.item_code as item_code, mi.description as item_description,
+                   mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
+                   mi.specification as item_specification, mi.drawing_no as item_drawing_no
             FROM epc_purchase_orders epo
             LEFT JOIN users u1 ON epo.created_by = u1.id
             LEFT JOIN users u2 ON epo.approved_by = u2.id
             LEFT JOIN users u3 ON epo.issued_by = u3.id
+            LEFT JOIN users u4 ON epo.cancelled_by = u4.id
             LEFT JOIN vendors v ON epo.vendor_id = v.id
+            LEFT JOIN master_items mi ON epo.master_item_id = mi.id
             WHERE epo.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'EPC purchase order not found');

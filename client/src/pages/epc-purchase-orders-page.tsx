@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
+import { ItemCodeBadge } from "@/components/item-code-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -376,6 +377,14 @@ export default function EpcPurchaseOrdersPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="PO Number" value={expandedDetail.po_number} mono />
                                         <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
+                                        <Separator className="my-1" />
+                                        <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} />} />
+                                        <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
+                                        <DetailRow label="UOM" value={expandedDetail.item_uom} />
+                                        <DetailRow label="Make / Buy" value={expandedDetail.item_make_or_buy} />
+                                        {expandedDetail.item_specification && <DetailRow label="Specification" value={expandedDetail.item_specification} />}
+                                        {expandedDetail.item_drawing_no && <DetailRow label="Drawing No" value={expandedDetail.item_drawing_no} mono />}
+                                        <Separator className="my-1" />
                                         <DetailRow label="Currency" value={expandedDetail.currency} />
                                         <DetailRow label="Total Amount" value={formatAmount(expandedDetail.total_amount, expandedDetail.currency)} />
                                         <DetailRow label="Payment Terms" value={expandedDetail.payment_terms} />
@@ -403,6 +412,13 @@ export default function EpcPurchaseOrdersPage() {
                                           <>
                                             <DetailRow label="Issued By" value={expandedDetail.issued_by_name} />
                                             <DetailRow label="Issued" value={formatDate(expandedDetail.issued_at)} />
+                                          </>
+                                        )}
+                                        {expandedDetail.cancelled_by_name && (
+                                          <>
+                                            <Separator className="my-1" />
+                                            <DetailRow label="Cancelled By" value={<span className="text-red-600">{expandedDetail.cancelled_by_name}</span>} />
+                                            <DetailRow label="Cancelled" value={formatDate(expandedDetail.cancelled_at)} />
                                           </>
                                         )}
                                       </div>
