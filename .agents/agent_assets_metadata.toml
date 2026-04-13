@@ -132,3 +132,9 @@ id = "nLNBLgFMNoQP2VRH2MeRG"
 uri = "file://docs/edcf-baseline-v1.0.md"
 type = "text"
 title = "THERMOPAC EDCF Baseline v1.0"
+
+[[outputs]]
+id = "ioyWRVyylXTOmTkS0kFN5"
+uri = "file://.local/tasks/GCS-Governance-Combined-Plan.md"
+type = "text"
+title = "GCS Governance Remediation Plan — Expert Review"
