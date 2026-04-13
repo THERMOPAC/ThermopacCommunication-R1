@@ -215,6 +215,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
 
       // Auto-populate BOM lines from offer sub-items if this project item's offer item is the main (parent) item
       let bomLinesCreated = 0;
+      let isOfferBacked = false;
       if (bomId && draft.project_item_id) {
         try {
           // Get this project item's source offer item
@@ -225,6 +226,7 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
                 WHERE pi.id = ${draft.project_item_id}`
           );
           const piOffer = piOfferResult.rows[0] as any;
+          isOfferBacked = !!(piOffer?.source_offer_id);
 
           // Only auto-populate for the main (non-sub) item
           if (piOffer?.source_offer_id && piOffer?.is_sub_item === false) {
@@ -270,13 +272,19 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
               console.log(`[DraftActivation] Auto-populated ${bomLinesCreated} BOM lines for ${bomNumber} from offer ${offerId}`);
             }
           }
+
+          // Auto-release BOM if project comes from an offer — offer confirmation is the BOM approval
+          if (piOffer?.source_offer_id) {
+            await db.execute(sql`UPDATE epc_bom_headers SET status = 'released' WHERE id = ${bomId}`);
+            console.log(`[DraftActivation] BOM ${bomNumber} auto-released (offer-backed project, no human step required)`);
+          }
         } catch (bomLineErr: any) {
           console.warn(`[DraftActivation] BOM line auto-population failed for ${bomNumber}:`, bomLineErr.message);
         }
       }
 
-      const taskDesc = bomLinesCreated > 0
-        ? `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created with ${bomLinesCreated} lines auto-populated from the offer. Please review the lines and submit for approval.`
+      const taskDesc = isOfferBacked
+        ? `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been auto-released for project ${projCode}. BOM lines are pre-populated from the confirmed offer (${bomLinesCreated} lines). No further action required.`
         : `Bill of Materials ${bomNumber} (${itemDesc || itemCode}) has been created for project ${projCode}. Please add BOM lines and submit for review.`;
 
       if (bomAssigneeId && bomId) {
