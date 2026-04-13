@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
+import { ItemCodeBadge } from "@/components/item-code-badge";
 import {
   Loader2, Search, Filter, Layers, Plus, Edit, Send, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
@@ -526,7 +527,7 @@ export default function EpcBomControlPage() {
                         <TableCell>
                           <Badge className={`text-[8px] h-4 ${BOM_TYPE_COLORS[rec.bom_type] || "bg-gray-100"}`}>{rec.bom_type}</Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-[10px]">{rec.item_code || "—"}</TableCell>
+                        <TableCell><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
                         <TableCell className="text-[10px] max-w-[200px] truncate">{rec.bom_title || rec.item_description || "—"}</TableCell>
                         <TableCell className="text-center text-[10px]">{rec.total_line_count || 0}</TableCell>
                         <TableCell>
@@ -562,7 +563,7 @@ export default function EpcBomControlPage() {
                                   <DetailRow label="BOM #" value={rec.bom_number} mono />
                                   <DetailRow label="Revision" value={`Rev ${rec.bom_revision || rec.revision_code}`} mono />
                                   <DetailRow label="Type" value={rec.bom_type} />
-                                  <DetailRow label="Item Code" value={rec.item_code} mono />
+                                  <DetailRow label="Item Code" value={<ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} />} />
                                   <DetailRow label="Item Description" value={rec.item_description} />
                                   <DetailRow label="Classification" value={rec.classification_snapshot} />
                                   <DetailRow label="Drawing #" value={rec.drawing_number} mono />

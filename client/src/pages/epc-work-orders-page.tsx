@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project-access-denied";
+import { ItemCodeBadge } from "@/components/item-code-badge";
 import {
   Loader2, Search, Filter, Wrench, Edit, CheckCircle2, ShieldCheck,
   XCircle, RotateCcw, ChevronDown, ChevronRight,
@@ -335,7 +336,7 @@ export default function EpcWorkOrdersPage() {
                           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                         </TableCell>
                         <TableCell className="py-1.5 font-mono text-[10px] font-medium">{wo.wo_number}</TableCell>
-                        <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate">{wo.item_code || wo.item_description || "—"}</TableCell>
+                        <TableCell className="py-1.5 max-w-[180px]"><ItemCodeBadge code={wo.item_code} prop1Label={wo.item_property_1_label} /></TableCell>
                         <TableCell className="py-1.5 text-center">
                           {wo.make_classification && (
                             <Badge variant="secondary" className={`text-[8px] px-1 py-0 ${MAKE_CLASSIFICATION_COLORS[wo.make_classification] || "bg-gray-100 text-gray-700"}`}>
@@ -389,7 +390,7 @@ export default function EpcWorkOrdersPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="WO Number" value={expandedDetail.wo_number} mono />
                                         <DetailRow label="Status" value={STATUS_LABELS[expandedDetail.status as StatusType] || expandedDetail.status} />
-                                        <DetailRow label="Item Code" value={expandedDetail.item_code} mono />
+                                        <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
                                         <DetailRow label="Description" value={expandedDetail.item_description} />
                                         <DetailRow label="Specification" value={expandedDetail.item_specification} />
                                         <DetailRow label="Quantity" value={`${expandedDetail.quantity || "—"} ${expandedDetail.uom || ""}`} />

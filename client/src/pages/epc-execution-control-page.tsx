@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { ItemCodeBadge } from "@/components/item-code-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, Search, Filter, Package, Factory, CheckCircle2,
@@ -269,7 +270,7 @@ export default function EpcExecutionControlPage() {
                       {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     </TableCell>
                     <TableCell className="py-1.5 font-mono text-[10px] font-medium">{recNum}</TableCell>
-                    <TableCell className="py-1.5 text-[10px] font-mono">{rec.item_code || "—"}</TableCell>
+                    <TableCell className="py-1.5"><ItemCodeBadge code={rec.item_code} prop1Label={rec.item_property_1_label} /></TableCell>
                     <TableCell className="py-1.5 text-[10px] max-w-[180px] truncate">{rec.item_description || "—"}</TableCell>
                     <TableCell className="py-1.5 text-[10px] text-right font-mono">{rec.quantity || "—"} {rec.uom || ""}</TableCell>
                     <TableCell className="py-1.5 text-[10px] text-right font-mono">{formatAmount(rec.estimated_total_cost)}</TableCell>
@@ -329,7 +330,7 @@ export default function EpcExecutionControlPage() {
                                     <Package className="h-3 w-3" /> Item & Cost
                                   </h4>
                                   <div className="space-y-1">
-                                    <DetailRow label="Item Code" value={expandedDetail.item_code} mono />
+                                    <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
                                     <DetailRow label="Description" value={expandedDetail.item_description} />
                                     <DetailRow label="Specification" value={expandedDetail.item_specification} />
                                     <DetailRow label="UOM" value={expandedDetail.uom} />
