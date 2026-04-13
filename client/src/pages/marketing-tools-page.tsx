@@ -4835,11 +4835,9 @@ export default function MarketingToolsPage() {
         doc.save(`Comprehensive_ROI_Report_${roiData.customerName || 'Project'}_${new Date().toISOString().split('T')[0]}.pdf`);
       } else {
         // Excel format - create comprehensive 7-sheet workbook
-        console.log('Importing XLSX library...');
-        const XLSX = await import('xlsx');
         console.log('Creating Excel workbook...');
-        
-        const workbook = XLSX.utils.book_new();
+        const { ExcelJS: ExcelJSDyn } = await import('@/lib/excel-client-utils');
+        const workbook = new ExcelJSDyn.Workbook();
         const currencySymbol = getCurrencySymbol(roiData.currency);
         
         // SHEET 1: Plant Configuration
@@ -4881,8 +4879,8 @@ export default function MarketingToolsPage() {
           ['Step 1 Total Investment', `${currencySymbol}${(parseFloat(roiData.projectCostLocal) + additionalCosts).toLocaleString()}`]
         ];
         
-        const plantConfigSheet = XLSX.utils.aoa_to_sheet(plantConfigData);
-        XLSX.utils.book_append_sheet(workbook, plantConfigSheet, 'Plant Configuration');
+        const plantConfigSheet = workbook.addWorksheet('Plant Configuration');
+        plantConfigSheet.addRows(plantConfigData);
         
         // SHEET 2: Tank Farm & Utilities
         const tankUtilityData = [
@@ -4940,8 +4938,8 @@ export default function MarketingToolsPage() {
         tankUtilityData.push(['Utilities Total', `${currencySymbol}${totalUtilityCost.toLocaleString()}`]);
         tankUtilityData.push(['Combined Total', `${currencySymbol}${(totalTankCost + totalUtilityCost).toLocaleString()}`]);
         
-        const tankUtilitySheet = XLSX.utils.aoa_to_sheet(tankUtilityData);
-        XLSX.utils.book_append_sheet(workbook, tankUtilitySheet, 'Tank Farm & Utilities');
+        const tankUtilitySheet = workbook.addWorksheet('Tank Farm & Utilities');
+        tankUtilitySheet.addRows(tankUtilityData);
         
         // SHEET 3: Additional Equipment
         const additionalEquipmentData = [
@@ -4981,8 +4979,8 @@ export default function MarketingToolsPage() {
         additionalEquipmentData.push(['STEP 3 EQUIPMENT SUMMARY']);
         additionalEquipmentData.push(['Total Additional Equipment Investment', `${currencySymbol}${totalEquipmentCost.toLocaleString()}`]);
         
-        const additionalEquipmentSheet = XLSX.utils.aoa_to_sheet(additionalEquipmentData);
-        XLSX.utils.book_append_sheet(workbook, additionalEquipmentSheet, 'Additional Equipment');
+        const additionalEquipmentSheet = workbook.addWorksheet('Additional Equipment');
+        additionalEquipmentSheet.addRows(additionalEquipmentData);
         
         // SHEET 4: Operating Costs
         const operatingCostsData = [
@@ -5028,8 +5026,8 @@ export default function MarketingToolsPage() {
         operatingCostsData.push(['Total Monthly Operating Cost', `${currencySymbol}${totalMonthlyOperatingCost.toLocaleString()}`]);
         operatingCostsData.push(['Total Annual Operating Cost', `${currencySymbol}${totalAnnualOperatingCost.toLocaleString()}`]);
         
-        const operatingCostsSheet = XLSX.utils.aoa_to_sheet(operatingCostsData);
-        XLSX.utils.book_append_sheet(workbook, operatingCostsSheet, 'Operating Costs');
+        const operatingCostsSheet = workbook.addWorksheet('Operating Costs');
+        operatingCostsSheet.addRows(operatingCostsData);
         
         // SHEET 5: Product Yield
         const productYieldData = [
@@ -5063,8 +5061,8 @@ export default function MarketingToolsPage() {
         productYieldData.push(['Total Annual Revenue', `${currencySymbol}${totalAnnualRevenue.toLocaleString()}`]);
         productYieldData.push(['Annual Processing', `${annualLiters.toLocaleString()} liters`]);
         
-        const productYieldSheet = XLSX.utils.aoa_to_sheet(productYieldData);
-        XLSX.utils.book_append_sheet(workbook, productYieldSheet, 'Product Yield');
+        const productYieldSheet = workbook.addWorksheet('Product Yield');
+        productYieldSheet.addRows(productYieldData);
         
         // SHEET 6: ROI Summary
         const roiSummaryData = [
@@ -5096,8 +5094,8 @@ export default function MarketingToolsPage() {
           ['Profit Margin', `${((reportData.financials.grossProfit / reportData.financials.totalRevenue) * 100).toFixed(1)}%`]
         ];
         
-        const roiSummarySheet = XLSX.utils.aoa_to_sheet(roiSummaryData);
-        XLSX.utils.book_append_sheet(workbook, roiSummarySheet, 'ROI Summary');
+        const roiSummarySheet = workbook.addWorksheet('ROI Summary');
+        roiSummarySheet.addRows(roiSummaryData);
         
         // SHEET 7: Charts Data (for reference)
         const chartsData = [
@@ -5134,29 +5132,18 @@ export default function MarketingToolsPage() {
           ['Working Capital', `${currencySymbol}${workingCapital.toLocaleString()}`, `${((workingCapital / totalInvestment) * 100).toFixed(1)}%`]
         ];
         
-        const chartsSheet = XLSX.utils.aoa_to_sheet(chartsData);
-        XLSX.utils.book_append_sheet(workbook, chartsSheet, 'Charts');
-        
-        // Set column widths for better readability
-        const sheetNames = ['Plant Configuration', 'Tank Farm & Utilities', 'Additional Equipment', 'Operating Costs', 'Product Yield', 'ROI Summary', 'Charts'];
-        sheetNames.forEach(sheetName => {
-          const ws = workbook.Sheets[sheetName];
-          const colWidths = [
-            { wch: 25 }, // Column A
-            { wch: 15 }, // Column B
-            { wch: 15 }, // Column C
-            { wch: 15 }, // Column D
-            { wch: 15 }, // Column E
-            { wch: 15 }, // Column F
-            { wch: 15 }, // Column G
-            { wch: 15 }  // Column H
-          ];
-          ws['!cols'] = colWidths;
+        const chartsSheet = workbook.addWorksheet('Charts');
+        chartsSheet.addRows(chartsData);
+
+        // Set column widths for all sheets
+        const colWidths = [25, 15, 15, 15, 15, 15, 15, 15];
+        workbook.eachSheet(ws => {
+          colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
         });
-        
+
         // Generate and download the Excel file
         console.log('Generating Excel file...');
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+        const excelBuffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');

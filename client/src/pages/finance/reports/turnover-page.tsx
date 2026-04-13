@@ -49,7 +49,7 @@ import {
 import { formatRupees, formatUSD, cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Loader2, Download, Filter, FileSpreadsheet, CalendarIcon } from "lucide-react";
-import * as XLSX from 'xlsx';
+import { ExcelJS } from '@/lib/excel-client-utils';
 
 export default function TurnoverReportPage() {
   // Helper function to get current financial year dates (April 1 - March 31) using Indian Financial Year
@@ -221,8 +221,17 @@ export default function TurnoverReportPage() {
       const invoiceDetails = detailResponse.ok ? await detailResponse.json() : [];
       
       // Create Excel workbook
-      const workbook = XLSX.utils.book_new();
-      
+      const workbook = new ExcelJS.Workbook();
+
+      const addAoaSheet = (name: string, data: any[][], colWidths?: number[]) => {
+        const ws = workbook.addWorksheet(name);
+        ws.addRows(data);
+        if (colWidths) {
+          colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+        }
+        return ws;
+      };
+
       // Summary Sheet with Credit Notes Integration
       const summaryData = [
         ['THERMOPAC TURNOVER REPORT'],
@@ -240,16 +249,7 @@ export default function TurnoverReportPage() {
         ['Credit Note Rate', `${reportData.totalInvoiced > 0 && reportData.totalCreditNotes ? ((reportData.totalCreditNotes / (reportData.totalInvoiced + reportData.totalCreditNotes)) * 100).toFixed(2) : '0.00'}%`]
       ];
       
-      const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
-      
-      // Set column widths
-      summaryWorksheet['!cols'] = [
-        { width: 20 },
-        { width: 15 },
-        { width: 18 }
-      ];
-      
-      XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary');
+      addAoaSheet('Summary', summaryData, [20, 15, 18]);
       
       // Detailed Invoice Sheet with Credit Notes Integration
       if (invoiceDetails && invoiceDetails.length > 0) {
@@ -412,55 +412,19 @@ export default function TurnoverReportPage() {
           totalAmountLC // Amount LC total (net of credit notes)
         ]);
         
-        const detailedWorksheet = XLSX.utils.aoa_to_sheet(detailedInvoiceData);
-        
-        // Set column widths for detailed sheet with Document Type column
-        detailedWorksheet['!cols'] = [
-          { width: 15 }, // Document Type
-          { width: 18 }, // Invoice Number
-          { width: 10 }, // Currency
-          { width: 12 }, // Exchange Rate
-          { width: 18 }, // SAP Invoice No
-          { width: 15 }, // Invoice Type
-          { width: 18 }, // Shipping Bill No
-          { width: 20 }, // Customer
-          { width: 15 }, // Project
-          { width: 12 }, // Issue Date
-          { width: 12 }, // Due Date
-          { width: 25 }, // Notes
-          { width: 30 }, // Description
-          { width: 15 }, // Amount
-          { width: 18 }  // Amount LC
-        ];
-        
-        // Apply number formatting to specific columns (adjusted for Document Type column)
-        const range = XLSX.utils.decode_range(detailedWorksheet['!ref'] || 'A1');
-        
-        // Format Exchange Rate column (column D, index 3 - shifted due to Document Type)
-        for (let row = 3; row <= range.e.r; row++) { // Start from row 3 (after headers)
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 3 });
-          if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
-            detailedWorksheet[cellAddress].z = '#,##0.0000'; // 4 decimal places for exchange rate
+        const detailedWorksheet = addAoaSheet('Invoice Details', detailedInvoiceData, [15, 18, 10, 12, 18, 15, 18, 20, 15, 12, 12, 25, 30, 15, 18]);
+
+        // Apply number formatting: Exchange Rate (col D=4), Amount (col N=14), Amount LC (col O=15)
+        detailedWorksheet.eachRow((row, rowNumber) => {
+          if (rowNumber > 3) {
+            const exRate = row.getCell(4);
+            if (typeof exRate.value === 'number') exRate.numFmt = '#,##0.0000';
+            const amt = row.getCell(14);
+            if (typeof amt.value === 'number') amt.numFmt = '#,##0.00';
+            const amtLC = row.getCell(15);
+            if (typeof amtLC.value === 'number') amtLC.numFmt = '#,##0.00';
           }
-        }
-        
-        // Format Amount column (column N, index 13 - shifted due to Document Type)
-        for (let row = 3; row <= range.e.r; row++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 13 });
-          if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
-            detailedWorksheet[cellAddress].z = '#,##0.00'; // 2 decimal places with comma separator
-          }
-        }
-        
-        // Format Amount LC column (column O, index 14 - shifted due to Document Type)
-        for (let row = 3; row <= range.e.r; row++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: row, c: 14 });
-          if (detailedWorksheet[cellAddress] && typeof detailedWorksheet[cellAddress].v === 'number') {
-            detailedWorksheet[cellAddress].z = '#,##0.00'; // 2 decimal places with comma separator
-          }
-        }
-        
-        XLSX.utils.book_append_sheet(workbook, detailedWorksheet, 'Invoice Details');
+        });
       }
       
       // Monthly Details Sheet with Credit Notes (if available)
@@ -485,34 +449,23 @@ export default function TurnoverReportPage() {
         ]);
         
         const monthlyData = [...monthlyHeader, ...monthlyDetails];
-        const monthlyWorksheet = XLSX.utils.aoa_to_sheet(monthlyData);
-        
-        // Set column widths
-        monthlyWorksheet['!cols'] = [
-          { width: 15 }, // Month
-          { width: 15 }, // Invoiced USD
-          { width: 15 }, // Credit Notes USD
-          { width: 15 }, // Received USD
-          { width: 15 }, // Outstanding USD
-          { width: 12 }, // Collection %
-          { width: 18 }, // Invoiced INR
-          { width: 15 }, // Credit Notes INR
-          { width: 18 }, // Received INR
-          { width: 18 }  // Outstanding INR
-        ];
-        
-        XLSX.utils.book_append_sheet(workbook, monthlyWorksheet, 'Monthly Details');
+        addAoaSheet('Monthly Details', monthlyData, [15, 15, 15, 15, 15, 12, 18, 15, 18, 18]);
       }
-      
-      // Generate and download file
+
       const fileName = `Turnover_Report_${downloadType === 'financialYear' ? downloadFinancialYear : format(new Date(), 'yyyy-MM-dd')}.xlsx`;
-      
-      // Debug: Log workbook structure before download
-      console.log('📊 EXCEL EXPORT - Workbook SheetNames:', workbook.SheetNames);
-      console.log('📊 EXCEL EXPORT - Summary Sheet data sample:', workbook.Sheets['Summary'] ? Object.keys(workbook.Sheets['Summary']).slice(0, 10) : 'No Summary sheet');
-      console.log('📊 EXCEL EXPORT - Monthly Details Sheet exists:', !!workbook.Sheets['Monthly Details']);
-      
-      XLSX.writeFile(workbook, fileName);
+
+      console.log('📊 EXCEL EXPORT - Workbook sheets:', workbook.worksheets.map(ws => ws.name));
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       
       setIsDownloadDialogOpen(false);
       

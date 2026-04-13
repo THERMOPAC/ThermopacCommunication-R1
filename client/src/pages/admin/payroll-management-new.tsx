@@ -139,16 +139,11 @@ interface EmployeeWorkweekAssignment {
 }
 
 // Excel Export Function
-const exportToExcel = (employee: any, month: string, year: string, calculationData: any) => {
-  // Create workbook
-  const wb = XLSX.utils.book_new();
-  
-  // Employee name for display
-  const employeeName = employee.firstName && employee.lastName 
+const exportToExcel = async (employee: any, month: string, year: string, calculationData: any) => {
+  const employeeName = employee.firstName && employee.lastName
     ? `${employee.firstName} ${employee.lastName}`
     : employee.username;
-  
-  // Parse calculation data values
+
   const basicSalary = Math.round(parseFloat(calculationData?.grossBasic || calculationData?.basicSalary || 0));
   const hra = Math.round(parseFloat(calculationData?.houseRentAllowance || 0));
   const conveyance = Math.round(parseFloat(calculationData?.conveyanceAllowance || 0));
@@ -158,17 +153,14 @@ const exportToExcel = (employee: any, month: string, year: string, calculationDa
   const kgp = Math.round(parseFloat(calculationData?.kgpAllowance || 0));
   const bonus = Math.round(parseFloat(calculationData?.bonus || 0));
   const grossEarnings = Math.round(parseFloat(calculationData?.grossEarnings || 0));
-  
   const pf = Math.round(parseFloat(calculationData?.employeePF || 0));
   const esic = Math.round(parseFloat(calculationData?.employeeESIC || 0));
   const pt = Math.round(parseFloat(calculationData?.professionalTax || 0));
   const groupInsurance = Math.round(parseFloat(calculationData?.groupInsurance || 0));
   const totalDeductions = Math.round(parseFloat(calculationData?.totalDeductions || 0));
-  
   const netPay = Math.round(parseFloat(calculationData?.netPay || 0));
-  
-  // Create salary breakdown data
-  const salaryData = [
+
+  const salaryData: any[][] = [
     ['SALARY CALCULATION BREAKDOWN', '', ''],
     ['', '', ''],
     ['Employee Information', '', ''],
@@ -204,58 +196,46 @@ const exportToExcel = (employee: any, month: string, year: string, calculationDa
     ['', '', ''],
     ['NET SALARY', netPay, ''],
   ];
-  
-  // Create worksheet
-  const ws = XLSX.utils.aoa_to_sheet(salaryData);
-  
-  // Set column widths
-  ws['!cols'] = [
-    { width: 35 }, // Description column
-    { width: 15 }, // Amount column
-    { width: 10 }  // Extra column
-  ];
-  
-  // Style the header row
-  if (ws['A1']) {
-    ws['A1'].s = {
-      font: { bold: true, sz: 14 },
-      alignment: { horizontal: 'center' }
-    };
-  }
-  
-  // Style section headers
-  const sectionHeaders = ['A3', 'A9', 'A14', 'A25', 'A32'];
-  sectionHeaders.forEach(cell => {
-    if (ws[cell]) {
-      ws[cell].s = {
-        font: { bold: true, sz: 12 },
-        fill: { fgColor: { rgb: 'E6F3FF' } }
-      };
+
+  const workbook = new ExcelJS.Workbook();
+  const ws = workbook.addWorksheet('Salary Breakdown');
+
+  ws.getColumn(1).width = 35;
+  ws.getColumn(2).width = 15;
+  ws.getColumn(3).width = 10;
+
+  ws.addRows(salaryData);
+
+  const headerCell = ws.getCell('A1');
+  headerCell.font = { bold: true, size: 14 };
+  headerCell.alignment = { horizontal: 'center' };
+
+  ['A3', 'A9', 'A14'].forEach(addr => {
+    const cell = ws.getCell(addr);
+    if (cell.value) {
+      cell.font = { bold: true, size: 12 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6F3FF' } };
     }
   });
-  
-  // Style the final net salary row
-  if (ws['A32']) {
-    ws['A32'].s = {
-      font: { bold: true, sz: 12 },
-      fill: { fgColor: { rgb: 'D4FFD4' } }
-    };
-  }
-  if (ws['B32']) {
-    ws['B32'].s = {
-      font: { bold: true, sz: 12 },
-      fill: { fgColor: { rgb: 'D4FFD4' } }
-    };
-  }
-  
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, 'Salary Breakdown');
-  
-  // Generate filename
-  const filename = `Salary_Breakdown_${employeeName.replace(/\s+/g, '_')}_${month}-${year}.xlsx`;
-  
-  // Save file
-  XLSX.writeFile(wb, filename);
+
+  const lastRow = ws.rowCount;
+  const netSalaryRowA = ws.getCell(`A${lastRow}`);
+  const netSalaryRowB = ws.getCell(`B${lastRow}`);
+  [netSalaryRowA, netSalaryRowB].forEach(cell => {
+    cell.font = { bold: true, size: 12 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD4FFD4' } };
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Salary_Breakdown_${employeeName.replace(/\s+/g, '_')}_${month}-${year}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 };
 
 // Calculation hook for salary computations
