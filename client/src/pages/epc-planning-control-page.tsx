@@ -353,8 +353,22 @@ export default function EpcPlanningControlPage() {
                                       <div className="space-y-1">
                                         <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
                                         <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
+                                        <DetailRow label="UOM" value={expandedDetail.item_uom} />
+                                        <DetailRow label="Make / Buy" value={expandedDetail.item_make_or_buy} />
+                                        {expandedDetail.item_specification && (
+                                          <DetailRow label="Specification" value={expandedDetail.item_specification} />
+                                        )}
+                                        {expandedDetail.item_drawing_no && (
+                                          <DetailRow label="Drawing No" value={expandedDetail.item_drawing_no} mono />
+                                        )}
+                                        {expandedDetail.item_standard_cost && (
+                                          <DetailRow label="Std Cost" value={`₹ ${parseFloat(expandedDetail.item_standard_cost).toLocaleString()}`} />
+                                        )}
                                         {expandedDetail.source_bom_header_id && (
-                                          <DetailRow label="Source BOM ID" value={expandedDetail.source_bom_header_id} />
+                                          <>
+                                            <Separator className="my-1" />
+                                            <DetailRow label="Source BOM ID" value={expandedDetail.source_bom_header_id} />
+                                          </>
                                         )}
                                         {expandedDetail.source_bom_line_id && (
                                           <DetailRow label="Source BOM Line" value={expandedDetail.source_bom_line_id} />
@@ -387,6 +401,13 @@ export default function EpcPlanningControlPage() {
                                             <DetailRow label="Released By" value={expandedDetail.released_by_name} />
                                             <DetailRow label="Released" value={formatDate(expandedDetail.released_at)} />
                                             {expandedDetail.release_note && <DetailRow label="Release Note" value={expandedDetail.release_note} />}
+                                          </>
+                                        )}
+                                        {expandedDetail.cancelled_by_name && (
+                                          <>
+                                            <Separator className="my-1" />
+                                            <DetailRow label="Cancelled By" value={<span className="text-red-600">{expandedDetail.cancelled_by_name}</span>} />
+                                            <DetailRow label="Cancelled" value={formatDate(expandedDetail.cancelled_at)} />
                                           </>
                                         )}
                                       </div>

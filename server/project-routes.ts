@@ -2106,12 +2106,17 @@ export function setupProjectRoutes(app: express.Express) {
 
       let query = sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                               u3.username as reviewed_by_name, u4.username as released_by_name,
-                              mi.description as item_description, mi.item_code
+                              u5.username as cancelled_by_name,
+                              mi.description as item_description, mi.item_code,
+                              mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
+                              mi.specification as item_specification, mi.drawing_no as item_drawing_no,
+                              mi.standard_cost as item_standard_cost
                        FROM item_planning_records ipr
                        LEFT JOIN users u1 ON ipr.assigned_to = u1.id
                        LEFT JOIN users u2 ON ipr.created_by = u2.id
                        LEFT JOIN users u3 ON ipr.reviewed_by = u3.id
                        LEFT JOIN users u4 ON ipr.released_by = u4.id
+                       LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
                        LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
                        WHERE ipr.project_id = ${projectId}`;
 
@@ -2134,12 +2139,17 @@ export function setupProjectRoutes(app: express.Express) {
       const result = await db.execute(
         sql`SELECT ipr.*, u1.username as assigned_to_name, u2.username as created_by_name,
                    u3.username as reviewed_by_name, u4.username as released_by_name,
-                   mi.description as item_description, mi.item_code
+                   u5.username as cancelled_by_name,
+                   mi.description as item_description, mi.item_code,
+                   mi.uom as item_uom, mi.make_or_buy as item_make_or_buy,
+                   mi.specification as item_specification, mi.drawing_no as item_drawing_no,
+                   mi.standard_cost as item_standard_cost
             FROM item_planning_records ipr
             LEFT JOIN users u1 ON ipr.assigned_to = u1.id
             LEFT JOIN users u2 ON ipr.created_by = u2.id
             LEFT JOIN users u3 ON ipr.reviewed_by = u3.id
             LEFT JOIN users u4 ON ipr.released_by = u4.id
+            LEFT JOIN users u5 ON ipr.cancelled_by = u5.id
             LEFT JOIN master_items mi ON ipr.master_item_id = mi.id
             WHERE ipr.id = ${id}`
       );
