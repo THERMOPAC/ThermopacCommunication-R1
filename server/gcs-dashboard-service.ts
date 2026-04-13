@@ -244,7 +244,7 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
               ${bucketName}, ${file.name}, ${parsed.fileName}, ${parsed.folderPath},
               ${parsed.continentCode}, ${continentName || parsed.continentCode}, ${parsed.countryCode}, ${countryName || parsed.countryCode},
               ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
-              ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType}, ${parsed.revision},
+              ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType ? parsed.docType.substring(0, 100) : null}, ${parsed.revision ? parsed.revision.substring(0, 50) : null},
               ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? sql`${'{' + unresolvedFields.join(',') + '}'}::text[]` : null},
               ${assuranceFlags.length > 0 ? sql`${'{' + assuranceFlags.join(',') + '}'}::text[]` : null},
               ${updatedAt}, NOW()
