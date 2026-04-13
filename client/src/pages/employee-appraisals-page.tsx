@@ -108,8 +108,7 @@ export default function EmployeeAppraisalsPage() {
   const selectedUserName = useMemo(() => {
     if (!filterEmployeeId) return null;
     const u = userPool.find(u => u.id === filterEmployeeId);
-    if (!u) return null;
-    return u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username;
+    return u?.username ?? null;
   }, [filterEmployeeId, userPool]);
 
   const tabs = useMemo(() => {
@@ -154,10 +153,12 @@ export default function EmployeeAppraisalsPage() {
                   if (!usersInRole) return null;
                   return (
                     <SelectGroup key={role}>
-                      <SelectLabel className="text-xs text-muted-foreground">{role}</SelectLabel>
+                      <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">
+                        {role}s
+                      </SelectLabel>
                       {usersInRole.map(u => (
                         <SelectItem key={u.id} value={u.id.toString()}>
-                          {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : u.username}
+                          {u.username}
                         </SelectItem>
                       ))}
                     </SelectGroup>
