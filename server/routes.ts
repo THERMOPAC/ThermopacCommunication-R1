@@ -181,9 +181,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Sample Excel download requested (pre-auth)');
       
-      const XLSX = await import('xlsx');
-      
-      // Create sample data
+      const { buildExcelBuffer } = await import('./excel-utils');
+
       const sampleData = [
         {
           'BP Code': 'C001',
@@ -217,35 +216,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       ];
 
-      // Create workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const excelBuffer = await buildExcelBuffer('Customer Data', sampleData, [12, 30, 20, 25, 40, 40, 15, 15]);
 
-      // Set column widths for better readability
-      const columnWidths = [
-        { wch: 12 }, // BP Code
-        { wch: 30 }, // BP Name
-        { wch: 20 }, // Contact Person
-        { wch: 25 }, // E-Mail
-        { wch: 40 }, // Bill_To_Address
-        { wch: 40 }, // Ship_To_Address
-        { wch: 15 }, // Continent
-        { wch: 15 }  // Country Name
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customer Data');
-
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=customer_import_sample.xlsx');
       res.setHeader('Content-Length', excelBuffer.length);
-
-      // Send the file
       res.send(excelBuffer);
     } catch (error) {
       console.error('Error generating sample Excel file:', error);

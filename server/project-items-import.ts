@@ -1,6 +1,6 @@
 import multer from 'multer';
 import { Router, Request, Response } from 'express';
-import { read, utils } from 'xlsx';
+import { ExcelJS, sheetToJsonWithColLetters } from './excel-utils';
 import { storage } from './storage';
 import { insertProjectItemSchema, insertMasterItemSchema, projectWorkflowEvents } from '@shared/schema';
 import { z } from 'zod';
@@ -98,9 +98,10 @@ export function setupProjectItemsImportRoutes(app: Router) {
         return res.status(400).json({ message: "Invalid file type. Only Excel files (.xlsx, .xls) are allowed." });
       }
 
-      const workbook = read(req.file.buffer, { type: 'buffer' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = utils.sheet_to_json(worksheet, { header: 'A' });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(req.file.buffer);
+      const worksheet = workbook.worksheets[0];
+      const data = sheetToJsonWithColLetters(worksheet);
 
       if (data.length < 2) {
         return res.status(400).json({ message: "The Excel file is empty or has no data rows" });

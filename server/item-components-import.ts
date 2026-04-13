@@ -1,6 +1,6 @@
 import { Request, Response, Router } from 'express';
 import multer from 'multer';
-import * as xlsx from 'xlsx';
+import { ExcelJS, sheetToJson, sheetToJsonWithColLetters } from './excel-utils';
 import { db } from './db';
 import { eq, and } from 'drizzle-orm';
 import { masterItems, itemComponents } from '@shared/schema';
@@ -96,18 +96,15 @@ export function setupItemComponentsImportRoutes(app: Router) {
         return res.status(404).json({ error: 'Parent item not found' });
       }
 
-      // Process Excel file - support both formats (header-based and non-header-based)
-      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      
-      // First try to read as JSON with headers
-      let data = xlsx.utils.sheet_to_json(worksheet);
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(req.file.buffer);
+      const worksheet = workbook.worksheets[0];
+
+      let data = sheetToJson(worksheet);
       let useHeaderMapping = false;
-      
-      // If no data found, try reading with column letters as headers
+
       if (data.length === 0) {
-        data = xlsx.utils.sheet_to_json(worksheet, { header: 'A' });
+        data = sheetToJsonWithColLetters(worksheet);
         useHeaderMapping = true;
       }
 
