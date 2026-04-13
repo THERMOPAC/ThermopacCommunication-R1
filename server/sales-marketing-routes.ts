@@ -9,6 +9,27 @@ import multer from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { storeQuotationPdfArtifact, getActiveArtifact, downloadArtifactBuffer, freezeConfirmedArtifact, listArtifactsForOffer, getArtifactById, attachConfirmedArtifactToEpc } from './utils/quotation-pdf-artifact';
+import crypto from 'crypto';
+import gcsClient, { bucketName as gcsBucketName } from './utils/storage-config';
+
+async function getTemplateSignedUrl(gcsObjectPath: string): Promise<string> {
+  const bucket = gcsClient.bucket(gcsBucketName);
+  const file = bucket.file(gcsObjectPath);
+  const [url] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 });
+  return url;
+}
+
+async function uploadTemplateToGcs(buffer: Buffer, subject: string, name: string, ext: string): Promise<string> {
+  const seq = Date.now();
+  const safeSubject = subject.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const safeLabel = `${safeName}-${seq}`;
+  const gcsPath = `TPEL/Templates/${safeSubject}/${safeLabel}.${ext}`;
+  const bucket = gcsClient.bucket(gcsBucketName);
+  const file = bucket.file(gcsPath);
+  await file.save(buffer, { contentType: 'application/pdf', metadata: { contentType: 'application/pdf' } });
+  return gcsPath;
+}
 
 const templateUploadDir = path.join(process.cwd(), 'uploads', 'offer-templates');
 if (!fs.existsSync(templateUploadDir)) {
@@ -955,6 +976,17 @@ export function setupSalesMarketingRoutes(app: Express) {
       const { name, subject, description, position, language, startPage, endPage } = req.body;
       if (!name || !subject) return res.status(400).json({ error: 'Name and subject are required' });
 
+      const ext = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
+      let gcsObjectPath: string | undefined;
+      let checksumSha256: string | undefined;
+      try {
+        const fileBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
+        gcsObjectPath = await uploadTemplateToGcs(fileBuffer, subject, name, ext);
+        checksumSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+      } catch (gcsErr) {
+        console.warn('[offer-templates] GCS upload failed, using local FS fallback:', gcsErr);
+      }
+
       const [template] = await db.insert(offerTemplates).values({
         name,
         subject,
@@ -968,6 +1000,9 @@ export function setupSalesMarketingRoutes(app: Express) {
         endPage: endPage ? parseInt(endPage) : null,
         isActive: true,
         createdBy: (req.user as any)?.id || null,
+        gcsObjectPath: gcsObjectPath || null,
+        gcsBucket: gcsObjectPath ? gcsBucketName : null,
+        checksumSha256: checksumSha256 || null,
       }).returning();
 
       res.json(template);
@@ -1013,11 +1048,32 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (existing.filePath && fs.existsSync(existing.filePath)) {
         fs.unlinkSync(existing.filePath);
       }
+      if (existing.gcsObjectPath) {
+        try {
+          await gcsClient.bucket(gcsBucketName).file(existing.gcsObjectPath).delete();
+        } catch (gcsDelErr) {
+          console.warn('[offer-templates] GCS delete on replace failed:', gcsDelErr);
+        }
+      }
+
+      const replaceExt = req.file.originalname.split('.').pop()?.toLowerCase() || 'pdf';
+      let newGcsPath: string | undefined;
+      let newChecksum: string | undefined;
+      try {
+        const replaceBuffer = req.file.buffer ?? fs.readFileSync(req.file.path);
+        newGcsPath = await uploadTemplateToGcs(replaceBuffer, existing.subject, existing.name, replaceExt);
+        newChecksum = crypto.createHash('sha256').update(replaceBuffer).digest('hex');
+      } catch (gcsErr) {
+        console.warn('[offer-templates] GCS upload on replace failed:', gcsErr);
+      }
 
       const [template] = await db.update(offerTemplates).set({
         filePath: req.file.path,
         fileName: req.file.originalname,
         fileSize: req.file.size,
+        gcsObjectPath: newGcsPath || null,
+        gcsBucket: newGcsPath ? gcsBucketName : null,
+        checksumSha256: newChecksum || null,
         updatedAt: new Date(),
       }).where(eq(offerTemplates.id, id)).returning();
 
@@ -1039,6 +1095,13 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (existing.filePath && fs.existsSync(existing.filePath)) {
         fs.unlinkSync(existing.filePath);
       }
+      if (existing.gcsObjectPath) {
+        try {
+          await gcsClient.bucket(gcsBucketName).file(existing.gcsObjectPath).delete();
+        } catch (gcsDelErr) {
+          console.warn('[offer-templates] GCS delete failed:', gcsDelErr);
+        }
+      }
 
       await db.delete(offerTemplates).where(eq(offerTemplates.id, id));
       res.json({ success: true });
@@ -1054,8 +1117,19 @@ export function setupSalesMarketingRoutes(app: Express) {
       if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
       const [template] = await db.select().from(offerTemplates).where(eq(offerTemplates.id, id));
       if (!template) return res.status(404).json({ error: 'Template not found' });
-      if (!fs.existsSync(template.filePath)) return res.status(404).json({ error: 'Template file not found' });
 
+      if (template.gcsObjectPath) {
+        try {
+          const signedUrl = await getTemplateSignedUrl(template.gcsObjectPath);
+          return res.redirect(302, signedUrl);
+        } catch (gcsErr) {
+          console.warn('[offer-templates] GCS signed URL failed, falling back to local FS:', gcsErr);
+        }
+      }
+
+      if (!fs.existsSync(template.filePath)) {
+        return res.status(404).json({ error: 'Template file not found' });
+      }
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${template.fileName}"`);
       fs.createReadStream(template.filePath).pipe(res);

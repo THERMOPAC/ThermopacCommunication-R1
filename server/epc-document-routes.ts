@@ -144,7 +144,11 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           if (piData?.code_bars) {
             const ext = req.file!.originalname.split('.').pop()?.toLowerCase() || 'pdf';
             const rev = revisionCode || '00';
-            gcsObjectPath = `TPEL/${geo.continentCode}/${geo.countryCode}/${geo.customerShortCode}/${geo.fyCode}/${geo.projectSeq}/${piData.item_code}/DWG/${piData.code_bars}_rev-${rev}.${ext}`;
+            gcsObjectPath = epcCoding.buildDrawingGcsPath(
+              geo.continentCode, geo.countryCode, geo.customerShortCode,
+              geo.fyCode, geo.projectSeq,
+              piData.item_code, piData.code_bars, rev, ext
+            );
           } else {
             gcsObjectPath = epcCoding.buildEpcGcsPath(
               geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,

@@ -193,7 +193,7 @@ export async function attachConfirmedArtifactToEpc(
     }
 
     const projResult = await pool.query(
-      `SELECT p.customer_id, p.fy_code, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
+      `SELECT p.customer_id, p.fy_code, p.project_seq, c.continent_code, c.country_code, c.short_code, c.continent, c.country_name
        FROM projects p JOIN customers c ON c.id = p.customer_id
        WHERE p.id = $1`,
       [projectId]
@@ -213,6 +213,7 @@ export async function attachConfirmedArtifactToEpc(
     if (!continentCode || !countryCode || !proj.short_code) {
       return { success: false, error: `Customer geography codes missing for project ${projectId}` };
     }
+    const projectSeq = proj.project_seq || projectCode;
 
     const seqResult = await pool.query(
       `SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
@@ -225,7 +226,7 @@ export async function attachConfirmedArtifactToEpc(
     const epcLabel = attachmentLabel || 'Baseline Order Quotation';
     const epcGcsPath = buildEpcQtnGcsPath(
       continentCode, countryCode, proj.short_code,
-      proj.fy_code, projectCode, offerNumber,
+      proj.fy_code, projectSeq, offerNumber,
       attachmentSeq, epcLabel
     );
 

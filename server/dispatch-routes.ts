@@ -7,7 +7,7 @@ import { gcsStorage } from './utils/gcs-storage';
 import { initializeGCS } from './utils/gcs-operations';
 import { dispatchRecords, dispatchItems, dispatchDocuments, transporters, masterItems, projects, epcDocumentAttachments, epcDocumentAccessLog } from '@shared/schema';
 import * as epcCoding from './epc-coding';
-import { isFeatureFlagEnabled, findEpcDispatchRecord, resolveDispatchDocumentWithFallback } from './utils/epc-migration-helpers';
+import { findEpcDispatchRecord, resolveDispatchDocumentWithFallback } from './utils/epc-migration-helpers';
 
 function ensureAuthenticated(req: Request, res: Response, next: Function) {
   if (req.isAuthenticated()) {
@@ -358,12 +358,15 @@ export function setupDispatchRoutes(app: Router) {
       const dispatchNumber = dispatch[0].dispatch_number;
       const userId = req.user!.id;
 
-      const dspCutoverEnabled = await isFeatureFlagEnabled('EPC_UPLOAD_CUTOVER_DSP');
-      const epcDispatch = dspCutoverEnabled
-        ? await findEpcDispatchRecord(dispatchNumber, project.id)
-        : null;
+      const epcDispatch = await findEpcDispatchRecord(dispatchNumber, project.id);
 
-      if (dspCutoverEnabled && epcDispatch && project.code) {
+      if (!epcDispatch || !project.code) {
+        return res.status(422).json({
+          error: 'No EPC dispatch record found for this dispatch. All new dispatch document uploads must use the governed TPEL path. Please ensure this dispatch has been registered in the EPC dispatch records.',
+        });
+      }
+
+      {
         const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
         const documentNumber = epcDispatch.dispatch_number;
 
@@ -482,39 +485,6 @@ export function setupDispatchRoutes(app: Router) {
           epcPath: txResult.gcsObjectPath,
           uploadRoute: 'epc',
         });
-      } else {
-        const filePath = `THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}/${document_type}_${fileName}`;
-
-        await gcsStorage.ensureDirectoryStructure(`THERMOPAC_PROJECTS/${project.financialYear}/${project.code}/Dispatch/${dispatchNumber}`);
-
-        const uploadUrl = await gcsStorage.generateUploadSignedUrl({
-          financialYear: project.financialYear,
-          projectCode: project.code,
-          department: 'Dispatch',
-          subDirectory: dispatchNumber,
-          fileName: `${document_type}_${fileName}`,
-          contentType: req.file.mimetype
-        });
-
-        const uploadResult = {
-          path: filePath,
-          url: uploadUrl,
-          expiryTime: Date.now() + 15 * 60 * 1000
-        };
-
-        const [newDocument] = await db.insert(dispatchDocuments).values({
-          dispatch_id: dispatchId,
-          document_type,
-          document_name: fileName,
-          document_path: filePath,
-          uploaded_by: userId,
-          storage_path: uploadResult.path,
-          storage_url: uploadResult.url,
-          storage_url_expiry: uploadResult.expiryTime ? new Date(uploadResult.expiryTime) : null
-        }).returning();
-
-        console.log(`[DSP-LEGACY] Uploaded dispatch doc for ${dispatchNumber} by user ${userId}`);
-        res.status(201).json({ ...newDocument, uploadRoute: 'legacy' });
       }
     } catch (error) {
       console.error('Error uploading dispatch document:', error);

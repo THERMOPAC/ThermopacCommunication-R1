@@ -12,6 +12,7 @@ import {
 import { ensureAuthenticated as authenticateUser } from './auth-middleware';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
 import { resolveDrawingVersionWithFallback } from './utils/epc-migration-helpers';
+import { resolveProjectGeoCodes, buildDrawingGcsPath } from './epc-coding';
 import { initializeGCS } from './utils/gcs-operations';
 
 const router = Router();
@@ -237,7 +238,8 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
       .select({
         designProjectName: designProjects.designProjectName,
         projectCode: projects.code,
-        projectName: projects.name
+        projectName: projects.name,
+        projectDbId: projects.id,
       })
       .from(designProjects)
       .leftJoin(projects, eq(designProjects.projectId, projects.id))
@@ -301,12 +303,27 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
 
     const finalRevision = autoRevision;
 
-    // **UPDATED GCS PATH STRUCTURE**
-    // Structure: Design_Management/{ProjectCode}/Drawings/{DrawingNumber}/{DrawingNumber}_R{Revision}.{extension}
-    const fileExtension = file.originalname.split('.').pop();
+    // Build TPEL governed GCS path via shared builder
+    const fileExtension = file.originalname.split('.').pop() || 'pdf';
     const versionedFileName = `${drawingNumber}_${finalRevision}.${fileExtension}`;
-    
-    const gcsPath = `Design_Management/${projectCode}/Drawings/${drawingNumber}/${versionedFileName}`;
+
+    let gcsPath: string;
+    const designProjectDbId = designProject[0].projectDbId;
+    if (designProjectDbId) {
+      try {
+        const geo = await resolveProjectGeoCodes(designProjectDbId);
+        const itemCode = (disciplineCode || 'PROJ').toUpperCase();
+        gcsPath = buildDrawingGcsPath(
+          geo.continentCode, geo.countryCode, geo.customerShortCode,
+          geo.fyCode, geo.projectSeq,
+          itemCode, drawingNumber, finalRevision, fileExtension
+        );
+      } catch {
+        gcsPath = `Design_Management/${projectCode}/Drawings/${drawingNumber}/${versionedFileName}`;
+      }
+    } else {
+      gcsPath = `Design_Management/${projectCode}/Drawings/${drawingNumber}/${versionedFileName}`;
+    }
 
     // Upload to GCS
     const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);
@@ -414,7 +431,8 @@ router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), a
         id: designDrawings.id,
         drawingNumber: designDrawings.drawingNumber,
         designProjectId: designDrawings.designProjectId,
-        projectCode: projects.code
+        projectCode: projects.code,
+        projectDbId: projects.id,
       })
       .from(designDrawings)
       .leftJoin(designProjects, eq(designDrawings.designProjectId, designProjects.id))
@@ -448,9 +466,24 @@ router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), a
     }
 
     const projectCode = drawing[0].projectCode || 'UNKNOWN';
-    
-    // Create GCS path
-    const gcsPath = `Design_Management/Drawings/${projectCode}/${drawing[0].drawingNumber}/${file.originalname}`;
+    const fileExtB = file.originalname.split('.').pop() || 'pdf';
+
+    // Build TPEL governed GCS path via shared builder
+    let gcsPath: string;
+    if (drawing[0].projectDbId) {
+      try {
+        const geo = await resolveProjectGeoCodes(drawing[0].projectDbId);
+        gcsPath = buildDrawingGcsPath(
+          geo.continentCode, geo.countryCode, geo.customerShortCode,
+          geo.fyCode, geo.projectSeq,
+          'PROJ', drawing[0].drawingNumber, newRevision, fileExtB
+        );
+      } catch {
+        gcsPath = `Design_Management/Drawings/${projectCode}/${drawing[0].drawingNumber}/${file.originalname}`;
+      }
+    } else {
+      gcsPath = `Design_Management/Drawings/${projectCode}/${drawing[0].drawingNumber}/${file.originalname}`;
+    }
 
     // Upload to GCS
     const uploadResult = await uploadFileWithDiagnostics(gcsPath, file.buffer, file.mimetype);

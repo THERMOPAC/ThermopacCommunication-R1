@@ -58,6 +58,8 @@ import { default as simplePaymentRoutes } from "./simple-payment-routes";
 import { default as financeWriteOffsRouter } from "./finance-write-offs";
 import { setupDebugWorkOrderRoutes } from "./debug-work-orders";
 import { default as adminRoutes } from "./admin-routes";
+import customerOrderDocumentRoutes from "./customer-order-document-routes";
+import { registerRetentionRoutes } from "./utils/gcs-retention-cleanup";
 import { default as cleanPaymentRoutes } from "./clean-payment-routes";
 import { default as basicAllocationApi } from "./basic-allocation-api";
 import { default as workLocationRoutes } from "./work-location-routes";
@@ -3805,6 +3807,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Administration Module routes
   app.use('/api/admin', adminRoutes);
   console.log('Administration routes registered at /api/admin');
+
+  // Customer Order Document routes
+  app.use('/api/customer-order-documents', customerOrderDocumentRoutes);
+  console.log('Customer Order Document routes registered at /api/customer-order-documents');
+
+  // GCS Retention Cleanup (admin-only, admin-triggered)
+  const requireRole = (maxRole: number) => (req: any, res: any, next: any) => {
+    if (!req.user || req.user.role > maxRole) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
+  };
+  registerRetentionRoutes(app, ensureAuthenticated, requireRole);
+  console.log('GCS Retention Cleanup endpoints registered at /api/admin/gcs-retention');
 
   // Simple visa test routes
   const simpleVisaRoutes = await import('./simple-visa-routes');

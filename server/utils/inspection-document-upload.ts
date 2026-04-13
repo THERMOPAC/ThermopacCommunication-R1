@@ -126,39 +126,34 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
     }
     
     let filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
-    
-    let useEpcPath = false;
+
     try {
-      const { isFeatureFlagEnabled } = await import('./epc-migration-helpers');
-      useEpcPath = await isFeatureFlagEnabled('EPC_UPLOAD_CUTOVER_INS');
-      if (useEpcPath) {
-        const client2 = await pool.connect();
-        try {
-          const projRes = await client2.query(
-            `SELECT p.id as project_id, p.code, p.project_seq, p.fy_code,
-                    c.continent_code, c.country_code, c.short_code
-             FROM projects p
-             JOIN customers c ON c.id = p.customer_id
-             JOIN inspection_orders io ON io.project_id = p.id
-             WHERE io.inspection_order_number = $1 LIMIT 1`,
-            [inspectionOrderNumber]
-          );
-          if (projRes.rows.length > 0 && projRes.rows[0].code && projRes.rows[0].continent_code && projRes.rows[0].country_code) {
-            const r = projRes.rows[0];
-            const label = `${formattedTabName}_${recordId}`;
-            filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/A/1-${label}.${fileExtension}`;
-            const { assertGcsPath } = await import('../epc-guardrails');
-            assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
-            console.log(`uploadInspectionDocument: EPC_UPLOAD_CUTOVER enabled, using TPEL path: ${filePath}`);
-          } else {
-            useEpcPath = false;
-          }
-        } finally {
-          client2.release();
+      const client2 = await pool.connect();
+      try {
+        const projRes = await client2.query(
+          `SELECT p.id as project_id, p.code, p.project_seq, p.fy_code,
+                  c.continent_code, c.country_code, c.short_code
+           FROM projects p
+           JOIN customers c ON c.id = p.customer_id
+           JOIN inspection_orders io ON io.project_id = p.id
+           WHERE io.inspection_order_number = $1 LIMIT 1`,
+          [inspectionOrderNumber]
+        );
+        if (projRes.rows.length > 0 && projRes.rows[0].continent_code && projRes.rows[0].country_code && projRes.rows[0].short_code && projRes.rows[0].project_seq) {
+          const r = projRes.rows[0];
+          const revision = (req as any).body?.revision || 'na';
+          const seq = String(recordId).padStart(3, '0');
+          const label = formattedTabName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${label}.${fileExtension}`;
+          const { assertGcsPath } = await import('../epc-guardrails');
+          assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
+          console.log(`uploadInspectionDocument: Using governed TPEL path: ${filePath}`);
         }
+      } finally {
+        client2.release();
       }
-    } catch (flagErr) {
-      console.warn('Feature flag check failed, using legacy path:', flagErr);
+    } catch (pathErr) {
+      console.warn('TPEL path resolution failed, using legacy path:', pathErr);
     }
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (project code: ${projectCode}, original tab name: ${tabName})`);

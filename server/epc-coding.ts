@@ -243,12 +243,29 @@ export function buildQuotationGcsPath(
   return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/Quotations/${safeName}/${revSlot}/${seq}-${label}.pdf`;
 }
 
+export function buildDrawingGcsPath(
+  continentCode: string,
+  countryCode: string,
+  customerShortCode: string,
+  fyCode: string,
+  projectSeq: string,
+  itemCode: string,
+  codeBars: string,
+  revision: string,
+  ext: string
+): string {
+  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
+  const { assertGcsPath } = require('./epc-guardrails');
+  assertGcsPath(path, 'epc-coding.buildDrawingGcsPath');
+  return path;
+}
+
 export function buildEpcQtnGcsPath(
   continentCode: string,
   countryCode: string,
   customerShortCode: string,
   fyCode: string,
-  projectCode: string,
+  projectSeq: string,
   offerNumber: string,
   attachmentSeq: number,
   attachmentLabel: string,
@@ -260,7 +277,7 @@ export function buildEpcQtnGcsPath(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'baseline';
   const safeName = offerNumber.replace(/\//g, '-');
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectCode}/QTN/${safeName}/rev-na/${seq}-${label}.pdf`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/QTN/${safeName}/rev-na/${seq}-${label}.pdf`;
 }
 
 export async function resolveContextualRevision(

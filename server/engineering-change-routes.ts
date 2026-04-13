@@ -9,12 +9,14 @@ import {
   insertEcnSchema,
   insertChangeDocumentSchema
 } from '@shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import multer from 'multer';
 import { gcsStorage } from './utils/gcs-storage';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import gcsClient, { bucketName } from './utils/storage-config';
+import { resolveProjectGeoCodes, buildEpcGcsPath } from './epc-coding';
+import crypto from 'crypto';
 
 // Helper functions for file handling
 function generateUniqueFileName(originalName: string): string {
@@ -23,24 +25,20 @@ function generateUniqueFileName(originalName: string): string {
   return `${baseName}_${Date.now()}_${uuidv4().slice(0, 8)}${extension}`;
 }
 
-async function uploadFile(buffer: Buffer, filePath: string, contentType: string) {
+async function getSignedDownloadUrl(gcsPath: string): Promise<string> {
+  const bucket = gcsClient.bucket(bucketName);
+  const file = bucket.file(gcsPath);
+  const [url] = await file.getSignedUrl({
+    action: 'read',
+    expires: Date.now() + 15 * 60 * 1000,
+  });
+  return url;
+}
+
+async function uploadToGcs(buffer: Buffer, filePath: string, contentType: string): Promise<void> {
   const bucket = gcsClient.bucket(bucketName);
   const file = bucket.file(filePath);
-  
-  await file.save(buffer, {
-    contentType,
-    metadata: {
-      contentType,
-    },
-  });
-  
-  // Create a public URL for the file
-  const publicUrl = `https://storage.googleapis.com/${bucketName}/${filePath}`;
-  
-  return {
-    path: filePath,
-    publicUrl
-  };
+  await file.save(buffer, { contentType, metadata: { contentType } });
 }
 
 // Multer setup for file uploads
@@ -385,17 +383,35 @@ export function setupEngineeringChangeRoutes(app: Router) {
         return res.status(404).json({ error: 'ECR not found' });
       }
       
-      // Upload the file to GCS
-      const fileName = generateUniqueFileName(file.originalname);
-      const storagePath = `engineering_changes/ecr/${ecrId}/${fileName}`;
-      
-      const uploadedFile = await uploadFile(
-        file.buffer,
-        storagePath,
-        file.mimetype
-      );
-      
-      // Create a document record
+      // Resolve project geo-codes and build governed TPEL path
+      let storagePath: string;
+      let usedTpel = false;
+
+      if (ecr.project_id) {
+        try {
+          const geo = await resolveProjectGeoCodes(ecr.project_id);
+          const seqResult = await db.execute(
+            sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+                FROM change_documents WHERE ecr_id = ${ecrId}`
+          );
+          const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+          const labelRaw = (req.body.documentType || file.originalname).toLowerCase();
+          storagePath = buildEpcGcsPath(
+            geo.continentCode, geo.countryCode, geo.customerShortCode,
+            geo.fyCode, geo.projectSeq, 'ECR', ecr.document_number,
+            null, attachmentSeq, labelRaw, file.originalname
+          );
+          usedTpel = true;
+        } catch {
+          storagePath = `engineering_changes/ecr/${ecrId}/${generateUniqueFileName(file.originalname)}`;
+        }
+      } else {
+        storagePath = `engineering_changes/ecr/${ecrId}/${generateUniqueFileName(file.originalname)}`;
+      }
+
+      await uploadToGcs(file.buffer, storagePath, file.mimetype);
+
+      const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex');
       const [document] = await db.insert(changeDocuments)
         .values({
           ecr_id: ecrId,
@@ -405,10 +421,13 @@ export function setupEngineeringChangeRoutes(app: Router) {
           uploaded_by: req.user.id,
           uploaded_at: new Date(),
           storage_path: storagePath,
-          storage_url: uploadedFile.publicUrl
+          storage_url: usedTpel ? null : `https://storage.googleapis.com/${bucketName}/${storagePath}`,
+          gcs_object_path: usedTpel ? storagePath : null,
+          checksum_sha256: checksum,
+          file_size: file.size,
         })
         .returning();
-      
+
       res.status(201).json(document);
     } catch (error) {
       console.error('Error uploading ECR document:', error);
@@ -441,17 +460,35 @@ export function setupEngineeringChangeRoutes(app: Router) {
         return res.status(404).json({ error: 'ECN not found' });
       }
       
-      // Upload the file to GCS
-      const fileName = generateUniqueFileName(file.originalname);
-      const storagePath = `engineering_changes/ecn/${ecnId}/${fileName}`;
-      
-      const uploadedFile = await uploadFile(
-        file.buffer,
-        storagePath,
-        file.mimetype
-      );
-      
-      // Create a document record
+      // Resolve project geo-codes and build governed TPEL path
+      let storagePath: string;
+      let usedTpel = false;
+
+      if (ecn.project_id) {
+        try {
+          const geo = await resolveProjectGeoCodes(ecn.project_id);
+          const seqResult = await db.execute(
+            sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+                FROM change_documents WHERE ecn_id = ${ecnId}`
+          );
+          const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+          const labelRaw = (req.body.documentType || file.originalname).toLowerCase();
+          storagePath = buildEpcGcsPath(
+            geo.continentCode, geo.countryCode, geo.customerShortCode,
+            geo.fyCode, geo.projectSeq, 'ECN', ecn.document_number,
+            null, attachmentSeq, labelRaw, file.originalname
+          );
+          usedTpel = true;
+        } catch {
+          storagePath = `engineering_changes/ecn/${ecnId}/${generateUniqueFileName(file.originalname)}`;
+        }
+      } else {
+        storagePath = `engineering_changes/ecn/${ecnId}/${generateUniqueFileName(file.originalname)}`;
+      }
+
+      await uploadToGcs(file.buffer, storagePath, file.mimetype);
+
+      const checksum = crypto.createHash('sha256').update(file.buffer).digest('hex');
       const [document] = await db.insert(changeDocuments)
         .values({
           ecn_id: ecnId,
@@ -461,10 +498,13 @@ export function setupEngineeringChangeRoutes(app: Router) {
           uploaded_by: req.user.id,
           uploaded_at: new Date(),
           storage_path: storagePath,
-          storage_url: uploadedFile.publicUrl
+          storage_url: usedTpel ? null : `https://storage.googleapis.com/${bucketName}/${storagePath}`,
+          gcs_object_path: usedTpel ? storagePath : null,
+          checksum_sha256: checksum,
+          file_size: file.size,
         })
         .returning();
-      
+
       res.status(201).json(document);
     } catch (error) {
       console.error('Error uploading ECN document:', error);
@@ -487,11 +527,19 @@ export function setupEngineeringChangeRoutes(app: Router) {
       if (!document) {
         return res.status(404).json({ error: 'Document not found' });
       }
-      
-      // Create a signed URL for downloading
-      // You'll need to implement this function in your GCS storage utils
-      const downloadUrl = document.storage_url;
-      
+
+      const gcsPath = document.gcs_object_path || document.storage_path;
+      if (!gcsPath) {
+        return res.status(404).json({ error: 'No storage path for this document' });
+      }
+
+      let downloadUrl: string;
+      try {
+        downloadUrl = await getSignedDownloadUrl(gcsPath);
+      } catch {
+        downloadUrl = document.storage_url || '';
+      }
+
       res.status(200).json({ downloadUrl });
     } catch (error) {
       console.error('Error getting document download URL:', error);
@@ -518,11 +566,19 @@ export function setupEngineeringChangeRoutes(app: Router) {
       if (!document) {
         return res.status(404).json({ error: 'Document not found' });
       }
-      
-      // Delete the document from the database
+
+      const gcsPath = document.gcs_object_path || document.storage_path;
+      if (gcsPath) {
+        try {
+          await gcsStorage.deleteFile(gcsPath);
+        } catch (gcsErr) {
+          console.error(`[ECR/ECN] GCS delete failed for ${gcsPath}:`, gcsErr);
+        }
+      }
+
       await db.delete(changeDocuments)
         .where(eq(changeDocuments.id, documentId));
-      
+
       res.status(204).end();
     } catch (error) {
       console.error('Error deleting document:', error);

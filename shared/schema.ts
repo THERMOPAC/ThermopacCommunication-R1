@@ -9840,6 +9840,9 @@ export const offerTemplates = pgTable('offer_templates', {
   createdBy: integer('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+  gcsObjectPath: text('gcs_object_path'),
+  gcsBucket: text('gcs_bucket'),
+  checksumSha256: text('checksum_sha256'),
 });
 
 export const insertOfferTemplateSchema = createInsertSchema(offerTemplates).omit({
@@ -12359,3 +12362,53 @@ export const epcAssignmentAuditLog = pgTable('epc_assignment_audit_log', {
 });
 
 export type EpcAssignmentAuditLog = typeof epcAssignmentAuditLog.$inferSelect;
+
+// ==================== GCS RETENTION: OBJECT DELETIONS ====================
+
+export const gcsObjectDeletions = pgTable('gcs_object_deletions', {
+  id: serial('id').primaryKey(),
+  gcsBucket: text('gcs_bucket').notNull(),
+  gcsObjectPath: text('gcs_object_path').notNull(),
+  deletionReason: text('deletion_reason').notNull(),
+  deletionPolicy: text('deletion_policy').notNull(),
+  requestedBy: integer('requested_by').references(() => users.id),
+  executedAt: timestamp('executed_at', { withTimezone: true }),
+  status: text('status').notNull().default('pending'),
+  errorMessage: text('error_message'),
+  scheduledFor: timestamp('scheduled_for', { withTimezone: true }),
+  documentType: text('document_type'),
+  documentNumber: text('document_number'),
+  projectId: integer('project_id').references(() => projects.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertGcsObjectDeletionSchema = createInsertSchema(gcsObjectDeletions).omit({ id: true, createdAt: true, executedAt: true });
+export type GcsObjectDeletion = typeof gcsObjectDeletions.$inferSelect;
+export type InsertGcsObjectDeletion = z.infer<typeof insertGcsObjectDeletionSchema>;
+
+// ==================== CUSTOMER ORDER DOCUMENTS ====================
+
+export const customerOrderDocuments = pgTable('customer_order_documents', {
+  id: serial('id').primaryKey(),
+  ccoId: integer('cco_id').references(() => commercialChangeOrders.id),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  customerOrderNumber: text('customer_order_number').notNull(),
+  documentLabel: text('document_label').notNull(),
+  revisionCode: text('revision_code'),
+  attachmentSeq: integer('attachment_seq').notNull().default(1),
+  gcsBucket: text('gcs_bucket').notNull(),
+  gcsObjectPath: text('gcs_object_path').notNull(),
+  originalFileName: text('original_file_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  fileSizeBytes: integer('file_size_bytes'),
+  checksumSha256: text('checksum_sha256'),
+  status: text('status').notNull().default('active'),
+  isCurrent: boolean('is_current').notNull().default(true),
+  uploadedBy: integer('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertCustomerOrderDocumentSchema = createInsertSchema(customerOrderDocuments).omit({ id: true, createdAt: true, updatedAt: true });
+export type CustomerOrderDocument = typeof customerOrderDocuments.$inferSelect;
+export type InsertCustomerOrderDocument = z.infer<typeof insertCustomerOrderDocumentSchema>;

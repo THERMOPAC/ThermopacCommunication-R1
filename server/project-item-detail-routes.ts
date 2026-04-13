@@ -11,7 +11,7 @@ import {
   projects
 } from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { resolveProjectGeoCodes } from './epc-coding';
+import { resolveProjectGeoCodes, buildDrawingGcsPath } from './epc-coding';
 import multer from 'multer';
 import crypto from 'crypto';
 import { uploadFileWithDiagnostics } from './utils/gcs-enhanced-upload';
@@ -159,19 +159,6 @@ function ensureAuthenticated(req: Request, res: Response, next: Function) {
   res.status(401).send('Unauthorized');
 }
 
-function buildDrawingGcsPath(
-  continentCode: string,
-  countryCode: string,
-  customerShortCode: string,
-  fyCode: string,
-  projectSeq: string,
-  itemCode: string,
-  codeBars: string,
-  revision: string,
-  ext: string
-): string {
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
-}
 
 export function setupProjectItemDetailRoutes(app: Router) {
 
