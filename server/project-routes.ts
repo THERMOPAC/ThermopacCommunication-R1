@@ -3216,12 +3216,19 @@ export function setupProjectRoutes(app: express.Express) {
       const statusFilter = req.query.status as string | undefined;
       const itemFilter = req.query.projectItemId ? parseInt(req.query.projectItemId as string) : undefined;
 
-      let query = sql`SELECT per.*, u1.username as assigned_to_name, u2.username as created_by_name,
-                             u3.username as prepared_by_name
+      let query = sql`SELECT per.*,
+                             u1.username as assigned_to_name, u2.username as created_by_name,
+                             u3.username as prepared_by_name, u4.username as cancelled_by_name,
+                             COALESCE(per.drawing_no, mi.drawing_no) as drawing_no,
+                             COALESCE(per.drawing_revision, mi.latest_revision) as drawing_revision,
+                             mi.specification as item_specification_master,
+                             mi.uom as item_uom_master, mi.make_or_buy as item_make_or_buy
                       FROM production_execution_records per
                       LEFT JOIN users u1 ON per.assigned_to = u1.id
                       LEFT JOIN users u2 ON per.created_by = u2.id
                       LEFT JOIN users u3 ON per.prepared_by = u3.id
+                      LEFT JOIN users u4 ON per.cancelled_by = u4.id
+                      LEFT JOIN master_items mi ON per.master_item_id = mi.id
                       WHERE per.project_id = ${projectId}`;
 
       if (statusFilter) query = sql`${query} AND per.status = ${statusFilter}`;
@@ -3241,12 +3248,19 @@ export function setupProjectRoutes(app: express.Express) {
       if (isNaN(id)) return sendValidationError(res, 'Invalid production execution ID');
 
       const result = await db.execute(
-        sql`SELECT per.*, u1.username as assigned_to_name, u2.username as created_by_name,
-                   u3.username as prepared_by_name
+        sql`SELECT per.*,
+                   u1.username as assigned_to_name, u2.username as created_by_name,
+                   u3.username as prepared_by_name, u4.username as cancelled_by_name,
+                   COALESCE(per.drawing_no, mi.drawing_no) as drawing_no,
+                   COALESCE(per.drawing_revision, mi.latest_revision) as drawing_revision,
+                   mi.specification as item_specification_master,
+                   mi.uom as item_uom_master, mi.make_or_buy as item_make_or_buy
             FROM production_execution_records per
             LEFT JOIN users u1 ON per.assigned_to = u1.id
             LEFT JOIN users u2 ON per.created_by = u2.id
             LEFT JOIN users u3 ON per.prepared_by = u3.id
+            LEFT JOIN users u4 ON per.cancelled_by = u4.id
+            LEFT JOIN master_items mi ON per.master_item_id = mi.id
             WHERE per.id = ${id}`
       );
       if (result.rows.length === 0) return sendNotFound(res, 'Production execution record not found');

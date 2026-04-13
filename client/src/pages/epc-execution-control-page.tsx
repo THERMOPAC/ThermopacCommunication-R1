@@ -332,8 +332,9 @@ export default function EpcExecutionControlPage() {
                                   <div className="space-y-1">
                                     <DetailRow label="Item Code" value={<ItemCodeBadge code={expandedDetail.item_code} prop1Label={expandedDetail.item_property_1_label} />} />
                                     <DetailRow label="Description" value={<span className="text-blue-600">{expandedDetail.item_description}</span>} />
-                                    <DetailRow label="Specification" value={expandedDetail.item_specification} />
-                                    <DetailRow label="UOM" value={expandedDetail.uom} />
+                                    <DetailRow label="Specification" value={expandedDetail.item_specification || expandedDetail.item_specification_master} />
+                                    <DetailRow label="UOM" value={expandedDetail.uom || expandedDetail.item_uom_master} />
+                                    <DetailRow label="Make / Buy" value={expandedDetail.make_classification || expandedDetail.item_make_or_buy} />
                                     <Separator className="my-1" />
                                     <DetailRow label="Quantity" value={expandedDetail.quantity} />
                                     <DetailRow label="Unit Cost" value={formatAmount(expandedDetail.estimated_unit_cost)} />
@@ -355,6 +356,13 @@ export default function EpcExecutionControlPage() {
                                         <DetailRow label="Prepared By" value={expandedDetail.prepared_by_name} />
                                         <DetailRow label="Prepared" value={formatDate(expandedDetail.prepared_at)} />
                                         {expandedDetail.preparation_note && <DetailRow label="Preparation Note" value={expandedDetail.preparation_note} />}
+                                      </>
+                                    )}
+                                    {expandedDetail.cancelled_by_name && (
+                                      <>
+                                        <Separator className="my-1" />
+                                        <DetailRow label="Cancelled By" value={<span className="text-red-600">{expandedDetail.cancelled_by_name}</span>} />
+                                        <DetailRow label="Cancelled" value={formatDate(expandedDetail.cancelled_at)} />
                                       </>
                                     )}
                                   </div>
