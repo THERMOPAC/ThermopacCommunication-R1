@@ -73,9 +73,7 @@ export function parseGcsPath(filePath: string): ParsedGcsPath {
 export function fyCodeToLabel(fyCode: string | null): string | null {
   if (!fyCode) return null;
   if (/^\d{4}$/.test(fyCode)) {
-    const startYear = parseInt(fyCode.substring(0, 2));
-    const endYear = parseInt(fyCode.substring(2, 4));
-    return `FY 20${startYear.toString().padStart(2, '0')}-${endYear.toString().padStart(2, '0')}`;
+    return `FY ${fyCode}`;
   }
   return fyCode;
 }
