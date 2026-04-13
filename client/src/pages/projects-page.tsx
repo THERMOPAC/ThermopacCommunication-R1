@@ -785,7 +785,7 @@ function ExpandedProjectRow({ project, onEditItem }: { project: Project; onEditI
                           </Button>
                         </TableCell>
                         <TableCell className="text-[10px] font-mono font-medium">{item.masterItem?.itemCode || "—"}</TableCell>
-                        <TableCell className="text-[10px] truncate max-w-[200px]">{item.masterItem?.description || "—"}</TableCell>
+                        <TableCell className="text-[10px] truncate max-w-[200px] text-blue-600 font-medium">{item.masterItem?.description || "—"}</TableCell>
                         <TableCell className="text-[10px] text-center font-mono">{item.quantity?.toLocaleString()}</TableCell>
                         <TableCell className="text-[10px] text-center text-muted-foreground">{item.masterItem?.uom || "—"}</TableCell>
                         <TableCell className="text-center">
