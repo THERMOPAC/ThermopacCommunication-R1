@@ -235,74 +235,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/master-items/sample-excel', async (req: any, res: any) => {
     try {
       console.log('Master items sample Excel download requested (pre-auth)');
-      
-      const XLSX = await import('xlsx');
-      
-      // Create sample data for master items
+
+      const { buildExcelBuffer: buildBuf2 } = await import('./excel-utils');
+
       const sampleData = [
-        {
-          'Item Code': 'PUMP-001',
-          'Description': 'Centrifugal Pump 100HP',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-PUMP-001'
-        },
-        {
-          'Item Code': 'VALVE-002',
-          'Description': 'Gate Valve DN150 PN16',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-VALVE-002'
-        },
-        {
-          'Item Code': 'PIPE-003',
-          'Description': 'Carbon Steel Pipe 6" Sch40',
-          'UOM': 'Meter',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-PIPE-003'
-        },
-        {
-          'Item Code': 'TANK-004',
-          'Description': 'Storage Tank 1000L SS316',
-          'UOM': 'Nos',
-          'Make/Buy': 'Make',
-          'Drawing No': 'DWG-TANK-004'
-        },
-        {
-          'Item Code': 'MOTOR-005',
-          'Description': 'Electric Motor 50HP 415V',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-MOTOR-005'
-        }
+        { 'Item Code': 'PUMP-001', 'Description': 'Centrifugal Pump 100HP', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-PUMP-001' },
+        { 'Item Code': 'VALVE-002', 'Description': 'Gate Valve DN150 PN16', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-VALVE-002' },
+        { 'Item Code': 'PIPE-003', 'Description': 'Carbon Steel Pipe 6" Sch40', 'UOM': 'Meter', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-PIPE-003' },
+        { 'Item Code': 'TANK-004', 'Description': 'Storage Tank 1000L SS316', 'UOM': 'Nos', 'Make/Buy': 'Make', 'Drawing No': 'DWG-TANK-004' },
+        { 'Item Code': 'MOTOR-005', 'Description': 'Electric Motor 50HP 415V', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-MOTOR-005' }
       ];
 
-      // Create workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const excelBuffer = await buildBuf2('Master Items', sampleData, [15, 30, 10, 12, 20]);
 
-      // Set column widths for better readability
-      const columnWidths = [
-        { wch: 15 }, // Item Code
-        { wch: 30 }, // Description
-        { wch: 10 }, // UOM
-        { wch: 12 }, // Make/Buy
-        { wch: 20 }  // Drawing No
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Master Items');
-
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=master_items_sample.xlsx');
       res.setHeader('Content-Length', excelBuffer.length);
-
-      // Send the file
       res.send(excelBuffer);
     } catch (error) {
       console.error('Error generating master items sample Excel file:', error);
@@ -317,80 +265,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/projects/items/sample-excel', async (req: any, res: any) => {
     try {
       console.log('Project items sample Excel download requested (pre-auth)');
-      
-      const XLSX = await import('xlsx');
-      
-      // Create sample data for project items with required columns
+
+      const { buildExcelBuffer: buildBuf3 } = await import('./excel-utils');
+
       const sampleData = [
-        {
-          'Item Code': 'PUMP-CPS-001',
-          'Description': 'Centrifugal Pump for CPS System 100HP',
-          'Quantity': 2,
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-PUMP-001'
-        },
-        {
-          'Item Code': 'VLV-GATE-002',
-          'Description': 'Gate Valve DN150 PN16 Carbon Steel',
-          'Quantity': 8,
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-VLV-002'
-        },
-        {
-          'Item Code': 'PIPE-CS-003',
-          'Description': 'Carbon Steel Pipe 6" Sch40 ASTM A106 Gr.B',
-          'Quantity': 120,
-          'UOM': 'Meter',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-PIPE-003'
-        },
-        {
-          'Item Code': 'TANK-SS-004',
-          'Description': 'Storage Tank 2000L SS316L Vertical',
-          'Quantity': 1,
-          'UOM': 'Nos',
-          'Make/Buy': 'Make',
-          'Drawing No': 'DWG-CPS-TANK-004'
-        },
-        {
-          'Item Code': 'MTR-ELEC-005',
-          'Description': 'Electric Motor 75HP 415V 50Hz IE3',
-          'Quantity': 3,
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'DWG-CPS-MTR-005'
-        }
+        { 'Item Code': 'PUMP-CPS-001', 'Description': 'Centrifugal Pump for CPS System 100HP', 'Quantity': 2, 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-CPS-PUMP-001' },
+        { 'Item Code': 'VLV-GATE-002', 'Description': 'Gate Valve DN150 PN16 Carbon Steel', 'Quantity': 8, 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-CPS-VLV-002' },
+        { 'Item Code': 'PIPE-CS-003', 'Description': 'Carbon Steel Pipe 6" Sch40 ASTM A106 Gr.B', 'Quantity': 120, 'UOM': 'Meter', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-CPS-PIPE-003' },
+        { 'Item Code': 'TANK-SS-004', 'Description': 'Storage Tank 2000L SS316L Vertical', 'Quantity': 1, 'UOM': 'Nos', 'Make/Buy': 'Make', 'Drawing No': 'DWG-CPS-TANK-004' },
+        { 'Item Code': 'MTR-ELEC-005', 'Description': 'Electric Motor 75HP 415V 50Hz IE3', 'Quantity': 3, 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'DWG-CPS-MTR-005' }
       ];
 
-      // Create workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const excelBuffer = await buildBuf3('Project Items', sampleData, [18, 40, 10, 12, 15, 25]);
 
-      // Set column widths for better readability
-      const columnWidths = [
-        { wch: 18 }, // Item Code
-        { wch: 40 }, // Description
-        { wch: 10 }, // Quantity
-        { wch: 12 }, // UOM
-        { wch: 15 }, // Make/Buy
-        { wch: 25 }  // Drawing No
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Project Items');
-
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=project_items_sample.xlsx');
       res.setHeader('Content-Length', excelBuffer.length);
-
-      // Send the file
       res.send(excelBuffer);
     } catch (error) {
       console.error('Error generating project items sample Excel file:', error);
@@ -405,80 +295,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/master-items/components/sample-excel', async (req: any, res: any) => {
     try {
       console.log('Item components sample Excel download requested (pre-auth)');
-      
-      const XLSX = await import('xlsx');
-      
-      // Create sample data for item components
+
+      const { buildExcelBuffer: buildBuf4 } = await import('./excel-utils');
+
       const sampleData = [
-        {
-          'Item Code': 'BOLT-M12X40',
-          'Quantity': 8,
-          'Description': 'Hex Bolt M12x40 SS316',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'STD-BOLT-M12'
-        },
-        {
-          'Item Code': 'GSKT-DN100-PTFE',
-          'Quantity': 2,
-          'Description': 'PTFE Gasket DN100 PN16',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'STD-GSKT-100'
-        },
-        {
-          'Item Code': 'STUD-M16X60',
-          'Quantity': 12,
-          'Description': 'Threaded Stud M16x60 A2-70',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'STD-STUD-M16'
-        },
-        {
-          'Item Code': 'NUT-M16-HEX',
-          'Quantity': 24,
-          'Description': 'Hex Nut M16 SS316',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'STD-NUT-M16'
-        },
-        {
-          'Item Code': 'WSH-M16-SPRING',
-          'Quantity': 24,
-          'Description': 'Spring Washer M16 SS316',
-          'UOM': 'Nos',
-          'Make/Buy': 'Buy',
-          'Drawing No': 'STD-WSH-M16'
-        }
+        { 'Item Code': 'BOLT-M12X40', 'Quantity': 8, 'Description': 'Hex Bolt M12x40 SS316', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'STD-BOLT-M12' },
+        { 'Item Code': 'GSKT-DN100-PTFE', 'Quantity': 2, 'Description': 'PTFE Gasket DN100 PN16', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'STD-GSKT-100' },
+        { 'Item Code': 'STUD-M16X60', 'Quantity': 12, 'Description': 'Threaded Stud M16x60 A2-70', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'STD-STUD-M16' },
+        { 'Item Code': 'NUT-M16-HEX', 'Quantity': 24, 'Description': 'Hex Nut M16 SS316', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'STD-NUT-M16' },
+        { 'Item Code': 'WSH-M16-SPRING', 'Quantity': 24, 'Description': 'Spring Washer M16 SS316', 'UOM': 'Nos', 'Make/Buy': 'Buy', 'Drawing No': 'STD-WSH-M16' }
       ];
 
-      // Create workbook and worksheet
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(sampleData);
+      const excelBuffer = await buildBuf4('Component Items', sampleData, [20, 10, 35, 8, 12, 18]);
 
-      // Set column widths for better readability
-      const columnWidths = [
-        { wch: 20 }, // Item Code
-        { wch: 10 }, // Quantity
-        { wch: 35 }, // Description
-        { wch: 8 },  // UOM
-        { wch: 12 }, // Make/Buy
-        { wch: 18 }  // Drawing No
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Component Items');
-
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-      // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=item_components_sample.xlsx');
       res.setHeader('Content-Length', excelBuffer.length);
-
-      // Send the file
       res.send(excelBuffer);
     } catch (error) {
       console.error('Error generating item components sample Excel file:', error);

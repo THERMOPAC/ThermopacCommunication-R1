@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Search, Plus, Edit, Trash2, Calculator, Save, X, Clock, Download, Play, Loader2, CheckCircle, Send, AlertCircle, RefreshCw, ShieldCheck, Pause, XCircle, RotateCcw, History, Lock, Filter, Undo2, Ban, Shield, AlertTriangle, Info, Eye, FileCheck, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, getErrorMessage } from '@/lib/queryClient';
-import * as XLSX from 'xlsx';
+import { ExcelJS } from '@/lib/excel-client-utils';
 import { PayrollRunWizard } from '@/components/payroll-run-wizard';
 import { TdsManagementTab } from '@/components/tds-management';
 import { ManualSalaryTab } from '@/components/contract-worker-salary-tab';

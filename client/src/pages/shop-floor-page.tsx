@@ -13,7 +13,7 @@ import Layout from "@/components/layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from 'xlsx';
+import { downloadExcelFromJson } from '@/lib/excel-client-utils';
 import {
   Dialog,
   DialogContent,
@@ -246,37 +246,16 @@ export default function ShopFloorPage() {
         "Progress": `${getWorkOrderProgress(order.status)}%`
       }));
       
-      // Create workbook and worksheet
-      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Work Orders");
-      
-      // Format column widths for better readability
-      const columnWidths = [
-        { wch: 20 }, // Work Order Number
-        { wch: 10 }, // Project ID
-        { wch: 30 }, // Title
-        { wch: 40 }, // Description
-        { wch: 12 }, // Status
-        { wch: 10 }, // Priority
-        { wch: 15 }, // Production Line
-        { wch: 15 }, // Batch Number
-        { wch: 15 }, // Planned Start Date
-        { wch: 15 }, // Planned End Date
-        { wch: 15 }, // Actual Start Date
-        { wch: 15 }, // Actual End Date
-        { wch: 15 }, // Created Date
-        { wch: 10 }  // Progress
-      ];
-      worksheet['!cols'] = columnWidths;
-
-      // Get current date for filename
       const dateStr = format(new Date(), 'yyyy-MM-dd');
       const tabName = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
       const filename = `Thermopac_Work_Orders_${tabName}_${dateStr}.xlsx`;
-      
-      // Generate and download Excel file
-      XLSX.writeFile(workbook, filename);
+
+      await downloadExcelFromJson(
+        worksheetData,
+        'Work Orders',
+        filename,
+        [20, 10, 30, 40, 12, 10, 15, 15, 15, 15, 15, 15, 15, 10]
+      );
       
       toast({
         title: "Report generated successfully",
