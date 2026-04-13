@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -727,7 +728,7 @@ export default function MeetingsManagement() {
 
   // MD Meeting Plan mutations
   const generateWeeklyMDMeetingsMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (selectedKeys?: string[]) => {
       // Use UTC time to match server timezone and avoid local timezone discrepancies
       const todayUTC = new Date();
       const utcDay = todayUTC.getUTCDay(); // 0=Sunday, 1=Monday, etc. in UTC
@@ -771,7 +772,8 @@ export default function MeetingsManagement() {
       
       return apiRequest('POST', '/api/meetings/md/generate-weekly', {
         startDate: startDateStr,
-        endDate: endDateStr
+        endDate: endDateStr,
+        selectedTemplateKeys: selectedKeys || undefined
       });
     },
     onSuccess: (data: any) => {
@@ -884,6 +886,7 @@ export default function MeetingsManagement() {
   const [editingPreviewMeeting, setEditingPreviewMeeting] = useState<any>(null);
   const [modifiedMeetings, setModifiedMeetings] = useState<any[]>([]);
   const [deletedMeetingIds, setDeletedMeetingIds] = useState<number[]>([]);
+  const [selectedMeetingKeys, setSelectedMeetingKeys] = useState<Set<string>>(new Set());
 
   // MD Meeting Preview mutations
   const previewWeeklyMDMeetingsMutation = useMutation({
@@ -939,6 +942,10 @@ export default function MeetingsManagement() {
     onSuccess: (data: any) => {
       setPreviewData(data);
       setPreviewType('weekly');
+      const keys = new Set<string>(
+        (data.meetings || []).filter((m: any) => m.status === 'Will be created').map((m: any) => m.templateKey).filter(Boolean)
+      );
+      setSelectedMeetingKeys(keys);
       setShowPreviewModal(true);
     },
     onError: (error: any) => {
@@ -4152,12 +4159,23 @@ Suggested next steps
                     className={`p-4 rounded-lg border ${
                       meeting.status === 'Will be created' 
                         ? 'bg-green-50 border-green-200' 
-                        : 'bg-gray-50 border-gray-200'
+                        : 'bg-gray-50 border-gray-200 opacity-60'
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
+                          {meeting.status === 'Will be created' && meeting.templateKey && (
+                            <Checkbox
+                              checked={selectedMeetingKeys.has(meeting.templateKey)}
+                              onCheckedChange={(checked) => {
+                                const next = new Set(selectedMeetingKeys);
+                                if (checked) next.add(meeting.templateKey);
+                                else next.delete(meeting.templateKey);
+                                setSelectedMeetingKeys(next);
+                              }}
+                            />
+                          )}
                           <h5 className="font-medium">{meeting.title}</h5>
                           <Badge 
                             variant={meeting.status === 'Will be created' ? 'default' : 'secondary'}
@@ -4264,17 +4282,25 @@ Suggested next steps
                     <Button 
                       onClick={() => {
                         if (previewType === 'weekly') {
-                          generateWeeklyMDMeetingsMutation.mutate();
+                          generateWeeklyMDMeetingsMutation.mutate(Array.from(selectedMeetingKeys));
                         } else {
                           generateMonthlyMDMeetingsMutation.mutate();
                         }
                         setShowPreviewModal(false);
                       }}
-                      disabled={generateWeeklyMDMeetingsMutation.isPending || generateMonthlyMDMeetingsMutation.isPending}
+                      disabled={
+                        generateWeeklyMDMeetingsMutation.isPending || 
+                        generateMonthlyMDMeetingsMutation.isPending ||
+                        (previewType === 'weekly' && selectedMeetingKeys.size === 0)
+                      }
                     >
                       {generateWeeklyMDMeetingsMutation.isPending || generateMonthlyMDMeetingsMutation.isPending 
                         ? 'Creating...' 
-                        : `Create ${previewData.totalNewMeetings} Meeting(s)`
+                        : previewType === 'weekly'
+                          ? selectedMeetingKeys.size === 0
+                            ? 'Select at least one meeting'
+                            : `Create ${selectedMeetingKeys.size} Selected Meeting(s)`
+                          : `Create ${previewData.totalNewMeetings} Meeting(s)`
                       }
                     </Button>
                   )}

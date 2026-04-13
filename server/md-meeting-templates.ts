@@ -409,6 +409,7 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
       console.log(`Preview: "${template.title}" will have ${attendeeIds.length} participants: [${attendeeIds.join(', ')}]`);
       
       previewMeetings.push({
+        templateKey,
         title: template.title,
         description: template.description,
         meetingType: template.meetingType,
@@ -419,14 +420,15 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
         duration: template.duration,
         timeAllocation: template.timeAllocation,
         status: existingMeeting.length > 0 ? 'Already exists' : 'Will be created',
+        alreadyExists: existingMeeting.length > 0,
         dayOfWeek: template.dayOfWeek === 0 ? 'Monday' : 
                    template.dayOfWeek === 1 ? 'Tuesday' : 
                    template.dayOfWeek === 2 ? 'Wednesday' : 
                    template.dayOfWeek === 3 ? 'Thursday' : 'Unknown',
-        originalTimeSlot: template.timeSlot, // Track original for debugging
+        originalTimeSlot: template.timeSlot,
         wasAdjusted: template.timeSlot !== adjustedTimes.startTime,
-        attendeeIds: attendeeIds, // Include auto-assigned participants for edit dialog
-        participants: participants, // Include participant details for display
+        attendeeIds: attendeeIds,
+        participants: participants,
         participantCount: attendeeIds.length
       });
     }
@@ -454,7 +456,7 @@ export const previewWeeklyMDMeetings = async (req: Request, res: Response) => {
 export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    const { startDate, endDate } = req.body;
+    const { startDate, endDate, selectedTemplateKeys } = req.body;
     
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Start date and end date are required' });
@@ -516,9 +518,11 @@ export const generateWeeklyMDMeetings = async (req: Request, res: Response) => {
     const templates = mdMeetingTemplates.weekly;
     
     for (const [templateKey, template] of Object.entries(templates)) {
-      console.log(`\n--- Processing ${templateKey} ---`);
-      console.log(`Template: dayOfWeek=${template.dayOfWeek}, title="${template.title}"`);
-      
+      // If caller passed a selection list, skip templates not in it
+      if (selectedTemplateKeys && Array.isArray(selectedTemplateKeys) && !selectedTemplateKeys.includes(templateKey)) {
+        continue;
+      }
+
       // Validate that MD meetings are only scheduled for Monday-Thursday (0-3)
       if (template.dayOfWeek < 0 || template.dayOfWeek > 3) {
         console.log(`❌ REJECTED - MD meetings only allowed Monday-Thursday, not dayOfWeek: ${template.dayOfWeek}`);
