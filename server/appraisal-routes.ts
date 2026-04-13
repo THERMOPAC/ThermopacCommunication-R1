@@ -1762,7 +1762,21 @@ router.post('/:id/resubmit', ensureAuthenticated, async (req: Request, res: Resp
       return res.status(400).json({ error: 'Self-assessment narrative is required' });
     }
 
-    await recalcAndSaveScore(appraisalId);
+    // Calculate scores inline within the same transaction to avoid deadlock
+    let kpiWeightedScore = 0;
+    for (const kpi of kpis) {
+      const score = kpi.managerScore ? parseFloat(kpi.managerScore) : (kpi.selfScore ? parseFloat(kpi.selfScore) : 0);
+      const weight = parseFloat(kpi.weightage) || 0;
+      kpiWeightedScore += score * weight;
+    }
+    kpiWeightedScore = totalWeight > 0 ? kpiWeightedScore / totalWeight : 0;
+    let competencyAvgScore = 0, compCount = 0;
+    for (const comp of competencies) {
+      const score = comp.managerScore ? parseFloat(comp.managerScore) : (comp.selfScore ? parseFloat(comp.selfScore) : 0);
+      if (score > 0) { competencyAvgScore += score; compCount++; }
+    }
+    competencyAvgScore = compCount > 0 ? competencyAvgScore / compCount : 0;
+    const overallCalculatedScore = (kpiWeightedScore * 0.70) + (competencyAvgScore * 0.30);
 
     const newCount = (appraisal.resubmission_count || 0) + 1;
     await client.query(`
@@ -1771,9 +1785,16 @@ router.post('/:id/resubmit', ensureAuthenticated, async (req: Request, res: Resp
         resubmission_count = $2,
         self_submitted_at = NOW(),
         is_locked = false,
+        kpi_weighted_score = $3,
+        competency_avg_score = $4,
+        overall_calculated_score = $5,
         updated_at = NOW()
       WHERE id = $1
-    `, [appraisalId, newCount]);
+    `, [appraisalId, newCount,
+        (Math.round(kpiWeightedScore * 100) / 100).toString(),
+        (Math.round(competencyAvgScore * 100) / 100).toString(),
+        (Math.round(overallCalculatedScore * 100) / 100).toString()
+    ]);
 
     await client.query(`
       INSERT INTO appraisal_approvals (appraisal_id, previous_status, new_status, performed_by, performed_by_name, remarks)
