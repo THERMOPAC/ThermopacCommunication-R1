@@ -41,13 +41,14 @@ export function validateGcsPath(path: string): { valid: boolean; error?: string 
   if (path.includes('operational_code') || path.includes('operationalCode')) {
     return { valid: false, error: `GCS path must not reference operational_code: "${path}"` };
   }
-  if (path.startsWith('EPC/') || path.startsWith('THERMOPAC_PROJECTS/')) {
+  if (path.startsWith('EPC/') || path.startsWith('THERMOPAC_PROJECTS/') || path.startsWith('QMS/') || path.startsWith('engineering_changes/')) {
     return { valid: false, error: `Legacy GCS path prefix detected: "${path}". Must use TPEL/ prefix.` };
   }
+  // Governed non-project TPEL roots — explicitly allowed
+  if (path.startsWith('TPEL/Templates/') || path.includes('/Quotations/')) {
+    return { valid: true };
+  }
   if (path.startsWith('TPEL/') && !GCS_PATH_RE.test(path)) {
-    if (!path.startsWith('TPEL/') || path.includes('/Quotations/')) {
-      return { valid: true };
-    }
     return { valid: false, error: `GCS path does not match TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/... pattern: "${path}"` };
   }
   return { valid: true };

@@ -145,34 +145,44 @@ export const uploadInspectionDocument = async (req: Request): Promise<{
       };
     }
 
-    let filePath = `QMS/Inspections_Records/${projectCode}/${inspectionOrderNumber}/${formattedTabName}/${recordId}.${fileExtension}`;
-
+    // Zero-Trust R4: TPEL path is mandatory. No QMS fallback. Geo resolution failure = upload rejected.
+    let filePath: string | undefined;
+    const geoClient = await pool.connect();
     try {
-      const client2 = await pool.connect();
-      try {
-        const projRes = await client2.query(
-          `SELECT p.id as project_id, p.code, p.project_seq, p.fy_code,
-                  c.continent_code, c.country_code, c.short_code
-           FROM projects p
-           JOIN customers c ON c.id = p.customer_id
-           JOIN inspection_orders io ON io.project_id = p.id
-           WHERE io.inspection_order_number = $1 LIMIT 1`,
-          [inspectionOrderNumber]
-        );
-        if (projRes.rows.length > 0 && projRes.rows[0].continent_code && projRes.rows[0].country_code && projRes.rows[0].short_code && projRes.rows[0].project_seq) {
-          const r = projRes.rows[0];
-          const revision = (req.body?.revision || 'na');
-          const seq = String(recordId).padStart(3, '0');
-          filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${safeDrawingNumber}-${insLabel}.${fileExtension}`;
-          const { assertGcsPath } = await import('../epc-guardrails');
-          assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
-          console.log(`uploadInspectionDocument: Using governed TPEL path: ${filePath}`);
-        }
-      } finally {
-        client2.release();
+      const projRes = await geoClient.query(
+        `SELECT p.project_seq, p.fy_code,
+                c.continent_code, c.country_code, c.short_code
+         FROM projects p
+         JOIN customers c ON c.id = p.customer_id
+         JOIN inspection_orders io ON io.project_id = p.id
+         WHERE io.inspection_order_number = $1 LIMIT 1`,
+        [inspectionOrderNumber]
+      );
+      if (projRes.rows.length === 0) {
+        return {
+          success: false,
+          error: `Zero-Trust: No project found for inspection order "${inspectionOrderNumber}". Upload rejected — QMS legacy path fallback has been retired.`,
+        };
       }
-    } catch (pathErr) {
-      console.warn('TPEL path resolution failed, using legacy path:', pathErr);
+      const r = projRes.rows[0];
+      const missingFields = ['continent_code', 'country_code', 'short_code', 'project_seq', 'fy_code'].filter(k => !r[k]);
+      if (missingFields.length > 0) {
+        return {
+          success: false,
+          error: `Zero-Trust: Incomplete geo-codes for inspection order "${inspectionOrderNumber}". Missing: ${missingFields.join(', ')}. Upload rejected.`,
+        };
+      }
+      const revision = (req.body?.revision || 'na');
+      const seq = String(recordId).padStart(3, '0');
+      filePath = `TPEL/${r.continent_code}/${r.country_code}/${r.short_code}/${r.fy_code}/${r.project_seq}/INS/${inspectionOrderNumber}/rev-${revision}/${seq}-${safeDrawingNumber}-${insLabel}.${fileExtension}`;
+      const { assertGcsPath } = await import('../epc-guardrails');
+      assertGcsPath(filePath, 'inspection-document-upload.uploadInspectionDocument');
+      console.log(`uploadInspectionDocument: Governed TPEL path: ${filePath}`);
+    } finally {
+      geoClient.release();
+    }
+    if (!filePath) {
+      return { success: false, error: 'Internal: TPEL path was not constructed. Upload rejected.' };
     }
     
     console.log(`uploadInspectionDocument: File path: ${filePath} (project code: ${projectCode}, original tab name: ${tabName})`);

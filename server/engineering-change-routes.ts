@@ -383,42 +383,35 @@ export function setupEngineeringChangeRoutes(app: Router) {
       if (!ecr) {
         return res.status(404).json({ error: 'ECR not found' });
       }
-      
+
+      // Zero-Trust R4: project_id is mandatory — ECR uploads require project linkage
+      if (!ecr.project_id) {
+        return res.status(422).json({
+          error: 'Zero-Trust violation: ECR must be linked to a project before uploading documents. Upload rejected — legacy engineering_changes/ path has been retired.',
+        });
+      }
+
       // G8: Validate ECR label from controlled vocabulary BEFORE path construction
       const ecrLabel = (req.body.documentType || '').trim().toLowerCase();
-      if (ecr.project_id) {
-        if (!ecrLabel || !validateLabel('ECR', ecrLabel)) {
-          return res.status(422).json({
-            error: 'G8 violation: documentType must be selected from the ECR controlled vocabulary. Free-text labels are not permitted.',
-            allowedValues: ['change-request-form','supporting-analysis','affected-drawing','impact-assessment','cost-estimate','schedule-impact'],
-          });
-        }
+      if (!ecrLabel || !validateLabel('ECR', ecrLabel)) {
+        return res.status(422).json({
+          error: 'G8 violation: documentType must be selected from the ECR controlled vocabulary. Free-text labels are not permitted.',
+          allowedValues: ['change-request-form','supporting-analysis','affected-drawing','impact-assessment','cost-estimate','schedule-impact'],
+        });
       }
 
-      // Resolve project geo-codes and build governed TPEL path
-      let storagePath: string;
-      let usedTpel = false;
-
-      if (ecr.project_id) {
-        try {
-          const geo = await resolveProjectGeoCodes(ecr.project_id);
-          const seqResult = await db.execute(
-            sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
-                FROM change_documents WHERE ecr_id = ${ecrId}`
-          );
-          const attachmentSeq = (seqResult.rows[0] as any).next_seq;
-          storagePath = buildEpcGcsPath(
-            geo.continentCode, geo.countryCode, geo.customerShortCode,
-            geo.fyCode, geo.projectSeq, 'ECR', ecr.document_number,
-            null, attachmentSeq, ecrLabel, file.originalname
-          );
-          usedTpel = true;
-        } catch {
-          storagePath = `engineering_changes/ecr/${ecrId}/${generateUniqueFileName(file.originalname)}`;
-        }
-      } else {
-        storagePath = `engineering_changes/ecr/${ecrId}/${generateUniqueFileName(file.originalname)}`;
-      }
+      // Resolve project geo-codes — failure is fatal, no legacy fallback allowed
+      const geo = await resolveProjectGeoCodes(ecr.project_id);
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+            FROM change_documents WHERE ecr_id = ${ecrId}`
+      );
+      const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+      const storagePath = buildEpcGcsPath(
+        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.fyCode, geo.projectSeq, 'ECR', ecr.document_number,
+        null, attachmentSeq, ecrLabel, file.originalname
+      );
 
       await uploadToGcs(file.buffer, storagePath, file.mimetype);
 
@@ -432,8 +425,8 @@ export function setupEngineeringChangeRoutes(app: Router) {
           uploaded_by: req.user.id,
           uploaded_at: new Date(),
           storage_path: storagePath,
-          storage_url: usedTpel ? null : `https://storage.googleapis.com/${bucketName}/${storagePath}`,
-          gcs_object_path: usedTpel ? storagePath : null,
+          storage_url: null,
+          gcs_object_path: storagePath,
           checksum_sha256: checksum,
           file_size: file.size,
         })
@@ -471,41 +464,34 @@ export function setupEngineeringChangeRoutes(app: Router) {
         return res.status(404).json({ error: 'ECN not found' });
       }
 
+      // Zero-Trust R4: project_id is mandatory — ECN uploads require project linkage
+      if (!ecn.project_id) {
+        return res.status(422).json({
+          error: 'Zero-Trust violation: ECN must be linked to a project before uploading documents. Upload rejected — legacy engineering_changes/ path has been retired.',
+        });
+      }
+
       // G8: Validate ECN label from controlled vocabulary BEFORE path construction
       const ecnLabel = (req.body.documentType || '').trim().toLowerCase();
-      if (ecn.project_id) {
-        if (!ecnLabel || !validateLabel('ECN', ecnLabel)) {
-          return res.status(422).json({
-            error: 'G8 violation: documentType must be selected from the ECN controlled vocabulary. Free-text labels are not permitted.',
-            allowedValues: ['change-notice','revised-drawing','updated-spec','implementation-record','close-out-report'],
-          });
-        }
+      if (!ecnLabel || !validateLabel('ECN', ecnLabel)) {
+        return res.status(422).json({
+          error: 'G8 violation: documentType must be selected from the ECN controlled vocabulary. Free-text labels are not permitted.',
+          allowedValues: ['change-notice','revised-drawing','updated-spec','implementation-record','close-out-report'],
+        });
       }
-      
-      // Resolve project geo-codes and build governed TPEL path
-      let storagePath: string;
-      let usedTpel = false;
 
-      if (ecn.project_id) {
-        try {
-          const geo = await resolveProjectGeoCodes(ecn.project_id);
-          const seqResult = await db.execute(
-            sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
-                FROM change_documents WHERE ecn_id = ${ecnId}`
-          );
-          const attachmentSeq = (seqResult.rows[0] as any).next_seq;
-          storagePath = buildEpcGcsPath(
-            geo.continentCode, geo.countryCode, geo.customerShortCode,
-            geo.fyCode, geo.projectSeq, 'ECN', ecn.document_number,
-            null, attachmentSeq, ecnLabel, file.originalname
-          );
-          usedTpel = true;
-        } catch {
-          storagePath = `engineering_changes/ecn/${ecnId}/${generateUniqueFileName(file.originalname)}`;
-        }
-      } else {
-        storagePath = `engineering_changes/ecn/${ecnId}/${generateUniqueFileName(file.originalname)}`;
-      }
+      // Resolve project geo-codes — failure is fatal, no legacy fallback allowed
+      const geo = await resolveProjectGeoCodes(ecn.project_id);
+      const seqResult = await db.execute(
+        sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+            FROM change_documents WHERE ecn_id = ${ecnId}`
+      );
+      const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+      const storagePath = buildEpcGcsPath(
+        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.fyCode, geo.projectSeq, 'ECN', ecn.document_number,
+        null, attachmentSeq, ecnLabel, file.originalname
+      );
 
       await uploadToGcs(file.buffer, storagePath, file.mimetype);
 
@@ -519,8 +505,8 @@ export function setupEngineeringChangeRoutes(app: Router) {
           uploaded_by: req.user.id,
           uploaded_at: new Date(),
           storage_path: storagePath,
-          storage_url: usedTpel ? null : `https://storage.googleapis.com/${bucketName}/${storagePath}`,
-          gcs_object_path: usedTpel ? storagePath : null,
+          storage_url: null,
+          gcs_object_path: storagePath,
           checksum_sha256: checksum,
           file_size: file.size,
         })

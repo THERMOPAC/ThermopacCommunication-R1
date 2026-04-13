@@ -33,6 +33,9 @@ async function uploadTemplateToGcs(
   const seq = String(versionSeq).padStart(3, '0');
   const label = labelValue || templateSlug;
   const gcsPath = `TPEL/Templates/Offers/${templateSlug}/${seq}-${label}.${ext}`;
+  // Zero-Trust: assert path is governed before any GCS write
+  const { assertGcsPath } = await import('./epc-guardrails');
+  assertGcsPath(gcsPath, 'uploadTemplateToGcs');
   const bucket = gcsClient.bucket(gcsBucketName);
   const file = bucket.file(gcsPath);
   await file.save(buffer, { contentType: 'application/pdf', metadata: { contentType: 'application/pdf' } });
