@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Shield, ShieldCheck, ShieldAlert, Eye, EyeOff, Check, X, AlertTriangle, Info, ChevronDown, ChevronRight, FileText, Lock, Users, Database, Settings, UserCog, Trash2, Clock, CheckCircle2, XCircle, RotateCcw, Download, History, GitBranch, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { roles, roleHierarchy } from "@shared/roles";
 
 const ROLE_LABELS: Record<number, string> = { 0: "Superuser", 1: "General Manager", 2: "Senior Manager", 3: "Manager", 4: "Senior Executive", 5: "Employee" };
 const ROLE_SHORT: Record<number, string> = { 0: "SU", 1: "GM", 2: "SM", 3: "Mgr", 4: "SE", 5: "Emp" };
@@ -850,6 +851,24 @@ function PageAccessControlTab() {
     filterUserId ? (allUsers || []).find((x: any) => x.id === Number(filterUserId)) : null,
   [filterUserId, allUsers]);
 
+  const groupedFilterUsers = useMemo(() => {
+    const active = (allUsers || []).filter((u: any) => u.isActive);
+    return Array.from(roles)
+      .sort((a, b) => roleHierarchy[a] - roleHierarchy[b])
+      .reduce((acc: Record<string, any[]>, role) => {
+        const usersInRole = active.filter((u: any) => u.role === role);
+        if (usersInRole.length > 0) {
+          usersInRole.sort((a: any, b: any) => {
+            const nameA = a.firstName && a.lastName ? `${a.firstName} ${a.lastName}` : a.username;
+            const nameB = b.firstName && b.lastName ? `${b.firstName} ${b.lastName}` : b.username;
+            return nameA.localeCompare(nameB);
+          });
+          acc[role] = usersInRole;
+        }
+        return acc;
+      }, {});
+  }, [allUsers]);
+
   const handleFilterModeGrantToggle = (pk: string, currentlyGranted: boolean, source: string) => {
     if (!filterUserId || !isSuperuser) return;
     if (!filterReason.trim()) {
@@ -922,15 +941,26 @@ function PageAccessControlTab() {
                   <SelectValue placeholder="Choose a user to inspect..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {(allUsers || [])
-                    .filter((u: any) => u.isActive)
-                    .sort((a: any, b: any) => (a.firstName || a.username).localeCompare(b.firstName || b.username))
-                    .map((u: any) => (
-                      <SelectItem key={u.id} value={String(u.id)} className="text-xs">
-                        {u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.username}
-                        {" — "}{u.department || "N/A"} ({u.role})
-                      </SelectItem>
-                    ))}
+                  {Object.entries(groupedFilterUsers).length > 0 ? (
+                    Object.entries(groupedFilterUsers).map(([role, usersInRole]) => (
+                      <SelectGroup key={role}>
+                        <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400 text-xs">
+                          {role}s
+                        </SelectLabel>
+                        {usersInRole.map((u: any) => {
+                          const name = u.firstName ? `${u.firstName} ${u.lastName || ""}`.trim() : u.username;
+                          return (
+                            <SelectItem key={u.id} value={String(u.id)} className="text-xs">
+                              {name}
+                              {u.department ? ` — ${u.department}` : ""}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    ))
+                  ) : (
+                    <SelectItem value="loading" disabled className="text-xs">Loading users...</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
