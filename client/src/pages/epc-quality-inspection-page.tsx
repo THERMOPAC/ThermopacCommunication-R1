@@ -260,7 +260,7 @@ export default function EpcQualityInspectionPage() {
             </h4>
             <div className="space-y-1">
               <DetailRow label="Item Code" value={d.item_code} mono />
-              <DetailRow label="Description" value={d.item_description} />
+              <DetailRow label="Description" value={<span className="text-blue-600">{d.item_description}</span>} />
               <DetailRow label="Specification" value={d.item_specification} />
               <DetailRow label="UOM" value={d.uom} />
               <DetailRow label="Quantity" value={d.quantity} />
@@ -338,7 +338,7 @@ export default function EpcQualityInspectionPage() {
             </h4>
             <div className="space-y-1">
               <DetailRow label="Item Code" value={d.item_code} mono />
-              <DetailRow label="Description" value={d.item_description} />
+              <DetailRow label="Description" value={<span className="text-blue-600">{d.item_description}</span>} />
               <DetailRow label="Specification" value={d.item_specification} />
               <DetailRow label="UOM" value={d.uom} />
               <DetailRow label="Quantity" value={d.quantity} />
@@ -494,7 +494,7 @@ export default function EpcQualityInspectionPage() {
                     </TableCell>
                     <TableCell className="py-1.5 font-mono text-[10px] font-medium">{recNum}</TableCell>
                     <TableCell className="py-1.5 text-[10px] font-mono">{rec.item_code || "—"}</TableCell>
-                    <TableCell className="py-1.5 text-[10px] max-w-[160px] truncate">{rec.item_description || "—"}</TableCell>
+                    <TableCell className="py-1.5 text-[10px] max-w-[160px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
                     {isQuality && <TableCell className="py-1.5 text-[10px]">{rec.source_context || "—"}</TableCell>}
                     {!isQuality && <TableCell className="py-1.5 text-[10px]">{rec.inspection_type || "—"}</TableCell>}
                     {!isQuality && (

@@ -252,7 +252,7 @@ export default function EpcCommissioningHandoverPage() {
             </h4>
             <div className="space-y-1">
               <DetailRow label="Item Code" value={d.item_code} mono />
-              <DetailRow label="Description" value={d.item_description} />
+              <DetailRow label="Description" value={<span className="text-blue-600">{d.item_description}</span>} />
               <DetailRow label="Specification" value={d.item_specification} />
               <DetailRow label="UOM" value={d.uom} />
               <Separator className="my-1" />
@@ -530,7 +530,7 @@ export default function EpcCommissioningHandoverPage() {
                         </TableCell>
                         <TableCell className="py-1.5 font-mono text-[10px] font-medium">{rec.cr_number}</TableCell>
                         <TableCell className="py-1.5 text-[10px] font-mono">{rec.item_code || "—"}</TableCell>
-                        <TableCell className="py-1.5 text-[10px] max-w-[140px] truncate">{rec.item_description || "—"}</TableCell>
+                        <TableCell className="py-1.5 text-[10px] max-w-[140px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
                         <TableCell className="py-1.5 text-[10px] font-mono">{rec.linked_dispatch_number || rec.dispatch_number || "—"}</TableCell>
                         <TableCell className="py-1.5 text-[10px] max-w-[100px] truncate">{rec.site_name || "—"}</TableCell>
                         <TableCell className="py-1.5 text-center">

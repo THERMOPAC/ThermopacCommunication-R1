@@ -420,7 +420,7 @@ export default function EpcPurchaseOrdersPage() {
                                                 <div className="font-medium">#{item.line_number}: {item.item_code || item.item_description || "Item"}</div>
                                                 <span className="font-mono text-muted-foreground">{formatAmount(item.total_cost)}</span>
                                               </div>
-                                              {item.item_description && <p className="text-muted-foreground mt-0.5 truncate">{item.item_description}</p>}
+                                              {item.item_description && <p className="text-blue-600 font-medium mt-0.5 truncate">{item.item_description}</p>}
                                               <div className="flex gap-3 mt-0.5 text-muted-foreground">
                                                 <span>Qty: {item.quantity} {item.uom || ""}</span>
                                                 {item.unit_cost && <span>Unit: {formatAmount(item.unit_cost)}</span>}

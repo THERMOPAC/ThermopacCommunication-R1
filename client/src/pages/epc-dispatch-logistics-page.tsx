@@ -256,7 +256,7 @@ export default function EpcDispatchLogisticsPage() {
             </h4>
             <div className="space-y-1">
               <DetailRow label="Item Code" value={d.item_code} mono />
-              <DetailRow label="Description" value={d.item_description} />
+              <DetailRow label="Description" value={<span className="text-blue-600">{d.item_description}</span>} />
               <DetailRow label="Specification" value={d.item_specification} />
               <DetailRow label="UOM" value={d.uom} />
               <Separator className="my-1" />
@@ -367,7 +367,7 @@ export default function EpcDispatchLogisticsPage() {
             </h4>
             <div className="space-y-1">
               <DetailRow label="Item Code" value={d.item_code} mono />
-              <DetailRow label="Description" value={d.item_description} />
+              <DetailRow label="Description" value={<span className="text-blue-600">{d.item_description}</span>} />
               <DetailRow label="UOM" value={d.uom} />
               <Separator className="my-1" />
               <DetailRow label="Transporter" value={d.transporter_name} />
@@ -526,7 +526,7 @@ export default function EpcDispatchLogisticsPage() {
                     </TableCell>
                     <TableCell className="py-1.5 font-mono text-[10px] font-medium">{recNum}</TableCell>
                     <TableCell className="py-1.5 text-[10px] font-mono">{rec.item_code || "—"}</TableCell>
-                    <TableCell className="py-1.5 text-[10px] max-w-[140px] truncate">{rec.item_description || "—"}</TableCell>
+                    <TableCell className="py-1.5 text-[10px] max-w-[140px] truncate text-blue-600 font-medium">{rec.item_description || "—"}</TableCell>
                     <TableCell className="py-1.5 text-[10px]">
                       {isReadiness ? (rec.source_type || "—") : (rec.dr_number || "—")}
                     </TableCell>

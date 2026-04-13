@@ -622,7 +622,7 @@ export default function EpcControlTower() {
                             <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b last:border-0">
                               <div>
                                 <span className="font-medium">{item.item_code}</span>
-                                <span className="text-muted-foreground ml-2">{item.item_description}</span>
+                                <span className="text-blue-600 font-medium ml-2">{item.item_description}</span>
                                 <span className="text-muted-foreground ml-2">({item.project_code})</span>
                               </div>
                               <Badge variant="outline" className="text-[10px]">{item.make_or_buy}</Badge>

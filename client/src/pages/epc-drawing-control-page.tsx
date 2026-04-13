@@ -554,7 +554,7 @@ export default function EpcDrawingControlPage() {
                                           <DetailRow label="Revision Code" value={`${rec.revision_code}${rec.is_current ? " (current)" : " (superseded)"}`} />
                                           <DetailRow label="Status" value={rec.status?.replace(/_/g, " ")} />
                                           <DetailRow label="Item Code" value={rec.item_code} />
-                                          <DetailRow label="Item Description" value={rec.item_description} />
+                                          <DetailRow label="Item Description" value={<span className="text-blue-600">{rec.item_description}</span>} />
                                           <DetailRow label="Classification" value={rec.classification_snapshot} />
                                           <DetailRow label="Purpose" value={rec.drawing_purpose} />
                                           <DetailRow label="Category" value={rec.drawing_category} />
@@ -835,7 +835,7 @@ export default function EpcDrawingControlPage() {
                 <div className="p-2.5 bg-muted/50 rounded text-[10px] space-y-0.5">
                   <div><span className="font-medium">DWG Control #:</span> {supersedeDialog.record?.dwg_control_number}</div>
                   <div><span className="font-medium">Current Revision:</span> {supersedeDialog.record?.revision_code}</div>
-                  <div><span className="font-medium">Item:</span> {supersedeDialog.record?.item_code} — {supersedeDialog.record?.item_description}</div>
+                  <div><span className="font-medium">Item:</span> {supersedeDialog.record?.item_code} — <span className="text-blue-600">{supersedeDialog.record?.item_description}</span></div>
                   <div><span className="font-medium">Status:</span> {supersedeDialog.record?.status?.replace(/_/g, " ")}</div>
                 </div>
                 <div className="p-2 bg-orange-50 rounded text-[10px] text-orange-700 flex items-start gap-1.5">

@@ -364,7 +364,7 @@ export default function EpcInvoicesPage() {
                                         <DollarSign className="h-3 w-3" /> Financial Summary
                                       </h4>
                                       <div className="space-y-1">
-                                        <DetailRow label="Item" value={expandedDetail.item_code || expandedDetail.item_description} />
+                                        <DetailRow label="Item" value={<span className="text-blue-600">{expandedDetail.item_code || expandedDetail.item_description}</span>} />
                                         <DetailRow label="Quantity" value={expandedDetail.quantity ? `${expandedDetail.quantity} ${expandedDetail.uom || ""}` : null} />
                                         <DetailRow label="Unit Price" value={formatAmount(expandedDetail.unit_price)} />
                                         <DetailRow label="Total Amount" value={formatAmount(expandedDetail.total_amount)} />
