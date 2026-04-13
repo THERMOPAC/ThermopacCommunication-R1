@@ -7305,6 +7305,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Active commissioning readiness ${existing.cr_number} already exists for this dispatch record (id: ${existing.id}).`);
       }
 
+      let crCreated: { id: number; crNumber: string; itemCode: string; itemDescription: string } | null = null;
       await db.transaction(async (tx) => {
         const crNumber = await epcCoding.generateDocumentNumber(projectId, 'CR', tx);
         const inserted = await tx.insert(epcCommissioningReadiness).values({
@@ -7341,6 +7342,8 @@ export function setupProjectRoutes(app: express.Express) {
           createdBy: userId,
         }).returning();
 
+        crCreated = { id: inserted[0].id, crNumber, itemCode: disp.item_code, itemDescription: disp.item_description };
+
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${projectId}, 'commissioning_readiness.created', ${JSON.stringify({
             crId: inserted[0].id, crNumber, dispatchRecordId, dispatchNumber: disp.dispatch_number,
@@ -7351,6 +7354,36 @@ export function setupProjectRoutes(app: express.Express) {
         console.log(`[CR] Commissioning readiness ${crNumber} created from dispatch ${disp.dispatch_number} by user ${userId}`);
         res.status(201).json({ success: true, message: `Commissioning readiness ${crNumber} created`, record: inserted[0] });
       });
+
+      // Auto-create commissioning execution task (COM gate)
+      if (crCreated) {
+        try {
+          const { id: crId, crNumber, itemCode, itemDescription } = crCreated as any;
+          const projCode = await resolveProjectCode(projectId);
+          const comAssignee = await resolveEpcAssignee('COM_execute', projectId, String(userId));
+          if (comAssignee.userId) {
+            await createEpcTask({
+              projectId, entityType: 'commissioning_readiness', recordId: crId, actionCode: 'execute_commissioning',
+              title: `Execute Commissioning ${crNumber} — ${projCode}`,
+              description: `Item ${itemDescription || itemCode} has been dispatched and is ready for commissioning at site. Please execute the commissioning checklist and report completion.`,
+              assignedTo: comAssignee.userId, createdBy: userId, priority: 'High', dueDays: 7,
+            });
+            console.log(`[CR] COM_execute task created for ${crNumber} → user ${comAssignee.userId}`);
+          }
+          const comVerifyAssignee = await resolveEpcAssignee('COM_verify', projectId, String(userId));
+          if (comVerifyAssignee.userId) {
+            await createEpcTask({
+              projectId, entityType: 'commissioning_readiness', recordId: crId, actionCode: 'verify_commissioning',
+              title: `Verify & Approve Commissioning ${crNumber} — ${projCode}`,
+              description: `Review and verify commissioning completion for ${itemDescription || itemCode}. Approve handover once satisfied.`,
+              assignedTo: comVerifyAssignee.userId, createdBy: userId, priority: 'High', dueDays: 10,
+            });
+            console.log(`[CR] COM_verify task created for ${crNumber} → user ${comVerifyAssignee.userId}`);
+          }
+        } catch (taskErr: any) {
+          console.error(`[CR] Non-critical: COM task creation failed:`, taskErr.message);
+        }
+      }
     } catch (error) {
       sendError(res, error);
     }
@@ -7964,6 +7997,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Active billing readiness ${existing.br_number} already exists for this ${billingBasis} context (id: ${existing.id}).`);
       }
 
+      let brCreated: { id: number; brNumber: string; billingBasis: string; itemCode: string; itemDescription: string } | null = null;
       await db.transaction(async (tx) => {
         const brNumber = await epcCoding.generateDocumentNumber(projectId, 'BR', tx);
         const inserted = await tx.insert(epcBillingReadiness).values({
@@ -8021,9 +8055,41 @@ export function setupProjectRoutes(app: express.Express) {
             projectItemId: sourceRecord.project_item_id, createdBy: userId,
           })}::jsonb, 'billing', NOW())`);
 
+        brCreated = { id: inserted[0].id, brNumber, billingBasis, itemCode: sourceRecord.item_code || '', itemDescription: sourceRecord.item_description || '' };
         console.log(`[BR] Billing readiness ${brNumber} created (basis: ${billingBasis}) by user ${userId}`);
         res.status(201).json({ success: true, message: `Billing readiness ${brNumber} created`, record: inserted[0] });
       });
+
+      // Auto-create invoice preparation and approval tasks (INV gate)
+      if (brCreated) {
+        try {
+          const { id: brId, brNumber, billingBasis: basis, itemCode, itemDescription } = brCreated as any;
+          const projCode = await resolveProjectCode(projectId);
+          const itemLabel = itemDescription || itemCode;
+          const invPrepAssignee = await resolveEpcAssignee('INV_prepare', projectId, String(userId));
+          if (invPrepAssignee.userId) {
+            await createEpcTask({
+              projectId, entityType: 'billing_readiness', recordId: brId, actionCode: 'prepare_invoice',
+              title: `Prepare Invoice for ${brNumber} — ${projCode}`,
+              description: `Billing readiness ${brNumber} (basis: ${basis}) is ready for invoicing. Item: ${itemLabel}. Please prepare the invoice and submit for approval.`,
+              assignedTo: invPrepAssignee.userId, createdBy: userId, priority: 'High', dueDays: 3,
+            });
+            console.log(`[BR] INV_prepare task created for ${brNumber} → user ${invPrepAssignee.userId}`);
+          }
+          const invApproveAssignee = await resolveEpcAssignee('INV_approve', projectId, String(userId));
+          if (invApproveAssignee.userId) {
+            await createEpcTask({
+              projectId, entityType: 'billing_readiness', recordId: brId, actionCode: 'approve_invoice',
+              title: `Approve Invoice for ${brNumber} — ${projCode}`,
+              description: `Review and approve the invoice for billing readiness ${brNumber} (basis: ${basis}). Item: ${itemLabel}.`,
+              assignedTo: invApproveAssignee.userId, createdBy: userId, priority: 'High', dueDays: 5,
+            });
+            console.log(`[BR] INV_approve task created for ${brNumber} → user ${invApproveAssignee.userId}`);
+          }
+        } catch (taskErr: any) {
+          console.error(`[BR] Non-critical: INV task creation failed:`, taskErr.message);
+        }
+      }
     } catch (error) {
       sendError(res, error);
     }
