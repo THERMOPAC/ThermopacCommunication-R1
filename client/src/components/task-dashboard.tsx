@@ -9,10 +9,13 @@ import TaskList from "@/components/task-list-new";
 import { 
   Select, 
   SelectContent, 
+  SelectGroup,
   SelectItem, 
+  SelectLabel,
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { roles, roleHierarchy } from "@shared/roles";
 import { 
   Calendar,
   CheckCircle,
@@ -120,6 +123,39 @@ export default function TaskDashboard() {
       .map(id => { const u = allUsers.find(usr => usr.id === id); return u ? { id, name: u.username } : { id, name: `User ${id}` }; })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [tasks, allUsers]);
+
+  const sortedRoles = useMemo(
+    () => [...roles].sort((a, b) => roleHierarchy[a] - roleHierarchy[b]),
+    []
+  );
+
+  const groupedAssigners = useMemo(() => {
+    const agents: Array<[string, string]> = [];
+    const byRole: Record<string, Array<[string, string]>> = {};
+    uniqueAssigners.forEach(([key, name]) => {
+      if (key.startsWith("agent:")) {
+        agents.push([key, name]);
+      } else {
+        const userId = Number(key.replace("user:", ""));
+        const u = allUsers.find(usr => usr.id === userId);
+        const role = u?.role || "Employee";
+        if (!byRole[role]) byRole[role] = [];
+        byRole[role].push([key, name]);
+      }
+    });
+    return { agents, byRole };
+  }, [uniqueAssigners, allUsers]);
+
+  const groupedAssignees = useMemo(() => {
+    const byRole: Record<string, Array<{ id: number; name: string }>> = {};
+    uniqueAssignees.forEach(item => {
+      const u = allUsers.find(usr => usr.id === item.id);
+      const role = u?.role || "Employee";
+      if (!byRole[role]) byRole[role] = [];
+      byRole[role].push(item);
+    });
+    return byRole;
+  }, [uniqueAssignees, allUsers]);
 
   // Fetch commitment tasks for the current user
   const { data: commitmentTasksData, refetch: refetchCommitmentTasks, isLoading: isLoadingCommitmentTasks } = useQuery({
@@ -412,8 +448,21 @@ export default function TaskDashboard() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assigned By</SelectItem>
-              {uniqueAssigners.map(([key, name]) => (
-                <SelectItem key={key} value={key}>{name}</SelectItem>
+              {groupedAssigners.agents.length > 0 && (
+                <SelectGroup>
+                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">AI Agents</SelectLabel>
+                  {groupedAssigners.agents.map(([key, name]) => (
+                    <SelectItem key={key} value={key}>{name}</SelectItem>
+                  ))}
+                </SelectGroup>
+              )}
+              {sortedRoles.filter(role => groupedAssigners.byRole[role]?.length).map(role => (
+                <SelectGroup key={role}>
+                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">{role}s</SelectLabel>
+                  {groupedAssigners.byRole[role].map(([key, name]) => (
+                    <SelectItem key={key} value={key}>{name}</SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
@@ -427,8 +476,13 @@ export default function TaskDashboard() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assigned To</SelectItem>
-              {uniqueAssignees.map(item => (
-                <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+              {sortedRoles.filter(role => groupedAssignees[role]?.length).map(role => (
+                <SelectGroup key={role}>
+                  <SelectLabel className="font-semibold text-blue-600 dark:text-blue-400">{role}s</SelectLabel>
+                  {groupedAssignees[role].map(item => (
+                    <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
