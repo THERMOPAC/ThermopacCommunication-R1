@@ -56,6 +56,10 @@ export default function EpcAssignmentControlPage() {
   const [testResult, setTestResult] = useState<Record<string, any>>({});
   const [auditFilters, setAuditFilters] = useState({ stageGate: "all", method: "all", limit: "50" });
 
+  const { data: currentUser } = useQuery<any>({ queryKey: ['/api/user'] });
+  const canEdit = ['Superuser', 'General Manager'].includes(currentUser?.role);
+  const canViewAudit = ['Superuser', 'General Manager', 'Senior Executive'].includes(currentUser?.role);
+
   const { data: rules = [], isLoading: rulesLoading } = useQuery<any[]>({
     queryKey: ["/api/epc-assignment-rules"],
   });
@@ -171,7 +175,7 @@ export default function EpcAssignmentControlPage() {
           <TabsList>
             <TabsTrigger value="rules">Assignment Rules</TabsTrigger>
             <TabsTrigger value="preflight">Pre-flight Check</TabsTrigger>
-            <TabsTrigger value="audit">Audit Log</TabsTrigger>
+            {canViewAudit && <TabsTrigger value="audit">Audit Log</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="rules" className="space-y-3 mt-4">
@@ -238,9 +242,11 @@ export default function EpcAssignmentControlPage() {
                                         <Button size="sm" variant="ghost" onClick={() => handleTest(rule.workflow_code)} title="Test resolution">
                                           <FlaskConical className="h-3.5 w-3.5" />
                                         </Button>
-                                        <Button size="sm" variant="ghost" onClick={() => setEditingRule({ ...rule })}>
-                                          <Pencil className="h-3.5 w-3.5" />
-                                        </Button>
+                                        {canEdit && (
+                                          <Button size="sm" variant="ghost" onClick={() => setEditingRule({ ...rule })}>
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </Button>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>

@@ -11,6 +11,11 @@ function isAdminOrGM(req: any): boolean {
   return ['Superuser', 'General Manager', 'Admin'].includes(role);
 }
 
+function canViewAudit(req: any): boolean {
+  const role = req.user?.role;
+  return ['Superuser', 'General Manager', 'Admin', 'Senior Executive'].includes(role);
+}
+
 router.get('/api/epc-assignment-rules', authenticateUser, async (req, res) => {
   try {
     const rules = await db.execute(
@@ -156,7 +161,7 @@ router.get('/api/epc-assignment-rules/test/:workflowCode', authenticateUser, asy
 });
 
 router.get('/api/epc-assignment-audit-log', authenticateUser, async (req, res) => {
-  if (!isAdminOrGM(req)) return res.status(403).json({ error: 'Insufficient permissions' });
+  if (!canViewAudit(req)) return res.status(403).json({ error: 'Insufficient permissions' });
   try {
     const { stageGate, method, from, to, limit = '100', offset = '0' } = req.query as any;
 

@@ -407,7 +407,7 @@ function Layout({ children }: LayoutProps) {
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Radar, label: "Control Tower", href: "/epc/control-tower" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: BarChart4, label: "Cutover Dashboard", href: "/epc/cutover-dashboard" }] : []),
         ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: Shield, label: "Permission Control", href: "/epc/permission-control" }] : []),
-        ...((user?.role === "Superuser" || user?.role === "General Manager") ? [{ icon: ShieldCheck, label: "EPC Assignment Control", href: "/epc/assignment-control" }] : []),
+        ...((user?.role === "Superuser" || user?.role === "General Manager" || user?.role === "Senior Executive") ? [{ icon: ShieldCheck, label: "EPC Assignment Control", href: "/epc/assignment-control" }] : []),
         { icon: TrendingUp, label: "Item Master", href: "/item-master" },
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
       ]
