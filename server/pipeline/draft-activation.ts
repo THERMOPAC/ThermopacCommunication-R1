@@ -145,8 +145,13 @@ async function activateDrawingOrder(draft: any, userId: number): Promise<{ entit
     const mfgReq = classification === 'Make' || true;
     const drawingNumber = itemBarcode || itemCode;
 
-    const dwgAssigneeResult = await requireEpcAssignee('DWG_prepare', draft.project_id, String(userId));
-    const designAssigneeId = dwgAssigneeResult.userId;
+    let designAssigneeId: number | null = null;
+    try {
+      const dwgAssigneeResult = await resolveEpcAssignee('DWG_prepare', draft.project_id, String(userId));
+      designAssigneeId = dwgAssigneeResult.userId || null;
+    } catch (dwgAssigneeErr: any) {
+      console.warn(`[DraftActivation] DWG_prepare assignee not resolved for DO ${draft.doc_number}: ${dwgAssigneeErr.message} — DWG will be created unassigned`);
+    }
 
     const dwgInsertResult = await db.execute(
       sql`INSERT INTO epc_drawing_controls
