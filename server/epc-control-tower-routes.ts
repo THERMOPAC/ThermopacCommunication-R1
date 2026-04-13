@@ -104,28 +104,59 @@ export function setupEpcControlTowerRoutes(app: Express) {
       let prevCount = 0;
 
       for (const stage of stages) {
-        const piJoinClause = pidParam && stage.piJoin ? `JOIN project_items pi ON t.project_item_id = pi.id WHERE pi.project_id = $1` : '';
-        const pidArgs = pidParam && stage.piJoin ? [pidParam] : [];
+        let countResult: any, statusResult: any, agingResult: any;
 
-        const countResult = pidParam && stage.piJoin
-          ? await pool.query(`SELECT COUNT(*)::int as total FROM "${stage.table}" t ${piJoinClause}`, pidArgs)
-          : await pool.query(`SELECT COUNT(*)::int as total FROM "${stage.table}"`);
+        if (stage.piJoin) {
+          // Always join through project_items → projects and exclude cancelled/completed/closed
+          const whereClause = pidParam
+            ? `WHERE pi.project_id = $1 AND p.status NOT IN ('cancelled', 'completed', 'closed')`
+            : `WHERE p.status NOT IN ('cancelled', 'completed', 'closed')`;
+          const pidArgs = pidParam ? [pidParam] : [];
+
+          countResult = await pool.query(
+            `SELECT COUNT(*)::int as total FROM "${stage.table}" t JOIN project_items pi ON t.project_item_id = pi.id JOIN projects p ON p.id = pi.project_id ${whereClause}`,
+            pidArgs
+          );
+          statusResult = await pool.query(
+            `SELECT t."${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" t JOIN project_items pi ON t.project_item_id = pi.id JOIN projects p ON p.id = pi.project_id ${whereClause} GROUP BY t."${stage.statusCol}" ORDER BY count DESC`,
+            pidArgs
+          );
+          try {
+            agingResult = await pool.query(
+              `SELECT MIN(t.created_at) as oldest FROM "${stage.table}" t JOIN project_items pi ON t.project_item_id = pi.id JOIN projects p ON p.id = pi.project_id ${whereClause}`,
+              pidArgs
+            );
+          } catch (_e) { /* created_at may not exist */ }
+        } else {
+          // INV: epc_invoices has a direct project_id column
+          const whereClause = pidParam
+            ? `WHERE t.project_id = $1 AND p.status NOT IN ('cancelled', 'completed', 'closed')`
+            : `WHERE p.status NOT IN ('cancelled', 'completed', 'closed')`;
+          const pidArgs = pidParam ? [pidParam] : [];
+
+          countResult = await pool.query(
+            `SELECT COUNT(*)::int as total FROM "${stage.table}" t JOIN projects p ON p.id = t.project_id ${whereClause}`,
+            pidArgs
+          );
+          statusResult = await pool.query(
+            `SELECT t."${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" t JOIN projects p ON p.id = t.project_id ${whereClause} GROUP BY t."${stage.statusCol}" ORDER BY count DESC`,
+            pidArgs
+          );
+          try {
+            agingResult = await pool.query(
+              `SELECT MIN(t.created_at) as oldest FROM "${stage.table}" t JOIN projects p ON p.id = t.project_id ${whereClause}`,
+              pidArgs
+            );
+          } catch (_e) { /* created_at may not exist */ }
+        }
+
         const total = countResult.rows[0].total;
 
-        const statusResult = pidParam && stage.piJoin
-          ? await pool.query(`SELECT t."${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" t ${piJoinClause} GROUP BY t."${stage.statusCol}" ORDER BY count DESC`, pidArgs)
-          : await pool.query(`SELECT "${stage.statusCol}" as status, COUNT(*)::int as count FROM "${stage.table}" GROUP BY "${stage.statusCol}" ORDER BY count DESC`);
-
         let oldestRecord = null;
-        try {
-          const agingResult = pidParam && stage.piJoin
-            ? await pool.query(`SELECT MIN(t.created_at) as oldest FROM "${stage.table}" t ${piJoinClause}`, pidArgs)
-            : await pool.query(`SELECT MIN(created_at) as oldest FROM "${stage.table}"`);
-          if (agingResult.rows[0]?.oldest) {
-            const ageMs = Date.now() - new Date(agingResult.rows[0].oldest).getTime();
-            oldestRecord = Math.floor(ageMs / (1000 * 60 * 60 * 24));
-          }
-        } catch (_e) { /* created_at may not exist */ }
+        if (agingResult?.rows[0]?.oldest) {
+          const ageMs = Date.now() - new Date(agingResult.rows[0].oldest).getTime();
+          oldestRecord = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+        }
 
         const hasGap = prevCount > 0 && total === 0;
         const isBlocked = hasGap;
@@ -165,7 +196,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
             THEN (CURRENT_DATE - p.target_end_date::date) ELSE 0 END as days_overdue
         FROM project_key_stages ks
         JOIN projects p ON ks.project_id = p.id
-        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date != '' AND p.target_end_date::date < CURRENT_DATE ${pidFilterKs}
+        WHERE ks.is_completed = false AND p.target_end_date IS NOT NULL AND p.target_end_date != '' AND p.target_end_date::date < CURRENT_DATE
+          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidFilterKs}
         ORDER BY days_overdue DESC
         LIMIT 20
       `, pidArgs);
@@ -175,7 +207,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
           (CURRENT_DATE - d.due_date::date) as days_overdue
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
-        WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE ${pidFilterD}
+        WHERE d.status = 'pending' AND d.due_date IS NOT NULL AND d.due_date != '' AND d.due_date::date < CURRENT_DATE
+          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidFilterD}
         ORDER BY days_overdue DESC
         LIMIT 20
       `, pidArgs);
@@ -188,7 +221,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
         LEFT JOIN users u ON t.assigned_to = u.id
-        WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE ${pidFilterPt}
+        WHERE t.status != 'completed' AND t.due_date IS NOT NULL AND t.due_date != '' AND t.due_date::date < CURRENT_DATE
+          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidFilterPt}
         ORDER BY days_overdue DESC
         LIMIT 20
       `, pidArgs);
@@ -220,7 +254,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         FROM tasks t
         JOIN project_tasks pt ON pt.task_id = t.id
         JOIN projects p ON pt.project_id = p.id
-        WHERE t.assigned_to IS NULL AND t.status != 'completed' ${pidParam ? 'AND pt.project_id = $1' : ''}
+        WHERE t.assigned_to IS NULL AND t.status != 'completed'
+          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidParam ? 'AND pt.project_id = $1' : ''}
         ORDER BY t.priority DESC, t.due_date ASC
       `, pidArgs);
 
@@ -231,7 +266,9 @@ export function setupEpcControlTowerRoutes(app: Express) {
             FROM tasks t
             LEFT JOIN users u ON t.assigned_to = u.id
             JOIN project_tasks pt ON pt.task_id = t.id
-            WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%' AND pt.project_id = $1
+            JOIN projects p ON pt.project_id = p.id
+            WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%'
+              AND p.status NOT IN ('cancelled', 'completed', 'closed') AND pt.project_id = $1
             ORDER BY t.created_at DESC
           `, pidArgs)
         : await pool.query(`
@@ -239,7 +276,10 @@ export function setupEpcControlTowerRoutes(app: Express) {
               u.username as assigned_to_name
             FROM tasks t
             LEFT JOIN users u ON t.assigned_to = u.id
+            JOIN project_tasks pt ON pt.task_id = t.id
+            JOIN projects p ON pt.project_id = p.id
             WHERE t.source_agent = 'epc_kickoff' AND t.title LIKE '%require assignment%'
+              AND p.status NOT IN ('cancelled', 'completed', 'closed')
             ORDER BY t.created_at DESC
           `);
 
@@ -259,7 +299,8 @@ export function setupEpcControlTowerRoutes(app: Express) {
         SELECT d.id, d.name, d.due_date, d.status, p.code as project_code, p.name as project_name
         FROM deliverables d
         JOIN projects p ON d.project_id = p.id
-        WHERE d.assigned_to IS NULL AND d.status != 'completed' ${pidParam ? 'AND d.project_id = $1' : ''}
+        WHERE d.assigned_to IS NULL AND d.status != 'completed'
+          AND p.status NOT IN ('cancelled', 'completed', 'closed') ${pidParam ? 'AND d.project_id = $1' : ''}
         ORDER BY d.due_date ASC
       `, pidArgs);
 
