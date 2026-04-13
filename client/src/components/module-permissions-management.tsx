@@ -67,7 +67,7 @@ const ModulePermissionsManagement: React.FC = () => {
 
   // Group users by role with proper hierarchy following unified user dropdown standard
   const groupedUsers = React.useMemo(() => {
-    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Employee'];
+    const roleOrder = ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive', 'Employee'];
     const groups: Record<string, User[]> = {};
     
     users?.forEach((user: User) => {
