@@ -140,6 +140,7 @@ export default function EpcPermissionDashboard() {
                 <SelectItem value="General Manager">General Manager</SelectItem>
                 <SelectItem value="Senior Manager">Senior Manager</SelectItem>
                 <SelectItem value="Manager">Manager</SelectItem>
+                <SelectItem value="Senior Executive">Senior Executive</SelectItem>
                 <SelectItem value="Employee">Employee</SelectItem>
               </SelectContent>
             </Select>
