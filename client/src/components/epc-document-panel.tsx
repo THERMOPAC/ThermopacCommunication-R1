@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Upload, Download, History, Trash2, RotateCcw,
   Loader2, Shield, AlertTriangle,
-  Paperclip, FileSearch, ChevronLeft, ChevronRight,
+  Paperclip, FileSearch, ChevronLeft, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { getLabelOptions, getDocTypeLabelFamily } from "@shared/gcs-label-vocabulary";
 
@@ -105,6 +105,7 @@ export default function EpcDocumentPanel({
   const [uploadLabel, setUploadLabel] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [accessLogOpen, setAccessLogOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [accessLogActionFilter, setAccessLogActionFilter] = useState<string>("all");
   const [accessLogPage, setAccessLogPage] = useState(1);
 
@@ -267,10 +268,13 @@ export default function EpcDocumentPanel({
     ? revisions.reduce((sum, r) => sum + r.attachments.filter((a) => a.status === "active").length, 0)
     : flatAttachments.filter((a) => a.status === "active").length;
 
-  function renderAttachmentRow(att: Attachment, showRevBadge?: string) {
+  function renderAttachmentRow(att: Attachment, showRevBadge?: string, isCurrentRevision?: boolean) {
     const isActive = att.status === "active";
+    const rowClass = isCurrentRevision
+      ? "border-l-2 border-l-emerald-400 bg-emerald-50/40"
+      : isActive ? "" : "opacity-50";
     return (
-      <TableRow key={att.id} className={!isActive ? "opacity-60" : ""}>
+      <TableRow key={att.id} className={rowClass}>
         <TableCell className="text-[10px] py-1.5">
           <div className="flex items-center gap-1.5">
             <span>{getMimeIcon(att.mimeType)}</span>
@@ -285,7 +289,17 @@ export default function EpcDocumentPanel({
         </TableCell>
         {showRevBadge !== undefined && (
           <TableCell className="text-center py-1.5">
-            <Badge variant="outline" className="text-[8px] px-1 py-0">{showRevBadge}</Badge>
+            <div className="flex flex-col items-center gap-0.5">
+              <Badge
+                variant="outline"
+                className={`text-[8px] px-1 py-0 ${isCurrentRevision ? "bg-emerald-50 text-emerald-700 border-emerald-300" : ""}`}
+              >
+                {showRevBadge}
+              </Badge>
+              {isCurrentRevision && (
+                <span className="text-[7px] text-emerald-600 font-semibold tracking-wide">current</span>
+              )}
+            </div>
           </TableCell>
         )}
         <TableCell className="text-[9px] text-center py-1.5">{formatFileSize(att.fileSizeBytes)}</TableCell>
@@ -694,11 +708,45 @@ export default function EpcDocumentPanel({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isRevControlled ? (
-                  revisions.map((rev) => (
-                    rev.attachments.map((att) => renderAttachmentRow(att, rev.revisionCode))
-                  ))
-                ) : (
+                {isRevControlled ? (() => {
+                  const currentRevGroup = revisions.find(r => r.isCurrent);
+                  const historyGroups = revisions.filter(r => !r.isCurrent);
+                  const historyCount = historyGroups.reduce((n, r) => n + r.attachments.length, 0);
+                  return (
+                    <>
+                      {currentRevGroup?.attachments.map(att =>
+                        renderAttachmentRow(att, currentRevGroup.revisionCode, true)
+                      )}
+                      {historyGroups.length > 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="py-0 px-0 border-t border-dashed border-muted-foreground/20 bg-muted/20"
+                          >
+                            <button
+                              onClick={() => setShowHistory(h => !h)}
+                              className="flex items-center gap-1.5 w-full px-3 py-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              {showHistory
+                                ? <ChevronDown className="h-3 w-3 shrink-0" />
+                                : <ChevronRight className="h-3 w-3 shrink-0" />
+                              }
+                              <span>
+                                {showHistory ? "Hide" : "Show"} revision history
+                                &nbsp;·&nbsp;
+                                {historyGroups.length} previous revision{historyGroups.length > 1 ? "s" : ""}
+                                {historyCount > historyGroups.length && ` (${historyCount} files)`}
+                              </span>
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {showHistory && historyGroups.map(rev =>
+                        rev.attachments.map(att => renderAttachmentRow(att, rev.revisionCode, false))
+                      )}
+                    </>
+                  );
+                })() : (
                   flatAttachments.map((att) => renderAttachmentRow(att))
                 )}
               </TableBody>
