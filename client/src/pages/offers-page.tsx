@@ -239,6 +239,7 @@ export function OffersContent() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [fyFilter, setFyFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOffer, setEditingOffer] = useState<any>(null);
   const [viewingOffer, setViewingOffer] = useState<any>(null);
@@ -323,16 +324,27 @@ export function OffersContent() {
   const totalAmount = afterDiscount + taxAmount;
   const calculations = { subtotal, discountAmount, taxAmount, totalAmount };
 
+  // Extract 4-char FY code from offer number e.g. "OFR-2627-0001" → "2627"
+  const fyOptions = useMemo(() => {
+    const codes = new Set<string>();
+    for (const o of offers as any[]) {
+      const match = /OFR-(\d{4})-/.exec(o.offerNumber || "");
+      if (match) codes.add(match[1]);
+    }
+    return Array.from(codes).sort((a, b) => b.localeCompare(a));
+  }, [offers]);
+
   const filteredOffers = useMemo(() => {
-    return offers.filter((o: any) => {
+    return (offers as any[]).filter((o: any) => {
       const matchesSearch = !searchQuery ||
         o.offerNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.subject?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === "all" || o.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesFy = fyFilter === "all" || /OFR-(\d{4})-/.exec(o.offerNumber || "")?.[1] === fyFilter;
+      return matchesSearch && matchesStatus && matchesFy;
     });
-  }, [offers, searchQuery, statusFilter]);
+  }, [offers, searchQuery, statusFilter, fyFilter]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -690,6 +702,19 @@ export function OffersContent() {
               <SelectItem value="Rejected">Rejected</SelectItem>
               <SelectItem value="Expired">Expired</SelectItem>
               <SelectItem value="Converted">Converted</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={fyFilter} onValueChange={setFyFilter}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Financial Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All FY</SelectItem>
+              {fyOptions.map(fy => (
+                <SelectItem key={fy} value={fy}>
+                  FY {fy.slice(0, 2)}-{fy.slice(2)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
