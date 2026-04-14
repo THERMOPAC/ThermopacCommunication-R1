@@ -9283,10 +9283,6 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, `Cannot approve: current status is '${rec.status}'. Must be 'under_review'.`);
       }
 
-      if (!rec.reviewed_by) {
-        return sendBusinessError(res, 'Cannot approve: record must be reviewed first.');
-      }
-
       if (rec.review_recommendation === 'reject') {
         return sendBusinessError(res, 'Cannot approve: review recommendation is "reject". Revert to draft or supersede.');
       }
@@ -9300,8 +9296,16 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       await db.transaction(async (tx) => {
+        // If no one has reviewed yet, auto-record the approver as the reviewer too
+        const reviewedBy = rec.reviewed_by || userId;
+        const reviewedAt = rec.reviewed_at || new Date();
+        const reviewRecommendation = rec.review_recommendation || 'approve';
+
         await tx.update(epcDrawingControls).set({
           status: 'approved',
+          reviewedBy,
+          reviewedAt,
+          reviewRecommendation,
           approvedBy: userId,
           approvedAt: new Date(),
           approvalNote: approvalNote || null,
