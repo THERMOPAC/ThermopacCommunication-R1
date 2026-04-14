@@ -31,18 +31,20 @@ function buildSlotGcsPath(
   docTypeCode: string,
   revision: string,
   seqNumber: number,
-  label: string,
-  originalFileName: string
+  originalFileName: string,
+  projectCode: string,
+  uploadMode: string
 ): string {
   const rev = `rev-${revision}`;
-  const seq = String(seqNumber).padStart(3, '0');
-  const safeLabel = label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
-  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docTypeCode}/${rev}/${seq}-${safeLabel}.${ext}`;
+  // G7-aligned: filename encodes document identity, not the user's arbitrary file name.
+  // Single-file slot:  {projectCode}-{docTypeCode}-rev-{revision}.{ext}
+  // Multi-file slot:   {projectCode}-{docTypeCode}-rev-{revision}-{seq}.{ext}
+  const seq = String(seqNumber).padStart(3, '0');
+  const filename = uploadMode === 'multi'
+    ? `${projectCode}-${docTypeCode}-rev-${revision}-${seq}.${ext}`
+    : `${projectCode}-${docTypeCode}-rev-${revision}.${ext}`;
+  return `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docTypeCode}/${rev}/${filename}`;
 }
 
 function validateExtension(fileName: string, allowedExtensions: string[]): { valid: boolean; ext: string; message?: string } {
@@ -331,12 +333,11 @@ export function setupDocumentControlRoutes(app: Express) {
         const now = new Date();
 
         const uploadedPaths: string[] = [];
-        const fileMetadata: { gcsPath: string; file: Express.Multer.File; seqNumber: number; checksum: string; label: string }[] = [];
+        const fileMetadata: { gcsPath: string; file: Express.Multer.File; seqNumber: number; checksum: string }[] = [];
 
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           const seqNumber = i + 1;
-          const label = file.originalname.split('.').slice(0, -1).join('.') || docType.name;
 
           const gcsPath = buildSlotGcsPath(
             geo.continentCode,
@@ -347,8 +348,9 @@ export function setupDocumentControlRoutes(app: Express) {
             docType.code,
             nextRevision,
             seqNumber,
-            label,
-            file.originalname
+            file.originalname,
+            geo.projectCode,
+            docType.uploadMode
           );
 
           if (!validateTpelPath(gcsPath)) {
@@ -373,7 +375,7 @@ export function setupDocumentControlRoutes(app: Express) {
           }
 
           uploadedPaths.push(gcsPath);
-          fileMetadata.push({ gcsPath, file, seqNumber, checksum: checksums[i], label });
+          fileMetadata.push({ gcsPath, file, seqNumber, checksum: checksums[i] });
         }
 
         let createdDocs: any[] = [];
