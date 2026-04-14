@@ -244,7 +244,11 @@ export default function DocumentControl({ projectId }: { projectId: number }) {
         documents={folderDetail.documents}
         isLoading={detailLoading}
         onBack={() => setSelectedFolder(null)}
-        onUpload={() => setUploadDialogOpen(true)}
+        onUpload={() => {
+          const folder = folders.find((f) => f.folderCode === selectedFolder);
+          setUploadTitle(folder?.name || "");
+          setUploadDialogOpen(true);
+        }}
         onDownload={handleDownload}
         uploadDialog={
           <UploadDialog
