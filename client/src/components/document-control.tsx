@@ -373,20 +373,21 @@ function DocRevisionTable({ revDocs, onDownload }: { revDocs: DocumentRecord[]; 
       </TableHeader>
       <TableBody>
         {revDocs.map((doc, idx) => {
-          const displayName = systemFileName(doc.gcsObjectPath);
+          const sysName = systemFileName(doc.gcsObjectPath);
+          const displayName = doc.title || sysName;
           return (
             <TableRow key={doc.id} className={`text-xs ${idx < revDocs.length - 1 ? "border-b-0" : ""}`}>
               <TableCell className="py-2 pb-1">
                 <div className="flex items-center gap-2">
-                  {getFileIcon(displayName)}
-                  <span className="font-medium truncate max-w-[240px]" title={displayName}>
+                  {getFileIcon(sysName)}
+                  <span className="font-medium truncate max-w-[240px]" title={sysName}>
                     {displayName}
                   </span>
                   {revDocs.length > 1 && (
                     <Badge variant="outline" className="text-[10px]">#{doc.seqNumber}</Badge>
                   )}
                 </div>
-                <code className="text-[10px] text-muted-foreground font-mono break-all block mt-1">{doc.gcsObjectPath}</code>
+                <code className="text-[10px] text-muted-foreground font-mono break-all block mt-1">{sysName}</code>
               </TableCell>
               <TableCell className="py-2">{formatFileSize(doc.fileSize)}</TableCell>
               <TableCell className="py-2">{doc.uploaderName || "—"}</TableCell>
