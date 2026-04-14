@@ -387,7 +387,7 @@ function DocRevisionTable({ revDocs, onDownload }: { revDocs: DocumentRecord[]; 
                     <Badge variant="outline" className="text-[10px]">#{doc.seqNumber}</Badge>
                   )}
                 </div>
-                <code className="text-[10px] text-muted-foreground font-mono break-all block mt-1">{sysName}</code>
+                <code className="text-[10px] text-muted-foreground font-mono break-all whitespace-pre-wrap block mt-1">{doc.gcsObjectPath}</code>
               </TableCell>
               <TableCell className="py-2">{formatFileSize(doc.fileSize)}</TableCell>
               <TableCell className="py-2">{doc.uploaderName || "—"}</TableCell>
