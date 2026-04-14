@@ -9649,6 +9649,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       const nextRevisionCode = epcCoding.incrementRevisionCode(rec.revision_code);
+      const newDwgNumber = rec.dwg_control_number;
 
       const dwgTxResult = await db.transaction(async (tx) => {
         // Step 1: clear is_current on the old drawing FIRST so the partial unique
@@ -9697,7 +9698,6 @@ export function setupProjectRoutes(app: express.Express) {
           supersededBy: inserted[0].id,
         }).where(eq(epcDrawingControls.id, id));
 
-        const newDwgNumber = rec.dwg_control_number;
         await tx.execute(sql`INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${rec.project_id}, 'drawing_control.superseded', ${JSON.stringify({
             oldDwgId: id, oldDwgNumber: rec.dwg_control_number, oldRevision: rec.revision_code,
