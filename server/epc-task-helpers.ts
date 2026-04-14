@@ -245,12 +245,11 @@ export async function resolveAssignee(
 }
 
 export async function resolveProjectCode(projectId: number, tx?: any): Promise<string> {
-  const executor = tx || db;
   try {
-    const result = await executor.execute(
-      sql`SELECT project_code FROM projects WHERE id = ${projectId}`
+    const result = await db.execute(
+      sql`SELECT code FROM projects WHERE id = ${projectId}`
     );
-    return (result.rows[0] as any)?.project_code || `Project #${projectId}`;
+    return (result.rows[0] as any)?.code || `Project #${projectId}`;
   } catch {
     return `Project #${projectId}`;
   }
