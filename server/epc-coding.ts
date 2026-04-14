@@ -1,5 +1,6 @@
 import { db } from './db';
 import { sql } from 'drizzle-orm';
+import { assertGcsPath } from './epc-guardrails';
 
 export const CONTINENT_CODES: Record<string, string> = {
   'AF': 'Africa',
@@ -172,7 +173,6 @@ export function buildEpcGcsPath(
     .replace(/^-|-$/g, '') || 'file';
   const ext = originalFileName.split('.').pop()?.toLowerCase() || 'bin';
   const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${docType}/${documentNumber}/${revSlot}/${seq}-${label}.${ext}`;
-  const { assertGcsPath } = require('./epc-guardrails');
   assertGcsPath(path, 'epc-coding.buildEpcGcsPath');
   return path;
 }
@@ -255,7 +255,6 @@ export function buildDrawingGcsPath(
   ext: string
 ): string {
   const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DWG/${codeBars}_rev-${revision}.${ext}`;
-  const { assertGcsPath } = require('./epc-guardrails');
   assertGcsPath(path, 'epc-coding.buildDrawingGcsPath');
   return path;
 }
