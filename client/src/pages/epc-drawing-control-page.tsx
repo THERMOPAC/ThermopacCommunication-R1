@@ -563,15 +563,10 @@ export default function EpcDrawingControlPage() {
                                             <div className="text-muted-foreground">Item Code</div>
                                             <div className="font-mono">{rec.item_code || "—"}</div>
                                             <div className="text-muted-foreground">Revision</div>
-                                            <div className="flex items-center gap-1">
-                                              <span className="font-mono">{rec.revision_code}</span>
-                                              {rec.drawing_revision && rec.drawing_revision !== rec.revision_code && (
-                                                <span className="text-muted-foreground">({rec.drawing_revision})</span>
-                                              )}
-                                              {rec.is_current
-                                                ? <span className="text-green-600 font-semibold">· current</span>
-                                                : <span className="text-orange-500">· superseded</span>}
-                                            </div>
+                                            {projectId
+                                              ? <LiveRevisionBadge projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
+                                              : <div className="flex items-center gap-1"><span className="font-mono">{rec.revision_code}</span>{rec.is_current ? <span className="text-green-600 font-semibold">· current</span> : <span className="text-orange-500">· superseded</span>}</div>
+                                            }
                                             {rec.drawing_purpose && <><div className="text-muted-foreground">Purpose</div><div>{rec.drawing_purpose}</div></>}
                                             {rec.drawing_category && <><div className="text-muted-foreground">Category</div><div>{rec.drawing_category}</div></>}
                                             {rec.discipline_code && <><div className="text-muted-foreground">Discipline</div><div>{rec.discipline_code}</div></>}
@@ -945,8 +940,8 @@ function useGcsPath(projectItemId: number | null) {
   });
 }
 
-function GcsPathDisplay({ projectId, parentEntityId }: { projectId: number; parentEntityId: number }) {
-  const { data: attachmentData, isLoading } = useQuery({
+function useActiveAttachment(projectId: number | null, parentEntityId: number | null) {
+  const { data, isLoading } = useQuery({
     queryKey: ["/api/projects", projectId, "epc-documents", "DWG", parentEntityId, "attachments"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/projects/${projectId}/epc-documents/DWG/${parentEntityId}/attachments`);
@@ -954,13 +949,31 @@ function GcsPathDisplay({ projectId, parentEntityId }: { projectId: number; pare
     },
     enabled: !!projectId && !!parentEntityId,
   });
+  const revisions: any[] = data?.revisions || [];
+  const currentRev = revisions.find((r: any) => r.isCurrent);
+  const activeAtt = currentRev?.attachments?.find((a: any) => a.status === "active");
+  return { activeAtt, isLoading };
+}
+
+function LiveRevisionBadge({ projectId, parentEntityId, isCurrent }: { projectId: number; parentEntityId: number; isCurrent: boolean }) {
+  const { activeAtt, isLoading } = useActiveAttachment(projectId, parentEntityId);
+  if (isLoading) return <span className="text-muted-foreground text-[9px]">…</span>;
+  const rev = activeAtt?.revision_code;
+  return (
+    <div className="flex items-center gap-1">
+      <span className="font-mono">{rev || "—"}</span>
+      {isCurrent
+        ? <span className="text-green-600 font-semibold">· current</span>
+        : <span className="text-orange-500">· superseded</span>}
+    </div>
+  );
+}
+
+function GcsPathDisplay({ projectId, parentEntityId }: { projectId: number; parentEntityId: number }) {
+  const { activeAtt, isLoading } = useActiveAttachment(projectId, parentEntityId);
 
   if (isLoading) return <div className="text-[9px] text-muted-foreground">Loading GCS path...</div>;
 
-  // Find the active attachment from the current revision group
-  const revisions: any[] = attachmentData?.revisions || [];
-  const currentRev = revisions.find((r: any) => r.isCurrent);
-  const activeAtt = currentRev?.attachments?.find((a: any) => a.status === "active");
   const activePath = activeAtt?.gcsPath;
 
   if (!activePath) {
