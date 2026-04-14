@@ -119,6 +119,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       // DWG/BOM are revision-controlled: GCS uses a deterministic system-generated path and the
       // old record is superseded on re-upload. Same-content re-uploads are valid (the user may
       // be confirming the same file is current), so skip the checksum duplicate guard for these types.
+      let uploadWarning: string | undefined;
       if (!isRevisionControlled) {
         const dupCheck = await db.execute(
           sql`SELECT id, attachment_label, uploaded_at FROM epc_document_attachments
@@ -137,6 +138,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
               existingLabel: dup.attachment_label,
             });
           }
+          uploadWarning = `This file content is identical to existing attachment '${dup.attachment_label}' (id ${dup.id}). Duplicate allowed under different label.`;
         }
       }
 
@@ -266,10 +268,6 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         expires: Date.now() + 15 * 60 * 1000,
       });
 
-      const warning = dupCheck.rows.length > 0
-        ? `This file content is identical to existing attachment '${(dupCheck.rows[0] as any).attachment_label}' (id ${(dupCheck.rows[0] as any).id}). Duplicate allowed under different label.`
-        : undefined;
-
       await db.insert(epcDocumentAccessLog).values({
         attachmentId: txResult.inserted.id,
         documentNumber,
@@ -287,7 +285,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         success: true,
         attachment: txResult.inserted,
         previewUrl: signedUrl,
-        warning,
+        warning: uploadWarning,
       });
     } catch (error: any) {
       console.error('[EPC-DOC] Upload error:', error);
