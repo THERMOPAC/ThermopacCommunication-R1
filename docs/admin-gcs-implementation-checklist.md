@@ -9,12 +9,15 @@
 
 ---
 
-## Phase 1 — Critical Bug Fixes
+## Phase 1 — Critical Bug Fixes + Path Compliance
 
-> Addresses active data loss. Zero Legal files are stored today. Visa secondary upload is broken.
-> Must be completed before any migration or schema work.
+> Addresses active data loss (zero Legal files stored; Visa secondary upload broken).
+> Path compliance: entity ID in directory; `{seq:03d}-{label}.{ext}` filename format.
+> **Phase 1 is IN PROGRESS. Do not mark complete until all TEMP-P2 items are resolved.**
 
-### 1.1 Fix Legal upload parameter order (7 call sites) ✅ DONE 2026-04-14
+---
+
+### 1.1 Fix Legal upload parameter order ✅ DONE 2026-04-14
 
 - [x] Identified all 14 `uploadFileToGCS` call sites (2 per module: POST + PUT × 7 modules)
 - [x] Swapped parameters to `uploadFileToGCS(fileName, req.file.buffer, mimetype)` at all 14 sites
@@ -24,7 +27,7 @@
 
 ---
 
-### 1.2 Fix Legal return field access (7 call sites) ✅ DONE 2026-04-14
+### 1.2 Fix Legal return field access ✅ DONE 2026-04-14
 
 - [x] Replaced `uploadResult.fileName` (undefined) with `fileName` (the path variable) at all 14 sites
 - [x] Replaced `uploadResult.publicUrl` (undefined) with `uploadResult.url ?? null` at all 14 sites
@@ -34,49 +37,144 @@
 
 ---
 
-### 1.3 Replace legacy Legal path prefixes (7 submodules) ✅ DONE 2026-04-14
+### 1.3 Replace legacy Legal path prefixes — entity ID + seq + label ⚠️ PARTIALLY DONE
 
-- [x] `contracts/` → `ADMIN/Legal/Contracts/{ts}/{ts}.{ext}` (POST) / `ADMIN/Legal/Contracts/{contractId}/{ts}.{ext}` (PUT)
-- [x] `compliance/` → `ADMIN/Legal/Compliance/{ts}/{ts}.{ext}` / `ADMIN/Legal/Compliance/{complianceId}/{ts}.{ext}`
-- [x] `posh-cases/` → `ADMIN/Legal/Posh/{ts}/{ts}.{ext}` / `ADMIN/Legal/Posh/{poshCaseId}/{ts}.{ext}`
-- [x] `legal-notices/` → `ADMIN/Legal/Notices/{ts}/{ts}.{ext}` / `ADMIN/Legal/Notices/{noticeId}/{ts}.{ext}`
-- [x] `policy-templates/` → `ADMIN/Legal/PolicyTemplates/{ts}/{ts}.{ext}` / `ADMIN/Legal/PolicyTemplates/{templateId}/{ts}.{ext}`
-- [x] `nda-agreements/` → `ADMIN/Legal/NDA/{ts}/{ts}.{ext}` / `ADMIN/Legal/NDA/{ndaId}/{ts}.{ext}`
-- [x] `exclusivity-agreements/` → `ADMIN/Legal/Exclusivity/{ts}/{ts}.{ext}` / `ADMIN/Legal/Exclusivity/{exclusivityId}/{ts}.{ext}`
+#### 1.3a Legacy prefix replacement ✅ DONE 2026-04-14
 
-> **Phase 1 Note**: POST routes use `Date.now()` as path segment since entity ID is not yet available at upload time. PUT routes use the entity ID from `req.params`. Phase 2 will introduce child document tables and `seq` allocation for POST paths.
+- [x] `contracts/` → `ADMIN/Legal/Contracts/`
+- [x] `compliance/` → `ADMIN/Legal/Compliance/`
+- [x] `posh-cases/` → `ADMIN/Legal/Posh/`
+- [x] `legal-notices/` → `ADMIN/Legal/Notices/`
+- [x] `policy-templates/` → `ADMIN/Legal/PolicyTemplates/`
+- [x] `nda-agreements/` → `ADMIN/Legal/NDA/`
+- [x] `exclusivity-agreements/` → `ADMIN/Legal/Exclusivity/`
 
-**Result**: Zero new writes to any legacy Legal prefix. All new writes go to `ADMIN/Legal/` root.
+#### 1.3b Entity ID in directory (two-step insert for POST routes) ✅ DONE 2026-04-14
+
+- [x] POST /contracts: two-step insert — insert record → get `contractId` → upload to `ADMIN/Legal/Contracts/{contractId}/` → update
+- [x] POST /compliance: two-step insert — insert record → get `complianceId` → upload → update
+- [x] POST /posh-cases: two-step insert — insert record → get `caseId` → upload → update
+- [x] POST /notices: two-step insert — insert record → get `noticeId` → upload → update
+- [x] POST /policy-templates: two-step insert — insert record → get `templateId` → upload → update
+- [x] POST /nda-agreements: two-step insert — insert record → get `ndaId` → upload → update
+- [x] POST /exclusivity-agreements: two-step insert — insert record → get `exclusivityId` → upload → update
+- [x] PUT routes: entity ID from `req.params` — already available, no two-step needed
+
+#### 1.3c `{seq:03d}-{label}.{ext}` filename format — label ✅ DONE 2026-04-14
+
+- [x] `resolveLegalLabelAndSeq(module, rawLabel)` added to `server/admin-guardrails.ts`
+- [x] `buildLegalGcsPath(module, entityId, seq, label, originalName)` added to `server/admin-guardrails.ts`
+- [x] Controlled vocabulary constants `LEGAL_LABEL_VOCAB` in `admin-guardrails.ts` (all 7 modules)
+- [x] All 14 Legal call sites now produce filenames in `{seq:03d}-{label}.{ext}` format
+- [x] Label is read from `req.body.documentLabel`; validated against vocabulary; falls back to module default
+
+Vocabulary defaults per module:
+
+| Module | Default label | Valid labels |
+|--------|--------------|--------------|
+| Contracts | `draft` | `draft`, `executed`, `amendment`, `termination-notice`, `addendum` |
+| Compliance | `evidence` | `evidence` |
+| Posh | `complaint` | `complaint`, `acknowledgement`, `inquiry-order`, `witness-statement`, `inquiry-report`, `show-cause`, `closure-notice`, `appeal` |
+| Notices | `notice` | `notice`, `reply`, `counter-reply`, `settlement-agreement`, `court-filing` |
+| PolicyTemplates | `policy` | `policy` |
+| NDA | `draft` | `draft`, `executed` |
+| Exclusivity | `draft` | `draft`, `executed` |
+
+#### 1.3d `{seq:03d}-{label}.{ext}` filename format — seq ⚠️ PARTIALLY DONE (TEMP-P2)
+
+| Module | Seq behavior | Status |
+|--------|-------------|--------|
+| Compliance | `001` permanent — overwrite-before-lock, single file; no child table needed | ✅ PERMANENT |
+| NDA | label-derived: `draft=001`, `executed=002` — two-file max, no child table needed | ✅ PERMANENT |
+| Exclusivity | label-derived: `draft=001`, `executed=002` — same as NDA | ✅ PERMANENT |
+| Contracts | `001` [TEMP-P2] — append-only, multi-file; seq increment requires `contract_documents` child table | ⚠️ TEMP-P2 |
+| Posh | `001` [TEMP-P2] — append-only, multi-file; seq increment requires `posh_documents` child table | ⚠️ TEMP-P2 |
+| Notices | `001` [TEMP-P2] — append-only, multi-file; seq increment requires `notice_documents` child table | ⚠️ TEMP-P2 |
+| PolicyTemplates | `001` [TEMP-P2] — single-active-with-history; version tracking requires child table | ⚠️ TEMP-P2 |
+
+> **TEMP-P2**: Concurrency-safe seq increment (`SELECT MAX(seq) FOR UPDATE`) requires child document tables defined in Phase 2. Until Phase 2, seq is hardcoded to `001` for all uploads on these modules. Each new upload overwrites the previous object at `{entityId}/001-{label}.{ext}`. This satisfies the path format requirement but not the immutable-append-only control rule.
+
+**Phase 1 current path examples (all routes):**
+
+| Route | Actual path written today |
+|-------|--------------------------|
+| POST /contracts (draft) | `ADMIN/Legal/Contracts/{contractId}/001-draft.pdf` |
+| PUT /contracts/:id (amendment) | `ADMIN/Legal/Contracts/{contractId}/001-amendment.pdf` [TEMP-P2 — should be `002-` or higher] |
+| POST /compliance | `ADMIN/Legal/Compliance/{complianceId}/001-evidence.pdf` |
+| PUT /nda-agreements/:id (executed) | `ADMIN/Legal/NDA/{ndaId}/002-executed.pdf` |
+| POST /exclusivity-agreements (draft) | `ADMIN/Legal/Exclusivity/{exclusivityId}/001-draft.pdf` |
+
+**Result**: Zero new writes to any legacy Legal prefix. ADMIN root enforced. Entity ID in path. Filename format `{seq:03d}-{label}.{ext}` produced at every call site. Three modules (Compliance, NDA, Exclusivity) are permanently correct; four modules are correct at `001` pending Phase 2 seq allocation.
 
 ---
 
-### 1.4 Fix Visa secondary upload ✅ DONE 2026-04-14
+### 1.4 Fix Visa upload — entity ID + seq + label ⚠️ PARTIALLY DONE
 
-- [x] Removed `file.makePublic()` call from `uploadVisaDocumentLegacy` (was throwing on enforced-PAP bucket)
-- [x] Added `getSignedUrl()` returning a 1-year signed URL
-- [x] Updated path from `visa-documents/{visaRecordId}/` to `ADMIN/Visa/Employees/{employeeId}/Records/{visaRecordId}/{ts}.{ext}`
-- [x] Added `employeeId` lookup before path construction (queries `visaRecords` by `visaRecordId`)
-- [x] Fixed primary visa upload (`createVisaRecord`, `updateVisaRecord`) — replaced `generateVisaGCSPath` (used username) with `buildVisaGcsPath` (uses numeric IDs)
-- [x] Fixed `uploadVisaDocument` helper — now returns signed URL, calls `assertAdminGcsPath`
-- [x] `generateVisaGCSPath` function removed; replaced by `buildVisaGcsPath`
+#### 1.4a Path and transport fixes ✅ DONE 2026-04-14
 
-**Result**: Visa secondary upload no longer throws 403. Both primary and secondary visa uploads write to `ADMIN/Visa/` root with stable numeric IDs only.
+- [x] Removed `file.makePublic()` from `uploadVisaDocumentLegacy` (threw 403 on enforced-PAP bucket)
+- [x] All visa uploads now use `getSignedUrl()` (1-year expiry)
+- [x] `generateVisaGCSPath` (used username) removed; replaced by `buildVisaDocumentGcsPath` (numeric IDs only)
+- [x] `assertAdminGcsPath` called before every bucket write in all three visa upload flows
+
+#### 1.4b Entity ID in directory (two-step insert for createVisaRecord) ✅ DONE 2026-04-14
+
+- [x] `createVisaRecord`: two-step — insert visa record first → get `visaRecordId` → upload to `ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/` → update record
+- [x] `updateVisaRecord`: `visaRecordId` from `req.params.id` — already available
+- [x] `uploadVisaDocumentLegacy`: `visaRecordId` from `req.body.visaRecordId` — already available
+
+#### 1.4c `{seq:03d}-{label}.{ext}` filename format ⚠️ PARTIALLY DONE (TEMP-P2)
+
+- [x] `resolveVisaLabel(rawLabel)` added to `admin-guardrails.ts`; validates against `VISA_LABEL_VOCAB`
+- [x] `buildVisaDocumentGcsPath(empId, visaRecordId, seq, label, originalName)` in `admin-guardrails.ts`
+- [x] All three visa upload flows: `documentLabel` from request body, default `visa-copy`
+- [x] Valid labels: `visa-copy`, `renewal-copy`, `entry-permit`, `other`
+- [x] seq = `001` for all uploads [TEMP-P2] — increment requires `visa_documents` child table
+
+> **TEMP-P2**: seq=001 is hardcoded. Renewal uploads should increment seq, but require `visa_documents` child table (Phase 2 §2.2).
+
+**Result**: Visa secondary upload no longer throws 403. All three visa upload paths follow `ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/001-{label}.{ext}`.
 
 ---
 
-### 1.5 Add `assertAdminGcsPath()` guardrail ✅ DONE 2026-04-14
+### 1.5 Fix Trip upload — seq + label ⚠️ PARTIALLY DONE (TEMP-P2)
 
-- [x] Created `server/admin-guardrails.ts` with `assertAdminGcsPath(gcsPath: string): void` and `AdminGcsPathViolation` error class
-- [x] 18 allowed-pattern regexes covering all approved ADMIN module paths
-- [x] 10 blocked-prefix strings covering all legacy Admin GCS roots
-- [x] `assertAdminGcsPath` wired into all 14 Legal upload blocks (via `fileName` before `uploadFileToGCS`)
-- [x] `assertAdminGcsPath` wired into `uploadVisaDocument` helper (covers both primary create and update paths)
-- [x] `assertAdminGcsPath` wired into `uploadVisaDocumentLegacy` (explicit call before `bucket.file()`)
-- [x] `assertAdminGcsPath` wired into `uploadTripDocument` (before `bucket.file()`)
+- [x] `resolveTripLabel(documentType)` added to `admin-guardrails.ts`; maps `documentType` to TRIP_LABEL_VOCAB; falls back to `'other'`
+- [x] `buildTripDocumentGcsPath(empId, tripId, seq, label, originalName)` in `admin-guardrails.ts`
+- [x] `uploadTripDocument` now builds path: `ADMIN/Travel/Employees/{empId}/Trips/{tripId}/Documents/001-{label}.{ext}`
+- [x] `assertAdminGcsPath` called on every trip document upload
+- [x] Valid labels: `travel-booking`, `hotel-confirmation`, `visa-copy`, `itinerary`, `invitation-letter`, `other`
+- [x] seq = `001` [TEMP-P2] — increment requires `seq` column on `trip_documents` table (Phase 2 §2.1)
 
-**Result**: Any attempt to write to a blocked or non-ADMIN path throws `AdminGcsPathViolation` at the point of path construction, before any GCS API call is made.
+> **TEMP-P2**: `trip_documents` is already a child table but lacks a `seq` column. Phase 2 adds the column and enables proper concurrency-safe seq allocation per `tripId`.
 
-**Validation note**: Calling `assertAdminGcsPath("contracts/test.pdf")` throws `AdminGcsPathViolation` (blocked prefix). Calling `assertAdminGcsPath("ADMIN/Legal/Contracts/1/001.pdf")` passes. Calling `assertAdminGcsPath("some-other-path/test.pdf")` throws (not ADMIN root).
+**Result**: Trip document filename is now `001-{label}.{ext}` instead of `{timestamp}.{ext}`. Path format correct. Entity IDs already in path (trip_id and employee_id were already used).
+
+---
+
+### 1.6 Add `assertAdminGcsPath()` guardrail + vocabulary + path builders ✅ DONE 2026-04-14
+
+- [x] `AdminGcsPathViolation` error class in `server/admin-guardrails.ts`
+- [x] `assertAdminGcsPath(gcsPath)`: 10 blocked prefixes + 18 approved-pattern regexes
+- [x] `LEGAL_LABEL_VOCAB`, `VISA_LABEL_VOCAB`, `TRIP_LABEL_VOCAB` — controlled vocabulary per module
+- [x] `resolveLegalLabelAndSeq(module, rawLabel)` — validates label, derives seq by module rule
+- [x] `resolveVisaLabel(rawLabel)`, `resolveTripLabel(documentType)` — vocabulary gatekeepers
+- [x] `buildLegalGcsPath(module, entityId, seq, label, originalName)` — canonical Legal path builder
+- [x] `buildVisaDocumentGcsPath(empId, visaRecordId, seq, label, originalName)` — canonical Visa path builder
+- [x] `buildTripDocumentGcsPath(empId, tripId, seq, label, originalName)` — canonical Trip path builder
+- [x] All three route files import from `admin-guardrails.ts`; no inline path string construction remaining
+
+**Result**: Single source of truth for all ADMIN/ path construction. Any change to approved path format requires only one file update. Guardrail fires before any GCS API call.
+
+---
+
+## Phase 1 — Open Items (blocking Phase 1 completion)
+
+| Item | Module(s) | Blocker | Phase required |
+|------|-----------|---------|---------------|
+| Concurrency-safe seq increment on PUT/POST | Contracts, POSH, Notices, PolicyTemplates | `contract_documents`, `posh_documents`, `notice_documents` child tables | Phase 2 §2.3 |
+| Visa renewal seq increment | Visa | `visa_documents` child table | Phase 2 §2.2 |
+| Trip document seq increment | Trip | `seq` column on `trip_documents` | Phase 2 §2.1 |
 
 ---
 
@@ -87,13 +185,14 @@
 
 ### 2.1 `trip_documents` table changes
 
-- [ ] Add column `gcs_path TEXT`
 - [ ] Add column `seq INT`
 - [ ] Add column `label VARCHAR(50)`
-- [ ] Add column `uploaded_by INT` (FK → `users.id`)
-- [ ] Add column `uploaded_at TIMESTAMP`
+- [ ] Add column `uploaded_by INT` (FK → `users.id`) if not already present
+- [ ] Add column `uploaded_at TIMESTAMP` if not already present
 - [ ] Add column `deleted_at TIMESTAMP` (soft-delete)
 - [ ] Add UNIQUE constraint on (`trip_id`, `seq`)
+
+**After this**: Update `uploadTripDocument` to use `SELECT MAX(seq) FOR UPDATE` pattern; remove `[TEMP-P2]` annotation.
 
 **Validation**: `\d trip_documents` shows all new columns and unique constraint.
 
@@ -112,6 +211,8 @@
 - [ ] `superseded_at TIMESTAMP`
 - [ ] UNIQUE(`visa_record_id`, `seq`)
 
+**After this**: Update all three visa upload flows to use `SELECT MAX(seq) FOR UPDATE`; remove `[TEMP-P2]` annotations.
+
 **Validation**: Table exists with correct structure and unique constraint.
 
 ---
@@ -124,15 +225,17 @@
 
 Each table: `id SERIAL PK`, `{parent}_id INT FK`, `gcs_path TEXT NOT NULL`, `seq INT NOT NULL`, `label VARCHAR(50) NOT NULL`, `uploaded_by INT FK`, `uploaded_at TIMESTAMP`. UNIQUE(`{parent}_id`, `seq`).
 
+**After this**: Update Contracts, POSH, Notices upload routes to use `SELECT MAX(seq) FOR UPDATE`; remove `[TEMP-P2]` annotations from these routes.
+
 **Validation**: All three tables exist with correct FKs and UNIQUE constraints.
 
 ---
 
 ### 2.4 Add columns to Legal parent tables
 
-- [ ] `compliance_register`: add `gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
-- [ ] `nda_agreements`: add `draft_gcs_path TEXT`, `gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
-- [ ] `exclusivity_agreements`: add `draft_gcs_path TEXT`, `gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
+- [ ] `compliance_register`: add `file_locked BOOLEAN DEFAULT false`
+- [ ] `nda_agreements`: add `draft_gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
+- [ ] `exclusivity_agreements`: add `draft_gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
 
 **Validation**: Confirm columns exist with correct defaults.
 
@@ -140,9 +243,9 @@ Each table: `id SERIAL PK`, `{parent}_id INT FK`, `gcs_path TEXT NOT NULL`, `seq
 
 ### 2.5 Add policy versioning columns
 
-- [ ] `policy_templates`: add `gcs_path TEXT`, `version_number INT`, `effective_date DATE`, `is_active BOOLEAN DEFAULT false`, `activated_by INT FK`, `activated_at TIMESTAMP`
+- [ ] `policy_templates`: add `version_number INT`, `effective_date DATE`, `is_active BOOLEAN DEFAULT false`, `activated_by INT FK`, `activated_at TIMESTAMP`
 
-**Validation**: Confirm all 6 new columns present.
+**Validation**: Confirm all 5 new columns present.
 
 ---
 
@@ -311,17 +414,40 @@ Each table: `id SERIAL PK`, `{parent}_id INT FK`, `gcs_path TEXT NOT NULL`, `seq
 
 ---
 
-## Quick-Reference: Legacy Roots Blocked After Phase 3
+## Quick-Reference: Active Path Formats (Phase 1 state)
 
-| Legacy Root | Live Files | New Root | Migration Phase |
+| Route | Path format today | Status |
+|-------|------------------|--------|
+| POST /legal/contracts | `ADMIN/Legal/Contracts/{contractId}/001-{label}.{ext}` | TEMP-P2 (seq fixed at 001) |
+| PUT /legal/contracts/:id | `ADMIN/Legal/Contracts/{contractId}/001-{label}.{ext}` | TEMP-P2 (seq fixed at 001) |
+| POST /legal/compliance | `ADMIN/Legal/Compliance/{complianceId}/001-evidence.{ext}` | PERMANENT |
+| PUT /legal/compliance/:id | `ADMIN/Legal/Compliance/{complianceId}/001-evidence.{ext}` | PERMANENT |
+| POST /legal/posh-cases | `ADMIN/Legal/Posh/{caseId}/001-{label}.{ext}` | TEMP-P2 |
+| PUT /legal/posh-cases/:id | `ADMIN/Legal/Posh/{caseId}/001-{label}.{ext}` | TEMP-P2 |
+| POST /legal/notices | `ADMIN/Legal/Notices/{noticeId}/001-{label}.{ext}` | TEMP-P2 |
+| PUT /legal/notices/:id | `ADMIN/Legal/Notices/{noticeId}/001-{label}.{ext}` | TEMP-P2 |
+| POST /legal/policy-templates | `ADMIN/Legal/PolicyTemplates/{templateId}/001-policy.{ext}` | TEMP-P2 |
+| PUT /legal/policy-templates/:id | `ADMIN/Legal/PolicyTemplates/{templateId}/001-policy.{ext}` | TEMP-P2 |
+| POST /legal/nda-agreements | `ADMIN/Legal/NDA/{ndaId}/001-draft.{ext}` or `002-executed.{ext}` | PERMANENT |
+| PUT /legal/nda-agreements/:id | `ADMIN/Legal/NDA/{ndaId}/001-draft.{ext}` or `002-executed.{ext}` | PERMANENT |
+| POST /legal/exclusivity-agreements | `ADMIN/Legal/Exclusivity/{exclusivityId}/001-draft.{ext}` or `002-executed.{ext}` | PERMANENT |
+| PUT /legal/exclusivity-agreements/:id | `ADMIN/Legal/Exclusivity/{exclusivityId}/001-draft.{ext}` or `002-executed.{ext}` | PERMANENT |
+| createVisaRecord | `ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/001-{label}.{ext}` | TEMP-P2 |
+| updateVisaRecord | `ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/001-{label}.{ext}` | TEMP-P2 |
+| uploadVisaDocumentLegacy | `ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/001-{label}.{ext}` | TEMP-P2 |
+| uploadTripDocument | `ADMIN/Travel/Employees/{empId}/Trips/{tripId}/Documents/001-{label}.{ext}` | TEMP-P2 |
+
+## Quick-Reference: Legacy Roots Blocked
+
+| Legacy Root | Live Files | New Root | Status |
 |---|---|---|---|
-| `Business_Trips/` | 75 | `ADMIN/Travel/Employees/{id}/Trips/{id}/Documents/` | 3.3–3.4 |
-| `Business_Visa/` | 16 | `ADMIN/Visa/Employees/{id}/Records/{id}/` | 3.3–3.4 |
-| `contracts/` | 0 | `ADMIN/Legal/Contracts/{id}/` | Phase 1 fix |
-| `compliance/` | 0 | `ADMIN/Legal/Compliance/{id}/` | Phase 1 fix |
-| `posh-cases/` | 0 | `ADMIN/Legal/Posh/{id}/` | Phase 1 fix |
-| `legal-notices/` | 0 | `ADMIN/Legal/Notices/{id}/` | Phase 1 fix |
-| `policy-templates/` | 0 | `ADMIN/Legal/PolicyTemplates/{id}/` | Phase 1 fix |
-| `nda-agreements/` | 0 | `ADMIN/Legal/NDA/{id}/` | Phase 1 fix |
-| `exclusivity-agreements/` | 0 | `ADMIN/Legal/Exclusivity/{id}/` | Phase 1 fix |
-| `visa-documents/` | 0 | `ADMIN/Visa/Employees/{id}/Records/{id}/` | Phase 1 fix |
+| `Business_Trips/` | 75 | `ADMIN/Travel/Employees/{id}/Trips/{id}/Documents/` | Migration Phase 3 |
+| `Business_Visa/` | 16 | `ADMIN/Visa/Employees/{id}/Records/{id}/` | Migration Phase 3 |
+| `contracts/` | 0 | `ADMIN/Legal/Contracts/{id}/` | Fixed Phase 1 |
+| `compliance/` | 0 | `ADMIN/Legal/Compliance/{id}/` | Fixed Phase 1 |
+| `posh-cases/` | 0 | `ADMIN/Legal/Posh/{id}/` | Fixed Phase 1 |
+| `legal-notices/` | 0 | `ADMIN/Legal/Notices/{id}/` | Fixed Phase 1 |
+| `policy-templates/` | 0 | `ADMIN/Legal/PolicyTemplates/{id}/` | Fixed Phase 1 |
+| `nda-agreements/` | 0 | `ADMIN/Legal/NDA/{id}/` | Fixed Phase 1 |
+| `exclusivity-agreements/` | 0 | `ADMIN/Legal/Exclusivity/{id}/` | Fixed Phase 1 |
+| `visa-documents/` | 0 | `ADMIN/Visa/Employees/{id}/Records/{id}/` | Fixed Phase 1 |

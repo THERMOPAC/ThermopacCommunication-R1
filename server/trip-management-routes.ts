@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
-import path from 'path';
 import { db } from './db';
 import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users, schengenTravelLog, schengenCountries } from '@shared/schema';
 import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
 import { z } from 'zod';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
-import { assertAdminGcsPath } from './admin-guardrails';
+import { assertAdminGcsPath, buildTripDocumentGcsPath, resolveTripLabel } from './admin-guardrails';
 
 // ===================== GCS CONFIGURATION =====================
 
@@ -1086,8 +1085,10 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     }
 
     // Build ADMIN-rooted GCS path using stable system IDs only — no names as path identity
-    const ext = path.extname(file.originalname);
-    const gcsPath = `ADMIN/Travel/Employees/${trip[0].employeeId}/Trips/${tripId}/Documents/${Date.now()}${ext}`;
+    // documentType is validated against TRIP_LABEL_VOCAB; falls back to 'other' if not in vocabulary
+    const label = resolveTripLabel(documentType as string | undefined);
+    // [TEMP-P2] seq=001 hardcoded — increment requires seq column on trip_documents child table
+    const gcsPath = buildTripDocumentGcsPath(trip[0].employeeId, parseInt(tripId), 1, label, file.originalname);
     assertAdminGcsPath(gcsPath);
 
     // Upload to Google Cloud Storage

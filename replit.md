@@ -40,8 +40,14 @@ The system is a full-stack web application employing organized, hierarchical dat
 - **Guardrail**: `assertAdminGcsPath()` in `server/admin-guardrails.ts` must be called before every `bucket.file()` call in all Administration route files. Throws `AdminGcsPathViolation` on any blocked or malformed path.
 - **Blocked legacy roots**: `Business_Trips/`, `Business_Visa/`, `visa-documents/`, `contracts/`, `compliance/`, `posh-cases/`, `legal-notices/`, `policy-templates/`, `nda-agreements/`, `exclusivity-agreements/`
 - **Active modules**: Travel Documents (75 live files — migrate), Visa Records (16 live files — migrate)
-- **Phase 1 COMPLETE (2026-04-14)**: All 14 Legal upload call sites fixed (param order, return fields, ADMIN paths); Visa primary + secondary upload fixed (removed `makePublic()`, switched to signed URLs, replaced `generateVisaGCSPath` with `buildVisaGcsPath`); Trip upload fixed (removed name-based `generateGCSPath`); `assertAdminGcsPath()` wired into all three route files.
-- **Broken modules** (all fixed in Phase 1 — now write to ADMIN/ root): Legal Contracts, Compliance Register, POSH Cases, Legal Notices, Policy Templates, NDA Agreements, Exclusivity Agreements, Visa secondary upload
+- **Phase 1 IN PROGRESS (as of 2026-04-14)**: Bug fixes done; path compliance maximally applied within current schema. TEMP-P2 items remain open.
+  - ✅ All 14 Legal call sites: param order, return fields, ADMIN root, entity ID in path (two-step insert), `{seq:03d}-{label}.{ext}` filename format, vocabulary validation
+  - ✅ Compliance, NDA, Exclusivity: fully correct paths (permanent seq semantics, no child table needed)
+  - ✅ Visa: two-step insert for createVisaRecord; `buildVisaDocumentGcsPath` + `resolveVisaLabel` in all three visa upload flows; `makePublic()` removed; signed URLs used
+  - ✅ Trip: `resolveTripLabel` + `buildTripDocumentGcsPath` in `uploadTripDocument`
+  - ✅ `server/admin-guardrails.ts`: `assertAdminGcsPath`, `LEGAL_LABEL_VOCAB`, `VISA_LABEL_VOCAB`, `TRIP_LABEL_VOCAB`, `resolveLegalLabelAndSeq`, `resolveVisaLabel`, `resolveTripLabel`, `buildLegalGcsPath`, `buildVisaDocumentGcsPath`, `buildTripDocumentGcsPath`
+  - ⚠️ [TEMP-P2] seq increment blocked for: Contracts, POSH, Notices, PolicyTemplates, Visa, Trip — requires Phase 2 child tables (contract_documents, posh_documents, notice_documents, visa_documents; seq column on trip_documents)
+- **Broken modules** (all now write to ADMIN/ root with `{entityId}/{seq:03d}-{label}.{ext}` format — seq fixed at 001 for TEMP-P2 modules): Legal Contracts, Compliance Register, POSH Cases, Legal Notices, Policy Templates, NDA Agreements, Exclusivity Agreements, Visa secondary upload
 - **Future modules**: Trip Expenses, Leave Attachments, Payslips, Loans, Advances, Investment Proofs, Statutory Challans, Advance Tax, Appraisal Letters
 - **Not-needed modules** (no GCS): Attendance, Payroll compute, Tax Declarations, DWAR, Schengen, Work Locations, Permissions, 2FA, Notifications
 

@@ -33,8 +33,7 @@ import { eq, desc, asc, sql, and, or, gte, lte, like, isNull, isNotNull } from "
 import { ensureAuthenticated } from "./auth-middleware";
 import multer from "multer";
 import { uploadFileToGCS } from "./utils/gcs-operations";
-import { assertAdminGcsPath } from "./admin-guardrails";
-import path from "path";
+import { assertAdminGcsPath, buildLegalGcsPath, resolveLegalLabelAndSeq } from "./admin-guardrails";
 import { z } from "zod";
 
 const router = Router();
@@ -167,32 +166,31 @@ router.post("/contracts", ensureAuthenticated, upload.single("file"), async (req
 
     const validatedData = insertContractSchema.parse(req.body);
     
-    let filePath = null;
-    let fileUrl = null;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Contracts/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newContract] = await db
       .insert(contracts)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
+
+    // Step 2: Upload using entity ID in path, then update record
+    if (req.file) {
+      const { label, seq } = resolveLegalLabelAndSeq('Contracts', req.body.documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires contract_documents child table
+      const gcsPath = buildLegalGcsPath('Contracts', newContract.id, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(contracts).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(contracts.id, newContract.id));
+      return res.status(201).json({ ...newContract, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+    }
 
     res.status(201).json(newContract);
   } catch (error) {
@@ -220,14 +218,15 @@ router.put("/contracts/:id", ensureAuthenticated, upload.single("file"), async (
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Contracts/${contractId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      const { label, seq } = resolveLegalLabelAndSeq('Contracts', req.body.documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires contract_documents child table
+      const gcsPath = buildLegalGcsPath('Contracts', contractId, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 
@@ -497,32 +496,29 @@ router.post("/compliance", ensureAuthenticated, upload.single("file"), async (re
 
     const validatedData = insertComplianceRegisterSchema.parse(req.body);
     
-    let filePath = null;
-    let fileUrl = null;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Compliance/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newCompliance] = await db
       .insert(complianceRegister)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
+
+    // Step 2: Upload using entity ID — seq=001 PERMANENT (overwrite-before-lock, single file, label='evidence' fixed)
+    if (req.file) {
+      const gcsPath = buildLegalGcsPath('Compliance', newCompliance.id, 1, 'evidence', req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(complianceRegister).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(complianceRegister.id, newCompliance.id));
+      return res.status(201).json({ ...newCompliance, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+    }
 
     res.status(201).json(newCompliance);
   } catch (error) {
@@ -545,14 +541,14 @@ router.put("/compliance/:id", ensureAuthenticated, upload.single("file"), async 
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Compliance/${complianceId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      // seq=001 PERMANENT (overwrite-before-lock, single file, label='evidence' fixed)
+      const gcsPath = buildLegalGcsPath('Compliance', complianceId, 1, 'evidence', req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 
@@ -685,32 +681,31 @@ router.post("/posh-cases", ensureAuthenticated, upload.single("file"), async (re
 
     const validatedData = insertPoshCaseSchema.parse(req.body);
     
-    let filePath = null;
-    let fileUrl = null;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Posh/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newPoshCase] = await db
       .insert(poshCases)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
+
+    // Step 2: Upload using entity ID in path, then update record
+    if (req.file) {
+      const { label, seq } = resolveLegalLabelAndSeq('Posh', req.body.documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires posh_documents child table
+      const gcsPath = buildLegalGcsPath('Posh', newPoshCase.id, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(poshCases).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(poshCases.id, newPoshCase.id));
+      return res.status(201).json({ ...newPoshCase, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+    }
 
     res.status(201).json(newPoshCase);
   } catch (error) {
@@ -733,14 +728,15 @@ router.put("/posh-cases/:id", ensureAuthenticated, upload.single("file"), async 
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Posh/${poshCaseId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      const { label, seq } = resolveLegalLabelAndSeq('Posh', req.body.documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires posh_documents child table
+      const gcsPath = buildLegalGcsPath('Posh', poshCaseId, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 
@@ -867,32 +863,31 @@ router.post("/notices", ensureAuthenticated, upload.single("file"), async (req, 
 
     const validatedData = insertLegalNoticeSchema.parse(req.body);
     
-    let filePath = null;
-    let fileUrl = null;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Notices/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newNotice] = await db
       .insert(legalNotices)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
+
+    // Step 2: Upload using entity ID in path, then update record
+    if (req.file) {
+      const { label, seq } = resolveLegalLabelAndSeq('Notices', req.body.documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires notice_documents child table
+      const gcsPath = buildLegalGcsPath('Notices', newNotice.id, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(legalNotices).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(legalNotices.id, newNotice.id));
+      return res.status(201).json({ ...newNotice, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+    }
 
     res.status(201).json(newNotice);
   } catch (error) {
@@ -915,14 +910,15 @@ router.put("/notices/:id", ensureAuthenticated, upload.single("file"), async (re
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Notices/${noticeId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      const { label, seq } = resolveLegalLabelAndSeq('Notices', req.body.documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires notice_documents child table
+      const gcsPath = buildLegalGcsPath('Notices', noticeId, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 
@@ -1190,32 +1186,30 @@ router.post("/policy-templates", ensureAuthenticated, upload.single("file"), asy
 
     const validatedData = insertPolicyTemplateSchema.parse(req.body);
     
-    let filePath = null;
-    let fileUrl = null;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/PolicyTemplates/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newTemplate] = await db
       .insert(policyTemplates)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
+
+    // Step 2: Upload using entity ID in path, then update record
+    if (req.file) {
+      // [TEMP-P2] seq=001 hardcoded — version tracking requires child table; label='policy' fixed (single valid label)
+      const gcsPath = buildLegalGcsPath('PolicyTemplates', newTemplate.id, 1, 'policy', req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(policyTemplates).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(policyTemplates.id, newTemplate.id));
+      return res.status(201).json({ ...newTemplate, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+    }
 
     res.status(201).json(newTemplate);
   } catch (error) {
@@ -1238,14 +1232,14 @@ router.put("/policy-templates/:id", ensureAuthenticated, upload.single("file"), 
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/PolicyTemplates/${templateId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      // [TEMP-P2] seq=001 hardcoded — version tracking requires child table; label='policy' fixed (single valid label)
+      const gcsPath = buildLegalGcsPath('PolicyTemplates', templateId, 1, 'policy', req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 
@@ -1656,38 +1650,32 @@ router.post("/nda-agreements", ensureAuthenticated, upload.single("file"), async
 
     const validatedData = insertNdaAgreementSchema.parse(req.body);
     
-    let filePath = validatedData.filePath;
-    let fileUrl = validatedData.fileUrl;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/NDA/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newNdaAgreement] = await db
       .insert(ndaAgreements)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
 
-    if (newNdaAgreement) {
-      res.status(201).json(newNdaAgreement);
-    } else {
-      res.status(500).json({ error: "Failed to create NDA agreement" });
+    // Step 2: Upload using entity ID — seq derived from label (draft=001, executed=002), PERMANENT
+    if (req.file) {
+      const { label, seq } = resolveLegalLabelAndSeq('NDA', req.body.documentLabel as string | undefined);
+      const gcsPath = buildLegalGcsPath('NDA', newNdaAgreement.id, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(ndaAgreements).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(ndaAgreements.id, newNdaAgreement.id));
+      return res.status(201).json({ ...newNdaAgreement, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
     }
+
+    res.status(201).json(newNdaAgreement);
   } catch (error) {
     console.error("Error creating NDA agreement:", error);
     if (error instanceof z.ZodError) {
@@ -1708,14 +1696,15 @@ router.put("/nda-agreements/:id", ensureAuthenticated, upload.single("file"), as
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/NDA/${ndaId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      // PERMANENT: seq derived from label (draft=001, executed=002) — two-file max, no child table needed
+      const { label, seq } = resolveLegalLabelAndSeq('NDA', req.body.documentLabel as string | undefined);
+      const gcsPath = buildLegalGcsPath('NDA', ndaId, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 
@@ -1848,38 +1837,32 @@ router.post("/exclusivity-agreements", ensureAuthenticated, upload.single("file"
 
     const validatedData = insertExclusivityAgreementSchema.parse(req.body);
     
-    let filePath = validatedData.filePath;
-    let fileUrl = validatedData.fileUrl;
-    
-    if (req.file) {
-      const ts = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Exclusivity/${ts}/${ts}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
-      if (!uploadResult.success) {
-        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
-      }
-      filePath = fileName;
-      fileUrl = uploadResult.url ?? null;
-    }
-
+    // Step 1: Insert without file to obtain entity ID for approved ADMIN path
     const [newExclusivityAgreement] = await db
       .insert(exclusivityAgreements)
       .values({
         ...validatedData,
-        filePath,
-        fileUrl,
+        filePath: null,
+        fileUrl: null,
         createdBy: userId,
         updatedAt: new Date()
       })
       .returning();
 
-    if (newExclusivityAgreement) {
-      res.status(201).json(newExclusivityAgreement);
-    } else {
-      res.status(500).json({ error: "Failed to create exclusivity agreement" });
+    // Step 2: Upload using entity ID — seq derived from label (draft=001, executed=002), PERMANENT
+    if (req.file) {
+      const { label, seq } = resolveLegalLabelAndSeq('Exclusivity', req.body.documentLabel as string | undefined);
+      const gcsPath = buildLegalGcsPath('Exclusivity', newExclusivityAgreement.id, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      await db.update(exclusivityAgreements).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(exclusivityAgreements.id, newExclusivityAgreement.id));
+      return res.status(201).json({ ...newExclusivityAgreement, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
     }
+
+    res.status(201).json(newExclusivityAgreement);
   } catch (error) {
     console.error("Error creating exclusivity agreement:", error);
     if (error instanceof z.ZodError) {
@@ -1900,14 +1883,15 @@ router.put("/exclusivity-agreements/:id", ensureAuthenticated, upload.single("fi
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const ext = path.extname(req.file.originalname);
-      const fileName = `ADMIN/Legal/Exclusivity/${exclusivityId}/${Date.now()}${ext}`;
-      assertAdminGcsPath(fileName);
-      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      // PERMANENT: seq derived from label (draft=001, executed=002) — two-file max, no child table needed
+      const { label, seq } = resolveLegalLabelAndSeq('Exclusivity', req.body.documentLabel as string | undefined);
+      const gcsPath = buildLegalGcsPath('Exclusivity', exclusivityId, seq, label, req.file.originalname);
+      assertAdminGcsPath(gcsPath);
+      const uploadResult = await uploadFileToGCS(gcsPath, req.file.buffer, req.file.mimetype);
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      filePath = fileName;
+      filePath = gcsPath;
       fileUrl = uploadResult.url ?? null;
     }
 

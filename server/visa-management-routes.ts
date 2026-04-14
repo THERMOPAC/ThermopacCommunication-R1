@@ -8,7 +8,7 @@ import { Storage } from '@google-cloud/storage';
 import path from 'path';
 import crypto from 'crypto';
 import { ensureAuthenticated } from './auth-middleware';
-import { assertAdminGcsPath } from './admin-guardrails';
+import { assertAdminGcsPath, buildVisaDocumentGcsPath, resolveVisaLabel } from './admin-guardrails';
 
 const router = express.Router();
 
@@ -622,14 +622,9 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
   }
 };
 
-/**
- * Build ADMIN-rooted GCS path for visa documents using stable system IDs only.
- * employeeId and visaRecordId are stable numeric IDs; no names used as path segments.
- */
-const buildVisaGcsPath = (employeeId: number, visaRecordId: number, originalName: string): string => {
-  const ext = path.extname(originalName);
-  return `ADMIN/Visa/Employees/${employeeId}/Records/${visaRecordId}/${Date.now()}${ext}`;
-};
+// buildVisaGcsPath removed — use buildVisaDocumentGcsPath from admin-guardrails directly.
+// All visa paths now follow: ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/{seq:03d}-{label}.{ext}
+// [TEMP-P2]: seq=001 hardcoded until Phase 2 adds visa_documents child table for concurrency-safe increment.
 
 /**
  * Upload visa document to GCS
@@ -718,30 +713,11 @@ export const createVisaRecord = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Employee not found' });
     }
 
-    let fileData: { filePath?: string; fileUrl?: string } = {};
-    
-    // Handle file upload if present
-    if (req.file) {
-      try {
-        // Use timestamp as record-ID placeholder; no names as path identity
-        const ts = Date.now();
-        const gcsPath = buildVisaGcsPath(validatedData.employeeId, ts, req.file.originalname);
-        
-        console.log('Uploading visa document to GCS path:', gcsPath);
-        fileData = await uploadVisaDocument(req.file, gcsPath);
-        console.log('Visa document uploaded successfully:', fileData);
-      } catch (uploadError) {
-        console.error('Error uploading visa document:', uploadError);
-        return res.status(500).json({ 
-          error: 'Failed to upload visa document', 
-          message: 'The visa record cannot be created due to file upload failure.' 
-        });
-      }
-    }
-    
+    // Step 1: Insert visa record without file to obtain stable record ID for ADMIN path
     const insertData = {
       ...validatedData,
-      ...fileData,
+      filePath: null,
+      fileUrl: null,
       createdBy: userId,
       status: 'Active' as const
     };
@@ -757,6 +733,33 @@ export const createVisaRecord = async (req: Request, res: Response) => {
 
     // Update quota usage
     await updateQuotaUsage(validatedData.country, 1);
+
+    // Step 2: Upload file using actual visa record ID in approved ADMIN path
+    if (req.file) {
+      try {
+        const label = resolveVisaLabel((req.body as any).documentLabel as string | undefined);
+        // [TEMP-P2] seq=001 hardcoded — increment requires visa_documents child table
+        const gcsPath = buildVisaDocumentGcsPath(validatedData.employeeId, newRecord.id, 1, label, req.file.originalname);
+        
+        console.log('Uploading visa document to GCS path:', gcsPath);
+        const fileData = await uploadVisaDocument(req.file, gcsPath);
+        console.log('Visa document uploaded successfully:', fileData);
+
+        // Step 3: Update record with file path
+        await db
+          .update(visaRecords)
+          .set({ filePath: fileData.filePath, fileUrl: fileData.fileUrl })
+          .where(eq(visaRecords.id, newRecord.id));
+
+        return res.status(201).json({ ...newRecord, filePath: fileData.filePath, fileUrl: fileData.fileUrl });
+      } catch (uploadError) {
+        console.error('Error uploading visa document:', uploadError);
+        return res.status(500).json({ 
+          error: 'Failed to upload visa document', 
+          message: 'Visa record was created but file upload failed.' 
+        });
+      }
+    }
 
     res.status(201).json(newRecord);
   } catch (error) {
@@ -808,7 +811,9 @@ export const uploadVisaDocumentLegacy = [
         return res.status(404).json({ error: 'Visa record not found' });
       }
 
-      const filename = buildVisaGcsPath(visaRecord[0].employeeId, parseInt(visaRecordId), req.file.originalname);
+      const label = resolveVisaLabel((req.body as any).documentLabel as string | undefined);
+      // [TEMP-P2] seq=001 hardcoded — increment requires visa_documents child table
+      const filename = buildVisaDocumentGcsPath(visaRecord[0].employeeId, parseInt(visaRecordId), 1, label, req.file.originalname);
       assertAdminGcsPath(filename);
 
       // Upload to Google Cloud Storage
@@ -911,7 +916,9 @@ export const updateVisaRecord = async (req: Request, res: Response) => {
           return res.status(400).json({ error: 'Employee not found' });
         }
 
-        const gcsPath = buildVisaGcsPath(validatedData.employeeId, parseInt(id), req.file.originalname);
+        const label = resolveVisaLabel((req.body as any).documentLabel as string | undefined);
+        // [TEMP-P2] seq=001 hardcoded — increment requires visa_documents child table
+        const gcsPath = buildVisaDocumentGcsPath(validatedData.employeeId, parseInt(id), 1, label, req.file.originalname);
         
         console.log('Uploading updated visa document to GCS path:', gcsPath);
         fileData = await uploadVisaDocument(req.file, gcsPath);
