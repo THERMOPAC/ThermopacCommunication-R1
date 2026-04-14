@@ -742,7 +742,10 @@ export default function EpcDrawingControlPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground">Drawing Revision <span className="text-[9px]">(read-only)</span></Label>
-                    <Input className="h-8 text-xs mt-1 bg-muted/50 cursor-not-allowed" value={editForm.drawingRevision} readOnly />
+                    {projectId && editTarget
+                      ? <LiveRevisionReadOnly projectId={projectId} parentEntityId={editTarget.id} />
+                      : <Input className="h-8 text-xs mt-1 bg-muted/50 cursor-not-allowed" value={editForm.drawingRevision} readOnly />
+                    }
                   </div>
                   <div>
                     <Label className="text-xs font-medium">Category</Label>
@@ -967,6 +970,15 @@ function LiveRevisionBadge({ projectId, parentEntityId, isCurrent }: { projectId
       {isCurrent
         ? <span className="text-green-600 font-semibold">· current</span>
         : <span className="text-orange-500">· superseded</span>}
+    </div>
+  );
+}
+
+function LiveRevisionReadOnly({ projectId, parentEntityId }: { projectId: number; parentEntityId: number }) {
+  const { revisionCode, isLoading } = useActiveAttachment(projectId, parentEntityId);
+  return (
+    <div className="h-8 text-xs mt-1 bg-muted/50 border rounded-md px-3 flex items-center font-mono text-muted-foreground cursor-not-allowed">
+      {isLoading ? "…" : (revisionCode || "—")}
     </div>
   );
 }
