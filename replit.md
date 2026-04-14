@@ -46,7 +46,15 @@ The system is a full-stack web application employing organized, hierarchical dat
   - ✅ Visa: two-step insert for createVisaRecord; `buildVisaDocumentGcsPath` + `resolveVisaLabel` in all three visa upload flows; `makePublic()` removed; signed URLs used
   - ✅ Trip: `resolveTripLabel` + `buildTripDocumentGcsPath` in `uploadTripDocument`
   - ✅ `server/admin-guardrails.ts`: `assertAdminGcsPath`, `LEGAL_LABEL_VOCAB`, `VISA_LABEL_VOCAB`, `TRIP_LABEL_VOCAB`, `resolveLegalLabelAndSeq`, `resolveVisaLabel`, `resolveTripLabel`, `buildLegalGcsPath`, `buildVisaDocumentGcsPath`, `buildTripDocumentGcsPath`
-  - ⚠️ [TEMP-P2] seq increment blocked for: Contracts, POSH, Notices, PolicyTemplates, Visa, Trip — requires Phase 2 child tables (contract_documents, posh_documents, notice_documents, visa_documents; seq column on trip_documents)
+  - ⚠️ [TEMP-P2] seq increment: schema blockers resolved (Phase 2 done); route-level `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` pattern still needs to be wired in for Contracts, POSH, Notices, PolicyTemplates, Visa, Trip before Phase 1 closes
+- **Phase 2 DONE (2026-04-14)**: All child tables, columns, and UNIQUE indexes applied via SQL (db:push times out on large schema):
+  - ✅ New tables: `contract_documents`, `posh_documents`, `notice_documents`, `visa_documents`, `loan_documents`, `advance_documents` — each with `UNIQUE(parent_id, seq)`
+  - ✅ `trip_documents`: added `seq`, `label`, `gcs_path`, `deleted_at` + UNIQUE INDEX `(trip_id, seq)`
+  - ✅ `compliance_register`: added `gcs_path`, `file_locked BOOLEAN DEFAULT false`
+  - ✅ `policy_templates`: added `gcs_path`, `version_number`, `doc_is_active BOOLEAN DEFAULT false`, `activated_by`, `activated_at`
+  - ✅ `nda_agreements`: added `draft_gcs_path`, `executed_gcs_path`, `file_locked BOOLEAN DEFAULT false`
+  - ✅ `exclusivity_agreements`: added `draft_gcs_path`, `executed_gcs_path`, `file_locked BOOLEAN DEFAULT false`
+  - ✅ Drizzle schema (`shared/schema.ts`) updated to match all new tables and columns; server boots clean
 - **Broken modules** (all now write to ADMIN/ root with `{entityId}/{seq:03d}-{label}.{ext}` format — seq fixed at 001 for TEMP-P2 modules): Legal Contracts, Compliance Register, POSH Cases, Legal Notices, Policy Templates, NDA Agreements, Exclusivity Agreements, Visa secondary upload
 - **Future modules**: Trip Expenses, Leave Attachments, Payslips, Loans, Advances, Investment Proofs, Statutory Challans, Advance Tax, Appraisal Letters
 - **Not-needed modules** (no GCS): Attendance, Payroll compute, Tax Declarations, DWAR, Schengen, Work Locations, Permissions, 2FA, Notifications

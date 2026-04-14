@@ -170,90 +170,105 @@ Vocabulary defaults per module:
 
 ## Phase 1 — Open Items (blocking Phase 1 completion)
 
-| Item | Module(s) | Blocker | Phase required |
-|------|-----------|---------|---------------|
-| Concurrency-safe seq increment on PUT/POST | Contracts, POSH, Notices, PolicyTemplates | `contract_documents`, `posh_documents`, `notice_documents` child tables | Phase 2 §2.3 |
-| Visa renewal seq increment | Visa | `visa_documents` child table | Phase 2 §2.2 |
-| Trip document seq increment | Trip | `seq` column on `trip_documents` | Phase 2 §2.1 |
+All schema blockers resolved by Phase 2. Route-level changes still required before Phase 1 can close.
+
+| Item | Module(s) | Schema blocker | Schema status | Route change needed |
+|------|-----------|---------------|--------------|---------------------|
+| Concurrency-safe seq on upload | Contracts, POSH, Notices | `contract_documents`, `posh_documents`, `notice_documents` | ✅ Tables created (Phase 2) | Use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` + INSERT to child table; remove `[TEMP-P2]` |
+| PolicyTemplates seq | PolicyTemplates | `version_number` column + `doc_is_active` | ✅ Columns added (Phase 2) | Use `SELECT COALESCE(MAX(version_number),0)+1 FOR UPDATE` pattern; set `doc_is_active=false` on upload |
+| Visa renewal seq | Visa | `visa_documents` child table | ✅ Table created (Phase 2) | Use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` + INSERT to `visa_documents`; set prior `is_active=false` on renewal |
+| Trip document seq | Trip | `seq` column on `trip_documents` | ✅ Column added (Phase 2) | Use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` on `trip_documents` per `trip_id`; remove `[TEMP-P2]` |
 
 ---
 
-## Phase 2 — Schema Changes
+## Phase 2 — Schema Changes ✅ DONE 2026-04-14
 
 > Adds columns and child tables required by both active/broken modules (Phase 1) and migration (Phase 3).
-> Must be completed before running migrations.
+> Applied directly via SQL (db:push times out on schema this large — used executeSql instead).
 
-### 2.1 `trip_documents` table changes
+### 2.1 `trip_documents` table changes ✅ DONE 2026-04-14
 
-- [ ] Add column `seq INT`
-- [ ] Add column `label VARCHAR(50)`
-- [ ] Add column `uploaded_by INT` (FK → `users.id`) if not already present
-- [ ] Add column `uploaded_at TIMESTAMP` if not already present
-- [ ] Add column `deleted_at TIMESTAMP` (soft-delete)
-- [ ] Add UNIQUE constraint on (`trip_id`, `seq`)
+- [x] Add column `seq INT` (nullable; existing rows keep NULL)
+- [x] Add column `label VARCHAR(50)` (nullable)
+- [x] `uploaded_by INT` — already present
+- [x] `uploaded_at TIMESTAMP` — already present
+- [x] Add column `deleted_at TIMESTAMP` (soft-delete)
+- [x] UNIQUE INDEX `trip_documents_trip_id_seq_idx` ON (`trip_id`, `seq`)
 
-**After this**: Update `uploadTripDocument` to use `SELECT MAX(seq) FOR UPDATE` pattern; remove `[TEMP-P2]` annotation.
-
-**Validation**: `\d trip_documents` shows all new columns and unique constraint.
-
----
-
-### 2.2 Create `visa_documents` table
-
-- [ ] `id SERIAL PRIMARY KEY`
-- [ ] `visa_record_id INT NOT NULL` (FK → `visa_records.id`)
-- [ ] `gcs_path TEXT NOT NULL`
-- [ ] `seq INT NOT NULL`
-- [ ] `label VARCHAR(50)`
-- [ ] `is_active BOOLEAN DEFAULT true`
-- [ ] `uploaded_by INT` (FK → `users.id`)
-- [ ] `uploaded_at TIMESTAMP NOT NULL`
-- [ ] `superseded_at TIMESTAMP`
-- [ ] UNIQUE(`visa_record_id`, `seq`)
-
-**After this**: Update all three visa upload flows to use `SELECT MAX(seq) FOR UPDATE`; remove `[TEMP-P2]` annotations.
-
-**Validation**: Table exists with correct structure and unique constraint.
+**Validation confirmed**: All 4 new columns present. UNIQUE INDEX confirmed via `pg_indexes`.
+**Next**: Update `uploadTripDocument` to use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE`; remove `[TEMP-P2]`.
 
 ---
 
-### 2.3 Create Legal child tables
+### 2.2 Create `visa_documents` table ✅ DONE 2026-04-14
 
-- [ ] Create `contract_documents` (parent FK → `contracts.id`)
-- [ ] Create `posh_documents` (parent FK → `posh_cases.id`)
-- [ ] Create `notice_documents` (parent FK → `legal_notices.id`)
+- [x] `id SERIAL PRIMARY KEY`
+- [x] `visa_record_id INT NOT NULL` (FK → `visa_records.id`, CASCADE)
+- [x] `gcs_path TEXT NOT NULL`
+- [x] `seq INT NOT NULL`
+- [x] `label VARCHAR(50)` (nullable)
+- [x] `is_active BOOLEAN NOT NULL DEFAULT true`
+- [x] `uploaded_by INT` (FK → `users.id`)
+- [x] `uploaded_at TIMESTAMP NOT NULL DEFAULT NOW()`
+- [x] `superseded_at TIMESTAMP` (nullable)
+- [x] UNIQUE INDEX `visa_documents_visa_record_id_seq_idx` ON (`visa_record_id`, `seq`)
 
-Each table: `id SERIAL PK`, `{parent}_id INT FK`, `gcs_path TEXT NOT NULL`, `seq INT NOT NULL`, `label VARCHAR(50) NOT NULL`, `uploaded_by INT FK`, `uploaded_at TIMESTAMP`. UNIQUE(`{parent}_id`, `seq`).
-
-**After this**: Update Contracts, POSH, Notices upload routes to use `SELECT MAX(seq) FOR UPDATE`; remove `[TEMP-P2]` annotations from these routes.
-
-**Validation**: All three tables exist with correct FKs and UNIQUE constraints.
-
----
-
-### 2.4 Add columns to Legal parent tables
-
-- [ ] `compliance_register`: add `file_locked BOOLEAN DEFAULT false`
-- [ ] `nda_agreements`: add `draft_gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
-- [ ] `exclusivity_agreements`: add `draft_gcs_path TEXT`, `file_locked BOOLEAN DEFAULT false`
-
-**Validation**: Confirm columns exist with correct defaults.
+**Validation confirmed**: Table and index exist.
+**Next**: Update all three visa upload flows to use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE`; remove `[TEMP-P2]`.
 
 ---
 
-### 2.5 Add policy versioning columns
+### 2.3 Create Legal child tables ✅ DONE 2026-04-14
 
-- [ ] `policy_templates`: add `version_number INT`, `effective_date DATE`, `is_active BOOLEAN DEFAULT false`, `activated_by INT FK`, `activated_at TIMESTAMP`
+- [x] `contract_documents` (FK → `contracts.id` CASCADE) — UNIQUE(`contract_id`, `seq`)
+- [x] `posh_documents` (FK → `posh_cases.id` CASCADE) — UNIQUE(`case_id`, `seq`)
+- [x] `notice_documents` (FK → `legal_notices.id` CASCADE) — UNIQUE(`notice_id`, `seq`)
 
-**Validation**: Confirm all 5 new columns present.
+Each table: `id SERIAL PK`, `{parent}_id INT NOT NULL FK`, `gcs_path TEXT NOT NULL`, `seq INT NOT NULL`, `label VARCHAR(50) NOT NULL`, `uploaded_by INT FK`, `uploaded_at TIMESTAMP NOT NULL`.
+
+**Validation confirmed**: All 3 tables and 3 UNIQUE indexes exist.
+**Next**: Update Contracts, POSH, Notices upload routes to use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE`; remove `[TEMP-P2]`.
 
 ---
 
-### 2.6 Run `db:push`
+### 2.4 Add columns to Legal parent tables ✅ DONE 2026-04-14
 
-- [ ] Run `npm run db:push` (or `npm run db:push --force` if needed)
-- [ ] Confirm no destructive changes to existing primary key columns
-- [ ] Confirm all new tables and columns applied successfully
+- [x] `compliance_register`: `gcs_path TEXT`, `file_locked BOOLEAN NOT NULL DEFAULT false`
+- [x] `nda_agreements`: `draft_gcs_path TEXT`, `executed_gcs_path TEXT`, `file_locked BOOLEAN NOT NULL DEFAULT false`
+- [x] `exclusivity_agreements`: `draft_gcs_path TEXT`, `executed_gcs_path TEXT`, `file_locked BOOLEAN NOT NULL DEFAULT false`
+
+**Validation confirmed**: All columns present with correct defaults.
+
+---
+
+### 2.5 Add policy versioning columns ✅ DONE 2026-04-14
+
+- [x] `policy_templates`: `gcs_path TEXT`, `version_number INT`, `doc_is_active BOOLEAN NOT NULL DEFAULT false`, `activated_by INT FK users.id`, `activated_at TIMESTAMP`
+
+> Note: `effective_date` already existed on this table (`effectiveDate` Drizzle field). Column not added again.
+> Column name is `doc_is_active` (not `is_active`) to avoid ambiguity with approval-status semantics.
+
+**Validation confirmed**: All 5 new columns present with correct defaults.
+
+---
+
+### 2.6 Create Payroll child tables ✅ DONE 2026-04-14
+
+- [x] `loan_documents` (FK → `employee_loans.id` CASCADE) — UNIQUE(`loan_id`, `seq`)
+- [x] `advance_documents` (FK → `employee_advances.id` CASCADE) — UNIQUE(`advance_id`, `seq`)
+
+Each table: `id SERIAL PK`, `{parent}_id INT NOT NULL FK`, `gcs_path TEXT NOT NULL`, `seq INT NOT NULL`, `label VARCHAR(50) NOT NULL`, `uploaded_by INT FK`, `uploaded_at TIMESTAMP NOT NULL`.
+
+**Validation confirmed**: Both tables and 2 UNIQUE indexes exist.
+
+---
+
+### 2.7 Schema application method
+
+- [x] `npm run db:push` attempted — timed out (schema too large for drizzle-kit diff within 2 min limit)
+- [x] Applied directly via SQL (`ALTER TABLE … ADD COLUMN IF NOT EXISTS` + `CREATE TABLE IF NOT EXISTS` + `CREATE UNIQUE INDEX IF NOT EXISTS`)
+- [x] Drizzle TypeScript schema (`shared/schema.ts`) updated to match — all new tables and columns declared
+- [x] Server restarted after schema changes — boots clean, zero TypeScript errors, zero runtime errors
 
 ---
 
