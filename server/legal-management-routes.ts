@@ -196,9 +196,9 @@ router.post("/contracts", ensureAuthenticated, upload.single("file"), async (req
         const uploadResult = await uploadFileToGCS(path, req.file!.buffer, req.file!.mimetype);
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.insert(contractDocuments).values({ contractId: newContract.id, gcsPath: path, seq: nextSeq, label, uploadedBy: userId });
-        await tx.update(contracts).set({ filePath: path, fileUrl: uploadResult.url ?? null }).where(eq(contracts.id, newContract.id));
+        await tx.update(contracts).set({ filePath: path, fileUrl: uploadResult.signedUrl ?? null }).where(eq(contracts.id, newContract.id));
         gcsPath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
       return res.status(201).json({ ...newContract, filePath: gcsPath, fileUrl });
     }
@@ -241,7 +241,7 @@ router.put("/contracts/:id", ensureAuthenticated, upload.single("file"), async (
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.insert(contractDocuments).values({ contractId, gcsPath: path, seq: nextSeq, label, uploadedBy: userId });
         filePath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
     }
 
@@ -531,8 +531,8 @@ router.post("/compliance", ensureAuthenticated, upload.single("file"), async (re
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      await db.update(complianceRegister).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(complianceRegister.id, newCompliance.id));
-      return res.status(201).json({ ...newCompliance, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+      await db.update(complianceRegister).set({ filePath: gcsPath, fileUrl: uploadResult.signedUrl ?? null }).where(eq(complianceRegister.id, newCompliance.id));
+      return res.status(201).json({ ...newCompliance, filePath: gcsPath, fileUrl: uploadResult.signedUrl ?? null });
     }
 
     res.status(201).json(newCompliance);
@@ -564,7 +564,7 @@ router.put("/compliance/:id", ensureAuthenticated, upload.single("file"), async 
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
       filePath = gcsPath;
-      fileUrl = uploadResult.url ?? null;
+      fileUrl = uploadResult.signedUrl ?? null;
     }
 
     const [updatedCompliance] = await db
@@ -723,9 +723,9 @@ router.post("/posh-cases", ensureAuthenticated, upload.single("file"), async (re
         const uploadResult = await uploadFileToGCS(path, req.file!.buffer, req.file!.mimetype);
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.insert(poshDocuments).values({ caseId: newPoshCase.id, gcsPath: path, seq: nextSeq, label, uploadedBy: userId });
-        await tx.update(poshCases).set({ filePath: path, fileUrl: uploadResult.url ?? null }).where(eq(poshCases.id, newPoshCase.id));
+        await tx.update(poshCases).set({ filePath: path, fileUrl: uploadResult.signedUrl ?? null }).where(eq(poshCases.id, newPoshCase.id));
         gcsPath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
       return res.status(201).json({ ...newPoshCase, filePath: gcsPath, fileUrl });
     }
@@ -763,7 +763,7 @@ router.put("/posh-cases/:id", ensureAuthenticated, upload.single("file"), async 
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.insert(poshDocuments).values({ caseId: poshCaseId, gcsPath: path, seq: nextSeq, label, uploadedBy: (req as any).user?.id });
         filePath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
     }
 
@@ -917,9 +917,9 @@ router.post("/notices", ensureAuthenticated, upload.single("file"), async (req, 
         const uploadResult = await uploadFileToGCS(path, req.file!.buffer, req.file!.mimetype);
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.insert(noticeDocuments).values({ noticeId: newNotice.id, gcsPath: path, seq: nextSeq, label, uploadedBy: userId });
-        await tx.update(legalNotices).set({ filePath: path, fileUrl: uploadResult.url ?? null }).where(eq(legalNotices.id, newNotice.id));
+        await tx.update(legalNotices).set({ filePath: path, fileUrl: uploadResult.signedUrl ?? null }).where(eq(legalNotices.id, newNotice.id));
         gcsPath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
       return res.status(201).json({ ...newNotice, filePath: gcsPath, fileUrl });
     }
@@ -957,7 +957,7 @@ router.put("/notices/:id", ensureAuthenticated, upload.single("file"), async (re
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.insert(noticeDocuments).values({ noticeId, gcsPath: path, seq: nextSeq, label, uploadedBy: (req as any).user?.id });
         filePath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
     }
 
@@ -1252,10 +1252,10 @@ router.post("/policy-templates", ensureAuthenticated, upload.single("file"), asy
         const uploadResult = await uploadFileToGCS(path, req.file!.buffer, req.file!.mimetype);
         if (!uploadResult.success) throw new Error(`GCS upload failed: ${uploadResult.message}`);
         await tx.update(policyTemplates)
-          .set({ filePath: path, fileUrl: uploadResult.url ?? null, gcsPath: path, versionNumber: nextVersion, docIsActive: false })
+          .set({ filePath: path, fileUrl: uploadResult.signedUrl ?? null, gcsPath: path, versionNumber: nextVersion, docIsActive: false })
           .where(eq(policyTemplates.id, newTemplate.id));
         gcsPath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
       return res.status(201).json({ ...newTemplate, filePath: gcsPath, fileUrl, versionNumber: nextVersion });
     }
@@ -1294,7 +1294,7 @@ router.put("/policy-templates/:id", ensureAuthenticated, upload.single("file"), 
           .set({ gcsPath: path, versionNumber: nextVersion, docIsActive: false })
           .where(eq(policyTemplates.id, templateId));
         filePath = path;
-        fileUrl = uploadResult.url ?? null;
+        fileUrl = uploadResult.signedUrl ?? null;
       });
     }
 
@@ -1726,8 +1726,8 @@ router.post("/nda-agreements", ensureAuthenticated, upload.single("file"), async
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      await db.update(ndaAgreements).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(ndaAgreements.id, newNdaAgreement.id));
-      return res.status(201).json({ ...newNdaAgreement, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+      await db.update(ndaAgreements).set({ filePath: gcsPath, fileUrl: uploadResult.signedUrl ?? null }).where(eq(ndaAgreements.id, newNdaAgreement.id));
+      return res.status(201).json({ ...newNdaAgreement, filePath: gcsPath, fileUrl: uploadResult.signedUrl ?? null });
     }
 
     res.status(201).json(newNdaAgreement);
@@ -1760,7 +1760,7 @@ router.put("/nda-agreements/:id", ensureAuthenticated, upload.single("file"), as
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
       filePath = gcsPath;
-      fileUrl = uploadResult.url ?? null;
+      fileUrl = uploadResult.signedUrl ?? null;
     }
 
     const [updatedNdaAgreement] = await db
@@ -1913,8 +1913,8 @@ router.post("/exclusivity-agreements", ensureAuthenticated, upload.single("file"
       if (!uploadResult.success) {
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
-      await db.update(exclusivityAgreements).set({ filePath: gcsPath, fileUrl: uploadResult.url ?? null }).where(eq(exclusivityAgreements.id, newExclusivityAgreement.id));
-      return res.status(201).json({ ...newExclusivityAgreement, filePath: gcsPath, fileUrl: uploadResult.url ?? null });
+      await db.update(exclusivityAgreements).set({ filePath: gcsPath, fileUrl: uploadResult.signedUrl ?? null }).where(eq(exclusivityAgreements.id, newExclusivityAgreement.id));
+      return res.status(201).json({ ...newExclusivityAgreement, filePath: gcsPath, fileUrl: uploadResult.signedUrl ?? null });
     }
 
     res.status(201).json(newExclusivityAgreement);
@@ -1947,7 +1947,7 @@ router.put("/exclusivity-agreements/:id", ensureAuthenticated, upload.single("fi
         return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
       }
       filePath = gcsPath;
-      fileUrl = uploadResult.url ?? null;
+      fileUrl = uploadResult.signedUrl ?? null;
     }
 
     const [updatedExclusivityAgreement] = await db

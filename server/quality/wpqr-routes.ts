@@ -438,7 +438,7 @@ router.post('/', ensureAuthenticated, upload.single('document'), async (req: Req
       const filePath = `/QMS/WPQR/${documentId}.pdf`;
       const uploadResult = await uploadFileToGCS(filePath, req.file.buffer, req.file.mimetype);
       if (uploadResult.success) {
-        const fileUrl = uploadResult.url || `https://storage.googleapis.com/${bucketName}${filePath}`;
+        const fileUrl = uploadResult.signedUrl ?? null;
         await db.update(wpqrDocuments)
           .set({ filePath, fileUrl })
           .where(eq(wpqrDocuments.id, insertedDocument.id));
