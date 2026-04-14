@@ -116,22 +116,27 @@ export function setupEpcDocumentRoutes(app: express.Express) {
 
       const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
 
-      const dupCheck = await db.execute(
-        sql`SELECT id, attachment_label, uploaded_at FROM epc_document_attachments
-            WHERE document_number = ${documentNumber}
-            AND revision_code IS NOT DISTINCT FROM ${revisionCode}
-            AND checksum_sha256 = ${checksum}
-            AND status IN ('active', 'withdrawn')`
-      );
+      // DWG/BOM are revision-controlled: GCS uses a deterministic system-generated path and the
+      // old record is superseded on re-upload. Same-content re-uploads are valid (the user may
+      // be confirming the same file is current), so skip the checksum duplicate guard for these types.
+      if (!isRevisionControlled) {
+        const dupCheck = await db.execute(
+          sql`SELECT id, attachment_label, uploaded_at FROM epc_document_attachments
+              WHERE document_number = ${documentNumber}
+              AND revision_code IS NOT DISTINCT FROM ${revisionCode}
+              AND checksum_sha256 = ${checksum}
+              AND status IN ('active', 'withdrawn')`
+        );
 
-      if (dupCheck.rows.length > 0) {
-        const dup = dupCheck.rows[0] as any;
-        if (dup.attachment_label === attachmentLabel) {
-          return res.status(409).json({
-            error: 'This exact file is already attached to this document (active or previously withdrawn).',
-            existingAttachmentId: dup.id,
-            existingLabel: dup.attachment_label,
-          });
+        if (dupCheck.rows.length > 0) {
+          const dup = dupCheck.rows[0] as any;
+          if (dup.attachment_label === attachmentLabel) {
+            return res.status(409).json({
+              error: 'This exact file is already attached to this document (active or previously withdrawn).',
+              existingAttachmentId: dup.id,
+              existingLabel: dup.attachment_label,
+            });
+          }
         }
       }
 
@@ -201,6 +206,12 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           );
         }
 
+        // Rev 4 G7: For DWG/BOM the filename IS the governed identity — store the system-generated
+        // name ({CodeBars}_rev-{rev}.{ext}), not the user's uploaded filename which is irrelevant.
+        const storedFileName = isRevisionControlled
+          ? (gcsObjectPath.split('/').pop() ?? req.file!.originalname)
+          : req.file!.originalname;
+
         const [inserted] = await tx.insert(epcDocumentAttachments).values({
           parentEntityType: ENTITY_TABLE_MAP[docType].table,
           parentEntityId,
@@ -213,7 +224,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           attachmentSeq,
           gcsBucket: 'thermopac_storage',
           gcsObjectPath,
-          originalFileName: req.file!.originalname,
+          originalFileName: storedFileName,
           mimeType: req.file!.mimetype,
           fileSizeBytes: req.file!.size,
           checksumSha256: checksum,
@@ -226,7 +237,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${projectId}, 'epc_document.uploaded', ${JSON.stringify({
             attachmentId: inserted.id, documentNumber, docType, revisionCode,
-            originalFileName: req.file!.originalname, mimeType: req.file!.mimetype,
+            originalFileName: storedFileName, mimeType: req.file!.mimetype,
             fileSizeBytes: req.file!.size, checksumSha256: checksum,
             gcsObjectPath, uploadedBy: userId,
           })}::jsonb, 'epc_document_upload', NOW())
