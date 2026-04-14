@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
+import path from 'path';
 import { db } from './db';
 import { businessTrips, tripApprovals, tripBookings, tripExpenses, tripReimbursements, tripDocuments, users, schengenTravelLog, schengenCountries } from '@shared/schema';
 import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
 import { z } from 'zod';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
+import { assertAdminGcsPath } from './admin-guardrails';
 
 // ===================== GCS CONFIGURATION =====================
 
@@ -58,28 +60,6 @@ const upload = multer({
     }
   }
 });
-
-// Helper function to generate structured GCS path
-const generateGCSPath = (employeeData: any, destination: string, fromDate: string, documentType: string, fileName: string): string => {
-  // Get business year (4-digit year) from trip start date
-  const tripDate = new Date(fromDate);
-  const businessYear = tripDate.getFullYear().toString(); // e.g., "2025"
-  
-  // Use employee name or username
-  const employeeName = employeeData.firstName && employeeData.lastName 
-    ? `${employeeData.firstName}_${employeeData.lastName}`.replace(/\s+/g, '_')
-    : employeeData.username.replace(/\s+/g, '_');
-  
-  // Clean destination and document type for file path
-  const cleanDestination = destination.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const cleanDocumentType = documentType.replace(/[^a-zA-Z0-9_-]/g, '_');
-  
-  // Format date for path
-  const formattedDate = new Date(fromDate).toISOString().split('T')[0]; // YYYY-MM-DD
-  
-  // Generate path: Business_Trips/{BusinessYear}/{EmployeeName}/{Destination}/{FromDate}/{DocumentType}/filename
-  return `Business_Trips/${businessYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
-};
 
 // ===================== AUTO-LINKING HELPER FUNCTIONS =====================
 
@@ -1105,19 +1085,10 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    // Generate unique filename
-    const timestamp = Date.now();
-    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `${timestamp}_${originalName}`;
-
-    // Generate structured GCS path
-    const gcsPath = generateGCSPath(
-      employee[0],
-      trip[0].destination,
-      trip[0].fromDate.toString(),
-      documentType,
-      fileName
-    );
+    // Build ADMIN-rooted GCS path using stable system IDs only — no names as path identity
+    const ext = path.extname(file.originalname);
+    const gcsPath = `ADMIN/Travel/Employees/${trip[0].employeeId}/Trips/${tripId}/Documents/${Date.now()}${ext}`;
+    assertAdminGcsPath(gcsPath);
 
     // Upload to Google Cloud Storage
     const gcsFile = bucket.file(gcsPath);

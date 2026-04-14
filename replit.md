@@ -40,7 +40,8 @@ The system is a full-stack web application employing organized, hierarchical dat
 - **Guardrail**: `assertAdminGcsPath()` in `server/admin-guardrails.ts` must be called before every `bucket.file()` call in all Administration route files. Throws `AdminGcsPathViolation` on any blocked or malformed path.
 - **Blocked legacy roots**: `Business_Trips/`, `Business_Visa/`, `visa-documents/`, `contracts/`, `compliance/`, `posh-cases/`, `legal-notices/`, `policy-templates/`, `nda-agreements/`, `exclusivity-agreements/`
 - **Active modules**: Travel Documents (75 live files — migrate), Visa Records (16 live files — migrate)
-- **Broken modules** (silent upload failures — fix in Phase 1): Legal Contracts, Compliance Register, POSH Cases, Legal Notices, Policy Templates, NDA Agreements, Exclusivity Agreements, Visa secondary upload
+- **Phase 1 COMPLETE (2026-04-14)**: All 14 Legal upload call sites fixed (param order, return fields, ADMIN paths); Visa primary + secondary upload fixed (removed `makePublic()`, switched to signed URLs, replaced `generateVisaGCSPath` with `buildVisaGcsPath`); Trip upload fixed (removed name-based `generateGCSPath`); `assertAdminGcsPath()` wired into all three route files.
+- **Broken modules** (all fixed in Phase 1 — now write to ADMIN/ root): Legal Contracts, Compliance Register, POSH Cases, Legal Notices, Policy Templates, NDA Agreements, Exclusivity Agreements, Visa secondary upload
 - **Future modules**: Trip Expenses, Leave Attachments, Payslips, Loans, Advances, Investment Proofs, Statutory Challans, Advance Tax, Appraisal Letters
 - **Not-needed modules** (no GCS): Attendance, Payroll compute, Tax Declarations, DWAR, Schengen, Work Locations, Permissions, 2FA, Notifications
 

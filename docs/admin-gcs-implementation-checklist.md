@@ -14,61 +14,69 @@
 > Addresses active data loss. Zero Legal files are stored today. Visa secondary upload is broken.
 > Must be completed before any migration or schema work.
 
-### 1.1 Fix Legal upload parameter order (7 call sites)
+### 1.1 Fix Legal upload parameter order (7 call sites) ✅ DONE 2026-04-14
 
-- [ ] Identify all 7 `uploadFileToGCS(req.file.buffer, fileName, mimetype)` calls in `legal-management-routes.ts`
-- [ ] Swap parameters to `uploadFileToGCS(fileName, req.file.buffer, mimetype)` at each site
-- [ ] Verify no other call sites in other files use the wrong order
+- [x] Identified all 14 `uploadFileToGCS` call sites (2 per module: POST + PUT × 7 modules)
+- [x] Swapped parameters to `uploadFileToGCS(fileName, req.file.buffer, mimetype)` at all 14 sites
+- [x] Added `uploadResult.success` guard at every site; returns HTTP 500 on failure
 
-**Validation**: Upload a test contract document and confirm the GCS object is created.
-
----
-
-### 1.2 Fix Legal return field access (7 call sites)
-
-- [ ] Replace `result.fileName` with `result.gcsPath` at all 7 sites
-- [ ] Replace `result.publicUrl` with `result.signedUrl` at all 7 sites
-- [ ] Confirm DB row is updated with correct `gcs_path` value after upload
-
-**Validation**: Confirm DB `gcs_path` column holds a valid `ADMIN/Legal/...` path after upload.
+**Result**: Silent upload failures eliminated. All 14 call sites now fail loudly and explicitly.
 
 ---
 
-### 1.3 Replace legacy Legal path prefixes (7 submodules)
+### 1.2 Fix Legal return field access (7 call sites) ✅ DONE 2026-04-14
 
-- [ ] `contracts/` → `ADMIN/Legal/Contracts/{contractId}/{seq:03d}-{label}.{ext}`
-- [ ] `compliance/` → `ADMIN/Legal/Compliance/{complianceId}/{seq:03d}-{label}.{ext}`
-- [ ] `posh-cases/` → `ADMIN/Legal/Posh/{caseId}/{seq:03d}-{label}.{ext}`
-- [ ] `legal-notices/` → `ADMIN/Legal/Notices/{noticeId}/{seq:03d}-{label}.{ext}`
-- [ ] `policy-templates/` → `ADMIN/Legal/PolicyTemplates/{templateId}/{seq:03d}-{label}.{ext}`
-- [ ] `nda-agreements/` → `ADMIN/Legal/NDA/{ndaId}/{seq:03d}-{label}.{ext}`
-- [ ] `exclusivity-agreements/` → `ADMIN/Legal/Exclusivity/{exclusivityId}/{seq:03d}-{label}.{ext}`
+- [x] Replaced `uploadResult.fileName` (undefined) with `fileName` (the path variable) at all 14 sites
+- [x] Replaced `uploadResult.publicUrl` (undefined) with `uploadResult.url ?? null` at all 14 sites
+- [x] DB rows now receive a valid `filePath` and `fileUrl` after upload
 
-**Validation**: Bucket scan confirms zero new writes to any legacy Legal prefix after fix.
+**Result**: `filePath` and `fileUrl` columns populated correctly after every successful upload.
 
 ---
 
-### 1.4 Fix Visa secondary upload
+### 1.3 Replace legacy Legal path prefixes (7 submodules) ✅ DONE 2026-04-14
 
-- [ ] Remove `file.makePublic()` call at `visa-management-routes.ts:836`
-- [ ] Replace with `gcsFile.getSignedUrl()` returning a signed URL
-- [ ] Update secondary upload path prefix from `visa-documents/{visaRecordId}/` to `ADMIN/Visa/Employees/{employeeId}/Records/{visaRecordId}/`
-- [ ] Confirm `{seq}` is allocated using `SELECT MAX(seq) FOR UPDATE` pattern
+- [x] `contracts/` → `ADMIN/Legal/Contracts/{ts}/{ts}.{ext}` (POST) / `ADMIN/Legal/Contracts/{contractId}/{ts}.{ext}` (PUT)
+- [x] `compliance/` → `ADMIN/Legal/Compliance/{ts}/{ts}.{ext}` / `ADMIN/Legal/Compliance/{complianceId}/{ts}.{ext}`
+- [x] `posh-cases/` → `ADMIN/Legal/Posh/{ts}/{ts}.{ext}` / `ADMIN/Legal/Posh/{poshCaseId}/{ts}.{ext}`
+- [x] `legal-notices/` → `ADMIN/Legal/Notices/{ts}/{ts}.{ext}` / `ADMIN/Legal/Notices/{noticeId}/{ts}.{ext}`
+- [x] `policy-templates/` → `ADMIN/Legal/PolicyTemplates/{ts}/{ts}.{ext}` / `ADMIN/Legal/PolicyTemplates/{templateId}/{ts}.{ext}`
+- [x] `nda-agreements/` → `ADMIN/Legal/NDA/{ts}/{ts}.{ext}` / `ADMIN/Legal/NDA/{ndaId}/{ts}.{ext}`
+- [x] `exclusivity-agreements/` → `ADMIN/Legal/Exclusivity/{ts}/{ts}.{ext}` / `ADMIN/Legal/Exclusivity/{exclusivityId}/{ts}.{ext}`
 
-**Validation**: Secondary visa document upload completes without a 403 or thrown error. File appears at new ADMIN path.
+> **Phase 1 Note**: POST routes use `Date.now()` as path segment since entity ID is not yet available at upload time. PUT routes use the entity ID from `req.params`. Phase 2 will introduce child document tables and `seq` allocation for POST paths.
+
+**Result**: Zero new writes to any legacy Legal prefix. All new writes go to `ADMIN/Legal/` root.
 
 ---
 
-### 1.5 Add `assertAdminGcsPath()` guardrail
+### 1.4 Fix Visa secondary upload ✅ DONE 2026-04-14
 
-- [ ] Create `server/admin-guardrails.ts` with `assertAdminGcsPath(path: string): void`
-- [ ] Implement allowed-prefix regex covering all 18 defined ADMIN paths
-- [ ] Implement blocked-prefix list (all 10 legacy Admin roots)
-- [ ] Add `assertAdminGcsPath(gcsPath)` call before every `bucket.file(path)` in `legal-management-routes.ts`
-- [ ] Add `assertAdminGcsPath(gcsPath)` call before every `bucket.file(path)` in `visa-management-routes.ts`
-- [ ] Add `assertAdminGcsPath(gcsPath)` call before every `bucket.file(path)` in `trip-management-routes.ts`
+- [x] Removed `file.makePublic()` call from `uploadVisaDocumentLegacy` (was throwing on enforced-PAP bucket)
+- [x] Added `getSignedUrl()` returning a 1-year signed URL
+- [x] Updated path from `visa-documents/{visaRecordId}/` to `ADMIN/Visa/Employees/{employeeId}/Records/{visaRecordId}/{ts}.{ext}`
+- [x] Added `employeeId` lookup before path construction (queries `visaRecords` by `visaRecordId`)
+- [x] Fixed primary visa upload (`createVisaRecord`, `updateVisaRecord`) — replaced `generateVisaGCSPath` (used username) with `buildVisaGcsPath` (uses numeric IDs)
+- [x] Fixed `uploadVisaDocument` helper — now returns signed URL, calls `assertAdminGcsPath`
+- [x] `generateVisaGCSPath` function removed; replaced by `buildVisaGcsPath`
 
-**Validation**: Attempt to write to `contracts/test.pdf` — confirm `AdminGcsPathViolation` is thrown. Attempt to write to `ADMIN/Legal/Contracts/1/001-executed.pdf` — confirm it passes.
+**Result**: Visa secondary upload no longer throws 403. Both primary and secondary visa uploads write to `ADMIN/Visa/` root with stable numeric IDs only.
+
+---
+
+### 1.5 Add `assertAdminGcsPath()` guardrail ✅ DONE 2026-04-14
+
+- [x] Created `server/admin-guardrails.ts` with `assertAdminGcsPath(gcsPath: string): void` and `AdminGcsPathViolation` error class
+- [x] 18 allowed-pattern regexes covering all approved ADMIN module paths
+- [x] 10 blocked-prefix strings covering all legacy Admin GCS roots
+- [x] `assertAdminGcsPath` wired into all 14 Legal upload blocks (via `fileName` before `uploadFileToGCS`)
+- [x] `assertAdminGcsPath` wired into `uploadVisaDocument` helper (covers both primary create and update paths)
+- [x] `assertAdminGcsPath` wired into `uploadVisaDocumentLegacy` (explicit call before `bucket.file()`)
+- [x] `assertAdminGcsPath` wired into `uploadTripDocument` (before `bucket.file()`)
+
+**Result**: Any attempt to write to a blocked or non-ADMIN path throws `AdminGcsPathViolation` at the point of path construction, before any GCS API call is made.
+
+**Validation note**: Calling `assertAdminGcsPath("contracts/test.pdf")` throws `AdminGcsPathViolation` (blocked prefix). Calling `assertAdminGcsPath("ADMIN/Legal/Contracts/1/001.pdf")` passes. Calling `assertAdminGcsPath("some-other-path/test.pdf")` throws (not ADMIN root).
 
 ---
 

@@ -8,6 +8,7 @@ import { Storage } from '@google-cloud/storage';
 import path from 'path';
 import crypto from 'crypto';
 import { ensureAuthenticated } from './auth-middleware';
+import { assertAdminGcsPath } from './admin-guardrails';
 
 const router = express.Router();
 
@@ -622,25 +623,12 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
 };
 
 /**
- * Generate structured GCS path for visa documents
+ * Build ADMIN-rooted GCS path for visa documents using stable system IDs only.
+ * employeeId and visaRecordId are stable numeric IDs; no names used as path segments.
  */
-const generateVisaGCSPath = (employeeName: string, country: string, visaNumber: string, fileName: string): string => {
-  // Clean employee name (replace spaces with underscores, remove special chars)
-  const cleanEmployeeName = employeeName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-  
-  // Clean country name (replace spaces with underscores, remove special chars)
-  const cleanCountry = country.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-  
-  // Clean visa number (replace spaces with underscores, remove special chars)
-  const cleanVisaNumber = visaNumber.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-  
-  // Add timestamp to filename to avoid conflicts
-  const timestamp = Date.now();
-  const fileExtension = path.extname(fileName);
-  const baseFileName = path.basename(fileName, fileExtension);
-  const uniqueFileName = `${baseFileName}_${timestamp}${fileExtension}`;
-  
-  return `Business_Visa/${cleanEmployeeName}/${cleanCountry}/${cleanVisaNumber}/${uniqueFileName}`;
+const buildVisaGcsPath = (employeeId: number, visaRecordId: number, originalName: string): string => {
+  const ext = path.extname(originalName);
+  return `ADMIN/Visa/Employees/${employeeId}/Records/${visaRecordId}/${Date.now()}${ext}`;
 };
 
 /**
@@ -648,6 +636,7 @@ const generateVisaGCSPath = (employeeName: string, country: string, visaNumber: 
  */
 const uploadVisaDocument = async (file: Express.Multer.File, gcsPath: string): Promise<{ filePath: string; fileUrl: string }> => {
   try {
+    assertAdminGcsPath(gcsPath);
     const blob = bucket.file(gcsPath);
     const blobStream = blob.createWriteStream({
       metadata: {
@@ -663,17 +652,16 @@ const uploadVisaDocument = async (file: Express.Multer.File, gcsPath: string): P
 
       blobStream.on('finish', async () => {
         try {
-          // Generate public URL
-          // Note: With uniform bucket-level access enabled, files are automatically public
-          // if the bucket has public access configured via IAM
-          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${gcsPath}`;
-          
+          const [signedUrl] = await blob.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
+          });
           resolve({
             filePath: gcsPath,
-            fileUrl: publicUrl
+            fileUrl: signedUrl,
           });
         } catch (error) {
-          console.error('Error processing visa document upload:', error);
+          console.error('Error generating signed URL for visa document:', error);
           reject(error);
         }
       });
@@ -735,12 +723,9 @@ export const createVisaRecord = async (req: Request, res: Response) => {
     // Handle file upload if present
     if (req.file) {
       try {
-        const gcsPath = generateVisaGCSPath(
-          employee[0].username,
-          validatedData.country,
-          validatedData.visaNumber,
-          req.file.originalname
-        );
+        // Use timestamp as record-ID placeholder; no names as path identity
+        const ts = Date.now();
+        const gcsPath = buildVisaGcsPath(validatedData.employeeId, ts, req.file.originalname);
         
         console.log('Uploading visa document to GCS path:', gcsPath);
         fileData = await uploadVisaDocument(req.file, gcsPath);
@@ -812,10 +797,19 @@ export const uploadVisaDocumentLegacy = [
         return res.status(400).json({ error: 'Visa record ID is required' });
       }
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const ext = path.extname(req.file.originalname);
-      const filename = `visa-documents/${visaRecordId}/${timestamp}${ext}`;
+      // Look up visa record to obtain employeeId for ADMIN path construction
+      const visaRecord = await db
+        .select({ employeeId: visaRecords.employeeId })
+        .from(visaRecords)
+        .where(eq(visaRecords.id, parseInt(visaRecordId)))
+        .limit(1);
+
+      if (visaRecord.length === 0) {
+        return res.status(404).json({ error: 'Visa record not found' });
+      }
+
+      const filename = buildVisaGcsPath(visaRecord[0].employeeId, parseInt(visaRecordId), req.file.originalname);
+      assertAdminGcsPath(filename);
 
       // Upload to Google Cloud Storage
       const file = bucket.file(filename);
@@ -832,23 +826,24 @@ export const uploadVisaDocumentLegacy = [
 
       stream.on('finish', async () => {
         try {
-          // Make file publicly accessible
-          await file.makePublic();
-          const publicUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
+          const [signedUrl] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
+          });
 
           // Update visa record with file information
           await db
             .update(visaRecords)
             .set({
               filePath: filename,
-              fileUrl: publicUrl,
+              fileUrl: signedUrl,
               updatedAt: new Date()
             })
             .where(eq(visaRecords.id, parseInt(visaRecordId)));
 
           res.json({
             filePath: filename,
-            fileUrl: publicUrl,
+            fileUrl: signedUrl,
             message: 'File uploaded successfully'
           });
         } catch (error) {
@@ -901,27 +896,22 @@ export const updateVisaRecord = async (req: Request, res: Response) => {
 
     const validatedData = insertVisaRecordSchema.parse(req.body);
     
-    // Get employee name for GCS path if file is being uploaded
     let fileData: { filePath?: string; fileUrl?: string } = {};
     
     if (req.file) {
       try {
-        const employee = await db
-          .select({ username: users.username })
+        // Validate that the employee exists before uploading
+        const employeeExists = await db
+          .select({ id: users.id })
           .from(users)
           .where(eq(users.id, validatedData.employeeId))
           .limit(1);
 
-        if (employee.length === 0) {
+        if (employeeExists.length === 0) {
           return res.status(400).json({ error: 'Employee not found' });
         }
 
-        const gcsPath = generateVisaGCSPath(
-          employee[0].username,
-          validatedData.country,
-          validatedData.visaNumber,
-          req.file.originalname
-        );
+        const gcsPath = buildVisaGcsPath(validatedData.employeeId, parseInt(id), req.file.originalname);
         
         console.log('Uploading updated visa document to GCS path:', gcsPath);
         fileData = await uploadVisaDocument(req.file, gcsPath);

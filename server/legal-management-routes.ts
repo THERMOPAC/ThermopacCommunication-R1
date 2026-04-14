@@ -33,6 +33,8 @@ import { eq, desc, asc, sql, and, or, gte, lte, like, isNull, isNotNull } from "
 import { ensureAuthenticated } from "./auth-middleware";
 import multer from "multer";
 import { uploadFileToGCS } from "./utils/gcs-operations";
+import { assertAdminGcsPath } from "./admin-guardrails";
+import path from "path";
 import { z } from "zod";
 
 const router = Router();
@@ -169,10 +171,16 @@ router.post("/contracts", ensureAuthenticated, upload.single("file"), async (req
     let fileUrl = null;
     
     if (req.file) {
-      const fileName = `contracts/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Contracts/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newContract] = await db
@@ -212,10 +220,15 @@ router.put("/contracts/:id", ensureAuthenticated, upload.single("file"), async (
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `contracts/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Contracts/${contractId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedContract] = await db
@@ -488,10 +501,16 @@ router.post("/compliance", ensureAuthenticated, upload.single("file"), async (re
     let fileUrl = null;
     
     if (req.file) {
-      const fileName = `compliance/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Compliance/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newCompliance] = await db
@@ -526,10 +545,15 @@ router.put("/compliance/:id", ensureAuthenticated, upload.single("file"), async 
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `compliance/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Compliance/${complianceId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedCompliance] = await db
@@ -665,10 +689,16 @@ router.post("/posh-cases", ensureAuthenticated, upload.single("file"), async (re
     let fileUrl = null;
     
     if (req.file) {
-      const fileName = `posh-cases/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Posh/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newPoshCase] = await db
@@ -703,10 +733,15 @@ router.put("/posh-cases/:id", ensureAuthenticated, upload.single("file"), async 
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `posh-cases/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Posh/${poshCaseId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedPoshCase] = await db
@@ -836,10 +871,16 @@ router.post("/notices", ensureAuthenticated, upload.single("file"), async (req, 
     let fileUrl = null;
     
     if (req.file) {
-      const fileName = `legal-notices/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Notices/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newNotice] = await db
@@ -874,10 +915,15 @@ router.put("/notices/:id", ensureAuthenticated, upload.single("file"), async (re
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `legal-notices/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Notices/${noticeId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedNotice] = await db
@@ -1148,10 +1194,16 @@ router.post("/policy-templates", ensureAuthenticated, upload.single("file"), asy
     let fileUrl = null;
     
     if (req.file) {
-      const fileName = `policy-templates/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/PolicyTemplates/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newTemplate] = await db
@@ -1186,10 +1238,15 @@ router.put("/policy-templates/:id", ensureAuthenticated, upload.single("file"), 
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `policy-templates/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/PolicyTemplates/${templateId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedTemplate] = await db
@@ -1603,10 +1660,16 @@ router.post("/nda-agreements", ensureAuthenticated, upload.single("file"), async
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `nda-agreements/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/NDA/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newNdaAgreement] = await db
@@ -1645,10 +1708,15 @@ router.put("/nda-agreements/:id", ensureAuthenticated, upload.single("file"), as
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `nda-agreements/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/NDA/${ndaId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedNdaAgreement] = await db
@@ -1784,10 +1852,16 @@ router.post("/exclusivity-agreements", ensureAuthenticated, upload.single("file"
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `exclusivity-agreements/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ts = Date.now();
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Exclusivity/${ts}/${ts}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [newExclusivityAgreement] = await db
@@ -1826,10 +1900,15 @@ router.put("/exclusivity-agreements/:id", ensureAuthenticated, upload.single("fi
     let fileUrl = validatedData.fileUrl;
     
     if (req.file) {
-      const fileName = `exclusivity-agreements/${Date.now()}-${req.file.originalname}`;
-      const uploadResult = await uploadFileToGCS(req.file.buffer, fileName, req.file.mimetype);
-      filePath = uploadResult.fileName;
-      fileUrl = uploadResult.publicUrl;
+      const ext = path.extname(req.file.originalname);
+      const fileName = `ADMIN/Legal/Exclusivity/${exclusivityId}/${Date.now()}${ext}`;
+      assertAdminGcsPath(fileName);
+      const uploadResult = await uploadFileToGCS(fileName, req.file.buffer, req.file.mimetype);
+      if (!uploadResult.success) {
+        return res.status(500).json({ error: "Failed to upload file", details: uploadResult.message });
+      }
+      filePath = fileName;
+      fileUrl = uploadResult.url ?? null;
     }
 
     const [updatedExclusivityAgreement] = await db
