@@ -210,15 +210,15 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           );
         }
 
-        // For revision-controlled types (DWG/BOM), the GCS path is deterministic.
-        // If an active record already occupies this path, supersede it so the
-        // unique constraint is freed before the new record is inserted.
-        const existingAtPath = await tx.execute(
-          sql`SELECT id FROM epc_document_attachments
-              WHERE gcs_object_path = ${gcsObjectPath} AND status = 'active'`
-        );
-        if (existingAtPath.rows.length > 0) {
-          const existingId = (existingAtPath.rows[0] as any).id;
+        // For revision-controlled types enforce the one-active-per-identity rule:
+        //
+        // DWG: identity = document_number (one DWG control record = one drawing at one revision).
+        //      Supersede ALL active records for this document_number — this catches both the
+        //      exact-path case AND legacy records whose stored path used the old numeric format
+        //      (e.g. _rev-00) while the new upload generates the normalized alphabetic path (_rev-A).
+        //
+        // BOM and others: identity = exact GCS path (path-based supersede is sufficient).
+        if (docType === 'DWG') {
           await tx.execute(
             sql`UPDATE epc_document_attachments
                 SET status = 'superseded',
@@ -226,8 +226,26 @@ export function setupEpcDocumentRoutes(app: express.Express) {
                     superseded_at = NOW(),
                     superseded_by = ${userId},
                     gcs_object_path = gcs_object_path || '-archived-' || id::text
-                WHERE id = ${existingId}`
+                WHERE document_number = ${documentNumber}
+                  AND status = 'active'`
           );
+        } else {
+          const existingAtPath = await tx.execute(
+            sql`SELECT id FROM epc_document_attachments
+                WHERE gcs_object_path = ${gcsObjectPath} AND status = 'active'`
+          );
+          if (existingAtPath.rows.length > 0) {
+            const existingId = (existingAtPath.rows[0] as any).id;
+            await tx.execute(
+              sql`UPDATE epc_document_attachments
+                  SET status = 'superseded',
+                      is_current = false,
+                      superseded_at = NOW(),
+                      superseded_by = ${userId},
+                      gcs_object_path = gcs_object_path || '-archived-' || id::text
+                  WHERE id = ${existingId}`
+            );
+          }
         }
 
         // Rev 4 G7: For DWG/BOM the filename IS the governed identity — store the system-generated
