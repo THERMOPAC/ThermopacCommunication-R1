@@ -9651,6 +9651,19 @@ export function setupProjectRoutes(app: express.Express) {
       const nextRevisionCode = epcCoding.incrementRevisionCode(rec.revision_code);
 
       const dwgTxResult = await db.transaction(async (tx) => {
+        // Step 1: clear is_current on the old drawing FIRST so the partial unique
+        // index idx_dwg_current_doc (UNIQUE dwg_control_number WHERE is_current=true)
+        // doesn't block the subsequent INSERT of the new draft revision.
+        await tx.update(epcDrawingControls).set({
+          isCurrent: false,
+          status: 'superseded',
+          revisionStatus: 'superseded',
+          supersededAt: new Date(),
+          supersessionReason,
+          updatedAt: new Date(),
+        }).where(eq(epcDrawingControls.id, id));
+
+        // Step 2: insert the new draft revision now that the slot is free.
         const inserted = await tx.insert(epcDrawingControls).values({
           dwgControlNumber: rec.dwg_control_number,
           revisionCode: nextRevisionCode,
@@ -9679,14 +9692,9 @@ export function setupProjectRoutes(app: express.Express) {
           createdBy: userId,
         }).returning();
 
+        // Step 3: write back the supersededBy FK now that we have the new ID.
         await tx.update(epcDrawingControls).set({
-          status: 'superseded',
-          isCurrent: false,
-          revisionStatus: 'superseded',
           supersededBy: inserted[0].id,
-          supersededAt: new Date(),
-          supersessionReason,
-          updatedAt: new Date(),
         }).where(eq(epcDrawingControls.id, id));
 
         const newDwgNumber = rec.dwg_control_number;
@@ -10309,6 +10317,19 @@ export function setupProjectRoutes(app: express.Express) {
       const nextBomRevision = newBomRevision || epcCoding.incrementRevisionCode(rec.bom_revision);
 
       const txResult = await db.transaction(async (tx) => {
+        // Step 1: clear is_current on the old BOM FIRST so the partial unique
+        // index idx_bom_current_doc (UNIQUE bom_number WHERE is_current=true)
+        // doesn't block the subsequent INSERT of the new draft revision.
+        await tx.update(epcBomHeaders).set({
+          isCurrent: false,
+          status: 'superseded',
+          revisionStatus: 'superseded',
+          supersededAt: new Date(),
+          supersessionReason,
+          updatedAt: new Date(),
+        }).where(eq(epcBomHeaders.id, id));
+
+        // Step 2: insert the new draft BOM revision now that the slot is free.
         const [newBom] = await tx.insert(epcBomHeaders).values({
           projectId: rec.project_id,
           projectItemId: rec.project_item_id,
@@ -10359,14 +10380,9 @@ export function setupProjectRoutes(app: express.Express) {
           await tx.update(epcBomHeaders).set({ totalLineCount: lineCount }).where(eq(epcBomHeaders.id, newBom.id));
         }
 
+        // Step 3: write back the supersededBy FK now that we have the new BOM ID.
         await tx.update(epcBomHeaders).set({
-          status: 'superseded',
-          isCurrent: false,
-          revisionStatus: 'superseded',
           supersededBy: newBom.id,
-          supersededAt: new Date(),
-          supersessionReason,
-          updatedAt: new Date(),
         }).where(eq(epcBomHeaders.id, id));
 
         const childPlanningResults = await tx.execute(sql`
