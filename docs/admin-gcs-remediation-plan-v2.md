@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | **Version** | 2.0 |
-| **Status** | APPROVED BASELINE |
+| **Status** | IMPLEMENTED (Rev 2) |
 | **Scope** | Administration Module — all HR, Legal, Travel, Visa, Payroll, Statutory, Appraisal submodules |
 | **Root** | `ADMIN/` |
 | **ID Rule** | Stable system-assigned IDs only in all path segments — no names, display strings, usernames, or user-entered text permitted |
@@ -361,3 +361,24 @@ Implemented when each feature is built — not before.
 | 4.6 | `ADMIN/Statutory/Challans/` | Statutory filing workflow |
 | 4.7 | `ADMIN/Statutory/AdvanceTax/` | Advance tax challan capture |
 | 4.8 | `ADMIN/Appraisals/` | Appraisal letter generation |
+
+---
+
+## 10. Migration Completed
+
+| Field | Value |
+|---|---|
+| **Date** | 2026-04-14 |
+| **Total files migrated** | 90 |
+| **Trip files (M1)** | 75 — `Business_Trips/` → `ADMIN/Travel/Employees/{empId}/Trips/{tripId}/Documents/{seq:03d}-{label}.{ext}` |
+| **Visa files (M2)** | 15 — `Business_Visa/` → `ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/001-visa-copy.{ext}` |
+| **Checksum verified** | Yes — MD5 source = MD5 destination for all 90 files; 0 mismatches |
+| **Legacy roots eliminated** | Yes — 0 rows remain at `Business_Trips/` or `Business_Visa/` prefixes in any DB table |
+| **Migration log** | `gcs_migration_log` — 90 rows, all `stage = done` |
+| **DB rows updated** | 75 `trip_documents` + 15 `visa_records` + 15 `visa_documents` (new child rows, `seq=1`, `is_active=true`) |
+| **Source objects deleted** | 90 — all legacy GCS objects removed in stage S4 after DB update confirmed |
+| **Script** | `scripts/migrate-admin-gcs.ts` — 5-stage idempotent protocol (S0 inventory → S1 copy → S2 MD5 verify → S3 DB update → S4 delete) |
+| **Seq collision repair** | Trip 11 seq collision repaired by `scripts/fix-trip11-seq.ts` (one-time, documented, completed) |
+| **Plan count discrepancy** | Plan estimated 16 visa files; actual DB contained 15. 13 additional `visa_records` rows have NULL `file_path` (documents never uploaded — confirmed pre-existing, not migration loss). |
+
+**Status: IMPLEMENTED (Rev 2)**

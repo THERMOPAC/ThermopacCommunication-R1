@@ -6,6 +6,10 @@
 | **Scope** | Administration Module GCS remediation and document control |
 | **Root** | `ADMIN/` |
 | **Date created** | 2026-04-14 |
+| **Phase 1** | ✅ COMPLETE — 2026-04-14 |
+| **Phase 2** | ✅ COMPLETE — 2026-04-14 |
+| **Phase 3 (Migration)** | ✅ COMPLETE — 2026-04-14 — 90 files migrated (75 trip + 15 visa), 0 legacy roots remaining |
+| **Overall status** | **IMPLEMENTED (Rev 2)** |
 
 ---
 
@@ -456,8 +460,8 @@ A seq ROW_NUMBER() bug in run 2 (computed over remaining rows only) caused rows 
 
 | Legacy Root | Live Files | New Root | Status |
 |---|---|---|---|
-| `Business_Trips/` | 75 | `ADMIN/Travel/Employees/{id}/Trips/{id}/Documents/` | Migration Phase 3 |
-| `Business_Visa/` | 16 | `ADMIN/Visa/Employees/{id}/Records/{id}/` | Migration Phase 3 |
+| `Business_Trips/` | 75 | `ADMIN/Travel/Employees/{id}/Trips/{id}/Documents/` | ✅ Migrated — Phase 3 — 2026-04-14 |
+| `Business_Visa/` | 15 | `ADMIN/Visa/Employees/{id}/Records/{id}/` | ✅ Migrated — Phase 3 — 2026-04-14 |
 | `contracts/` | 0 | `ADMIN/Legal/Contracts/{id}/` | Fixed Phase 1 |
 | `compliance/` | 0 | `ADMIN/Legal/Compliance/{id}/` | Fixed Phase 1 |
 | `posh-cases/` | 0 | `ADMIN/Legal/Posh/{id}/` | Fixed Phase 1 |
