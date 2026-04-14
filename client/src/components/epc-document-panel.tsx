@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { getLabelOptions, getDocTypeLabelFamily } from "@shared/gcs-label-vocabulary";
 
-const UPLOAD_ROLES = ["Manager", "Senior Manager", "General Manager", "Superuser"];
+const UPLOAD_ROLES = ["Senior Executive", "Manager", "Senior Manager", "General Manager", "Superuser"];
 const WITHDRAW_RELEASED_ROLES = ["Senior Manager", "General Manager", "Superuser"];
 const ACCESS_LOG_ROLES = ["General Manager", "Superuser"];
 const REVISION_CONTROLLED_TYPES = new Set(["DWG", "BOM"]);

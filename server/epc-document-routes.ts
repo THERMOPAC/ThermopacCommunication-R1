@@ -12,7 +12,7 @@ import { validateLabel, getDocTypeLabelFamily } from '../shared/gcs-label-vocabu
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-const UPLOAD_ROLES = ['Manager', 'Senior Manager', 'General Manager', 'Superuser'];
+const UPLOAD_ROLES = ['Senior Executive', 'Manager', 'Senior Manager', 'General Manager', 'Superuser'];
 const WITHDRAW_RELEASED_ROLES = ['Senior Manager', 'General Manager', 'Superuser'];
 const ACCESS_LOG_ROLES = ['General Manager', 'Superuser'];
 
