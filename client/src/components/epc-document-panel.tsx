@@ -274,10 +274,12 @@ export default function EpcDocumentPanel({
         <TableCell className="text-[10px] py-1.5">
           <div className="flex items-center gap-1.5">
             <span>{getMimeIcon(att.mimeType)}</span>
-            <div>
-              <div className="font-medium truncate max-w-[220px]">{att.label}</div>
-              <div className="text-[9px] text-muted-foreground truncate max-w-[220px]">{att.fileName}</div>
-              {att.gcsPath && <div className="text-[8px] text-blue-600/70 truncate max-w-[220px] font-mono" title={att.gcsPath}>{att.gcsPath}</div>}
+            <div className="min-w-0">
+              <div className="font-medium truncate max-w-[340px]">{att.label}</div>
+              <div className="text-[9px] text-muted-foreground truncate max-w-[340px]">{att.fileName}</div>
+              {att.gcsPath && (
+                <div className="text-[8px] text-blue-600/70 font-mono break-all whitespace-normal leading-tight mt-0.5">{att.gcsPath}</div>
+              )}
             </div>
           </div>
         </TableCell>
@@ -560,7 +562,7 @@ export default function EpcDocumentPanel({
                       )}
                       <TableCell className="text-[10px] py-1.5 font-medium">{h.label}</TableCell>
                       <TableCell className="text-[10px] py-1.5">
-                        <div className="truncate max-w-[160px]">{h.fileName}</div>
+                        <div className="break-all whitespace-normal">{h.fileName}</div>
                         <div className="text-[8px] text-muted-foreground">{formatFileSize(h.fileSizeBytes)}</div>
                       </TableCell>
                       <TableCell className="text-center py-1.5">{getStatusBadge(h.status)}</TableCell>
