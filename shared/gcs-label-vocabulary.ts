@@ -59,12 +59,103 @@ export const GCS_LABEL_VOCABULARY = {
     'clarification',
     'revised-offer',
   ],
-  TEMPLATE: [
-    'quotation-template',
-    'technical-submittal',
-    'cover-letter',
-    'bill-of-quantities',
-    'transmittal-template',
+  PLN: [
+    'project-schedule',
+    'work-breakdown-structure',
+    'resource-plan',
+    'milestone-list',
+    'planning-assumption',
+    'baseline-plan',
+  ],
+  BUY: [
+    'vendor-quote',
+    'purchase-requisition',
+    'material-test-report',
+    'delivery-confirmation',
+    'inspection-release',
+    'vendor-invoice',
+  ],
+  MFG: [
+    'job-card',
+    'work-instruction',
+    'material-issue-slip',
+    'production-report',
+    'ndt-clearance',
+    'stage-inspection',
+    'completion-certificate',
+  ],
+  QPL: [
+    'inspection-test-plan',
+    'quality-control-procedure',
+    'welding-procedure-spec',
+    'ndt-procedure',
+    'calibration-record',
+    'non-conformance-report',
+    'corrective-action-report',
+  ],
+  POP: [
+    'vendor-quote',
+    'technical-evaluation',
+    'commercial-comparison',
+    'purchase-requisition',
+    'scope-of-supply',
+    'terms-and-conditions',
+  ],
+  WOP: [
+    'work-scope',
+    'material-list',
+    'labour-estimate',
+    'method-statement',
+    'safety-plan',
+    'schedule-plan',
+  ],
+  PO: [
+    'purchase-order-doc',
+    'amendment',
+    'vendor-acknowledgement',
+    'delivery-schedule',
+    'inspection-waiver',
+    'scope-of-supply',
+  ],
+  WO: [
+    'work-order-doc',
+    'job-card',
+    'amendment',
+    'completion-record',
+    'material-issue-slip',
+    'time-sheet',
+  ],
+  DR: [
+    'dispatch-readiness-checklist',
+    'packing-list',
+    'quality-release',
+    'customer-approval',
+    'insurance-document',
+    'weight-certificate',
+  ],
+  CR: [
+    'commissioning-plan',
+    'pre-commissioning-checklist',
+    'punch-list',
+    'handover-certificate',
+    'operating-procedure',
+    'as-built-confirmation',
+  ],
+  BR: [
+    'billing-milestone-certificate',
+    'measurement-sheet',
+    'customer-approval',
+    'tax-invoice-draft',
+    'payment-claim',
+    'completion-certificate',
+  ],
+  INV: [
+    'tax-invoice',
+    'proforma-invoice',
+    'debit-note',
+    'credit-note',
+    'payment-advice',
+    'receipt-acknowledgement',
   ],
   EPC_GENERAL: [
     'design-calc',
@@ -88,17 +179,20 @@ export const GCS_LABEL_VOCABULARY = {
 export type LabelFamily = keyof typeof GCS_LABEL_VOCABULARY;
 
 export const GCS_LABEL_DISPLAY: Record<string, string> = {
+  // ECR
   'change-request-form': 'Change Request Form',
   'supporting-analysis': 'Supporting Analysis',
   'affected-drawing': 'Affected Drawing Reference',
   'impact-assessment': 'Impact Assessment',
   'cost-estimate': 'Cost Estimate',
   'schedule-impact': 'Schedule Impact',
+  // ECN
   'change-notice': 'Change Notice',
   'revised-drawing': 'Revised Drawing Reference',
   'updated-spec': 'Updated Specification',
   'implementation-record': 'Implementation Record',
   'close-out-report': 'Close-Out Report',
+  // DSP
   'dispatch-note': 'Dispatch Note',
   'packing-list': 'Packing List',
   'gate-pass': 'Gate Pass',
@@ -106,6 +200,7 @@ export const GCS_LABEL_DISPLAY: Record<string, string> = {
   'e-way-bill': 'E-Way Bill',
   'quality-release': 'Quality Release Certificate',
   'delivery-challan': 'Delivery Challan',
+  // INS
   'inspection-report': 'Inspection Report',
   'test-certificate': 'Test Certificate',
   'witness-record': 'Witness Record',
@@ -114,6 +209,7 @@ export const GCS_LABEL_DISPLAY: Record<string, string> = {
   'hardness-test': 'Hardness Test Record',
   'dimensional-report': 'Dimensional Inspection Report',
   'material-traceability': 'Material Traceability Record',
+  // CO
   'letter-of-intent': 'Letter of Intent',
   'purchase-order': 'Purchase Order',
   'advance-payment-proof': 'Advance Payment Proof',
@@ -121,6 +217,7 @@ export const GCS_LABEL_DISPLAY: Record<string, string> = {
   'technical-specification': 'Technical Specification',
   'payment-terms': 'Payment Terms',
   'amendment': 'Order Amendment',
+  // QTN / QTN_PRE
   'quotation-document': 'Quotation Document',
   'bill-of-quantities': 'Bill of Quantities',
   'commercial-terms': 'Commercial Terms',
@@ -128,10 +225,85 @@ export const GCS_LABEL_DISPLAY: Record<string, string> = {
   'deviation-list': 'Deviation List',
   'clarification': 'Clarification Note',
   'revised-offer': 'Revised Offer',
+  // TEMPLATE (QTN templates)
   'quotation-template': 'Quotation Template',
   'technical-submittal': 'Technical Submittal Template',
   'cover-letter': 'Cover Letter Template',
   'transmittal-template': 'Transmittal Template',
+  // PLN
+  'project-schedule': 'Project Schedule',
+  'work-breakdown-structure': 'Work Breakdown Structure',
+  'resource-plan': 'Resource Plan',
+  'milestone-list': 'Milestone List',
+  'planning-assumption': 'Planning Assumption',
+  'baseline-plan': 'Baseline Plan',
+  // BUY
+  'vendor-quote': 'Vendor Quote',
+  'purchase-requisition': 'Purchase Requisition',
+  'material-test-report': 'Material Test Report',
+  'delivery-confirmation': 'Delivery Confirmation',
+  'inspection-release': 'Inspection Release',
+  'vendor-invoice': 'Vendor Invoice',
+  // MFG
+  'job-card': 'Job Card',
+  'work-instruction': 'Work Instruction',
+  'material-issue-slip': 'Material Issue Slip',
+  'production-report': 'Production Report',
+  'ndt-clearance': 'NDT Clearance',
+  'stage-inspection': 'Stage Inspection Record',
+  'completion-certificate': 'Completion Certificate',
+  // QPL
+  'inspection-test-plan': 'Inspection & Test Plan',
+  'quality-control-procedure': 'Quality Control Procedure',
+  'welding-procedure-spec': 'Welding Procedure Specification',
+  'ndt-procedure': 'NDT Procedure',
+  'calibration-record': 'Calibration Record',
+  'non-conformance-report': 'Non-Conformance Report',
+  'corrective-action-report': 'Corrective Action Report',
+  // POP
+  'technical-evaluation': 'Technical Evaluation',
+  'commercial-comparison': 'Commercial Comparison',
+  'terms-and-conditions': 'Terms & Conditions',
+  // WOP
+  'work-scope': 'Work Scope',
+  'material-list': 'Material List',
+  'labour-estimate': 'Labour Estimate',
+  'safety-plan': 'Safety Plan',
+  'schedule-plan': 'Schedule Plan',
+  // PO
+  'purchase-order-doc': 'Purchase Order',
+  'vendor-acknowledgement': 'Vendor Acknowledgement',
+  'delivery-schedule': 'Delivery Schedule',
+  'inspection-waiver': 'Inspection Waiver',
+  // WO
+  'work-order-doc': 'Work Order',
+  'completion-record': 'Completion Record',
+  'time-sheet': 'Time Sheet',
+  // DR
+  'dispatch-readiness-checklist': 'Dispatch Readiness Checklist',
+  'customer-approval': 'Customer Approval',
+  'insurance-document': 'Insurance Document',
+  'weight-certificate': 'Weight Certificate',
+  // CR
+  'commissioning-plan': 'Commissioning Plan',
+  'pre-commissioning-checklist': 'Pre-Commissioning Checklist',
+  'punch-list': 'Punch List',
+  'handover-certificate': 'Handover Certificate',
+  'operating-procedure': 'Operating Procedure',
+  'as-built-confirmation': 'As-Built Confirmation',
+  // BR
+  'billing-milestone-certificate': 'Billing Milestone Certificate',
+  'measurement-sheet': 'Measurement Sheet',
+  'tax-invoice-draft': 'Tax Invoice (Draft)',
+  'payment-claim': 'Payment Claim',
+  // INV
+  'tax-invoice': 'Tax Invoice',
+  'proforma-invoice': 'Proforma Invoice',
+  'debit-note': 'Debit Note',
+  'credit-note': 'Credit Note',
+  'payment-advice': 'Payment Advice',
+  'receipt-acknowledgement': 'Receipt Acknowledgement',
+  // EPC_GENERAL
   'design-calc': 'Design Calculation',
   'datasheet': 'Datasheet',
   'material-cert': 'Material Certificate',
@@ -161,11 +333,26 @@ export function getLabelOptions(family: LabelFamily): Array<{ value: string; lab
 
 export function getDocTypeLabelFamily(docType: string): LabelFamily {
   const upper = docType.toUpperCase();
-  if (upper === 'ECR') return 'ECR';
-  if (upper === 'ECN') return 'ECN';
-  if (upper === 'DSP') return 'DSP';
-  if (upper === 'INS') return 'INS';
-  if (upper === 'CO') return 'CO';
-  if (upper === 'QTN') return 'QTN';
-  return 'EPC_GENERAL';
+  const map: Record<string, LabelFamily> = {
+    ECR: 'ECR',
+    ECN: 'ECN',
+    DSP: 'DSP',
+    INS: 'INS',
+    CO:  'CO',
+    QTN: 'QTN',
+    QTN_PRE: 'QTN_PRE',
+    PLN: 'PLN',
+    BUY: 'BUY',
+    MFG: 'MFG',
+    QPL: 'QPL',
+    POP: 'POP',
+    WOP: 'WOP',
+    PO:  'PO',
+    WO:  'WO',
+    DR:  'DR',
+    CR:  'CR',
+    BR:  'BR',
+    INV: 'INV',
+  };
+  return map[upper] ?? 'EPC_GENERAL';
 }
