@@ -260,6 +260,36 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
         drawingControlId: ecr.drawing_control_id, approvedBy: userId,
       }, 'drawing_ecr');
 
+      const ecrApprProjectCode = await resolveProjectCode(ecr.project_id, db);
+      const ecrApprDesignLead = await resolveAssignee(ecr.project_id, 'Engineering', userId, db);
+      const ecrApprPM = await resolveManagerId(ecr.project_id, db);
+
+      // Alert the original requester that their ECR has been approved
+      const ecrApprRecipients = [
+        ecr.requested_by,
+        ecrApprDesignLead,
+        ecrApprPM,
+      ].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+
+      await createEpcAlertMulti(ecrApprRecipients, {
+        type: 'epc_ecr_approved',
+        title: `ECR ${ecr.document_number} Approved`,
+        message: `Engineering Change Request ${ecr.document_number} on project ${ecrApprProjectCode} has been approved. An Engineering Change Notice (ECN) can now be raised to implement the change. Description: ${ecr.description}`,
+        link: '/epc/drawing-controls', priority: 'high',
+        sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+        entityType: 'ecr', recordId: id, actionCode: 'ecr_approved',
+      });
+
+      // Task for Engineering Lead — raise the ECN
+      if (ecrApprDesignLead) {
+        await createEpcTask({
+          projectId: ecr.project_id, entityType: 'ecr', recordId: id, actionCode: 'ecn_raise',
+          title: `Raise ECN for approved ECR ${ecr.document_number} on ${ecrApprProjectCode}`,
+          description: `ECR ${ecr.document_number} has been approved. Raise an Engineering Change Notice (ECN) to implement the change. Reason: ${ecr.reason}. Description: ${ecr.description}`,
+          assignedTo: ecrApprDesignLead, createdBy: userId, priority: 'High', dueDays: 5,
+        });
+      }
+
       console.log(`[ECR] ${ecr.document_number} approved by user ${userId}`);
       res.json({ success: true, message: `ECR ${ecr.document_number} approved` });
     } catch (error) {
@@ -521,16 +551,62 @@ export function setupDrawingEcrEcnRoutes(app: express.Express) {
       const projectCode = await resolveProjectCode(dwg.project_id, db);
       const designLead = await resolveAssignee(dwg.project_id, 'Engineering', userId, db);
       const pm = await resolveManagerId(dwg.project_id, db);
-      const recipients = [designLead, pm].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+      const procurementLead = await resolveAssignee(dwg.project_id, 'Purchase', userId, db);
+      const productionLead = await resolveAssignee(dwg.project_id, 'Production', userId, db);
 
-      if (recipients.length > 0) {
-        await createEpcAlertMulti(recipients, {
-          type: 'epc_supersession',
+      // Resolve the original ECR requester (if this ECN stems from an ECR)
+      let ecrRequester: number | null = null;
+      if (ecn.ecr_id) {
+        const ecrRow = await db.execute(sql`SELECT requested_by FROM engineering_change_requests WHERE id = ${ecn.ecr_id}`);
+        if (ecrRow.rows.length > 0) ecrRequester = (ecrRow.rows[0] as any).requested_by;
+      }
+
+      const ecnImplBase = {
+        type: 'epc_supersession' as const, sourceType: 'epc_automation' as const,
+        sourceId: id, createdBy: userId,
+        entityType: 'drawing_control', recordId: drawingControlId, actionCode: 'ecn_implemented',
+      };
+
+      // Engineering, PM, and ECR requester alert
+      const enggRecipients = [designLead, pm, ecrRequester].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+      if (enggRecipients.length > 0) {
+        await createEpcAlertMulti(enggRecipients, {
+          ...ecnImplBase,
           title: `ECN ${ecn.document_number} implemented — Drawing ${dwg.dwg_control_number} revised`,
           message: `ECN ${ecn.document_number} has been implemented on project ${projectCode}. Drawing ${dwg.dwg_control_number} superseded from Rev ${dwg.revision_code} to Rev ${nextRevisionCode}. Review downstream BOMs and execution records.`,
           link: '/epc/drawing-controls', priority: 'high',
-          sourceType: 'epc_automation', sourceId: id, createdBy: userId,
-          entityType: 'drawing_control', recordId: drawingControlId, actionCode: 'ecn_implemented',
+        });
+      }
+
+      // Procurement alert — POs may reference the old drawing revision
+      if (procurementLead) {
+        await createEpcAlertMulti([procurementLead], {
+          ...ecnImplBase,
+          title: `PO Alert: Drawing ${dwg.dwg_control_number} revised via ECN (Rev ${dwg.revision_code} → ${nextRevisionCode})`,
+          message: `ECN ${ecn.document_number} on project ${projectCode} has been implemented. Drawing ${dwg.dwg_control_number} is now at Rev ${nextRevisionCode}. Review all open Purchase Orders — any PO referencing the old revision must be updated or held pending the new revision release.`,
+          link: '/epc/purchase-orders', priority: 'high',
+        });
+        await createEpcTask({
+          projectId: dwg.project_id, entityType: 'drawing_control', recordId: result.id, actionCode: 'po_ecn_review',
+          title: `PO Review: Drawing ${dwg.dwg_control_number} revised via ECN ${ecn.document_number}`,
+          description: `ECN ${ecn.document_number} revised Drawing ${dwg.dwg_control_number} from Rev ${dwg.revision_code} to Rev ${nextRevisionCode} on ${projectCode}. Review all open POs on this project — procurement against the old revision must be put on hold pending the new revision release.`,
+          assignedTo: procurementLead, createdBy: userId, priority: 'High', dueDays: 3,
+        });
+      }
+
+      // Production alert — MOs/WOs may reference the old drawing revision
+      if (productionLead) {
+        await createEpcAlertMulti([productionLead], {
+          ...ecnImplBase,
+          title: `MO Alert: Drawing ${dwg.dwg_control_number} revised via ECN (Rev ${dwg.revision_code} → ${nextRevisionCode})`,
+          message: `ECN ${ecn.document_number} on project ${projectCode} has been implemented. Drawing ${dwg.dwg_control_number} is now at Rev ${nextRevisionCode}. Review all open Manufacturing / Work Orders — shop-floor execution against the old revision must be reviewed before proceeding.`,
+          link: '/epc/work-orders', priority: 'high',
+        });
+        await createEpcTask({
+          projectId: dwg.project_id, entityType: 'drawing_control', recordId: result.id, actionCode: 'mo_ecn_review',
+          title: `MO Review: Drawing ${dwg.dwg_control_number} revised via ECN ${ecn.document_number}`,
+          description: `ECN ${ecn.document_number} revised Drawing ${dwg.dwg_control_number} from Rev ${dwg.revision_code} to Rev ${nextRevisionCode} on ${projectCode}. Review all open Manufacturing / Work Orders on this project — execution against the old drawing revision must be reviewed before shop-floor work proceeds.`,
+          assignedTo: productionLead, createdBy: userId, priority: 'High', dueDays: 3,
         });
       }
 
