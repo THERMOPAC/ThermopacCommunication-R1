@@ -702,14 +702,16 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(404).json({ error: 'Project not found' });
       }
       
-      // Check if user is authorized
-      const projectMembers = await storage.getProjectMembers(projectId);
-      const userMember = projectMembers.find(member => 
-        member.userId === userId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
-      );
-      
-      if (!userMember) {
-        return res.status(403).json({ error: 'Not authorized to add members to this project' });
+      // Check if user is authorized — Superuser/Senior Manager bypass membership requirement
+      const canAdminister = canManage(req.user!.role, 'Senior Manager');
+      if (!canAdminister) {
+        const projectMembers = await storage.getProjectMembers(projectId);
+        const userMember = projectMembers.find(member =>
+          member.userId === userId && (member.role === 'senior_manager' || member.role === 'project_manager')
+        );
+        if (!userMember) {
+          return res.status(403).json({ error: 'Not authorized to add members to this project' });
+        }
       }
       
       const memberData = insertProjectMemberSchema.parse({
@@ -738,14 +740,16 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(404).json({ error: 'Project not found' });
       }
       
-      // Check if user is authorized
-      const projectMembers = await storage.getProjectMembers(projectId);
-      const userMember = projectMembers.find(member => 
-        member.userId === currentUserId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
-      );
-      
-      if (!userMember && currentUserId !== memberUserId) {
-        return res.status(403).json({ error: 'Not authorized to remove members from this project' });
+      // Check if user is authorized — Superuser/Senior Manager bypass membership requirement
+      const canAdministerDel = canManage(req.user!.role, 'Senior Manager');
+      if (!canAdministerDel && currentUserId !== memberUserId) {
+        const projectMembersForDel = await storage.getProjectMembers(projectId);
+        const userMember = projectMembersForDel.find(member =>
+          member.userId === currentUserId && (member.role === 'senior_manager' || member.role === 'project_manager')
+        );
+        if (!userMember) {
+          return res.status(403).json({ error: 'Not authorized to remove members from this project' });
+        }
       }
       
       await storage.removeProjectMember(projectId, memberUserId);
@@ -768,14 +772,16 @@ export function setupProjectRoutes(app: express.Express) {
         return res.status(404).json({ error: 'Project not found' });
       }
       
-      // Check if user is authorized
-      const projectMembers = await storage.getProjectMembers(projectId);
-      const userMember = projectMembers.find(member => 
-        member.userId === currentUserId && (member.role === 'senior_manager' || member.role === 'project_manager' || canManage(req.user!.role, 'Senior Manager'))
-      );
-      
-      if (!userMember) {
-        return res.status(403).json({ error: 'Not authorized to update member roles in this project' });
+      // Check if user is authorized — Superuser/Senior Manager bypass membership requirement
+      const canAdministerPut = canManage(req.user!.role, 'Senior Manager');
+      if (!canAdministerPut) {
+        const projectMembersForPut = await storage.getProjectMembers(projectId);
+        const userMember = projectMembersForPut.find(member =>
+          member.userId === currentUserId && (member.role === 'senior_manager' || member.role === 'project_manager')
+        );
+        if (!userMember) {
+          return res.status(403).json({ error: 'Not authorized to update member roles in this project' });
+        }
       }
       
       // Update member data
