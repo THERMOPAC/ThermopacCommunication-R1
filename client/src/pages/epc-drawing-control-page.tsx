@@ -576,11 +576,11 @@ export default function EpcDrawingControlPage() {
                                           {rec.cancelled_at && <DetailRow label="Cancelled" value={`${new Date(rec.cancelled_at).toLocaleString()} — "${rec.cancel_reason}"`} />}
                                           {rec.superseded_at && <DetailRow label="Superseded" value={`${new Date(rec.superseded_at).toLocaleString()} — "${rec.supersession_reason}"`} />}
                                           {rec.supersedes_id && <DetailRow label="Supersedes" value={`Record #${rec.supersedes_id}`} />}
-                                          {rec.project_item_id && (
+                                          {projectId && (
                                             <>
                                               <Separator className="my-1.5" />
                                               <div className="text-[10px] font-medium text-muted-foreground mb-1">GCS Storage</div>
-                                              <GcsPathDisplay projectItemId={rec.project_item_id} revisionCode={rec.revision_code} />
+                                              <GcsPathDisplay projectId={projectId} parentEntityId={rec.id} />
                                             </>
                                           )}
                                         </CardContent>
@@ -888,14 +888,31 @@ function useGcsPath(projectItemId: number | null) {
   });
 }
 
-function GcsPathDisplay({ projectItemId, revisionCode }: { projectItemId: number; revisionCode?: string }) {
-  const { data: gcsInfo, isLoading } = useGcsPath(projectItemId);
+function GcsPathDisplay({ projectId, parentEntityId }: { projectId: number; parentEntityId: number }) {
+  const { data: attachmentData, isLoading } = useQuery({
+    queryKey: ["/api/projects", projectId, "epc-documents", "DWG", parentEntityId, "attachments"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/projects/${projectId}/epc-documents/DWG/${parentEntityId}/attachments`);
+      return res as any;
+    },
+    enabled: !!projectId && !!parentEntityId,
+  });
+
   if (isLoading) return <div className="text-[9px] text-muted-foreground">Loading GCS path...</div>;
-  if (!gcsInfo) return <div className="text-[9px] text-muted-foreground">Path not available (no barcode)</div>;
-  const fullPath = `${gcsInfo.basePath}/${gcsInfo.codeBars}_rev-${revisionCode || 'XX'}.pdf`;
+
+  // Find the active attachment from the current revision group
+  const revisions: any[] = attachmentData?.revisions || [];
+  const currentRev = revisions.find((r: any) => r.isCurrent);
+  const activeAtt = currentRev?.attachments?.find((a: any) => a.status === "active");
+  const activePath = activeAtt?.gcsPath;
+
+  if (!activePath) {
+    return <div className="text-[9px] text-muted-foreground italic">No active file uploaded yet</div>;
+  }
+
   return (
     <div className="font-mono text-[9px] bg-slate-50 border rounded px-2 py-1.5 break-all text-slate-700">
-      {fullPath}
+      {activePath}
     </div>
   );
 }
