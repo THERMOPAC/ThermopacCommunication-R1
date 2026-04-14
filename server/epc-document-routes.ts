@@ -176,6 +176,26 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           );
         }
 
+        // For revision-controlled types (DWG/BOM), the GCS path is deterministic.
+        // If an active record already occupies this path, supersede it so the
+        // unique constraint is freed before the new record is inserted.
+        const existingAtPath = await tx.execute(
+          sql`SELECT id FROM epc_document_attachments
+              WHERE gcs_object_path = ${gcsObjectPath} AND status = 'active'`
+        );
+        if (existingAtPath.rows.length > 0) {
+          const existingId = (existingAtPath.rows[0] as any).id;
+          await tx.execute(
+            sql`UPDATE epc_document_attachments
+                SET status = 'superseded',
+                    is_current = false,
+                    superseded_at = NOW(),
+                    superseded_by = ${userId},
+                    gcs_object_path = gcs_object_path || '-archived-' || id::text
+                WHERE id = ${existingId}`
+          );
+        }
+
         const [inserted] = await tx.insert(epcDocumentAttachments).values({
           parentEntityType: ENTITY_TABLE_MAP[docType].table,
           parentEntityId,
