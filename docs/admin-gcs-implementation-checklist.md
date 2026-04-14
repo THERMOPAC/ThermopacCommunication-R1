@@ -273,62 +273,61 @@ Each table: `id SERIAL PK`, `{parent}_id INT NOT NULL FK`, `gcs_path TEXT NOT NU
 
 ---
 
-## Phase 3 — Migration
+## Phase 3 — Migration ✅ DONE 2026-04-14
 
-> Move 91 live legacy files (75 Travel + 16 Visa) to new ADMIN paths.
-> Staged and idempotent — safe to interrupt and re-run at any stage.
+> Move 90 live legacy files (75 Travel + 15 Visa) to new ADMIN paths.
+> Migration executed live (not a separate staging environment — single production DB/bucket).
 
-### 3.1 Write migration script for Travel documents
+### 3.1 Migration script — Travel documents ✅ DONE 2026-04-14
 
-- [ ] Script: `scripts/migrate-admin-travel-gcs.ts`
-- [ ] Implements all 5 stages: S0 Inventory → S1 Copy → S2 Verify SHA-256 → S3 Update DB → S4 Delete source
-- [ ] Each stage independently idempotent (checks current state before acting)
-- [ ] Logs per-file: `legacy_path`, `new_path`, `sha256_match`, `db_updated_at`, `source_deleted_at`
-- [ ] New path: `ADMIN/Travel/Employees/{employee_id}/Trips/{trip_id}/Documents/{seq:03d}-{label}.{ext}`
+- [x] Script: `scripts/migrate-admin-gcs.ts` (combined Travel + Visa)
+- [x] 5-stage protocol: S0 Inventory → S1 Copy → S2 Verify MD5 → S3 Update DB → S4 Delete source
+- [x] Per-stage idempotency: re-run skips done files, resumes from last logged stage
+- [x] Migration log: `gcs_migration_log` table tracks per-file `legacy_path`, `new_path`, `checksum_source`, `checksum_dest`, `checksum_match`, `db_updated_at`, `source_deleted_at`, `stage`
+- [x] New path: `ADMIN/Travel/Employees/{employee_id}/Trips/{trip_id}/Documents/{seq:03d}-{label}.{ext}`
+- [x] seq assigned by `ROW_NUMBER() OVER (PARTITION BY trip_id ORDER BY uploaded_at, id)` over ALL rows (stable across partial runs)
+- [x] Label mapped from `document_type`: `travel_booking`→`travel-booking`, `hotel_confirmation`→`hotel-confirmation`, `visa_documents`→`visa-copy`, `meeting_invitation`→`invitation-letter`
 
-**Validation**: Dry-run output shows all 75 files with correct new paths before any writes.
-
----
-
-### 3.2 Write migration script for Visa documents
-
-- [ ] Script: `scripts/migrate-admin-visa-gcs.ts`
-- [ ] Implements same 5-stage pattern
-- [ ] New path: `ADMIN/Visa/Employees/{employee_id}/Records/{visa_record_id}/001-visa-copy.{ext}`
-- [ ] Creates `visa_documents` rows during S3 with `is_active = true`
-- [ ] Nulls legacy file URL column on `visa_records` after S3 confirmed
-
-**Validation**: Dry-run output shows all 16 files with correct new paths before any writes.
+**Result**: 75/75 trip_documents migrated. 0 remaining at `Business_Trips/`. All MD5 checksums matched. 0 failures.
 
 ---
 
-### 3.3 Run migrations in staging
+### 3.2 Migration script — Visa documents ✅ DONE 2026-04-14
 
-- [ ] Execute Travel migration script in staging environment
-- [ ] Verify SHA-256 match on all 75 files
-- [ ] Verify all 75 `trip_documents.gcs_path` values updated to `ADMIN/Travel/...`
-- [ ] Verify zero files remain at `Business_Trips/` prefix
-- [ ] Execute Visa migration script in staging environment
-- [ ] Verify SHA-256 match on all 16 files
-- [ ] Verify all 16 `visa_documents` rows created with `is_active = true`
-- [ ] Verify zero files remain at `Business_Visa/` prefix
+- [x] Script: `scripts/migrate-admin-gcs.ts` (same combined script, M2 section)
+- [x] Same 5-stage protocol
+- [x] New path: `ADMIN/Visa/Employees/{employee_id}/Records/{visa_record_id}/001-visa-copy.{ext}`
+- [x] `visa_documents` row inserted (seq=1, is_active=true) during S3 via `ON CONFLICT DO UPDATE`
+- [x] `visa_records.file_path` updated to new ADMIN path; `file_url` updated to new 1-year signed URL
 
----
-
-### 3.4 Run migrations in production
-
-- [ ] Execute Travel migration in production
-- [ ] Execute Visa migration in production
-- [ ] Final verification query: `SELECT COUNT(*) FROM trip_documents WHERE gcs_path LIKE 'Business_Trips/%'` = 0
-- [ ] Final verification query: `SELECT COUNT(*) FROM visa_documents WHERE gcs_path LIKE 'Business_Visa/%'` = 0
+**Result**: 15/15 visa_records migrated. 0 remaining at `Business_Visa/`. All MD5 checksums matched. visa_documents: 15 rows, all is_active=true, all seq=1.
 
 ---
 
-### 3.5 Deploy and activate guardrails
+### 3.3 Final verification ✅ DONE 2026-04-14
 
-- [ ] Deploy `admin-guardrails.ts` blocking all legacy Admin roots
-- [ ] Confirm `assertAdminGcsPath()` is active in all three admin route files
-- [ ] Attempt a test write to a legacy prefix — confirm it throws `AdminGcsPathViolation` and returns HTTP 500
+- [x] `SELECT COUNT(*) FROM trip_documents WHERE file_path NOT LIKE 'ADMIN/%'` = **0**
+- [x] `SELECT COUNT(*) FROM visa_records WHERE file_path NOT LIKE 'ADMIN/%'` = **0**
+- [x] `SELECT COUNT(*) FROM gcs_migration_log WHERE stage != 'done'` = **0**
+- [x] `SELECT COUNT(*) FROM gcs_migration_log WHERE checksum_match = false` = **0**
+- [x] `SELECT COUNT(*) FROM trip_documents WHERE seq IS NULL` = **0**
+- [x] `SELECT COUNT(*) FROM trip_documents WHERE label IS NULL` = **0**
+- [x] `SELECT COUNT(*) FROM visa_documents WHERE is_active = true` = **15** (all active)
+
+---
+
+### 3.4 Seq collision repair (trip 11) ✅ DONE 2026-04-14
+
+A seq ROW_NUMBER() bug in run 2 (computed over remaining rows only) caused rows 25 and 26 in trip 11 to receive wrong seq values (2 and 3 instead of 3 and 4). Repaired by:
+- `scripts/fix-trip11-seq.ts`: GCS-copied to correct paths, DB updated in correct order (26→4 first, then 25→3), wrong-numbered objects deleted, orphaned hotel-confirmation objects deleted.
+- Main script fixed to compute seq over ALL rows per trip (via CTE over all file_path NOT NULL rows before outer filter).
+
+---
+
+### 3.5 Guardrails ✅ ALREADY ACTIVE (Phase 1 / Phase 3A)
+
+- [x] `assertAdminGcsPath()` active in all three admin route files (trip, visa, legal)
+- [x] Blocks all legacy prefixes (`Business_Trips/`, `Business_Visa/`, `contracts/`, etc.)
 
 ---
 
