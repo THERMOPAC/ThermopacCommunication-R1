@@ -9689,7 +9689,7 @@ export function setupProjectRoutes(app: express.Express) {
           clientApprovalRequired: rec.client_approval_required,
           clientApprovalStatus: rec.client_approval_required ? 'pending' : 'not_required',
           status: 'draft',
-          notes: `Supersedes Rev ${rec.revision_code}. Reason: ${supersessionReason}`,
+          notes: `Supersedes Rev ${rec.revision_code} (was ${rec.status}). Reason: ${supersessionReason}`,
           createdBy: userId,
         }).returning();
 
@@ -10349,7 +10349,7 @@ export function setupProjectRoutes(app: express.Express) {
           classificationSnapshot: rec.classification_snapshot,
           drawingNumber: rec.drawing_number,
           drawingRevision: rec.drawing_revision,
-          notes: `Supersedes Rev ${rec.revision_code}. Reason: ${supersessionReason}`,
+          notes: `Supersedes Rev ${rec.revision_code} (was ${rec.status}). Reason: ${supersessionReason}`,
           createdBy: userId,
         }).returning();
 
