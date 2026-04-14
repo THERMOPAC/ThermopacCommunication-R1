@@ -267,10 +267,38 @@ export function setupProjectRoutes(app: express.Express) {
         projectId: project.id,
         userId,
         role: 'project_manager',
-        assignedDate: new Date(), // Use Date object instead of string
-        isActive: true
+        assignedDate: new Date(),
+        isActive: true,
+        visibilityScope: 'project_all'
       });
-      
+
+      // Auto-add all active users from core project departments
+      const AUTO_DEPARTMENTS = ['Design', 'Projects', 'Production', 'Quality Control'];
+      const AUTO_ROLES = ['Employee', 'Senior Executive', 'Manager', 'Senior Manager'];
+      const autoMemberRows = await db.execute(
+        sql`SELECT id, role FROM users
+            WHERE is_active = true
+              AND department = ANY(${AUTO_DEPARTMENTS}::text[])
+              AND role = ANY(${AUTO_ROLES}::text[])
+              AND id != ${userId}`
+      );
+      for (const u of autoMemberRows.rows as any[]) {
+        const memberRole = u.role === 'Senior Manager' ? 'senior_manager'
+                         : u.role === 'Manager' ? 'manager'
+                         : 'team_member';
+        try {
+          await storage.addProjectMember({
+            projectId: project.id,
+            userId: u.id,
+            role: memberRole,
+            assignedDate: new Date(),
+            isActive: true,
+            visibilityScope: 'project_all'
+          });
+        } catch (_) { /* skip duplicates */ }
+      }
+      console.log(`[PROJECT_INIT] Auto-added ${autoMemberRows.rows.length} team members from core departments to project ${project.id}`);
+
       // Create default EPC lifecycle phases (6 phases) with department-based leads
       const epcPhases = [
         { name: 'Design & Engineering', description: 'Engineering design, drawings, and technical documentation', department: 'Design' },
