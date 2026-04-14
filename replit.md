@@ -31,6 +31,19 @@ The system is a full-stack web application employing organized, hierarchical dat
     - **GCS Governance Remediation (Rev 4 baseline — FINAL, Zero-Trust Compliant)**: Reference document: `docs/gcs-governance-rev4-closure.md`. All governed writes enforce `TPEL/{CC}/{CO}/{Cust}/{FY}/{NNN}/…` root (G1). Eight covered document families: DWG, QTN, INS, ECR, ECN, DSP, CO, TEMPLATE. Ten non-negotiable rules in force (G1–G10): TPEL root mandatory, one builder per family (`buildDrawingGcsPath`, `buildEpcGcsPath`, `buildEpcQtnGcsPath`, `uploadTemplateToGcs`), `assertGcsPath()` called on every path, legacy prefixes (`QMS/`, `EPC/`, `THERMOPAC_PROJECTS/`, `engineering_changes/`) blocked by guardrail, G8 controlled vocabulary enforced with HTTP 422 on all upload routes, signed URLs only, ECR/ECN require `project_id` (HTTP 422 if absent), no silent fallback on geo resolution failure. Vocabulary source of truth: `shared/gcs-label-vocabulary.ts`. Zero-Trust audit confirmed: 287/287 `epc_document_attachments` rows at TPEL paths; zero non-TPEL paths in any governed table. Any new document flow must comply with `docs/gcs-governance-rev4-closure.md` — no deviations without formal review.
     - **Agent Usage Tracker**: Local budget monitoring for Replit Agent Usage with configurable monthly/daily limits, warning thresholds at 50%/75%/90%/100%, soft-block messages, sidebar progress indicator (Superuser only), manual daily usage logging, and projected monthly cost display. Route: `/usage-tracker`, API: `/api/usage-tracker`.
 
+## Administration GCS Governance
+
+- **Reference document**: `docs/admin-gcs-remediation-plan-v2.md` (Rev 2 — Approved Baseline, 2026-04-14)
+- **Implementation checklist**: `docs/admin-gcs-implementation-checklist.md`
+- **Root**: All Administration module files must use `ADMIN/` root only. No other root is permitted for any Admin-domain upload.
+- **ID rule**: Stable system-assigned IDs only in all path segments. Names, display strings, usernames, and user-entered text are never permitted in any path segment.
+- **Guardrail**: `assertAdminGcsPath()` in `server/admin-guardrails.ts` must be called before every `bucket.file()` call in all Administration route files. Throws `AdminGcsPathViolation` on any blocked or malformed path.
+- **Blocked legacy roots**: `Business_Trips/`, `Business_Visa/`, `visa-documents/`, `contracts/`, `compliance/`, `posh-cases/`, `legal-notices/`, `policy-templates/`, `nda-agreements/`, `exclusivity-agreements/`
+- **Active modules**: Travel Documents (75 live files — migrate), Visa Records (16 live files — migrate)
+- **Broken modules** (silent upload failures — fix in Phase 1): Legal Contracts, Compliance Register, POSH Cases, Legal Notices, Policy Templates, NDA Agreements, Exclusivity Agreements, Visa secondary upload
+- **Future modules**: Trip Expenses, Leave Attachments, Payslips, Loans, Advances, Investment Proofs, Statutory Challans, Advance Tax, Appraisal Letters
+- **Not-needed modules** (no GCS): Attendance, Payroll compute, Tax Declarations, DWAR, Schengen, Work Locations, Permissions, 2FA, Notifications
+
 # External Dependencies
 - **Google Cloud Services**: Google Cloud Storage, Google Calendar API, Google OAuth 2.0, Google Custom Search JSON API.
 - **Database Services**: Neon (PostgreSQL hosting).
