@@ -70,10 +70,12 @@ export function validateFyCode(code: string): boolean {
 }
 
 export function incrementRevisionCode(current: string): string {
+  // Numeric codes (e.g. "00", "01") represent the preliminary/draft phase.
+  // The first supersession transitions to the alpha series starting at "A".
   if (/^\d+$/.test(current)) {
-    const num = parseInt(current, 10) + 1;
-    return num.toString().padStart(2, '0');
+    return 'A';
   }
+  // Alpha series: A → B → ... → Z → AA → AB → ...
   if (current.length === 1) {
     if (current === 'Z') return 'AA';
     return String.fromCharCode(current.charCodeAt(0) + 1);
