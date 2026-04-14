@@ -50,8 +50,10 @@ async function lookupParentEntity(docType: string, parentEntityId: number, proje
   }
   const extraCols = (docType === 'DWG' || docType === 'BOM') ? ', revision_code, is_current' : '';
   const piJoin = (docType === 'DWG') ? ', project_item_id' : '';
+  // INS: fetch drawing_no so the filename can include {drawingNumber} per the spec (G7 / R10)
+  const insCol = (docType === 'INS') ? ', drawing_no' : '';
   const result = await db.execute(
-    sql`SELECT id, ${sql.raw(mapping.numberColumn)} AS document_number, project_id, status${sql.raw(extraCols)}${sql.raw(piJoin)} FROM ${sql.raw(mapping.table)} WHERE id = ${parentEntityId} AND project_id = ${projectId}`
+    sql`SELECT id, ${sql.raw(mapping.numberColumn)} AS document_number, project_id, status${sql.raw(extraCols)}${sql.raw(piJoin)}${sql.raw(insCol)} FROM ${sql.raw(mapping.table)} WHERE id = ${parentEntityId} AND project_id = ${projectId}`
   );
   return result.rows.length > 0 ? result.rows[0] as any : null;
 }
@@ -169,10 +171,13 @@ export function setupEpcDocumentRoutes(app: express.Express) {
             );
           }
         } else {
+          // INS: pass drawing_no so buildEpcGcsPath generates {seq}-{drawingNumber}-{label}.{ext} per spec
+          const insDrawingNo = (docType === 'INS') ? (parent.drawing_no || undefined) : undefined;
           gcsObjectPath = epcCoding.buildEpcGcsPath(
             geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
             geo.projectSeq, docType, documentNumber,
-            revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
+            revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname,
+            insDrawingNo
           );
         }
 
