@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getLabelOptions } from '@shared/gcs-label-vocabulary';
 import { formatDistanceToNow } from 'date-fns';
 import { 
   Plus, 
@@ -1121,11 +1122,8 @@ const EngineeringChangeManagement: React.FC<EngineeringChangeManagementProps> = 
                   <SelectValue placeholder="Select from controlled vocabulary..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {(currentDocumentTarget?.type === 'ecn'
-                    ? ['change-notice','revised-drawing','updated-spec','implementation-record','close-out-report']
-                    : ['change-request-form','supporting-analysis','affected-drawing','impact-assessment','cost-estimate','schedule-impact']
-                  ).map(opt => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  {getLabelOptions(currentDocumentTarget?.type === 'ecn' ? 'ECN' : 'ECR').map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -7,18 +7,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Upload, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { getLabelOptions } from '@shared/gcs-label-vocabulary';
 
-// G8: INS controlled label vocabulary
-const INS_LABELS = [
-  'inspection-report',
-  'test-certificate',
-  'witness-record',
-  'third-party-report',
-  'ndt-certificate',
-  'hardness-test',
-  'dimensional-report',
-  'material-traceability',
-];
+// G8: INS controlled label vocabulary (via shared vocabulary — no free-text)
+const INS_LABEL_OPTIONS = getLabelOptions('INS');
 
 interface InspectionDocumentUploadProps {
   inspectionOrderNumber: string;
@@ -155,8 +147,8 @@ const InspectionDocumentUpload: React.FC<InspectionDocumentUploadProps> = ({
                   <SelectValue placeholder="Select from controlled vocabulary..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {INS_LABELS.map(opt => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  {INS_LABEL_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -174,6 +174,13 @@ export const GCS_LABEL_VOCABULARY = {
     'pressure-test',
     'hydro-test',
   ],
+  TEMPLATE: [
+    'quotation-template',
+    'technical-submittal',
+    'cover-letter',
+    'bill-of-quantities',
+    'transmittal-template',
+  ],
 } as const;
 
 export type LabelFamily = keyof typeof GCS_LABEL_VOCABULARY;

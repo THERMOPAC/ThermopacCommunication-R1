@@ -18,6 +18,7 @@ import {
   FileText, Plus, Pencil, Trash2, Loader2, Download, Upload, Search, RefreshCw
 } from "lucide-react";
 import type { OfferTemplate } from "@shared/schema";
+import { getLabelOptions } from "@shared/gcs-label-vocabulary";
 
 const defaultSubjectOptions = [
   "Used Engine Oil Refinery Fully Automated PLC SCADA Control",
@@ -56,7 +57,7 @@ export default function OfferTemplatesPage() {
   const [formLabel, setFormLabel] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const TEMPLATE_LABELS = ['quotation-template','technical-submittal','cover-letter','bill-of-quantities','transmittal-template'];
+  const TEMPLATE_LABEL_OPTIONS = getLabelOptions('TEMPLATE');
 
   const { data: templates = [], isLoading } = useQuery<OfferTemplate[]>({
     queryKey: ['/api/sales-marketing/offer-templates'],
@@ -463,8 +464,8 @@ export default function OfferTemplatesPage() {
                   <Select value={formLabel} onValueChange={setFormLabel}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select from controlled vocabulary..." /></SelectTrigger>
                     <SelectContent>
-                      {TEMPLATE_LABELS.map(l => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
+                      {TEMPLATE_LABEL_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -213,7 +213,10 @@ export async function attachConfirmedArtifactToEpc(
     if (!continentCode || !countryCode || !proj.short_code) {
       return { success: false, error: `Customer geography codes missing for project ${projectId}` };
     }
-    const projectSeq = proj.project_seq || projectCode;
+    if (!proj.project_seq) {
+      return { success: false, error: `G3 violation: project ${projectId} has no project_seq. Assign a 3-digit sequence code before attaching EPC quotation artifacts.` };
+    }
+    const projectSeq = proj.project_seq;
 
     const seqResult = await pool.query(
       `SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq

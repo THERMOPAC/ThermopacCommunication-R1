@@ -74,6 +74,7 @@ function GateBadge({ label, active, required }: { label: string; active: boolean
   );
 }
 
+
 type DrawingControl = {
   id: number;
   dwg_control_number: string;
@@ -843,7 +844,11 @@ export default function EpcDrawingControlPage() {
               <DialogHeader>
                 <DialogTitle>{actionDialog.action?.label}</DialogTitle>
                 <DialogDescription>
-                  {actionDialog.record?.dwg_control_number} — Rev {actionDialog.record?.revision_code} • {actionDialog.record?.item_code}
+                  {actionDialog.record?.dwg_control_number} — Rev{" "}
+                  {actionDialog.record && projectId
+                    ? <LiveRevisionInline projectId={projectId} parentEntityId={actionDialog.record.id} fallback={actionDialog.record.revision_code} />
+                    : actionDialog.record?.revision_code
+                  } • {actionDialog.record?.item_code}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 py-2">
@@ -1033,6 +1038,11 @@ function LiveRevisionCell({ projectId, parentEntityId, isCurrent }: { projectId:
         : <span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" title="Superseded" />}
     </div>
   );
+}
+
+function LiveRevisionInline({ projectId, parentEntityId, fallback }: { projectId: number; parentEntityId: number; fallback?: string }) {
+  const { revisionCode, isLoading } = useActiveAttachment(projectId, parentEntityId);
+  return <span className="font-semibold">{isLoading ? "…" : (revisionCode ?? fallback ?? "—")}</span>;
 }
 
 function GcsPathDisplay({ projectId, parentEntityId }: { projectId: number; parentEntityId: number }) {

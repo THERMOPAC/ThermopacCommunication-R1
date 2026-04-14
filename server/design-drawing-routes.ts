@@ -309,20 +309,24 @@ router.post('/drawings/upload', authenticateUser, upload.single('file'), async (
 
     let gcsPath: string;
     const designProjectDbId = designProject[0].projectDbId;
-    if (designProjectDbId) {
-      try {
-        const geo = await resolveProjectGeoCodes(designProjectDbId);
-        const itemCode = (disciplineCode || 'PROJ').toUpperCase();
-        gcsPath = buildDrawingGcsPath(
-          geo.continentCode, geo.countryCode, geo.customerShortCode,
-          geo.fyCode, geo.projectSeq,
-          itemCode, drawingNumber, finalRevision, fileExtension
-        );
-      } catch {
-        gcsPath = `Design_Management/${projectCode}/Drawings/${drawingNumber}/${versionedFileName}`;
-      }
-    } else {
-      gcsPath = `Design_Management/${projectCode}/Drawings/${drawingNumber}/${versionedFileName}`;
+    // G5: No new writes to legacy paths. All uploads must use the TPEL governed path.
+    if (!designProjectDbId) {
+      return res.status(400).json({
+        error: 'G5 violation: This design project is not linked to an EPC project. Drawing uploads require a linked EPC project to generate a governed TPEL path. Link the design project to an EPC project before uploading.',
+      });
+    }
+    try {
+      const geo = await resolveProjectGeoCodes(designProjectDbId);
+      const itemCode = (disciplineCode || 'PROJ').toUpperCase();
+      gcsPath = buildDrawingGcsPath(
+        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.fyCode, geo.projectSeq,
+        itemCode, drawingNumber, finalRevision, fileExtension
+      );
+    } catch (geoErr: any) {
+      return res.status(400).json({
+        error: `G5 violation: Could not resolve TPEL geo-codes for the linked EPC project — ${geoErr?.message || 'unknown error'}. Ensure the project has continent/country/customer codes assigned.`,
+      });
     }
 
     // Upload to GCS
@@ -468,21 +472,24 @@ router.post('/drawings/:id/versions', authenticateUser, upload.single('file'), a
     const projectCode = drawing[0].projectCode || 'UNKNOWN';
     const fileExtB = file.originalname.split('.').pop() || 'pdf';
 
-    // Build TPEL governed GCS path via shared builder
+    // Build TPEL governed GCS path via shared builder (G5: no writes to legacy paths)
     let gcsPath: string;
-    if (drawing[0].projectDbId) {
-      try {
-        const geo = await resolveProjectGeoCodes(drawing[0].projectDbId);
-        gcsPath = buildDrawingGcsPath(
-          geo.continentCode, geo.countryCode, geo.customerShortCode,
-          geo.fyCode, geo.projectSeq,
-          'PROJ', drawing[0].drawingNumber, newRevision, fileExtB
-        );
-      } catch {
-        gcsPath = `Design_Management/Drawings/${projectCode}/${drawing[0].drawingNumber}/${file.originalname}`;
-      }
-    } else {
-      gcsPath = `Design_Management/Drawings/${projectCode}/${drawing[0].drawingNumber}/${file.originalname}`;
+    if (!drawing[0].projectDbId) {
+      return res.status(400).json({
+        error: 'G5 violation: This drawing is not linked to an EPC project. Revision uploads require a linked EPC project to generate a governed TPEL path.',
+      });
+    }
+    try {
+      const geo = await resolveProjectGeoCodes(drawing[0].projectDbId);
+      gcsPath = buildDrawingGcsPath(
+        geo.continentCode, geo.countryCode, geo.customerShortCode,
+        geo.fyCode, geo.projectSeq,
+        'PROJ', drawing[0].drawingNumber, newRevision, fileExtB
+      );
+    } catch (geoErr: any) {
+      return res.status(400).json({
+        error: `G5 violation: Could not resolve TPEL geo-codes — ${geoErr?.message || 'unknown error'}. Ensure the project has continent/country/customer codes assigned.`,
+      });
     }
 
     // Upload to GCS
