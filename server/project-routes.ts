@@ -9623,6 +9623,9 @@ export function setupProjectRoutes(app: express.Express) {
       if (['canceled', 'superseded', ON_HOLD_STATUS].includes(rec.status)) {
         return sendBusinessError(res, `Cannot supersede: record is '${rec.status}'.`);
       }
+      if (rec.status !== 'released') {
+        return sendBusinessError(res, 'Only a released drawing can be superseded. Cancel it instead if it has not been released.');
+      }
       if (!rec.is_current) {
         return sendBusinessError(res, 'Cannot supersede a non-current revision.');
       }
