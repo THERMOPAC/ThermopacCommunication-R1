@@ -546,40 +546,97 @@ export default function EpcDrawingControlPage() {
                                             )}
                                           </CardTitle>
                                         </CardHeader>
-                                        <CardContent className="px-3 pb-2 space-y-1">
-                                          <DetailRow label="DWG Control #" value={rec.dwg_control_number} mono />
-                                          <DetailRow label="Drawing No (Barcode)" value={rec.drawing_number} />
-                                          <DetailRow label="Drawing Title" value={rec.drawing_title} />
-                                          <DetailRow label="Drawing Revision" value={rec.drawing_revision} />
-                                          <DetailRow label="Revision Code" value={`${rec.revision_code}${rec.is_current ? " (current)" : " (superseded)"}`} />
-                                          <DetailRow label="Status" value={rec.status?.replace(/_/g, " ")} />
-                                          <DetailRow label="Item Code" value={rec.item_code} />
-                                          <DetailRow label="Item Description" value={<span className="text-blue-600">{rec.item_description}</span>} />
-                                          <DetailRow label="Classification" value={rec.classification_snapshot} />
-                                          <DetailRow label="Purpose" value={rec.drawing_purpose} />
-                                          <DetailRow label="Category" value={rec.drawing_category} />
-                                          <DetailRow label="Discipline" value={rec.discipline_code} />
-                                          {rec.notes && <DetailRow label="Notes" value={rec.notes} />}
-                                          <Separator className="my-1.5" />
-                                          <div className="text-[10px] font-medium text-muted-foreground mb-1">Release Truth</div>
-                                          <DetailRow label="Current Revision" value={rec.is_current ? `Yes (Rev ${rec.revision_code})` : `No — superseded`} />
-                                          <DetailRow label="Released for Procurement" value={rec.procurement_release_required ? (rec.released_for_procurement ? `✓ Yes${rec.released_for_procurement_at ? ` (${new Date(rec.released_for_procurement_at).toLocaleDateString()})` : ""}` : "○ Pending") : "Not Required"} />
-                                          <DetailRow label="Released for Manufacturing" value={rec.manufacturing_release_required ? (rec.released_for_manufacturing ? `✓ Yes${rec.released_for_manufacturing_at ? ` (${new Date(rec.released_for_manufacturing_at).toLocaleDateString()})` : ""}` : "○ Pending") : "Not Required"} />
-                                          <DetailRow label="Client Approval" value={rec.client_approval_required ? `${rec.client_approval_status || "pending"}${rec.client_approved_at ? ` (${new Date(rec.client_approved_at).toLocaleDateString()})` : ""}` : "Not Required"} />
-                                          <Separator className="my-1.5" />
-                                          <div className="text-[10px] font-medium text-muted-foreground mb-1">Audit Trail</div>
-                                          <DetailRow label="Created" value={rec.created_at ? new Date(rec.created_at).toLocaleString() : "—"} />
-                                          {rec.submitted_at && <DetailRow label="Submitted" value={`${new Date(rec.submitted_at).toLocaleString()}${rec.submission_note ? ` — "${rec.submission_note}"` : ""}`} />}
-                                          {rec.reviewed_at && <DetailRow label="Reviewed" value={`${new Date(rec.reviewed_at).toLocaleString()} — ${rec.review_recommendation}${rec.review_note ? ` — "${rec.review_note}"` : ""}`} />}
-                                          {rec.approved_at && <DetailRow label="Approved" value={`${new Date(rec.approved_at).toLocaleString()}${rec.approval_note ? ` — "${rec.approval_note}"` : ""}`} />}
-                                          {rec.released_at && <DetailRow label="Released" value={`${new Date(rec.released_at).toLocaleString()}${rec.release_note ? ` — "${rec.release_note}"` : ""}`} />}
-                                          {rec.cancelled_at && <DetailRow label="Cancelled" value={`${new Date(rec.cancelled_at).toLocaleString()} — "${rec.cancel_reason}"`} />}
-                                          {rec.superseded_at && <DetailRow label="Superseded" value={`${new Date(rec.superseded_at).toLocaleString()} — "${rec.supersession_reason}"`} />}
-                                          {rec.supersedes_id && <DetailRow label="Supersedes" value={`Record #${rec.supersedes_id}`} />}
+                                        <CardContent className="px-3 pb-3 space-y-2">
+                                          {/* ── Identity ── */}
+                                          <div>
+                                            <div className="font-mono text-[10px] text-muted-foreground">{rec.dwg_control_number}</div>
+                                            <div className="text-[11px] font-medium leading-snug mt-0.5">{rec.drawing_title || <span className="italic text-muted-foreground">No title</span>}</div>
+                                            {rec.item_description && (
+                                              <div className="text-[10px] text-blue-600 mt-0.5 leading-snug">{rec.item_description}</div>
+                                            )}
+                                          </div>
+
+                                          {/* ── Key fields 2-col grid ── */}
+                                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
+                                            <div className="text-muted-foreground">Drawing No</div>
+                                            <div className="font-mono">{rec.drawing_number || "—"}</div>
+                                            <div className="text-muted-foreground">Item Code</div>
+                                            <div className="font-mono">{rec.item_code || "—"}</div>
+                                            <div className="text-muted-foreground">Revision</div>
+                                            <div className="flex items-center gap-1">
+                                              <span className="font-mono">{rec.revision_code}</span>
+                                              {rec.drawing_revision && rec.drawing_revision !== rec.revision_code && (
+                                                <span className="text-muted-foreground">({rec.drawing_revision})</span>
+                                              )}
+                                              {rec.is_current
+                                                ? <span className="text-green-600 font-semibold">· current</span>
+                                                : <span className="text-orange-500">· superseded</span>}
+                                            </div>
+                                            {rec.drawing_purpose && <><div className="text-muted-foreground">Purpose</div><div>{rec.drawing_purpose}</div></>}
+                                            {rec.drawing_category && <><div className="text-muted-foreground">Category</div><div>{rec.drawing_category}</div></>}
+                                            {rec.discipline_code && <><div className="text-muted-foreground">Discipline</div><div>{rec.discipline_code}</div></>}
+                                            {rec.classification_snapshot && <><div className="text-muted-foreground">Classification</div><div>{rec.classification_snapshot}</div></>}
+                                          </div>
+
+                                          {rec.notes && (
+                                            <div className="text-[9px] bg-amber-50 border border-amber-200 rounded px-2 py-1 text-amber-800">{rec.notes}</div>
+                                          )}
+
+                                          {/* ── Release gates ── */}
+                                          <div>
+                                            <div className="text-[9px] text-muted-foreground font-medium mb-1">Release Gates</div>
+                                            <div className="flex flex-wrap gap-1">
+                                              {rec.procurement_release_required ? (
+                                                <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_procurement ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
+                                                  P · {rec.released_for_procurement ? `✓ ${rec.released_for_procurement_at ? new Date(rec.released_for_procurement_at).toLocaleDateString() : "released"}` : "pending"}
+                                                </span>
+                                              ) : (
+                                                <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">P · n/a</span>
+                                              )}
+                                              {rec.manufacturing_release_required ? (
+                                                <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_manufacturing ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
+                                                  M · {rec.released_for_manufacturing ? `✓ ${rec.released_for_manufacturing_at ? new Date(rec.released_for_manufacturing_at).toLocaleDateString() : "released"}` : "pending"}
+                                                </span>
+                                              ) : (
+                                                <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">M · n/a</span>
+                                              )}
+                                              {rec.client_approval_required ? (
+                                                <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.client_approval_status === "approved" ? "bg-green-50 text-green-700 border-green-300" : rec.client_approval_status === "rejected" ? "bg-red-50 text-red-600 border-red-300" : "bg-yellow-50 text-yellow-600 border-yellow-300"}`}>
+                                                  C · {rec.client_approval_status || "pending"}{rec.client_approved_at ? ` ${new Date(rec.client_approved_at).toLocaleDateString()}` : ""}
+                                                </span>
+                                              ) : (
+                                                <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">C · n/a</span>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* ── Audit trail (compact) ── */}
+                                          <div>
+                                            <div className="text-[9px] text-muted-foreground font-medium mb-0.5">Audit</div>
+                                            <div className="space-y-0.5">
+                                              {[
+                                                { label: "Created", date: rec.created_at, note: null },
+                                                { label: "Submitted", date: rec.submitted_at, note: rec.submission_note },
+                                                { label: "Reviewed", date: rec.reviewed_at, note: rec.review_recommendation },
+                                                { label: "Approved", date: rec.approved_at, note: rec.approval_note },
+                                                { label: "Released", date: rec.released_at, note: rec.release_note },
+                                                { label: "Superseded", date: rec.superseded_at, note: rec.supersession_reason },
+                                                { label: "Cancelled", date: rec.cancelled_at, note: rec.cancel_reason },
+                                              ].filter(e => e.date).map(e => (
+                                                <div key={e.label} className="flex items-baseline gap-1.5 text-[9px]">
+                                                  <span className="text-muted-foreground w-16 shrink-0">{e.label}</span>
+                                                  <span className="text-[8px] text-foreground/70">{new Date(e.date!).toLocaleDateString()}</span>
+                                                  {e.note && <span className="text-muted-foreground truncate max-w-[140px]" title={e.note}>— {e.note}</span>}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+
+                                          {/* ── GCS Storage ── */}
                                           {projectId && (
                                             <>
-                                              <Separator className="my-1.5" />
-                                              <div className="text-[10px] font-medium text-muted-foreground mb-1">GCS Storage</div>
+                                              <Separator className="my-1" />
+                                              <div className="text-[9px] text-muted-foreground font-medium mb-0.5">GCS Storage</div>
                                               <GcsPathDisplay projectId={projectId} parentEntityId={rec.id} />
                                             </>
                                           )}
