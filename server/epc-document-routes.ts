@@ -129,10 +129,11 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
 
       const isRevisionControlled = epcCoding.REVISION_CONTROLLED_TYPES.has(docType);
-      // DWG: normalize legacy numeric revision codes to alphabetic (Rev 4 Task #15: '00'→'A', '01'→'B'…)
-      // BOM: keep numeric format ('00', '01'…) as approved by the plan
-      const revisionCode = isRevisionControlled
-        ? (docType === 'DWG' ? normalizeDwgRevision(parent.revision_code) : (parent.revision_code || '00'))
+      // DWG revision is auto-incremented inside the transaction (see below).
+      // BOM: keep numeric format ('00', '01'…) as approved by the plan.
+      // Non-revision-controlled: null.
+      const revisionCode = (isRevisionControlled && docType !== 'DWG')
+        ? (parent.revision_code || '00')
         : null;
       const documentNumber = parent.document_number;
 
@@ -170,13 +171,40 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
 
       const txResult = await db.transaction(async (tx) => {
-        const seqResult = await tx.execute(
-          sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
-              FROM epc_document_attachments
-              WHERE document_number = ${documentNumber}
-              AND revision_code IS NOT DISTINCT FROM ${revisionCode}`
-        );
-        const attachmentSeq = (seqResult.rows[0] as any).next_seq;
+        // ── DWG: auto-increment alphabetic revision ──────────────────────────────
+        // Each DWG upload advances the revision letter (A→B→C…).
+        // Query the highest stored revision for this document_number, normalize any
+        // legacy numeric values ('00'→'A', '01'→'B'…), then take the next letter.
+        let effectiveRevisionCode: string | null = revisionCode; // BOM / non-RC default
+        let attachmentSeq: number;
+
+        if (docType === 'DWG') {
+          const lastRevResult = await tx.execute(
+            sql`SELECT revision_code FROM epc_document_attachments
+                WHERE document_number = ${documentNumber}
+                ORDER BY id DESC LIMIT 1`
+          );
+          const lastRaw = lastRevResult.rows.length > 0
+            ? (lastRevResult.rows[0] as any).revision_code as string | null
+            : null;
+
+          if (!lastRaw) {
+            effectiveRevisionCode = 'A'; // first ever upload
+          } else {
+            const lastNorm = normalizeDwgRevision(lastRaw); // handles '00'→'A' etc.
+            const code = lastNorm.charCodeAt(0);
+            effectiveRevisionCode = code < 90 ? String.fromCharCode(code + 1) : 'A'; // Z wraps → A (edge-case)
+          }
+          attachmentSeq = 1; // DWG: exactly one file per revision slot
+        } else {
+          const seqResult = await tx.execute(
+            sql`SELECT COALESCE(MAX(attachment_seq), 0) + 1 AS next_seq
+                FROM epc_document_attachments
+                WHERE document_number = ${documentNumber}
+                AND revision_code IS NOT DISTINCT FROM ${revisionCode}`
+          );
+          attachmentSeq = (seqResult.rows[0] as any).next_seq;
+        }
 
         let gcsObjectPath: string;
         if (docType === 'DWG' && parent.project_item_id) {
@@ -186,7 +214,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           const piData = piRow.rows[0] as any;
           if (piData?.code_bars) {
             const ext = req.file!.originalname.split('.').pop()?.toLowerCase() || 'pdf';
-            const rev = revisionCode || '00';
+            const rev = effectiveRevisionCode || 'A';
             gcsObjectPath = epcCoding.buildDrawingGcsPath(
               geo.continentCode, geo.countryCode, geo.customerShortCode,
               geo.fyCode, geo.projectSeq,
@@ -196,7 +224,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
             gcsObjectPath = epcCoding.buildEpcGcsPath(
               geo.continentCode, geo.countryCode, geo.customerShortCode, geo.fyCode,
               geo.projectSeq, docType, documentNumber,
-              revisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
+              effectiveRevisionCode, attachmentSeq, attachmentLabel, req.file!.originalname
             );
           }
         } else {
@@ -261,7 +289,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           docType,
           documentNumber,
           isRevisionControlled,
-          revisionCode,
+          revisionCode: effectiveRevisionCode,
           attachmentLabel,
           attachmentSeq,
           gcsBucket: 'thermopac_storage',
@@ -278,14 +306,14 @@ export function setupEpcDocumentRoutes(app: express.Express) {
         await tx.execute(sql`
           INSERT INTO project_workflow_events (project_id, event_name, event_payload, emitted_by, emitted_at)
           VALUES (${projectId}, 'epc_document.uploaded', ${JSON.stringify({
-            attachmentId: inserted.id, documentNumber, docType, revisionCode,
+            attachmentId: inserted.id, documentNumber, docType, revisionCode: effectiveRevisionCode,
             originalFileName: storedFileName, mimeType: req.file!.mimetype,
             fileSizeBytes: req.file!.size, checksumSha256: checksum,
             gcsObjectPath, uploadedBy: userId,
           })}::jsonb, 'epc_document_upload', NOW())
         `);
 
-        return { inserted, attachmentSeq, gcsObjectPath };
+        return { inserted, attachmentSeq, gcsObjectPath, effectiveRevisionCode };
       });
 
       const gcsFile = bucket.file(txResult.gcsObjectPath);
@@ -295,7 +323,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
           metadata: {
             documentNumber,
             docType,
-            revisionCode: revisionCode || 'na',
+            revisionCode: txResult.effectiveRevisionCode || 'na',
             projectId: String(projectId),
             uploadedBy: String(userId),
             checksumSha256: checksum,
@@ -311,7 +339,7 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       await db.insert(epcDocumentAccessLog).values({
         attachmentId: txResult.inserted.id,
         documentNumber,
-        revisionCode: revisionCode || null,
+        revisionCode: txResult.effectiveRevisionCode || null,
         docType,
         projectId,
         action: 'upload',
