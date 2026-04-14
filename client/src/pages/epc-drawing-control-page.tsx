@@ -472,11 +472,13 @@ export default function EpcDrawingControlPage() {
                               <TableCell className="text-[10px] font-mono font-medium py-1.5">{rec.dwg_control_number}</TableCell>
                               <TableCell className="text-[10px] py-1.5">{rec.drawing_number || <span className="text-muted-foreground italic">—</span>}</TableCell>
                               <TableCell className="text-center py-1.5">
-                                <div className="flex items-center justify-center gap-1">
-                                  <Badge variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">{rec.revision_code}</Badge>
-                                  {rec.is_current && <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" title="Current revision" />}
-                                  {!rec.is_current && <span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" title="Superseded" />}
-                                </div>
+                                {projectId
+                                  ? <LiveRevisionCell projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
+                                  : <div className="flex items-center justify-center gap-1">
+                                      <Badge variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">{rec.revision_code}</Badge>
+                                      {rec.is_current ? <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" /> : <span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" />}
+                                    </div>
+                                }
                               </TableCell>
                               <TableCell className="text-[10px] py-1.5">
                                 <div className="truncate max-w-[140px]" title={rec.item_description || ""}>{rec.item_code}</div>
@@ -965,6 +967,19 @@ function LiveRevisionBadge({ projectId, parentEntityId, isCurrent }: { projectId
       {isCurrent
         ? <span className="text-green-600 font-semibold">· current</span>
         : <span className="text-orange-500">· superseded</span>}
+    </div>
+  );
+}
+
+function LiveRevisionCell({ projectId, parentEntityId, isCurrent }: { projectId: number; parentEntityId: number; isCurrent: boolean }) {
+  const { revisionCode, isLoading } = useActiveAttachment(projectId, parentEntityId);
+  const display = isLoading ? "…" : (revisionCode || "—");
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <Badge variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">{display}</Badge>
+      {isCurrent
+        ? <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" title="Current revision" />
+        : <span className="h-1.5 w-1.5 rounded-full bg-orange-400 inline-block" title="Superseded" />}
     </div>
   );
 }
