@@ -36,6 +36,7 @@ import {
   Upload,
   Download,
   ChevronLeft,
+  ChevronDown,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -353,6 +354,57 @@ export default function DocumentControl({ projectId }: { projectId: number }) {
   );
 }
 
+/** Derive system-format filename from the GCS path (last path segment). */
+function systemFileName(gcsPath: string): string {
+  return gcsPath.split('/').pop() || gcsPath;
+}
+
+function DocRevisionTable({ revDocs, onDownload }: { revDocs: DocumentRecord[]; onDownload: (id: number) => void }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="text-xs">
+          <TableHead className="py-1">File</TableHead>
+          <TableHead className="py-1">Size</TableHead>
+          <TableHead className="py-1">Uploaded By</TableHead>
+          <TableHead className="py-1">Date</TableHead>
+          <TableHead className="py-1 text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {revDocs.map((doc, idx) => {
+          const displayName = systemFileName(doc.gcsObjectPath);
+          return (
+            <TableRow key={doc.id} className={`text-xs ${idx < revDocs.length - 1 ? "border-b-0" : ""}`}>
+              <TableCell className="py-2 pb-1">
+                <div className="flex items-center gap-2">
+                  {getFileIcon(displayName)}
+                  <span className="font-medium truncate max-w-[240px]" title={displayName}>
+                    {displayName}
+                  </span>
+                  {revDocs.length > 1 && (
+                    <Badge variant="outline" className="text-[10px]">#{doc.seqNumber}</Badge>
+                  )}
+                </div>
+                <code className="text-[10px] text-muted-foreground font-mono break-all block mt-1">{doc.gcsObjectPath}</code>
+              </TableCell>
+              <TableCell className="py-2">{formatFileSize(doc.fileSize)}</TableCell>
+              <TableCell className="py-2">{doc.uploaderName || "—"}</TableCell>
+              <TableCell className="py-2">{format(new Date(doc.uploadedAt), "dd MMM yyyy HH:mm")}</TableCell>
+              <TableCell className="py-2 text-right">
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => onDownload(doc.id)}>
+                  <Download className="h-3.5 w-3.5 mr-1" />
+                  Download
+                </Button>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
 function FolderDetailView({
   folder,
   docType,
@@ -372,19 +424,24 @@ function FolderDetailView({
   onDownload: (id: number) => void;
   uploadDialog: React.ReactNode;
 }) {
-  const activeRevision = documents.find((d) => d.status === "active")?.revision || null;
+  const [showHistory, setShowHistory] = useState(false);
+
   const activeDocs = documents.filter((d) => d.status === "active");
   const supersededDocs = documents.filter((d) => d.status === "superseded");
+  const activeRevision = activeDocs[0]?.revision || null;
 
-  const revisionGroups: Record<string, DocumentRecord[]> = {};
-  for (const doc of documents) {
-    if (!revisionGroups[doc.revision]) revisionGroups[doc.revision] = [];
-    revisionGroups[doc.revision].push(doc);
+  // Group superseded docs by revision for history display
+  const supersededRevGroups: Record<string, DocumentRecord[]> = {};
+  for (const doc of supersededDocs) {
+    if (!supersededRevGroups[doc.revision]) supersededRevGroups[doc.revision] = [];
+    supersededRevGroups[doc.revision].push(doc);
   }
-  const sortedRevisions = Object.keys(revisionGroups).sort((a, b) => parseInt(b) - parseInt(a));
+  const supersededRevisions = Object.keys(supersededRevGroups).sort((a, b) => parseInt(b) - parseInt(a));
+  const previousRevisionCount = supersededRevisions.length;
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -407,13 +464,12 @@ function FolderDetailView({
         </Button>
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="border">
           <CardContent className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Current Revision</p>
-            <p className="text-lg font-bold mt-1">
-              {activeRevision ? `Rev ${activeRevision}` : "—"}
-            </p>
+            <p className="text-lg font-bold mt-1">{activeRevision ? `Rev ${activeRevision}` : "—"}</p>
           </CardContent>
         </Card>
         <Card className="border">
@@ -425,7 +481,7 @@ function FolderDetailView({
         <Card className="border">
           <CardContent className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Total Revisions</p>
-            <p className="text-lg font-bold mt-1">{sortedRevisions.length}</p>
+            <p className="text-lg font-bold mt-1">{previousRevisionCount + (activeDocs.length > 0 ? 1 : 0)}</p>
           </CardContent>
         </Card>
         <Card className="border">
@@ -436,17 +492,18 @@ function FolderDetailView({
         </Card>
       </div>
 
+      {/* Main card: active revision only */}
       <Card className="border">
         <CardHeader className="pb-2 pt-4 px-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <History className="h-4 w-4" />
-              Revision History
+              {activeDocs.length > 0 ? `Current — Rev ${activeRevision}` : "Documents"}
             </CardTitle>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-default">
                     <Info className="h-3 w-3" />
                     Extensions: {docType.allowedExtensions.map((e) => `.${e}`).join(", ")}
                   </div>
@@ -470,78 +527,55 @@ function FolderDetailView({
               <p className="text-sm">No documents uploaded yet</p>
               <p className="text-xs mt-1">Upload the first revision to begin document control</p>
             </div>
+          ) : activeDocs.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <p className="text-sm">No active revision found</p>
+            </div>
           ) : (
-            <div className="space-y-4">
-              {sortedRevisions.map((rev) => {
-                const revDocs = revisionGroups[rev];
-                const isActive = revDocs[0].status === "active";
-                return (
-                  <div key={rev} className={`rounded-lg border ${isActive ? "border-green-300 bg-green-50/50" : "border-gray-200 bg-gray-50/50"} p-3`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant={isActive ? "default" : "secondary"} className={isActive ? "bg-green-600" : ""}>
-                        Rev {rev}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {isActive ? "Active" : "Superseded"}
-                      </Badge>
-                      {revDocs[0].supersededAt && (
-                        <span className="text-[10px] text-muted-foreground ml-auto">
-                          Superseded {format(new Date(revDocs[0].supersededAt), "dd MMM yyyy HH:mm")}
-                        </span>
-                      )}
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="text-xs">
-                          <TableHead className="py-1">File</TableHead>
-                          <TableHead className="py-1">Size</TableHead>
-                          <TableHead className="py-1">Uploaded By</TableHead>
-                          <TableHead className="py-1">Date</TableHead>
-                          <TableHead className="py-1 text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {revDocs.map((doc, idx) => (
-                          <>
-                            <TableRow key={doc.id} className={`text-xs ${idx < revDocs.length - 1 ? "border-b-0" : ""}`}>
-                              <TableCell className="py-2 pb-1">
-                                <div className="flex items-center gap-2">
-                                  {getFileIcon(doc.fileName)}
-                                  <span className="font-medium truncate max-w-[200px]" title={doc.fileName}>
-                                    {doc.fileName}
-                                  </span>
-                                  {revDocs.length > 1 && (
-                                    <Badge variant="outline" className="text-[10px]">
-                                      #{doc.seqNumber}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <code className="text-[10px] text-muted-foreground font-mono break-all block mt-1">{doc.gcsObjectPath}</code>
-                              </TableCell>
-                              <TableCell className="py-2">{formatFileSize(doc.fileSize)}</TableCell>
-                              <TableCell className="py-2">{doc.uploaderName || "—"}</TableCell>
-                              <TableCell className="py-2">
-                                {format(new Date(doc.uploadedAt), "dd MMM yyyy HH:mm")}
-                              </TableCell>
-                              <TableCell className="py-2 text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 px-2"
-                                  onClick={() => onDownload(doc.id)}
-                                >
-                                  <Download className="h-3.5 w-3.5 mr-1" />
-                                  Download
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          </>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                );
-              })}
+            <div className="rounded-lg border border-green-300 bg-green-50/50 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge className="bg-green-600">Rev {activeRevision}</Badge>
+                <Badge variant="outline" className="text-xs">Active</Badge>
+              </div>
+              <DocRevisionTable revDocs={activeDocs} onDownload={onDownload} />
+            </div>
+          )}
+
+          {/* Revision history toggle */}
+          {previousRevisionCount > 0 && (
+            <div className="mt-4">
+              <button
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowHistory((v) => !v)}
+              >
+                <History className="h-3.5 w-3.5" />
+                {showHistory
+                  ? "Hide revision history"
+                  : `Show revision history · ${previousRevisionCount} previous revision${previousRevisionCount !== 1 ? "s" : ""}`}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? "rotate-180" : ""}`} />
+              </button>
+
+              {showHistory && (
+                <div className="space-y-3 mt-3 border-t pt-3">
+                  {supersededRevisions.map((rev) => {
+                    const revDocs = supersededRevGroups[rev];
+                    return (
+                      <div key={rev} className="rounded-lg border border-gray-200 bg-gray-50/50 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="secondary">Rev {rev}</Badge>
+                          <Badge variant="outline" className="text-xs text-gray-500">Superseded</Badge>
+                          {revDocs[0].supersededAt && (
+                            <span className="text-[10px] text-muted-foreground ml-auto">
+                              Superseded {format(new Date(revDocs[0].supersededAt), "dd MMM yyyy HH:mm")}
+                            </span>
+                          )}
+                        </div>
+                        <DocRevisionTable revDocs={revDocs} onDownload={onDownload} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
