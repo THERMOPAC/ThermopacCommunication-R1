@@ -9128,8 +9128,8 @@ export function setupProjectRoutes(app: express.Express) {
   app.post('/api/drawing-controls/:id/submit-for-review', ensureAuthenticated, requirePageAccess('drawing-controls'), async (req: Request, res: Response) => {
     try {
       const userRole = (req.user as any)?.role;
-      if (roleHierarchy[userRole] > roleHierarchy['Manager']) {
-        return sendPermissionError(res, 'Manager or above required to submit drawing controls for review.');
+      if (roleHierarchy[userRole] > roleHierarchy['Senior Executive']) {
+        return sendPermissionError(res, 'Senior Executive or above required to submit drawing controls for review.');
       }
       const id = parseInt(req.params.id);
       if (!(await guardRecordProjectNotFrozen('epc_drawing_controls', id, res))) return;

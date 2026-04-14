@@ -143,7 +143,7 @@ type ActionDef = {
 };
 
 const LIFECYCLE_ACTIONS: ActionDef[] = [
-  { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 3, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote", extraCheck: (r) => (r.attachment_count || 0) > 0 },
+  { key: "submit-for-review", label: "Submit for Review", icon: Send, variant: "default", minRoleLevel: 4, statusRequired: ["draft"], needsNote: true, noteLabel: "Submission Note", noteKey: "submissionNote", extraCheck: (r) => (r.attachment_count || 0) > 0 },
   { key: "review", label: "Review", icon: Eye, variant: "default", minRoleLevel: 3, statusRequired: ["under_review"], needsNote: true, noteLabel: "Review Note", noteKey: "reviewNote" },
   { key: "approve", label: "Approve", icon: CheckCircle2, variant: "default", minRoleLevel: 2, statusRequired: ["under_review"], extraCheck: (r) => !!r.reviewed_by },
   { key: "release", label: "Release", icon: ShieldCheck, variant: "default", minRoleLevel: 2, statusRequired: ["approved"], needsNote: true, noteLabel: "Release Note", noteKey: "releaseNote" },
