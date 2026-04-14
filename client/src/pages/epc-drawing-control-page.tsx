@@ -731,18 +731,18 @@ export default function EpcDrawingControlPage() {
               <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs font-medium">Drawing No (Barcode)</Label>
-                    <Input className="h-8 text-xs mt-1" value={editForm.drawingNumber} onChange={(e) => setEditForm(f => ({ ...f, drawingNumber: e.target.value }))} />
+                    <Label className="text-xs font-medium text-muted-foreground">Drawing No (Barcode) <span className="text-[9px]">(read-only)</span></Label>
+                    <Input className="h-8 text-xs mt-1 bg-muted/50 cursor-not-allowed" value={editForm.drawingNumber} readOnly />
                   </div>
                   <div>
-                    <Label className="text-xs font-medium">Drawing Title</Label>
-                    <Input className="h-8 text-xs mt-1" value={editForm.drawingTitle} onChange={(e) => setEditForm(f => ({ ...f, drawingTitle: e.target.value }))} />
+                    <Label className="text-xs font-medium text-muted-foreground">Drawing Title <span className="text-[9px]">(read-only)</span></Label>
+                    <Input className="h-8 text-xs mt-1 bg-muted/50 cursor-not-allowed" value={editForm.drawingTitle} readOnly />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-xs font-medium">Drawing Revision</Label>
-                    <Input className="h-8 text-xs mt-1" value={editForm.drawingRevision} onChange={(e) => setEditForm(f => ({ ...f, drawingRevision: e.target.value }))} />
+                    <Label className="text-xs font-medium text-muted-foreground">Drawing Revision <span className="text-[9px]">(read-only)</span></Label>
+                    <Input className="h-8 text-xs mt-1 bg-muted/50 cursor-not-allowed" value={editForm.drawingRevision} readOnly />
                   </div>
                   <div>
                     <Label className="text-xs font-medium">Category</Label>
