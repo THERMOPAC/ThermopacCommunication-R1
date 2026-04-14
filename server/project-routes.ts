@@ -9287,8 +9287,8 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot approve: review recommendation is "reject". Revert to draft or supersede.');
       }
 
-      if (rec.created_by === userId) {
-        return sendBusinessError(res, 'Self-approval not allowed: creator cannot approve their own drawing control.');
+      if (rec.submitted_by && rec.submitted_by === userId) {
+        return sendBusinessError(res, 'Self-approval not allowed: the person who submitted for review cannot approve.');
       }
 
       if (rec.client_approval_required && rec.client_approval_status !== 'approved') {
