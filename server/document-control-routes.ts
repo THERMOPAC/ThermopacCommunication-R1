@@ -108,7 +108,7 @@ function validateMimeType(ext: string, mimetype: string): { valid: boolean; mess
   return { valid: true };
 }
 
-const TPEL_PATH_REGEX = /^TPEL\/[A-Z]{2}\/[A-Z]{2}\/[A-Z0-9]{2,5}\/\d{4}\/TP-[A-Z]{2}-[A-Z]{2}-[A-Z0-9]+-\d{4}-\d{3}\/[A-Z0-9]+\/rev-\d{2}\//;
+const TPEL_PATH_REGEX = /^TPEL\/[A-Z]{2}\/[A-Z]{2}\/[A-Z0-9]{2,8}\/\d{4}\/\d{3}\/[A-Z0-9]+\/rev-\d{2}\//;
 
 function validateTpelPath(path: string): boolean {
   return TPEL_PATH_REGEX.test(path);
