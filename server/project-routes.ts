@@ -9712,6 +9712,10 @@ export function setupProjectRoutes(app: express.Express) {
         const dwgSupDesignLead = await resolveAssignee(rec.project_id, 'Engineering', userId, tx);
         const dwgSupPM = await resolveManagerId(rec.project_id, tx);
         const dwgSupProjectCode = await resolveProjectCode(rec.project_id, tx);
+        const dwgSupProcurementLead = await resolveAssignee(rec.project_id, 'Purchase', userId, tx);
+        const dwgSupProductionLead = await resolveAssignee(rec.project_id, 'Production', userId, tx);
+
+        // Task for Engineering — review BOMs and downstream execution records
         await createEpcTask({
           projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'supersession_review',
           title: `Review downstream impact of superseded Drawing ${rec.dwg_control_number}`,
@@ -9719,17 +9723,66 @@ export function setupProjectRoutes(app: express.Express) {
           assignedTo: dwgSupDesignLead || dwgSupPM, createdBy: userId, priority: 'High', dueDays: 3, tx,
         });
 
-        const dwgSupAlertRecipients = [dwgSupDesignLead, dwgSupPM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        // Task for Procurement — check open POs referencing old drawing revision
+        if (dwgSupProcurementLead) {
+          await createEpcTask({
+            projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'po_supersession_review',
+            title: `PO Review: Drawing ${rec.dwg_control_number} superseded (Rev ${rec.revision_code} → ${nextRevisionCode})`,
+            description: `Drawing ${rec.dwg_control_number} on project ${dwgSupProjectCode} has been superseded (Rev ${rec.revision_code} was ${rec.status}). Reason: ${supersessionReason}. Review all open Purchase Orders on this project — any PO referencing the old drawing revision must be updated or held pending the new Rev ${nextRevisionCode} release.`,
+            assignedTo: dwgSupProcurementLead, createdBy: userId, priority: 'High', dueDays: 3, tx,
+          });
+        }
 
-        return { inserted: inserted[0], dwgSupAlertRecipients, dwgSupProjectCode };
+        // Task for Production — check open Work Orders / MOs referencing old drawing revision
+        if (dwgSupProductionLead) {
+          await createEpcTask({
+            projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'mo_supersession_review',
+            title: `MO Review: Drawing ${rec.dwg_control_number} superseded (Rev ${rec.revision_code} → ${nextRevisionCode})`,
+            description: `Drawing ${rec.dwg_control_number} on project ${dwgSupProjectCode} has been superseded (Rev ${rec.revision_code} was ${rec.status}). Reason: ${supersessionReason}. Review all open Manufacturing / Work Orders on this project — any MO referencing the old drawing revision must be reviewed before shop-floor execution proceeds.`,
+            assignedTo: dwgSupProductionLead, createdBy: userId, priority: 'High', dueDays: 3, tx,
+          });
+        }
+
+        const dwgSupEnggRecipients = [dwgSupDesignLead, dwgSupPM].filter((v, i, a) => v && a.indexOf(v) === i) as number[];
+        const dwgSupPoRecipients = [dwgSupProcurementLead].filter(Boolean) as number[];
+        const dwgSupMoRecipients = [dwgSupProductionLead].filter(Boolean) as number[];
+
+        return { inserted: inserted[0], dwgSupEnggRecipients, dwgSupPoRecipients, dwgSupMoRecipients, dwgSupProjectCode };
       });
 
-      await createEpcAlertMulti(dwgTxResult.dwgSupAlertRecipients, {
-        type: 'epc_supersession', title: `Drawing ${rec.dwg_control_number} superseded`,
-        message: `Drawing ${rec.dwg_control_number} has been superseded by ${newDwgNumber} on project ${dwgTxResult.dwgSupProjectCode}. Reason: ${supersessionReason}. Downstream execution records may reference the old revision.`,
-        link: `/epc/execution-control`, priority: 'high', sourceType: 'epc_automation', sourceId: id, createdBy: userId,
+      const supersessionAlertBase = {
+        type: 'epc_supersession' as const, sourceType: 'epc_automation' as const,
+        sourceId: id, createdBy: userId,
         entityType: 'drawing_control', recordId: id, actionCode: 'superseded',
+      };
+
+      // Engineering & PM alert
+      await createEpcAlertMulti(dwgTxResult.dwgSupEnggRecipients, {
+        ...supersessionAlertBase,
+        title: `Drawing ${rec.dwg_control_number} superseded`,
+        message: `Drawing ${rec.dwg_control_number} has been superseded by ${newDwgNumber} on project ${dwgTxResult.dwgSupProjectCode}. Reason: ${supersessionReason}. Downstream execution records may reference the old revision.`,
+        link: `/epc/execution-control`, priority: 'high',
       });
+
+      // Procurement alert
+      if (dwgTxResult.dwgSupPoRecipients.length > 0) {
+        await createEpcAlertMulti(dwgTxResult.dwgSupPoRecipients, {
+          ...supersessionAlertBase,
+          title: `PO Alert: Drawing ${rec.dwg_control_number} superseded`,
+          message: `Drawing ${rec.dwg_control_number} (Rev ${rec.revision_code}, was ${rec.status}) has been superseded by ${newDwgNumber} on project ${dwgTxResult.dwgSupProjectCode}. Reason: ${supersessionReason}. Review open Purchase Orders — material procurement against the old revision must be put on hold pending the new revision release.`,
+          link: `/epc/purchase-orders`, priority: 'high',
+        });
+      }
+
+      // Production / MO alert
+      if (dwgTxResult.dwgSupMoRecipients.length > 0) {
+        await createEpcAlertMulti(dwgTxResult.dwgSupMoRecipients, {
+          ...supersessionAlertBase,
+          title: `MO Alert: Drawing ${rec.dwg_control_number} superseded`,
+          message: `Drawing ${rec.dwg_control_number} (Rev ${rec.revision_code}, was ${rec.status}) has been superseded by ${newDwgNumber} on project ${dwgTxResult.dwgSupProjectCode}. Reason: ${supersessionReason}. Review open Manufacturing / Work Orders — shop-floor execution against the old revision must be reviewed before proceeding.`,
+          link: `/epc/work-orders`, priority: 'high',
+        });
+      }
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} superseded by ${newDwgNumber}, user ${userId}`);
       res.status(201).json({
