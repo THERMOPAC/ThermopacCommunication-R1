@@ -576,7 +576,20 @@ export default function EpcDrawingControlPage() {
                                             {rec.classification_snapshot && <><div className="text-muted-foreground">Classification</div><div>{rec.classification_snapshot}</div></>}
                                           </div>
 
-                                          {rec.notes && (
+                                          {rec.supersedes_id && (
+                                            <div className="flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                              <ArrowUpDown className="h-3 w-3 text-blue-500 mt-0.5 shrink-0" />
+                                              <div>
+                                                <div className="text-[9px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">Supersession Draft</div>
+                                                <div className="text-[9px] text-blue-800">
+                                                  {rec.notes && rec.notes.startsWith("Supersedes Rev")
+                                                    ? rec.notes
+                                                    : `Supersedes drawing #${rec.supersedes_id}`}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                          {rec.notes && !rec.notes.startsWith("Supersedes Rev") && (
                                             <div className="text-[9px] bg-amber-50 border border-amber-200 rounded px-2 py-1 text-amber-800">{rec.notes}</div>
                                           )}
 
