@@ -9288,7 +9288,7 @@ export function setupProjectRoutes(app: express.Express) {
       }
 
       if (rec.submitted_by && rec.submitted_by === userId) {
-        return sendBusinessError(res, 'Self-approval not allowed: the person who submitted for review cannot approve.');
+        return sendBusinessError(res, 'Self-approval not allowed: the person who submitted this drawing for review cannot also approve it. A different Senior Manager, General Manager, or Superuser must approve.');
       }
 
       if (rec.client_approval_required && rec.client_approval_status !== 'approved') {
