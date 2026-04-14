@@ -8982,7 +8982,7 @@ export function setupProjectRoutes(app: express.Express) {
             LEFT JOIN (
               SELECT parent_entity_id, COUNT(*)::int AS cnt
               FROM epc_document_attachments
-              WHERE parent_entity_type = 'drawing_control' AND doc_type = 'DWG' AND status = 'active'
+              WHERE parent_entity_type = 'epc_drawing_controls' AND doc_type = 'DWG' AND status = 'active'
               GROUP BY parent_entity_id
             ) att ON att.parent_entity_id = dc.id
             LEFT JOIN users u_assigned ON u_assigned.id = dc.assigned_to
@@ -9148,7 +9148,7 @@ export function setupProjectRoutes(app: express.Express) {
         return sendBusinessError(res, 'Cannot submit: drawing number is required before review submission.');
       }
 
-      const attCheck = await db.execute(sql`SELECT COUNT(*)::int AS cnt FROM epc_document_attachments WHERE parent_entity_type = 'drawing_control' AND parent_entity_id = ${id} AND doc_type = 'DWG' AND status = 'active'`);
+      const attCheck = await db.execute(sql`SELECT COUNT(*)::int AS cnt FROM epc_document_attachments WHERE parent_entity_type = 'epc_drawing_controls' AND parent_entity_id = ${id} AND doc_type = 'DWG' AND status = 'active'`);
       const attCount = (attCheck.rows[0] as any)?.cnt || 0;
       if (attCount === 0) {
         return sendBusinessError(res, 'Cannot submit: at least one drawing file must be uploaded before submitting for review.');
