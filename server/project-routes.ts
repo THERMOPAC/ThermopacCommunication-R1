@@ -9320,6 +9320,16 @@ export function setupProjectRoutes(app: express.Express) {
           description: `Drawing ${rec.dwg_control_number} has been approved. It is now pending release.`,
           assignedTo: userId, createdBy: userId, priority: 'Medium', dueDays: 2, tx,
         });
+
+        // Notify the submitter that their drawing has been approved
+        if (rec.submitted_by && rec.submitted_by !== userId) {
+          await createEpcTask({
+            projectId: rec.project_id, entityType: 'drawing_control', recordId: id, actionCode: 'approved_notification',
+            title: `Drawing ${rec.dwg_control_number} Approved`,
+            description: `Your drawing ${rec.dwg_control_number} (${dwgProjectCode}) has been approved${approvalNote ? ` with note: "${approvalNote}"` : ''}. It is now pending release.`,
+            assignedTo: rec.submitted_by, createdBy: userId, priority: 'Medium', dueDays: 1, tx,
+          });
+        }
       });
 
       console.log(`[DWG-CTRL] ${rec.dwg_control_number} approved by user ${userId}`);
