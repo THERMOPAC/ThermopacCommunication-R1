@@ -326,7 +326,7 @@ export default function EpcDrawingControlPage() {
     setEditTarget(rec);
     setEditForm({
       drawingNumber: rec.drawing_number || "", drawingTitle: rec.drawing_title || "",
-      drawingRevision: rec.drawing_revision || "", drawingCategory: rec.drawing_category || "",
+      drawingRevision: rec.drawing_revision || "", drawingCategory: rec.classification_snapshot || rec.drawing_category || "",
       disciplineCode: rec.discipline_code || "", drawingPurpose: rec.drawing_purpose || "general",
       notes: rec.notes || "", clientApprovalRequired: rec.client_approval_required || false,
       procurementReleaseRequired: rec.procurement_release_required, manufacturingReleaseRequired: rec.manufacturing_release_required,
@@ -748,14 +748,27 @@ export default function EpcDrawingControlPage() {
                     }
                   </div>
                   <div>
-                    <Label className="text-xs font-medium">Category</Label>
-                    <Input className="h-8 text-xs mt-1" value={editForm.drawingCategory} onChange={(e) => setEditForm(f => ({ ...f, drawingCategory: e.target.value }))} />
+                    <Label className="text-xs font-medium text-muted-foreground">Category <span className="text-[9px]">(from classification)</span></Label>
+                    <Input className="h-8 text-xs mt-1 bg-muted/50 cursor-not-allowed" value={editForm.drawingCategory} readOnly />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs font-medium">Discipline Code</Label>
-                    <Input className="h-8 text-xs mt-1" value={editForm.disciplineCode} onChange={(e) => setEditForm(f => ({ ...f, disciplineCode: e.target.value }))} />
+                    <Select value={editForm.disciplineCode} onValueChange={(v) => setEditForm(f => ({ ...f, disciplineCode: v }))}>
+                      <SelectTrigger className="h-8 text-xs mt-1"><SelectValue placeholder="Select discipline" /></SelectTrigger>
+                      <SelectContent>
+                        {[
+                          { code: "ME", label: "ME — Mechanical Engineering" },
+                          { code: "EL", label: "EL — Electrical" },
+                          { code: "CV", label: "CV — Civil / Structural" },
+                          { code: "IN", label: "IN — Instrumentation" },
+                          { code: "PI", label: "PI — Piping" },
+                        ].map(({ code, label }) => (
+                          <SelectItem key={code} value={code} className="text-xs">{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-xs font-medium">Purpose</Label>
