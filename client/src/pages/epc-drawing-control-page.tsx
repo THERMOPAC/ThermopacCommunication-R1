@@ -952,16 +952,16 @@ function useActiveAttachment(projectId: number | null, parentEntityId: number | 
   const revisions: any[] = data?.revisions || [];
   const currentRev = revisions.find((r: any) => r.isCurrent);
   const activeAtt = currentRev?.attachments?.find((a: any) => a.status === "active");
-  return { activeAtt, isLoading };
+  const revisionCode: string | null = currentRev?.revisionCode ?? null;
+  return { activeAtt, revisionCode, isLoading };
 }
 
 function LiveRevisionBadge({ projectId, parentEntityId, isCurrent }: { projectId: number; parentEntityId: number; isCurrent: boolean }) {
-  const { activeAtt, isLoading } = useActiveAttachment(projectId, parentEntityId);
+  const { revisionCode, isLoading } = useActiveAttachment(projectId, parentEntityId);
   if (isLoading) return <span className="text-muted-foreground text-[9px]">…</span>;
-  const rev = activeAtt?.revision_code;
   return (
     <div className="flex items-center gap-1">
-      <span className="font-mono">{rev || "—"}</span>
+      <span className="font-mono">{revisionCode || "—"}</span>
       {isCurrent
         ? <span className="text-green-600 font-semibold">· current</span>
         : <span className="text-orange-500">· superseded</span>}
