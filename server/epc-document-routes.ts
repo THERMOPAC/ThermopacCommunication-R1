@@ -63,6 +63,24 @@ async function getProjectCode(projectId: number): Promise<string | null> {
   return r.rows.length > 0 ? (r.rows[0] as any).code : null;
 }
 
+/**
+ * Rev 4 Task #15: DWG revisions must be alphabetic (A, B, C…).
+ * Legacy records in epc_drawing_controls may have numeric codes ('00', '01'…).
+ * This normalizes them at read-time: '00'→'A', '01'→'B', etc.
+ * Single uppercase letters are returned unchanged.
+ */
+function normalizeDwgRevision(raw: string | null | undefined): string {
+  if (!raw || raw.trim() === '') return 'A';
+  const trimmed = raw.trim();
+  // Already a single uppercase letter — conformant
+  if (/^[A-Za-z]$/.test(trimmed)) return trimmed.toUpperCase();
+  // Numeric (e.g. '00', '01', '1') — convert to alphabetic
+  const n = parseInt(trimmed, 10);
+  if (!isNaN(n) && n >= 0 && n < 26) return String.fromCharCode(65 + n); // 0→A, 1→B, …
+  // Anything else: uppercase and use as-is
+  return trimmed.toUpperCase();
+}
+
 export function setupEpcDocumentRoutes(app: express.Express) {
 
   app.post('/api/projects/:projectId/epc-documents/:docType/:parentEntityId/upload',
@@ -111,7 +129,11 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       }
 
       const isRevisionControlled = epcCoding.REVISION_CONTROLLED_TYPES.has(docType);
-      const revisionCode = isRevisionControlled ? (parent.revision_code || '00') : null;
+      // DWG: normalize legacy numeric revision codes to alphabetic (Rev 4 Task #15: '00'→'A', '01'→'B'…)
+      // BOM: keep numeric format ('00', '01'…) as approved by the plan
+      const revisionCode = isRevisionControlled
+        ? (docType === 'DWG' ? normalizeDwgRevision(parent.revision_code) : (parent.revision_code || '00'))
+        : null;
       const documentNumber = parent.document_number;
 
       const checksum = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
@@ -597,7 +619,9 @@ export function setupEpcDocumentRoutes(app: express.Express) {
       if (isRevControlled) {
         const grouped: Record<string, any> = {};
         for (const row of attachments.rows as any[]) {
-          const rev = row.revision_code || '00';
+          // DWG: normalize legacy numeric revision codes to alphabetic for display (Rev 4 Task #15)
+          const rawRev = row.revision_code || '00';
+          const rev = docType === 'DWG' ? normalizeDwgRevision(rawRev) : rawRev;
           if (!grouped[rev]) {
             grouped[rev] = {
               revisionCode: rev,
