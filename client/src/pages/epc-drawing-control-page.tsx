@@ -24,7 +24,7 @@ import { ProjectAccessDenied, isProjectAccessDenied } from "@/components/project
 import {
   Loader2, Search, Filter, PenTool, Edit, Send, CheckCircle2, ShieldCheck,
   Unlock, XCircle, RotateCcw, ArrowUpDown, ChevronDown, ChevronRight,
-  RefreshCw, AlertTriangle, FileText, Eye, UserCheck, UploadCloud, FileX,
+  RefreshCw, AlertTriangle, FileText, Eye, UserCheck, UploadCloud, FileX, Clock,
 } from "lucide-react";
 
 const roleHierarchy: Record<string, number> = {
@@ -648,15 +648,41 @@ export default function EpcDrawingControlPage() {
                                         </CardHeader>
                                         <CardContent className="px-3 pb-2">
                                           {actions.length === 0 ? (
-                                            <p className="text-[10px] text-muted-foreground italic py-2">
-                                              {["canceled", "superseded", "file_not_available"].includes(rec.status)
-                                                ? "No actions available — record is terminal."
-                                                : rec.status === "pending_upload"
-                                                ? "Upload a file to activate this record before lifecycle actions become available."
-                                                : rec.status === "draft" && (rec.attachment_count || 0) === 0
-                                                ? "Upload at least one drawing file below before submitting for review."
-                                                : "No actions available for your role on this record."}
-                                            </p>
+                                            <div className="py-2">
+                                              {["canceled", "superseded", "file_not_available"].includes(rec.status) ? (
+                                                <p className="text-[10px] text-muted-foreground italic">No actions available — record is terminal.</p>
+                                              ) : rec.status === "pending_upload" ? (
+                                                <p className="text-[10px] text-muted-foreground italic">Upload a file to activate this record before lifecycle actions become available.</p>
+                                              ) : rec.status === "draft" && (rec.attachment_count || 0) === 0 ? (
+                                                <p className="text-[10px] text-muted-foreground italic">Upload at least one drawing file below before submitting for review.</p>
+                                              ) : rec.status === "under_review" ? (
+                                                <div className="flex items-center gap-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2">
+                                                  <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                                  <div>
+                                                    <p className="text-[10px] font-semibold text-amber-700">Pending Approval</p>
+                                                    <p className="text-[9px] text-amber-600 mt-0.5">Submitted for review — awaiting Manager / Senior Manager action.</p>
+                                                  </div>
+                                                </div>
+                                              ) : rec.status === "approved" ? (
+                                                <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-2">
+                                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                                                  <div>
+                                                    <p className="text-[10px] font-semibold text-emerald-700">Approved</p>
+                                                    <p className="text-[9px] text-emerald-600 mt-0.5">Awaiting release by Senior Manager.</p>
+                                                  </div>
+                                                </div>
+                                              ) : rec.status === "released" ? (
+                                                <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-2.5 py-2">
+                                                  <ShieldCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                                                  <div>
+                                                    <p className="text-[10px] font-semibold text-blue-700">Released</p>
+                                                    <p className="text-[9px] text-blue-600 mt-0.5">Drawing is live and released for use.</p>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <p className="text-[10px] text-muted-foreground italic">No actions available for your role on this record.</p>
+                                              )}
+                                            </div>
                                           ) : (
                                             <div className="space-y-1.5">
                                               {actions.map((a) => {
