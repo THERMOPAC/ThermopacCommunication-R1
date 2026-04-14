@@ -96,16 +96,19 @@ const LEGAL_LABEL_DEFAULTS: Record<string, string> = {
 };
 
 // ─── Seq rules per module (Rev 2 §2 control rules) ───────────────────────────
-// 'fixed-001' — seq is always 001 (either permanent single-file semantics or TEMP-P2)
+// 'fixed-001' — seq is always 001 (permanent single-file semantics; Compliance overwrite-before-lock)
 // 'label-derived' — seq derived from label: draft=001, executed=002
-// Modules marked [TEMP-P2] need Phase 2 child tables for correct seq increment.
+// Phase 3A: Contracts, Posh, Notices, PolicyTemplates, Visa, Trip — seq now allocated
+//           via SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE in each upload route.
+//           resolveLegalLabelAndSeq is still called for label validation; its seq return
+//           value is unused by these modules (routes use the DB-allocated seq).
 
 const LEGAL_SEQ_RULE: Record<string, 'fixed-001' | 'label-derived'> = {
-  Contracts:       'fixed-001',       // [TEMP-P2] append-only multi-file — seq increment needs child table
+  Contracts:       'fixed-001',       // Phase 3A: seq allocated in route via contract_documents FOR UPDATE
   Compliance:      'fixed-001',       // PERMANENT: overwrite-before-lock, seq always 001
-  Posh:            'fixed-001',       // [TEMP-P2] append-only multi-file
-  Notices:         'fixed-001',       // [TEMP-P2] append-only multi-file
-  PolicyTemplates: 'fixed-001',       // [TEMP-P2] single-active-with-history
+  Posh:            'fixed-001',       // Phase 3A: seq allocated in route via posh_documents FOR UPDATE
+  Notices:         'fixed-001',       // Phase 3A: seq allocated in route via notice_documents FOR UPDATE
+  PolicyTemplates: 'fixed-001',       // Phase 3A: seq allocated in route via version_number FOR UPDATE
   NDA:             'label-derived',   // PERMANENT: draft=001, executed=002, two-file max
   Exclusivity:     'label-derived',   // PERMANENT: same as NDA
 };
@@ -177,7 +180,7 @@ export function buildLegalGcsPath(
 /**
  * Build an approved Visa GCS path.
  * Format: ADMIN/Visa/Employees/{employeeId}/Records/{visaRecordId}/{seq:03d}-{label}.{ext}
- * [TEMP-P2]: seq is always 001 until Phase 2 child tables enable concurrency-safe increment.
+ * Phase 3A: seq is now allocated via SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE on visa_documents in each upload route.
  */
 export function buildVisaDocumentGcsPath(
   employeeId: number,
@@ -194,7 +197,7 @@ export function buildVisaDocumentGcsPath(
 /**
  * Build an approved Travel Trip document GCS path.
  * Format: ADMIN/Travel/Employees/{employeeId}/Trips/{tripId}/Documents/{seq:03d}-{label}.{ext}
- * [TEMP-P2]: seq is always 001 until Phase 2 child tables enable concurrency-safe increment.
+ * Phase 3A: seq is now allocated via SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE on trip_documents in the upload route.
  */
 export function buildTripDocumentGcsPath(
   employeeId: number,

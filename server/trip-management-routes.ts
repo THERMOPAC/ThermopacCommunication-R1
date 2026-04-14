@@ -1087,48 +1087,54 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
     // Build ADMIN-rooted GCS path using stable system IDs only — no names as path identity
     // documentType is validated against TRIP_LABEL_VOCAB; falls back to 'other' if not in vocabulary
     const label = resolveTripLabel(documentType as string | undefined);
-    // [TEMP-P2] seq=001 hardcoded — increment requires seq column on trip_documents child table
-    const gcsPath = buildTripDocumentGcsPath(trip[0].employeeId, parseInt(tripId), 1, label, file.originalname);
-    assertAdminGcsPath(gcsPath);
+    const tripIdInt = parseInt(tripId);
 
-    // Upload to Google Cloud Storage
-    const gcsFile = bucket.file(gcsPath);
-    const stream = gcsFile.createWriteStream({
-      metadata: {
-        contentType: file.mimetype,
-        cacheControl: 'no-cache',
-      },
-      resumable: false,
+    // Concurrency-safe seq allocation (Rev 2 §4 FOR UPDATE), GCS upload, trip_documents insert
+    let finalDoc: any;
+    await db.transaction(async (tx) => {
+      const seqResult = await tx.execute(
+        sql`SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM trip_documents WHERE trip_id = ${tripIdInt} FOR UPDATE`
+      );
+      const nextSeq = Number((seqResult.rows[0] as any).next_seq);
+      const gcsPath = buildTripDocumentGcsPath(trip[0].employeeId, tripIdInt, nextSeq, label, file.originalname);
+      assertAdminGcsPath(gcsPath);
+
+      // Upload to Google Cloud Storage
+      const gcsFile = bucket.file(gcsPath);
+      const stream = gcsFile.createWriteStream({
+        metadata: { contentType: file.mimetype, cacheControl: 'no-cache' },
+        resumable: false,
+      });
+      await new Promise<void>((resolve, reject) => {
+        stream.on('error', reject);
+        stream.on('finish', resolve);
+        stream.end(file.buffer);
+      });
+      const [signedUrl] = await gcsFile.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
+      });
+
+      const [inserted] = await tx.insert(tripDocuments).values({
+        tripId: tripIdInt,
+        documentType,
+        documentName: file.originalname,
+        filePath: gcsPath,
+        fileUrl: signedUrl,
+        fileSize: file.size,
+        fileType: file.mimetype,
+        description: description || null,
+        uploadedBy: userId,
+        seq: nextSeq,
+        label,
+        gcsPath,
+      }).returning();
+      finalDoc = inserted;
     });
-
-    await new Promise((resolve, reject) => {
-      stream.on('error', reject);
-      stream.on('finish', resolve);
-      stream.end(file.buffer);
-    });
-
-    // Generate signed URL for access
-    const [signedUrl] = await gcsFile.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
-    });
-
-    // Save document record to database
-    const result = await db.insert(tripDocuments).values({
-      tripId: parseInt(tripId),
-      documentType,
-      documentName: file.originalname,
-      filePath: gcsPath,
-      fileUrl: signedUrl,
-      fileSize: file.size,
-      fileType: file.mimetype,
-      description: description || null,
-      uploadedBy: userId,
-    }).returning();
 
     res.status(201).json({
       message: 'Document uploaded successfully',
-      document: result[0],
+      document: finalDoc,
     });
   } catch (error) {
     console.error('Error uploading trip document:', error);

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { db } from './db';
-import { visaRecords, visaAlerts, visaQuotaSettings, users } from '@shared/schema';
+import { visaRecords, visaAlerts, visaQuotaSettings, users, visaDocuments } from '@shared/schema';
 import { eq, desc, and, gte, lte, like, sql, count, or } from 'drizzle-orm';
 import { insertVisaRecordSchema } from '@shared/schema';
 import multer from 'multer';
@@ -624,7 +624,7 @@ export const downloadVisaDocument = async (req: Request, res: Response) => {
 
 // buildVisaGcsPath removed — use buildVisaDocumentGcsPath from admin-guardrails directly.
 // All visa paths now follow: ADMIN/Visa/Employees/{empId}/Records/{visaRecordId}/{seq:03d}-{label}.{ext}
-// [TEMP-P2]: seq=001 hardcoded until Phase 2 adds visa_documents child table for concurrency-safe increment.
+// Phase 3A: seq now allocated via SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE on visa_documents in all upload routes.
 
 /**
  * Upload visa document to GCS
@@ -734,24 +734,27 @@ export const createVisaRecord = async (req: Request, res: Response) => {
     // Update quota usage
     await updateQuotaUsage(validatedData.country, 1);
 
-    // Step 2: Upload file using actual visa record ID in approved ADMIN path
+    // Step 2: Concurrency-safe seq allocation (Rev 2 §4 FOR UPDATE), GCS upload, visa_documents insert
     if (req.file) {
       try {
         const label = resolveVisaLabel((req.body as any).documentLabel as string | undefined);
-        // [TEMP-P2] seq=001 hardcoded — increment requires visa_documents child table
-        const gcsPath = buildVisaDocumentGcsPath(validatedData.employeeId, newRecord.id, 1, label, req.file.originalname);
-        
-        console.log('Uploading visa document to GCS path:', gcsPath);
-        const fileData = await uploadVisaDocument(req.file, gcsPath);
-        console.log('Visa document uploaded successfully:', fileData);
-
-        // Step 3: Update record with file path
-        await db
-          .update(visaRecords)
-          .set({ filePath: fileData.filePath, fileUrl: fileData.fileUrl })
-          .where(eq(visaRecords.id, newRecord.id));
-
-        return res.status(201).json({ ...newRecord, filePath: fileData.filePath, fileUrl: fileData.fileUrl });
+        let finalGcsPath = '';
+        let finalFileUrl = '';
+        await db.transaction(async (tx) => {
+          const seqResult = await tx.execute(
+            sql`SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM visa_documents WHERE visa_record_id = ${newRecord.id} FOR UPDATE`
+          );
+          const nextSeq = Number((seqResult.rows[0] as any).next_seq);
+          const gcsPath = buildVisaDocumentGcsPath(validatedData.employeeId, newRecord.id, nextSeq, label, req.file!.originalname);
+          console.log('Uploading visa document to GCS path:', gcsPath);
+          const fileData = await uploadVisaDocument(req.file!, gcsPath);
+          console.log('Visa document uploaded successfully:', fileData);
+          await tx.insert(visaDocuments).values({ visaRecordId: newRecord.id, gcsPath, seq: nextSeq, label, isActive: true, uploadedBy: userId });
+          await tx.update(visaRecords).set({ filePath: gcsPath, fileUrl: fileData.fileUrl }).where(eq(visaRecords.id, newRecord.id));
+          finalGcsPath = gcsPath;
+          finalFileUrl = fileData.fileUrl;
+        });
+        return res.status(201).json({ ...newRecord, filePath: finalGcsPath, fileUrl: finalFileUrl });
       } catch (uploadError) {
         console.error('Error uploading visa document:', uploadError);
         return res.status(500).json({ 
@@ -812,52 +815,29 @@ export const uploadVisaDocumentLegacy = [
       }
 
       const label = resolveVisaLabel((req.body as any).documentLabel as string | undefined);
-      // [TEMP-P2] seq=001 hardcoded — increment requires visa_documents child table
-      const filename = buildVisaDocumentGcsPath(visaRecord[0].employeeId, parseInt(visaRecordId), 1, label, req.file.originalname);
-      assertAdminGcsPath(filename);
-
-      // Upload to Google Cloud Storage
-      const file = bucket.file(filename);
-      const stream = file.createWriteStream({
-        metadata: {
-          contentType: req.file.mimetype,
-        },
+      // Concurrency-safe seq allocation (Rev 2 §4 FOR UPDATE), GCS upload, visa_documents insert
+      const visaRecordIdInt = parseInt(visaRecordId);
+      let finalFilePath = '';
+      let finalFileUrl = '';
+      await db.transaction(async (tx) => {
+        const seqResult = await tx.execute(
+          sql`SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM visa_documents WHERE visa_record_id = ${visaRecordIdInt} FOR UPDATE`
+        );
+        const nextSeq = Number((seqResult.rows[0] as any).next_seq);
+        const filename = buildVisaDocumentGcsPath(visaRecord[0].employeeId, visaRecordIdInt, nextSeq, label, req.file!.originalname);
+        assertAdminGcsPath(filename);
+        const fileData = await uploadVisaDocument(req.file!, filename);
+        await tx.execute(
+          sql`UPDATE visa_documents SET is_active = false, superseded_at = NOW() WHERE visa_record_id = ${visaRecordIdInt} AND is_active = true`
+        );
+        await tx.insert(visaDocuments).values({ visaRecordId: visaRecordIdInt, gcsPath: filename, seq: nextSeq, label, isActive: true, uploadedBy: userId });
+        await tx.update(visaRecords)
+          .set({ filePath: filename, fileUrl: fileData.fileUrl, updatedAt: new Date() })
+          .where(eq(visaRecords.id, visaRecordIdInt));
+        finalFilePath = filename;
+        finalFileUrl = fileData.fileUrl;
       });
-
-      stream.on('error', (error) => {
-        console.error('Error uploading to GCS:', error);
-        res.status(500).json({ error: 'Failed to upload file' });
-      });
-
-      stream.on('finish', async () => {
-        try {
-          const [signedUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
-          });
-
-          // Update visa record with file information
-          await db
-            .update(visaRecords)
-            .set({
-              filePath: filename,
-              fileUrl: signedUrl,
-              updatedAt: new Date()
-            })
-            .where(eq(visaRecords.id, parseInt(visaRecordId)));
-
-          res.json({
-            filePath: filename,
-            fileUrl: signedUrl,
-            message: 'File uploaded successfully'
-          });
-        } catch (error) {
-          console.error('Error updating visa record with file info:', error);
-          res.status(500).json({ error: 'Failed to update visa record' });
-        }
-      });
-
-      stream.end(req.file.buffer);
+      res.json({ filePath: finalFilePath, fileUrl: finalFileUrl, message: 'File uploaded successfully' });
     } catch (error) {
       console.error('Error in upload handler:', error);
       res.status(500).json({ error: 'Failed to upload document' });
@@ -917,12 +897,27 @@ export const updateVisaRecord = async (req: Request, res: Response) => {
         }
 
         const label = resolveVisaLabel((req.body as any).documentLabel as string | undefined);
-        // [TEMP-P2] seq=001 hardcoded — increment requires visa_documents child table
-        const gcsPath = buildVisaDocumentGcsPath(validatedData.employeeId, parseInt(id), 1, label, req.file.originalname);
-        
-        console.log('Uploading updated visa document to GCS path:', gcsPath);
-        fileData = await uploadVisaDocument(req.file, gcsPath);
-        console.log('Visa document updated successfully:', fileData);
+        // Concurrency-safe seq allocation (Rev 2 §4 FOR UPDATE), GCS upload, visa_documents insert with supersede
+        const visaIdInt = parseInt(id);
+        let finalGcsPath = '';
+        let finalFileUrl = '';
+        await db.transaction(async (tx) => {
+          const seqResult = await tx.execute(
+            sql`SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM visa_documents WHERE visa_record_id = ${visaIdInt} FOR UPDATE`
+          );
+          const nextSeq = Number((seqResult.rows[0] as any).next_seq);
+          const gcsPath = buildVisaDocumentGcsPath(validatedData.employeeId, visaIdInt, nextSeq, label, req.file!.originalname);
+          console.log('Uploading updated visa document to GCS path:', gcsPath);
+          const uploadedData = await uploadVisaDocument(req.file!, gcsPath);
+          console.log('Visa document updated successfully:', uploadedData);
+          await tx.execute(
+            sql`UPDATE visa_documents SET is_active = false, superseded_at = NOW() WHERE visa_record_id = ${visaIdInt} AND is_active = true`
+          );
+          await tx.insert(visaDocuments).values({ visaRecordId: visaIdInt, gcsPath, seq: nextSeq, label, isActive: true, uploadedBy: userId });
+          finalGcsPath = gcsPath;
+          finalFileUrl = uploadedData.fileUrl;
+        });
+        fileData = { filePath: finalGcsPath, fileUrl: finalFileUrl };
       } catch (uploadError) {
         console.error('Error uploading updated visa document:', uploadError);
         return res.status(500).json({ 

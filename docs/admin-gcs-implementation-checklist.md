@@ -170,14 +170,15 @@ Vocabulary defaults per module:
 
 ## Phase 1 — Open Items (blocking Phase 1 completion)
 
-All schema blockers resolved by Phase 2. Route-level changes still required before Phase 1 can close.
+> Phase 3A complete (2026-04-14): All route-level seq allocation is wired. Zero TEMP-P2 markers remain in server code.
+> Phase 1 may now be marked complete by the user.
 
-| Item | Module(s) | Schema blocker | Schema status | Route change needed |
-|------|-----------|---------------|--------------|---------------------|
-| Concurrency-safe seq on upload | Contracts, POSH, Notices | `contract_documents`, `posh_documents`, `notice_documents` | ✅ Tables created (Phase 2) | Use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` + INSERT to child table; remove `[TEMP-P2]` |
-| PolicyTemplates seq | PolicyTemplates | `version_number` column + `doc_is_active` | ✅ Columns added (Phase 2) | Use `SELECT COALESCE(MAX(version_number),0)+1 FOR UPDATE` pattern; set `doc_is_active=false` on upload |
-| Visa renewal seq | Visa | `visa_documents` child table | ✅ Table created (Phase 2) | Use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` + INSERT to `visa_documents`; set prior `is_active=false` on renewal |
-| Trip document seq | Trip | `seq` column on `trip_documents` | ✅ Column added (Phase 2) | Use `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` on `trip_documents` per `trip_id`; remove `[TEMP-P2]` |
+| Item | Module(s) | Schema blocker | Schema status | Route status |
+|------|-----------|---------------|--------------|--------------|
+| Concurrency-safe seq on upload | Contracts, POSH, Notices | `contract_documents`, `posh_documents`, `notice_documents` | ✅ Tables created (Phase 2) | ✅ **DONE (Phase 3A)** — `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` + INSERT child row in `db.transaction()` |
+| PolicyTemplates seq | PolicyTemplates | `version_number` column + `doc_is_active` | ✅ Columns added (Phase 2) | ✅ **DONE (Phase 3A)** — `SELECT COALESCE(version_number,0)+1 FOR UPDATE` on parent row; `doc_is_active=false` on upload |
+| Visa renewal seq | Visa | `visa_documents` child table | ✅ Table created (Phase 2) | ✅ **DONE (Phase 3A)** — `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` + INSERT `visa_documents`; prior rows `is_active=false, superseded_at=NOW()` on update/legacy |
+| Trip document seq | Trip | `seq` column on `trip_documents` | ✅ Column added (Phase 2) | ✅ **DONE (Phase 3A)** — `SELECT COALESCE(MAX(seq),0)+1 FOR UPDATE` on `trip_documents` per `trip_id` |
 
 ---
 
