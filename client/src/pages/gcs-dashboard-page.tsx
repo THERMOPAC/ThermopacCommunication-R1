@@ -186,7 +186,7 @@ export default function GcsDashboardPage() {
   const [adminPage, setAdminPage] = useState(1);
 
   const summaryQuery = useQuery<any>({ queryKey: ["/api/gcs-dashboard/summary"] });
-  const treeQuery = useQuery<TreeNode>({ queryKey: ["/api/gcs-dashboard/tree"] });
+  const treeQuery = useQuery<TreeNode>({ queryKey: ["/api/gcs-dashboard/tree"], staleTime: 0 });
   const filterOptionsQuery = useQuery<any>({ queryKey: ["/api/gcs-dashboard/filters"] });
 
   const filesQuery = useQuery<any>({

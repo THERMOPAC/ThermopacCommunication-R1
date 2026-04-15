@@ -108,6 +108,7 @@ export function setupGcsDashboardRoutes(app: Express) {
   });
 
   app.get('/api/gcs-dashboard/tree', ensureAuthenticated, async (req: Request, res: Response) => {
+    res.set('Cache-Control', 'no-store');
     try {
       const user = (req as any).user;
       const projectIds = await getAccessibleProjectIds(user.id, user.role);
@@ -160,7 +161,7 @@ export function setupGcsDashboardRoutes(app: Express) {
         LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
         WHERE SPLIT_PART(g.file_path, '/', 1) = 'ADMIN'
         GROUP BY l2, l3, l4_raw, l4_name, l5, l6_raw
-        ORDER BY l2, l3, l4_name, l5, l6_raw::int
+        ORDER BY l2, l3, l4_name, l5, NULLIF(SPLIT_PART(g.file_path, '/', 6), '')::int NULLS LAST
       `);
 
       interface TreeNode {
