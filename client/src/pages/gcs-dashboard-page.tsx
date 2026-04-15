@@ -181,6 +181,7 @@ export default function GcsDashboardPage() {
   const [flagFilter, setFlagFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [adminModule, setAdminModule] = useState("all");
+  const [adminEmployee, setAdminEmployee] = useState("all");
   const [adminSearch, setAdminSearch] = useState("");
   const [adminPage, setAdminPage] = useState(1);
 
@@ -222,13 +223,24 @@ export default function GcsDashboardPage() {
     enabled: isSuperuser && activeTab === "access",
   });
 
+  const adminEmployeesQuery = useQuery<any[]>({
+    queryKey: ["/api/gcs-dashboard/admin-employees"],
+    queryFn: async () => {
+      const res = await fetch("/api/gcs-dashboard/admin-employees", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load employees");
+      return res.json();
+    },
+    enabled: activeTab === "admin",
+  });
+
   const adminFilesQuery = useQuery<any>({
-    queryKey: ["/api/gcs-dashboard/admin-files", adminPage, adminModule, adminSearch],
+    queryKey: ["/api/gcs-dashboard/admin-files", adminPage, adminModule, adminEmployee, adminSearch],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("page", String(adminPage));
       params.set("limit", "50");
       if (adminModule && adminModule !== "all") params.set("module", adminModule);
+      if (adminEmployee && adminEmployee !== "all") params.set("employeeId", adminEmployee);
       if (adminSearch) params.set("search", adminSearch);
       const res = await fetch(`/api/gcs-dashboard/admin-files?${params.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load admin files");
@@ -821,6 +833,50 @@ export default function GcsDashboardPage() {
 
           <TabsContent value="admin" className="mt-0">
             <div className="space-y-4">
+
+              {/* Employee summary cards */}
+              {adminEmployeesQuery.data && adminEmployeesQuery.data.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {adminEmployeesQuery.data.map((emp: any) => (
+                    <Card
+                      key={emp.employee_id_str}
+                      className={`border shadow-sm cursor-pointer transition-all hover:shadow-md ${adminEmployee === emp.employee_id_str ? 'border-primary ring-1 ring-primary/30 bg-primary/5' : 'border-border'}`}
+                      onClick={() => {
+                        setAdminEmployee(adminEmployee === emp.employee_id_str ? 'all' : emp.employee_id_str);
+                        setAdminPage(1);
+                      }}
+                    >
+                      <CardContent className="pt-4 pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{emp.employee_name || emp.username}</p>
+                            {emp.department && <p className="text-xs text-muted-foreground mt-0.5">{emp.department}</p>}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-lg font-bold text-primary">{emp.total_files}</p>
+                            <p className="text-[10px] text-muted-foreground">files</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 mt-3 pt-2 border-t">
+                          {parseInt(emp.travel_files) > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">Travel</span>
+                              <span className="text-[11px] text-muted-foreground">{emp.travel_trips} trips · {emp.travel_files} files</span>
+                            </div>
+                          )}
+                          {parseInt(emp.visa_files) > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 font-medium">Visa</span>
+                              <span className="text-[11px] text-muted-foreground">{emp.visa_records} records · {emp.visa_files} files</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
               <Card className="border-0 shadow-sm">
                 <CardHeader className="py-4 border-b">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -829,17 +885,32 @@ export default function GcsDashboardPage() {
                         <Building2 className="h-4 w-4 text-primary" /> Administration Documents
                       </CardTitle>
                       <CardDescription className="mt-1">
-                        GCS-stored files from Travel, Visa, and Legal modules (ADMIN/ path)
+                        {adminEmployee !== 'all' && adminEmployeesQuery.data
+                          ? `Showing files for ${adminEmployeesQuery.data.find((e: any) => e.employee_id_str === adminEmployee)?.employee_name || 'selected employee'}`
+                          : 'GCS-stored files from Travel, Visa, and Legal modules'}
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
+                      <Select value={adminEmployee} onValueChange={v => { setAdminEmployee(v); setAdminPage(1); }}>
+                        <SelectTrigger className="h-8 text-sm w-44">
+                          <SelectValue placeholder="All Employees" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Employees</SelectItem>
+                          {(adminEmployeesQuery.data || []).map((emp: any) => (
+                            <SelectItem key={emp.employee_id_str} value={emp.employee_id_str}>
+                              {emp.employee_name || emp.username}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                           placeholder="Search files..."
                           value={adminSearch}
                           onChange={e => { setAdminSearch(e.target.value); setAdminPage(1); }}
-                          className="pl-8 h-8 text-sm w-48"
+                          className="pl-8 h-8 text-sm w-44"
                         />
                       </div>
                     </div>
@@ -861,6 +932,16 @@ export default function GcsDashboardPage() {
                         {m.label}
                       </Button>
                     ))}
+                    {(adminEmployee !== 'all' || adminSearch) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs h-7 px-3 text-muted-foreground"
+                        onClick={() => { setAdminEmployee('all'); setAdminSearch(''); setAdminModule('all'); setAdminPage(1); }}
+                      >
+                        Clear filters
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -881,7 +962,7 @@ export default function GcsDashboardPage() {
                       </div>
                       <h3 className="font-medium text-foreground mb-1">No files found</h3>
                       <p className="text-sm text-muted-foreground">
-                        {adminSearch ? "No files match your search." : "No Administration files have been synced yet. Try running a sync."}
+                        {adminSearch || adminEmployee !== 'all' ? "No files match your filters." : "No Administration files have been synced yet. Try running a sync."}
                       </p>
                     </div>
                   ) : (
@@ -891,18 +972,21 @@ export default function GcsDashboardPage() {
                           <thead>
                             <tr className="border-b bg-muted/30">
                               <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">File</th>
+                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Employee</th>
                               <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Module</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Category</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Entity ID</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Label</th>
+                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Trip / Record</th>
+                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Document</th>
                               <th className="text-right py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Size</th>
                               <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Updated</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y">
                             {adminFilesQuery.data.files.map((f: any) => {
-                              const parsed = parseAdminPath(f.file_path);
-                              const ext = (f.file_name || '').split('.').pop()?.toLowerCase() || '';
+                              const mod = f.admin_module || '';
+                              const labelMatch = (f.file_name || '').match(/^\d{3}-(.+)\.[^.]+$/);
+                              const docLabel = labelMatch ? labelMatch[1].replace(/-/g, ' ') : f.file_name;
+                              const entityId = f.entity_id_str;
+                              const entityLabel = mod === 'Travel' ? `Trip #${entityId}` : mod === 'Visa' ? `Record #${entityId}` : entityId ? `#${entityId}` : null;
                               return (
                                 <tr key={f.id} className="hover:bg-muted/20 transition-colors">
                                   <td className="py-2.5 px-4">
@@ -910,8 +994,8 @@ export default function GcsDashboardPage() {
                                       <FileText className={`h-4 w-4 shrink-0 ${getFileIcon(f.file_name)}`} />
                                       <TooltipProvider>
                                         <Tooltip>
-                                          <TooltipTrigger>
-                                            <span className="truncate max-w-[180px] block font-medium text-xs" title={f.file_name}>
+                                          <TooltipTrigger asChild>
+                                            <span className="truncate max-w-[160px] block font-medium text-xs cursor-default" title={f.file_name}>
                                               {f.file_name}
                                             </span>
                                           </TooltipTrigger>
@@ -919,29 +1003,28 @@ export default function GcsDashboardPage() {
                                         </Tooltip>
                                       </TooltipProvider>
                                     </div>
-                                    {ext && (
-                                      <span className="ml-6 text-[10px] font-mono uppercase text-muted-foreground/60">{ext}</span>
+                                  </td>
+                                  <td className="py-2.5 px-4">
+                                    <span className="text-xs font-medium text-foreground/80">
+                                      {f.employee_name || <span className="text-muted-foreground/40">—</span>}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-4">
+                                    {mod && (
+                                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${adminModuleColor(mod)}`}>
+                                        {mod}
+                                      </span>
                                     )}
                                   </td>
                                   <td className="py-2.5 px-4">
-                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${adminModuleColor(parsed.module)}`}>
-                                      {parsed.module}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    <span className="text-xs text-muted-foreground">
-                                      {parsed.submodule || <span className="text-muted-foreground/40">—</span>}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    {parsed.entityId ? (
-                                      <span className="text-xs font-mono bg-muted/50 px-2 py-0.5 rounded">#{parsed.entityId}</span>
+                                    {entityLabel ? (
+                                      <span className="text-xs font-mono bg-muted/50 px-2 py-0.5 rounded">{entityLabel}</span>
                                     ) : (
                                       <span className="text-muted-foreground/40">—</span>
                                     )}
                                   </td>
                                   <td className="py-2.5 px-4">
-                                    <span className="text-xs capitalize text-foreground/80">{parsed.label}</span>
+                                    <span className="text-xs capitalize text-foreground/80">{docLabel}</span>
                                   </td>
                                   <td className="py-2.5 px-4 text-right">
                                     <span className="text-xs text-muted-foreground">

@@ -392,34 +392,81 @@ export function setupGcsDashboardRoutes(app: Express) {
       const moduleFilter = (req.query.module as string) || '';
       const search = (req.query.search as string) || '';
 
-      const baseFilter = sql`file_path LIKE 'ADMIN/%'`;
+      const employeeId = (req.query.employeeId as string) || '';
+
+      const baseFilter = sql`g.file_path LIKE 'ADMIN/%'`;
       let moduleCondition = sql`1=1`;
       let searchCondition = sql`1=1`;
+      let employeeCondition = sql`1=1`;
 
       if (moduleFilter && moduleFilter !== 'all') {
         const prefix = `ADMIN/${moduleFilter}/%`;
-        moduleCondition = sql`file_path LIKE ${prefix}`;
+        moduleCondition = sql`g.file_path LIKE ${prefix}`;
       }
       if (search) {
         const term = `%${search}%`;
-        searchCondition = sql`(file_name ILIKE ${term} OR file_path ILIKE ${term})`;
+        searchCondition = sql`(g.file_name ILIKE ${term} OR g.file_path ILIKE ${term})`;
+      }
+      if (employeeId && employeeId !== 'all') {
+        employeeCondition = sql`SPLIT_PART(g.file_path, '/', 4) = ${employeeId}`;
       }
 
-      const whereClause = sql`${baseFilter} AND ${moduleCondition} AND ${searchCondition}`;
+      const whereClause = sql`${baseFilter} AND ${moduleCondition} AND ${searchCondition} AND ${employeeCondition}`;
 
-      const countResult = await db.execute(sql`SELECT COUNT(*)::int AS total FROM gcs_file_index WHERE ${whereClause}`);
+      const countResult = await db.execute(sql`SELECT COUNT(*)::int AS total FROM gcs_file_index g WHERE ${whereClause}`);
       const total = parseInt(countResult.rows[0]?.total as string) || 0;
 
       const rows = await db.execute(sql`
-        SELECT id, file_path, file_name, folder_path, size_bytes, content_type, gcs_updated_at, last_synced_at
-        FROM gcs_file_index WHERE ${whereClause}
-        ORDER BY file_path ASC LIMIT ${limit} OFFSET ${offset}
+        SELECT
+          g.id, g.file_path, g.file_name, g.folder_path, g.size_bytes, g.content_type, g.gcs_updated_at, g.last_synced_at,
+          SPLIT_PART(g.file_path, '/', 2) AS admin_module,
+          SPLIT_PART(g.file_path, '/', 4) AS employee_id_str,
+          SPLIT_PART(g.file_path, '/', 6) AS entity_id_str,
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) AS employee_name
+        FROM gcs_file_index g
+        LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
+        WHERE ${whereClause}
+        ORDER BY g.file_path ASC LIMIT ${limit} OFFSET ${offset}
       `);
 
       res.json({ files: rows.rows, total, page, limit, totalPages: Math.ceil(total / limit) });
     } catch (err) {
       console.error('[GCS-DASHBOARD] Admin files error:', err);
       res.status(500).json({ error: 'Failed to load admin files' });
+    }
+  });
+
+  app.get('/api/gcs-dashboard/admin-employees', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      if (user.role !== 'Superuser' && user.role !== 'Admin' && user.department !== 'HR' && user.department !== 'Administration') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const rows = await db.execute(sql`
+        SELECT
+          SPLIT_PART(g.file_path, '/', 4) AS employee_id_str,
+          u.id AS user_id,
+          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) AS employee_name,
+          u.username,
+          u.department,
+          COUNT(*) AS total_files,
+          COUNT(DISTINCT SPLIT_PART(g.file_path, '/', 2)) AS modules,
+          COUNT(*) FILTER (WHERE g.file_path LIKE 'ADMIN/Travel/%') AS travel_files,
+          COUNT(*) FILTER (WHERE g.file_path LIKE 'ADMIN/Visa/%') AS visa_files,
+          COUNT(DISTINCT SPLIT_PART(g.file_path, '/', 6)) FILTER (WHERE g.file_path LIKE 'ADMIN/Travel/%') AS travel_trips,
+          COUNT(DISTINCT SPLIT_PART(g.file_path, '/', 6)) FILTER (WHERE g.file_path LIKE 'ADMIN/Visa/%') AS visa_records
+        FROM gcs_file_index g
+        LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
+        WHERE g.file_path LIKE 'ADMIN/%/Employees/%'
+        GROUP BY SPLIT_PART(g.file_path, '/', 4), u.id, u.first_name, u.last_name, u.username, u.department
+        ORDER BY employee_name NULLS LAST
+      `);
+
+      res.json(rows.rows);
+    } catch (err) {
+      console.error('[GCS-DASHBOARD] Admin employees error:', err);
+      res.status(500).json({ error: 'Failed to load employees' });
     }
   });
 
