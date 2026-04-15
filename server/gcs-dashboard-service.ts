@@ -167,6 +167,95 @@ function resolveCustomerName(
   return { name: parsed.customerCode, resolved: false };
 }
 
+async function processGcsFile(
+  file: any,
+  projectByCode: Map<string, any>,
+  customerById: Map<number, any>,
+  customerByShortCode: Map<string, any>
+): Promise<boolean> {
+  if (file.name.endsWith('/')) return false;
+
+  const parsed = parseGcsPath(file.name);
+  const unresolvedFields: string[] = [];
+
+  const continentName = parsed.continentCode ? (CONTINENT_CODES[parsed.continentCode] || null) : null;
+  if (parsed.continentCode && !continentName) unresolvedFields.push('continent');
+
+  const countryName = parsed.countryCode ? (COUNTRY_CODES[parsed.countryCode] || null) : null;
+  if (parsed.countryCode && !countryName) unresolvedFields.push('country');
+
+  const customerResolution = resolveCustomerName(parsed, projectByCode, customerById, customerByShortCode);
+  if (parsed.customerCode && !customerResolution.resolved) unresolvedFields.push('customer');
+
+  const project = parsed.projectCode ? projectByCode.get(parsed.projectCode) : null;
+  if (parsed.projectCode && !project) unresolvedFields.push('project');
+
+  const fyLabel = fyCodeToLabel(parsed.fyCode);
+
+  const assuranceFlags: string[] = [];
+  const pathDepth = file.name.split('/').length;
+  if (parsed.root !== 'TPEL') {
+    assuranceFlags.push('non_tpel_path');
+  }
+  if (parsed.root === 'TPEL' && parsed.projectCode && !project) {
+    assuranceFlags.push('orphan_no_project_match');
+  }
+  if (parsed.root === 'TPEL' && !parsed.projectCode && pathDepth > 2) {
+    assuranceFlags.push('misplaced_no_project_folder');
+  }
+  if (unresolvedFields.length > 0) {
+    assuranceFlags.push('unresolved_mapping');
+  }
+
+  const metadata = file.metadata || {};
+  const sizeBytes = metadata.size ? parseInt(metadata.size as string, 10) : null;
+  const contentType = (metadata.contentType as string) || null;
+  const updatedAt = metadata.updated ? new Date(metadata.updated as string) : null;
+
+  await db.execute(sql`
+    INSERT INTO gcs_file_index (
+      bucket_name, file_path, file_name, folder_path,
+      continent_code, continent_name, country_code, country_name,
+      customer_code, customer_name, fy_code, fy_label,
+      project_code, project_id, doc_type, revision,
+      size_bytes, content_type, is_resolved, unresolved_fields,
+      assurance_flags, gcs_updated_at, last_synced_at
+    ) VALUES (
+      ${bucketName}, ${file.name}, ${parsed.fileName}, ${parsed.folderPath},
+      ${parsed.continentCode}, ${continentName || parsed.continentCode}, ${parsed.countryCode}, ${countryName || parsed.countryCode},
+      ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
+      ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType ? parsed.docType.substring(0, 100) : null}, ${parsed.revision ? parsed.revision.substring(0, 50) : null},
+      ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? sql`${'{' + unresolvedFields.join(',') + '}'}::text[]` : null},
+      ${assuranceFlags.length > 0 ? sql`${'{' + assuranceFlags.join(',') + '}'}::text[]` : null},
+      ${updatedAt}, NOW()
+    )
+    ON CONFLICT (file_path) DO UPDATE SET
+      file_name = EXCLUDED.file_name,
+      folder_path = EXCLUDED.folder_path,
+      continent_code = EXCLUDED.continent_code,
+      continent_name = EXCLUDED.continent_name,
+      country_code = EXCLUDED.country_code,
+      country_name = EXCLUDED.country_name,
+      customer_code = EXCLUDED.customer_code,
+      customer_name = EXCLUDED.customer_name,
+      fy_code = EXCLUDED.fy_code,
+      fy_label = EXCLUDED.fy_label,
+      project_code = EXCLUDED.project_code,
+      project_id = EXCLUDED.project_id,
+      doc_type = EXCLUDED.doc_type,
+      revision = EXCLUDED.revision,
+      size_bytes = EXCLUDED.size_bytes,
+      content_type = EXCLUDED.content_type,
+      is_resolved = EXCLUDED.is_resolved,
+      unresolved_fields = EXCLUDED.unresolved_fields,
+      assurance_flags = EXCLUDED.assurance_flags,
+      gcs_updated_at = EXCLUDED.gcs_updated_at,
+      last_synced_at = NOW()
+  `);
+
+  return true;
+}
+
 export async function syncGcsIndex(): Promise<{ synced: number; errors: number }> {
   if (syncInProgress) {
     throw new Error('Sync already in progress');
@@ -175,111 +264,49 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
   syncInProgress = true;
   let synced = 0;
   let errors = 0;
+  let totalProcessed = 0;
 
   try {
     console.log('[GCS-SYNC] Starting full bucket scan...');
     const bucket = storage.bucket(bucketName);
-    const [files] = await bucket.getFiles({ autoPaginate: true });
-
-    console.log(`[GCS-SYNC] Found ${files.length} objects in bucket`);
 
     const { projectByCode, customerById, customerByShortCode } = await buildResolutionMaps();
 
-    const batchSize = 100;
-    for (let i = 0; i < files.length; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
+    const PAGE_SIZE = 100;
+    let pageToken: string | undefined = undefined;
+    let firstPage = true;
 
-      for (const file of batch) {
+    do {
+      const [pageFiles, , response] = await bucket.getFiles({
+        autoPaginate: false,
+        maxResults: PAGE_SIZE,
+        pageToken,
+      });
+
+      if (firstPage) {
+        console.log('[GCS-SYNC] Scanning bucket (paginated)...');
+        firstPage = false;
+      }
+
+      for (const file of pageFiles) {
         try {
-          if (file.name.endsWith('/')) continue;
-
-          const parsed = parseGcsPath(file.name);
-          const unresolvedFields: string[] = [];
-
-          const continentName = parsed.continentCode ? (CONTINENT_CODES[parsed.continentCode] || null) : null;
-          if (parsed.continentCode && !continentName) unresolvedFields.push('continent');
-
-          const countryName = parsed.countryCode ? (COUNTRY_CODES[parsed.countryCode] || null) : null;
-          if (parsed.countryCode && !countryName) unresolvedFields.push('country');
-
-          const customerResolution = resolveCustomerName(parsed, projectByCode, customerById, customerByShortCode);
-          if (parsed.customerCode && !customerResolution.resolved) unresolvedFields.push('customer');
-
-          const project = parsed.projectCode ? projectByCode.get(parsed.projectCode) : null;
-          if (parsed.projectCode && !project) unresolvedFields.push('project');
-
-          const fyLabel = fyCodeToLabel(parsed.fyCode);
-
-          const assuranceFlags: string[] = [];
-          const pathDepth = file.name.split('/').length;
-          if (parsed.root !== 'TPEL') {
-            assuranceFlags.push('non_tpel_path');
-          }
-          if (parsed.root === 'TPEL' && parsed.projectCode && !project) {
-            assuranceFlags.push('orphan_no_project_match');
-          }
-          if (parsed.root === 'TPEL' && !parsed.projectCode && pathDepth > 2) {
-            assuranceFlags.push('misplaced_no_project_folder');
-          }
-          if (unresolvedFields.length > 0) {
-            assuranceFlags.push('unresolved_mapping');
-          }
-
-          const metadata = file.metadata || {};
-          const sizeBytes = metadata.size ? parseInt(metadata.size as string, 10) : null;
-          const contentType = (metadata.contentType as string) || null;
-          const updatedAt = metadata.updated ? new Date(metadata.updated as string) : null;
-
-          await db.execute(sql`
-            INSERT INTO gcs_file_index (
-              bucket_name, file_path, file_name, folder_path,
-              continent_code, continent_name, country_code, country_name,
-              customer_code, customer_name, fy_code, fy_label,
-              project_code, project_id, doc_type, revision,
-              size_bytes, content_type, is_resolved, unresolved_fields,
-              assurance_flags, gcs_updated_at, last_synced_at
-            ) VALUES (
-              ${bucketName}, ${file.name}, ${parsed.fileName}, ${parsed.folderPath},
-              ${parsed.continentCode}, ${continentName || parsed.continentCode}, ${parsed.countryCode}, ${countryName || parsed.countryCode},
-              ${parsed.customerCode}, ${customerResolution.name}, ${parsed.fyCode}, ${fyLabel},
-              ${parsed.projectCode}, ${project?.id || null}, ${parsed.docType ? parsed.docType.substring(0, 100) : null}, ${parsed.revision ? parsed.revision.substring(0, 50) : null},
-              ${sizeBytes}, ${contentType}, ${unresolvedFields.length === 0}, ${unresolvedFields.length > 0 ? sql`${'{' + unresolvedFields.join(',') + '}'}::text[]` : null},
-              ${assuranceFlags.length > 0 ? sql`${'{' + assuranceFlags.join(',') + '}'}::text[]` : null},
-              ${updatedAt}, NOW()
-            )
-            ON CONFLICT (file_path) DO UPDATE SET
-              file_name = EXCLUDED.file_name,
-              folder_path = EXCLUDED.folder_path,
-              continent_code = EXCLUDED.continent_code,
-              continent_name = EXCLUDED.continent_name,
-              country_code = EXCLUDED.country_code,
-              country_name = EXCLUDED.country_name,
-              customer_code = EXCLUDED.customer_code,
-              customer_name = EXCLUDED.customer_name,
-              fy_code = EXCLUDED.fy_code,
-              fy_label = EXCLUDED.fy_label,
-              project_code = EXCLUDED.project_code,
-              project_id = EXCLUDED.project_id,
-              doc_type = EXCLUDED.doc_type,
-              revision = EXCLUDED.revision,
-              size_bytes = EXCLUDED.size_bytes,
-              content_type = EXCLUDED.content_type,
-              is_resolved = EXCLUDED.is_resolved,
-              unresolved_fields = EXCLUDED.unresolved_fields,
-              assurance_flags = EXCLUDED.assurance_flags,
-              gcs_updated_at = EXCLUDED.gcs_updated_at,
-              last_synced_at = NOW()
-          `);
-
-          synced++;
+          const processed = await processGcsFile(file, projectByCode, customerById, customerByShortCode);
+          if (processed) synced++;
         } catch (err) {
           errors++;
           console.error(`[GCS-SYNC] Error processing ${file.name}:`, err);
         }
+        totalProcessed++;
       }
 
-      console.log(`[GCS-SYNC] Processed ${Math.min(i + batchSize, files.length)}/${files.length}`);
-    }
+      if (totalProcessed % 200 === 0 || (pageToken === undefined && totalProcessed > 0)) {
+        console.log(`[GCS-SYNC] Processed ${totalProcessed} files so far...`);
+      }
+
+      pageToken = response?.nextPageToken as string | undefined;
+
+      await new Promise(resolve => setTimeout(resolve, 10));
+    } while (pageToken);
 
     lastSyncTime = new Date();
     console.log(`[GCS-SYNC] Complete. Synced: ${synced}, Errors: ${errors}`);
