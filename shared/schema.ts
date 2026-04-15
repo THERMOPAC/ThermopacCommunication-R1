@@ -4268,14 +4268,7 @@ export const tripDocuments = pgTable('trip_documents', {
   uploadedBy: integer('uploaded_by').notNull().references(() => users.id),
   uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
   isActive: boolean('is_active').notNull().default(true), // For soft delete
-  // GCS document control columns (Phase 2)
-  seq: integer('seq'),
-  label: varchar('label', { length: 50 }),
-  gcsPath: text('gcs_path'),
-  deletedAt: timestamp('deleted_at'),
-}, (t) => ({
-  tripSeqUnique: uniqueIndex('trip_documents_trip_id_seq_idx').on(t.tripId, t.seq),
-}));
+});
 
 // Document Types
 export const documentTypes = [
@@ -7437,10 +7430,6 @@ export const ndaAgreements = pgTable('nda_agreements', {
   approvedBy: integer('approved_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-  // GCS document control columns (Phase 2)
-  draftGcsPath: text('draft_gcs_path'),
-  executedGcsPath: text('executed_gcs_path'),
-  fileLocked: boolean('file_locked').notNull().default(false),
 });
 
 // Exclusivity Agreement Management
@@ -7492,10 +7481,6 @@ export const exclusivityAgreements = pgTable('exclusivity_agreements', {
   approvedBy: integer('approved_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-  // GCS document control columns (Phase 2)
-  draftGcsPath: text('draft_gcs_path'),
-  executedGcsPath: text('executed_gcs_path'),
-  fileLocked: boolean('file_locked').notNull().default(false),
 });
 
 // NDA Breach Incidents Tracking
@@ -7860,10 +7845,7 @@ export const complianceRegister = pgTable('compliance_register', {
   remarks: text('remarks'),
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  // GCS document control columns (Phase 2)
-  gcsPath: text('gcs_path'),
-  fileLocked: boolean('file_locked').notNull().default(false),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
 // POSH Cases table
@@ -7965,13 +7947,7 @@ export const policyTemplates = pgTable('policy_templates', {
   mandatory: boolean('mandatory').notNull().default(false),
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  // GCS document control columns (Phase 2)
-  gcsPath: text('gcs_path'),
-  versionNumber: integer('version_number'),
-  docIsActive: boolean('doc_is_active').notNull().default(false),
-  activatedBy: integer('activated_by').references(() => users.id),
-  activatedAt: timestamp('activated_at'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
 // Legal Alerts table
@@ -12436,109 +12412,3 @@ export const customerOrderDocuments = pgTable('customer_order_documents', {
 export const insertCustomerOrderDocumentSchema = createInsertSchema(customerOrderDocuments).omit({ id: true, createdAt: true, updatedAt: true });
 export type CustomerOrderDocument = typeof customerOrderDocuments.$inferSelect;
 export type InsertCustomerOrderDocument = z.infer<typeof insertCustomerOrderDocumentSchema>;
-
-// ==================== ADMIN GCS DOCUMENT CONTROL — PHASE 2 CHILD TABLES ====================
-
-// contract_documents — append-only multi-file, UNIQUE(contract_id, seq)
-export const contractDocuments = pgTable('contract_documents', {
-  id: serial('id').primaryKey(),
-  contractId: integer('contract_id').notNull().references(() => contracts.id, { onDelete: 'cascade' }),
-  gcsPath: text('gcs_path').notNull(),
-  seq: integer('seq').notNull(),
-  label: varchar('label', { length: 50 }).notNull(),
-  uploadedBy: integer('uploaded_by').references(() => users.id),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-}, (t) => ({
-  contractSeqUnique: uniqueIndex('contract_documents_contract_id_seq_idx').on(t.contractId, t.seq),
-}));
-
-export const insertContractDocumentSchema = createInsertSchema(contractDocuments).omit({ id: true, uploadedAt: true });
-export type ContractDocument = typeof contractDocuments.$inferSelect;
-export type InsertContractDocument = z.infer<typeof insertContractDocumentSchema>;
-
-// posh_documents — append-only multi-file, UNIQUE(case_id, seq)
-export const poshDocuments = pgTable('posh_documents', {
-  id: serial('id').primaryKey(),
-  caseId: integer('case_id').notNull().references(() => poshCases.id, { onDelete: 'cascade' }),
-  gcsPath: text('gcs_path').notNull(),
-  seq: integer('seq').notNull(),
-  label: varchar('label', { length: 50 }).notNull(),
-  uploadedBy: integer('uploaded_by').references(() => users.id),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-}, (t) => ({
-  poshSeqUnique: uniqueIndex('posh_documents_case_id_seq_idx').on(t.caseId, t.seq),
-}));
-
-export const insertPoshDocumentSchema = createInsertSchema(poshDocuments).omit({ id: true, uploadedAt: true });
-export type PoshDocument = typeof poshDocuments.$inferSelect;
-export type InsertPoshDocument = z.infer<typeof insertPoshDocumentSchema>;
-
-// notice_documents — append-only multi-file, UNIQUE(notice_id, seq)
-export const noticeDocuments = pgTable('notice_documents', {
-  id: serial('id').primaryKey(),
-  noticeId: integer('notice_id').notNull().references(() => legalNotices.id, { onDelete: 'cascade' }),
-  gcsPath: text('gcs_path').notNull(),
-  seq: integer('seq').notNull(),
-  label: varchar('label', { length: 50 }).notNull(),
-  uploadedBy: integer('uploaded_by').references(() => users.id),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-}, (t) => ({
-  noticeSeqUnique: uniqueIndex('notice_documents_notice_id_seq_idx').on(t.noticeId, t.seq),
-}));
-
-export const insertNoticeDocumentSchema = createInsertSchema(noticeDocuments).omit({ id: true, uploadedAt: true });
-export type NoticeDocument = typeof noticeDocuments.$inferSelect;
-export type InsertNoticeDocument = z.infer<typeof insertNoticeDocumentSchema>;
-
-// visa_documents — single-active with history, UNIQUE(visa_record_id, seq)
-export const visaDocuments = pgTable('visa_documents', {
-  id: serial('id').primaryKey(),
-  visaRecordId: integer('visa_record_id').notNull().references(() => visaRecords.id, { onDelete: 'cascade' }),
-  gcsPath: text('gcs_path').notNull(),
-  seq: integer('seq').notNull(),
-  label: varchar('label', { length: 50 }),
-  isActive: boolean('is_active').notNull().default(true),
-  uploadedBy: integer('uploaded_by').references(() => users.id),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-  supersededAt: timestamp('superseded_at'),
-}, (t) => ({
-  visaSeqUnique: uniqueIndex('visa_documents_visa_record_id_seq_idx').on(t.visaRecordId, t.seq),
-}));
-
-export const insertVisaDocumentSchema = createInsertSchema(visaDocuments).omit({ id: true, uploadedAt: true });
-export type VisaDocument = typeof visaDocuments.$inferSelect;
-export type InsertVisaDocument = z.infer<typeof insertVisaDocumentSchema>;
-
-// loan_documents — append-only multi-file, UNIQUE(loan_id, seq)
-export const loanDocuments = pgTable('loan_documents', {
-  id: serial('id').primaryKey(),
-  loanId: integer('loan_id').notNull().references(() => employeeLoans.id, { onDelete: 'cascade' }),
-  gcsPath: text('gcs_path').notNull(),
-  seq: integer('seq').notNull(),
-  label: varchar('label', { length: 50 }).notNull(),
-  uploadedBy: integer('uploaded_by').references(() => users.id),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-}, (t) => ({
-  loanSeqUnique: uniqueIndex('loan_documents_loan_id_seq_idx').on(t.loanId, t.seq),
-}));
-
-export const insertLoanDocumentSchema = createInsertSchema(loanDocuments).omit({ id: true, uploadedAt: true });
-export type LoanDocument = typeof loanDocuments.$inferSelect;
-export type InsertLoanDocument = z.infer<typeof insertLoanDocumentSchema>;
-
-// advance_documents — append-only multi-file, UNIQUE(advance_id, seq)
-export const advanceDocuments = pgTable('advance_documents', {
-  id: serial('id').primaryKey(),
-  advanceId: integer('advance_id').notNull().references(() => employeeAdvances.id, { onDelete: 'cascade' }),
-  gcsPath: text('gcs_path').notNull(),
-  seq: integer('seq').notNull(),
-  label: varchar('label', { length: 50 }).notNull(),
-  uploadedBy: integer('uploaded_by').references(() => users.id),
-  uploadedAt: timestamp('uploaded_at').notNull().defaultNow(),
-}, (t) => ({
-  advanceSeqUnique: uniqueIndex('advance_documents_advance_id_seq_idx').on(t.advanceId, t.seq),
-}));
-
-export const insertAdvanceDocumentSchema = createInsertSchema(advanceDocuments).omit({ id: true, uploadedAt: true });
-export type AdvanceDocument = typeof advanceDocuments.$inferSelect;
-export type InsertAdvanceDocument = z.infer<typeof insertAdvanceDocumentSchema>;

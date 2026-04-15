@@ -39,34 +39,6 @@ function formatDateTime(d: string | null): string {
   return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function parseAdminPath(filePath: string): { module: string; submodule: string | null; entityId: string | null; label: string } {
-  const parts = filePath.split('/');
-  const fileName = parts[parts.length - 1] || '';
-  const labelMatch = fileName.match(/^\d{3}-(.+)\.[^.]+$/);
-  const label = labelMatch ? labelMatch[1].replace(/-/g, ' ') : fileName;
-  if (parts[0] !== 'ADMIN' || parts.length < 3) return { module: parts[1] || 'Unknown', submodule: null, entityId: null, label };
-  const module = parts[1];
-  if (module === 'Travel') {
-    const tripsIdx = parts.indexOf('Trips');
-    return { module, submodule: null, entityId: tripsIdx >= 0 ? (parts[tripsIdx + 1] || null) : null, label };
-  }
-  if (module === 'Visa') {
-    const recIdx = parts.indexOf('Records');
-    return { module, submodule: null, entityId: recIdx >= 0 ? (parts[recIdx + 1] || null) : null, label };
-  }
-  if (module === 'Legal') {
-    return { module, submodule: parts[2] || null, entityId: parts[3] || null, label };
-  }
-  return { module, submodule: parts[2] || null, entityId: parts[3] || null, label };
-}
-
-function adminModuleColor(module: string): string {
-  if (module === 'Travel') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-  if (module === 'Visa') return 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300';
-  if (module === 'Legal') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
-  return 'bg-muted text-muted-foreground';
-}
-
 function getFileIcon(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
   const iconColors: Record<string, string> = {
@@ -180,13 +152,9 @@ export default function GcsDashboardPage() {
   const [selectedTreeNode, setSelectedTreeNode] = useState("");
   const [flagFilter, setFlagFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
-  const [adminModule, setAdminModule] = useState("all");
-  const [adminEmployee, setAdminEmployee] = useState("all");
-  const [adminSearch, setAdminSearch] = useState("");
-  const [adminPage, setAdminPage] = useState(1);
 
   const summaryQuery = useQuery<any>({ queryKey: ["/api/gcs-dashboard/summary"] });
-  const treeQuery = useQuery<TreeNode>({ queryKey: ["/api/gcs-dashboard/tree"], staleTime: 0 });
+  const treeQuery = useQuery<TreeNode>({ queryKey: ["/api/gcs-dashboard/tree"] });
   const filterOptionsQuery = useQuery<any>({ queryKey: ["/api/gcs-dashboard/filters"] });
 
   const filesQuery = useQuery<any>({
@@ -221,32 +189,6 @@ export default function GcsDashboardPage() {
   const permissionsQuery = useQuery<any[]>({
     queryKey: ["/api/gcs-access/permissions"],
     enabled: isSuperuser && activeTab === "access",
-  });
-
-  const adminEmployeesQuery = useQuery<any[]>({
-    queryKey: ["/api/gcs-dashboard/admin-employees"],
-    queryFn: async () => {
-      const res = await fetch("/api/gcs-dashboard/admin-employees", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load employees");
-      return res.json();
-    },
-    enabled: activeTab === "admin",
-  });
-
-  const adminFilesQuery = useQuery<any>({
-    queryKey: ["/api/gcs-dashboard/admin-files", adminPage, adminModule, adminEmployee, adminSearch],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.set("page", String(adminPage));
-      params.set("limit", "50");
-      if (adminModule && adminModule !== "all") params.set("module", adminModule);
-      if (adminEmployee && adminEmployee !== "all") params.set("employeeId", adminEmployee);
-      if (adminSearch) params.set("search", adminSearch);
-      const res = await fetch(`/api/gcs-dashboard/admin-files?${params.toString()}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load admin files");
-      return res.json();
-    },
-    enabled: activeTab === "admin",
   });
 
   const syncMutation = useMutation({
@@ -458,9 +400,6 @@ export default function GcsDashboardPage() {
             <TabsList className="bg-muted/50">
               <TabsTrigger value="browse" className="gap-1.5 data-[state=active]:bg-background">
                 <FolderOpen className="h-4 w-4" /> Browse Files
-              </TabsTrigger>
-              <TabsTrigger value="admin" className="gap-1.5 data-[state=active]:bg-background">
-                <Building2 className="h-4 w-4" /> Administration
               </TabsTrigger>
               {isSuperuser && (
                 <TabsTrigger value="assurance" className="gap-1.5 data-[state=active]:bg-background">
@@ -828,240 +767,6 @@ export default function GcsDashboardPage() {
                   </CardContent>
                 </Card>
               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="admin" className="mt-0">
-            <div className="space-y-4">
-
-              {/* Employee summary cards */}
-              {adminEmployeesQuery.data && adminEmployeesQuery.data.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {adminEmployeesQuery.data.map((emp: any) => (
-                    <Card
-                      key={emp.employee_id_str}
-                      className={`border shadow-sm cursor-pointer transition-all hover:shadow-md ${adminEmployee === emp.employee_id_str ? 'border-primary ring-1 ring-primary/30 bg-primary/5' : 'border-border'}`}
-                      onClick={() => {
-                        setAdminEmployee(adminEmployee === emp.employee_id_str ? 'all' : emp.employee_id_str);
-                        setAdminPage(1);
-                      }}
-                    >
-                      <CardContent className="pt-4 pb-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm truncate">{emp.employee_name || emp.username}</p>
-                            {emp.department && <p className="text-xs text-muted-foreground mt-0.5">{emp.department}</p>}
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-lg font-bold text-primary">{emp.total_files}</p>
-                            <p className="text-[10px] text-muted-foreground">files</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3 mt-3 pt-2 border-t">
-                          {parseInt(emp.travel_files) > 0 && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium">Travel</span>
-                              <span className="text-[11px] text-muted-foreground">{emp.travel_trips} trips · {emp.travel_files} files</span>
-                            </div>
-                          )}
-                          {parseInt(emp.visa_files) > 0 && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 font-medium">Visa</span>
-                              <span className="text-[11px] text-muted-foreground">{emp.visa_records} records · {emp.visa_files} files</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-
-              <Card className="border-0 shadow-sm">
-                <CardHeader className="py-4 border-b">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-primary" /> Administration Documents
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {adminEmployee !== 'all' && adminEmployeesQuery.data
-                          ? `Showing files for ${adminEmployeesQuery.data.find((e: any) => e.employee_id_str === adminEmployee)?.employee_name || 'selected employee'}`
-                          : 'GCS-stored files from Travel, Visa, and Legal modules'}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Select value={adminEmployee} onValueChange={v => { setAdminEmployee(v); setAdminPage(1); }}>
-                        <SelectTrigger className="h-8 text-sm w-44">
-                          <SelectValue placeholder="All Employees" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Employees</SelectItem>
-                          {(adminEmployeesQuery.data || []).map((emp: any) => (
-                            <SelectItem key={emp.employee_id_str} value={emp.employee_id_str}>
-                              {emp.employee_name || emp.username}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input
-                          placeholder="Search files..."
-                          value={adminSearch}
-                          onChange={e => { setAdminSearch(e.target.value); setAdminPage(1); }}
-                          className="pl-8 h-8 text-sm w-44"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-3 flex-wrap">
-                    {[
-                      { val: "all", label: "All Modules" },
-                      { val: "Travel", label: "Travel" },
-                      { val: "Visa", label: "Visa" },
-                      { val: "Legal", label: "Legal" },
-                    ].map(m => (
-                      <Button
-                        key={m.val}
-                        size="sm"
-                        variant={adminModule === m.val ? "default" : "outline"}
-                        className="text-xs h-7 px-3"
-                        onClick={() => { setAdminModule(m.val); setAdminPage(1); }}
-                      >
-                        {m.label}
-                      </Button>
-                    ))}
-                    {(adminEmployee !== 'all' || adminSearch) && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-xs h-7 px-3 text-muted-foreground"
-                        onClick={() => { setAdminEmployee('all'); setAdminSearch(''); setAdminModule('all'); setAdminPage(1); }}
-                      >
-                        Clear filters
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {adminFilesQuery.isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary/40" />
-                      <p className="text-sm text-muted-foreground">Loading administration files...</p>
-                    </div>
-                  ) : adminFilesQuery.isError ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3">
-                      <AlertTriangle className="h-8 w-8 text-amber-400" />
-                      <p className="text-sm text-muted-foreground">Could not load files. You may not have access to this section.</p>
-                    </div>
-                  ) : !adminFilesQuery.data?.files?.length ? (
-                    <div className="text-center py-16">
-                      <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                        <Building2 className="h-8 w-8 text-muted-foreground/40" />
-                      </div>
-                      <h3 className="font-medium text-foreground mb-1">No files found</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {adminSearch || adminEmployee !== 'all' ? "No files match your filters." : "No Administration files have been synced yet. Try running a sync."}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b bg-muted/30">
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">File</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Employee</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Module</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Trip / Record</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Document</th>
-                              <th className="text-right py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Size</th>
-                              <th className="text-left py-2.5 px-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">Updated</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {adminFilesQuery.data.files.map((f: any) => {
-                              const mod = f.admin_module || '';
-                              const labelMatch = (f.file_name || '').match(/^\d{3}-(.+)\.[^.]+$/);
-                              const docLabel = labelMatch ? labelMatch[1].replace(/-/g, ' ') : f.file_name;
-                              const entityId = f.entity_id_str;
-                              const entityLabel = mod === 'Travel' ? `Trip #${entityId}` : mod === 'Visa' ? `Record #${entityId}` : entityId ? `#${entityId}` : null;
-                              return (
-                                <tr key={f.id} className="hover:bg-muted/20 transition-colors">
-                                  <td className="py-2.5 px-4">
-                                    <div className="flex items-center gap-2">
-                                      <FileText className={`h-4 w-4 shrink-0 ${getFileIcon(f.file_name)}`} />
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className="truncate max-w-[160px] block font-medium text-xs cursor-default" title={f.file_name}>
-                                              {f.file_name}
-                                            </span>
-                                          </TooltipTrigger>
-                                          <TooltipContent className="font-mono text-xs max-w-[400px] break-all">{f.file_path}</TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    </div>
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    <span className="text-xs font-medium text-foreground/80">
-                                      {f.employee_name || <span className="text-muted-foreground/40">—</span>}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    {mod && (
-                                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${adminModuleColor(mod)}`}>
-                                        {mod}
-                                      </span>
-                                    )}
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    {entityLabel ? (
-                                      <span className="text-xs font-mono bg-muted/50 px-2 py-0.5 rounded">{entityLabel}</span>
-                                    ) : (
-                                      <span className="text-muted-foreground/40">—</span>
-                                    )}
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    <span className="text-xs capitalize text-foreground/80">{docLabel}</span>
-                                  </td>
-                                  <td className="py-2.5 px-4 text-right">
-                                    <span className="text-xs text-muted-foreground">
-                                      {f.size_bytes ? formatBytes(Number(f.size_bytes)) : "—"}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5 px-4">
-                                    <span className="text-xs text-muted-foreground">{formatDate(f.gcs_updated_at)}</span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      {adminFilesQuery.data.totalPages > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
-                          <p className="text-sm text-muted-foreground">
-                            Showing {((adminFilesQuery.data.page - 1) * adminFilesQuery.data.limit) + 1}–{Math.min(adminFilesQuery.data.page * adminFilesQuery.data.limit, adminFilesQuery.data.total)} of {adminFilesQuery.data.total.toLocaleString()} files
-                          </p>
-                          <div className="flex items-center gap-1">
-                            <Button size="sm" variant="outline" disabled={adminPage <= 1} onClick={() => setAdminPage(p => p - 1)} className="gap-1">
-                              <ChevronLeft className="h-4 w-4" /> Previous
-                            </Button>
-                            <div className="px-3 text-sm text-muted-foreground">
-                              {adminFilesQuery.data.page} / {adminFilesQuery.data.totalPages}
-                            </div>
-                            <Button size="sm" variant="outline" disabled={adminPage >= adminFilesQuery.data.totalPages} onClick={() => setAdminPage(p => p + 1)} className="gap-1">
-                              Next <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 

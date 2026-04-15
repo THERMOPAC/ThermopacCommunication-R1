@@ -86,10 +86,10 @@ export const initializeGCS = async (): Promise<{ storage: Storage | null, bucket
  * @returns Object with success flag and result information
  */
 export const uploadFileToGCS = async (
-  filePath: string,
-  fileBuffer: Buffer,
+  filePath: string, 
+  fileBuffer: Buffer, 
   contentType: string
-): Promise<{ success: boolean; message: string; gcsPath?: string; signedUrl?: string; url?: string }> => {
+): Promise<{ success: boolean; message: string; url?: string }> => {
   try {
     // Always attempt to initialize GCS before operations
     // This is important for production where GCS might not be initialized yet
@@ -197,21 +197,16 @@ export const uploadFileToGCS = async (
       }
     }
     
-    // Generate signed URL (read access, 1-year expiry) — bucket has publicAccessPrevention=enforced
+    // Generate public URL for the file
     if (!gcsBucket) {
       throw new Error('GCS bucket is not initialized');
     }
-    const [signedUrl] = await gcsBucket.file(normalizedPath).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
-    });
-
+    const publicUrl = `https://storage.googleapis.com/${gcsBucket.name}/${normalizedPath}`;
+    
     return {
       success: true,
       message: 'File uploaded successfully',
-      gcsPath: normalizedPath,
-      signedUrl,
-      url: signedUrl,
+      url: publicUrl
     };
   } catch (error) {
     console.error(`Unexpected error during GCS upload: ${error instanceof Error ? error.message : String(error)}`);

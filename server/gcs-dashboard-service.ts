@@ -21,47 +21,6 @@ export interface ParsedGcsPath {
   revision: string | null;
   fileName: string;
   folderPath: string;
-  isAdmin?: boolean;
-}
-
-export interface ParsedAdminPath {
-  module: string;
-  submodule: string | null;
-  entityId: string | null;
-  label: string | null;
-}
-
-export function parseAdminGcsPath(filePath: string): ParsedAdminPath {
-  const parts = filePath.split('/');
-  const fileName = parts[parts.length - 1] || '';
-  const labelMatch = fileName.match(/^\d{3}-(.+)\.[^.]+$/);
-  const label = labelMatch ? labelMatch[1].replace(/-/g, ' ') : fileName;
-
-  if (parts[0] !== 'ADMIN' || parts.length < 3) {
-    return { module: parts[1] || 'Unknown', submodule: null, entityId: null, label };
-  }
-
-  const module = parts[1];
-
-  if (module === 'Travel') {
-    const tripsIdx = parts.indexOf('Trips');
-    const entityId = tripsIdx >= 0 && parts[tripsIdx + 1] ? parts[tripsIdx + 1] : null;
-    return { module, submodule: null, entityId, label };
-  }
-
-  if (module === 'Visa') {
-    const recIdx = parts.indexOf('Records');
-    const entityId = recIdx >= 0 && parts[recIdx + 1] ? parts[recIdx + 1] : null;
-    return { module, submodule: null, entityId, label };
-  }
-
-  if (module === 'Legal') {
-    const submodule = parts[2] || null;
-    const entityId = parts[3] || null;
-    return { module, submodule, entityId, label };
-  }
-
-  return { module, submodule: parts[2] || null, entityId: parts[3] || null, label };
 }
 
 export function parseGcsPath(filePath: string): ParsedGcsPath {
@@ -85,11 +44,6 @@ export function parseGcsPath(filePath: string): ParsedGcsPath {
   if (parts.length < 2) return result;
 
   result.root = parts[0] || null;
-
-  if (parts[0] === 'ADMIN') {
-    result.isAdmin = true;
-    return result;
-  }
 
   if (parts[0] !== 'TPEL') return result;
 
@@ -258,9 +212,7 @@ export async function syncGcsIndex(): Promise<{ synced: number; errors: number }
 
           const assuranceFlags: string[] = [];
           const pathDepth = file.name.split('/').length;
-          if (parsed.isAdmin) {
-            assuranceFlags.push('admin_path');
-          } else if (parsed.root !== 'TPEL') {
+          if (parsed.root !== 'TPEL') {
             assuranceFlags.push('non_tpel_path');
           }
           if (parsed.root === 'TPEL' && parsed.projectCode && !project) {

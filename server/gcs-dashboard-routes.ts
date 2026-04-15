@@ -108,7 +108,6 @@ export function setupGcsDashboardRoutes(app: Express) {
   });
 
   app.get('/api/gcs-dashboard/tree', ensureAuthenticated, async (req: Request, res: Response) => {
-    res.set('Cache-Control', 'no-store');
     try {
       const user = (req as any).user;
       const projectIds = await getAccessibleProjectIds(user.id, user.role);
@@ -132,39 +131,15 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       const nonTpelRows = await db.execute(sql`
         SELECT
-          SPLIT_PART(file_path, '/', 1) AS l1,
-          SPLIT_PART(file_path, '/', 2) AS l2,
-          SPLIT_PART(file_path, '/', 3) AS l3,
-          SPLIT_PART(file_path, '/', 4) AS l4,
-          SPLIT_PART(file_path, '/', 5) AS l5,
-          SPLIT_PART(file_path, '/', 6) AS l6,
+          SPLIT_PART(file_path, '/', 1) AS root_folder,
+          SPLIT_PART(file_path, '/', 2) AS level2,
+          SPLIT_PART(file_path, '/', 3) AS level3,
           COUNT(*)::int AS file_count,
           COALESCE(SUM(size_bytes), 0)::bigint AS total_size
         FROM gcs_file_index
-        WHERE SPLIT_PART(file_path, '/', 1) NOT IN ('TPEL', 'ADMIN')
-        GROUP BY l1, l2, l3, l4, l5, l6
-        ORDER BY l1, l2, l3, l4, l5, l6
-      `);
-
-      const adminRows = await db.execute(sql`
-        SELECT
-          SPLIT_PART(g.file_path, '/', 2) AS l2,
-          SPLIT_PART(g.file_path, '/', 3) AS l3,
-          SPLIT_PART(g.file_path, '/', 4) AS l4_raw,
-          COALESCE(
-            NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), ''),
-            u.username,
-            SPLIT_PART(g.file_path, '/', 4)
-          ) AS l4_name,
-          SPLIT_PART(g.file_path, '/', 5) AS l5,
-          SPLIT_PART(g.file_path, '/', 6) AS l6_raw,
-          COUNT(*)::int AS file_count,
-          COALESCE(SUM(g.size_bytes), 0)::bigint AS total_size
-        FROM gcs_file_index g
-        LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
-        WHERE SPLIT_PART(g.file_path, '/', 1) = 'ADMIN'
-        GROUP BY l2, l3, l4_raw, l4_name, l5, l6_raw
-        ORDER BY l2, l3, l4_name, l5, NULLIF(SPLIT_PART(g.file_path, '/', 6), '')::int NULLS LAST
+        WHERE SPLIT_PART(file_path, '/', 1) != 'TPEL'
+        GROUP BY root_folder, level2, level3
+        ORDER BY root_folder, level2, level3
       `);
 
       interface TreeNode {
@@ -235,97 +210,41 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       for (const row of nonTpelRows.rows) {
         const r = row as any;
-        const parts = [r.l1||'', r.l2||'', r.l3||'', r.l4||'', r.l5||'', r.l6||''];
+        const rootFolder = r.root_folder;
+        const level2 = r.level2 || '';
+        const level3 = r.level3 || '';
         const count = parseInt(r.file_count) || 0;
         const size = parseInt(r.total_size) || 0;
 
-        if (!parts[0]) continue;
+        if (!rootFolder) continue;
+
+        if (!bucketRoot.children[rootFolder]) {
+          bucketRoot.children[rootFolder] = { code: rootFolder, name: rootFolder + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const rootNode = bucketRoot.children[rootFolder];
+        rootNode.fileCount += count;
+        rootNode.totalSize += size;
+
+        if (level2) {
+          if (!rootNode.children[level2]) {
+            rootNode.children[level2] = { code: `${rootFolder}/${level2}`, name: level2 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+          }
+          const l2Node = rootNode.children[level2];
+          l2Node.fileCount += count;
+          l2Node.totalSize += size;
+
+          if (level3) {
+            if (!l2Node.children[level3]) {
+              l2Node.children[level3] = { code: `${rootFolder}/${level2}/${level3}`, name: level3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+            }
+            const l3Node = l2Node.children[level3];
+            l3Node.fileCount += count;
+            l3Node.totalSize += size;
+          }
+        }
 
         bucketRoot.fileCount += count;
         bucketRoot.totalSize += size;
-
-        const isFilename = (s: string) => /\.[a-zA-Z0-9]{2,5}$/.test(s);
-        let parentNode = bucketRoot;
-        let pathSoFar = '';
-        for (let i = 0; i < parts.length; i++) {
-          const seg = parts[i];
-          if (!seg || isFilename(seg)) break;
-          pathSoFar = pathSoFar ? `${pathSoFar}/${seg}` : seg;
-          if (!parentNode.children[seg]) {
-            parentNode.children[seg] = { code: pathSoFar, name: seg + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-          }
-          parentNode.children[seg].fileCount += count;
-          parentNode.children[seg].totalSize += size;
-          parentNode = parentNode.children[seg];
-        }
-      }
-
-      const adminNode: typeof bucketRoot = { code: 'ADMIN', name: 'ADMIN/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-
-      for (const row of adminRows.rows) {
-        const r = row as any;
-        const l2 = r.l2 || '';
-        const l3 = r.l3 || '';
-        const l4Raw = r.l4_raw || '';
-        const l4Name = r.l4_name || l4Raw;
-        const l5 = r.l5 || '';
-        const l6Raw = r.l6_raw || '';
-        const count = parseInt(r.file_count) || 0;
-        const size = parseInt(r.total_size) || 0;
-
-        if (!l2) continue;
-
-        adminNode.fileCount += count;
-        adminNode.totalSize += size;
-
-        if (!adminNode.children[l2]) {
-          adminNode.children[l2] = { code: `ADMIN/${l2}`, name: l2 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const l2Node = adminNode.children[l2];
-        l2Node.fileCount += count;
-        l2Node.totalSize += size;
-
-        if (!l3) continue;
-        if (!l2Node.children[l3]) {
-          l2Node.children[l3] = { code: `ADMIN/${l2}/${l3}`, name: l3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const l3Node = l2Node.children[l3];
-        l3Node.fileCount += count;
-        l3Node.totalSize += size;
-
-        if (!l4Raw) continue;
-        const l4Code = `ADMIN/${l2}/${l3}/${l4Raw}`;
-        if (!l3Node.children[l4Raw]) {
-          l3Node.children[l4Raw] = { code: l4Code, name: l4Name, fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const l4Node = l3Node.children[l4Raw];
-        l4Node.fileCount += count;
-        l4Node.totalSize += size;
-
-        if (!l5) continue;
-        const l5Code = `${l4Code}/${l5}`;
-        if (!l4Node.children[l5]) {
-          l4Node.children[l5] = { code: l5Code, name: l5 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const l5Node = l4Node.children[l5];
-        l5Node.fileCount += count;
-        l5Node.totalSize += size;
-
-        if (!l6Raw) continue;
-        const l6Code = `${l5Code}/${l6Raw}`;
-        const l6Label = l5 === 'Trips' ? `Trip #${l6Raw}` : l5 === 'Records' ? `Record #${l6Raw}` : l6Raw;
-        if (!l5Node.children[l6Raw]) {
-          l5Node.children[l6Raw] = { code: l6Code, name: l6Label, fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const l6Node = l5Node.children[l6Raw];
-        l6Node.fileCount += count;
-        l6Node.totalSize += size;
-      }
-
-      if (adminNode.fileCount > 0) {
-        bucketRoot.children['ADMIN'] = adminNode;
-        bucketRoot.fileCount += adminNode.fileCount;
-        bucketRoot.totalSize += adminNode.totalSize;
       }
 
       res.json(bucketRoot);
@@ -377,7 +296,6 @@ export function setupGcsDashboardRoutes(app: Express) {
           COUNT(*) FILTER (WHERE is_resolved = false)::int AS unresolved_count,
           COUNT(*) FILTER (WHERE 'orphan_no_project_match' = ANY(assurance_flags))::int AS orphan_count,
           COUNT(*) FILTER (WHERE 'non_tpel_path' = ANY(assurance_flags))::int AS non_tpel_count,
-          COUNT(*) FILTER (WHERE 'admin_path' = ANY(assurance_flags))::int AS admin_count,
           COUNT(*) FILTER (WHERE 'misplaced_no_project_folder' = ANY(assurance_flags))::int AS misplaced_count,
           COUNT(*) FILTER (WHERE project_id IS NULL AND file_path LIKE 'TPEL/%')::int AS no_project_link_count
         FROM gcs_file_index
@@ -389,7 +307,6 @@ export function setupGcsDashboardRoutes(app: Express) {
         unresolvedCount: parseInt(row.unresolved_count as string) || 0,
         orphanCount: parseInt(row.orphan_count as string) || 0,
         nonTpelCount: parseInt(row.non_tpel_count as string) || 0,
-        adminCount: parseInt(row.admin_count as string) || 0,
         misplacedCount: parseInt(row.misplaced_count as string) || 0,
         noProjectLinkCount: parseInt(row.no_project_link_count as string) || 0,
         lastSyncTime: getLastSyncTime(),
@@ -457,97 +374,6 @@ export function setupGcsDashboardRoutes(app: Express) {
     } catch (err) {
       console.error('[GCS-DASHBOARD] Sync error:', err);
       res.status(500).json({ error: 'Sync failed' });
-    }
-  });
-
-  app.get('/api/gcs-dashboard/admin-files', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const user = (req as any).user;
-      if (user.role !== 'Superuser' && user.role !== 'Admin' && user.department !== 'HR' && user.department !== 'Administration') {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
-      const offset = (page - 1) * limit;
-      const moduleFilter = (req.query.module as string) || '';
-      const search = (req.query.search as string) || '';
-
-      const employeeId = (req.query.employeeId as string) || '';
-
-      const baseFilter = sql`g.file_path LIKE 'ADMIN/%'`;
-      let moduleCondition = sql`1=1`;
-      let searchCondition = sql`1=1`;
-      let employeeCondition = sql`1=1`;
-
-      if (moduleFilter && moduleFilter !== 'all') {
-        const prefix = `ADMIN/${moduleFilter}/%`;
-        moduleCondition = sql`g.file_path LIKE ${prefix}`;
-      }
-      if (search) {
-        const term = `%${search}%`;
-        searchCondition = sql`(g.file_name ILIKE ${term} OR g.file_path ILIKE ${term})`;
-      }
-      if (employeeId && employeeId !== 'all') {
-        employeeCondition = sql`SPLIT_PART(g.file_path, '/', 4) = ${employeeId}`;
-      }
-
-      const whereClause = sql`${baseFilter} AND ${moduleCondition} AND ${searchCondition} AND ${employeeCondition}`;
-
-      const countResult = await db.execute(sql`SELECT COUNT(*)::int AS total FROM gcs_file_index g WHERE ${whereClause}`);
-      const total = parseInt(countResult.rows[0]?.total as string) || 0;
-
-      const rows = await db.execute(sql`
-        SELECT
-          g.id, g.file_path, g.file_name, g.folder_path, g.size_bytes, g.content_type, g.gcs_updated_at, g.last_synced_at,
-          SPLIT_PART(g.file_path, '/', 2) AS admin_module,
-          SPLIT_PART(g.file_path, '/', 4) AS employee_id_str,
-          SPLIT_PART(g.file_path, '/', 6) AS entity_id_str,
-          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) AS employee_name
-        FROM gcs_file_index g
-        LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
-        WHERE ${whereClause}
-        ORDER BY g.file_path ASC LIMIT ${limit} OFFSET ${offset}
-      `);
-
-      res.json({ files: rows.rows, total, page, limit, totalPages: Math.ceil(total / limit) });
-    } catch (err) {
-      console.error('[GCS-DASHBOARD] Admin files error:', err);
-      res.status(500).json({ error: 'Failed to load admin files' });
-    }
-  });
-
-  app.get('/api/gcs-dashboard/admin-employees', ensureAuthenticated, async (req: Request, res: Response) => {
-    try {
-      const user = (req as any).user;
-      if (user.role !== 'Superuser' && user.role !== 'Admin' && user.department !== 'HR' && user.department !== 'Administration') {
-        return res.status(403).json({ error: 'Access denied' });
-      }
-
-      const rows = await db.execute(sql`
-        SELECT
-          SPLIT_PART(g.file_path, '/', 4) AS employee_id_str,
-          u.id AS user_id,
-          COALESCE(u.first_name || ' ' || COALESCE(u.last_name, ''), u.username) AS employee_name,
-          u.username,
-          u.department,
-          COUNT(*) AS total_files,
-          COUNT(DISTINCT SPLIT_PART(g.file_path, '/', 2)) AS modules,
-          COUNT(*) FILTER (WHERE g.file_path LIKE 'ADMIN/Travel/%') AS travel_files,
-          COUNT(*) FILTER (WHERE g.file_path LIKE 'ADMIN/Visa/%') AS visa_files,
-          COUNT(DISTINCT SPLIT_PART(g.file_path, '/', 6)) FILTER (WHERE g.file_path LIKE 'ADMIN/Travel/%') AS travel_trips,
-          COUNT(DISTINCT SPLIT_PART(g.file_path, '/', 6)) FILTER (WHERE g.file_path LIKE 'ADMIN/Visa/%') AS visa_records
-        FROM gcs_file_index g
-        LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
-        WHERE g.file_path LIKE 'ADMIN/%/Employees/%'
-        GROUP BY SPLIT_PART(g.file_path, '/', 4), u.id, u.first_name, u.last_name, u.username, u.department
-        ORDER BY employee_name NULLS LAST
-      `);
-
-      res.json(rows.rows);
-    } catch (err) {
-      console.error('[GCS-DASHBOARD] Admin employees error:', err);
-      res.status(500).json({ error: 'Failed to load employees' });
     }
   });
 

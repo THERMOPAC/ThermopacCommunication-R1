@@ -5,7 +5,6 @@ import { eq, and, or, desc, asc, sql, sum, count } from 'drizzle-orm';
 import { z } from 'zod';
 import multer from 'multer';
 import { Storage } from '@google-cloud/storage';
-import { assertAdminGcsPath, buildTripDocumentGcsPath, resolveTripLabel } from './admin-guardrails';
 
 // ===================== GCS CONFIGURATION =====================
 
@@ -59,6 +58,28 @@ const upload = multer({
     }
   }
 });
+
+// Helper function to generate structured GCS path
+const generateGCSPath = (employeeData: any, destination: string, fromDate: string, documentType: string, fileName: string): string => {
+  // Get business year (4-digit year) from trip start date
+  const tripDate = new Date(fromDate);
+  const businessYear = tripDate.getFullYear().toString(); // e.g., "2025"
+  
+  // Use employee name or username
+  const employeeName = employeeData.firstName && employeeData.lastName 
+    ? `${employeeData.firstName}_${employeeData.lastName}`.replace(/\s+/g, '_')
+    : employeeData.username.replace(/\s+/g, '_');
+  
+  // Clean destination and document type for file path
+  const cleanDestination = destination.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const cleanDocumentType = documentType.replace(/[^a-zA-Z0-9_-]/g, '_');
+  
+  // Format date for path
+  const formattedDate = new Date(fromDate).toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  // Generate path: Business_Trips/{BusinessYear}/{EmployeeName}/{Destination}/{FromDate}/{DocumentType}/filename
+  return `Business_Trips/${businessYear}/${employeeName}/${cleanDestination}/${formattedDate}/${cleanDocumentType}/${fileName}`;
+};
 
 // ===================== AUTO-LINKING HELPER FUNCTIONS =====================
 
@@ -1084,57 +1105,58 @@ export const uploadTripDocument = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    // Build ADMIN-rooted GCS path using stable system IDs only — no names as path identity
-    // documentType is validated against TRIP_LABEL_VOCAB; falls back to 'other' if not in vocabulary
-    const label = resolveTripLabel(documentType as string | undefined);
-    const tripIdInt = parseInt(tripId);
+    // Generate unique filename
+    const timestamp = Date.now();
+    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `${timestamp}_${originalName}`;
 
-    // Concurrency-safe seq allocation (Rev 2 §4 FOR UPDATE), GCS upload, trip_documents insert
-    let finalDoc: any;
-    await db.transaction(async (tx) => {
-      const seqResult = await tx.execute(
-        sql`SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq FROM trip_documents WHERE trip_id = ${tripIdInt} FOR UPDATE`
-      );
-      const nextSeq = Number((seqResult.rows[0] as any).next_seq);
-      const gcsPath = buildTripDocumentGcsPath(trip[0].employeeId, tripIdInt, nextSeq, label, file.originalname);
-      assertAdminGcsPath(gcsPath);
+    // Generate structured GCS path
+    const gcsPath = generateGCSPath(
+      employee[0],
+      trip[0].destination,
+      trip[0].fromDate.toString(),
+      documentType,
+      fileName
+    );
 
-      // Upload to Google Cloud Storage
-      const gcsFile = bucket.file(gcsPath);
-      const stream = gcsFile.createWriteStream({
-        metadata: { contentType: file.mimetype, cacheControl: 'no-cache' },
-        resumable: false,
-      });
-      await new Promise<void>((resolve, reject) => {
-        stream.on('error', reject);
-        stream.on('finish', resolve);
-        stream.end(file.buffer);
-      });
-      const [signedUrl] = await gcsFile.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 365 * 24 * 60 * 60 * 1000,
-      });
-
-      const [inserted] = await tx.insert(tripDocuments).values({
-        tripId: tripIdInt,
-        documentType,
-        documentName: file.originalname,
-        filePath: gcsPath,
-        fileUrl: signedUrl,
-        fileSize: file.size,
-        fileType: file.mimetype,
-        description: description || null,
-        uploadedBy: userId,
-        seq: nextSeq,
-        label,
-        gcsPath,
-      }).returning();
-      finalDoc = inserted;
+    // Upload to Google Cloud Storage
+    const gcsFile = bucket.file(gcsPath);
+    const stream = gcsFile.createWriteStream({
+      metadata: {
+        contentType: file.mimetype,
+        cacheControl: 'no-cache',
+      },
+      resumable: false,
     });
+
+    await new Promise((resolve, reject) => {
+      stream.on('error', reject);
+      stream.on('finish', resolve);
+      stream.end(file.buffer);
+    });
+
+    // Generate signed URL for access
+    const [signedUrl] = await gcsFile.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year
+    });
+
+    // Save document record to database
+    const result = await db.insert(tripDocuments).values({
+      tripId: parseInt(tripId),
+      documentType,
+      documentName: file.originalname,
+      filePath: gcsPath,
+      fileUrl: signedUrl,
+      fileSize: file.size,
+      fileType: file.mimetype,
+      description: description || null,
+      uploadedBy: userId,
+    }).returning();
 
     res.status(201).json({
       message: 'Document uploaded successfully',
-      document: finalDoc,
+      document: result[0],
     });
   } catch (error) {
     console.error('Error uploading trip document:', error);
