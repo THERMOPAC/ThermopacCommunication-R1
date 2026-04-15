@@ -144,7 +144,7 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       const adminRows = await db.execute(sql`
         SELECT
-          SPLIT_PART(g.file_path, '/', 2) AS module,
+          SPLIT_PART(g.file_path, '/', 2) AS l2,
           SPLIT_PART(g.file_path, '/', 3) AS l3,
           SPLIT_PART(g.file_path, '/', 4) AS l4_raw,
           COALESCE(
@@ -152,13 +152,15 @@ export function setupGcsDashboardRoutes(app: Express) {
             u.username,
             SPLIT_PART(g.file_path, '/', 4)
           ) AS l4_name,
+          SPLIT_PART(g.file_path, '/', 5) AS l5,
+          SPLIT_PART(g.file_path, '/', 6) AS l6_raw,
           COUNT(*)::int AS file_count,
           COALESCE(SUM(g.size_bytes), 0)::bigint AS total_size
         FROM gcs_file_index g
         LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
         WHERE SPLIT_PART(g.file_path, '/', 1) = 'ADMIN'
-        GROUP BY module, l3, l4_raw, l4_name
-        ORDER BY module, l3, l4_name
+        GROUP BY l2, l3, l4_raw, l4_name, l5, l6_raw
+        ORDER BY l2, l3, l4_name, l5, l6_raw::int
       `);
 
       interface TreeNode {
@@ -270,42 +272,62 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       for (const row of adminRows.rows) {
         const r = row as any;
-        const module = r.module || '';
+        const l2 = r.l2 || '';
         const l3 = r.l3 || '';
         const l4Raw = r.l4_raw || '';
         const l4Name = r.l4_name || l4Raw;
+        const l5 = r.l5 || '';
+        const l6Raw = r.l6_raw || '';
         const count = parseInt(r.file_count) || 0;
         const size = parseInt(r.total_size) || 0;
 
-        if (!module) continue;
+        if (!l2) continue;
 
-        if (!adminNode.children[module]) {
-          adminNode.children[module] = { code: `ADMIN/${module}`, name: module + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const modNode = adminNode.children[module];
-        modNode.fileCount += count;
-        modNode.totalSize += size;
         adminNode.fileCount += count;
         adminNode.totalSize += size;
 
-        if (l3) {
-          if (!modNode.children[l3]) {
-            modNode.children[l3] = { code: `ADMIN/${module}/${l3}`, name: l3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-          }
-          const l3Node = modNode.children[l3];
-          l3Node.fileCount += count;
-          l3Node.totalSize += size;
-
-          if (l4Raw) {
-            const l4Code = `ADMIN/${module}/${l3}/${l4Raw}`;
-            if (!l3Node.children[l4Raw]) {
-              l3Node.children[l4Raw] = { code: l4Code, name: l4Name, fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-            }
-            const l4Node = l3Node.children[l4Raw];
-            l4Node.fileCount += count;
-            l4Node.totalSize += size;
-          }
+        if (!adminNode.children[l2]) {
+          adminNode.children[l2] = { code: `ADMIN/${l2}`, name: l2 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
         }
+        const l2Node = adminNode.children[l2];
+        l2Node.fileCount += count;
+        l2Node.totalSize += size;
+
+        if (!l3) continue;
+        if (!l2Node.children[l3]) {
+          l2Node.children[l3] = { code: `ADMIN/${l2}/${l3}`, name: l3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const l3Node = l2Node.children[l3];
+        l3Node.fileCount += count;
+        l3Node.totalSize += size;
+
+        if (!l4Raw) continue;
+        const l4Code = `ADMIN/${l2}/${l3}/${l4Raw}`;
+        if (!l3Node.children[l4Raw]) {
+          l3Node.children[l4Raw] = { code: l4Code, name: l4Name, fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const l4Node = l3Node.children[l4Raw];
+        l4Node.fileCount += count;
+        l4Node.totalSize += size;
+
+        if (!l5) continue;
+        const l5Code = `${l4Code}/${l5}`;
+        if (!l4Node.children[l5]) {
+          l4Node.children[l5] = { code: l5Code, name: l5 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const l5Node = l4Node.children[l5];
+        l5Node.fileCount += count;
+        l5Node.totalSize += size;
+
+        if (!l6Raw) continue;
+        const l6Code = `${l5Code}/${l6Raw}`;
+        const l6Label = l5 === 'Trips' ? `Trip #${l6Raw}` : l5 === 'Records' ? `Record #${l6Raw}` : l6Raw;
+        if (!l5Node.children[l6Raw]) {
+          l5Node.children[l6Raw] = { code: l6Code, name: l6Label, fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const l6Node = l5Node.children[l6Raw];
+        l6Node.fileCount += count;
+        l6Node.totalSize += size;
       }
 
       if (adminNode.fileCount > 0) {
