@@ -302,7 +302,9 @@ export default function LeaveRequestPage() {
   const availableDays = selectedBalance ? selectedBalance.availableDays : 0;
   const requestedDays = calculateDays();
   const isPaidLeave = selectedLeaveType?.isPaid ?? false;
+  const hasZeroBalance = isPaidLeave && selectedLeaveType !== null && availableDays === 0;
   const hasInsufficientBalance = isPaidLeave && requestedDays > 0 && requestedDays > availableDays;
+  const cannotSubmitDueToBalance = hasZeroBalance || hasInsufficientBalance;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -316,10 +318,12 @@ export default function LeaveRequestPage() {
       return;
     }
 
-    if (hasInsufficientBalance) {
+    if (cannotSubmitDueToBalance) {
       toast({
         title: 'Insufficient Leave Balance',
-        description: `You have ${availableDays} day${availableDays !== 1 ? 's' : ''} available but requested ${requestedDays}. Consider applying for Unpaid Leave.`,
+        description: hasZeroBalance
+          ? `You have no ${selectedLeaveType?.name} balance available. Consider applying for Unpaid Leave.`
+          : `You have ${availableDays} day${availableDays !== 1 ? 's' : ''} available but requested ${requestedDays}. Consider applying for Unpaid Leave.`,
         variant: 'destructive',
       });
       return;
@@ -811,6 +815,23 @@ export default function LeaveRequestPage() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {selectedLeaveType && isPaidLeave && (
+                  <div className={`mt-2 p-2 rounded-md flex items-center gap-2 text-sm border ${hasZeroBalance ? 'bg-red-50 border-red-200 text-red-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
+                    <span className="font-medium">{selectedLeaveType.name} Balance:</span>
+                    <span className="font-bold">
+                      {availableDays} day{availableDays !== 1 ? 's' : ''} available
+                    </span>
+                    {hasZeroBalance && (
+                      <span className="ml-1 text-red-600">— No balance. Consider Unpaid Leave.</span>
+                    )}
+                  </div>
+                )}
+                {selectedLeaveType && !isPaidLeave && (
+                  <div className="mt-2 p-2 rounded-md text-sm bg-gray-50 border border-gray-200 text-gray-600">
+                    {selectedLeaveType.name} — no balance deduction (unpaid leave)
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-2">
@@ -883,23 +904,10 @@ export default function LeaveRequestPage() {
                 </div>
               )}
 
-              {selectedLeaveType && isPaidLeave && (
-                <div className={`p-3 rounded-md ${hasInsufficientBalance ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
-                  <p className={`text-sm font-medium ${hasInsufficientBalance ? 'text-red-800' : 'text-green-800'}`}>
-                    {selectedLeaveType.name} Balance: {availableDays} day{availableDays !== 1 ? 's' : ''} available
-                  </p>
-                  {hasInsufficientBalance && (
-                    <p className="text-sm text-red-600 mt-1">
-                      Insufficient balance — you need {requestedDays} day{requestedDays !== 1 ? 's' : ''} but only {availableDays} available. You may apply for Unpaid Leave instead.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {selectedLeaveType && !isPaidLeave && (
-                <div className="p-3 rounded-md bg-gray-50 border border-gray-200">
-                  <p className="text-sm text-gray-700">
-                    {selectedLeaveType.name} — no balance deduction (unpaid leave)
+              {selectedLeaveType && isPaidLeave && hasInsufficientBalance && (
+                <div className="p-3 rounded-md bg-red-50 border border-red-200">
+                  <p className="text-sm font-medium text-red-800">
+                    Insufficient balance — you need {requestedDays} day{requestedDays !== 1 ? 's' : ''} but only {availableDays} available. Consider Unpaid Leave instead.
                   </p>
                 </div>
               )}
@@ -950,10 +958,10 @@ export default function LeaveRequestPage() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={createRequestMutation.isPending || hasInsufficientBalance}
+                  disabled={createRequestMutation.isPending || cannotSubmitDueToBalance}
                   data-testid="button-submit-leave-request"
                 >
-                  {createRequestMutation.isPending ? 'Submitting...' : hasInsufficientBalance ? 'Insufficient Balance' : 'Submit Request'}
+                  {createRequestMutation.isPending ? 'Submitting...' : cannotSubmitDueToBalance ? 'Insufficient Balance' : 'Submit Request'}
                 </Button>
               </div>
             </form>
