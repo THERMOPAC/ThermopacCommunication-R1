@@ -132,15 +132,18 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       const nonTpelRows = await db.execute(sql`
         SELECT
-          SPLIT_PART(file_path, '/', 1) AS root_folder,
-          SPLIT_PART(file_path, '/', 2) AS level2,
-          SPLIT_PART(file_path, '/', 3) AS level3,
+          SPLIT_PART(file_path, '/', 1) AS l1,
+          SPLIT_PART(file_path, '/', 2) AS l2,
+          SPLIT_PART(file_path, '/', 3) AS l3,
+          SPLIT_PART(file_path, '/', 4) AS l4,
+          SPLIT_PART(file_path, '/', 5) AS l5,
+          SPLIT_PART(file_path, '/', 6) AS l6,
           COUNT(*)::int AS file_count,
           COALESCE(SUM(size_bytes), 0)::bigint AS total_size
         FROM gcs_file_index
         WHERE SPLIT_PART(file_path, '/', 1) NOT IN ('TPEL', 'ADMIN')
-        GROUP BY root_folder, level2, level3
-        ORDER BY root_folder, level2, level3
+        GROUP BY l1, l2, l3, l4, l5, l6
+        ORDER BY l1, l2, l3, l4, l5, l6
       `);
 
       const adminRows = await db.execute(sql`
@@ -232,41 +235,29 @@ export function setupGcsDashboardRoutes(app: Express) {
 
       for (const row of nonTpelRows.rows) {
         const r = row as any;
-        const rootFolder = r.root_folder;
-        const level2 = r.level2 || '';
-        const level3 = r.level3 || '';
+        const parts = [r.l1||'', r.l2||'', r.l3||'', r.l4||'', r.l5||'', r.l6||''];
         const count = parseInt(r.file_count) || 0;
         const size = parseInt(r.total_size) || 0;
 
-        if (!rootFolder) continue;
-
-        if (!bucketRoot.children[rootFolder]) {
-          bucketRoot.children[rootFolder] = { code: rootFolder, name: rootFolder + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-        }
-        const rootNode = bucketRoot.children[rootFolder];
-        rootNode.fileCount += count;
-        rootNode.totalSize += size;
-
-        if (level2) {
-          if (!rootNode.children[level2]) {
-            rootNode.children[level2] = { code: `${rootFolder}/${level2}`, name: level2 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-          }
-          const l2Node = rootNode.children[level2];
-          l2Node.fileCount += count;
-          l2Node.totalSize += size;
-
-          if (level3) {
-            if (!l2Node.children[level3]) {
-              l2Node.children[level3] = { code: `${rootFolder}/${level2}/${level3}`, name: level3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
-            }
-            const l3Node = l2Node.children[level3];
-            l3Node.fileCount += count;
-            l3Node.totalSize += size;
-          }
-        }
+        if (!parts[0]) continue;
 
         bucketRoot.fileCount += count;
         bucketRoot.totalSize += size;
+
+        const isFilename = (s: string) => /\.[a-zA-Z0-9]{2,5}$/.test(s);
+        let parentNode = bucketRoot;
+        let pathSoFar = '';
+        for (let i = 0; i < parts.length; i++) {
+          const seg = parts[i];
+          if (!seg || isFilename(seg)) break;
+          pathSoFar = pathSoFar ? `${pathSoFar}/${seg}` : seg;
+          if (!parentNode.children[seg]) {
+            parentNode.children[seg] = { code: pathSoFar, name: seg + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+          }
+          parentNode.children[seg].fileCount += count;
+          parentNode.children[seg].totalSize += size;
+          parentNode = parentNode.children[seg];
+        }
       }
 
       const adminNode: typeof bucketRoot = { code: 'ADMIN', name: 'ADMIN/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
