@@ -296,6 +296,7 @@ export function setupGcsDashboardRoutes(app: Express) {
           COUNT(*) FILTER (WHERE is_resolved = false)::int AS unresolved_count,
           COUNT(*) FILTER (WHERE 'orphan_no_project_match' = ANY(assurance_flags))::int AS orphan_count,
           COUNT(*) FILTER (WHERE 'non_tpel_path' = ANY(assurance_flags))::int AS non_tpel_count,
+          COUNT(*) FILTER (WHERE 'admin_path' = ANY(assurance_flags))::int AS admin_count,
           COUNT(*) FILTER (WHERE 'misplaced_no_project_folder' = ANY(assurance_flags))::int AS misplaced_count,
           COUNT(*) FILTER (WHERE project_id IS NULL AND file_path LIKE 'TPEL/%')::int AS no_project_link_count
         FROM gcs_file_index
@@ -307,6 +308,7 @@ export function setupGcsDashboardRoutes(app: Express) {
         unresolvedCount: parseInt(row.unresolved_count as string) || 0,
         orphanCount: parseInt(row.orphan_count as string) || 0,
         nonTpelCount: parseInt(row.non_tpel_count as string) || 0,
+        adminCount: parseInt(row.admin_count as string) || 0,
         misplacedCount: parseInt(row.misplaced_count as string) || 0,
         noProjectLinkCount: parseInt(row.no_project_link_count as string) || 0,
         lastSyncTime: getLastSyncTime(),
@@ -374,6 +376,50 @@ export function setupGcsDashboardRoutes(app: Express) {
     } catch (err) {
       console.error('[GCS-DASHBOARD] Sync error:', err);
       res.status(500).json({ error: 'Sync failed' });
+    }
+  });
+
+  app.get('/api/gcs-dashboard/admin-files', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      if (user.role !== 'Superuser' && user.role !== 'Admin' && user.department !== 'HR' && user.department !== 'Administration') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+      const offset = (page - 1) * limit;
+      const moduleFilter = (req.query.module as string) || '';
+      const search = (req.query.search as string) || '';
+
+      const baseFilter = sql`file_path LIKE 'ADMIN/%'`;
+      let moduleCondition = sql`1=1`;
+      let searchCondition = sql`1=1`;
+
+      if (moduleFilter && moduleFilter !== 'all') {
+        const prefix = `ADMIN/${moduleFilter}/%`;
+        moduleCondition = sql`file_path LIKE ${prefix}`;
+      }
+      if (search) {
+        const term = `%${search}%`;
+        searchCondition = sql`(file_name ILIKE ${term} OR file_path ILIKE ${term})`;
+      }
+
+      const whereClause = sql`${baseFilter} AND ${moduleCondition} AND ${searchCondition}`;
+
+      const countResult = await db.execute(sql`SELECT COUNT(*)::int AS total FROM gcs_file_index WHERE ${whereClause}`);
+      const total = parseInt(countResult.rows[0]?.total as string) || 0;
+
+      const rows = await db.execute(sql`
+        SELECT id, file_path, file_name, folder_path, size_bytes, content_type, gcs_updated_at, last_synced_at
+        FROM gcs_file_index WHERE ${whereClause}
+        ORDER BY file_path ASC LIMIT ${limit} OFFSET ${offset}
+      `);
+
+      res.json({ files: rows.rows, total, page, limit, totalPages: Math.ceil(total / limit) });
+    } catch (err) {
+      console.error('[GCS-DASHBOARD] Admin files error:', err);
+      res.status(500).json({ error: 'Failed to load admin files' });
     }
   });
 
