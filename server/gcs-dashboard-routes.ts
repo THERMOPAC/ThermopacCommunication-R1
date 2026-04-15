@@ -137,9 +137,28 @@ export function setupGcsDashboardRoutes(app: Express) {
           COUNT(*)::int AS file_count,
           COALESCE(SUM(size_bytes), 0)::bigint AS total_size
         FROM gcs_file_index
-        WHERE SPLIT_PART(file_path, '/', 1) != 'TPEL'
+        WHERE SPLIT_PART(file_path, '/', 1) NOT IN ('TPEL', 'ADMIN')
         GROUP BY root_folder, level2, level3
         ORDER BY root_folder, level2, level3
+      `);
+
+      const adminRows = await db.execute(sql`
+        SELECT
+          SPLIT_PART(g.file_path, '/', 2) AS module,
+          SPLIT_PART(g.file_path, '/', 3) AS l3,
+          SPLIT_PART(g.file_path, '/', 4) AS l4_raw,
+          COALESCE(
+            NULLIF(TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), ''),
+            u.username,
+            SPLIT_PART(g.file_path, '/', 4)
+          ) AS l4_name,
+          COUNT(*)::int AS file_count,
+          COALESCE(SUM(g.size_bytes), 0)::bigint AS total_size
+        FROM gcs_file_index g
+        LEFT JOIN users u ON u.id::text = SPLIT_PART(g.file_path, '/', 4)
+        WHERE SPLIT_PART(g.file_path, '/', 1) = 'ADMIN'
+        GROUP BY module, l3, l4_raw, l4_name
+        ORDER BY module, l3, l4_name
       `);
 
       interface TreeNode {
@@ -245,6 +264,54 @@ export function setupGcsDashboardRoutes(app: Express) {
 
         bucketRoot.fileCount += count;
         bucketRoot.totalSize += size;
+      }
+
+      const adminNode: typeof bucketRoot = { code: 'ADMIN', name: 'ADMIN/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+
+      for (const row of adminRows.rows) {
+        const r = row as any;
+        const module = r.module || '';
+        const l3 = r.l3 || '';
+        const l4Raw = r.l4_raw || '';
+        const l4Name = r.l4_name || l4Raw;
+        const count = parseInt(r.file_count) || 0;
+        const size = parseInt(r.total_size) || 0;
+
+        if (!module) continue;
+
+        if (!adminNode.children[module]) {
+          adminNode.children[module] = { code: `ADMIN/${module}`, name: module + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+        }
+        const modNode = adminNode.children[module];
+        modNode.fileCount += count;
+        modNode.totalSize += size;
+        adminNode.fileCount += count;
+        adminNode.totalSize += size;
+
+        if (l3) {
+          if (!modNode.children[l3]) {
+            modNode.children[l3] = { code: `ADMIN/${module}/${l3}`, name: l3 + '/', fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+          }
+          const l3Node = modNode.children[l3];
+          l3Node.fileCount += count;
+          l3Node.totalSize += size;
+
+          if (l4Raw) {
+            const l4Code = `ADMIN/${module}/${l3}/${l4Raw}`;
+            if (!l3Node.children[l4Raw]) {
+              l3Node.children[l4Raw] = { code: l4Code, name: l4Name, fileCount: 0, totalSize: 0, children: {}, isNonTpel: true };
+            }
+            const l4Node = l3Node.children[l4Raw];
+            l4Node.fileCount += count;
+            l4Node.totalSize += size;
+          }
+        }
+      }
+
+      if (adminNode.fileCount > 0) {
+        bucketRoot.children['ADMIN'] = adminNode;
+        bucketRoot.fileCount += adminNode.fileCount;
+        bucketRoot.totalSize += adminNode.totalSize;
       }
 
       res.json(bucketRoot);
