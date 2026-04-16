@@ -1,9 +1,18 @@
-import puppeteer from 'puppeteer';
+import { execSync } from 'child_process';
+import puppeteer from 'puppeteer-core';
 import gcsClient, { bucketName } from './utils/storage-config';
 import { buildDdsGcsPath, resolveProjectGeoCodes } from './epc-coding';
 import { generateDdsHtml } from './dds-html-template';
 import { db } from './db';
 import { sql } from 'drizzle-orm';
+
+function getSystemChromiumPath(): string {
+  try {
+    return execSync('which chromium', { encoding: 'utf8' }).trim();
+  } catch {
+    return '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+  }
+}
 
 export type PdfResult = { gcsPath: string } | { error: string };
 
@@ -53,8 +62,10 @@ export async function generateAndUploadDdsPdf(
       }),
     });
 
+    const executablePath = getSystemChromiumPath();
     const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      executablePath,
       headless: true,
     });
 
