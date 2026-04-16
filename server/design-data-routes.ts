@@ -431,6 +431,9 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     msnWarning: auto.msnWarning,
     projectMdmt: auto.projectMdmt,
     productEquipmentConfiguration: auto.productEquipmentConfiguration,
+    drawingNumber: dwg.drawing_number || null,
+    itemCode: dwg.item_code || null,
+    itemDescription: dwg.item_description || null,
   };
 
   const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);

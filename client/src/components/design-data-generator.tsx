@@ -1129,12 +1129,34 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
       {/* ── Dialog (form) ────────────────────────────────────────────────── */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) setDialogOpen(false); }}>
-        <DialogContent className="max-w-4xl w-full p-0 gap-0">
-          <DialogHeader className="px-6 pt-5 pb-3 border-b">
-            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+        <DialogContent className="max-w-[96vw] xl:max-w-[1400px] w-full p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-0 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold pb-3">
               <FileSpreadsheet className="h-4 w-4 text-blue-600" />
               Design Data Sheet
             </DialogTitle>
+
+            {/* ── Drawing Identification Block ──────────────────────────── */}
+            <div className="grid grid-cols-3 gap-3 pb-3 pt-0.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Drawing No</span>
+                <span className="text-[11px] font-mono font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded px-2 py-1 leading-tight truncate">
+                  {autoFields.drawingNumber || <span className="text-slate-400 italic font-sans font-normal">—</span>}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Item Code</span>
+                <span className="text-[11px] font-mono font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded px-2 py-1 leading-tight truncate">
+                  {autoFields.itemCode || <span className="text-slate-400 italic font-sans font-normal">—</span>}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">Item Description</span>
+                <span className="text-[11px] font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded px-2 py-1 leading-tight truncate" title={autoFields.itemDescription || ''}>
+                  {autoFields.itemDescription || <span className="text-slate-400 italic font-normal">—</span>}
+                </span>
+              </div>
+            </div>
           </DialogHeader>
 
           <ScrollArea className="max-h-[75vh]">
