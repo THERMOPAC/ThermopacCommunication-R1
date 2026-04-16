@@ -582,6 +582,16 @@ const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam 
 const CORROSION_ALLOWANCE_OPTIONS = ['1', '1.5', '2', '2.5', '3'];
 const RADIOGRAPHY_OPTIONS = ['FULL RADIOGRAPHY (100% RT)', 'SPOT RADIOGRAPHY 10%', 'SPOT RADIOGRAPHY 5%'];
 
+const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
+  'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
+  'SPOT RADIOGRAPHY 10%': '0.85 / 0.85 / 0.85',
+  'SPOT RADIOGRAPHY 5%': '0.7 / 0.7 / 0.7',
+};
+
+function deriveJointEfficiencyDefault(radiography: string | null | undefined): string {
+  return JOINT_EFFICIENCY_BY_RADIOGRAPHY[radiography ?? ''] ?? '1 / 1 / 1';
+}
+
 function SmartMechanicalColumnForm({
   label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel,
 }: {
@@ -595,6 +605,17 @@ function SmartMechanicalColumnForm({
   function handleChange(key: keyof MechanicalColumn, rawValue: string) {
     const value = rawValue || null;
     const updated: MechanicalColumn = { ...data, [key]: value };
+
+    if (key === 'radiography') {
+      const jeDefault = deriveJointEfficiencyDefault(rawValue);
+      const oldRadiography = data.radiography;
+      const oldJeDefault = deriveJointEfficiencyDefault(oldRadiography);
+      const currentJe = data.jointEfficiency;
+      const jeIsAuto = !currentJe || currentJe === oldJeDefault;
+      if (jeIsAuto) {
+        updated.jointEfficiency = jeDefault;
+      }
+    }
 
     if (key === 'workingPressure') {
       const wp = parseFloat(rawValue);
@@ -731,6 +752,27 @@ function SmartMechanicalColumnForm({
                     ))}
                   </SelectContent>
                 </Select>
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'jointEfficiency') {
+          const jeDefault = deriveJointEfficiencyDefault(data.radiography);
+          const isAtDefault = !val || val === jeDefault;
+          const displayVal = val || jeDefault;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input
+                  className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}
+                  value={displayVal}
+                  onChange={(e) => handleChange(p.key, e.target.value)}
+                />
                 {isAtDefault && (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
                 )}
@@ -1266,6 +1308,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       internalCorrosionAllowanceMm: col.internalCorrosionAllowanceMm ?? '1.5',
       externalCorrosionAllowanceMm: col.externalCorrosionAllowanceMm ?? '1.5',
       radiography: col.radiography ?? 'FULL RADIOGRAPHY (100% RT)',
+      jointEfficiency: col.jointEfficiency ?? deriveJointEfficiencyDefault(col.radiography ?? 'FULL RADIOGRAPHY (100% RT)'),
     };
   }
 
