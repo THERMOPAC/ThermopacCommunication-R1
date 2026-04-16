@@ -572,10 +572,13 @@ const FIELD_DEFAULTS: Partial<Record<keyof MechanicalColumn, string>> = {
   hydroTestTempMinMax: '17 / 48',
   physicalState: 'Fluid',
   serviceFluid: 'Hydrocarbon',
+  internalCorrosionAllowanceMm: '1.5',
+  externalCorrosionAllowanceMm: '1.5',
 };
 
 const PHYSICAL_STATE_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
 const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam condensate', 'Thermic Fluid'];
+const CORROSION_ALLOWANCE_OPTIONS = ['1', '1.5', '2', '2.5', '3'];
 
 function SmartMechanicalColumnForm({
   label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel,
@@ -702,6 +705,32 @@ function SmartMechanicalColumnForm({
                 />
                 {fromHazardPanel && (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-500 border-slate-300 bg-slate-50">Panel</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'internalCorrosionAllowanceMm' || p.key === 'externalCorrosionAllowanceMm') {
+          const defaultVal = FIELD_DEFAULTS[p.key]!;
+          const isAtDefault = !val || val === defaultVal;
+          const displayVal = val || defaultVal;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
+                  <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CORROSION_ALLOWANCE_OPTIONS.map(o => (
+                      <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
                 )}
               </div>
             </div>
@@ -1206,6 +1235,8 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
       physicalState: col.physicalState ?? 'Fluid',
       serviceFluid: col.serviceFluid ?? 'Hydrocarbon',
+      internalCorrosionAllowanceMm: col.internalCorrosionAllowanceMm ?? '1.5',
+      externalCorrosionAllowanceMm: col.externalCorrosionAllowanceMm ?? '1.5',
     };
   }
 
