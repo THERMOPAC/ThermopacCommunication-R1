@@ -101,13 +101,13 @@ async function resolveAutoFields(dwgControl: any): Promise<{
 }> {
   const equipmentDescription = dwgControl.item_description || null;
 
-  // Resolve tag_no: {project_item_tag_no}/{discipline_code}
-  // project_item_tag_no = {product_tag_no}/{project_code}
+  // Resolve tag_no: {product_tag_no}_{project_code}
+  // e.g. RF/FE/E1_2627-013
   let tagNo: string | null = null;
   let tagNoWarning: string | null = null;
 
   const projectResult = await db.execute(sql`
-    SELECT p.code, p.discipline_code
+    SELECT p.code
     FROM projects p
     WHERE p.id = ${dwgControl.project_id}
     LIMIT 1
@@ -125,16 +125,13 @@ async function resolveAutoFields(dwgControl: any): Promise<{
 
   const productTagNo = pi?.product_tag_no || null;
   const projectCode = proj?.code || null;
-  const disciplineCode = proj?.discipline_code || null;
 
   const missing: string[] = [];
   if (!productTagNo) missing.push('product tag_no');
   if (!projectCode) missing.push('project code');
-  if (!disciplineCode) missing.push('project discipline_code');
 
   if (missing.length === 0) {
-    const projectItemTagNo = `${productTagNo}/${projectCode}`;
-    tagNo = `${projectItemTagNo}/${disciplineCode}`;
+    tagNo = `${productTagNo}_${projectCode}`;
   } else {
     tagNoWarning = `tag_no cannot be generated: missing ${missing.join(', ')}`;
   }
