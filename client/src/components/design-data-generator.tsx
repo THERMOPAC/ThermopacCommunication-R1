@@ -641,6 +641,23 @@ function applyCountryEnvDefaults(
   return { seeded, autoKeys };
 }
 
+function seedLocationAndQty(
+  gd: GeneralData,
+  af: { locationAuto?: string | null; qtyAuto?: string | null },
+): { seeded: GeneralData; autoKeys: Set<keyof GeneralData> } {
+  const autoKeys = new Set<keyof GeneralData>();
+  const seeded = { ...gd };
+  if (!seeded.location && af.locationAuto) {
+    seeded.location = af.locationAuto;
+    autoKeys.add('location');
+  }
+  if (!seeded.qty && af.qtyAuto) {
+    seeded.qty = af.qtyAuto;
+    autoKeys.add('qty');
+  }
+  return { seeded, autoKeys };
+}
+
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
   'SPOT RADIOGRAPHY 10%': '0.85 / 0.85 / 0.85',
@@ -1741,9 +1758,11 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     setMechShell(seedColumn(s.mechanical_data.shell || emptyMechanicalColumn()));
     setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn()));
     setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn()));
-    const { seeded, autoKeys } = applyCountryEnvDefaults(s.general_data || emptyGeneralData(), autoFields.customerCountry || null);
-    setGeneralData(seeded);
-    setEnvAutoKeys(autoKeys);
+    const base = s.general_data || emptyGeneralData();
+    const { seeded: s1, autoKeys: k1 } = applyCountryEnvDefaults(base, autoFields.customerCountry || null);
+    const { seeded: s2, autoKeys: k2 } = seedLocationAndQty(s1, autoFields);
+    setGeneralData(s2);
+    setEnvAutoKeys(new Set([...k1, ...k2]));
     setColHazard(loadColumnHazardFromSheet(s.hazard_data));
   }
 
@@ -1758,9 +1777,11 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       setMechShell(seedColumn(emptyMechanicalColumn()));
       setMechTube(seedColumn(emptyMechanicalColumn()));
       setMechJacket(seedColumn(emptyMechanicalColumn()));
-      const { seeded, autoKeys } = applyCountryEnvDefaults(emptyGeneralData(), autoFields.customerCountry || null);
-      setGeneralData(seeded);
-      setEnvAutoKeys(autoKeys);
+      const base = emptyGeneralData();
+      const { seeded: s1, autoKeys: k1 } = applyCountryEnvDefaults(base, autoFields.customerCountry || null);
+      const { seeded: s2, autoKeys: k2 } = seedLocationAndQty(s1, autoFields);
+      setGeneralData(s2);
+      setEnvAutoKeys(new Set([...k1, ...k2]));
       setColHazard(emptyColumnHazardData());
     }
     setDialogOpen(true);

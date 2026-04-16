@@ -408,6 +408,8 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   manufactureSerialNo: string | null;
   msnWarning: string | null;
   countryCode: string | null;
+  locationAuto: string | null;
+  qtyAuto: string | null;
 }> {
   const equipmentDescription = dwgControl.item_description || null;
 
@@ -417,8 +419,10 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   let tagNoWarning: string | null = null;
 
   const projectResult = await db.execute(sql`
-    SELECT p.code, p.mdmt, p.country_code
+    SELECT p.code, p.mdmt, p.country_code,
+           c.sap_mail_city, c.sap_mail_country, c.country_name
     FROM projects p
+    LEFT JOIN customers c ON c.id = p.customer_id
     WHERE p.id = ${dwgControl.project_id}
     LIMIT 1
   `);
@@ -507,7 +511,28 @@ async function resolveAutoFields(dwgControl: any): Promise<{
 
   const projectMdmt = proj?.mdmt || null;
   const countryCode = proj?.country_code || null;
-  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration, countryCode };
+
+  // Resolve locationAuto: "City, Country" from customer SAP data or country name
+  let locationAuto: string | null = null;
+  const city = proj?.sap_mail_city || null;
+  const country = proj?.sap_mail_country || proj?.country_name || null;
+  if (city && country) locationAuto = `${city}, ${country}`;
+  else if (country) locationAuto = country;
+
+  // Resolve qtyAuto: from project_item linked to drawing
+  let qtyAuto: string | null = null;
+  if (dwgControl.project_item_id) {
+    const qtyResult = await db.execute(sql`
+      SELECT quantity FROM project_items WHERE id = ${dwgControl.project_item_id} LIMIT 1
+    `);
+    const qtyRow = qtyResult.rows[0] as any;
+    if (qtyRow?.quantity != null) {
+      const q = parseFloat(qtyRow.quantity);
+      qtyAuto = !isNaN(q) ? (Number.isInteger(q) ? String(q) : q.toFixed(2).replace(/\.00$/, '')) : String(qtyRow.quantity);
+    }
+  }
+
+  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration, countryCode, locationAuto, qtyAuto };
 }
 
 async function verifyProjectAccess(userId: number, userRole: string, projectId: number, res: Response): Promise<boolean> {
@@ -549,6 +574,8 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     itemCode: dwg.item_code || null,
     itemDescription: dwg.item_description || null,
     customerCountry: auto.countryCode || null,
+    locationAuto: auto.locationAuto || null,
+    qtyAuto: auto.qtyAuto || null,
   };
 
   const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);
