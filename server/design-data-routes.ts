@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { db } from './db';
 import { sql, eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { designDataSheets, epcDrawingControls, projects, projectItems } from '@shared/schema';
 import { checkProjectMembership } from './utils/permission-utils';
 import type { MechanicalColumn, MechanicalData, GeneralData, HazardData } from '@shared/schema';
@@ -165,49 +166,102 @@ function deriveHazardFields(data: HazardData): HazardData {
     }
   }
 
+  console.log(`[HazardDerive] code=${code} level=${level} classification=${classification} note=${note}`);
   return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
 }
 
-const HAZARD_ALLOWED_FIELDS: Record<string, string[]> = {
-  'ASME SEC VIII Div-1': ['isLethalService', 'fluidState'],
-  'ASME B31.3': ['fluidServiceCategory', 'fluidState'],
-  'EN 13445': ['fluidGroup', 'fluidState', 'toxicInhalationRisk'],
-  'PED 2014/68/EU': ['fluidGroup', 'pedCategory', 'fluidState', 'toxicInhalationRisk'],
-  'API 650': ['fluidState', 'toxicInhalationRisk', 'isFlammable', 'isCorrosive', 'isEnvironmentallyHazardous'],
+// ── Per-code Zod schemas (strip disallowed fields, enforce enums) ─────────────
+
+const FLUID_STATE_ENUM = z.enum(['Fluid', 'Vapor', 'Mixture of Fluid and Vapor']).default('Fluid');
+const LETHAL_ENUM      = z.enum(['Yes', 'No']).nullable().default(null);
+const BOOL_FLAG        = z.boolean().default(false);
+
+const FLUID_SERVICE_CATEGORY_ENUM = z.enum([
+  'Category D', 'Category M', 'Normal Fluid Service', 'High Pressure Fluid Service',
+]).nullable().default(null);
+
+const FLUID_GROUP_ENUM  = z.enum(['Group 1', 'Group 2']).nullable().default(null);
+const PED_CATEGORY_ENUM = z.enum(['SEP', 'Category I', 'Category II', 'Category III', 'Category IV']).nullable().default(null);
+
+const EMPTY_CODE_FIELDS = {
+  isLethalService: null,
+  fluidServiceCategory: null,
+  fluidGroup: null,
+  pedCategory: null,
+  toxicInhalationRisk: false,
+  isFlammable: false,
+  isCorrosive: false,
+  isEnvironmentallyHazardous: false,
 };
 
-const ALL_CODE_GATED_FIELDS = ['isLethalService', 'fluidServiceCategory', 'fluidGroup', 'pedCategory', 'toxicInhalationRisk', 'isFlammable', 'isCorrosive', 'isEnvironmentallyHazardous'];
+const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  'ASME SEC VIII Div-1': z.object({
+    fluidState: FLUID_STATE_ENUM,
+    isLethalService: LETHAL_ENUM,
+  }).strip(),
+
+  'ASME B31.3': z.object({
+    fluidState: FLUID_STATE_ENUM,
+    fluidServiceCategory: FLUID_SERVICE_CATEGORY_ENUM,
+  }).strip(),
+
+  'EN 13445': z.object({
+    fluidState: FLUID_STATE_ENUM,
+    fluidGroup: FLUID_GROUP_ENUM,
+    toxicInhalationRisk: BOOL_FLAG,
+  }).strip(),
+
+  'PED 2014/68/EU': z.object({
+    fluidState: FLUID_STATE_ENUM,
+    fluidGroup: FLUID_GROUP_ENUM,
+    pedCategory: PED_CATEGORY_ENUM,
+    toxicInhalationRisk: BOOL_FLAG,
+  }).strip(),
+
+  'API 650': z.object({
+    fluidState: FLUID_STATE_ENUM,
+    toxicInhalationRisk: BOOL_FLAG,
+    isFlammable: BOOL_FLAG,
+    isCorrosive: BOOL_FLAG,
+    isEnvironmentallyHazardous: BOOL_FLAG,
+  }).strip(),
+};
 
 function processHazardData(raw: any, code: string | null, dwgStatus: string, mechanical: MechanicalData): { hazardData: HazardData | null; mechanical: MechanicalData } {
   if (!code || !raw) return { hazardData: null, mechanical };
 
-  const allowed = HAZARD_ALLOWED_FIELDS[code] || [];
-  const stripped: any = { appliedCode: code, fluidState: raw.fluidState ?? 'Fluid' };
-  for (const field of allowed) {
-    if (field !== 'fluidState' && raw[field] !== undefined) stripped[field] = raw[field];
+  const schema = HAZARD_SCHEMAS[code];
+  if (!schema) {
+    console.warn(`[HazardProcess] Unknown applied_code="${code}" — skipping.`);
+    return { hazardData: null, mechanical };
   }
 
+  // Parse + strip: Zod removes unknown keys and coerces enums/defaults
+  const parseResult = schema.safeParse(raw);
+  if (!parseResult.success) {
+    console.warn(`[HazardProcess] Zod validation failed for code="${code}":`, parseResult.error.flatten());
+  }
+  const parsed = parseResult.success ? parseResult.data : schema.parse({ fluidState: raw.fluidState ?? 'Fluid' });
+
+  // Merge: start from empty to guarantee no disallowed fields survive
   const full: HazardData = {
     appliedCode: code,
-    isLethalService: stripped.isLethalService ?? null,
-    fluidServiceCategory: stripped.fluidServiceCategory ?? null,
-    fluidGroup: stripped.fluidGroup ?? null,
-    pedCategory: stripped.pedCategory ?? null,
-    fluidState: stripped.fluidState ?? 'Fluid',
-    toxicInhalationRisk: stripped.toxicInhalationRisk ?? false,
-    isFlammable: stripped.isFlammable ?? false,
-    isCorrosive: stripped.isCorrosive ?? false,
-    isEnvironmentallyHazardous: stripped.isEnvironmentallyHazardous ?? false,
+    ...EMPTY_CODE_FIELDS,
+    ...parsed,
+    // Always recompute; ignore any frontend-supplied derived values
     codeNativeClassification: null,
     internalHazardLevel: null,
     hazardBasisNote: null,
   };
 
+  // Server-side derivation (frontend values are ignored)
   const derived = deriveHazardFields(full);
 
+  // hazardLevel overwrite: draft AND applied_code non-null AND level is resolved
   let updatedMech = mechanical;
-  if (dwgStatus === 'draft' && derived.internalHazardLevel) {
+  if (dwgStatus === 'draft' && code && derived.internalHazardLevel) {
     const lvl = derived.internalHazardLevel;
+    console.log(`[HazardProcess] Overwriting mechanical hazardLevel → "${lvl}" (status=draft, code="${code}")`);
     updatedMech = {
       shell: { ...mechanical.shell, hazardLevel: lvl },
       tube: mechanical.tube ? { ...mechanical.tube, hazardLevel: lvl } : null,
@@ -421,10 +475,15 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
     return res.status(400).json({ error: 'Invalid inspectionBy' });
   }
 
-  if (appliedCode === 'PED 2014/68/EU' && rawHazardData) {
-    if (!rawHazardData.fluidGroup || !rawHazardData.pedCategory) {
+  if (appliedCode === 'PED 2014/68/EU') {
+    if (!rawHazardData?.fluidGroup || !rawHazardData?.pedCategory) {
       return res.status(422).json({ error: 'PED 2014/68/EU requires fluidGroup and pedCategory.' });
     }
+  }
+
+  // Validate applied_code against known codes
+  if (appliedCode && !HAZARD_SCHEMAS[appliedCode]) {
+    return res.status(400).json({ error: `Unknown applied_code: "${appliedCode}"` });
   }
 
   const materialCode = DESIGN_CODE_TO_MATERIAL_CODE[designCode] || null;
@@ -502,10 +561,15 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     return res.status(400).json({ error: 'Invalid inspectionBy' });
   }
 
-  if (appliedCode === 'PED 2014/68/EU' && rawHazardData) {
-    if (!rawHazardData.fluidGroup || !rawHazardData.pedCategory) {
+  if (appliedCode === 'PED 2014/68/EU') {
+    if (!rawHazardData?.fluidGroup || !rawHazardData?.pedCategory) {
       return res.status(422).json({ error: 'PED 2014/68/EU requires fluidGroup and pedCategory.' });
     }
+  }
+
+  // Validate applied_code against known codes
+  if (appliedCode && !HAZARD_SCHEMAS[appliedCode]) {
+    return res.status(400).json({ error: `Unknown applied_code: "${appliedCode}"` });
   }
 
   const materialCode = DESIGN_CODE_TO_MATERIAL_CODE[designCode] || null;
