@@ -373,12 +373,13 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive'].includes(userRole);
 
   // ── Query ─────────────────────────────────────────────────────────────────
-  const { data, isLoading } = useQuery<{ sheet: DesignDataSheet | null; warnings?: any }>({
+  const { data, isLoading } = useQuery<{ sheet: DesignDataSheet | null; autoFields?: any; warnings?: any }>({
     queryKey: ['/api/drawing-design-data', drawingControlId],
     queryFn: () => fetch(`/api/drawing-design-data/${drawingControlId}`, { credentials: 'include' }).then(r => r.json()),
   });
 
   const sheet = data?.sheet || null;
+  const autoFields = data?.autoFields || {};
   const warnings = data?.warnings || {};
 
   function loadSheetIntoForm(s: DesignDataSheet) {
@@ -575,15 +576,52 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   </Select>
                 </div>
 
-                <div className="col-span-2 space-y-1">
-                  <div className="text-[10px] text-muted-foreground bg-slate-50 rounded px-3 py-1.5 border">
-                    <span className="font-semibold">Auto-generated on save:</span> Equipment Description, Equipment Type
-                  </div>
-                  <div className="text-[10px] text-blue-700 bg-blue-50 rounded px-3 py-1.5 border border-blue-200">
-                    <span className="font-semibold">Tag No</span> = Product Tag No + Project Code <span className="text-blue-500">(e.g. RF/FE/E1_2627-013)</span>
-                    <br />Requires the product linked to this project item to have a <span className="font-semibold">Tag No</span> set in the Products catalog.
-                  </div>
+                {/* Equipment Description — auto from project item */}
+                <div className="col-span-2 space-y-1.5">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    Equipment Description
+                    <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">Auto</span>
+                  </Label>
+                  <Input
+                    className="h-8 text-xs bg-slate-50 text-slate-600"
+                    value={autoFields.equipmentDescription || '—'}
+                    readOnly disabled
+                  />
                 </div>
+
+                {/* Tag No — auto from product + project code */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    Tag No
+                    <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">Auto</span>
+                  </Label>
+                  <Input
+                    className={`h-8 text-xs ${autoFields.tagNo ? 'bg-slate-50 text-slate-600' : 'bg-amber-50 text-amber-700 border-amber-300'}`}
+                    value={autoFields.tagNo || 'Pending — see note below'}
+                    readOnly disabled
+                  />
+                </div>
+
+                {/* Manufacture Serial No — auto from item_code + tag_no */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    Manufacture Serial No
+                    <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">Auto</span>
+                  </Label>
+                  <Input
+                    className={`h-8 text-xs ${autoFields.manufactureSerialNo ? 'bg-slate-50 text-slate-600' : 'bg-amber-50 text-amber-700 border-amber-300'}`}
+                    value={autoFields.manufactureSerialNo || 'Pending — requires Tag No'}
+                    readOnly disabled
+                  />
+                </div>
+
+                {/* Tag No warning note */}
+                {autoFields.tagNoWarning && (
+                  <div className="col-span-2 text-[10px] text-amber-700 bg-amber-50 rounded px-3 py-1.5 border border-amber-200 flex items-start gap-1.5">
+                    <span className="mt-0.5">⚠</span>
+                    <span>{autoFields.tagNoWarning}</span>
+                  </div>
+                )}
               </div>
 
               <Separator />

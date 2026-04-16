@@ -178,10 +178,18 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
 
   if (!await verifyProjectAccess(user.id, user.role, dwg.project_id, res)) return;
 
-  const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);
-  if (existing.rows.length === 0) return res.json({ sheet: null });
-
   const auto = await resolveAutoFields(dwg);
+  const autoFields = {
+    equipmentDescription: auto.equipmentDescription,
+    tagNo: auto.tagNo,
+    manufactureSerialNo: auto.manufactureSerialNo,
+    tagNoWarning: auto.tagNoWarning,
+    msnWarning: auto.msnWarning,
+  };
+
+  const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);
+  if (existing.rows.length === 0) return res.json({ sheet: null, autoFields, warnings: { tagNo: auto.tagNoWarning, manufactureSerialNo: auto.msnWarning } });
+
   const sheet = existing.rows[0] as any;
 
   return res.json({
@@ -191,6 +199,7 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
       tagNo: auto.tagNo,
       manufactureSerialNo: auto.manufactureSerialNo,
     },
+    autoFields,
     warnings: {
       tagNo: auto.tagNoWarning,
       manufactureSerialNo: auto.msnWarning,
