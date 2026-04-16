@@ -1992,15 +1992,22 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                       name="disciplineCode"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-semibold">Discipline Code</FormLabel>
+                          <FormLabel className="font-semibold">Project Discipline</FormLabel>
                           <div className="flex items-center gap-3">
-                            <FormControl className="max-w-xs">
-                              <Input
-                                placeholder="e.g. ME, EE, CV"
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl className="max-w-xs">
+                                <SelectTrigger className="max-w-xs">
+                                  <SelectValue placeholder="Select discipline…" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="ASME SEC VIII Div-1">ASME SEC VIII Div-1</SelectItem>
+                                <SelectItem value="ASME 31.3">ASME 31.3</SelectItem>
+                                <SelectItem value="EN 13445">EN 13445</SelectItem>
+                                <SelectItem value="PED 2014/68/EU">PED 2014/68/EU</SelectItem>
+                                <SelectItem value="API 650">API 650</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <p className="text-xs text-muted-foreground">
                               Used to auto-generate tag numbers on Design Data Sheets for all drawings under this project.
                             </p>
