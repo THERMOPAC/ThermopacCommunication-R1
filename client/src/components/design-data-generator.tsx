@@ -308,7 +308,7 @@ const MECH_PARAM_LABELS: { key: keyof MechanicalColumn; label: string; group: st
   { key: 'physicalState', label: 'PHYSICAL STATE', group: '' },
   { key: 'grossVolumeLiters', label: 'GROSS VOLUME (LITERS)', group: '' },
   { key: 'serviceFluid', label: 'SERVICE FLUID', group: '' },
-  { key: 'hazardLevel', label: 'HAZARD LEVEL AS 4343', group: '' },
+  { key: 'hazardLevel', label: 'HAZARD LEVEL', group: '' },
   { key: 'specificGravity', label: 'SPECIFIC GRAVITY (LIQUID / GAS)', group: '' },
   { key: 'internalCorrosionAllowanceMm', label: 'INTERNAL CORROSION ALLOWANCE (SHELL / DISH / NOZZLE) MM', group: '' },
   { key: 'externalCorrosionAllowanceMm', label: 'EXTERNAL CORROSION ALLOWANCE (SHELL / DISH) MM', group: '' },
@@ -849,16 +849,41 @@ const AS4343_BADGE: Record<string, string> = {
   E: 'text-green-700 bg-green-50 border-green-300',
 };
 
+/** Reset all code-specific input fields; preserve fluidState and column identity. */
+function clearCodeSpecificFields(d: HazardData): HazardData {
+  return {
+    ...d,
+    isLethalService: null,
+    fluidServiceCategory: null,
+    fluidGroup: null,
+    pedCategory: null,
+    toxicInhalationRisk: false,
+    isFlammable: false,
+    isCorrosive: false,
+    isEnvironmentallyHazardous: false,
+    as4343EquipmentType: null,
+    as4343NominalBoreDN: null,
+    as4343FluidGroup: null,
+    codeNativeClassification: null,
+    internalHazardLevel: null,
+    hazardBasisNote: null,
+  };
+}
+
 function HazardClassificationPanel({
   label,
   data,
   onChange,
   mechColumn,
+  isFirstColumn,
+  onAppliedCodeChange,
 }: {
   label: string;
   data: HazardData;
   onChange: (d: HazardData) => void;
   mechColumn: MechanicalColumn;
+  isFirstColumn: boolean;
+  onAppliedCodeChange: (code: string | null) => void;
 }) {
   const code = data.appliedCode;
   const [showExamples, setShowExamples] = useState(false);
@@ -866,17 +891,6 @@ function HazardClassificationPanel({
 
   const isAS4343 = code === 'AS 4343:2014';
   const as4343Result = isAS4343 ? deriveColumnAS4343(mechColumn, data) : null;
-
-  function handleCodeChange(newCode: string) {
-    const oldCode = data.appliedCode;
-    let updated: HazardData = { ...data, appliedCode: newCode || null };
-    if (oldCode === 'ASME SEC VIII Div-1') updated.isLethalService = null;
-    if (oldCode === 'ASME B31.3') updated.fluidServiceCategory = null;
-    if (oldCode === 'PED 2014/68/EU') { updated.fluidGroup = null; updated.pedCategory = null; updated.toxicInhalationRisk = false; }
-    if (oldCode === 'API 650') { updated.isFlammable = false; updated.isCorrosive = false; updated.isEnvironmentallyHazardous = false; updated.toxicInhalationRisk = false; }
-    if (oldCode === 'AS 4343:2014') { updated.as4343EquipmentType = null; updated.as4343NominalBoreDN = null; updated.as4343FluidGroup = null; }
-    onChange(deriveHazardFields(updated));
-  }
 
   function handleField(updates: Partial<HazardData>) {
     onChange(deriveHazardFields({ ...data, ...updates }));
@@ -919,16 +933,26 @@ function HazardClassificationPanel({
         )}
       </div>
 
-      {/* Applied Code */}
-      <div className="space-y-1">
-        <Label className="text-[10px] text-muted-foreground">Applied Code</Label>
-        <Select value={code || ''} onValueChange={handleCodeChange}>
-          <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select code…" /></SelectTrigger>
-          <SelectContent>
-            {APPLIED_CODE_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Applied Code — editable only in Shell (first) column; read-only badge in others */}
+      {isFirstColumn ? (
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Applied Code</Label>
+          <Select value={code || ''} onValueChange={(v) => onAppliedCodeChange(v || null)}>
+            <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select code…" /></SelectTrigger>
+            <SelectContent>
+              {APPLIED_CODE_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 py-0.5">
+          <span className="text-[10px] text-muted-foreground shrink-0">Applied Code</span>
+          {code
+            ? <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-blue-50 text-blue-700 border-blue-200">{code}</Badge>
+            : <span className="text-[10px] text-slate-400 italic">Shared from Shell</span>
+          }
+        </div>
+      )}
 
       {/* Code-specific inputs */}
       {code && (
@@ -1243,11 +1267,15 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       const method = sheet ? 'PUT' : 'POST';
       return apiRequest(method, `/api/drawing-design-data/${drawingControlId}`, {
         designCode, equipmentConfig, inspectionBy, mechanicalData, generalData,
-        columnHazardData: {
-          shell: colHazard.shell.appliedCode ? colHazard.shell : null,
-          tube:   cols.tube   ? (colHazard.tube?.appliedCode   ? colHazard.tube   : null) : null,
-          jacket: cols.jacket ? (colHazard.jacket?.appliedCode ? colHazard.jacket : null) : null,
-        },
+        columnHazardData: (() => {
+          const sharedCode = colHazard.shell.appliedCode;
+          const sync = (h: HazardData | null) => h && sharedCode ? { ...h, appliedCode: sharedCode } : h;
+          return {
+            shell:  sharedCode ? colHazard.shell : null,
+            tube:   cols.tube   ? (sharedCode ? sync(colHazard.tube ?? emptyHazardData()) : null) : null,
+            jacket: cols.jacket ? (sharedCode ? sync(colHazard.jacket ?? emptyHazardData()) : null) : null,
+          };
+        })(),
       });
     },
     onSuccess: (json: any) => {
@@ -1493,30 +1521,48 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                     <Shield className="h-3.5 w-3.5 text-slate-400" />
                     Hazard Classification
                   </div>
-                  <div className={`grid gap-5 items-start ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <HazardClassificationPanel
-                      label="Shell"
-                      data={colHazard.shell}
-                      onChange={(d) => setColHazard(prev => ({ ...prev, shell: d }))}
-                      mechColumn={mechShell}
-                    />
-                    {cols.tube && (
-                      <HazardClassificationPanel
-                        label="Tube"
-                        data={colHazard.tube || emptyHazardData()}
-                        onChange={(d) => setColHazard(prev => ({ ...prev, tube: d }))}
-                        mechColumn={mechTube}
-                      />
-                    )}
-                    {cols.jacket && (
-                      <HazardClassificationPanel
-                        label="Jacket 1&2"
-                        data={colHazard.jacket || emptyHazardData()}
-                        onChange={(d) => setColHazard(prev => ({ ...prev, jacket: d }))}
-                        mechColumn={mechJacket}
-                      />
-                    )}
-                  </div>
+                  {/* Applied Code is shared: changing Shell's code clears + re-derives all columns */}
+                  {(() => {
+                    function handleSharedCodeChange(newCode: string | null) {
+                      setColHazard(prev => ({
+                        shell:  deriveHazardFields({ ...clearCodeSpecificFields(prev.shell),  appliedCode: newCode }),
+                        tube:   prev.tube   ? deriveHazardFields({ ...clearCodeSpecificFields(prev.tube),   appliedCode: newCode }) : null,
+                        jacket: prev.jacket ? deriveHazardFields({ ...clearCodeSpecificFields(prev.jacket), appliedCode: newCode }) : null,
+                      }));
+                    }
+                    return (
+                      <div className={`grid gap-5 items-start ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                        <HazardClassificationPanel
+                          label="Shell"
+                          data={colHazard.shell}
+                          onChange={(d) => setColHazard(prev => ({ ...prev, shell: d }))}
+                          mechColumn={mechShell}
+                          isFirstColumn={true}
+                          onAppliedCodeChange={handleSharedCodeChange}
+                        />
+                        {cols.tube && (
+                          <HazardClassificationPanel
+                            label="Tube"
+                            data={{ ...colHazard.tube || emptyHazardData(), appliedCode: colHazard.shell.appliedCode }}
+                            onChange={(d) => setColHazard(prev => ({ ...prev, tube: d }))}
+                            mechColumn={mechTube}
+                            isFirstColumn={false}
+                            onAppliedCodeChange={handleSharedCodeChange}
+                          />
+                        )}
+                        {cols.jacket && (
+                          <HazardClassificationPanel
+                            label="Jacket 1&2"
+                            data={{ ...colHazard.jacket || emptyHazardData(), appliedCode: colHazard.shell.appliedCode }}
+                            onChange={(d) => setColHazard(prev => ({ ...prev, jacket: d }))}
+                            mechColumn={mechJacket}
+                            isFirstColumn={false}
+                            onAppliedCodeChange={handleSharedCodeChange}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
