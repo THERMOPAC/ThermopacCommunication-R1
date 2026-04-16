@@ -1019,6 +1019,17 @@ function SmartMechanicalColumnForm({
         }
 
         if (p.key === 'insulation') {
+          if (columnRole === 'tube') {
+            return (
+              <div key={p.key} className="flex items-center gap-2">
+                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
+                </div>
+              </div>
+            );
+          }
           const defaultVal = FIELD_DEFAULTS.insulation!;
           const isAtDefault = !val || val === defaultVal;
           const displayVal = val || defaultVal;
@@ -1045,6 +1056,17 @@ function SmartMechanicalColumnForm({
         }
 
         if (p.key === 'insulationTypeThkDensity') {
+          if (columnRole === 'tube') {
+            return (
+              <div key={p.key} className="flex items-center gap-2">
+                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
+                </div>
+              </div>
+            );
+          }
           const insulationOn = data.insulation === 'YES';
           if (!insulationOn) {
             return (
@@ -1948,8 +1970,14 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
         if (autoExt) return { ...col, externalDesignPressureMawp: autoExt };
         return col;
       }
+      function applyInsulationRule(col: MechanicalColumn, role: ColRole): MechanicalColumn {
+        if (role === 'tube') {
+          return { ...col, insulation: 'N.A.', insulationTypeThkDensity: 'N.A.' };
+        }
+        return col;
+      }
       function normalizeCol(col: MechanicalColumn, role: ColRole): MechanicalColumn {
-        return applyFabTol(applyTestingGroup(applyAutoExternal(col, role)));
+        return applyFabTol(applyTestingGroup(applyAutoExternal(applyInsulationRule(col, role), role)));
       }
 
       const pressureErrors = validateRequiredPressures(equipmentConfig, mechShell, mechTube, mechJacket);
