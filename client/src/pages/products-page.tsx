@@ -45,6 +45,7 @@ const productFormSchema = z.object({
   preferredVendor: z.string().optional(),
   isActive: z.boolean().default(true),
   tagNo: z.string().optional(),
+  equipmentConfiguration: z.string().default('Vessel'),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -184,6 +185,7 @@ export default function ProductsPage() {
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
       makeOrBuy: "Make", preferredVendor: "", isActive: true, tagNo: "",
+      equipmentConfiguration: "Vessel",
     },
   });
 
@@ -417,6 +419,7 @@ export default function ProductsPage() {
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
       makeOrBuy: "Make", preferredVendor: "", isActive: true,
+      tagNo: "", equipmentConfiguration: "Vessel",
     });
     setIsProductDialogOpen(true);
   };
@@ -449,6 +452,7 @@ export default function ProductsPage() {
       preferredVendor: (product as any).preferredVendor || "",
       isActive: product.isActive ?? true,
       tagNo: (product as any).tagNo || "",
+      equipmentConfiguration: (product as any).equipmentConfiguration || "Vessel",
     });
     setIsProductDialogOpen(true);
   };
@@ -1307,6 +1311,27 @@ export default function ProductsPage() {
                         <FormControl>
                           <Input {...field} placeholder="e.g. RF/FE/E1" />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={productForm.control}
+                    name="equipmentConfiguration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Equipment Configuration</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || 'Vessel'}>
+                          <FormControl>
+                            <SelectTrigger><SelectValue placeholder="Select configuration" /></SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Vessel">Vessel</SelectItem>
+                            <SelectItem value="Jacketed Vessel">Jacketed Vessel</SelectItem>
+                            <SelectItem value="Heat Exchanger">Heat Exchanger</SelectItem>
+                            <SelectItem value="Jacketed Vessel and Heat Exchanger">Jacketed Vessel and Heat Exchanger</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

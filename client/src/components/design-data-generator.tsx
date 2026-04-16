@@ -510,7 +510,8 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     } else {
       const autoCode = (disciplineCode && DISCIPLINE_TO_DESIGN_CODE[disciplineCode]) || '';
       setDesignCode(autoCode);
-      setEquipmentConfig(''); setInspectionBy('');
+      setEquipmentConfig(autoFields.productEquipmentConfiguration || 'Vessel');
+      setInspectionBy('');
       setMechShell(seedColumn(emptyMechanicalColumn()));
       setMechTube(seedColumn(emptyMechanicalColumn()));
       setMechJacket(seedColumn(emptyMechanicalColumn()));
@@ -667,7 +668,14 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Equipment Configuration <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    Equipment Configuration <span className="text-red-500">*</span>
+                    {!sheet && autoFields.productEquipmentConfiguration && (
+                      <span className="text-[10px] text-emerald-700 font-normal bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                        Auto from product
+                      </span>
+                    )}
+                  </Label>
                   <Select value={equipmentConfig} onValueChange={setEquipmentConfig}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Select configuration…" />

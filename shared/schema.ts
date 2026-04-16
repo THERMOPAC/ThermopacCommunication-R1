@@ -9798,6 +9798,7 @@ export const products = pgTable('products', {
   preferredVendor: text('preferred_vendor'),
   isActive: boolean('is_active').default(true),
   tagNo: text('tag_no'),
+  equipmentConfiguration: text('equipment_configuration').default('Vessel'),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

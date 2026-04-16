@@ -121,10 +121,13 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   let productTagNo: string | null = null;
   let productCodeUsed: string | null = null;
 
+  let productEquipmentConfiguration: string | null = null;
+
   if (dwgControl.project_item_id) {
     // Tier 1 & 2: try exact match first, then item_code fuzzy match via project_item
     const projectItemResult = await db.execute(sql`
-      SELECT pr.tag_no as product_tag_no, pr.product_code as matched_code
+      SELECT pr.tag_no as product_tag_no, pr.product_code as matched_code,
+             pr.equipment_configuration as product_equipment_configuration
       FROM project_items pi
       JOIN products pr ON (
         (pi.product_code IS NOT NULL AND pi.product_code != '' AND pr.product_code = pi.product_code)
@@ -141,12 +144,15 @@ async function resolveAutoFields(dwgControl: any): Promise<{
       productTagNo = pi.product_tag_no;
       productCodeUsed = pi.matched_code;
     }
+    if (pi?.product_equipment_configuration) {
+      productEquipmentConfiguration = pi.product_equipment_configuration;
+    }
   }
 
   // Tier 3: fallback via drawing control's own item_code
   if (!productTagNo && dwgControl.item_code) {
     const fallbackResult = await db.execute(sql`
-      SELECT product_code, tag_no
+      SELECT product_code, tag_no, equipment_configuration
       FROM products
       WHERE tag_no IS NOT NULL AND tag_no != ''
         AND ${dwgControl.item_code} LIKE '%' || product_code || '%'
@@ -157,6 +163,9 @@ async function resolveAutoFields(dwgControl: any): Promise<{
     if (fallback?.tag_no) {
       productTagNo = fallback.tag_no;
       productCodeUsed = fallback.product_code;
+    }
+    if (fallback?.equipment_configuration && !productEquipmentConfiguration) {
+      productEquipmentConfiguration = fallback.equipment_configuration;
     }
   }
 
@@ -187,7 +196,7 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   }
 
   const projectMdmt = proj?.mdmt || null;
-  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt };
+  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration };
 }
 
 async function verifyProjectAccess(userId: number, userRole: string, projectId: number, res: Response): Promise<boolean> {
@@ -224,6 +233,7 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     tagNoWarning: auto.tagNoWarning,
     msnWarning: auto.msnWarning,
     projectMdmt: auto.projectMdmt,
+    productEquipmentConfiguration: auto.productEquipmentConfiguration,
   };
 
   const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);
