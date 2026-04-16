@@ -110,10 +110,10 @@ const EQUIPMENT_CONFIGS = [
 const INSPECTION_OPTIONS = ['SGS India', 'TUV India', 'Thermopac'];
 
 const MECH_PARAM_LABELS: { key: keyof MechanicalColumn; label: string; group: string }[] = [
-  { key: 'internalDesignPressureMawp', label: 'INTERNAL DESIGN PRESSURE / MAWP', group: 'PRESSURE (Barg)' },
-  { key: 'externalDesignPressureMawp', label: 'EXTERNAL DESIGN PRESSURE / MAWP', group: 'PRESSURE (Barg)' },
-  { key: 'workingPressure', label: 'WORKING PRESSURE', group: 'PRESSURE (Barg)' },
-  { key: 'hydroTestPressure', label: 'HYDRO TEST PRESSURE', group: 'PRESSURE (Barg)' },
+  { key: 'internalDesignPressureMawp', label: 'INTERNAL DESIGN PRESSURE / MAWP (Barg)', group: 'PRESSURE (Barg)' },
+  { key: 'externalDesignPressureMawp', label: 'EXTERNAL DESIGN PRESSURE / MAWP (Barg)', group: 'PRESSURE (Barg)' },
+  { key: 'workingPressure', label: 'WORKING PRESSURE (Barg)', group: 'PRESSURE (Barg)' },
+  { key: 'hydroTestPressure', label: 'HYDRO TEST PRESSURE (Barg)', group: 'PRESSURE (Barg)' },
   { key: 'mdmt', label: 'MDMT', group: 'TEMPERATURE (DEG. C)' },
   { key: 'hydroTestTempMinMax', label: 'HYDRO TEST (MIN / MAX)', group: 'TEMPERATURE (DEG. C)' },
   { key: 'operatingTempMinMax', label: 'OPERATING (MIN / MAX)', group: 'TEMPERATURE (DEG. C)' },

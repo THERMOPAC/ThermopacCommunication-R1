@@ -114,16 +114,26 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   `);
   const proj = projectResult.rows[0] as any;
 
-  // Primary lookup: via project_item.product_code → products.tag_no
+  // Resolve product tag_no using a 3-tier lookup:
+  // 1. Exact match via project_item.product_code
+  // 2. Fuzzy match: product_code appears in project_item.item_code
+  // 3. Fuzzy match: product_code appears in drawing control's item_code
   let productTagNo: string | null = null;
   let productCodeUsed: string | null = null;
 
   if (dwgControl.project_item_id) {
+    // Tier 1 & 2: try exact match first, then item_code fuzzy match via project_item
     const projectItemResult = await db.execute(sql`
-      SELECT pi.product_code, pr.tag_no as product_tag_no, pr.product_code as matched_code
+      SELECT pr.tag_no as product_tag_no, pr.product_code as matched_code
       FROM project_items pi
-      LEFT JOIN products pr ON pr.product_code = pi.product_code AND (pi.product_code IS NOT NULL AND pi.product_code != '')
+      JOIN products pr ON (
+        (pi.product_code IS NOT NULL AND pi.product_code != '' AND pr.product_code = pi.product_code)
+        OR
+        (pi.item_code IS NOT NULL AND pr.tag_no IS NOT NULL AND pr.tag_no != '' AND pi.item_code LIKE '%' || pr.product_code || '%')
+      )
       WHERE pi.id = ${dwgControl.project_item_id}
+        AND pr.tag_no IS NOT NULL AND pr.tag_no != ''
+      ORDER BY CASE WHEN pi.product_code = pr.product_code THEN 0 ELSE 1 END, length(pr.product_code) DESC
       LIMIT 1
     `);
     const pi = projectItemResult.rows[0] as any;
@@ -133,7 +143,7 @@ async function resolveAutoFields(dwgControl: any): Promise<{
     }
   }
 
-  // Fallback: scan products whose code appears inside the drawing control's item_code
+  // Tier 3: fallback via drawing control's own item_code
   if (!productTagNo && dwgControl.item_code) {
     const fallbackResult = await db.execute(sql`
       SELECT product_code, tag_no
@@ -195,6 +205,7 @@ async function loadDrawingControl(dwgControlId: number) {
 
 // GET /api/drawing-design-data/:dwgControlId
 router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
   const dwgControlId = parseInt(req.params.dwgControlId);
   if (isNaN(dwgControlId)) return res.status(400).json({ error: 'Invalid dwgControlId' });
 
