@@ -91,6 +91,7 @@ type HazardData = {
   isFlammable: boolean;
   isCorrosive: boolean;
   isEnvironmentallyHazardous: boolean;
+  as4343HazardLevel: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
   hazardBasisNote: string | null;
@@ -104,6 +105,7 @@ const APPLIED_CODE_OPTIONS = [
   'EN 13445',
   'PED 2014/68/EU',
   'API 650',
+  'AS 4343:2014',
 ] as const;
 
 const FLUID_SERVICE_CATEGORY_OPTIONS = [
@@ -116,6 +118,15 @@ const FLUID_SERVICE_CATEGORY_OPTIONS = [
 const FLUID_STATE_HC_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
 const FLUID_GROUP_OPTIONS = ['Group 1', 'Group 2'];
 const PED_CATEGORY_OPTIONS = ['SEP', 'Category I', 'Category II', 'Category III', 'Category IV'];
+const AS4343_LEVEL_OPTIONS = ['A', 'B', 'C', 'D', 'E'] as const;
+
+const AS4343_LEVEL_NOTES: Record<string, string> = {
+  A: 'Assigned AS 4343 Hazard Level A — highest hazard. Strict design, inspection, and testing requirements apply.',
+  B: 'Assigned AS 4343 Hazard Level B — high hazard. Enhanced design, inspection, and testing requirements apply.',
+  C: 'Assigned AS 4343 Hazard Level C — moderate hazard. Standard design with enhanced inspection requirements.',
+  D: 'Assigned AS 4343 Hazard Level D — low hazard. Standard design and inspection requirements apply.',
+  E: 'Assigned AS 4343 Hazard Level E — minimal hazard. Basic design requirements; lowest scrutiny under AS 4343.',
+};
 
 function emptyHazardData(): HazardData {
   return {
@@ -129,6 +140,7 @@ function emptyHazardData(): HazardData {
     isFlammable: false,
     isCorrosive: false,
     isEnvironmentallyHazardous: false,
+    as4343HazardLevel: null,
     codeNativeClassification: null,
     internalHazardLevel: null,
     hazardBasisNote: null,
@@ -177,6 +189,11 @@ function deriveHazardFields(data: HazardData): HazardData {
     } else {
       level = 'Normal'; note = 'Derived as Normal because no hazard flags on stored product.';
     }
+  } else if (code === 'AS 4343:2014') {
+    classification = 'AS 4343';
+    const lvl = data.as4343HazardLevel;
+    level = lvl || null;
+    note = lvl ? AS4343_LEVEL_NOTES[lvl] ?? null : null;
   }
 
   return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
@@ -620,7 +637,7 @@ type HazardSample = {
   code: string;
   inputs: string;
   classification: string;
-  level: 'Normal' | 'Hazardous' | 'Highly Hazardous';
+  level: string;
   basisNote: string;
 };
 
@@ -655,12 +672,32 @@ const HAZARD_SAMPLES: HazardSample[] = [
   { id: 'J', code: 'API 650', inputs: 'toxicInhalationRisk = No · isFlammable = Yes · isCorrosive = No · isEnvironmentallyHazardous = No',
     classification: 'Stored Product Review', level: 'Hazardous',
     basisNote: 'Derived as Hazardous because stored product is flagged flammable.' },
+  { id: 'K', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = A',
+    classification: 'AS 4343', level: 'A',
+    basisNote: 'Assigned AS 4343 Hazard Level A — highest hazard. Strict design, inspection, and testing requirements apply.' },
+  { id: 'L', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = B',
+    classification: 'AS 4343', level: 'B',
+    basisNote: 'Assigned AS 4343 Hazard Level B — high hazard. Enhanced design, inspection, and testing requirements apply.' },
+  { id: 'M', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = C',
+    classification: 'AS 4343', level: 'C',
+    basisNote: 'Assigned AS 4343 Hazard Level C — moderate hazard. Standard design with enhanced inspection requirements.' },
+  { id: 'N', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = D',
+    classification: 'AS 4343', level: 'D',
+    basisNote: 'Assigned AS 4343 Hazard Level D — low hazard. Standard design and inspection requirements apply.' },
+  { id: 'O', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = E',
+    classification: 'AS 4343', level: 'E',
+    basisNote: 'Assigned AS 4343 Hazard Level E — minimal hazard. Basic design requirements; lowest scrutiny under AS 4343.' },
 ];
 
 const LEVEL_CHIP: Record<string, string> = {
   'Normal': 'bg-green-100 text-green-700 border border-green-300',
   'Hazardous': 'bg-amber-100 text-amber-700 border border-amber-300',
   'Highly Hazardous': 'bg-red-100 text-red-700 border border-red-300',
+  'A': 'bg-red-100 text-red-800 border border-red-400',
+  'B': 'bg-orange-100 text-orange-700 border border-orange-300',
+  'C': 'bg-amber-100 text-amber-700 border border-amber-300',
+  'D': 'bg-blue-100 text-blue-700 border border-blue-300',
+  'E': 'bg-green-100 text-green-700 border border-green-300',
 };
 
 // ─── Hazard Classification Panel ──────────────────────────────────────────────
@@ -678,6 +715,7 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
     // EN 13445: do NOT clear fluidGroup or toxicInhalationRisk
     if (oldCode === 'PED 2014/68/EU') { updated.fluidGroup = null; updated.pedCategory = null; updated.toxicInhalationRisk = false; }
     if (oldCode === 'API 650') { updated.isFlammable = false; updated.isCorrosive = false; updated.isEnvironmentallyHazardous = false; updated.toxicInhalationRisk = false; }
+    if (oldCode === 'AS 4343:2014') updated.as4343HazardLevel = null;
     onChange(deriveHazardFields(updated));
   }
 
@@ -685,18 +723,29 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
     onChange(deriveHazardFields({ ...data, ...updates }));
   }
 
-  const isVIII = code === 'ASME SEC VIII Div-1';
-  const isB31  = code === 'ASME B31.3';
-  const isEN   = code === 'EN 13445';
-  const isPED  = code === 'PED 2014/68/EU';
-  const isAPI  = code === 'API 650';
+  const isVIII  = code === 'ASME SEC VIII Div-1';
+  const isB31   = code === 'ASME B31.3';
+  const isEN    = code === 'EN 13445';
+  const isPED   = code === 'PED 2014/68/EU';
+  const isAPI   = code === 'API 650';
+  const isAS4343 = code === 'AS 4343:2014';
   const showToxic = isEN || isPED || isAPI;
 
-  const levelBadgeClass = {
-    'Normal': 'text-green-700 bg-green-50 border-green-300',
-    'Hazardous': 'text-amber-700 bg-amber-50 border-amber-300',
-    'Highly Hazardous': 'text-red-700 bg-red-50 border-red-300',
-  }[data.internalHazardLevel || ''] || 'text-slate-500 bg-slate-50 border-slate-200';
+  const AS4343_BADGE: Record<string, string> = {
+    A: 'text-red-800 bg-red-50 border-red-400',
+    B: 'text-orange-700 bg-orange-50 border-orange-300',
+    C: 'text-amber-700 bg-amber-50 border-amber-300',
+    D: 'text-blue-700 bg-blue-50 border-blue-300',
+    E: 'text-green-700 bg-green-50 border-green-300',
+  };
+
+  const levelBadgeClass = isAS4343
+    ? (AS4343_BADGE[data.internalHazardLevel || ''] || 'text-slate-500 bg-slate-50 border-slate-200')
+    : ({
+        'Normal': 'text-green-700 bg-green-50 border-green-300',
+        'Hazardous': 'text-amber-700 bg-amber-50 border-amber-300',
+        'Highly Hazardous': 'text-red-700 bg-red-50 border-red-300',
+      }[data.internalHazardLevel || ''] || 'text-slate-500 bg-slate-50 border-slate-200');
 
   const yesNo = (val: boolean, key: keyof HazardData) => (
     <Select value={val ? 'Yes' : 'No'} onValueChange={(v) => handleField({ [key]: v === 'Yes' } as any)}>
@@ -804,6 +853,23 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
               {yesNo(data.isEnvironmentallyHazardous, 'isEnvironmentallyHazardous')}
             </div>
           </>
+        )}
+
+        {isAS4343 && (
+          <div className="space-y-1 col-span-1">
+            <Label className="text-[10px] text-muted-foreground">Hazard Level (A–E)</Label>
+            <Select value={data.as4343HazardLevel || ''} onValueChange={(v) => handleField({ as4343HazardLevel: v as 'A' | 'B' | 'C' | 'D' | 'E' })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select level…" /></SelectTrigger>
+              <SelectContent>
+                {AS4343_LEVEL_OPTIONS.map(lvl => (
+                  <SelectItem key={lvl} value={lvl} className="text-[10px]">
+                    <span className={`inline-flex mr-1.5 px-1 rounded text-[8px] font-bold ${LEVEL_CHIP[lvl]}`}>{lvl}</span>
+                    {lvl === 'A' ? 'Highest Hazard' : lvl === 'B' ? 'High Hazard' : lvl === 'C' ? 'Moderate Hazard' : lvl === 'D' ? 'Low Hazard' : 'Minimal Hazard'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </div>
 

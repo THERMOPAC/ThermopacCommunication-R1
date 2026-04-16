@@ -12431,7 +12431,10 @@ export const APPLIED_CODE_OPTIONS = [
   'EN 13445',
   'PED 2014/68/EU',
   'API 650',
+  'AS 4343:2014',
 ] as const;
+
+export const AS4343_LEVEL_OPTIONS = ['A', 'B', 'C', 'D', 'E'] as const;
 
 export const FLUID_SERVICE_CATEGORY_OPTIONS = [
   'Normal Fluid Service',
@@ -12467,6 +12470,7 @@ export type HazardData = {
   isFlammable: boolean;
   isCorrosive: boolean;
   isEnvironmentallyHazardous: boolean;
+  as4343HazardLevel: 'A' | 'B' | 'C' | 'D' | 'E' | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
   hazardBasisNote: string | null;

@@ -164,6 +164,18 @@ function deriveHazardFields(data: HazardData): HazardData {
       level = 'Normal';
       note = 'Derived as Normal because no hazard flags on stored product.';
     }
+  } else if (code === 'AS 4343:2014') {
+    classification = 'AS 4343';
+    const lvl = data.as4343HazardLevel;
+    level = lvl || null;
+    const AS4343_NOTES: Record<string, string> = {
+      A: 'Assigned AS 4343 Hazard Level A — highest hazard. Strict design, inspection, and testing requirements apply.',
+      B: 'Assigned AS 4343 Hazard Level B — high hazard. Enhanced design, inspection, and testing requirements apply.',
+      C: 'Assigned AS 4343 Hazard Level C — moderate hazard. Standard design with enhanced inspection requirements.',
+      D: 'Assigned AS 4343 Hazard Level D — low hazard. Standard design and inspection requirements apply.',
+      E: 'Assigned AS 4343 Hazard Level E — minimal hazard. Basic design requirements; lowest scrutiny under AS 4343.',
+    };
+    note = lvl ? (AS4343_NOTES[lvl] ?? null) : null;
   }
 
   console.log(`[HazardDerive] code=${code} level=${level} classification=${classification} note=${note}`);
@@ -192,6 +204,7 @@ const EMPTY_CODE_FIELDS = {
   isFlammable: false,
   isCorrosive: false,
   isEnvironmentallyHazardous: false,
+  as4343HazardLevel: null,
 };
 
 const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
@@ -224,6 +237,10 @@ const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
     isFlammable: BOOL_FLAG,
     isCorrosive: BOOL_FLAG,
     isEnvironmentallyHazardous: BOOL_FLAG,
+  }).strip(),
+
+  'AS 4343:2014': z.object({
+    as4343HazardLevel: z.enum(['A', 'B', 'C', 'D', 'E']).nullable().default(null),
   }).strip(),
 };
 
