@@ -12591,3 +12591,36 @@ export const insertDesignDataSheetSchema = createInsertSchema(designDataSheets).
 });
 export type InsertDesignDataSheet = z.infer<typeof insertDesignDataSheetSchema>;
 export type DesignDataSheet = typeof designDataSheets.$inferSelect;
+
+// ============================================================
+// DRAWING VERIFICATION SYSTEM — Step 1
+// ============================================================
+export const drawingRevisions = pgTable('drawing_revisions', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').notNull().references(() => projects.id),
+  projectCode: varchar('project_code', { length: 50 }),
+  drawingNumber: varchar('drawing_number', { length: 100 }).notNull(),
+  revision: varchar('revision', { length: 20 }).notNull(),
+  title: varchar('title', { length: 255 }),
+  itemCode: varchar('item_code', { length: 100 }),
+  discipline: varchar('discipline', { length: 100 }),
+  fileType: varchar('file_type', { length: 20 }).notNull(),
+  checksum: varchar('checksum', { length: 64 }).notNull(),
+  storageZone: varchar('storage_zone', { length: 20 }).notNull(),
+  uploadedBy: varchar('uploaded_by', { length: 100 }).notNull(),
+  uploadedAt: timestamp('uploaded_at').notNull(),
+  originalFilename: varchar('original_filename', { length: 255 }),
+  gcsStagingPath: varchar('gcs_staging_path', { length: 500 }).notNull(),
+  fileSizeBytes: bigint('file_size_bytes', { mode: 'number' }),
+  status: varchar('status', { length: 50 }).notNull(),
+  uploaderNotes: text('uploader_notes'),
+}, (table) => ({
+  uniqueRevision: uniqueIndex('uq_drawing_revision_project').on(table.projectId, table.drawingNumber, table.revision),
+}));
+
+export const insertDrawingRevisionSchema = createInsertSchema(drawingRevisions).omit({
+  id: true,
+  uploadedAt: true,
+});
+export type InsertDrawingRevision = z.infer<typeof insertDrawingRevisionSchema>;
+export type DrawingRevision = typeof drawingRevisions.$inferSelect;
