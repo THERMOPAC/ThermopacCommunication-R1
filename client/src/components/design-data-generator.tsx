@@ -606,6 +606,23 @@ function deriveTestingGroupDefault(radiography: string | null | undefined): stri
   return TESTING_GROUP_BY_RADIOGRAPHY[radiography ?? ''] ?? 'Testing Group 4';
 }
 
+const FABRICATION_TOLERANCE_EN_OPTIONS = ['Class A (High precision)', 'Class B (Medium precision)', 'Class C (Normal)'];
+
+type FabTolConfig =
+  | { mode: 'dropdown'; options: string[]; defaultValue: string }
+  | { mode: 'fixed'; fixedValue: string };
+
+function getFabricationToleranceConfig(appliedCode: string | null | undefined): FabTolConfig {
+  if (appliedCode === 'EN 13445' || appliedCode === 'PED 2014/68/EU') {
+    return { mode: 'dropdown', options: FABRICATION_TOLERANCE_EN_OPTIONS, defaultValue: 'Class C (Normal)' };
+  }
+  if (appliedCode === 'ASME VIII Div-1') return { mode: 'fixed', fixedValue: 'ASME Standard Tolerance' };
+  if (appliedCode === 'ASME B31.3')      return { mode: 'fixed', fixedValue: 'As per ASME B31.3' };
+  if (appliedCode === 'API 650')          return { mode: 'fixed', fixedValue: 'As per API 650' };
+  if (appliedCode === 'AS 4343:2014')    return { mode: 'fixed', fixedValue: 'N.A.' };
+  return { mode: 'fixed', fixedValue: 'N.A.' };
+}
+
 function SmartMechanicalColumnForm({
   label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel, appliedCode,
 }: {
@@ -834,6 +851,44 @@ function SmartMechanicalColumnForm({
                   value={displayVal}
                   onChange={(e) => handleChange(p.key, e.target.value)}
                 />
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'fabricationToleranceClass') {
+          const cfg = getFabricationToleranceConfig(appliedCode);
+          if (cfg.mode === 'fixed') {
+            return (
+              <div key={p.key} className="flex items-center gap-2">
+                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value={cfg.fixedValue} readOnly />
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">Fixed</Badge>
+                </div>
+              </div>
+            );
+          }
+          // Dropdown mode (EN 13445 / PED)
+          const isAtDefault = !val || val === cfg.defaultValue;
+          const displayVal = val || cfg.defaultValue;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
+                  <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cfg.options.map(o => (
+                      <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {isAtDefault && (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
                 )}
