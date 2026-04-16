@@ -322,10 +322,19 @@ function DesignDataRenderer({ sheet }: { sheet: DesignDataSheet }) {
 
 const AUTO_COMPUTED_KEYS: (keyof MechanicalColumn)[] = [
   'internalDesignPressureMawp',
-  'externalDesignPressureMawp',
   'hydroTestPressure',
   'designTempMinMax',
 ];
+
+const FIELD_DEFAULTS: Partial<Record<keyof MechanicalColumn, string>> = {
+  workingPressure: '0.5',
+  externalDesignPressureMawp: '1.034',
+  physicalState: 'Fluid',
+  serviceFluid: 'Hydrocarbon',
+};
+
+const PHYSICAL_STATE_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
+const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam condensate', 'Thermic Fluid'];
 
 function SmartMechanicalColumnForm({
   label, data, onChange, projectMdmt, disciplineCode,
@@ -402,19 +411,43 @@ function SmartMechanicalColumnForm({
           );
         }
 
+        if (p.key === 'physicalState' || p.key === 'serviceFluid') {
+          const options = p.key === 'physicalState' ? PHYSICAL_STATE_OPTIONS : SERVICE_FLUID_OPTIONS;
+          const isAtDefault = val === FIELD_DEFAULTS[p.key];
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <select
+                  className={`flex-1 h-6 text-[10px] px-1 border border-input rounded-sm bg-background ${isAtDefault ? 'bg-green-50' : ''}`}
+                  value={val}
+                  onChange={(e) => handleChange(p.key, e.target.value)}
+                >
+                  {options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
         const isComputed = AUTO_COMPUTED_KEYS.includes(p.key);
+        const isAtDefault = !isComputed && FIELD_DEFAULTS[p.key] !== undefined && val === FIELD_DEFAULTS[p.key];
+        const showAutoBadge = isComputed || isAtDefault;
 
         return (
           <div key={p.key} className="flex items-center gap-2">
             <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
             <div className="flex-1 flex items-center gap-1">
               <Input
-                className={`h-6 text-[10px] px-1.5 ${isComputed ? 'bg-green-50' : ''}`}
+                className={`h-6 text-[10px] px-1.5 ${showAutoBadge ? 'bg-green-50' : ''}`}
                 value={val}
                 onChange={(e) => handleChange(p.key, e.target.value)}
                 placeholder="N.A."
               />
-              {isComputed && (
+              {showAutoBadge && (
                 <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
               )}
             </div>
@@ -487,10 +520,23 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const projMdmt = autoFields.projectMdmt || null;
 
   function seedColumn(col: MechanicalColumn): MechanicalColumn {
+    const wp = col.workingPressure ?? '0.5';
+    const wpNum = parseFloat(wp);
+    const idp = col.internalDesignPressureMawp ?? (!isNaN(wpNum) ? (wpNum + 2).toFixed(3) : null);
+    const idpNum = parseFloat(idp || '');
+    const isApi = (disciplineCode || '').toLowerCase().includes('api 650');
+    const hydro = col.hydroTestPressure ?? (
+      !isNaN(idpNum) ? (isApi ? 'N.A.' : calcHydroTestPressure(idpNum, disciplineCode)) : null
+    );
     return {
       ...col,
       mdmt: projMdmt,
+      workingPressure: wp,
+      internalDesignPressureMawp: idp,
       externalDesignPressureMawp: col.externalDesignPressureMawp ?? '1.034',
+      hydroTestPressure: hydro,
+      physicalState: col.physicalState ?? 'Fluid',
+      serviceFluid: col.serviceFluid ?? 'Hydrocarbon',
     };
   }
 
