@@ -93,6 +93,54 @@ function normalizeGeneralData(incoming: Partial<GeneralData>): GeneralData {
   return { ...emptyGeneralData(), ...incoming };
 }
 
+/**
+ * AS 4343:2014 table lookup — mirrors frontend as4343Derive()
+ * Vessels:  energyProduct = P(MPa) × V(litres)       → thresholds MPa·L
+ * Piping:   energyProduct = P(MPa) × 1000 × DN(mm)   → thresholds kPa·mm
+ * Two-phase: use Gas/Vapour table (conservative)
+ */
+function as4343TableLookup(
+  equipType: 'Vessel' | 'Piping',
+  fg: 'A' | 'B' | 'C',
+  state: 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid',
+  energy: number,
+): string {
+  const isGas = state === 'Gas/Vapour' || state === 'Gas/Vapour and Liquid';
+  if (equipType === 'Vessel') {
+    if (isGas) {
+      if (energy > 10000) return fg === 'C' ? 'B' : 'A';
+      if (energy > 1000)  return fg === 'A' ? 'A' : fg === 'B' ? 'B' : 'B';
+      if (energy > 100)   return fg === 'A' ? 'A' : fg === 'B' ? 'B' : 'C';
+      if (energy > 10)    return fg === 'A' ? 'B' : fg === 'B' ? 'C' : 'D';
+      if (energy > 1)     return fg === 'A' ? 'C' : fg === 'B' ? 'D' : 'D';
+      return fg === 'A' ? 'D' : 'E';
+    } else {
+      if (energy > 10000) return fg === 'C' ? 'C' : 'B';
+      if (energy > 1000)  return fg === 'A' ? 'B' : fg === 'B' ? 'C' : 'C';
+      if (energy > 100)   return fg === 'A' ? 'C' : fg === 'B' ? 'C' : 'D';
+      if (energy > 10)    return fg === 'A' ? 'C' : fg === 'B' ? 'D' : 'E';
+      if (energy > 1)     return fg === 'A' ? 'D' : 'E';
+      return 'E';
+    }
+  } else {
+    if (isGas) {
+      if (energy > 350000) return fg === 'C' ? 'B' : 'A';
+      if (energy > 100000) return fg === 'A' ? 'A' : fg === 'B' ? 'B' : 'B';
+      if (energy > 35000)  return fg === 'A' ? 'A' : fg === 'B' ? 'B' : 'C';
+      if (energy > 10000)  return fg === 'A' ? 'B' : fg === 'B' ? 'C' : 'D';
+      if (energy > 3500)   return fg === 'A' ? 'C' : fg === 'B' ? 'D' : 'D';
+      return fg === 'A' ? 'D' : 'E';
+    } else {
+      if (energy > 350000) return fg === 'C' ? 'C' : 'B';
+      if (energy > 100000) return fg === 'A' ? 'B' : fg === 'B' ? 'C' : 'C';
+      if (energy > 35000)  return fg === 'A' ? 'C' : fg === 'B' ? 'C' : 'D';
+      if (energy > 10000)  return fg === 'A' ? 'C' : fg === 'B' ? 'D' : 'E';
+      if (energy > 3500)   return fg === 'A' ? 'D' : 'E';
+      return 'E';
+    }
+  }
+}
+
 function deriveHazardFields(data: HazardData): HazardData {
   const code = data.appliedCode;
   if (!code) return { ...data, codeNativeClassification: null, internalHazardLevel: null, hazardBasisNote: null };
@@ -166,16 +214,30 @@ function deriveHazardFields(data: HazardData): HazardData {
     }
   } else if (code === 'AS 4343:2014') {
     classification = 'AS 4343';
-    const lvl = data.as4343HazardLevel;
-    level = lvl || null;
-    const AS4343_NOTES: Record<string, string> = {
-      A: 'Assigned AS 4343 Hazard Level A — highest hazard. Strict design, inspection, and testing requirements apply.',
-      B: 'Assigned AS 4343 Hazard Level B — high hazard. Enhanced design, inspection, and testing requirements apply.',
-      C: 'Assigned AS 4343 Hazard Level C — moderate hazard. Standard design with enhanced inspection requirements.',
-      D: 'Assigned AS 4343 Hazard Level D — low hazard. Standard design and inspection requirements apply.',
-      E: 'Assigned AS 4343 Hazard Level E — minimal hazard. Basic design requirements; lowest scrutiny under AS 4343.',
-    };
-    note = lvl ? (AS4343_NOTES[lvl] ?? null) : null;
+    const eqType = data.as4343EquipmentType as 'Vessel' | 'Piping' | null;
+    const fg     = data.as4343FluidGroup as 'A' | 'B' | 'C' | null;
+    const ps     = data.as4343PhysicalState as 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' | null;
+    const pMPa   = data.as4343DesignPressureMPa as number | null;
+    const vol    = data.as4343VolumeLitres as number | null;
+    const dn     = data.as4343NominalBoreDN as number | null;
+
+    const hasVessel = eqType === 'Vessel' && fg && ps && pMPa != null && pMPa > 0 && vol != null && vol > 0;
+    const hasPiping = eqType === 'Piping'  && fg && ps && pMPa != null && pMPa > 0 && dn  != null && dn  > 0;
+
+    if (hasVessel) {
+      const pv = pMPa! * vol!;
+      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
+      level = as4343TableLookup(eqType!, fg!, ps!, pv);
+      note  = `Vessel, ${stateLabel}, Group ${fg} — PV = ${pv.toFixed(2)} MPa·L → Hazard Level ${level} per AS 4343:2014 Table`;
+    } else if (hasPiping) {
+      const pdn = pMPa! * 1000 * dn!;
+      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
+      level = as4343TableLookup(eqType!, fg!, ps!, pdn);
+      note  = `Piping, ${stateLabel}, Group ${fg} — P×DN = ${pdn.toFixed(0)} kPa·mm → Hazard Level ${level} per AS 4343:2014 Table`;
+    } else {
+      level = null;
+      note  = 'Insufficient data to determine hazard level — provide Equipment Type, Fluid Group, Physical State, Design Pressure and Volume (Vessel) or DN (Piping).';
+    }
   }
 
   console.log(`[HazardDerive] code=${code} level=${level} classification=${classification} note=${note}`);
@@ -204,7 +266,12 @@ const EMPTY_CODE_FIELDS = {
   isFlammable: false,
   isCorrosive: false,
   isEnvironmentallyHazardous: false,
-  as4343HazardLevel: null,
+  as4343EquipmentType: null,
+  as4343FluidGroup: null,
+  as4343PhysicalState: null,
+  as4343DesignPressureMPa: null,
+  as4343VolumeLitres: null,
+  as4343NominalBoreDN: null,
 };
 
 const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
@@ -240,7 +307,12 @@ const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
   }).strip(),
 
   'AS 4343:2014': z.object({
-    as4343HazardLevel: z.enum(['A', 'B', 'C', 'D', 'E']).nullable().default(null),
+    as4343EquipmentType: z.enum(['Vessel', 'Piping']).nullable().default(null),
+    as4343FluidGroup: z.enum(['A', 'B', 'C']).nullable().default(null),
+    as4343PhysicalState: z.enum(['Gas/Vapour', 'Liquid', 'Gas/Vapour and Liquid']).nullable().default(null),
+    as4343DesignPressureMPa: z.number().positive().nullable().default(null),
+    as4343VolumeLitres: z.number().positive().nullable().default(null),
+    as4343NominalBoreDN: z.number().positive().nullable().default(null),
   }).strip(),
 };
 

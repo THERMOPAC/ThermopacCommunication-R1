@@ -91,7 +91,12 @@ type HazardData = {
   isFlammable: boolean;
   isCorrosive: boolean;
   isEnvironmentallyHazardous: boolean;
-  as4343HazardLevel: 'A' | 'B' | 'C' | 'D' | 'E' | null;
+  as4343EquipmentType: 'Vessel' | 'Piping' | null;
+  as4343FluidGroup: 'A' | 'B' | 'C' | null;
+  as4343PhysicalState: 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' | null;
+  as4343DesignPressureMPa: number | null;
+  as4343VolumeLitres: number | null;
+  as4343NominalBoreDN: number | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
   hazardBasisNote: string | null;
@@ -118,15 +123,71 @@ const FLUID_SERVICE_CATEGORY_OPTIONS = [
 const FLUID_STATE_HC_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
 const FLUID_GROUP_OPTIONS = ['Group 1', 'Group 2'];
 const PED_CATEGORY_OPTIONS = ['SEP', 'Category I', 'Category II', 'Category III', 'Category IV'];
-const AS4343_LEVEL_OPTIONS = ['A', 'B', 'C', 'D', 'E'] as const;
+const AS4343_EQUIPMENT_OPTIONS = ['Vessel', 'Piping'] as const;
+const AS4343_FLUID_GROUP_OPTIONS = ['A', 'B', 'C'] as const;
+const AS4343_PHYSICAL_STATE_OPTIONS = ['Gas/Vapour', 'Liquid', 'Gas/Vapour and Liquid'] as const;
 
-const AS4343_LEVEL_NOTES: Record<string, string> = {
-  A: 'Assigned AS 4343 Hazard Level A — highest hazard. Strict design, inspection, and testing requirements apply.',
-  B: 'Assigned AS 4343 Hazard Level B — high hazard. Enhanced design, inspection, and testing requirements apply.',
-  C: 'Assigned AS 4343 Hazard Level C — moderate hazard. Standard design with enhanced inspection requirements.',
-  D: 'Assigned AS 4343 Hazard Level D — low hazard. Standard design and inspection requirements apply.',
-  E: 'Assigned AS 4343 Hazard Level E — minimal hazard. Basic design requirements; lowest scrutiny under AS 4343.',
+const AS4343_FLUID_GROUP_LABELS: Record<string, string> = {
+  A: 'A — Extremely hazardous (highly toxic, pyrophoric, reactive)',
+  B: 'B — Hazardous (flammable, moderately toxic, harmful)',
+  C: 'C — Low hazard (steam, air, water, non-flammable/non-toxic)',
 };
+
+/**
+ * AS 4343:2014 Hazard Level Table Lookup
+ * Vessels:  PV = P (MPa gauge) × V (litres)       → thresholds in MPa·L
+ * Piping:   P×DN = P (MPa) × 1000 × DN (mm)       → thresholds in kPa·mm
+ * Two-phase (Gas/Vapour and Liquid): use Gas/Vapour table (conservative)
+ */
+function as4343Derive(
+  equipType: 'Vessel' | 'Piping',
+  fluidGroup: 'A' | 'B' | 'C',
+  state: 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid',
+  energyProduct: number,
+): string {
+  // Two-phase → conservative: treat as Gas/Vapour
+  const isGas = state === 'Gas/Vapour' || state === 'Gas/Vapour and Liquid';
+
+  if (equipType === 'Vessel') {
+    // PV in MPa·L
+    const pv = energyProduct;
+    if (isGas) {
+      if (pv > 10000)       return fluidGroup === 'C' ? 'B' : 'A';
+      if (pv > 1000)        return fluidGroup === 'A' ? 'A' : fluidGroup === 'B' ? 'B' : 'B';
+      if (pv > 100)         return fluidGroup === 'A' ? 'A' : fluidGroup === 'B' ? 'B' : 'C';
+      if (pv > 10)          return fluidGroup === 'A' ? 'B' : fluidGroup === 'B' ? 'C' : 'D';
+      if (pv > 1)           return fluidGroup === 'A' ? 'C' : fluidGroup === 'B' ? 'D' : 'D';
+      return                        fluidGroup === 'A' ? 'D' : 'E';
+    } else {
+      // Liquid
+      if (pv > 10000)       return fluidGroup === 'C' ? 'C' : 'B';
+      if (pv > 1000)        return fluidGroup === 'A' ? 'B' : fluidGroup === 'B' ? 'C' : 'C';
+      if (pv > 100)         return fluidGroup === 'A' ? 'C' : fluidGroup === 'B' ? 'C' : 'D';
+      if (pv > 10)          return fluidGroup === 'A' ? 'C' : fluidGroup === 'B' ? 'D' : 'E';
+      if (pv > 1)           return fluidGroup === 'A' ? 'D' : 'E';
+      return 'E';
+    }
+  } else {
+    // Piping: P×DN in kPa·mm
+    const pdn = energyProduct;
+    if (isGas) {
+      if (pdn > 350000)     return fluidGroup === 'C' ? 'B' : 'A';
+      if (pdn > 100000)     return fluidGroup === 'A' ? 'A' : fluidGroup === 'B' ? 'B' : 'B';
+      if (pdn > 35000)      return fluidGroup === 'A' ? 'A' : fluidGroup === 'B' ? 'B' : 'C';
+      if (pdn > 10000)      return fluidGroup === 'A' ? 'B' : fluidGroup === 'B' ? 'C' : 'D';
+      if (pdn > 3500)       return fluidGroup === 'A' ? 'C' : fluidGroup === 'B' ? 'D' : 'D';
+      return                        fluidGroup === 'A' ? 'D' : 'E';
+    } else {
+      // Liquid
+      if (pdn > 350000)     return fluidGroup === 'C' ? 'C' : 'B';
+      if (pdn > 100000)     return fluidGroup === 'A' ? 'B' : fluidGroup === 'B' ? 'C' : 'C';
+      if (pdn > 35000)      return fluidGroup === 'A' ? 'C' : fluidGroup === 'B' ? 'C' : 'D';
+      if (pdn > 10000)      return fluidGroup === 'A' ? 'C' : fluidGroup === 'B' ? 'D' : 'E';
+      if (pdn > 3500)       return fluidGroup === 'A' ? 'D' : 'E';
+      return 'E';
+    }
+  }
+}
 
 function emptyHazardData(): HazardData {
   return {
@@ -140,7 +201,12 @@ function emptyHazardData(): HazardData {
     isFlammable: false,
     isCorrosive: false,
     isEnvironmentallyHazardous: false,
-    as4343HazardLevel: null,
+    as4343EquipmentType: null,
+    as4343FluidGroup: null,
+    as4343PhysicalState: null,
+    as4343DesignPressureMPa: null,
+    as4343VolumeLitres: null,
+    as4343NominalBoreDN: null,
     codeNativeClassification: null,
     internalHazardLevel: null,
     hazardBasisNote: null,
@@ -191,9 +257,24 @@ function deriveHazardFields(data: HazardData): HazardData {
     }
   } else if (code === 'AS 4343:2014') {
     classification = 'AS 4343';
-    const lvl = data.as4343HazardLevel;
-    level = lvl || null;
-    note = lvl ? AS4343_LEVEL_NOTES[lvl] ?? null : null;
+    const { as4343EquipmentType: eqType, as4343FluidGroup: fg, as4343PhysicalState: ps,
+            as4343DesignPressureMPa: pMPa, as4343VolumeLitres: vol, as4343NominalBoreDN: dn } = data;
+    const hasVesselInputs = eqType === 'Vessel' && fg && ps && pMPa != null && pMPa > 0 && vol != null && vol > 0;
+    const hasPipingInputs = eqType === 'Piping' && fg && ps && pMPa != null && pMPa > 0 && dn != null && dn > 0;
+    if (hasVesselInputs) {
+      const pv = pMPa! * vol!;
+      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
+      level = as4343Derive(eqType!, fg!, ps!, pv);
+      note = `Vessel, ${stateLabel}, Group ${fg} — PV = ${pv.toFixed(2)} MPa·L → Hazard Level ${level} per AS 4343:2014 Table`;
+    } else if (hasPipingInputs) {
+      const pdn = pMPa! * 1000 * dn!;
+      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
+      level = as4343Derive(eqType!, fg!, ps!, pdn);
+      note = `Piping, ${stateLabel}, Group ${fg} — P×DN = ${pdn.toFixed(0)} kPa·mm → Hazard Level ${level} per AS 4343:2014 Table`;
+    } else {
+      level = null;
+      note = 'Insufficient data to determine hazard level — provide Equipment Type, Fluid Group, Physical State, Design Pressure and Volume (Vessel) or DN (Piping).';
+    }
   }
 
   return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
@@ -672,21 +753,34 @@ const HAZARD_SAMPLES: HazardSample[] = [
   { id: 'J', code: 'API 650', inputs: 'toxicInhalationRisk = No · isFlammable = Yes · isCorrosive = No · isEnvironmentallyHazardous = No',
     classification: 'Stored Product Review', level: 'Hazardous',
     basisNote: 'Derived as Hazardous because stored product is flagged flammable.' },
-  { id: 'K', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = A',
+  { id: 'K', code: 'AS 4343:2014',
+    inputs: 'Vessel · Gas/Vapour · Group A · P = 2.0 MPa · V = 10,000 L',
     classification: 'AS 4343', level: 'A',
-    basisNote: 'Assigned AS 4343 Hazard Level A — highest hazard. Strict design, inspection, and testing requirements apply.' },
-  { id: 'L', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = B',
+    basisNote: 'Vessel, Gas/Vapour, Group A — PV = 20,000.00 MPa·L → Hazard Level A per AS 4343:2014 Table' },
+  { id: 'L', code: 'AS 4343:2014',
+    inputs: 'Vessel · Gas/Vapour · Group B · P = 1.5 MPa · V = 300 L',
     classification: 'AS 4343', level: 'B',
-    basisNote: 'Assigned AS 4343 Hazard Level B — high hazard. Enhanced design, inspection, and testing requirements apply.' },
-  { id: 'M', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = C',
+    basisNote: 'Vessel, Gas/Vapour, Group B — PV = 450.00 MPa·L → Hazard Level B per AS 4343:2014 Table' },
+  { id: 'M', code: 'AS 4343:2014',
+    inputs: 'Vessel · Liquid · Group A · P = 0.8 MPa · V = 50 L',
     classification: 'AS 4343', level: 'C',
-    basisNote: 'Assigned AS 4343 Hazard Level C — moderate hazard. Standard design with enhanced inspection requirements.' },
-  { id: 'N', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = D',
+    basisNote: 'Vessel, Liquid, Group A — PV = 40.00 MPa·L → Hazard Level C per AS 4343:2014 Table' },
+  { id: 'N', code: 'AS 4343:2014',
+    inputs: 'Piping · Gas/Vapour · Group B · P = 0.5 MPa · DN = 50 mm',
+    classification: 'AS 4343', level: 'C',
+    basisNote: 'Piping, Gas/Vapour, Group B — P×DN = 25,000 kPa·mm (10,000–35,000 band) → Hazard Level C per AS 4343:2014 Table' },
+  { id: 'N2', code: 'AS 4343:2014',
+    inputs: 'Piping · Gas/Vapour · Group B · P = 0.1 MPa · DN = 75 mm',
     classification: 'AS 4343', level: 'D',
-    basisNote: 'Assigned AS 4343 Hazard Level D — low hazard. Standard design and inspection requirements apply.' },
-  { id: 'O', code: 'AS 4343:2014', inputs: 'as4343HazardLevel = E',
+    basisNote: 'Piping, Gas/Vapour, Group B — P×DN = 7,500 kPa·mm (3,500–10,000 band) → Hazard Level D per AS 4343:2014 Table' },
+  { id: 'O', code: 'AS 4343:2014',
+    inputs: 'Piping · Liquid · Group C · P = 0.3 MPa · DN = 25 mm',
     classification: 'AS 4343', level: 'E',
-    basisNote: 'Assigned AS 4343 Hazard Level E — minimal hazard. Basic design requirements; lowest scrutiny under AS 4343.' },
+    basisNote: 'Piping, Liquid, Group C — P×DN = 7,500 kPa·mm → Hazard Level E per AS 4343:2014 Table' },
+  { id: 'P', code: 'AS 4343:2014',
+    inputs: 'Vessel · Gas/Vapour and Liquid (two-phase) · Group B · P = 1.0 MPa · V = 200 L',
+    classification: 'AS 4343', level: 'B',
+    basisNote: 'Vessel, Gas/Vapour (conservative — two-phase), Group B — PV = 200.00 MPa·L → Hazard Level B per AS 4343:2014 Table' },
 ];
 
 const LEVEL_CHIP: Record<string, string> = {
@@ -715,7 +809,14 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
     // EN 13445: do NOT clear fluidGroup or toxicInhalationRisk
     if (oldCode === 'PED 2014/68/EU') { updated.fluidGroup = null; updated.pedCategory = null; updated.toxicInhalationRisk = false; }
     if (oldCode === 'API 650') { updated.isFlammable = false; updated.isCorrosive = false; updated.isEnvironmentallyHazardous = false; updated.toxicInhalationRisk = false; }
-    if (oldCode === 'AS 4343:2014') updated.as4343HazardLevel = null;
+    if (oldCode === 'AS 4343:2014') {
+      updated.as4343EquipmentType = null;
+      updated.as4343FluidGroup = null;
+      updated.as4343PhysicalState = null;
+      updated.as4343DesignPressureMPa = null;
+      updated.as4343VolumeLitres = null;
+      updated.as4343NominalBoreDN = null;
+    }
     onChange(deriveHazardFields(updated));
   }
 
@@ -856,20 +957,94 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
         )}
 
         {isAS4343 && (
-          <div className="space-y-1 col-span-1">
-            <Label className="text-[10px] text-muted-foreground">Hazard Level (A–E)</Label>
-            <Select value={data.as4343HazardLevel || ''} onValueChange={(v) => handleField({ as4343HazardLevel: v as 'A' | 'B' | 'C' | 'D' | 'E' })}>
-              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select level…" /></SelectTrigger>
-              <SelectContent>
-                {AS4343_LEVEL_OPTIONS.map(lvl => (
-                  <SelectItem key={lvl} value={lvl} className="text-[10px]">
-                    <span className={`inline-flex mr-1.5 px-1 rounded text-[8px] font-bold ${LEVEL_CHIP[lvl]}`}>{lvl}</span>
-                    {lvl === 'A' ? 'Highest Hazard' : lvl === 'B' ? 'High Hazard' : lvl === 'C' ? 'Moderate Hazard' : lvl === 'D' ? 'Low Hazard' : 'Minimal Hazard'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <>
+            {/* AS 4343 Equipment Type */}
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Equipment Type <span className="text-red-500">*</span></Label>
+              <Select value={data.as4343EquipmentType || ''} onValueChange={(v) => handleField({ as4343EquipmentType: v as 'Vessel' | 'Piping', as4343VolumeLitres: null, as4343NominalBoreDN: null })}>
+                <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {AS4343_EQUIPMENT_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* AS 4343 Physical State */}
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Physical State <span className="text-red-500">*</span></Label>
+              <Select value={data.as4343PhysicalState || ''} onValueChange={(v) => handleField({ as4343PhysicalState: v as 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' })}>
+                <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {AS4343_PHYSICAL_STATE_OPTIONS.map(o => (
+                    <SelectItem key={o} value={o} className="text-[10px]">
+                      {o}{o === 'Gas/Vapour and Liquid' && <span className="ml-1 text-[8px] text-amber-600">(uses Gas/Vapour table)</span>}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* AS 4343 Fluid Group */}
+            <div className="space-y-1 col-span-2">
+              <Label className="text-[10px] text-muted-foreground">Fluid Group <span className="text-red-500">*</span></Label>
+              <Select value={data.as4343FluidGroup || ''} onValueChange={(v) => handleField({ as4343FluidGroup: v as 'A' | 'B' | 'C' })}>
+                <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {AS4343_FLUID_GROUP_OPTIONS.map(g => (
+                    <SelectItem key={g} value={g} className="text-[10px]">{AS4343_FLUID_GROUP_LABELS[g]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Design Pressure */}
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Design Pressure (MPa g) <span className="text-red-500">*</span></Label>
+              <Input
+                type="number" min="0" step="0.01"
+                className="h-7 text-[10px]"
+                placeholder="e.g. 1.5"
+                value={data.as4343DesignPressureMPa ?? ''}
+                onChange={(e) => handleField({ as4343DesignPressureMPa: e.target.value === '' ? null : parseFloat(e.target.value) })}
+              />
+            </div>
+
+            {/* Volume — Vessel only */}
+            {data.as4343EquipmentType === 'Vessel' && (
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Volume (litres) <span className="text-red-500">*</span></Label>
+                <Input
+                  type="number" min="0" step="1"
+                  className="h-7 text-[10px]"
+                  placeholder="e.g. 1000"
+                  value={data.as4343VolumeLitres ?? ''}
+                  onChange={(e) => handleField({ as4343VolumeLitres: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                />
+              </div>
+            )}
+
+            {/* Nominal Bore — Piping only */}
+            {data.as4343EquipmentType === 'Piping' && (
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Nominal Bore DN (mm) <span className="text-red-500">*</span></Label>
+                <Input
+                  type="number" min="0" step="1"
+                  className="h-7 text-[10px]"
+                  placeholder="e.g. 150"
+                  value={data.as4343NominalBoreDN ?? ''}
+                  onChange={(e) => handleField({ as4343NominalBoreDN: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                />
+              </div>
+            )}
+
+            {/* Disclaimer */}
+            <div className="col-span-full mt-1 flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+              <AlertTriangle className="h-3 w-3 text-blue-500 shrink-0 mt-0.5" />
+              <span className="text-[9px] text-blue-700 leading-snug">
+                Hazard Level calculated based on AS 4343:2014 methodology. Final classification must be verified against the official standard.
+              </span>
+            </div>
+          </>
         )}
       </div>
 

@@ -12470,7 +12470,12 @@ export type HazardData = {
   isFlammable: boolean;
   isCorrosive: boolean;
   isEnvironmentallyHazardous: boolean;
-  as4343HazardLevel: 'A' | 'B' | 'C' | 'D' | 'E' | null;
+  as4343EquipmentType: 'Vessel' | 'Piping' | null;
+  as4343FluidGroup: 'A' | 'B' | 'C' | null;
+  as4343PhysicalState: 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' | null;
+  as4343DesignPressureMPa: number | null;
+  as4343VolumeLitres: number | null;
+  as4343NominalBoreDN: number | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
   hazardBasisNote: string | null;
