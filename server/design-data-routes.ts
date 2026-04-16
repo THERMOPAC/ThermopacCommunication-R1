@@ -126,14 +126,14 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   const productTagNo = pi?.product_tag_no || null;
   const projectCode = proj?.code || null;
 
-  const missing: string[] = [];
-  if (!productTagNo) missing.push('product tag_no');
-  if (!projectCode) missing.push('project code');
-
-  if (missing.length === 0) {
-    tagNo = `${productTagNo}_${projectCode}`;
+  if (!productTagNo && !projectCode) {
+    tagNoWarning = `Tag No cannot be generated: the project item has no product linked, and the project has no code. Please link a product with a Tag No in the Products catalog.`;
+  } else if (!productTagNo) {
+    tagNoWarning = `Tag No cannot be generated: the product linked to this project item has no Tag No. Please set a Tag No for the product in the Products catalog.`;
+  } else if (!projectCode) {
+    tagNoWarning = `Tag No cannot be generated: the project has no project code assigned.`;
   } else {
-    tagNoWarning = `tag_no cannot be generated: missing ${missing.join(', ')}`;
+    tagNo = `${productTagNo}_${projectCode}`;
   }
 
   // Resolve manufacture_serial_no: item_code + tag_no

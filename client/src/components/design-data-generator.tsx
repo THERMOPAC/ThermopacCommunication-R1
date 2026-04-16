@@ -575,9 +575,14 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   </Select>
                 </div>
 
-                <div className="col-span-2 text-[10px] text-muted-foreground bg-slate-50 rounded px-3 py-1.5 border">
-                  <span className="font-semibold">Auto-generated on save: </span>
-                  Equipment Description, Tag No, Equipment Type, Manufacture Serial No
+                <div className="col-span-2 space-y-1">
+                  <div className="text-[10px] text-muted-foreground bg-slate-50 rounded px-3 py-1.5 border">
+                    <span className="font-semibold">Auto-generated on save:</span> Equipment Description, Equipment Type
+                  </div>
+                  <div className="text-[10px] text-blue-700 bg-blue-50 rounded px-3 py-1.5 border border-blue-200">
+                    <span className="font-semibold">Tag No</span> = Product Tag No + Project Code <span className="text-blue-500">(e.g. RF/FE/E1_2627-013)</span>
+                    <br />Requires the product linked to this project item to have a <span className="font-semibold">Tag No</span> set in the Products catalog.
+                  </div>
                 </div>
               </div>
 
