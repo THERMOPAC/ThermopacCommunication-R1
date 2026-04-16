@@ -1758,6 +1758,9 @@ export const projects = pgTable('projects', {
   automationMode: varchar('automation_mode', { length: 20 }).default('manual'),
   automationRunId: uuid('automation_run_id'),
   automationCompletedAt: timestamp('automation_completed_at'),
+
+  // EPC discipline code for all project items (e.g. ME, EE, CV)
+  disciplineCode: varchar('discipline_code', { length: 30 }),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)
@@ -9791,6 +9794,7 @@ export const products = pgTable('products', {
   makeOrBuy: text('make_or_buy').default('Make'),
   preferredVendor: text('preferred_vendor'),
   isActive: boolean('is_active').default(true),
+  tagNo: text('tag_no'),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -12412,3 +12416,104 @@ export const customerOrderDocuments = pgTable('customer_order_documents', {
 export const insertCustomerOrderDocumentSchema = createInsertSchema(customerOrderDocuments).omit({ id: true, createdAt: true, updatedAt: true });
 export type CustomerOrderDocument = typeof customerOrderDocuments.$inferSelect;
 export type InsertCustomerOrderDocument = z.infer<typeof insertCustomerOrderDocumentSchema>;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Design Data Sheets  (one per epc_drawing_controls row)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const designDataSheets = pgTable('design_data_sheets', {
+  id: serial('id').primaryKey(),
+
+  // FK – one unique sheet per drawing control record
+  dwgControlId: integer('dwg_control_id')
+    .notNull()
+    .unique()
+    .references(() => epcDrawingControls.id, { onDelete: 'cascade' }),
+
+  projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+
+  // ── Header (auto-generated fields marked) ──────────────────────────────────
+  designCode: varchar('design_code', { length: 100 }).notNull(),   // dropdown
+  materialCode: varchar('material_code', { length: 100 }),          // auto from designCode
+  equipmentDescription: text('equipment_description'),              // auto from item_description
+  tagNo: varchar('tag_no', { length: 200 }),                        // auto-generated server-side
+  equipmentType: varchar('equipment_type', { length: 100 }),        // auto from equipmentConfig
+  manufactureSerialNo: varchar('manufacture_serial_no', { length: 200 }), // auto or null
+  inspectionBy: varchar('inspection_by', { length: 80 }).notNull(), // dropdown
+
+  // ── Mechanical data configuration ─────────────────────────────────────────
+  equipmentConfig: varchar('equipment_config', { length: 60 }).notNull(),
+  // Vessel | Jacketed Vessel | Heat Exchanger | Jacketed Vessel and Heat Exchanger
+
+  // Fixed JSON keys – columns present = shell / tube / jacket
+  // mechanicalData shape (all keys always present, null = N/A):
+  // { shell: { ...params }, tube: { ...params } | null, jacket: { ...params } | null }
+  mechanicalData: jsonb('mechanical_data').notNull().$type<MechanicalData>(),
+
+  // ── General data (single-value rows) ──────────────────────────────────────
+  // Fixed keys only:
+  generalData: jsonb('general_data').notNull().$type<GeneralData>(),
+
+  status: varchar('status', { length: 20 }).notNull().default('draft'),
+
+  createdBy: integer('created_by').references(() => users.id),
+  updatedBy: integer('updated_by').references(() => users.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Fixed mechanical parameter keys per column
+export type MechanicalColumn = {
+  internalDesignPressureMawp: string | null;
+  externalDesignPressureMawp: string | null;
+  workingPressure: string | null;
+  hydroTestPressure: string | null;
+  mdmt: string | null;
+  hydroTestTempMinMax: string | null;
+  operatingTempMinMax: string | null;
+  designTempMinMax: string | null;
+  physicalState: string | null;
+  grossVolumeLiters: string | null;
+  serviceFluid: string | null;
+  hazardLevel: string | null;
+  specificGravity: string | null;
+  internalCorrosionAllowanceMm: string | null;
+  externalCorrosionAllowanceMm: string | null;
+  radiography: string | null;
+  jointEfficiency: string | null;
+  testingGroup: string | null;
+  fabricationToleranceClass: string | null;
+  postWeldHeatTreatment: string | null;
+  typeOfHeads: string | null;
+  insulation: string | null;
+  insulationTypeThkDensity: string | null;
+};
+
+export type MechanicalData = {
+  shell: MechanicalColumn;
+  tube: MechanicalColumn | null;
+  jacket: MechanicalColumn | null;
+};
+
+export type GeneralData = {
+  hydroTestPosition: string | null;
+  vesselOrientation: string | null;
+  designServiceLife: string | null;
+  windData: string | null;
+  windDesignVelocity: string | null;
+  seismicDesignCode: string | null;
+  hazardFactorZ: string | null;
+  seismicCoefficientHorizontal: string | null;
+  seismicCoefficientVertical: string | null;
+  weightEmptyOperatingHydro: string | null;
+  location: string | null;
+  qty: string | null;
+};
+
+export const insertDesignDataSheetSchema = createInsertSchema(designDataSheets).omit({
+  id: true, createdAt: true, updatedAt: true,
+  materialCode: true, equipmentDescription: true, tagNo: true,
+  equipmentType: true, manufactureSerialNo: true,
+});
+export type InsertDesignDataSheet = z.infer<typeof insertDesignDataSheetSchema>;
+export type DesignDataSheet = typeof designDataSheets.$inferSelect;

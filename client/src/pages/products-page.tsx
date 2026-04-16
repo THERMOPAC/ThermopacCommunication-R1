@@ -44,6 +44,7 @@ const productFormSchema = z.object({
   makeOrBuy: z.string().default('Make'),
   preferredVendor: z.string().optional(),
   isActive: z.boolean().default(true),
+  tagNo: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -182,7 +183,7 @@ export default function ProductsPage() {
       itemProperty2: "", itemProperty2Label: "",
       itemProperty3: "", description: "",
       unit: "", unitPrice: "", currency: "USD", category: "Finish Goods", hsnSacCode: "",
-      makeOrBuy: "Make", preferredVendor: "", isActive: true,
+      makeOrBuy: "Make", preferredVendor: "", isActive: true, tagNo: "",
     },
   });
 
@@ -243,6 +244,7 @@ export default function ProductsPage() {
         hsnSacCode: data.hsnSacCode || null,
         makeOrBuy: data.makeOrBuy || 'Make',
         preferredVendor: data.preferredVendor || null,
+        tagNo: data.tagNo || null,
       };
       return apiRequest('POST', '/api/sales-marketing/products', payload);
     },
@@ -269,6 +271,7 @@ export default function ProductsPage() {
         hsnSacCode: data.hsnSacCode || null,
         makeOrBuy: data.makeOrBuy || 'Make',
         preferredVendor: data.preferredVendor || null,
+        tagNo: data.tagNo || null,
       };
       return apiRequest('PATCH', `/api/sales-marketing/products/${id}`, payload);
     },
@@ -445,6 +448,7 @@ export default function ProductsPage() {
       makeOrBuy: (product as any).makeOrBuy || "Make",
       preferredVendor: (product as any).preferredVendor || "",
       isActive: product.isActive ?? true,
+      tagNo: (product as any).tagNo || "",
     });
     setIsProductDialogOpen(true);
   };
@@ -1290,6 +1294,19 @@ export default function ProductsPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={productForm.control}
+                    name="tagNo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tag No <span className="text-muted-foreground text-xs">(e.g. RF/FE/E1)</span></FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="e.g. RF/FE/E1" />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

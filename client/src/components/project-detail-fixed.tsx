@@ -199,6 +199,8 @@ const editProjectSchema = z.object({
   deliveryMethod: z.enum(["standard", "express", "pickup"]).optional(),
   client: z.string().optional(),
   vendor: z.string().optional(),
+  // EPC discipline code for design data tag generation
+  disciplineCode: z.string().optional(),
 });
 
 // Form type for editing project
@@ -423,6 +425,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         deliveryMethod: project.deliveryMethod || "standard",
         client: project.client || "",
         vendor: project.vendor || "",
+        disciplineCode: (project as any).disciplineCode || "",
       });
     }
   }, [project, form]);
@@ -2296,6 +2299,24 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             <FormControl>
                               <Input
                                 placeholder="Enter vendor contact information"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="disciplineCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Discipline Code <span className="text-muted-foreground text-xs">(for Design Data tag generation)</span></FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g. ME, EE, CV"
                                 {...field}
                                 value={field.value || ""}
                               />

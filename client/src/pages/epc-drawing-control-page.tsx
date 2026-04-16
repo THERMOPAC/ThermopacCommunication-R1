@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
 import DrawingEngineeringChanges from "@/components/drawing-engineering-changes";
+import DesignDataGenerator from "@/components/design-data-generator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -730,6 +731,12 @@ export default function EpcDrawingControlPage() {
                                         revisionCode={rec.revision_code}
                                         userRole={userRole}
                                         drawingStatus={rec.status}
+                                      />
+
+                                      <DesignDataGenerator
+                                        drawingControlId={rec.id}
+                                        drawingStatus={rec.status}
+                                        userRole={userRole}
                                       />
                                     </div>
 

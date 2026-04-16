@@ -70,6 +70,7 @@ const projectFormSchema = z.object({
   currency: z.enum(["USD", "EUR", "INR"]).default("USD"),
   tags: z.array(z.string()).optional(),
   items: z.array(projectItemSchema).optional(), // Add items array
+  disciplineCode: z.string().optional(),
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;

@@ -658,6 +658,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up drawing-level ECR/ECN routes
   const { setupDrawingEcrEcnRoutes } = await import('./drawing-ecr-ecn-routes');
   setupDrawingEcrEcnRoutes(app);
+
+  // Design Data Sheets
+  const designDataRouter = (await import('./design-data-routes')).default;
+  app.use('/api/drawing-design-data', designDataRouter);
   
   // Set up project item detail routes (drawings, ECR/ECN per project item)
   setupProjectItemDetailRoutes(app);
