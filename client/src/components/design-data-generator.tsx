@@ -575,12 +575,14 @@ const FIELD_DEFAULTS: Partial<Record<keyof MechanicalColumn, string>> = {
   internalCorrosionAllowanceMm: '1.5',
   externalCorrosionAllowanceMm: '1.5',
   radiography: 'FULL RADIOGRAPHY (100% RT)',
+  postWeldHeatTreatment: 'NOT REQUIRED',
 };
 
 const PHYSICAL_STATE_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
 const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam condensate', 'Thermic Fluid'];
 const CORROSION_ALLOWANCE_OPTIONS = ['1', '1.5', '2', '2.5', '3'];
 const RADIOGRAPHY_OPTIONS = ['FULL RADIOGRAPHY (100% RT)', 'SPOT RADIOGRAPHY 10%', 'SPOT RADIOGRAPHY 5%'];
+const PWHT_OPTIONS = ['NOT REQUIRED', 'REQUIRED'];
 
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
@@ -851,6 +853,32 @@ function SmartMechanicalColumnForm({
                   value={displayVal}
                   onChange={(e) => handleChange(p.key, e.target.value)}
                 />
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'postWeldHeatTreatment') {
+          const defaultVal = FIELD_DEFAULTS.postWeldHeatTreatment!;
+          const isAtDefault = !val || val === defaultVal;
+          const displayVal = val || defaultVal;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
+                  <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PWHT_OPTIONS.map(o => (
+                      <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {isAtDefault && (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
                 )}
@@ -1425,6 +1453,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       externalCorrosionAllowanceMm: col.externalCorrosionAllowanceMm ?? '1.5',
       radiography: col.radiography ?? 'FULL RADIOGRAPHY (100% RT)',
       jointEfficiency: col.jointEfficiency ?? deriveJointEfficiencyDefault(col.radiography ?? 'FULL RADIOGRAPHY (100% RT)'),
+      postWeldHeatTreatment: col.postWeldHeatTreatment ?? 'NOT REQUIRED',
     };
   }
 
