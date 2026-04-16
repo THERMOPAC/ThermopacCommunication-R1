@@ -64,9 +64,9 @@ export default function DrawingVerificationPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  const [filterProjectId, setFilterProjectId] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<string>("");
-  const [filterDiscipline, setFilterDiscipline] = useState<string>("");
+  const [filterProjectId, setFilterProjectId] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDiscipline, setFilterDiscipline] = useState<string>("all");
 
   const [form, setForm] = useState({
     projectId: "",
@@ -85,10 +85,9 @@ export default function DrawingVerificationPage() {
   });
 
   const params = new URLSearchParams();
-  if (filterProjectId) params.set("projectId", filterProjectId);
-  if (filterStatus) params.set("status", filterStatus);
-  if (filterDiscipline) params.set("discipline", filterDiscipline);
-  const listKey = `/api/drawing-revisions?${params.toString()}`;
+  if (filterProjectId && filterProjectId !== "all") params.set("projectId", filterProjectId);
+  if (filterStatus && filterStatus !== "all") params.set("status", filterStatus);
+  if (filterDiscipline && filterDiscipline !== "all") params.set("discipline", filterDiscipline);
 
   const { data: revisions = [], isLoading } = useQuery<DrawingRevision[]>({
     queryKey: ["/api/drawing-revisions", filterProjectId, filterStatus, filterDiscipline],
@@ -239,7 +238,7 @@ export default function DrawingVerificationPage() {
                   <SelectValue placeholder="All projects" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All projects</SelectItem>
+                  <SelectItem value="all">All projects</SelectItem>
                   {(projects as any[]).map((p: any) => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.code} — {p.name}</SelectItem>
                   ))}
@@ -253,7 +252,7 @@ export default function DrawingVerificationPage() {
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="uploaded">uploaded</SelectItem>
                 </SelectContent>
               </Select>
@@ -265,7 +264,7 @@ export default function DrawingVerificationPage() {
                   <SelectValue placeholder="All disciplines" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All disciplines</SelectItem>
+                  <SelectItem value="all">All disciplines</SelectItem>
                   {DISCIPLINES.map((d) => (
                     <SelectItem key={d} value={d}>{d}</SelectItem>
                   ))}
