@@ -431,6 +431,7 @@ const AUTO_COMPUTED_KEYS: (keyof MechanicalColumn)[] = [
 const FIELD_DEFAULTS: Partial<Record<keyof MechanicalColumn, string>> = {
   workingPressure: '0.5',
   externalDesignPressureMawp: '1.034',
+  hydroTestTempMinMax: '17 / 48',
   physicalState: 'Fluid',
   serviceFluid: 'Hydrocarbon',
 };
@@ -931,6 +932,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       internalDesignPressureMawp: idp,
       externalDesignPressureMawp: col.externalDesignPressureMawp ?? '1.034',
       hydroTestPressure: hydro,
+      hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
       physicalState: col.physicalState ?? 'Fluid',
       serviceFluid: col.serviceFluid ?? 'Hydrocarbon',
     };
