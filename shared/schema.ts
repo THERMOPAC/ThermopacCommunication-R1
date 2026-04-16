@@ -12527,6 +12527,9 @@ export const designDataSheets = pgTable('design_data_sheets', {
 
   status: varchar('status', { length: 20 }).notNull().default('draft'),
 
+  ddsGcsPath: varchar('dds_gcs_path', { length: 500 }),
+  ddsPdfStatus: varchar('dds_pdf_status', { length: 20 }),
+
   createdBy: integer('created_by').references(() => users.id),
   updatedBy: integer('updated_by').references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),

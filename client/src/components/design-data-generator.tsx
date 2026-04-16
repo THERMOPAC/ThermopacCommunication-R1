@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -78,6 +78,9 @@ type DesignDataSheet = {
   applied_code: string | null;
   hazard_data: ColumnHazardData | null;
   status: string;
+  dds_gcs_path: string | null;
+  dds_pdf_status: string | null;
+  updated_at: string | null;
 };
 
 type HazardData = {
@@ -1825,6 +1828,63 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   const cols = getColumns(equipmentConfig);
 
+  // ── PDF state & handlers ───────────────────────────────────────────────────
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  async function fetchPdfUrl(): Promise<string | null> {
+    try {
+      const r = await fetch(`/api/drawing-design-data/${drawingControlId}/pdf-url`, { credentials: 'include' });
+      if (!r.ok) { toast({ title: 'Error', description: 'PDF not available', variant: 'destructive' }); return null; }
+      const json = await r.json();
+      return json.url || null;
+    } catch {
+      toast({ title: 'Error', description: 'Failed to get PDF link', variant: 'destructive' });
+      return null;
+    }
+  }
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      const url = await fetchPdfUrl();
+      if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DDS-${drawingControlId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } finally { setPdfLoading(false); }
+  }
+
+  async function handlePreviewPdf() {
+    setPdfLoading(true);
+    try {
+      const url = await fetchPdfUrl();
+      if (url) window.open(url, '_blank', 'noopener');
+    } finally { setPdfLoading(false); }
+  }
+
+  async function handleRegeneratePdf() {
+    setRegenerating(true);
+    try {
+      const r = await fetch(`/api/drawing-design-data/${drawingControlId}/regenerate-pdf`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        toast({ title: 'Regenerate failed', description: j.error || 'PDF generation failed', variant: 'destructive' });
+      } else {
+        toast({ title: 'PDF Ready', description: 'Design Data Sheet PDF regenerated.' });
+        qc.invalidateQueries({ queryKey: ['/api/drawing-design-data', drawingControlId] });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Regeneration request failed', variant: 'destructive' });
+    } finally { setRegenerating(false); }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -1871,7 +1931,71 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   </div>
                 </div>
               )}
-              <DesignDataRenderer sheet={sheet} />
+
+              {/* ── Compact PDF card ────────────────────────────── */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded px-2.5 py-2 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {/* PDF status badge */}
+                  {sheet.dds_pdf_status === 'ready' ? (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-50 text-emerald-700 border-emerald-300 shrink-0">
+                      PDF Ready
+                    </Badge>
+                  ) : sheet.dds_pdf_status === 'error' ? (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-red-50 text-red-700 border-red-300 shrink-0">
+                      PDF Failed
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-amber-50 text-amber-700 border-amber-300 shrink-0">
+                      Generating…
+                    </Badge>
+                  )}
+                  {/* Last saved date */}
+                  {sheet.updated_at && (
+                    <span className="text-[9px] text-slate-500 truncate">
+                      Saved {new Date(sheet.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  {sheet.dds_gcs_path && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[9px] px-2"
+                        onClick={handleDownloadPdf}
+                        disabled={pdfLoading}
+                      >
+                        {pdfLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+                        Download PDF
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[9px] px-2"
+                        onClick={handlePreviewPdf}
+                        disabled={pdfLoading}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Preview
+                      </Button>
+                    </>
+                  )}
+                  {(sheet.dds_pdf_status === 'error' || (!sheet.dds_gcs_path && sheet.dds_pdf_status !== 'ready')) && canEdit && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[9px] px-2 text-amber-700 border-amber-300"
+                      onClick={handleRegeneratePdf}
+                      disabled={regenerating}
+                    >
+                      {regenerating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                      Regenerate PDF
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="text-center py-6 text-[11px] text-muted-foreground">

@@ -101,6 +101,7 @@ Only two non-project TPEL roots are permitted:
 | Family | Builder | File |
 |---|---|---|
 | DWG | `buildDrawingGcsPath()` | `server/epc-coding.ts` |
+| DDS | `buildDdsGcsPath()` | `server/epc-coding.ts` |
 | ECR, ECN, DSP, CO, INS, QTN, + all non-DWG | `buildEpcGcsPath()` | `server/epc-coding.ts` |
 | QTN (quotation artifact) | `buildEpcQtnGcsPath()` | `server/epc-coding.ts` |
 | TEMPLATE | `uploadTemplateToGcs()` inline builder | `server/sales-marketing-routes.ts` |

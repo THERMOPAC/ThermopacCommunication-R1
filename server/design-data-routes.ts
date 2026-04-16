@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { designDataSheets, epcDrawingControls, projects, projectItems } from '@shared/schema';
 import { checkProjectMembership } from './utils/permission-utils';
 import type { MechanicalColumn, MechanicalData, GeneralData, HazardData, ColumnHazardData } from '@shared/schema';
+import { generateAndUploadDdsPdf, getDdsPdfSignedUrl } from './dds-pdf-service';
 
 const router = express.Router();
 
@@ -674,8 +675,25 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
     RETURNING *
   `);
 
+  const insertedSheet = inserted.rows[0] as any;
+  const newSheetId = insertedSheet.id;
+
+  void (async () => {
+    try {
+      const pdfResult = await generateAndUploadDdsPdf(newSheetId, dwg);
+      if ('error' in pdfResult) {
+        await db.execute(sql`UPDATE design_data_sheets SET dds_pdf_status = 'error' WHERE id = ${newSheetId}`);
+        console.error(`[DDS PDF] Failed for sheet ${newSheetId}:`, pdfResult.error);
+      } else {
+        await db.execute(sql`UPDATE design_data_sheets SET dds_gcs_path = ${pdfResult.gcsPath}, dds_pdf_status = 'ready' WHERE id = ${newSheetId}`);
+      }
+    } catch (err) {
+      console.error(`[DDS PDF] Unhandled error for sheet ${newSheetId}:`, err);
+    }
+  })();
+
   return res.status(201).json({
-    sheet: inserted.rows[0],
+    sheet: insertedSheet,
     warnings: {
       tagNo: auto.tagNoWarning,
       manufactureSerialNo: auto.msnWarning,
@@ -756,13 +774,88 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     RETURNING *
   `);
 
+  const updatedSheet = updated.rows[0] as any;
+  const updatedSheetId = updatedSheet.id;
+
+  void (async () => {
+    try {
+      const pdfResult = await generateAndUploadDdsPdf(updatedSheetId, dwg);
+      if ('error' in pdfResult) {
+        await db.execute(sql`UPDATE design_data_sheets SET dds_pdf_status = 'error' WHERE id = ${updatedSheetId}`);
+        console.error(`[DDS PDF] Failed for sheet ${updatedSheetId}:`, pdfResult.error);
+      } else {
+        await db.execute(sql`UPDATE design_data_sheets SET dds_gcs_path = ${pdfResult.gcsPath}, dds_pdf_status = 'ready' WHERE id = ${updatedSheetId}`);
+      }
+    } catch (err) {
+      console.error(`[DDS PDF] Unhandled error for sheet ${updatedSheetId}:`, err);
+    }
+  })();
+
   return res.json({
-    sheet: updated.rows[0],
+    sheet: updatedSheet,
     warnings: {
       tagNo: auto.tagNoWarning,
       manufactureSerialNo: auto.msnWarning,
     },
   });
+});
+
+// GET /api/drawing-design-data/:dwgControlId/pdf-url
+router.get('/:dwgControlId/pdf-url', ensureAuthenticated, async (req: Request, res: Response) => {
+  const dwgControlId = parseInt(req.params.dwgControlId);
+  if (isNaN(dwgControlId)) return res.status(400).json({ error: 'Invalid dwgControlId' });
+
+  const user = req.user as any;
+  const dwg = await loadDrawingControl(dwgControlId);
+  if (!dwg) return res.status(404).json({ error: 'Drawing control not found' });
+
+  if (!await verifyProjectAccess(user.id, user.role, dwg.project_id, res)) return;
+
+  const sheetResult = await db.execute(
+    sql`SELECT dds_gcs_path FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`
+  );
+  const sheet = sheetResult.rows[0] as any;
+  if (!sheet?.dds_gcs_path) return res.status(404).json({ error: 'No PDF available for this sheet' });
+
+  try {
+    const url = await getDdsPdfSignedUrl(sheet.dds_gcs_path);
+    return res.json({ url });
+  } catch (err) {
+    console.error('[DDS PDF] Signed URL error:', err);
+    return res.status(500).json({ error: 'Failed to generate signed URL' });
+  }
+});
+
+// POST /api/drawing-design-data/:dwgControlId/regenerate-pdf
+router.post('/:dwgControlId/regenerate-pdf', ensureAuthenticated, async (req: Request, res: Response) => {
+  const dwgControlId = parseInt(req.params.dwgControlId);
+  if (isNaN(dwgControlId)) return res.status(400).json({ error: 'Invalid dwgControlId' });
+
+  const user = req.user as any;
+  const dwg = await loadDrawingControl(dwgControlId);
+  if (!dwg) return res.status(404).json({ error: 'Drawing control not found' });
+
+  if (!await verifyProjectAccess(user.id, user.role, dwg.project_id, res)) return;
+
+  const sheetResult = await db.execute(
+    sql`SELECT id FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`
+  );
+  const sheet = sheetResult.rows[0] as any;
+  if (!sheet) return res.status(404).json({ error: 'No DDS sheet found for this drawing' });
+
+  const result = await generateAndUploadDdsPdf(sheet.id, dwg);
+  if ('error' in result) {
+    await db.execute(sql`UPDATE design_data_sheets SET dds_pdf_status = 'error' WHERE id = ${sheet.id}`);
+    return res.status(500).json({ error: result.error });
+  }
+
+  await db.execute(sql`
+    UPDATE design_data_sheets
+    SET dds_gcs_path = ${result.gcsPath}, dds_pdf_status = 'ready',
+        updated_at = NOW(), updated_by = ${user.id}
+    WHERE id = ${sheet.id}
+  `);
+  return res.json({ success: true, gcsPath: result.gcsPath });
 });
 
 export default router;

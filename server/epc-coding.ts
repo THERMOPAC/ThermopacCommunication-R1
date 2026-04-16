@@ -273,6 +273,21 @@ export function buildDrawingGcsPath(
   return path;
 }
 
+export function buildDdsGcsPath(
+  continentCode: string,
+  countryCode: string,
+  customerShortCode: string,
+  fyCode: string,
+  projectSeq: string,
+  itemCode: string,
+  drawingNumber: string,
+  revision: string
+): string {
+  const path = `TPEL/${continentCode}/${countryCode}/${customerShortCode}/${fyCode}/${projectSeq}/${itemCode}/DDS/${drawingNumber}_dds-rev-${revision}.pdf`;
+  assertGcsPath(path, 'epc-coding.buildDdsGcsPath');
+  return path;
+}
+
 export function buildEpcQtnGcsPath(
   continentCode: string,
   countryCode: string,
