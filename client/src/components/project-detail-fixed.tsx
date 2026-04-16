@@ -1985,6 +1985,32 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                 </TabsList>
                 
                 <TabsContent value="project-details" className="space-y-4 mt-4">
+                  {/* Discipline Code */}
+                  <div className="border rounded-md p-4">
+                    <FormField
+                      control={form.control}
+                      name="disciplineCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Discipline Code</FormLabel>
+                          <div className="flex items-center gap-3">
+                            <FormControl className="max-w-xs">
+                              <Input
+                                placeholder="e.g. ME, EE, CV"
+                                {...field}
+                                value={field.value || ""}
+                              />
+                            </FormControl>
+                            <p className="text-xs text-muted-foreground">
+                              Used to auto-generate tag numbers on Design Data Sheets for all drawings under this project.
+                            </p>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   {/* Project Items Section */}
                   <div className="space-y-3 border rounded-md p-4">
                     <div className="flex justify-between items-center">
@@ -2308,23 +2334,6 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="disciplineCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Discipline Code <span className="text-muted-foreground text-xs">(for Design Data tag generation)</span></FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g. ME, EE, CV"
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                     </div>
                   </div>
                 </TabsContent>
