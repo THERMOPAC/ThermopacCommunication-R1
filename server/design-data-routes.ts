@@ -29,8 +29,8 @@ const DESIGN_CODE_TO_MATERIAL_CODE: Record<string, string> = {
 const EQUIPMENT_CONFIG_TO_TYPE: Record<string, string> = {
   'Vessel': 'PRESSURE VESSEL',
   'Jacketed Vessel': 'JACKETED PRESSURE VESSEL',
-  'Heat Exchanger': 'HEAT EXCHANGER',
-  'Jacketed Vessel and Heat Exchanger': 'JACKETED HEAT EXCHANGER',
+  'Heat Exchanger': 'SHELL & TUBE HEAT EXCHANGER',
+  'Jacketed Vessel and Heat Exchanger': 'JACKETED SHELL & TUBE HEAT EXCHANGER',
 };
 
 function emptyMechanicalColumn(): MechanicalColumn {
@@ -493,7 +493,7 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   } else if (!projectCode) {
     tagNoWarning = `Tag No cannot be generated: the project has no project code assigned.`;
   } else {
-    tagNo = `${productTagNo}_${projectCode}`;
+    tagNo = `${productTagNo}-${projectCode}`;
   }
 
   // Resolve manufacture_serial_no: item_code + tag_no

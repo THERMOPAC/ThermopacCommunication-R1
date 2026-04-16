@@ -695,11 +695,20 @@ function getFabricationToleranceConfig(appliedCode: string | null | undefined): 
   if (appliedCode === 'EN 13445' || appliedCode === 'PED 2014/68/EU') {
     return { mode: 'dropdown', options: FABRICATION_TOLERANCE_EN_OPTIONS, defaultValue: 'Class C (Normal)' };
   }
-  if (appliedCode === 'ASME VIII Div-1') return { mode: 'fixed', fixedValue: 'ASME Standard Tolerance' };
-  if (appliedCode === 'ASME B31.3')      return { mode: 'fixed', fixedValue: 'As per ASME B31.3' };
-  if (appliedCode === 'API 650')          return { mode: 'fixed', fixedValue: 'As per API 650' };
-  if (appliedCode === 'AS 4343:2014')    return { mode: 'fixed', fixedValue: 'N.A.' };
+  if (appliedCode === 'ASME SEC VIII Div-1') return { mode: 'fixed', fixedValue: 'ASME Standard Tolerance' };
+  if (appliedCode === 'ASME B31.3')          return { mode: 'fixed', fixedValue: 'As per ASME B31.3' };
+  if (appliedCode === 'API 650')             return { mode: 'fixed', fixedValue: 'As per API 650' };
+  if (appliedCode === 'AS 4343:2014')        return { mode: 'fixed', fixedValue: 'N.A.' };
   return { mode: 'fixed', fixedValue: 'N.A.' };
+}
+
+function applyGeneralDataDefaults(gd: GeneralData): GeneralData {
+  return {
+    ...gd,
+    hydroTestPosition: gd.hydroTestPosition ?? HYDRO_TEST_POSITION_DEFAULT,
+    vesselOrientation: gd.vesselOrientation ?? VESSEL_ORIENTATION_DEFAULT,
+    designServiceLife: gd.designServiceLife ?? DESIGN_SERVICE_LIFE_DEFAULT,
+  };
 }
 
 function SmartMechanicalColumnForm({
@@ -1715,6 +1724,12 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     const hydro = col.hydroTestPressure ?? (
       !isNaN(idpNum) ? (isApi ? 'N.A.' : calcHydroTestPressure(idpNum, disciplineCode)) : null
     );
+    const effectiveServiceFluid = col.serviceFluid ?? 'Hydrocarbon';
+    const sgDefault = effectiveServiceFluid === 'Water' ? '1.0 / —'
+      : effectiveServiceFluid === 'Steam condensate' ? '1.0 / —'
+      : effectiveServiceFluid === 'Thermic Fluid' ? '0.90 / —'
+      : effectiveServiceFluid === 'Caustic (NaOH)' ? '1.25 / —'
+      : '0.85 / —';
     return {
       ...col,
       mdmt: projMdmt,
@@ -1724,7 +1739,8 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       hydroTestPressure: hydro,
       hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
       physicalState: col.physicalState ?? 'Fluid',
-      serviceFluid: col.serviceFluid ?? 'Hydrocarbon',
+      serviceFluid: effectiveServiceFluid,
+      specificGravity: col.specificGravity ?? sgDefault,
       internalCorrosionAllowanceMm: col.internalCorrosionAllowanceMm ?? '1.5',
       externalCorrosionAllowanceMm: col.externalCorrosionAllowanceMm ?? '1.5',
       radiography: col.radiography ?? 'FULL RADIOGRAPHY (100% RT)',
@@ -1764,7 +1780,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     const base = s.general_data || emptyGeneralData();
     const { seeded: s1, autoKeys: k1 } = applyCountryEnvDefaults(base, autoFields.customerCountry || null);
     const { seeded: s2, autoKeys: k2 } = seedLocationAndQty(s1, autoFields);
-    setGeneralData(s2);
+    setGeneralData(applyGeneralDataDefaults(s2));
     setEnvAutoKeys(new Set([...k1, ...k2]));
     setColHazard(loadColumnHazardFromSheet(s.hazard_data));
   }
@@ -1783,7 +1799,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       const base = emptyGeneralData();
       const { seeded: s1, autoKeys: k1 } = applyCountryEnvDefaults(base, autoFields.customerCountry || null);
       const { seeded: s2, autoKeys: k2 } = seedLocationAndQty(s1, autoFields);
-      setGeneralData(s2);
+      setGeneralData(applyGeneralDataDefaults(s2));
       setEnvAutoKeys(new Set([...k1, ...k2]));
       setColHazard(emptyColumnHazardData());
     }
@@ -1794,16 +1810,31 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const saveMutation = useMutation({
     mutationFn: async () => {
       const cols = getColumns(equipmentConfig);
+      const sharedCode = colHazard.shell.appliedCode;
+      const fabTolCfg = getFabricationToleranceConfig(sharedCode);
+      function applyFabTol(col: MechanicalColumn): MechanicalColumn {
+        if (fabTolCfg.mode === 'fixed') {
+          return { ...col, fabricationToleranceClass: fabTolCfg.fixedValue };
+        }
+        return { ...col, fabricationToleranceClass: col.fabricationToleranceClass ?? fabTolCfg.defaultValue };
+      }
+      function applyTestingGroup(col: MechanicalColumn): MechanicalColumn {
+        const applicable = isTestingGroupApplicable(sharedCode);
+        if (!applicable) return { ...col, testingGroup: 'N.A.' };
+        return { ...col, testingGroup: col.testingGroup ?? deriveTestingGroupDefault(col.radiography) };
+      }
+      function normalizeCol(col: MechanicalColumn): MechanicalColumn {
+        return applyFabTol(applyTestingGroup(col));
+      }
       const mechanicalData: MechanicalData = {
-        shell: mechShell,
-        tube: cols.tube ? mechTube : null,
-        jacket: cols.jacket ? mechJacket : null,
+        shell: normalizeCol(mechShell),
+        tube: cols.tube ? normalizeCol(mechTube) : null,
+        jacket: cols.jacket ? normalizeCol(mechJacket) : null,
       };
       const method = sheet ? 'PUT' : 'POST';
       return apiRequest(method, `/api/drawing-design-data/${drawingControlId}`, {
         designCode, equipmentConfig, inspectionBy, mechanicalData, generalData,
         columnHazardData: (() => {
-          const sharedCode = colHazard.shell.appliedCode;
           const sync = (h: HazardData | null) => h && sharedCode ? { ...h, appliedCode: sharedCode } : h;
           return {
             shell:  sharedCode ? colHazard.shell : null,

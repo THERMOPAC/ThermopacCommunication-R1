@@ -68,10 +68,17 @@ function getColumnConfig(config: string): { hasShell: boolean; hasTube: boolean;
 function getColumnHeaders(config: string): string[] {
   const { hasTube, hasJacket } = getColumnConfig(config);
   const headers = ['SHELL'];
-  if (hasTube) headers.push('TUBE SIDE');
+  if (hasTube) headers.push('TUBE');
   if (hasJacket) headers.push('JACKET');
   return headers;
 }
+
+const EQUIPMENT_CONFIG_TO_TYPE: Record<string, string> = {
+  'Vessel': 'PRESSURE VESSEL',
+  'Jacketed Vessel': 'JACKETED PRESSURE VESSEL',
+  'Heat Exchanger': 'SHELL & TUBE HEAT EXCHANGER',
+  'Jacketed Vessel and Heat Exchanger': 'JACKETED SHELL & TUBE HEAT EXCHANGER',
+};
 
 function esc(str: string | null | undefined): string {
   if (str == null) return '—';
@@ -191,7 +198,9 @@ export function generateDdsHtml(sheet: SheetRow, meta?: { drawingNumber?: string
     border-right: 1px solid #d1d5db;
     font-size: 8.5px;
     text-transform: uppercase;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    max-width: 220px;
   }
   .value { text-align: center; font-size: 10px; border-right: 1px solid #d1d5db; }
   .col-header {
@@ -275,7 +284,7 @@ export function generateDdsHtml(sheet: SheetRow, meta?: { drawingNumber?: string
       </tr>
       <tr>
         <td class="header-label">TYPE</td>
-        <td class="header-value">${esc(sheet.equipment_type)}</td>
+        <td class="header-value">${esc(EQUIPMENT_CONFIG_TO_TYPE[sheet.equipment_config] ?? sheet.equipment_type)}</td>
       </tr>
       <tr>
         <td class="header-label">MANUFACTURE SERIAL NO</td>
