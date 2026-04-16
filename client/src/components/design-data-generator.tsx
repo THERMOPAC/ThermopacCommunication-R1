@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -612,10 +612,62 @@ function GeneralDataForm({
   );
 }
 
+// ─── Hazard Classification Sample Cases ───────────────────────────────────────
+
+type HazardSample = {
+  id: string;
+  code: string;
+  inputs: string;
+  classification: string;
+  level: 'Normal' | 'Hazardous' | 'Highly Hazardous';
+  basisNote: string;
+};
+
+const HAZARD_SAMPLES: HazardSample[] = [
+  { id: 'A', code: 'ASME SEC VIII Div-1', inputs: 'isLethalService = Yes',
+    classification: 'Lethal Service', level: 'Highly Hazardous',
+    basisNote: 'Derived as Highly Hazardous because Lethal Service = Yes.' },
+  { id: 'B', code: 'ASME SEC VIII Div-1', inputs: 'isLethalService = No',
+    classification: 'Normal Service', level: 'Normal',
+    basisNote: 'Derived as Normal because Normal Service.' },
+  { id: 'C', code: 'ASME B31.3', inputs: 'fluidServiceCategory = Category M',
+    classification: 'Category M', level: 'Highly Hazardous',
+    basisNote: 'Derived as Highly Hazardous because Fluid Service Category = Category M.' },
+  { id: 'D', code: 'ASME B31.3', inputs: 'fluidServiceCategory = High Pressure Fluid Service',
+    classification: 'High Pressure Fluid Service', level: 'Hazardous',
+    basisNote: 'Derived as Hazardous because High Pressure Fluid Service.' },
+  { id: 'E', code: 'EN 13445', inputs: 'fluidGroup = Group 1 · toxicInhalationRisk = Yes',
+    classification: 'Group 1', level: 'Highly Hazardous',
+    basisNote: 'Derived as Highly Hazardous because Group 1 with Toxic Inhalation Risk.' },
+  { id: 'F', code: 'EN 13445', inputs: 'fluidGroup = Group 2',
+    classification: 'Group 2', level: 'Normal',
+    basisNote: 'Derived as Normal because Group 2 fluid.' },
+  { id: 'G', code: 'PED 2014/68/EU', inputs: 'fluidGroup = Group 1 · pedCategory = Category III · toxicInhalationRisk = No',
+    classification: 'Fluid Group 1', level: 'Hazardous',
+    basisNote: 'Derived as Hazardous because Fluid Group 1.' },
+  { id: 'H', code: 'PED 2014/68/EU', inputs: 'fluidGroup = Group 2 · pedCategory = Category I',
+    classification: 'Fluid Group 2', level: 'Normal',
+    basisNote: 'Derived as Normal because Fluid Group 2.' },
+  { id: 'I', code: 'API 650', inputs: 'toxicInhalationRisk = Yes · isFlammable = Yes',
+    classification: 'Stored Product Review', level: 'Highly Hazardous',
+    basisNote: 'Derived as Highly Hazardous because Toxic Inhalation Risk is flagged.' },
+  { id: 'J', code: 'API 650', inputs: 'toxicInhalationRisk = No · isFlammable = Yes · isCorrosive = No · isEnvironmentallyHazardous = No',
+    classification: 'Stored Product Review', level: 'Hazardous',
+    basisNote: 'Derived as Hazardous because stored product is flagged flammable.' },
+];
+
+const LEVEL_CHIP: Record<string, string> = {
+  'Normal': 'bg-green-100 text-green-700 border border-green-300',
+  'Hazardous': 'bg-amber-100 text-amber-700 border border-amber-300',
+  'Highly Hazardous': 'bg-red-100 text-red-700 border border-red-300',
+};
+
 // ─── Hazard Classification Panel ──────────────────────────────────────────────
 
 function HazardClassificationPanel({ data, onChange }: { data: HazardData; onChange: (d: HazardData) => void }) {
   const code = data.appliedCode;
+  const [showExamples, setShowExamples] = useState(false);
+  const filteredSamples = code ? HAZARD_SAMPLES.filter(s => s.code === code) : HAZARD_SAMPLES;
 
   function handleCodeChange(newCode: string) {
     const oldCode = data.appliedCode;
@@ -774,6 +826,52 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
           )}
         </div>
       )}
+
+      {/* ── Collapsible reference examples ── */}
+      <div className="border-t border-dashed border-slate-200 pt-2">
+        <button
+          type="button"
+          onClick={() => setShowExamples(v => !v)}
+          className="flex items-center gap-1.5 text-[9px] font-medium text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          {showExamples ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          Example outputs {code ? `for ${code}` : '(all codes)'}
+          <span className="ml-1 px-1 py-0 rounded bg-slate-100 text-slate-400 font-mono">{filteredSamples.length}</span>
+        </button>
+
+        {showExamples && (
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full text-[9px] border-collapse">
+              <thead>
+                <tr className="bg-slate-100 text-slate-500">
+                  <th className="px-1.5 py-1 text-left font-medium w-5">#</th>
+                  {!code && <th className="px-1.5 py-1 text-left font-medium">Code</th>}
+                  <th className="px-1.5 py-1 text-left font-medium">Inputs</th>
+                  <th className="px-1.5 py-1 text-left font-medium">Classification</th>
+                  <th className="px-1.5 py-1 text-left font-medium">Level</th>
+                  <th className="px-1.5 py-1 text-left font-medium">Basis Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSamples.map((s, i) => (
+                  <tr key={s.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="px-1.5 py-1 text-slate-400 font-mono">{s.id}</td>
+                    {!code && <td className="px-1.5 py-1 text-slate-500 whitespace-nowrap">{s.code}</td>}
+                    <td className="px-1.5 py-1 text-slate-600">{s.inputs.split(' · ').map((part, pi) => (
+                      <span key={pi} className="block">{part}</span>
+                    ))}</td>
+                    <td className="px-1.5 py-1 text-slate-700 font-medium whitespace-nowrap">{s.classification}</td>
+                    <td className="px-1.5 py-1 whitespace-nowrap">
+                      <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[8px] font-semibold ${LEVEL_CHIP[s.level]}`}>{s.level}</span>
+                    </td>
+                    <td className="px-1.5 py-1 text-slate-500 italic">{s.basisNote}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
