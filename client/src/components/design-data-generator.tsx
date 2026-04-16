@@ -150,6 +150,28 @@ const GENERAL_PARAM_LABELS: { key: keyof GeneralData; label: string }[] = [
   { key: 'qty', label: 'Qty' },
 ];
 
+// ─── Smart computation helpers ────────────────────────────────────────────────
+
+function calcHydroTestPressure(internalPressureBarg: number, disciplineCode: string | null | undefined): string {
+  const dc = (disciplineCode || '').toLowerCase();
+  if (dc.includes('api 650')) return 'N.A.';
+  let multiplier = 1.3;
+  if (dc.includes('b31.3') || (dc.includes('31.3') && !dc.includes('13445'))) multiplier = 1.5;
+  else if (dc.includes('en 13445') || dc.includes('13445')) multiplier = 1.25;
+  else if (dc.includes('ped') || dc.includes('2014/68')) multiplier = 1.43;
+  return (internalPressureBarg * multiplier).toFixed(3);
+}
+
+function parseOperatingMax(operatingTempMinMax: string | null | undefined): number | null {
+  if (!operatingTempMinMax) return null;
+  const parts = operatingTempMinMax.split('/').map(s => s.trim());
+  if (parts.length >= 2) {
+    const max = parseFloat(parts[1]);
+    return isNaN(max) ? null : max;
+  }
+  return null;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function emptyMechanicalColumn(): MechanicalColumn {
@@ -296,29 +318,109 @@ function DesignDataRenderer({ sheet }: { sheet: DesignDataSheet }) {
   );
 }
 
-// ─── Form ─────────────────────────────────────────────────────────────────────
+// ─── Smart Mechanical Column Form ─────────────────────────────────────────────
 
-function MechanicalColumnForm({
-  label, data, onChange,
+const AUTO_COMPUTED_KEYS: (keyof MechanicalColumn)[] = [
+  'internalDesignPressureMawp',
+  'externalDesignPressureMawp',
+  'hydroTestPressure',
+  'designTempMinMax',
+];
+
+function SmartMechanicalColumnForm({
+  label, data, onChange, projectMdmt, disciplineCode,
 }: {
   label: string;
   data: MechanicalColumn;
   onChange: (col: MechanicalColumn) => void;
+  projectMdmt: string | null | undefined;
+  disciplineCode: string | null | undefined;
 }) {
+  function handleChange(key: keyof MechanicalColumn, rawValue: string) {
+    const value = rawValue || null;
+    const updated: MechanicalColumn = { ...data, [key]: value };
+
+    if (key === 'workingPressure') {
+      const wp = parseFloat(rawValue);
+      if (!isNaN(wp)) {
+        const idp = wp + 2;
+        updated.internalDesignPressureMawp = idp.toFixed(3);
+        updated.hydroTestPressure = calcHydroTestPressure(idp, disciplineCode);
+      }
+    }
+
+    if (key === 'internalDesignPressureMawp') {
+      const idp = parseFloat(rawValue);
+      if (!isNaN(idp)) {
+        updated.hydroTestPressure = calcHydroTestPressure(idp, disciplineCode);
+      }
+    }
+
+    if (key === 'operatingTempMinMax') {
+      const opMax = parseOperatingMax(rawValue);
+      if (opMax !== null && projectMdmt) {
+        updated.designTempMinMax = `${projectMdmt} / ${opMax + 30}`;
+      }
+    }
+
+    onChange(updated);
+  }
+
+  const isApiDiscipline = (disciplineCode || '').toLowerCase().includes('api 650');
+
   return (
     <div className="space-y-1">
       <div className="text-[10px] font-bold text-center uppercase bg-gray-100 py-0.5 rounded">{label}</div>
-      {MECH_PARAM_LABELS.map((p) => (
-        <div key={p.key} className="flex items-center gap-2">
-          <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
-          <Input
-            className="h-6 text-[10px] px-1.5"
-            value={data[p.key] ?? ''}
-            onChange={(e) => onChange({ ...data, [p.key]: e.target.value || null })}
-            placeholder="N.A."
-          />
-        </div>
-      ))}
+      {MECH_PARAM_LABELS.map((p) => {
+        const val = data[p.key] ?? '';
+
+        if (p.key === 'mdmt') {
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input
+                  className="h-6 text-[10px] px-1.5 bg-blue-50 text-blue-800"
+                  value={projectMdmt ?? 'Not set on Project'}
+                  readOnly
+                />
+                <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-blue-600 border-blue-300 bg-blue-50">Project</Badge>
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'hydroTestPressure' && isApiDiscipline) {
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input className="h-6 text-[10px] px-1.5 bg-slate-100 text-slate-500" value="N.A." readOnly />
+                <span className="text-[8px] text-slate-500 shrink-0">API 650</span>
+              </div>
+            </div>
+          );
+        }
+
+        const isComputed = AUTO_COMPUTED_KEYS.includes(p.key);
+
+        return (
+          <div key={p.key} className="flex items-center gap-2">
+            <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+            <div className="flex-1 flex items-center gap-1">
+              <Input
+                className={`h-6 text-[10px] px-1.5 ${isComputed ? 'bg-green-50' : ''}`}
+                value={val}
+                onChange={(e) => handleChange(p.key, e.target.value)}
+                placeholder="N.A."
+              />
+              {isComputed && (
+                <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -382,13 +484,23 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const autoFields = data?.autoFields || {};
   const warnings = data?.warnings || {};
 
+  const projMdmt = autoFields.projectMdmt || null;
+
+  function seedColumn(col: MechanicalColumn): MechanicalColumn {
+    return {
+      ...col,
+      mdmt: projMdmt,
+      externalDesignPressureMawp: col.externalDesignPressureMawp ?? '1.034',
+    };
+  }
+
   function loadSheetIntoForm(s: DesignDataSheet) {
     setDesignCode(s.design_code);
     setEquipmentConfig(s.equipment_config);
     setInspectionBy(s.inspection_by);
-    setMechShell(s.mechanical_data.shell || emptyMechanicalColumn());
-    setMechTube(s.mechanical_data.tube || emptyMechanicalColumn());
-    setMechJacket(s.mechanical_data.jacket || emptyMechanicalColumn());
+    setMechShell(seedColumn(s.mechanical_data.shell || emptyMechanicalColumn()));
+    setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn()));
+    setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn()));
     setGeneralData(s.general_data || emptyGeneralData());
   }
 
@@ -399,8 +511,10 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       const autoCode = (disciplineCode && DISCIPLINE_TO_DESIGN_CODE[disciplineCode]) || '';
       setDesignCode(autoCode);
       setEquipmentConfig(''); setInspectionBy('');
-      setMechShell(emptyMechanicalColumn()); setMechTube(emptyMechanicalColumn());
-      setMechJacket(emptyMechanicalColumn()); setGeneralData(emptyGeneralData());
+      setMechShell(seedColumn(emptyMechanicalColumn()));
+      setMechTube(seedColumn(emptyMechanicalColumn()));
+      setMechJacket(seedColumn(emptyMechanicalColumn()));
+      setGeneralData(emptyGeneralData());
     }
     setDialogOpen(true);
   }
@@ -631,9 +745,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 <div>
                   <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
                   <div className={`grid gap-5 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <MechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} />
-                    {cols.tube && <MechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} />}
-                    {cols.jacket && <MechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} />}
+                    <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} />
+                    {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} />}
+                    {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} />}
                   </div>
                 </div>
               )}
