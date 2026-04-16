@@ -595,6 +595,52 @@ const VESSEL_ORIENTATION_DEFAULT = 'VERTICAL (VER)';
 const DESIGN_SERVICE_LIFE_OPTIONS = ['10 YEARS', '15 YEARS', '20 YEARS', '25 YEARS', '30 YEARS'];
 const DESIGN_SERVICE_LIFE_DEFAULT = '25 YEARS';
 
+type EnvDefaults = {
+  windData: string; windDesignVelocity: string;
+  seismicDesignCode: string; hazardFactorZ: string;
+  seismicCoefficientHorizontal: string; seismicCoefficientVertical: string;
+};
+const COUNTRY_ENV_DEFAULTS: Record<string, EnvDefaults> = {
+  IN: { windData: 'IS 875 PART 3', windDesignVelocity: '47 m/s', seismicDesignCode: 'IS 1893', hazardFactorZ: '0.16', seismicCoefficientHorizontal: '0.08', seismicCoefficientVertical: '0.04' },
+  SA: { windData: 'ASCE 7-22', windDesignVelocity: '45 m/s', seismicDesignCode: 'SBC 301', hazardFactorZ: '0.15', seismicCoefficientHorizontal: '0.075', seismicCoefficientVertical: '0.038' },
+  AE: { windData: 'ASCE 7-22', windDesignVelocity: '45 m/s', seismicDesignCode: 'UBC 1997', hazardFactorZ: '0.15', seismicCoefficientHorizontal: '0.075', seismicCoefficientVertical: '0.038' },
+  US: { windData: 'ASCE 7-22', windDesignVelocity: '50 m/s', seismicDesignCode: 'ASCE 7-22', hazardFactorZ: '0.20', seismicCoefficientHorizontal: '0.10', seismicCoefficientVertical: '0.05' },
+  AU: { windData: 'AS/NZS 1170.2', windDesignVelocity: '45 m/s', seismicDesignCode: 'AS 1170.4', hazardFactorZ: '0.08', seismicCoefficientHorizontal: '0.04', seismicCoefficientVertical: '0.02' },
+  NZ: { windData: 'AS/NZS 1170.2', windDesignVelocity: '45 m/s', seismicDesignCode: 'NZS 1170.5', hazardFactorZ: '0.40', seismicCoefficientHorizontal: '0.20', seismicCoefficientVertical: '0.10' },
+  GB: { windData: 'BS EN 1991-1-4', windDesignVelocity: '25 m/s', seismicDesignCode: 'BS EN 1998-1', hazardFactorZ: '0.04', seismicCoefficientHorizontal: '0.02', seismicCoefficientVertical: '0.01' },
+  DE: { windData: 'EN 1991-1-4', windDesignVelocity: '25 m/s', seismicDesignCode: 'EN 1998-1', hazardFactorZ: '0.04', seismicCoefficientHorizontal: '0.02', seismicCoefficientVertical: '0.01' },
+  QA: { windData: 'ASCE 7-22', windDesignVelocity: '45 m/s', seismicDesignCode: 'UBC 1997', hazardFactorZ: '0.05', seismicCoefficientHorizontal: '0.025', seismicCoefficientVertical: '0.013' },
+  TR: { windData: 'TS 498', windDesignVelocity: '50 m/s', seismicDesignCode: 'TBDY 2018', hazardFactorZ: '0.40', seismicCoefficientHorizontal: '0.20', seismicCoefficientVertical: '0.10' },
+  ID: { windData: 'SNI 1727', windDesignVelocity: '45 m/s', seismicDesignCode: 'SNI 1726', hazardFactorZ: '0.30', seismicCoefficientHorizontal: '0.15', seismicCoefficientVertical: '0.075' },
+  MY: { windData: 'MS 1553', windDesignVelocity: '35 m/s', seismicDesignCode: 'MS 1553', hazardFactorZ: '0.07', seismicCoefficientHorizontal: '0.035', seismicCoefficientVertical: '0.018' },
+  SG: { windData: 'CP3 CH V PT 2', windDesignVelocity: '33 m/s', seismicDesignCode: 'SS 667', hazardFactorZ: '0.10', seismicCoefficientHorizontal: '0.05', seismicCoefficientVertical: '0.025' },
+  OM: { windData: 'ASCE 7-22', windDesignVelocity: '45 m/s', seismicDesignCode: 'UBC 1997', hazardFactorZ: '0.10', seismicCoefficientHorizontal: '0.05', seismicCoefficientVertical: '0.025' },
+  KW: { windData: 'ASCE 7-22', windDesignVelocity: '40 m/s', seismicDesignCode: 'UBC 1997', hazardFactorZ: '0.15', seismicCoefficientHorizontal: '0.075', seismicCoefficientVertical: '0.038' },
+  BH: { windData: 'ASCE 7-22', windDesignVelocity: '40 m/s', seismicDesignCode: 'UBC 1997', hazardFactorZ: '0.15', seismicCoefficientHorizontal: '0.075', seismicCoefficientVertical: '0.038' },
+  EG: { windData: 'ECP 201', windDesignVelocity: '45 m/s', seismicDesignCode: 'ECP 201', hazardFactorZ: '0.15', seismicCoefficientHorizontal: '0.075', seismicCoefficientVertical: '0.038' },
+};
+const ENV_AUTO_KEYS: (keyof GeneralData)[] = [
+  'windData', 'windDesignVelocity', 'seismicDesignCode',
+  'hazardFactorZ', 'seismicCoefficientHorizontal', 'seismicCoefficientVertical',
+];
+function applyCountryEnvDefaults(
+  gd: GeneralData,
+  countryCode: string | null,
+): { seeded: GeneralData; autoKeys: Set<keyof GeneralData> } {
+  const autoKeys = new Set<keyof GeneralData>();
+  if (!countryCode) return { seeded: gd, autoKeys };
+  const defaults = COUNTRY_ENV_DEFAULTS[countryCode.toUpperCase()];
+  if (!defaults) return { seeded: gd, autoKeys };
+  const seeded = { ...gd };
+  for (const k of ENV_AUTO_KEYS) {
+    if (!seeded[k]) {
+      (seeded as any)[k] = (defaults as any)[k];
+      autoKeys.add(k);
+    }
+  }
+  return { seeded, autoKeys };
+}
+
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
   'SPOT RADIOGRAPHY 10%': '0.85 / 0.85 / 0.85',
@@ -1094,12 +1140,15 @@ function SmartMechanicalColumnForm({
 }
 
 function GeneralDataForm({
-  data, onChange,
+  data, onChange, envAutoKeys = new Set(), onClearEnvKey,
 }: {
   data: GeneralData;
   onChange: (g: GeneralData) => void;
+  envAutoKeys?: Set<keyof GeneralData>;
+  onClearEnvKey?: (key: keyof GeneralData) => void;
 }) {
   function handleChange(key: keyof GeneralData, value: string) {
+    if (envAutoKeys.has(key)) onClearEnvKey?.(key);
     onChange({ ...data, [key]: value || null });
   }
 
@@ -1183,15 +1232,21 @@ function GeneralDataForm({
           );
         }
 
+        const isEnvAuto = envAutoKeys.has(p.key);
         return (
           <div key={p.key} className="flex items-center gap-2">
             <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 40)}</Label>
-            <Input
-              className="h-6 text-[10px] px-1.5"
-              value={val}
-              onChange={(e) => handleChange(p.key, e.target.value)}
-              placeholder="—"
-            />
+            <div className="flex-1 flex items-center gap-1">
+              <Input
+                className={`h-6 text-[10px] px-1.5 flex-1 ${isEnvAuto ? 'bg-green-50' : ''}`}
+                value={val}
+                onChange={(e) => handleChange(p.key, e.target.value)}
+                placeholder="—"
+              />
+              {isEnvAuto && (
+                <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+              )}
+            </div>
           </div>
         );
       })}
@@ -1613,6 +1668,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const [mechTube, setMechTube] = useState<MechanicalColumn>(emptyMechanicalColumn());
   const [mechJacket, setMechJacket] = useState<MechanicalColumn>(emptyMechanicalColumn());
   const [generalData, setGeneralData] = useState<GeneralData>(emptyGeneralData());
+  const [envAutoKeys, setEnvAutoKeys] = useState<Set<keyof GeneralData>>(new Set());
   const [colHazard, setColHazard] = useState<ColumnHazardData>(emptyColumnHazardData());
 
   const canEdit = ['draft', 'under_review'].includes(drawingStatus) &&
@@ -1685,7 +1741,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     setMechShell(seedColumn(s.mechanical_data.shell || emptyMechanicalColumn()));
     setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn()));
     setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn()));
-    setGeneralData(s.general_data || emptyGeneralData());
+    const { seeded, autoKeys } = applyCountryEnvDefaults(s.general_data || emptyGeneralData(), autoFields.customerCountry || null);
+    setGeneralData(seeded);
+    setEnvAutoKeys(autoKeys);
     setColHazard(loadColumnHazardFromSheet(s.hazard_data));
   }
 
@@ -1700,7 +1758,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       setMechShell(seedColumn(emptyMechanicalColumn()));
       setMechTube(seedColumn(emptyMechanicalColumn()));
       setMechJacket(seedColumn(emptyMechanicalColumn()));
-      setGeneralData(emptyGeneralData());
+      const { seeded, autoKeys } = applyCountryEnvDefaults(emptyGeneralData(), autoFields.customerCountry || null);
+      setGeneralData(seeded);
+      setEnvAutoKeys(autoKeys);
       setColHazard(emptyColumnHazardData());
     }
     setDialogOpen(true);
@@ -2070,7 +2130,12 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
               {/* General data */}
               <div>
                 <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">General Data</div>
-                <GeneralDataForm data={generalData} onChange={setGeneralData} />
+                <GeneralDataForm
+                  data={generalData}
+                  onChange={setGeneralData}
+                  envAutoKeys={envAutoKeys}
+                  onClearEnvKey={(key) => setEnvAutoKeys(prev => { const next = new Set(prev); next.delete(key); return next; })}
+                />
               </div>
             </div>
           </ScrollArea>

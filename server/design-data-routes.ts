@@ -407,6 +407,7 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   tagNoWarning: string | null;
   manufactureSerialNo: string | null;
   msnWarning: string | null;
+  countryCode: string | null;
 }> {
   const equipmentDescription = dwgControl.item_description || null;
 
@@ -416,7 +417,7 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   let tagNoWarning: string | null = null;
 
   const projectResult = await db.execute(sql`
-    SELECT p.code, p.mdmt
+    SELECT p.code, p.mdmt, p.country_code
     FROM projects p
     WHERE p.id = ${dwgControl.project_id}
     LIMIT 1
@@ -505,7 +506,8 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   }
 
   const projectMdmt = proj?.mdmt || null;
-  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration };
+  const countryCode = proj?.country_code || null;
+  return { equipmentDescription, tagNo, tagNoWarning, manufactureSerialNo, msnWarning, projectMdmt, productEquipmentConfiguration, countryCode };
 }
 
 async function verifyProjectAccess(userId: number, userRole: string, projectId: number, res: Response): Promise<boolean> {
@@ -546,6 +548,7 @@ router.get('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     drawingNumber: dwg.drawing_number || null,
     itemCode: dwg.item_code || null,
     itemDescription: dwg.item_description || null,
+    customerCountry: auto.countryCode || null,
   };
 
   const existing = await db.execute(sql`SELECT * FROM design_data_sheets WHERE dwg_control_id = ${dwgControlId}`);
