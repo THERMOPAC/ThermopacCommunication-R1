@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Eye } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -345,7 +347,7 @@ interface Props {
 export default function DesignDataGenerator({ drawingControlId, drawingStatus, userRole }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [designCode, setDesignCode] = useState('');
@@ -385,7 +387,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       setMechShell(emptyMechanicalColumn()); setMechTube(emptyMechanicalColumn());
       setMechJacket(emptyMechanicalColumn()); setGeneralData(emptyGeneralData());
     }
-    setMode('edit');
+    setDialogOpen(true);
   }
 
   // ── Mutation ──────────────────────────────────────────────────────────────
@@ -408,7 +410,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       if (json.warnings?.manufactureSerialNo) toast({ title: 'Warning', description: json.warnings.manufactureSerialNo, variant: 'destructive' });
       toast({ title: 'Saved', description: 'Design data sheet saved.' });
       qc.invalidateQueries({ queryKey: ['/api/drawing-design-data', drawingControlId] });
-      setMode('view');
+      setDialogOpen(false);
     },
     onError: async (err: any) => {
       const msg = err?.message || 'Save failed';
@@ -420,44 +422,40 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <Card className="w-full">
-      <CardHeader className="py-2 px-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
-            <FileSpreadsheet className="h-3.5 w-3.5 text-blue-600" />
-            Design Data Sheet
-          </CardTitle>
-          <div className="flex items-center gap-1.5">
-            {sheet && (
-              <Badge
-                variant="outline"
-                className={`text-[9px] px-1.5 py-0 ${sheet.status === 'draft' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}`}
-              >
-                {sheet.status}
-              </Badge>
-            )}
-            {canEdit && mode === 'view' && (
-              <Button size="sm" variant="outline" className="h-6 text-[9px] px-2" onClick={handleStartEdit}>
-                <Edit3 className="h-3 w-3 mr-1" />
-                {sheet ? 'Edit' : 'Create'}
-              </Button>
-            )}
-            {mode === 'edit' && (
-              <Button size="sm" variant="ghost" className="h-6 text-[9px] px-2" onClick={() => setMode('view')}>
-                <Eye className="h-3 w-3 mr-1" /> Preview
-              </Button>
-            )}
+    <>
+      {/* ── Card (view only) ─────────────────────────────────────────────── */}
+      <Card className="w-full">
+        <CardHeader className="py-2 px-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+              <FileSpreadsheet className="h-3.5 w-3.5 text-blue-600" />
+              Design Data Sheet
+            </CardTitle>
+            <div className="flex items-center gap-1.5">
+              {sheet && (
+                <Badge
+                  variant="outline"
+                  className={`text-[9px] px-1.5 py-0 ${sheet.status === 'draft' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-emerald-50 text-emerald-700 border-emerald-300'}`}
+                >
+                  {sheet.status}
+                </Badge>
+              )}
+              {canEdit && (
+                <Button size="sm" variant="outline" className="h-6 text-[9px] px-2" onClick={handleStartEdit}>
+                  <Edit3 className="h-3 w-3 mr-1" />
+                  {sheet ? 'Edit' : 'Create'}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
 
-      <CardContent className="px-3 pb-3">
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground py-4 justify-center">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
-          </div>
-        ) : mode === 'view' ? (
-          sheet ? (
+        <CardContent className="px-3 pb-3">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground py-4 justify-center">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading…
+            </div>
+          ) : sheet ? (
             <div className="space-y-2">
               {(warnings.tagNo || warnings.manufactureSerialNo) && (
                 <div className="flex items-start gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
@@ -482,114 +480,124 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 </div>
               )}
             </div>
-          )
-        ) : (
-          // Edit mode
-          <div className="space-y-4">
-            {/* Header fields */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[10px]">Design Code <span className="text-red-500">*</span></Label>
-                <Select value={designCode} onValueChange={setDesignCode}>
-                  <SelectTrigger className="h-7 text-[10px]">
-                    <SelectValue placeholder="Select design code…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DESIGN_CODES.map(c => <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+          )}
+        </CardContent>
+      </Card>
 
-              <div className="space-y-1">
-                <Label className="text-[10px]">Material Code</Label>
-                <Input
-                  className="h-7 text-[10px] bg-slate-50"
-                  value={designCode ? (
-                    {
-                      'EN 13445-3:2021 + TEMA EDITION-10': 'ASME SEC II PART D 2023',
-                      'EN 13445-3:2021': 'ASME SEC II PART D 2023',
-                      'ASME SEC VIII DIV-1': 'ASME SEC II PART D 2023',
-                      'ASME SEC VIII DIV-2': 'ASME SEC II PART D 2023',
-                      'PED 2014/68/EU': 'EN 10028 / EN 10216',
-                      'IS 2825': 'IS 2002 / IS 1570',
-                      'AS 1210': 'AS 1548',
-                    }[designCode] || '—'
-                  ) : '—'}
-                  readOnly disabled
-                />
-              </div>
+      {/* ── Dialog (form) ────────────────────────────────────────────────── */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) setDialogOpen(false); }}>
+        <DialogContent className="max-w-4xl w-full p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <FileSpreadsheet className="h-4 w-4 text-blue-600" />
+              Design Data Sheet
+            </DialogTitle>
+          </DialogHeader>
 
-              <div className="space-y-1">
-                <Label className="text-[10px]">Equipment Configuration <span className="text-red-500">*</span></Label>
-                <Select value={equipmentConfig} onValueChange={setEquipmentConfig}>
-                  <SelectTrigger className="h-7 text-[10px]">
-                    <SelectValue placeholder="Select configuration…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EQUIPMENT_CONFIGS.map(c => <SelectItem key={c} value={c} className="text-[10px]">{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+          <ScrollArea className="max-h-[75vh]">
+            <div className="px-6 py-4 space-y-5">
+              {/* Header fields */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Design Code <span className="text-red-500">*</span></Label>
+                  <Select value={designCode} onValueChange={setDesignCode}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select design code…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DESIGN_CODES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-1">
-                <Label className="text-[10px]">Inspection By <span className="text-red-500">*</span></Label>
-                <Select value={inspectionBy} onValueChange={setInspectionBy}>
-                  <SelectTrigger className="h-7 text-[10px]">
-                    <SelectValue placeholder="Select inspector…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INSPECTION_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Material Code <span className="text-muted-foreground text-[10px]">(auto)</span></Label>
+                  <Input
+                    className="h-8 text-xs bg-slate-50"
+                    value={designCode ? (
+                      {
+                        'EN 13445-3:2021 + TEMA EDITION-10': 'ASME SEC II PART D 2023',
+                        'EN 13445-3:2021': 'ASME SEC II PART D 2023',
+                        'ASME SEC VIII DIV-1': 'ASME SEC II PART D 2023',
+                        'ASME SEC VIII DIV-2': 'ASME SEC II PART D 2023',
+                        'PED 2014/68/EU': 'EN 10028 / EN 10216',
+                        'IS 2825': 'IS 2002 / IS 1570',
+                        'AS 1210': 'AS 1548',
+                      }[designCode] || '—'
+                    ) : '—'}
+                    readOnly disabled
+                  />
+                </div>
 
-              <div className="col-span-2 text-[9px] text-muted-foreground bg-slate-50 rounded px-2 py-1 border">
-                <span className="font-semibold">Auto-generated: </span>
-                Equipment Description, Tag No, Equipment Type, Manufacture Serial No — regenerated server-side on save.
-              </div>
-            </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Equipment Configuration <span className="text-red-500">*</span></Label>
+                  <Select value={equipmentConfig} onValueChange={setEquipmentConfig}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select configuration…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EQUIPMENT_CONFIGS.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <Separator />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Inspection By <span className="text-red-500">*</span></Label>
+                  <Select value={inspectionBy} onValueChange={setInspectionBy}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select inspector…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INSPECTION_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Mechanical columns */}
-            {equipmentConfig && (
-              <div>
-                <div className="text-[10px] font-semibold mb-2 uppercase tracking-wide">Mechanical Design Data</div>
-                <div className={`grid gap-4 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  <MechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} />
-                  {cols.tube && <MechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} />}
-                  {cols.jacket && <MechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} />}
+                <div className="col-span-2 text-[10px] text-muted-foreground bg-slate-50 rounded px-3 py-1.5 border">
+                  <span className="font-semibold">Auto-generated on save: </span>
+                  Equipment Description, Tag No, Equipment Type, Manufacture Serial No
                 </div>
               </div>
-            )}
 
-            <Separator />
+              <Separator />
 
-            {/* General data */}
-            <div>
-              <div className="text-[10px] font-semibold mb-2 uppercase tracking-wide">General Data</div>
-              <GeneralDataForm data={generalData} onChange={setGeneralData} />
+              {/* Mechanical columns */}
+              {equipmentConfig && (
+                <div>
+                  <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
+                  <div className={`grid gap-5 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <MechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} />
+                    {cols.tube && <MechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} />}
+                    {cols.jacket && <MechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} />}
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
+              {/* General data */}
+              <div>
+                <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">General Data</div>
+                <GeneralDataForm data={generalData} onChange={setGeneralData} />
+              </div>
             </div>
+          </ScrollArea>
 
-            <Separator />
-
-            <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setMode('view')}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="h-7 text-[10px]"
-                disabled={!designCode || !equipmentConfig || !inspectionBy || saveMutation.isPending}
-                onClick={() => saveMutation.mutate()}
-              >
-                {saveMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
-                Save Design Data
-              </Button>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          <DialogFooter className="px-6 py-3 border-t bg-slate-50">
+            <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)} disabled={saveMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={!designCode || !equipmentConfig || !inspectionBy || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
+            >
+              {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
+              Save Design Data Sheet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
