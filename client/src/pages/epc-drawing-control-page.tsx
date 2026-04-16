@@ -196,6 +196,8 @@ export default function EpcDrawingControlPage() {
 
   const { data: projects = [] } = useQuery<any[]>({ queryKey: ["/api/projects"] });
   const { showAllProjects, setShowAllProjects, filteredProjects } = useProjectFilter(projects, projectId);
+  const selectedProject = (projects as any[]).find((p: any) => p.id === projectId);
+  const projectDisciplineCode: string | null = selectedProject?.disciplineCode || selectedProject?.discipline_code || null;
   const { data: drawingControls = [], isLoading, error: recordsError } = useQuery<DrawingControl[]>({
     queryKey: ["/api/projects", projectId, "drawing-controls"],
     queryFn: () => fetchWithProjectAccess(`/api/projects/${projectId}/drawing-controls`),
@@ -737,7 +739,7 @@ export default function EpcDrawingControlPage() {
                                         drawingControlId={rec.id}
                                         drawingStatus={rec.status}
                                         userRole={userRole}
-                                        disciplineCode={rec.discipline_code}
+                                        disciplineCode={projectDisciplineCode}
                                       />
                                     </div>
 
