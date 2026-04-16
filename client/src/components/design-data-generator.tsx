@@ -571,7 +571,6 @@ const AUTO_COMPUTED_KEYS: (keyof MechanicalColumn)[] = [
 
 const FIELD_DEFAULTS: Partial<Record<keyof MechanicalColumn, string>> = {
   workingPressure: '0.5',
-  externalDesignPressureMawp: '1.034',
   hydroTestTempMinMax: '17 / 48',
   physicalState: 'Fluid',
   serviceFluid: 'Hydrocarbon',
@@ -597,6 +596,62 @@ const VESSEL_ORIENTATION_OPTIONS = ['VERTICAL (VER)', 'HORIZONTAL (HOR)'];
 const VESSEL_ORIENTATION_DEFAULT = 'VERTICAL (VER)';
 const DESIGN_SERVICE_LIFE_OPTIONS = ['10 YEARS', '15 YEARS', '20 YEARS', '25 YEARS', '30 YEARS'];
 const DESIGN_SERVICE_LIFE_DEFAULT = '25 YEARS';
+
+// ─── Pressure Rules ────────────────────────────────────────────────────────────
+
+type ColRole = 'shell' | 'tube' | 'jacket';
+
+function getPressureRequiredKeys(equipmentConfig: string, role: ColRole): (keyof MechanicalColumn)[] {
+  const req: (keyof MechanicalColumn)[] = [];
+  if (role === 'shell') req.push('internalDesignPressureMawp');
+  if (role === 'tube' && (equipmentConfig === 'Heat Exchanger' || equipmentConfig === 'Jacketed Vessel and Heat Exchanger'))
+    req.push('internalDesignPressureMawp');
+  if (role === 'jacket' && (equipmentConfig === 'Jacketed Vessel' || equipmentConfig === 'Jacketed Vessel and Heat Exchanger'))
+    req.push('internalDesignPressureMawp');
+  return req;
+}
+
+function computeAutoExternal(
+  role: ColRole,
+  equipmentConfig: string,
+  shellIdp: string | null,
+  jacketIdp: string | null,
+): string | null {
+  const ATMO = '1.034';
+  if (equipmentConfig === 'Vessel') {
+    if (role === 'shell') return ATMO;
+  } else if (equipmentConfig === 'Jacketed Vessel') {
+    if (role === 'shell') return jacketIdp;
+    if (role === 'jacket') return ATMO;
+  } else if (equipmentConfig === 'Heat Exchanger') {
+    if (role === 'shell') return ATMO;
+    if (role === 'tube') return shellIdp;
+  } else if (equipmentConfig === 'Jacketed Vessel and Heat Exchanger') {
+    if (role === 'shell') return jacketIdp;
+    if (role === 'tube') return shellIdp;
+    if (role === 'jacket') return ATMO;
+  }
+  return null;
+}
+
+function validateRequiredPressures(
+  equipmentConfig: string,
+  mechShell: MechanicalColumn,
+  mechTube: MechanicalColumn,
+  mechJacket: MechanicalColumn,
+): string[] {
+  const errors: string[] = [];
+  const check = (col: MechanicalColumn, role: ColRole, label: string) => {
+    const req = getPressureRequiredKeys(equipmentConfig, role);
+    for (const k of req) {
+      if (!col[k]) errors.push(`${label} Internal Design Pressure / MAWP is required.`);
+    }
+  };
+  check(mechShell, 'shell', 'Shell');
+  check(mechTube, 'tube', 'Tube');
+  check(mechJacket, 'jacket', 'Jacket');
+  return errors;
+}
 
 type EnvDefaults = {
   windData: string; windDesignVelocity: string;
@@ -713,6 +768,7 @@ function applyGeneralDataDefaults(gd: GeneralData): GeneralData {
 
 function SmartMechanicalColumnForm({
   label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel, appliedCode,
+  columnRole, equipmentConfig: eqConfig, autoExternalPressure,
 }: {
   label: string;
   data: MechanicalColumn;
@@ -721,7 +777,11 @@ function SmartMechanicalColumnForm({
   disciplineCode: string | null | undefined;
   derivedHazardLevel?: string | null;
   appliedCode?: string | null;
+  columnRole: ColRole;
+  equipmentConfig: string;
+  autoExternalPressure: string | null;
 }) {
+  const requiredPressureKeys = getPressureRequiredKeys(eqConfig, columnRole);
   function handleChange(key: keyof MechanicalColumn, rawValue: string) {
     const value = rawValue || null;
     const updated: MechanicalColumn = { ...data, [key]: value };
@@ -1138,6 +1198,65 @@ function SmartMechanicalColumnForm({
                 {isAtDefault && (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
                 )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'internalDesignPressureMawp') {
+          const isRequired = requiredPressureKeys.includes('internalDesignPressureMawp');
+          const isEmpty = !val;
+          const showError = isRequired && isEmpty;
+          const isAutoComputed = AUTO_COMPUTED_KEYS.includes('internalDesignPressureMawp');
+          const showAutoBadge = isAutoComputed && !!val;
+          return (
+            <div key={p.key} className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <Label className={`text-[9px] w-48 shrink-0 text-right ${showError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                  {p.label.substring(0, 35)}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+                </Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input
+                    className={`h-6 text-[10px] px-1.5 flex-1 ${showError ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : showAutoBadge ? 'bg-green-50' : ''}`}
+                    value={val}
+                    onChange={(e) => handleChange(p.key, e.target.value)}
+                    placeholder={showError ? 'Required input' : 'N.A.'}
+                  />
+                  {showError && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-red-600 border-red-300 bg-red-50">Required</Badge>
+                  )}
+                  {!showError && showAutoBadge && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                  )}
+                </div>
+              </div>
+              {showError && (
+                <div className="text-[8px] text-red-500 pl-[11.5rem]">Required — enter design pressure</div>
+              )}
+            </div>
+          );
+        }
+
+        if (p.key === 'externalDesignPressureMawp') {
+          const storedVal = data.externalDesignPressureMawp || '';
+          const autoVal = autoExternalPressure;
+          const isAutoFilled = !storedVal && !!autoVal;
+          const displayVal = storedVal || autoVal || '';
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input
+                  className={`h-6 text-[10px] px-1.5 flex-1 ${isAutoFilled ? 'bg-green-50 text-green-800' : ''}`}
+                  value={displayVal}
+                  onChange={(e) => handleChange(p.key, e.target.value)}
+                  placeholder="N.A."
+                />
+                {isAutoFilled ? (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                ) : storedVal && storedVal === autoVal ? (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-blue-600 border-blue-300 bg-blue-50">OK</Badge>
+                ) : null}
               </div>
             </div>
           );
@@ -1735,7 +1854,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       mdmt: projMdmt,
       workingPressure: wp,
       internalDesignPressureMawp: idp,
-      externalDesignPressureMawp: col.externalDesignPressureMawp ?? '1.034',
+      externalDesignPressureMawp: col.externalDesignPressureMawp ?? null,
       hydroTestPressure: hydro,
       hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
       physicalState: col.physicalState ?? 'Fluid',
@@ -1823,13 +1942,25 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
         if (!applicable) return { ...col, testingGroup: 'N.A.' };
         return { ...col, testingGroup: col.testingGroup ?? deriveTestingGroupDefault(col.radiography) };
       }
-      function normalizeCol(col: MechanicalColumn): MechanicalColumn {
-        return applyFabTol(applyTestingGroup(col));
+      function applyAutoExternal(col: MechanicalColumn, role: ColRole): MechanicalColumn {
+        if (col.externalDesignPressureMawp) return col;
+        const autoExt = computeAutoExternal(role, equipmentConfig, mechShell.internalDesignPressureMawp, mechJacket.internalDesignPressureMawp);
+        if (autoExt) return { ...col, externalDesignPressureMawp: autoExt };
+        return col;
       }
+      function normalizeCol(col: MechanicalColumn, role: ColRole): MechanicalColumn {
+        return applyFabTol(applyTestingGroup(applyAutoExternal(col, role)));
+      }
+
+      const pressureErrors = validateRequiredPressures(equipmentConfig, mechShell, mechTube, mechJacket);
+      if (pressureErrors.length > 0) {
+        throw new Error(pressureErrors.join('\n'));
+      }
+
       const mechanicalData: MechanicalData = {
-        shell: normalizeCol(mechShell),
-        tube: cols.tube ? normalizeCol(mechTube) : null,
-        jacket: cols.jacket ? normalizeCol(mechJacket) : null,
+        shell: normalizeCol(mechShell, 'shell'),
+        tube: cols.tube ? normalizeCol(mechTube, 'tube') : null,
+        jacket: cols.jacket ? normalizeCol(mechJacket, 'jacket') : null,
       };
       const method = sheet ? 'PUT' : 'POST';
       return apiRequest(method, `/api/drawing-design-data/${drawingControlId}`, {
@@ -2293,9 +2424,31 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   <div>
                     <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
                     <div className={`grid gap-5 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={shellLevel} appliedCode={colHazard.shell.appliedCode} />
-                      {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={tubeLevel} appliedCode={colHazard.shell.appliedCode} />}
-                      {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={jacketLevel} appliedCode={colHazard.shell.appliedCode} />}
+                      <SmartMechanicalColumnForm
+                        label="Shell" data={mechShell} onChange={setMechShell}
+                        projectMdmt={projMdmt} disciplineCode={disciplineCode}
+                        derivedHazardLevel={shellLevel} appliedCode={colHazard.shell.appliedCode}
+                        columnRole="shell" equipmentConfig={equipmentConfig}
+                        autoExternalPressure={computeAutoExternal('shell', equipmentConfig, mechShell.internalDesignPressureMawp, mechJacket.internalDesignPressureMawp)}
+                      />
+                      {cols.tube && (
+                        <SmartMechanicalColumnForm
+                          label="Tube" data={mechTube} onChange={setMechTube}
+                          projectMdmt={projMdmt} disciplineCode={disciplineCode}
+                          derivedHazardLevel={tubeLevel} appliedCode={colHazard.shell.appliedCode}
+                          columnRole="tube" equipmentConfig={equipmentConfig}
+                          autoExternalPressure={computeAutoExternal('tube', equipmentConfig, mechShell.internalDesignPressureMawp, mechJacket.internalDesignPressureMawp)}
+                        />
+                      )}
+                      {cols.jacket && (
+                        <SmartMechanicalColumnForm
+                          label="Jacket 1&2" data={mechJacket} onChange={setMechJacket}
+                          projectMdmt={projMdmt} disciplineCode={disciplineCode}
+                          derivedHazardLevel={jacketLevel} appliedCode={colHazard.shell.appliedCode}
+                          columnRole="jacket" equipmentConfig={equipmentConfig}
+                          autoExternalPressure={computeAutoExternal('jacket', equipmentConfig, mechShell.internalDesignPressureMawp, mechJacket.internalDesignPressureMawp)}
+                        />
+                      )}
                     </div>
                   </div>
                 );
