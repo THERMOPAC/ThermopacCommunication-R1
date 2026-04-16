@@ -1194,6 +1194,13 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
               <Separator />
 
+              {/* Hazard Classification */}
+              <div>
+                <HazardClassificationPanel data={hazardData} onChange={setHazardData} />
+              </div>
+
+              <Separator />
+
               {/* Mechanical columns */}
               {equipmentConfig && (
                 <div>
@@ -1205,13 +1212,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   </div>
                 </div>
               )}
-
-              <Separator />
-
-              {/* Hazard Classification */}
-              <div>
-                <HazardClassificationPanel data={hazardData} onChange={setHazardData} />
-              </div>
 
               <Separator />
 
