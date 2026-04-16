@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3 } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -75,10 +75,112 @@ type DesignDataSheet = {
   equipment_config: string;
   mechanical_data: MechanicalData;
   general_data: GeneralData;
+  applied_code: string | null;
+  hazard_data: HazardData | null;
   status: string;
 };
 
+type HazardData = {
+  appliedCode: string | null;
+  isLethalService: 'Yes' | 'No' | null;
+  fluidServiceCategory: string | null;
+  fluidGroup: string | null;
+  pedCategory: string | null;
+  fluidState: string;
+  toxicInhalationRisk: boolean;
+  isFlammable: boolean;
+  isCorrosive: boolean;
+  isEnvironmentallyHazardous: boolean;
+  codeNativeClassification: string | null;
+  internalHazardLevel: string | null;
+  hazardBasisNote: string | null;
+};
+
 // ─── Constants ───────────────────────────────────────────────────────────────
+
+const APPLIED_CODE_OPTIONS = [
+  'ASME SEC VIII Div-1',
+  'ASME B31.3',
+  'EN 13445',
+  'PED 2014/68/EU',
+  'API 650',
+] as const;
+
+const FLUID_SERVICE_CATEGORY_OPTIONS = [
+  'Normal Fluid Service',
+  'Category D',
+  'Category M',
+  'High Pressure Fluid Service',
+];
+
+const FLUID_STATE_HC_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
+const FLUID_GROUP_OPTIONS = ['Group 1', 'Group 2'];
+const PED_CATEGORY_OPTIONS = ['SEP', 'Category I', 'Category II', 'Category III', 'Category IV'];
+
+function emptyHazardData(): HazardData {
+  return {
+    appliedCode: null,
+    isLethalService: null,
+    fluidServiceCategory: null,
+    fluidGroup: null,
+    pedCategory: null,
+    fluidState: 'Fluid',
+    toxicInhalationRisk: false,
+    isFlammable: false,
+    isCorrosive: false,
+    isEnvironmentallyHazardous: false,
+    codeNativeClassification: null,
+    internalHazardLevel: null,
+    hazardBasisNote: null,
+  };
+}
+
+function deriveHazardFields(data: HazardData): HazardData {
+  const code = data.appliedCode;
+  if (!code) return { ...data, codeNativeClassification: null, internalHazardLevel: null, hazardBasisNote: null };
+
+  let classification: string | null = null;
+  let level: string | null = null;
+  let note: string | null = null;
+
+  if (code === 'ASME SEC VIII Div-1') {
+    const lethal = data.isLethalService === 'Yes';
+    classification = lethal ? 'Lethal Service' : 'Normal Service';
+    level = lethal ? 'Highly Hazardous' : 'Normal';
+    note = lethal ? 'Derived as Highly Hazardous because Lethal Service = Yes.' : 'Derived as Normal because Normal Service.';
+  } else if (code === 'ASME B31.3') {
+    const cat = data.fluidServiceCategory;
+    classification = cat || null;
+    if (cat === 'Category M') { level = 'Highly Hazardous'; note = 'Derived as Highly Hazardous because Fluid Service Category = Category M.'; }
+    else if (cat === 'High Pressure Fluid Service') { level = 'Hazardous'; note = 'Derived as Hazardous because High Pressure Fluid Service.'; }
+    else if (cat === 'Category D' || cat === 'Normal Fluid Service') { level = 'Normal'; note = `Derived as Normal because ${cat} with no hazard flags.`; }
+  } else if (code === 'EN 13445') {
+    const grp = data.fluidGroup;
+    classification = grp || null;
+    if (grp === 'Group 1' && data.toxicInhalationRisk) { level = 'Highly Hazardous'; note = 'Derived as Highly Hazardous because Group 1 with Toxic Inhalation Risk.'; }
+    else if (grp === 'Group 1') { level = 'Hazardous'; note = 'Derived as Hazardous because Fluid Group = Group 1.'; }
+    else if (grp === 'Group 2') { level = 'Normal'; note = 'Derived as Normal because Group 2 fluid.'; }
+  } else if (code === 'PED 2014/68/EU') {
+    const grp = data.fluidGroup;
+    classification = grp ? (grp === 'Group 1' ? 'Fluid Group 1' : 'Fluid Group 2') : null;
+    if (grp === 'Group 1' && data.toxicInhalationRisk) { level = 'Highly Hazardous'; note = 'Derived as Highly Hazardous because Fluid Group 1 with Toxic Inhalation Risk.'; }
+    else if (grp === 'Group 1') { level = 'Hazardous'; note = 'Derived as Hazardous because Fluid Group 1.'; }
+    else if (grp === 'Group 2') { level = 'Normal'; note = 'Derived as Normal because Fluid Group 2.'; }
+  } else if (code === 'API 650') {
+    classification = 'Stored Product Review';
+    if (data.toxicInhalationRisk) {
+      level = 'Highly Hazardous'; note = 'Derived as Highly Hazardous because Toxic Inhalation Risk is flagged.';
+    } else if (data.isFlammable || data.isCorrosive || data.isEnvironmentallyHazardous) {
+      level = 'Hazardous';
+      const flags = [data.isFlammable && 'flammable', data.isCorrosive && 'corrosive', data.isEnvironmentallyHazardous && 'environmentally hazardous'].filter(Boolean).join(', ');
+      note = `Derived as Hazardous because stored product is flagged ${flags}.`;
+    } else {
+      level = 'Normal'; note = 'Derived as Normal because no hazard flags on stored product.';
+    }
+  }
+
+  return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
+}
 
 const DESIGN_CODES = [
   'EN 13445-3:2021 + TEMA EDITION-10',
@@ -337,13 +439,14 @@ const PHYSICAL_STATE_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
 const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam condensate', 'Thermic Fluid'];
 
 function SmartMechanicalColumnForm({
-  label, data, onChange, projectMdmt, disciplineCode,
+  label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel,
 }: {
   label: string;
   data: MechanicalColumn;
   onChange: (col: MechanicalColumn) => void;
   projectMdmt: string | null | undefined;
   disciplineCode: string | null | undefined;
+  derivedHazardLevel?: string | null;
 }) {
   function handleChange(key: keyof MechanicalColumn, rawValue: string) {
     const value = rawValue || null;
@@ -434,6 +537,33 @@ function SmartMechanicalColumnForm({
           );
         }
 
+        if (p.key === 'hazardLevel') {
+          const display = derivedHazardLevel || val;
+          const fromPanel = !!derivedHazardLevel;
+          const levelClass = fromPanel ? ({
+            'Normal': 'bg-green-50 text-green-800',
+            'Hazardous': 'bg-amber-50 text-amber-800',
+            'Highly Hazardous': 'bg-red-50 text-red-800',
+          }[display] || 'bg-slate-50') : '';
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input
+                  className={`h-6 text-[10px] px-1.5 ${levelClass}`}
+                  value={display || ''}
+                  readOnly={fromPanel}
+                  onChange={fromPanel ? undefined : (e) => handleChange(p.key, e.target.value)}
+                  placeholder="N.A."
+                />
+                {fromPanel && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-500 border-slate-300 bg-slate-50">Panel</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
         const isComputed = AUTO_COMPUTED_KEYS.includes(p.key);
         const isAtDefault = !isComputed && FIELD_DEFAULTS[p.key] !== undefined && val === FIELD_DEFAULTS[p.key];
         const showAutoBadge = isComputed || isAtDefault;
@@ -482,6 +612,172 @@ function GeneralDataForm({
   );
 }
 
+// ─── Hazard Classification Panel ──────────────────────────────────────────────
+
+function HazardClassificationPanel({ data, onChange }: { data: HazardData; onChange: (d: HazardData) => void }) {
+  const code = data.appliedCode;
+
+  function handleCodeChange(newCode: string) {
+    const oldCode = data.appliedCode;
+    let updated: HazardData = { ...data, appliedCode: newCode || null };
+    if (oldCode === 'ASME SEC VIII Div-1') updated.isLethalService = null;
+    if (oldCode === 'ASME B31.3') updated.fluidServiceCategory = null;
+    // EN 13445: do NOT clear fluidGroup or toxicInhalationRisk
+    if (oldCode === 'PED 2014/68/EU') { updated.fluidGroup = null; updated.pedCategory = null; updated.toxicInhalationRisk = false; }
+    if (oldCode === 'API 650') { updated.isFlammable = false; updated.isCorrosive = false; updated.isEnvironmentallyHazardous = false; updated.toxicInhalationRisk = false; }
+    onChange(deriveHazardFields(updated));
+  }
+
+  function handleField(updates: Partial<HazardData>) {
+    onChange(deriveHazardFields({ ...data, ...updates }));
+  }
+
+  const isVIII = code === 'ASME SEC VIII Div-1';
+  const isB31  = code === 'ASME B31.3';
+  const isEN   = code === 'EN 13445';
+  const isPED  = code === 'PED 2014/68/EU';
+  const isAPI  = code === 'API 650';
+  const showToxic = isEN || isPED || isAPI;
+
+  const levelBadgeClass = {
+    'Normal': 'text-green-700 bg-green-50 border-green-300',
+    'Hazardous': 'text-amber-700 bg-amber-50 border-amber-300',
+    'Highly Hazardous': 'text-red-700 bg-red-50 border-red-300',
+  }[data.internalHazardLevel || ''] || 'text-slate-500 bg-slate-50 border-slate-200';
+
+  const yesNo = (val: boolean, key: keyof HazardData) => (
+    <Select value={val ? 'Yes' : 'No'} onValueChange={(v) => handleField({ [key]: v === 'Yes' } as any)}>
+      <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="No" className="text-[10px]">No</SelectItem>
+        <SelectItem value="Yes" className="text-[10px]">Yes</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
+  return (
+    <div className="border rounded-md p-3 space-y-3 bg-slate-50/60">
+      <div className="flex items-center gap-2">
+        <Shield className="h-3.5 w-3.5 text-slate-500" />
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Hazard Classification</span>
+        {data.internalHazardLevel && (
+          <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ml-auto ${levelBadgeClass}`}>{data.internalHazardLevel}</Badge>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <Label className="text-[10px] text-muted-foreground">Applied Code</Label>
+          <Select value={code || ''} onValueChange={handleCodeChange}>
+            <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select code…" /></SelectTrigger>
+            <SelectContent>
+              {APPLIED_CODE_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {code && (
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Fluid State</Label>
+            <Select value={data.fluidState || 'Fluid'} onValueChange={(v) => handleField({ fluidState: v })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+              <SelectContent>{FLUID_STATE_HC_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {isVIII && (
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Lethal Service</Label>
+            <Select value={data.isLethalService || 'No'} onValueChange={(v) => handleField({ isLethalService: v as 'Yes' | 'No' })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="No" className="text-[10px]">No</SelectItem>
+                <SelectItem value="Yes" className="text-[10px]">Yes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {isB31 && (
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Fluid Service Category</Label>
+            <Select value={data.fluidServiceCategory || ''} onValueChange={(v) => handleField({ fluidServiceCategory: v })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{FLUID_SERVICE_CATEGORY_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {(isEN || isPED) && (
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Fluid Group {isPED && <span className="text-red-500">*</span>}</Label>
+            <Select value={data.fluidGroup || ''} onValueChange={(v) => handleField({ fluidGroup: v })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{FLUID_GROUP_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {isPED && (
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">PED Category <span className="text-red-500">*</span></Label>
+            <Select value={data.pedCategory || ''} onValueChange={(v) => handleField({ pedCategory: v })}>
+              <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectContent>{PED_CATEGORY_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {showToxic && (
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Toxic Inhalation Risk</Label>
+            {yesNo(data.toxicInhalationRisk, 'toxicInhalationRisk')}
+          </div>
+        )}
+
+        {isAPI && (
+          <>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Flammable</Label>
+              {yesNo(data.isFlammable, 'isFlammable')}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Corrosive</Label>
+              {yesNo(data.isCorrosive, 'isCorrosive')}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Environmentally Hazardous</Label>
+              {yesNo(data.isEnvironmentallyHazardous, 'isEnvironmentallyHazardous')}
+            </div>
+          </>
+        )}
+      </div>
+
+      {code && (
+        <div className="border-t border-slate-200 pt-2 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-40 shrink-0">Code Classification</span>
+            <span className="text-[10px] text-slate-700 font-medium">{data.codeNativeClassification || '—'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground w-40 shrink-0">Hazard Level</span>
+            {data.internalHazardLevel
+              ? <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${levelBadgeClass}`}>{data.internalHazardLevel}</Badge>
+              : <span className="text-[10px] text-muted-foreground">—</span>}
+          </div>
+          {data.hazardBasisNote && (
+            <div className="flex items-start gap-2">
+              <span className="text-[10px] text-muted-foreground w-40 shrink-0 pt-0.5">Basis Note</span>
+              <span className="text-[10px] text-slate-600 italic">{data.hazardBasisNote}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 interface Props {
@@ -504,6 +800,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const [mechTube, setMechTube] = useState<MechanicalColumn>(emptyMechanicalColumn());
   const [mechJacket, setMechJacket] = useState<MechanicalColumn>(emptyMechanicalColumn());
   const [generalData, setGeneralData] = useState<GeneralData>(emptyGeneralData());
+  const [hazardData, setHazardData] = useState<HazardData>(emptyHazardData());
 
   const canEdit = ['draft', 'under_review'].includes(drawingStatus) &&
     ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive'].includes(userRole);
@@ -549,6 +846,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn()));
     setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn()));
     setGeneralData(s.general_data || emptyGeneralData());
+    setHazardData(s.hazard_data ? deriveHazardFields(s.hazard_data) : emptyHazardData());
   }
 
   function handleStartEdit() {
@@ -563,6 +861,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       setMechTube(seedColumn(emptyMechanicalColumn()));
       setMechJacket(seedColumn(emptyMechanicalColumn()));
       setGeneralData(emptyGeneralData());
+      setHazardData(emptyHazardData());
     }
     setDialogOpen(true);
   }
@@ -579,6 +878,8 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       const method = sheet ? 'PUT' : 'POST';
       return apiRequest(method, `/api/drawing-design-data/${drawingControlId}`, {
         designCode, equipmentConfig, inspectionBy, mechanicalData, generalData,
+        appliedCode: hazardData.appliedCode || null,
+        hazardData: hazardData.appliedCode ? hazardData : null,
       });
     },
     onSuccess: (json: any) => {
@@ -800,12 +1101,19 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 <div>
                   <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
                   <div className={`grid gap-5 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} />
-                    {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} />}
-                    {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} />}
+                    <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} />
+                    {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} />}
+                    {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} />}
                   </div>
                 </div>
               )}
+
+              <Separator />
+
+              {/* Hazard Classification */}
+              <div>
+                <HazardClassificationPanel data={hazardData} onChange={setHazardData} />
+              </div>
 
               <Separator />
 

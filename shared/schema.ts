@@ -12422,6 +12422,57 @@ export type CustomerOrderDocument = typeof customerOrderDocuments.$inferSelect;
 export type InsertCustomerOrderDocument = z.infer<typeof insertCustomerOrderDocumentSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Hazard Classification types & constants
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const APPLIED_CODE_OPTIONS = [
+  'ASME SEC VIII Div-1',
+  'ASME B31.3',
+  'EN 13445',
+  'PED 2014/68/EU',
+  'API 650',
+] as const;
+
+export const FLUID_SERVICE_CATEGORY_OPTIONS = [
+  'Normal Fluid Service',
+  'Category D',
+  'Category M',
+  'High Pressure Fluid Service',
+] as const;
+
+export const FLUID_STATE_HC_OPTIONS = [
+  'Fluid',
+  'Vapor',
+  'Mixture of Fluid and Vapor',
+] as const;
+
+export const FLUID_GROUP_OPTIONS = ['Group 1', 'Group 2'] as const;
+
+export const PED_CATEGORY_OPTIONS = [
+  'SEP',
+  'Category I',
+  'Category II',
+  'Category III',
+  'Category IV',
+] as const;
+
+export type HazardData = {
+  appliedCode: string | null;
+  isLethalService: 'Yes' | 'No' | null;
+  fluidServiceCategory: string | null;
+  fluidGroup: string | null;
+  pedCategory: string | null;
+  fluidState: string;
+  toxicInhalationRisk: boolean;
+  isFlammable: boolean;
+  isCorrosive: boolean;
+  isEnvironmentallyHazardous: boolean;
+  codeNativeClassification: string | null;
+  internalHazardLevel: string | null;
+  hazardBasisNote: string | null;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Design Data Sheets  (one per epc_drawing_controls row)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -12457,6 +12508,10 @@ export const designDataSheets = pgTable('design_data_sheets', {
   // ── General data (single-value rows) ──────────────────────────────────────
   // Fixed keys only:
   generalData: jsonb('general_data').notNull().$type<GeneralData>(),
+
+  // ── Hazard classification (sheet-level, separate from mechanical_data) ─────
+  appliedCode: varchar('applied_code', { length: 50 }),
+  hazardData: jsonb('hazard_data').$type<HazardData>(),
 
   status: varchar('status', { length: 20 }).notNull().default('draft'),
 

@@ -3,7 +3,7 @@ import { db } from './db';
 import { sql, eq } from 'drizzle-orm';
 import { designDataSheets, epcDrawingControls, projects, projectItems } from '@shared/schema';
 import { checkProjectMembership } from './utils/permission-utils';
-import type { MechanicalColumn, MechanicalData, GeneralData } from '@shared/schema';
+import type { MechanicalColumn, MechanicalData, GeneralData, HazardData } from '@shared/schema';
 
 const router = express.Router();
 
@@ -90,6 +90,132 @@ function normalizeMechanicalData(config: string, incoming: Partial<MechanicalDat
 
 function normalizeGeneralData(incoming: Partial<GeneralData>): GeneralData {
   return { ...emptyGeneralData(), ...incoming };
+}
+
+function deriveHazardFields(data: HazardData): HazardData {
+  const code = data.appliedCode;
+  if (!code) return { ...data, codeNativeClassification: null, internalHazardLevel: null, hazardBasisNote: null };
+
+  let classification: string | null = null;
+  let level: string | null = null;
+  let note: string | null = null;
+
+  if (code === 'ASME SEC VIII Div-1') {
+    const lethal = data.isLethalService === 'Yes';
+    classification = lethal ? 'Lethal Service' : 'Normal Service';
+    level = lethal ? 'Highly Hazardous' : 'Normal';
+    note = lethal
+      ? 'Derived as Highly Hazardous because Lethal Service = Yes.'
+      : 'Derived as Normal because Normal Service.';
+  } else if (code === 'ASME B31.3') {
+    const cat = data.fluidServiceCategory;
+    classification = cat || null;
+    if (cat === 'Category M') {
+      level = 'Highly Hazardous';
+      note = 'Derived as Highly Hazardous because Fluid Service Category = Category M.';
+    } else if (cat === 'High Pressure Fluid Service') {
+      level = 'Hazardous';
+      note = 'Derived as Hazardous because High Pressure Fluid Service.';
+    } else if (cat === 'Category D' || cat === 'Normal Fluid Service') {
+      level = 'Normal';
+      note = `Derived as Normal because ${cat} with no hazard flags.`;
+    }
+  } else if (code === 'EN 13445') {
+    const grp = data.fluidGroup;
+    classification = grp || null;
+    if (grp === 'Group 1' && data.toxicInhalationRisk) {
+      level = 'Highly Hazardous';
+      note = 'Derived as Highly Hazardous because Group 1 with Toxic Inhalation Risk.';
+    } else if (grp === 'Group 1') {
+      level = 'Hazardous';
+      note = 'Derived as Hazardous because Fluid Group = Group 1.';
+    } else if (grp === 'Group 2') {
+      level = 'Normal';
+      note = 'Derived as Normal because Group 2 fluid.';
+    }
+  } else if (code === 'PED 2014/68/EU') {
+    const grp = data.fluidGroup;
+    classification = grp ? (grp === 'Group 1' ? 'Fluid Group 1' : 'Fluid Group 2') : null;
+    if (grp === 'Group 1' && data.toxicInhalationRisk) {
+      level = 'Highly Hazardous';
+      note = 'Derived as Highly Hazardous because Fluid Group 1 with Toxic Inhalation Risk.';
+    } else if (grp === 'Group 1') {
+      level = 'Hazardous';
+      note = 'Derived as Hazardous because Fluid Group 1.';
+    } else if (grp === 'Group 2') {
+      level = 'Normal';
+      note = 'Derived as Normal because Fluid Group 2.';
+    }
+  } else if (code === 'API 650') {
+    classification = 'Stored Product Review';
+    if (data.toxicInhalationRisk) {
+      level = 'Highly Hazardous';
+      note = 'Derived as Highly Hazardous because Toxic Inhalation Risk is flagged.';
+    } else if (data.isFlammable || data.isCorrosive || data.isEnvironmentallyHazardous) {
+      level = 'Hazardous';
+      const flags = [
+        data.isFlammable && 'flammable',
+        data.isCorrosive && 'corrosive',
+        data.isEnvironmentallyHazardous && 'environmentally hazardous',
+      ].filter(Boolean).join(', ');
+      note = `Derived as Hazardous because stored product is flagged ${flags}.`;
+    } else {
+      level = 'Normal';
+      note = 'Derived as Normal because no hazard flags on stored product.';
+    }
+  }
+
+  return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
+}
+
+const HAZARD_ALLOWED_FIELDS: Record<string, string[]> = {
+  'ASME SEC VIII Div-1': ['isLethalService', 'fluidState'],
+  'ASME B31.3': ['fluidServiceCategory', 'fluidState'],
+  'EN 13445': ['fluidGroup', 'fluidState', 'toxicInhalationRisk'],
+  'PED 2014/68/EU': ['fluidGroup', 'pedCategory', 'fluidState', 'toxicInhalationRisk'],
+  'API 650': ['fluidState', 'toxicInhalationRisk', 'isFlammable', 'isCorrosive', 'isEnvironmentallyHazardous'],
+};
+
+const ALL_CODE_GATED_FIELDS = ['isLethalService', 'fluidServiceCategory', 'fluidGroup', 'pedCategory', 'toxicInhalationRisk', 'isFlammable', 'isCorrosive', 'isEnvironmentallyHazardous'];
+
+function processHazardData(raw: any, code: string | null, dwgStatus: string, mechanical: MechanicalData): { hazardData: HazardData | null; mechanical: MechanicalData } {
+  if (!code || !raw) return { hazardData: null, mechanical };
+
+  const allowed = HAZARD_ALLOWED_FIELDS[code] || [];
+  const stripped: any = { appliedCode: code, fluidState: raw.fluidState ?? 'Fluid' };
+  for (const field of allowed) {
+    if (field !== 'fluidState' && raw[field] !== undefined) stripped[field] = raw[field];
+  }
+
+  const full: HazardData = {
+    appliedCode: code,
+    isLethalService: stripped.isLethalService ?? null,
+    fluidServiceCategory: stripped.fluidServiceCategory ?? null,
+    fluidGroup: stripped.fluidGroup ?? null,
+    pedCategory: stripped.pedCategory ?? null,
+    fluidState: stripped.fluidState ?? 'Fluid',
+    toxicInhalationRisk: stripped.toxicInhalationRisk ?? false,
+    isFlammable: stripped.isFlammable ?? false,
+    isCorrosive: stripped.isCorrosive ?? false,
+    isEnvironmentallyHazardous: stripped.isEnvironmentallyHazardous ?? false,
+    codeNativeClassification: null,
+    internalHazardLevel: null,
+    hazardBasisNote: null,
+  };
+
+  const derived = deriveHazardFields(full);
+
+  let updatedMech = mechanical;
+  if (dwgStatus === 'draft' && derived.internalHazardLevel) {
+    const lvl = derived.internalHazardLevel;
+    updatedMech = {
+      shell: { ...mechanical.shell, hazardLevel: lvl },
+      tube: mechanical.tube ? { ...mechanical.tube, hazardLevel: lvl } : null,
+      jacket: mechanical.jacket ? { ...mechanical.jacket, hazardLevel: lvl } : null,
+    };
+  }
+
+  return { hazardData: derived, mechanical: updatedMech };
 }
 
 async function resolveAutoFields(dwgControl: any): Promise<{
@@ -279,7 +405,7 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
     return res.status(409).json({ error: 'A design data sheet already exists for this drawing. Use PUT to update.' });
   }
 
-  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData } = req.body;
+  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData, appliedCode, hazardData: rawHazardData } = req.body;
 
   if (!designCode || !equipmentConfig || !inspectionBy) {
     return res.status(400).json({ error: 'designCode, equipmentConfig and inspectionBy are required' });
@@ -295,18 +421,27 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
     return res.status(400).json({ error: 'Invalid inspectionBy' });
   }
 
+  if (appliedCode === 'PED 2014/68/EU' && rawHazardData) {
+    if (!rawHazardData.fluidGroup || !rawHazardData.pedCategory) {
+      return res.status(422).json({ error: 'PED 2014/68/EU requires fluidGroup and pedCategory.' });
+    }
+  }
+
   const materialCode = DESIGN_CODE_TO_MATERIAL_CODE[designCode] || null;
   const equipmentType = EQUIPMENT_CONFIG_TO_TYPE[equipmentConfig] || equipmentConfig.toUpperCase();
   const auto = await resolveAutoFields(dwg);
 
-  const normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
+  let normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
   const normalizedGeneral = normalizeGeneralData(generalData || {});
+  const { hazardData: processedHazard, mechanical: finalMechanical } = processHazardData(rawHazardData, appliedCode || null, 'draft', normalizedMechanical);
+  normalizedMechanical = finalMechanical;
 
   const inserted = await db.execute(sql`
     INSERT INTO design_data_sheets (
       dwg_control_id, project_id, design_code, material_code,
       equipment_description, tag_no, equipment_type, manufacture_serial_no,
       inspection_by, equipment_config, mechanical_data, general_data,
+      applied_code, hazard_data,
       status, created_by, updated_by
     ) VALUES (
       ${dwgControlId}, ${dwg.project_id}, ${designCode}, ${materialCode},
@@ -314,6 +449,8 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
       ${inspectionBy}, ${equipmentConfig},
       ${JSON.stringify(normalizedMechanical)}::jsonb,
       ${JSON.stringify(normalizedGeneral)}::jsonb,
+      ${appliedCode || null},
+      ${processedHazard ? JSON.stringify(processedHazard) : null}::jsonb,
       'draft', ${user.id}, ${user.id}
     )
     RETURNING *
@@ -349,7 +486,7 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     return res.status(404).json({ error: 'No design data sheet found. Use POST to create.' });
   }
 
-  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData } = req.body;
+  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData, appliedCode, hazardData: rawHazardData } = req.body;
 
   if (!designCode || !equipmentConfig || !inspectionBy) {
     return res.status(400).json({ error: 'designCode, equipmentConfig and inspectionBy are required' });
@@ -365,12 +502,20 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     return res.status(400).json({ error: 'Invalid inspectionBy' });
   }
 
+  if (appliedCode === 'PED 2014/68/EU' && rawHazardData) {
+    if (!rawHazardData.fluidGroup || !rawHazardData.pedCategory) {
+      return res.status(422).json({ error: 'PED 2014/68/EU requires fluidGroup and pedCategory.' });
+    }
+  }
+
   const materialCode = DESIGN_CODE_TO_MATERIAL_CODE[designCode] || null;
   const equipmentType = EQUIPMENT_CONFIG_TO_TYPE[equipmentConfig] || equipmentConfig.toUpperCase();
   const auto = await resolveAutoFields(dwg);
 
-  const normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
+  let normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
   const normalizedGeneral = normalizeGeneralData(generalData || {});
+  const { hazardData: processedHazard, mechanical: finalMechanical } = processHazardData(rawHazardData, appliedCode || null, dwg.status, normalizedMechanical);
+  normalizedMechanical = finalMechanical;
 
   const updated = await db.execute(sql`
     UPDATE design_data_sheets SET
@@ -384,6 +529,8 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
       equipment_config = ${equipmentConfig},
       mechanical_data = ${JSON.stringify(normalizedMechanical)}::jsonb,
       general_data = ${JSON.stringify(normalizedGeneral)}::jsonb,
+      applied_code = ${appliedCode || null},
+      hazard_data = ${processedHazard ? JSON.stringify(processedHazard) : null}::jsonb,
       updated_by = ${user.id},
       updated_at = NOW()
     WHERE dwg_control_id = ${dwgControlId}
