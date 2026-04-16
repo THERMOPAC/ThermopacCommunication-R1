@@ -587,6 +587,7 @@ const RADIOGRAPHY_OPTIONS = ['FULL RADIOGRAPHY (100% RT)', 'SPOT RADIOGRAPHY 10%
 const PWHT_OPTIONS = ['NOT REQUIRED', 'REQUIRED'];
 const TYPE_OF_HEADS_OPTIONS = ['TORISPHERICAL (10%)', 'ELLIPSOIDAL (2:1)', 'HEMISPHERICAL', 'FLAT HEAD', 'CONICAL HEAD', 'DISHED END (F&D)', 'N.A.'];
 const INSULATION_OPTIONS = ['YES', 'NO'];
+const INSULATION_PRESETS = ['HOT / 100 / 120', 'HOT / 75 / 100', 'COLD / 50 / 60', 'COLD / 75 / 80'];
 
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
@@ -643,6 +644,17 @@ function SmartMechanicalColumnForm({
   function handleChange(key: keyof MechanicalColumn, rawValue: string) {
     const value = rawValue || null;
     const updated: MechanicalColumn = { ...data, [key]: value };
+
+    if (key === 'insulation') {
+      if (rawValue === 'NO' || !rawValue) {
+        updated.insulationTypeThkDensity = 'N.A.';
+      } else if (rawValue === 'YES') {
+        const current = data.insulationTypeThkDensity;
+        if (!current || current === 'N.A.') {
+          updated.insulationTypeThkDensity = 'HOT / 75 / 100';
+        }
+      }
+    }
 
     if (key === 'radiography') {
       const oldRadiography = data.radiography;
@@ -879,6 +891,49 @@ function SmartMechanicalColumnForm({
                   </SelectTrigger>
                   <SelectContent>
                     {INSULATION_OPTIONS.map(o => (
+                      <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'insulationTypeThkDensity') {
+          const insulationOn = data.insulation === 'YES';
+          if (!insulationOn) {
+            return (
+              <div key={p.key} className="flex items-center gap-2">
+                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
+                </div>
+              </div>
+            );
+          }
+          const defaultVal = 'HOT / 75 / 100';
+          const isAtDefault = !val || val === defaultVal || val === 'N.A.';
+          const displayVal = (!val || val === 'N.A.') ? defaultVal : val;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input
+                  className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}
+                  value={displayVal}
+                  onChange={(e) => handleChange(p.key, e.target.value)}
+                />
+                <Select onValueChange={(v) => handleChange(p.key, v)}>
+                  <SelectTrigger className="h-6 w-6 px-0 shrink-0 border-dashed" title="Quick presets">
+                    <span className="text-[9px] text-slate-400">▾</span>
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {INSULATION_PRESETS.map(o => (
                       <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1512,6 +1567,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       postWeldHeatTreatment: col.postWeldHeatTreatment ?? 'NOT REQUIRED',
       typeOfHeads: col.typeOfHeads ?? 'TORISPHERICAL (10%)',
       insulation: col.insulation ?? 'NO',
+      insulationTypeThkDensity: col.insulationTypeThkDensity ?? 'N.A.',
     };
   }
 
