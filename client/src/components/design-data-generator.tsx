@@ -418,10 +418,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
         designCode, equipmentConfig, inspectionBy, mechanicalData, generalData,
       });
     },
-    onSuccess: async (res: any) => {
-      const json = await res.json();
-      if (json.warnings?.tagNo) toast({ title: 'Warning', description: json.warnings.tagNo, variant: 'destructive' });
-      if (json.warnings?.manufactureSerialNo) toast({ title: 'Warning', description: json.warnings.manufactureSerialNo, variant: 'destructive' });
+    onSuccess: (json: any) => {
+      if (json?.warnings?.tagNo) toast({ title: 'Warning', description: json.warnings.tagNo, variant: 'destructive' });
+      if (json?.warnings?.manufactureSerialNo) toast({ title: 'Warning', description: json.warnings.manufactureSerialNo, variant: 'destructive' });
       toast({ title: 'Saved', description: 'Design data sheet saved.' });
       qc.invalidateQueries({ queryKey: ['/api/drawing-design-data', drawingControlId] });
       setDialogOpen(false);
