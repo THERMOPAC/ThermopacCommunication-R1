@@ -737,6 +737,7 @@ export default function EpcDrawingControlPage() {
                                         drawingControlId={rec.id}
                                         drawingStatus={rec.status}
                                         userRole={userRole}
+                                        disciplineCode={rec.discipline_code}
                                       />
                                     </div>
 

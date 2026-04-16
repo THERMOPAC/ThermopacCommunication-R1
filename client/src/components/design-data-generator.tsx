@@ -85,10 +85,20 @@ const DESIGN_CODES = [
   'EN 13445-3:2021',
   'ASME SEC VIII DIV-1',
   'ASME SEC VIII DIV-2',
+  'ASME B31.3',
   'PED 2014/68/EU',
+  'API 650',
   'IS 2825',
   'AS 1210',
 ];
+
+const DISCIPLINE_TO_DESIGN_CODE: Record<string, string> = {
+  'ASME SEC VIII Div-1': 'ASME SEC VIII DIV-1',
+  'ASME 31.3':           'ASME B31.3',
+  'EN 13445':            'EN 13445-3:2021',
+  'PED 2014/68/EU':      'PED 2014/68/EU',
+  'API 650':             'API 650',
+};
 
 const EQUIPMENT_CONFIGS = [
   'Vessel',
@@ -342,9 +352,10 @@ interface Props {
   drawingControlId: number;
   drawingStatus: string;
   userRole: string;
+  disciplineCode?: string | null;
 }
 
-export default function DesignDataGenerator({ drawingControlId, drawingStatus, userRole }: Props) {
+export default function DesignDataGenerator({ drawingControlId, drawingStatus, userRole, disciplineCode }: Props) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -381,9 +392,12 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   }
 
   function handleStartEdit() {
-    if (sheet) loadSheetIntoForm(sheet);
-    else {
-      setDesignCode(''); setEquipmentConfig(''); setInspectionBy('');
+    if (sheet) {
+      loadSheetIntoForm(sheet);
+    } else {
+      const autoCode = (disciplineCode && DISCIPLINE_TO_DESIGN_CODE[disciplineCode]) || '';
+      setDesignCode(autoCode);
+      setEquipmentConfig(''); setInspectionBy('');
       setMechShell(emptyMechanicalColumn()); setMechTube(emptyMechanicalColumn());
       setMechJacket(emptyMechanicalColumn()); setGeneralData(emptyGeneralData());
     }
@@ -499,7 +513,14 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
               {/* Header fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Design Code <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    Design Code <span className="text-red-500">*</span>
+                    {disciplineCode && DISCIPLINE_TO_DESIGN_CODE[disciplineCode] && (
+                      <span className="text-[10px] text-blue-600 font-normal bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">
+                        Auto from: {disciplineCode}
+                      </span>
+                    )}
+                  </Label>
                   <Select value={designCode} onValueChange={setDesignCode}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Select design code…" />
@@ -520,7 +541,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                         'EN 13445-3:2021': 'ASME SEC II PART D 2023',
                         'ASME SEC VIII DIV-1': 'ASME SEC II PART D 2023',
                         'ASME SEC VIII DIV-2': 'ASME SEC II PART D 2023',
+                        'ASME B31.3': 'ASME SEC II PART D 2023',
                         'PED 2014/68/EU': 'EN 10028 / EN 10216',
+                        'API 650': 'ASME SEC II PART D 2023',
                         'IS 2825': 'IS 2002 / IS 1570',
                         'AS 1210': 'AS 1548',
                       }[designCode] || '—'
