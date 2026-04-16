@@ -590,6 +590,8 @@ const INSULATION_OPTIONS = ['YES', 'NO'];
 const INSULATION_PRESETS = ['HOT / 100 / 120', 'HOT / 75 / 100', 'COLD / 50 / 60', 'COLD / 75 / 80'];
 const HYDRO_TEST_POSITION_OPTIONS = ['VERTICAL', 'HORIZONTAL'];
 const HYDRO_TEST_POSITION_DEFAULT = 'VERTICAL';
+const VESSEL_ORIENTATION_OPTIONS = ['VERTICAL (VER)', 'HORIZONTAL (HOR)'];
+const VESSEL_ORIENTATION_DEFAULT = 'VERTICAL (VER)';
 
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
   'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
@@ -1117,6 +1119,31 @@ function GeneralDataForm({
                   </SelectTrigger>
                   <SelectContent>
                     {HYDRO_TEST_POSITION_OPTIONS.map(o => (
+                      <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'vesselOrientation') {
+          const isAtDefault = !val || val === VESSEL_ORIENTATION_DEFAULT;
+          const displayVal = val || VESSEL_ORIENTATION_DEFAULT;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 40)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
+                  <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VESSEL_ORIENTATION_OPTIONS.map(o => (
                       <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>
                     ))}
                   </SelectContent>
