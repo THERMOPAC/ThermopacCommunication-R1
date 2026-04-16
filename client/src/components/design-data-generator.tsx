@@ -27,6 +27,7 @@ type MechanicalColumn = {
   physicalState: string | null;
   grossVolumeLiters: string | null;
   serviceFluid: string | null;
+  as4343FluidGroup: string | null;
   hazardLevel: string | null;
   specificGravity: string | null;
   internalCorrosionAllowanceMm: string | null;
@@ -92,10 +93,6 @@ type HazardData = {
   isCorrosive: boolean;
   isEnvironmentallyHazardous: boolean;
   as4343EquipmentType: 'Vessel' | 'Piping' | null;
-  as4343FluidGroup: 'A' | 'B' | 'C' | null;
-  as4343PhysicalState: 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' | null;
-  as4343DesignPressureMPa: number | null;
-  as4343VolumeLitres: number | null;
   as4343NominalBoreDN: number | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
@@ -125,7 +122,6 @@ const FLUID_GROUP_OPTIONS = ['Group 1', 'Group 2'];
 const PED_CATEGORY_OPTIONS = ['SEP', 'Category I', 'Category II', 'Category III', 'Category IV'];
 const AS4343_EQUIPMENT_OPTIONS = ['Vessel', 'Piping'] as const;
 const AS4343_FLUID_GROUP_OPTIONS = ['A', 'B', 'C'] as const;
-const AS4343_PHYSICAL_STATE_OPTIONS = ['Gas/Vapour', 'Liquid', 'Gas/Vapour and Liquid'] as const;
 
 const AS4343_FLUID_GROUP_LABELS: Record<string, string> = {
   A: 'A — Extremely hazardous (highly toxic, pyrophoric, reactive)',
@@ -202,10 +198,6 @@ function emptyHazardData(): HazardData {
     isCorrosive: false,
     isEnvironmentallyHazardous: false,
     as4343EquipmentType: null,
-    as4343FluidGroup: null,
-    as4343PhysicalState: null,
-    as4343DesignPressureMPa: null,
-    as4343VolumeLitres: null,
     as4343NominalBoreDN: null,
     codeNativeClassification: null,
     internalHazardLevel: null,
@@ -257,24 +249,8 @@ function deriveHazardFields(data: HazardData): HazardData {
     }
   } else if (code === 'AS 4343:2014') {
     classification = 'AS 4343';
-    const { as4343EquipmentType: eqType, as4343FluidGroup: fg, as4343PhysicalState: ps,
-            as4343DesignPressureMPa: pMPa, as4343VolumeLitres: vol, as4343NominalBoreDN: dn } = data;
-    const hasVesselInputs = eqType === 'Vessel' && fg && ps && pMPa != null && pMPa > 0 && vol != null && vol > 0;
-    const hasPipingInputs = eqType === 'Piping' && fg && ps && pMPa != null && pMPa > 0 && dn != null && dn > 0;
-    if (hasVesselInputs) {
-      const pv = pMPa! * vol!;
-      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
-      level = as4343Derive(eqType!, fg!, ps!, pv);
-      note = `Vessel, ${stateLabel}, Group ${fg} — PV = ${pv.toFixed(2)} MPa·L → Hazard Level ${level} per AS 4343:2014 Table`;
-    } else if (hasPipingInputs) {
-      const pdn = pMPa! * 1000 * dn!;
-      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
-      level = as4343Derive(eqType!, fg!, ps!, pdn);
-      note = `Piping, ${stateLabel}, Group ${fg} — P×DN = ${pdn.toFixed(0)} kPa·mm → Hazard Level ${level} per AS 4343:2014 Table`;
-    } else {
-      level = null;
-      note = 'Insufficient data to determine hazard level — provide Equipment Type, Fluid Group, Physical State, Design Pressure and Volume (Vessel) or DN (Piping).';
-    }
+    level = null;
+    note = 'AS 4343:2014 — Hazard Level derived per column (Shell/Tube/Jacket) from each column\'s own design pressure, volume, physical state, and fluid group.';
   }
 
   return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
@@ -374,14 +350,65 @@ function parseOperatingMax(operatingTempMinMax: string | null | undefined): numb
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Per-column AS 4343 derivation.
+ * Physical state mapping: Fluid→Liquid | Vapor→Gas/Vapour | Mixture→Gas/Vapour and Liquid
+ * Pressure: internalDesignPressureMawp in Barg → × 0.1 → MPa
+ */
+function deriveColumnAS4343(
+  col: MechanicalColumn,
+  eqType: string | null,
+  dn: number | null,
+): { level: string | null; note: string | null } {
+  const fg = col.as4343FluidGroup as 'A' | 'B' | 'C' | null;
+  const stateMap: Record<string, 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid'> = {
+    'Fluid': 'Liquid',
+    'Vapor': 'Gas/Vapour',
+    'Mixture of Fluid and Vapor': 'Gas/Vapour and Liquid',
+  };
+  const ps = col.physicalState ? (stateMap[col.physicalState] ?? null) : null;
+  const pBarg = col.internalDesignPressureMawp ? parseFloat(col.internalDesignPressureMawp) : null;
+  const pMPa = (pBarg != null && !isNaN(pBarg)) ? pBarg * 0.1 : null;
+  const vol  = col.grossVolumeLiters ? parseFloat(col.grossVolumeLiters) : null;
+
+  if (!eqType) return { level: null, note: 'Insufficient data — select Equipment Type in the Hazard panel.' };
+  if (!fg)     return { level: null, note: 'Insufficient data — set Fluid Group for this column.' };
+  if (!ps)     return { level: null, note: 'Insufficient data — set Physical State for this column.' };
+
+  if (eqType === 'Vessel') {
+    if (!pMPa || pMPa <= 0 || !vol || isNaN(vol) || vol <= 0) {
+      return { level: null, note: 'Insufficient data — enter Design Pressure and Gross Volume for this vessel column.' };
+    }
+    const pv = pMPa * vol;
+    const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps;
+    const level = as4343Derive('Vessel', fg, ps, pv);
+    return {
+      level,
+      note: `Vessel, ${stateLabel}, Group ${fg} — PV = ${pv.toFixed(2)} MPa·L → Level ${level} per AS 4343:2014`,
+    };
+  } else {
+    if (!pMPa || pMPa <= 0 || !dn || dn <= 0) {
+      return { level: null, note: 'Insufficient data — enter Design Pressure and Nominal Bore DN for this piping column.' };
+    }
+    const pdn = pMPa * 1000 * dn;
+    const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps;
+    const level = as4343Derive('Piping', fg, ps, pdn);
+    return {
+      level,
+      note: `Piping, ${stateLabel}, Group ${fg} — P×DN = ${pdn.toFixed(0)} kPa·mm → Level ${level} per AS 4343:2014`,
+    };
+  }
+}
+
 function emptyMechanicalColumn(): MechanicalColumn {
   return {
     internalDesignPressureMawp: null, externalDesignPressureMawp: null,
     workingPressure: null, hydroTestPressure: null, mdmt: null,
     hydroTestTempMinMax: null, operatingTempMinMax: null, designTempMinMax: null,
     physicalState: null, grossVolumeLiters: null, serviceFluid: null,
-    hazardLevel: null, specificGravity: null, internalCorrosionAllowanceMm: null,
-    externalCorrosionAllowanceMm: null, radiography: null, jointEfficiency: null,
+    as4343FluidGroup: null, hazardLevel: null, specificGravity: null,
+    internalCorrosionAllowanceMm: null, externalCorrosionAllowanceMm: null,
+    radiography: null, jointEfficiency: null,
     testingGroup: null, fabricationToleranceClass: null, postWeldHeatTreatment: null,
     typeOfHeads: null, insulation: null, insulationTypeThkDensity: null,
   };
@@ -539,6 +566,7 @@ const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam 
 
 function SmartMechanicalColumnForm({
   label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel,
+  appliedCode, as4343EquipmentType, as4343NominalBoreDN,
 }: {
   label: string;
   data: MechanicalColumn;
@@ -546,7 +574,14 @@ function SmartMechanicalColumnForm({
   projectMdmt: string | null | undefined;
   disciplineCode: string | null | undefined;
   derivedHazardLevel?: string | null;
+  appliedCode?: string | null;
+  as4343EquipmentType?: string | null;
+  as4343NominalBoreDN?: number | null;
 }) {
+  const isAS4343Col = appliedCode === 'AS 4343:2014';
+  const colAS4343 = isAS4343Col
+    ? deriveColumnAS4343(data, as4343EquipmentType ?? null, as4343NominalBoreDN ?? null)
+    : null;
   function handleChange(key: keyof MechanicalColumn, rawValue: string) {
     const value = rawValue || null;
     const updated: MechanicalColumn = { ...data, [key]: value };
@@ -637,6 +672,61 @@ function SmartMechanicalColumnForm({
         }
 
         if (p.key === 'hazardLevel') {
+          // ── AS 4343 per-column mode ────────────────────────────────────────
+          if (isAS4343Col) {
+            const derived = colAS4343!;
+            const AS4343_BADGE: Record<string, string> = {
+              'A': 'text-red-700 bg-red-50 border-red-300',
+              'B': 'text-orange-700 bg-orange-50 border-orange-300',
+              'C': 'text-amber-700 bg-amber-50 border-amber-300',
+              'D': 'text-blue-700 bg-blue-50 border-blue-300',
+              'E': 'text-green-700 bg-green-50 border-green-300',
+            };
+            const badgeClass = derived.level ? (AS4343_BADGE[derived.level] || 'text-slate-500 bg-slate-50 border-slate-200') : 'text-slate-400 bg-slate-50 border-slate-200';
+            return (
+              <div key={p.key} className="space-y-1">
+                {/* Fluid Group row */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">AS 4343 FLUID GROUP</Label>
+                  <div className="flex-1 flex items-center gap-1">
+                    <Select value={data.as4343FluidGroup || ''} onValueChange={(v) => onChange({ ...data, as4343FluidGroup: v || null })}>
+                      <SelectTrigger className="h-6 text-[10px] px-1.5 flex-1">
+                        <SelectValue placeholder="A / B / C…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AS4343_FLUID_GROUP_OPTIONS.map(g => (
+                          <SelectItem key={g} value={g} className="text-[10px]">{AS4343_FLUID_GROUP_LABELS[g]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Derived hazard level row */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                  <div className="flex-1 flex items-center gap-1">
+                    <Input
+                      className={`h-6 text-[10px] px-1.5 ${derived.level ? badgeClass : 'text-slate-400'}`}
+                      value={derived.level || ''}
+                      readOnly
+                      placeholder="—"
+                    />
+                    <Badge variant="outline" className={`text-[8px] px-1 py-0 shrink-0 ${badgeClass}`}>
+                      {derived.level ? `AS 4343 – ${derived.level}` : 'Pending'}
+                    </Badge>
+                  </div>
+                </div>
+                {/* Basis note */}
+                {derived.note && (
+                  <div className="ml-52 text-[8px] text-slate-500 italic leading-snug pr-1">
+                    {derived.note}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // ── Non-AS 4343 mode (panel-driven or manual) ─────────────────────
           const display = derivedHazardLevel || val;
           const fromPanel = !!derivedHazardLevel;
           const levelClass = fromPanel ? ({
@@ -811,10 +901,6 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
     if (oldCode === 'API 650') { updated.isFlammable = false; updated.isCorrosive = false; updated.isEnvironmentallyHazardous = false; updated.toxicInhalationRisk = false; }
     if (oldCode === 'AS 4343:2014') {
       updated.as4343EquipmentType = null;
-      updated.as4343FluidGroup = null;
-      updated.as4343PhysicalState = null;
-      updated.as4343DesignPressureMPa = null;
-      updated.as4343VolumeLitres = null;
       updated.as4343NominalBoreDN = null;
     }
     onChange(deriveHazardFields(updated));
@@ -961,67 +1047,13 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
             {/* AS 4343 Equipment Type */}
             <div className="space-y-1">
               <Label className="text-[10px] text-muted-foreground">Equipment Type <span className="text-red-500">*</span></Label>
-              <Select value={data.as4343EquipmentType || ''} onValueChange={(v) => handleField({ as4343EquipmentType: v as 'Vessel' | 'Piping', as4343VolumeLitres: null, as4343NominalBoreDN: null })}>
+              <Select value={data.as4343EquipmentType || ''} onValueChange={(v) => handleField({ as4343EquipmentType: v as 'Vessel' | 'Piping', as4343NominalBoreDN: null })}>
                 <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
                 <SelectContent>
                   {AS4343_EQUIPMENT_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* AS 4343 Physical State */}
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Physical State <span className="text-red-500">*</span></Label>
-              <Select value={data.as4343PhysicalState || ''} onValueChange={(v) => handleField({ as4343PhysicalState: v as 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' })}>
-                <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
-                <SelectContent>
-                  {AS4343_PHYSICAL_STATE_OPTIONS.map(o => (
-                    <SelectItem key={o} value={o} className="text-[10px]">
-                      {o}{o === 'Gas/Vapour and Liquid' && <span className="ml-1 text-[8px] text-amber-600">(uses Gas/Vapour table)</span>}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* AS 4343 Fluid Group */}
-            <div className="space-y-1 col-span-2">
-              <Label className="text-[10px] text-muted-foreground">Fluid Group <span className="text-red-500">*</span></Label>
-              <Select value={data.as4343FluidGroup || ''} onValueChange={(v) => handleField({ as4343FluidGroup: v as 'A' | 'B' | 'C' })}>
-                <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
-                <SelectContent>
-                  {AS4343_FLUID_GROUP_OPTIONS.map(g => (
-                    <SelectItem key={g} value={g} className="text-[10px]">{AS4343_FLUID_GROUP_LABELS[g]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Design Pressure */}
-            <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Design Pressure (MPa g) <span className="text-red-500">*</span></Label>
-              <Input
-                type="number" min="0" step="0.01"
-                className="h-7 text-[10px]"
-                placeholder="e.g. 1.5"
-                value={data.as4343DesignPressureMPa ?? ''}
-                onChange={(e) => handleField({ as4343DesignPressureMPa: e.target.value === '' ? null : parseFloat(e.target.value) })}
-              />
-            </div>
-
-            {/* Volume — Vessel only */}
-            {data.as4343EquipmentType === 'Vessel' && (
-              <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground">Volume (litres) <span className="text-red-500">*</span></Label>
-                <Input
-                  type="number" min="0" step="1"
-                  className="h-7 text-[10px]"
-                  placeholder="e.g. 1000"
-                  value={data.as4343VolumeLitres ?? ''}
-                  onChange={(e) => handleField({ as4343VolumeLitres: e.target.value === '' ? null : parseFloat(e.target.value) })}
-                />
-              </div>
-            )}
 
             {/* Nominal Bore — Piping only */}
             {data.as4343EquipmentType === 'Piping' && (
@@ -1037,11 +1069,12 @@ function HazardClassificationPanel({ data, onChange }: { data: HazardData; onCha
               </div>
             )}
 
-            {/* Disclaimer */}
-            <div className="col-span-full mt-1 flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+            {/* Per-column derivation notice */}
+            <div className="col-span-full flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
               <AlertTriangle className="h-3 w-3 text-blue-500 shrink-0 mt-0.5" />
               <span className="text-[9px] text-blue-700 leading-snug">
-                Hazard Level calculated based on AS 4343:2014 methodology. Final classification must be verified against the official standard.
+                AS 4343:2014 Hazard Level is derived <strong>per column</strong> (Shell / Tube / Jacket) using each column's own Design Pressure, Gross Volume, Physical State, and Fluid Group. Set Fluid Group per column below.
+                Final classification must be verified against the official standard.
               </span>
             </div>
           </>
@@ -1471,9 +1504,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 <div>
                   <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
                   <div className={`grid gap-5 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                    <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} />
-                    {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} />}
-                    {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} />}
+                    <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} appliedCode={hazardData.appliedCode} as4343EquipmentType={hazardData.as4343EquipmentType} as4343NominalBoreDN={hazardData.as4343NominalBoreDN} />
+                    {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} appliedCode={hazardData.appliedCode} as4343EquipmentType={hazardData.as4343EquipmentType} as4343NominalBoreDN={hazardData.as4343NominalBoreDN} />}
+                    {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={hazardData.internalHazardLevel} appliedCode={hazardData.appliedCode} as4343EquipmentType={hazardData.as4343EquipmentType} as4343NominalBoreDN={hazardData.as4343NominalBoreDN} />}
                   </div>
                 </div>
               )}

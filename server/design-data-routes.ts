@@ -45,6 +45,7 @@ function emptyMechanicalColumn(): MechanicalColumn {
     physicalState: null,
     grossVolumeLiters: null,
     serviceFluid: null,
+    as4343FluidGroup: null,
     hazardLevel: null,
     specificGravity: null,
     internalCorrosionAllowanceMm: null,
@@ -214,30 +215,8 @@ function deriveHazardFields(data: HazardData): HazardData {
     }
   } else if (code === 'AS 4343:2014') {
     classification = 'AS 4343';
-    const eqType = data.as4343EquipmentType as 'Vessel' | 'Piping' | null;
-    const fg     = data.as4343FluidGroup as 'A' | 'B' | 'C' | null;
-    const ps     = data.as4343PhysicalState as 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' | null;
-    const pMPa   = data.as4343DesignPressureMPa as number | null;
-    const vol    = data.as4343VolumeLitres as number | null;
-    const dn     = data.as4343NominalBoreDN as number | null;
-
-    const hasVessel = eqType === 'Vessel' && fg && ps && pMPa != null && pMPa > 0 && vol != null && vol > 0;
-    const hasPiping = eqType === 'Piping'  && fg && ps && pMPa != null && pMPa > 0 && dn  != null && dn  > 0;
-
-    if (hasVessel) {
-      const pv = pMPa! * vol!;
-      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
-      level = as4343TableLookup(eqType!, fg!, ps!, pv);
-      note  = `Vessel, ${stateLabel}, Group ${fg} — PV = ${pv.toFixed(2)} MPa·L → Hazard Level ${level} per AS 4343:2014 Table`;
-    } else if (hasPiping) {
-      const pdn = pMPa! * 1000 * dn!;
-      const stateLabel = ps === 'Gas/Vapour and Liquid' ? 'Gas/Vapour (conservative — two-phase)' : ps!;
-      level = as4343TableLookup(eqType!, fg!, ps!, pdn);
-      note  = `Piping, ${stateLabel}, Group ${fg} — P×DN = ${pdn.toFixed(0)} kPa·mm → Hazard Level ${level} per AS 4343:2014 Table`;
-    } else {
-      level = null;
-      note  = 'Insufficient data to determine hazard level — provide Equipment Type, Fluid Group, Physical State, Design Pressure and Volume (Vessel) or DN (Piping).';
-    }
+    level = null;
+    note  = 'AS 4343:2014 — Hazard Level derived per column (Shell/Tube/Jacket) from each column\'s own design pressure, volume, physical state, and fluid group.';
   }
 
   console.log(`[HazardDerive] code=${code} level=${level} classification=${classification} note=${note}`);
@@ -267,10 +246,6 @@ const EMPTY_CODE_FIELDS = {
   isCorrosive: false,
   isEnvironmentallyHazardous: false,
   as4343EquipmentType: null,
-  as4343FluidGroup: null,
-  as4343PhysicalState: null,
-  as4343DesignPressureMPa: null,
-  as4343VolumeLitres: null,
   as4343NominalBoreDN: null,
 };
 
@@ -308,10 +283,6 @@ const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
 
   'AS 4343:2014': z.object({
     as4343EquipmentType: z.enum(['Vessel', 'Piping']).nullable().default(null),
-    as4343FluidGroup: z.enum(['A', 'B', 'C']).nullable().default(null),
-    as4343PhysicalState: z.enum(['Gas/Vapour', 'Liquid', 'Gas/Vapour and Liquid']).nullable().default(null),
-    as4343DesignPressureMPa: z.number().positive().nullable().default(null),
-    as4343VolumeLitres: z.number().positive().nullable().default(null),
     as4343NominalBoreDN: z.number().positive().nullable().default(null),
   }).strip(),
 };
@@ -346,19 +317,70 @@ function processHazardData(raw: any, code: string | null, dwgStatus: string, mec
   // Server-side derivation (frontend values are ignored)
   const derived = deriveHazardFields(full);
 
-  // hazardLevel overwrite: draft AND applied_code non-null AND level is resolved
+  // hazardLevel overwrite on draft: for AS 4343 derive per-column; all others use sheet-level
   let updatedMech = mechanical;
-  if (dwgStatus === 'draft' && code && derived.internalHazardLevel) {
-    const lvl = derived.internalHazardLevel;
-    console.log(`[HazardProcess] Overwriting mechanical hazardLevel → "${lvl}" (status=draft, code="${code}")`);
-    updatedMech = {
-      shell: { ...mechanical.shell, hazardLevel: lvl },
-      tube: mechanical.tube ? { ...mechanical.tube, hazardLevel: lvl } : null,
-      jacket: mechanical.jacket ? { ...mechanical.jacket, hazardLevel: lvl } : null,
-    };
+  if (dwgStatus === 'draft' && code) {
+    if (code === 'AS 4343:2014') {
+      const eqType = full.as4343EquipmentType as 'Vessel' | 'Piping' | null;
+      const dn     = full.as4343NominalBoreDN as number | null;
+      updatedMech = {
+        shell:  deriveColumnAS4343ForMech(mechanical.shell, eqType, dn),
+        tube:   mechanical.tube   ? deriveColumnAS4343ForMech(mechanical.tube, eqType, dn)   : null,
+        jacket: mechanical.jacket ? deriveColumnAS4343ForMech(mechanical.jacket, eqType, dn) : null,
+      };
+    } else if (derived.internalHazardLevel) {
+      const lvl = derived.internalHazardLevel;
+      console.log(`[HazardProcess] Overwriting mechanical hazardLevel → "${lvl}" (status=draft, code="${code}")`);
+      updatedMech = {
+        shell: { ...mechanical.shell, hazardLevel: lvl },
+        tube: mechanical.tube ? { ...mechanical.tube, hazardLevel: lvl } : null,
+        jacket: mechanical.jacket ? { ...mechanical.jacket, hazardLevel: lvl } : null,
+      };
+    }
   }
 
   return { hazardData: derived, mechanical: updatedMech };
+}
+
+/**
+ * Derive AS 4343 hazard level for one column using that column's own data.
+ * Physical state mapping:  Fluid → Liquid | Vapor → Gas/Vapour | Mixture → Gas/Vapour and Liquid
+ * Pressure: internalDesignPressureMawp in Barg → × 0.1 → MPa
+ */
+function deriveColumnAS4343ForMech(
+  col: MechanicalColumn,
+  eqType: 'Vessel' | 'Piping' | null,
+  dn: number | null,
+): MechanicalColumn {
+  const fg = col.as4343FluidGroup as 'A' | 'B' | 'C' | null;
+  const rawState = col.physicalState;
+  const stateMap: Record<string, 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid'> = {
+    'Fluid': 'Liquid',
+    'Vapor': 'Gas/Vapour',
+    'Mixture of Fluid and Vapor': 'Gas/Vapour and Liquid',
+  };
+  const ps = rawState ? (stateMap[rawState] ?? null) : null;
+  const pMPa = col.internalDesignPressureMawp ? parseFloat(col.internalDesignPressureMawp) * 0.1 : null;
+  const vol  = col.grossVolumeLiters ? parseFloat(col.grossVolumeLiters) : null;
+
+  if (!eqType || !fg || !ps) {
+    console.log(`[HazardProcess/AS4343] Column missing eqType/fg/ps — hazardLevel=null`);
+    return { ...col, hazardLevel: null };
+  }
+
+  let level: string | null = null;
+  if (eqType === 'Vessel') {
+    if (pMPa && pMPa > 0 && vol && vol > 0) {
+      level = as4343TableLookup(eqType, fg, ps, pMPa * vol);
+    }
+  } else {
+    if (pMPa && pMPa > 0 && dn && dn > 0) {
+      level = as4343TableLookup(eqType, fg, ps, pMPa * 1000 * dn);
+    }
+  }
+
+  console.log(`[HazardProcess/AS4343] Column fg=${fg} ps=${ps} pMPa=${pMPa} vol=${vol} dn=${dn} → hazardLevel=${level}`);
+  return { ...col, hazardLevel: level };
 }
 
 async function resolveAutoFields(dwgControl: any): Promise<{

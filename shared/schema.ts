@@ -12471,10 +12471,6 @@ export type HazardData = {
   isCorrosive: boolean;
   isEnvironmentallyHazardous: boolean;
   as4343EquipmentType: 'Vessel' | 'Piping' | null;
-  as4343FluidGroup: 'A' | 'B' | 'C' | null;
-  as4343PhysicalState: 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid' | null;
-  as4343DesignPressureMPa: number | null;
-  as4343VolumeLitres: number | null;
   as4343NominalBoreDN: number | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
@@ -12543,6 +12539,7 @@ export type MechanicalColumn = {
   physicalState: string | null;
   grossVolumeLiters: string | null;
   serviceFluid: string | null;
+  as4343FluidGroup: string | null;
   hazardLevel: string | null;
   specificGravity: string | null;
   internalCorrosionAllowanceMm: string | null;
