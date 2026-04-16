@@ -114,22 +114,48 @@ async function resolveAutoFields(dwgControl: any): Promise<{
   `);
   const proj = projectResult.rows[0] as any;
 
-  const projectItemResult = await db.execute(sql`
-    SELECT pi.product_code, pr.tag_no as product_tag_no
-    FROM project_items pi
-    LEFT JOIN products pr ON pr.product_code = pi.product_code
-    WHERE pi.id = ${dwgControl.project_item_id}
-    LIMIT 1
-  `);
-  const pi = projectItemResult.rows[0] as any;
+  // Primary lookup: via project_item.product_code → products.tag_no
+  let productTagNo: string | null = null;
+  let productCodeUsed: string | null = null;
 
-  const productTagNo = pi?.product_tag_no || null;
+  if (dwgControl.project_item_id) {
+    const projectItemResult = await db.execute(sql`
+      SELECT pi.product_code, pr.tag_no as product_tag_no, pr.product_code as matched_code
+      FROM project_items pi
+      LEFT JOIN products pr ON pr.product_code = pi.product_code AND (pi.product_code IS NOT NULL AND pi.product_code != '')
+      WHERE pi.id = ${dwgControl.project_item_id}
+      LIMIT 1
+    `);
+    const pi = projectItemResult.rows[0] as any;
+    if (pi?.product_tag_no) {
+      productTagNo = pi.product_tag_no;
+      productCodeUsed = pi.matched_code;
+    }
+  }
+
+  // Fallback: scan products whose code appears inside the drawing control's item_code
+  if (!productTagNo && dwgControl.item_code) {
+    const fallbackResult = await db.execute(sql`
+      SELECT product_code, tag_no
+      FROM products
+      WHERE tag_no IS NOT NULL AND tag_no != ''
+        AND ${dwgControl.item_code} LIKE '%' || product_code || '%'
+      ORDER BY length(product_code) DESC
+      LIMIT 1
+    `);
+    const fallback = fallbackResult.rows[0] as any;
+    if (fallback?.tag_no) {
+      productTagNo = fallback.tag_no;
+      productCodeUsed = fallback.product_code;
+    }
+  }
+
   const projectCode = proj?.code || null;
 
   if (!productTagNo && !projectCode) {
-    tagNoWarning = `Tag No cannot be generated: the project item has no product linked, and the project has no code. Please link a product with a Tag No in the Products catalog.`;
+    tagNoWarning = `Tag No cannot be generated: no product with a Tag No could be found for this drawing. Please link a product with a Tag No in the Products catalog.`;
   } else if (!productTagNo) {
-    tagNoWarning = `Tag No cannot be generated: the product linked to this project item has no Tag No. Please set a Tag No for the product in the Products catalog.`;
+    tagNoWarning = `Tag No cannot be generated: no product with a Tag No could be matched. Please set a Tag No for the product in the Products catalog.`;
   } else if (!projectCode) {
     tagNoWarning = `Tag No cannot be generated: the project has no project code assigned.`;
   } else {
