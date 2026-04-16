@@ -1761,6 +1761,9 @@ export const projects = pgTable('projects', {
 
   // EPC discipline code for all project items (e.g. ME, EE, CV)
   disciplineCode: varchar('discipline_code', { length: 30 }),
+
+  // MDMT (Minimum Design Metal Temperature)
+  mdmt: varchar('mdmt', { length: 20 }),
 });
 
 // Project phases table (Design, Procurement, Manufacturing, Quality)

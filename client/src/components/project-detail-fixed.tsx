@@ -201,6 +201,8 @@ const editProjectSchema = z.object({
   vendor: z.string().optional(),
   // EPC discipline code for design data tag generation
   disciplineCode: z.string().optional(),
+  // MDMT (Minimum Design Metal Temperature)
+  mdmt: z.string().optional(),
 });
 
 // Form type for editing project
@@ -426,6 +428,7 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
         client: project.client || "",
         vendor: project.vendor || "",
         disciplineCode: (project as any).disciplineCode || "",
+        mdmt: (project as any).mdmt || "",
       });
     }
   }, [project, form]);
@@ -2010,6 +2013,36 @@ export default function ProjectDetail({ id }: ProjectDetailProps) {
                             </Select>
                             <p className="text-xs text-muted-foreground">
                               Used to auto-generate tag numbers on Design Data Sheets for all drawings under this project.
+                            </p>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* MDMT */}
+                  <div className="border rounded-md p-4">
+                    <FormField
+                      control={form.control}
+                      name="mdmt"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">MDMT (Minimum Design Metal Temperature)</FormLabel>
+                          <div className="flex items-center gap-3">
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl className="max-w-xs">
+                                <SelectTrigger className="max-w-xs">
+                                  <SelectValue placeholder="Select MDMT…" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="-29 Deg °C">-29 Deg °C</SelectItem>
+                                <SelectItem value="0 Deg °C">0 Deg °C</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Used in Design Data Sheets for all equipment under this project.
                             </p>
                           </div>
                           <FormMessage />

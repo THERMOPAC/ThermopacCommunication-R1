@@ -112,6 +112,7 @@ export default function ProjectsPage() {
     name: "", description: "", code: "", customerId: "", projectType: "",
     financialYear: currentFY, startDate: new Date().toISOString().split("T")[0],
     targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
+    mdmt: "",
   });
 
   const { data: customers } = useQuery<{ id: number; bpName: string; bpCode: string }[]>({
@@ -156,6 +157,7 @@ export default function ProjectsPage() {
         name: "", description: "", code: "", customerId: "", projectType: "",
         financialYear: currentFY, startDate: new Date().toISOString().split("T")[0],
         targetEndDate: "", durationMonths: "", priority: "Medium", status: "planning",
+        mdmt: "",
       });
     },
     onError: (error: any) => {
@@ -562,6 +564,16 @@ export default function ProjectsPage() {
                     <SelectItem value="Low">Low</SelectItem>
                     <SelectItem value="Medium">Medium</SelectItem>
                     <SelectItem value="High">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>MDMT (Minimum Design Metal Temperature)</Label>
+                <Select value={newProjectData.mdmt} onValueChange={(v) => setNewProjectData(d => ({ ...d, mdmt: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select MDMT…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="-29 Deg °C">-29 Deg °C</SelectItem>
+                    <SelectItem value="0 Deg °C">0 Deg °C</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

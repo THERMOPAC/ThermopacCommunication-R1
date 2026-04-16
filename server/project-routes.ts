@@ -395,7 +395,7 @@ export function setupProjectRoutes(app: express.Express) {
         'start_date', 'target_end_date', 'actual_end_date',
         'estimated_budget', 'actual_cost', 'currency', 'progress',
         'manager_id', 'created_by', 'notes', 'tags', 'financial_year',
-        'customer_id', 'discipline_code'
+        'customer_id', 'discipline_code', 'mdmt'
       ];
       
       // Create a clean update object containing only valid fields
