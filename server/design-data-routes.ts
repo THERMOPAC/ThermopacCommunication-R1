@@ -6,6 +6,7 @@ import { designDataSheets, epcDrawingControls, projects, projectItems } from '@s
 import { checkProjectMembership } from './utils/permission-utils';
 import type { MechanicalColumn, MechanicalData, GeneralData, HazardData, ColumnHazardData } from '@shared/schema';
 import { generateAndUploadDdsPdf, getDdsPdfSignedUrl } from './dds-pdf-service';
+import { generateDdsExcel } from './dds-excel-service';
 
 const router = express.Router();
 
@@ -856,6 +857,77 @@ router.post('/:dwgControlId/regenerate-pdf', ensureAuthenticated, async (req: Re
     WHERE id = ${sheet.id}
   `);
   return res.json({ success: true, gcsPath: result.gcsPath });
+});
+
+// GET /api/drawing-design-data/:dwgControlId/excel
+router.get('/:dwgControlId/excel', ensureAuthenticated, async (req: Request, res: Response) => {
+  const dwgControlId = parseInt(req.params.dwgControlId);
+  if (isNaN(dwgControlId)) return res.status(400).json({ error: 'Invalid dwgControlId' });
+
+  const user = req.user as any;
+  const dwg = await loadDrawingControl(dwgControlId);
+  if (!dwg) return res.status(404).json({ error: 'Drawing control not found' });
+
+  if (!await verifyProjectAccess(user.id, user.role, dwg.project_id, res)) return;
+
+  const sheetResult = await db.execute(sql`
+    SELECT dds.*
+    FROM design_data_sheets dds
+    WHERE dds.dwg_control_id = ${dwgControlId}
+    LIMIT 1
+  `);
+  const sheetRow = sheetResult.rows[0] as any;
+  if (!sheetRow) return res.status(404).json({ error: 'No DDS found for this drawing' });
+
+  const projectResult = await db.execute(sql`
+    SELECT p.code FROM projects p WHERE p.id = ${dwg.project_id} LIMIT 1
+  `);
+  const proj = projectResult.rows[0] as any;
+
+  const drawingNumber = dwg.drawing_number || `DWG-${dwgControlId}`;
+  const revision = (sheetRow.revision || dwg.revision || 'A').toString().toUpperCase();
+  const filename = `${drawingNumber}_dds-rev-${revision}.xlsx`.replace(/\//g, '-').replace(/\s+/g, '_');
+
+  const mechanicalData = (typeof sheetRow.mechanical_data === 'string'
+    ? JSON.parse(sheetRow.mechanical_data)
+    : sheetRow.mechanical_data) || {};
+  const generalData = (typeof sheetRow.general_data === 'string'
+    ? JSON.parse(sheetRow.general_data)
+    : sheetRow.general_data) || {};
+
+  try {
+    const buffer = await generateDdsExcel({
+      sheet: {
+        id: sheetRow.id,
+        design_code: sheetRow.design_code,
+        material_code: sheetRow.material_code,
+        equipment_type: sheetRow.equipment_type,
+        equipment_config: sheetRow.equipment_config,
+        tag_no: sheetRow.tag_no,
+        equipment_description: sheetRow.equipment_description,
+        manufacture_serial_no: sheetRow.manufacture_serial_no,
+        inspection_by: sheetRow.inspection_by,
+        mechanical_data: mechanicalData,
+        general_data: generalData,
+        hazard_data: null,
+        revision,
+        status: sheetRow.status,
+        updated_at: sheetRow.updated_at,
+      },
+      drawingNumber,
+      revision,
+      generatedBy: user.username || user.email || 'System',
+      projectCode: proj?.code || null,
+    });
+
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
+  } catch (err) {
+    console.error('[DDS Excel] Generation error:', err);
+    return res.status(500).json({ error: 'Excel generation failed' });
+  }
 });
 
 export default router;

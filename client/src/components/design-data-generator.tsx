@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2021,6 +2021,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   // ── PDF state & handlers ───────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [excelLoading, setExcelLoading] = useState(false);
 
   async function fetchPdfUrl(): Promise<string | null> {
     try {
@@ -2073,6 +2074,34 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     } catch {
       toast({ title: 'Error', description: 'Regeneration request failed', variant: 'destructive' });
     } finally { setRegenerating(false); }
+  }
+
+  async function handleDownloadExcel() {
+    setExcelLoading(true);
+    try {
+      const r = await fetch(`/api/drawing-design-data/${drawingControlId}/excel`, { credentials: 'include' });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        toast({ title: 'Error', description: j.error || 'Excel generation failed', variant: 'destructive' });
+        return;
+      }
+      const blob = await r.blob();
+      const disposition = r.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] || `DDS-${drawingControlId}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: 'Error', description: 'Excel download failed', variant: 'destructive' });
+    } finally {
+      setExcelLoading(false);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -2148,6 +2177,16 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[9px] px-2 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                    onClick={handleDownloadExcel}
+                    disabled={excelLoading}
+                  >
+                    {excelLoading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileDown className="h-3 w-3 mr-1" />}
+                    Excel
+                  </Button>
                   {sheet.dds_gcs_path && (
                     <>
                       <Button
