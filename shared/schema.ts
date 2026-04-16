@@ -12472,9 +12472,16 @@ export type HazardData = {
   isEnvironmentallyHazardous: boolean;
   as4343EquipmentType: 'Vessel' | 'Piping' | null;
   as4343NominalBoreDN: number | null;
+  as4343FluidGroup: 'A' | 'B' | 'C' | null;
   codeNativeClassification: string | null;
   internalHazardLevel: string | null;
   hazardBasisNote: string | null;
+};
+
+export type ColumnHazardData = {
+  shell: HazardData;
+  tube: HazardData | null;
+  jacket: HazardData | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12514,9 +12521,9 @@ export const designDataSheets = pgTable('design_data_sheets', {
   // Fixed keys only:
   generalData: jsonb('general_data').notNull().$type<GeneralData>(),
 
-  // ── Hazard classification (sheet-level, separate from mechanical_data) ─────
+  // ── Hazard classification (per-column, separate from mechanical_data) ───────
   appliedCode: varchar('applied_code', { length: 50 }),
-  hazardData: jsonb('hazard_data').$type<HazardData>(),
+  hazardData: jsonb('hazard_data').$type<ColumnHazardData>(),
 
   status: varchar('status', { length: 20 }).notNull().default('draft'),
 
@@ -12539,7 +12546,6 @@ export type MechanicalColumn = {
   physicalState: string | null;
   grossVolumeLiters: string | null;
   serviceFluid: string | null;
-  as4343FluidGroup: string | null;
   hazardLevel: string | null;
   specificGravity: string | null;
   internalCorrosionAllowanceMm: string | null;

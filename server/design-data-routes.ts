@@ -4,7 +4,7 @@ import { sql, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { designDataSheets, epcDrawingControls, projects, projectItems } from '@shared/schema';
 import { checkProjectMembership } from './utils/permission-utils';
-import type { MechanicalColumn, MechanicalData, GeneralData, HazardData } from '@shared/schema';
+import type { MechanicalColumn, MechanicalData, GeneralData, HazardData, ColumnHazardData } from '@shared/schema';
 
 const router = express.Router();
 
@@ -45,7 +45,6 @@ function emptyMechanicalColumn(): MechanicalColumn {
     physicalState: null,
     grossVolumeLiters: null,
     serviceFluid: null,
-    as4343FluidGroup: null,
     hazardLevel: null,
     specificGravity: null,
     internalCorrosionAllowanceMm: null,
@@ -247,6 +246,7 @@ const EMPTY_CODE_FIELDS = {
   isEnvironmentallyHazardous: false,
   as4343EquipmentType: null,
   as4343NominalBoreDN: null,
+  as4343FluidGroup: null,
 };
 
 const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
@@ -284,75 +284,93 @@ const HAZARD_SCHEMAS: Record<string, z.ZodTypeAny> = {
   'AS 4343:2014': z.object({
     as4343EquipmentType: z.enum(['Vessel', 'Piping']).nullable().default(null),
     as4343NominalBoreDN: z.number().positive().nullable().default(null),
+    as4343FluidGroup: z.enum(['A', 'B', 'C']).nullable().default(null),
   }).strip(),
 };
 
-function processHazardData(raw: any, code: string | null, dwgStatus: string, mechanical: MechanicalData): { hazardData: HazardData | null; mechanical: MechanicalData } {
-  if (!code || !raw) return { hazardData: null, mechanical };
+/**
+ * Process a single HazardData input (one column) through Zod validation and server-side derivation.
+ * Returns the derived HazardData or null if code/raw missing.
+ */
+function processSingleHazard(raw: any, code: string | null): HazardData | null {
+  if (!code || !raw) return null;
 
   const schema = HAZARD_SCHEMAS[code];
   if (!schema) {
     console.warn(`[HazardProcess] Unknown applied_code="${code}" — skipping.`);
-    return { hazardData: null, mechanical };
+    return null;
   }
 
-  // Parse + strip: Zod removes unknown keys and coerces enums/defaults
   const parseResult = schema.safeParse(raw);
   if (!parseResult.success) {
     console.warn(`[HazardProcess] Zod validation failed for code="${code}":`, parseResult.error.flatten());
   }
-  const parsed = parseResult.success ? parseResult.data : schema.parse({ fluidState: raw.fluidState ?? 'Fluid' });
+  const parsed = parseResult.success ? parseResult.data : {};
 
-  // Merge: start from empty to guarantee no disallowed fields survive
   const full: HazardData = {
     appliedCode: code,
     ...EMPTY_CODE_FIELDS,
+    fluidState: raw.fluidState ?? 'Fluid',
     ...parsed,
-    // Always recompute; ignore any frontend-supplied derived values
     codeNativeClassification: null,
     internalHazardLevel: null,
     hazardBasisNote: null,
   };
 
-  // Server-side derivation (frontend values are ignored)
-  const derived = deriveHazardFields(full);
-
-  // hazardLevel overwrite on draft: for AS 4343 derive per-column; all others use sheet-level
-  let updatedMech = mechanical;
-  if (dwgStatus === 'draft' && code) {
-    if (code === 'AS 4343:2014') {
-      const eqType = full.as4343EquipmentType as 'Vessel' | 'Piping' | null;
-      const dn     = full.as4343NominalBoreDN as number | null;
-      updatedMech = {
-        shell:  deriveColumnAS4343ForMech(mechanical.shell, eqType, dn),
-        tube:   mechanical.tube   ? deriveColumnAS4343ForMech(mechanical.tube, eqType, dn)   : null,
-        jacket: mechanical.jacket ? deriveColumnAS4343ForMech(mechanical.jacket, eqType, dn) : null,
-      };
-    } else if (derived.internalHazardLevel) {
-      const lvl = derived.internalHazardLevel;
-      console.log(`[HazardProcess] Overwriting mechanical hazardLevel → "${lvl}" (status=draft, code="${code}")`);
-      updatedMech = {
-        shell: { ...mechanical.shell, hazardLevel: lvl },
-        tube: mechanical.tube ? { ...mechanical.tube, hazardLevel: lvl } : null,
-        jacket: mechanical.jacket ? { ...mechanical.jacket, hazardLevel: lvl } : null,
-      };
-    }
-  }
-
-  return { hazardData: derived, mechanical: updatedMech };
+  return deriveHazardFields(full);
 }
 
 /**
- * Derive AS 4343 hazard level for one column using that column's own data.
+ * Process columnHazardData (shell/tube/jacket) and propagate derived hazardLevel
+ * into the matching mechanical columns.
+ */
+function processColumnHazardData(
+  rawColHazard: any,
+  dwgStatus: string,
+  mechanical: MechanicalData,
+): { columnHazardData: ColumnHazardData; mechanical: MechanicalData } {
+  const rShell  = rawColHazard?.shell;
+  const rTube   = rawColHazard?.tube;
+  const rJacket = rawColHazard?.jacket;
+
+  const shellH  = processSingleHazard(rShell,  rShell?.appliedCode  || null);
+  const tubeH   = rTube   ? processSingleHazard(rTube,   rTube.appliedCode   || null) : null;
+  const jacketH = rJacket ? processSingleHazard(rJacket, rJacket.appliedCode || null) : null;
+
+  const colHazard: ColumnHazardData = { shell: shellH ?? {} as HazardData, tube: tubeH, jacket: jacketH };
+
+  let updatedMech = mechanical;
+  if (dwgStatus === 'draft') {
+    function hazardLevelFor(hazard: HazardData | null, col: MechanicalColumn): MechanicalColumn {
+      if (!hazard?.appliedCode) return col;
+      if (hazard.appliedCode === 'AS 4343:2014') {
+        return deriveColumnAS4343ForMech(col, hazard);
+      }
+      return hazard.internalHazardLevel ? { ...col, hazardLevel: hazard.internalHazardLevel } : col;
+    }
+    updatedMech = {
+      shell:  hazardLevelFor(shellH, mechanical.shell),
+      tube:   mechanical.tube   ? hazardLevelFor(tubeH, mechanical.tube)     : null,
+      jacket: mechanical.jacket ? hazardLevelFor(jacketH, mechanical.jacket) : null,
+    };
+  }
+
+  return { columnHazardData: colHazard, mechanical: updatedMech };
+}
+
+/**
+ * Derive AS 4343 hazard level for one column using that column's own data +
+ * hazard-level inputs stored in HazardData.
  * Physical state mapping:  Fluid → Liquid | Vapor → Gas/Vapour | Mixture → Gas/Vapour and Liquid
  * Pressure: internalDesignPressureMawp in Barg → × 0.1 → MPa
  */
 function deriveColumnAS4343ForMech(
   col: MechanicalColumn,
-  eqType: 'Vessel' | 'Piping' | null,
-  dn: number | null,
+  hazard: HazardData,
 ): MechanicalColumn {
-  const fg = col.as4343FluidGroup as 'A' | 'B' | 'C' | null;
+  const eqType = hazard.as4343EquipmentType as 'Vessel' | 'Piping' | null;
+  const dn     = hazard.as4343NominalBoreDN as number | null;
+  const fg     = hazard.as4343FluidGroup   as 'A' | 'B' | 'C' | null;
   const rawState = col.physicalState;
   const stateMap: Record<string, 'Gas/Vapour' | 'Liquid' | 'Gas/Vapour and Liquid'> = {
     'Fluid': 'Liquid',
@@ -573,7 +591,9 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
     return res.status(409).json({ error: 'A design data sheet already exists for this drawing. Use PUT to update.' });
   }
 
-  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData, appliedCode, hazardData: rawHazardData } = req.body;
+  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData, columnHazardData: rawColHazard,
+    // backward compat: old format
+    appliedCode: legacyAppliedCode, hazardData: legacyRawHazardData } = req.body;
 
   if (!designCode || !equipmentConfig || !inspectionBy) {
     return res.status(400).json({ error: 'designCode, equipmentConfig and inspectionBy are required' });
@@ -589,16 +609,11 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
     return res.status(400).json({ error: 'Invalid inspectionBy' });
   }
 
-  if (appliedCode === 'PED 2014/68/EU') {
-    if (!rawHazardData?.fluidGroup || !rawHazardData?.pedCategory) {
-      return res.status(422).json({ error: 'PED 2014/68/EU requires fluidGroup and pedCategory.' });
-    }
-  }
-
-  // Validate applied_code against known codes
-  if (appliedCode && !HAZARD_SCHEMAS[appliedCode]) {
-    return res.status(400).json({ error: `Unknown applied_code: "${appliedCode}"` });
-  }
+  // Normalise: if old format supplied, convert to column format
+  const effectiveColHazard = rawColHazard ?? (legacyAppliedCode ? {
+    shell: { appliedCode: legacyAppliedCode, ...(legacyRawHazardData || {}) },
+    tube: null, jacket: null,
+  } : null);
 
   const materialCode = DESIGN_CODE_TO_MATERIAL_CODE[designCode] || null;
   const equipmentType = EQUIPMENT_CONFIG_TO_TYPE[equipmentConfig] || equipmentConfig.toUpperCase();
@@ -606,7 +621,8 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
 
   let normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
   const normalizedGeneral = normalizeGeneralData(generalData || {});
-  const { hazardData: processedHazard, mechanical: finalMechanical } = processHazardData(rawHazardData, appliedCode || null, 'draft', normalizedMechanical);
+  const { columnHazardData: processedColHazard, mechanical: finalMechanical } =
+    processColumnHazardData(effectiveColHazard, 'draft', normalizedMechanical);
   normalizedMechanical = finalMechanical;
 
   const inserted = await db.execute(sql`
@@ -614,7 +630,7 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
       dwg_control_id, project_id, design_code, material_code,
       equipment_description, tag_no, equipment_type, manufacture_serial_no,
       inspection_by, equipment_config, mechanical_data, general_data,
-      applied_code, hazard_data,
+      hazard_data,
       status, created_by, updated_by
     ) VALUES (
       ${dwgControlId}, ${dwg.project_id}, ${designCode}, ${materialCode},
@@ -622,8 +638,7 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
       ${inspectionBy}, ${equipmentConfig},
       ${JSON.stringify(normalizedMechanical)}::jsonb,
       ${JSON.stringify(normalizedGeneral)}::jsonb,
-      ${appliedCode || null},
-      ${processedHazard ? JSON.stringify(processedHazard) : null}::jsonb,
+      ${JSON.stringify(processedColHazard)}::jsonb,
       'draft', ${user.id}, ${user.id}
     )
     RETURNING *
@@ -659,7 +674,9 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     return res.status(404).json({ error: 'No design data sheet found. Use POST to create.' });
   }
 
-  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData, appliedCode, hazardData: rawHazardData } = req.body;
+  const { designCode, equipmentConfig, inspectionBy, mechanicalData, generalData, columnHazardData: rawColHazard,
+    // backward compat
+    appliedCode: legacyAppliedCode, hazardData: legacyRawHazardData } = req.body;
 
   if (!designCode || !equipmentConfig || !inspectionBy) {
     return res.status(400).json({ error: 'designCode, equipmentConfig and inspectionBy are required' });
@@ -675,16 +692,10 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
     return res.status(400).json({ error: 'Invalid inspectionBy' });
   }
 
-  if (appliedCode === 'PED 2014/68/EU') {
-    if (!rawHazardData?.fluidGroup || !rawHazardData?.pedCategory) {
-      return res.status(422).json({ error: 'PED 2014/68/EU requires fluidGroup and pedCategory.' });
-    }
-  }
-
-  // Validate applied_code against known codes
-  if (appliedCode && !HAZARD_SCHEMAS[appliedCode]) {
-    return res.status(400).json({ error: `Unknown applied_code: "${appliedCode}"` });
-  }
+  const effectiveColHazard = rawColHazard ?? (legacyAppliedCode ? {
+    shell: { appliedCode: legacyAppliedCode, ...(legacyRawHazardData || {}) },
+    tube: null, jacket: null,
+  } : null);
 
   const materialCode = DESIGN_CODE_TO_MATERIAL_CODE[designCode] || null;
   const equipmentType = EQUIPMENT_CONFIG_TO_TYPE[equipmentConfig] || equipmentConfig.toUpperCase();
@@ -692,7 +703,8 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
 
   let normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
   const normalizedGeneral = normalizeGeneralData(generalData || {});
-  const { hazardData: processedHazard, mechanical: finalMechanical } = processHazardData(rawHazardData, appliedCode || null, dwg.status, normalizedMechanical);
+  const { columnHazardData: processedColHazard, mechanical: finalMechanical } =
+    processColumnHazardData(effectiveColHazard, dwg.status, normalizedMechanical);
   normalizedMechanical = finalMechanical;
 
   const updated = await db.execute(sql`
@@ -707,8 +719,7 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
       equipment_config = ${equipmentConfig},
       mechanical_data = ${JSON.stringify(normalizedMechanical)}::jsonb,
       general_data = ${JSON.stringify(normalizedGeneral)}::jsonb,
-      applied_code = ${appliedCode || null},
-      hazard_data = ${processedHazard ? JSON.stringify(processedHazard) : null}::jsonb,
+      hazard_data = ${JSON.stringify(processedColHazard)}::jsonb,
       updated_by = ${user.id},
       updated_at = NOW()
     WHERE dwg_control_id = ${dwgControlId}
