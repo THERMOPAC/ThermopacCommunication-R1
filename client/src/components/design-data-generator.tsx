@@ -592,8 +592,22 @@ function deriveJointEfficiencyDefault(radiography: string | null | undefined): s
   return JOINT_EFFICIENCY_BY_RADIOGRAPHY[radiography ?? ''] ?? '1 / 1 / 1';
 }
 
+const TESTING_GROUP_BY_RADIOGRAPHY: Record<string, string> = {
+  'FULL RADIOGRAPHY (100% RT)': 'Testing Group 1',
+  'SPOT RADIOGRAPHY 10%': 'Testing Group 2',
+  'SPOT RADIOGRAPHY 5%': 'Testing Group 3',
+};
+
+function isTestingGroupApplicable(appliedCode: string | null | undefined): boolean {
+  return appliedCode === 'EN 13445' || appliedCode === 'PED 2014/68/EU';
+}
+
+function deriveTestingGroupDefault(radiography: string | null | undefined): string {
+  return TESTING_GROUP_BY_RADIOGRAPHY[radiography ?? ''] ?? 'Testing Group 4';
+}
+
 function SmartMechanicalColumnForm({
-  label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel,
+  label, data, onChange, projectMdmt, disciplineCode, derivedHazardLevel, appliedCode,
 }: {
   label: string;
   data: MechanicalColumn;
@@ -601,19 +615,33 @@ function SmartMechanicalColumnForm({
   projectMdmt: string | null | undefined;
   disciplineCode: string | null | undefined;
   derivedHazardLevel?: string | null;
+  appliedCode?: string | null;
 }) {
   function handleChange(key: keyof MechanicalColumn, rawValue: string) {
     const value = rawValue || null;
     const updated: MechanicalColumn = { ...data, [key]: value };
 
     if (key === 'radiography') {
-      const jeDefault = deriveJointEfficiencyDefault(rawValue);
       const oldRadiography = data.radiography;
+
+      // Cascade Joint Efficiency
+      const jeDefault = deriveJointEfficiencyDefault(rawValue);
       const oldJeDefault = deriveJointEfficiencyDefault(oldRadiography);
       const currentJe = data.jointEfficiency;
       const jeIsAuto = !currentJe || currentJe === oldJeDefault;
       if (jeIsAuto) {
         updated.jointEfficiency = jeDefault;
+      }
+
+      // Cascade Testing Group (only when applicable)
+      if (isTestingGroupApplicable(appliedCode)) {
+        const tgDefault = deriveTestingGroupDefault(rawValue);
+        const oldTgDefault = deriveTestingGroupDefault(oldRadiography);
+        const currentTg = data.testingGroup;
+        const tgIsAuto = !currentTg || currentTg === 'N.A.' || currentTg === oldTgDefault;
+        if (tgIsAuto) {
+          updated.testingGroup = tgDefault;
+        }
       }
     }
 
@@ -764,6 +792,39 @@ function SmartMechanicalColumnForm({
           const jeDefault = deriveJointEfficiencyDefault(data.radiography);
           const isAtDefault = !val || val === jeDefault;
           const displayVal = val || jeDefault;
+          return (
+            <div key={p.key} className="flex items-center gap-2">
+              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                <Input
+                  className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}
+                  value={displayVal}
+                  onChange={(e) => handleChange(p.key, e.target.value)}
+                />
+                {isAtDefault && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'testingGroup') {
+          const applicable = isTestingGroupApplicable(appliedCode);
+          if (!applicable) {
+            return (
+              <div key={p.key} className="flex items-center gap-2">
+                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
+                </div>
+              </div>
+            );
+          }
+          const tgDefault = deriveTestingGroupDefault(data.radiography);
+          const isAtDefault = !val || val === tgDefault;
+          const displayVal = val && val !== 'N.A.' ? val : tgDefault;
           return (
             <div key={p.key} className="flex items-center gap-2">
               <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
@@ -1709,9 +1770,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   <div>
                     <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
                     <div className={`grid gap-5 ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={shellLevel} />
-                      {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={tubeLevel} />}
-                      {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={jacketLevel} />}
+                      <SmartMechanicalColumnForm label="Shell" data={mechShell} onChange={setMechShell} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={shellLevel} appliedCode={colHazard.shell.appliedCode} />
+                      {cols.tube && <SmartMechanicalColumnForm label="Tube" data={mechTube} onChange={setMechTube} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={tubeLevel} appliedCode={colHazard.shell.appliedCode} />}
+                      {cols.jacket && <SmartMechanicalColumnForm label="Jacket 1&2" data={mechJacket} onChange={setMechJacket} projectMdmt={projMdmt} disciplineCode={disciplineCode} derivedHazardLevel={jacketLevel} appliedCode={colHazard.shell.appliedCode} />}
                     </div>
                   </div>
                 );
