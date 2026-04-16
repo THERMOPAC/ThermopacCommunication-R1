@@ -1523,6 +1523,12 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                   </div>
                   {/* Applied Code is shared: changing Shell's code clears + re-derives all columns */}
                   {(() => {
+                    const SG_BY_FLUID: Record<string, string> = {
+                      'Fluid': '0.85',
+                      'Vapor': '0.8',
+                      'Mixture of Fluid and Vapor': '0.85',
+                    };
+
                     function handleSharedCodeChange(newCode: string | null) {
                       setColHazard(prev => ({
                         shell:  deriveHazardFields({ ...clearCodeSpecificFields(prev.shell),  appliedCode: newCode }),
@@ -1530,12 +1536,27 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                         jacket: prev.jacket ? deriveHazardFields({ ...clearCodeSpecificFields(prev.jacket), appliedCode: newCode }) : null,
                       }));
                     }
+
+                    function makeOnChange(
+                      colKey: 'shell' | 'tube' | 'jacket',
+                      prevData: HazardData,
+                      setMech: (fn: (prev: MechanicalColumn) => MechanicalColumn) => void,
+                    ) {
+                      return (d: HazardData) => {
+                        if (d.fluidState && d.fluidState !== prevData.fluidState) {
+                          const sg = SG_BY_FLUID[d.fluidState];
+                          if (sg) setMech(prev => ({ ...prev, specificGravity: sg }));
+                        }
+                        setColHazard(prev => ({ ...prev, [colKey]: d }));
+                      };
+                    }
+
                     return (
                       <div className={`grid gap-5 items-start ${cols.tube && cols.jacket ? 'grid-cols-3' : cols.tube || cols.jacket ? 'grid-cols-2' : 'grid-cols-1'}`}>
                         <HazardClassificationPanel
                           label="Shell"
                           data={colHazard.shell}
-                          onChange={(d) => setColHazard(prev => ({ ...prev, shell: d }))}
+                          onChange={makeOnChange('shell', colHazard.shell, setMechShell)}
                           mechColumn={mechShell}
                           isFirstColumn={true}
                           onAppliedCodeChange={handleSharedCodeChange}
@@ -1544,7 +1565,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                           <HazardClassificationPanel
                             label="Tube"
                             data={{ ...colHazard.tube || emptyHazardData(), appliedCode: colHazard.shell.appliedCode }}
-                            onChange={(d) => setColHazard(prev => ({ ...prev, tube: d }))}
+                            onChange={makeOnChange('tube', colHazard.tube || emptyHazardData(), setMechTube)}
                             mechColumn={mechTube}
                             isFirstColumn={false}
                             onAppliedCodeChange={handleSharedCodeChange}
@@ -1554,7 +1575,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                           <HazardClassificationPanel
                             label="Jacket 1&2"
                             data={{ ...colHazard.jacket || emptyHazardData(), appliedCode: colHazard.shell.appliedCode }}
-                            onChange={(d) => setColHazard(prev => ({ ...prev, jacket: d }))}
+                            onChange={makeOnChange('jacket', colHazard.jacket || emptyHazardData(), setMechJacket)}
                             mechColumn={mechJacket}
                             isFirstColumn={false}
                             onAppliedCodeChange={handleSharedCodeChange}
