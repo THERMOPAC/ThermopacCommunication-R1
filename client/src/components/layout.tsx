@@ -129,6 +129,7 @@ function Layout({ children }: LayoutProps) {
   const [isMeetingsMenuOpen, setIsMeetingsMenuOpen] = useState(false);
   const [isDesignMenuOpen, setIsDesignMenuOpen] = useState(false);
   const [isSapPurchasingMenuOpen, setIsSapPurchasingMenuOpen] = useState(false);
+  const [isDrawingVerificationMenuOpen, setIsDrawingVerificationMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
 
   // Get all module permissions for the current user
@@ -207,6 +208,9 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any SAP purchasing-related page
   const isOnSapPurchasingPage = location.startsWith('/sap-purchasing');
 
+  // Check if we're on the Drawing Verification module
+  const isOnDvsPage = location.startsWith('/dvs');
+
 
   
   // Auto-open menus based on current page
@@ -254,7 +258,11 @@ function Layout({ children }: LayoutProps) {
     if (isOnSapPurchasingPage && !isSapPurchasingMenuOpen) {
       setIsSapPurchasingMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage]);
+
+    if (isOnDvsPage && !isDrawingVerificationMenuOpen) {
+      setIsDrawingVerificationMenuOpen(true);
+    }
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProcurementPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnDesignPage, isOnSapPurchasingPage, isOnDvsPage]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -412,6 +420,17 @@ function Layout({ children }: LayoutProps) {
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
       ]
     }] : []),
+    ...((user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Manager') ? [{
+      icon: BadgeCheck,
+      label: "Drawing Verification",
+      isSubmenu: true,
+      isOpen: isDrawingVerificationMenuOpen,
+      toggle: () => setIsDrawingVerificationMenuOpen(!isDrawingVerificationMenuOpen),
+      children: [
+        { icon: Layers, label: "Verification Pipeline", href: "/dvs" },
+        { icon: FileCheck, label: "Release Register", href: "/dvs/releases" },
+      ]
+    }] : []),
     ...(hasViewPermission("Design Management") ? [{ 
       icon: Compass, 
       label: "Design Management", 
@@ -422,7 +441,6 @@ function Layout({ children }: LayoutProps) {
         { icon: BarChart3, label: "Design Dashboard", href: "/design-management" },
         { icon: FolderKanban, label: "Design Projects", href: "/design-management/projects" },
         { icon: FileText, label: "Drawing Registry", href: "/design-management/drawings" },
-        { icon: ShieldCheck, label: "Drawing Verification", href: "/design-management/drawing-verification" },
         { icon: CheckSquare, label: "Review & Approval", href: "/design-management/reviews" },
         { icon: Briefcase, label: "Transmittals", href: "/design-management/transmittals" },
         { icon: FileCheck, label: "Standards & Templates", href: "/design-management/standards" },

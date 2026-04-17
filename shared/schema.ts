@@ -12599,6 +12599,7 @@ export const drawingRevisions = pgTable('drawing_revisions', {
   id: serial('id').primaryKey(),
   projectId: integer('project_id').notNull().references(() => projects.id),
   projectCode: varchar('project_code', { length: 50 }),
+  drawingControlId: integer('drawing_control_id').references(() => epcDrawingControls.id, { onDelete: 'set null' }),
   drawingNumber: varchar('drawing_number', { length: 100 }).notNull(),
   revision: varchar('revision', { length: 20 }).notNull(),
   title: varchar('title', { length: 255 }),

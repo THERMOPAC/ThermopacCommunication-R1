@@ -97,7 +97,7 @@ router.post('/upload', ensureAuthenticated, upload.single('file'), async (req: R
       return res.status(400).json({ error: validationError });
     }
 
-    const { projectId, drawingNumber, revision, title, itemCode, discipline, uploaderNotes } = req.body;
+    const { projectId, drawingControlId, drawingNumber, revision, title, itemCode, discipline, uploaderNotes } = req.body;
 
     if (!projectId || !drawingNumber || !revision) {
       return res.status(400).json({ error: 'projectId, drawingNumber, and revision are required.' });
@@ -172,6 +172,7 @@ router.post('/upload', ensureAuthenticated, upload.single('file'), async (req: R
         originalFilename: file.originalname,
         gcsStagingPath: gcsPath,
         fileSizeBytes: file.size,
+        drawingControlId: drawingControlId ? parseInt(drawingControlId, 10) || null : null,
         status: 'uploaded',
         uploaderNotes: uploaderNotes?.trim() || null,
       }).returning();
