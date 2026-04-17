@@ -35,7 +35,7 @@ const router = express.Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB — covers both .slddrw (50 MB) and .pdf (100 MB); per-type enforcement is in validateDrawingFile
 });
 
 function ensureAuthenticated(req: Request, res: Response, next: express.NextFunction) {
