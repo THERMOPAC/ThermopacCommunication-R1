@@ -204,9 +204,16 @@ export function generateVerificationReport(
 <div class="container">
 
   <!-- Header -->
-  <div class="header">
-    <h1>THERMOPAC — Drawing Verification Report</h1>
-    <div class="sub">Automated Drawing Verification System (DVS) — Inline Gate</div>
+  <div class="header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+    <div>
+      <h1>THERMOPAC — Drawing Verification Report</h1>
+      <div class="sub">Automated Drawing Verification System (DVS) — Inline Gate</div>
+    </div>
+    <a href="/api/epc-drawing-verifications/${verification.id}/report.pdf"
+       style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.35);border-radius:5px;padding:7px 14px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;margin-top:2px"
+       download="drawing-verification-report-${verification.id}.pdf">
+      ⬇ Download PDF
+    </a>
   </div>
 
   <!-- Metadata -->

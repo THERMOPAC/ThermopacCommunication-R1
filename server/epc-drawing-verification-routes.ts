@@ -1,13 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // EPC Drawing Verification Routes
-// POST /api/epc-drawing-controls/:id/verify-pdf  — run gate + extraction
-// GET  /api/epc-drawing-controls/:id/verifications — list for this DWG control
-// GET  /api/epc-drawing-verifications/:id/report  — HTML report
-// POST /api/epc-drawing-verifications/:id/accept  — mark accepted + attach
+// POST /api/epc-drawing-controls/:id/verify-pdf        — run gate + extraction
+// GET  /api/epc-drawing-controls/:id/verifications     — list for this DWG control
+// GET  /api/epc-drawing-verifications/:id/report       — HTML report
+// GET  /api/epc-drawing-verifications/:id/report.pdf   — PDF export
+// POST /api/epc-drawing-verifications/:id/accept       — mark accepted + attach
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
+import { execSync } from 'child_process';
+import puppeteer from 'puppeteer-core';
 import { db } from './db';
 import { eq, desc } from 'drizzle-orm';
 import { epcDrawingVerifications } from '@shared/schema';
@@ -147,6 +150,58 @@ router.get('/epc-drawing-verifications/:id/report', async (req: Request, res: Re
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   return res.send(html);
+});
+
+// ── GET /api/epc-drawing-verifications/:id/report.pdf ─────────────────────────
+
+function getChromiumPath(): string {
+  try { return execSync('which chromium', { encoding: 'utf8' }).trim(); } catch {}
+  return '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium';
+}
+
+router.get('/epc-drawing-verifications/:id/report.pdf', async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID.' });
+
+  const [row] = await db
+    .select()
+    .from(epcDrawingVerifications)
+    .where(eq(epcDrawingVerifications.id, id))
+    .limit(1);
+
+  if (!row) return res.status(404).json({ error: 'Verification not found.' });
+
+  const extraction = (row.extractionResult ?? {}) as DrawingExtraction;
+  const layer1 = (row.layer1Results ?? []) as RuleResult[];
+  const layer2 = (row.layer2Results ?? []) as RuleResult[];
+
+  const html = generateVerificationReport(row, extraction, layer1, layer2);
+
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    executablePath: getChromiumPath(),
+    headless: true,
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const rawPdf = await page.pdf({
+      format: 'A3',
+      landscape: true,
+      printBackground: true,
+      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+    });
+    const pdfBuffer = Buffer.from(rawPdf);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="drawing-verification-report-${id}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.end(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
 });
 
 // ── POST /api/epc-drawing-verifications/:id/accept ────────────────────────────

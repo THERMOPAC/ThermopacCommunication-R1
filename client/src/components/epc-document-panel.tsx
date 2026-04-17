@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  Upload, Download, History, Trash2, RotateCcw,
+  Upload, Download, FileDown, History, Trash2, RotateCcw,
   Loader2, Shield, AlertTriangle,
   Paperclip, FileSearch, ChevronLeft, ChevronRight, ChevronDown,
   CheckCircle2, XCircle, ExternalLink, ShieldCheck,
@@ -698,17 +698,27 @@ export default function EpcDocumentPanel({
                     </div>
                   )}
 
-                  {/* View full report link */}
+                  {/* View full report + Download PDF */}
                   {dwgVerificationId && (
-                    <a
-                      href={`/api/epc-drawing-verifications/${dwgVerificationId}/report`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      View full verification report (20-section checklist)
-                    </a>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <a
+                        href={`/api/epc-drawing-verifications/${dwgVerificationId}/report`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        View full verification report (20-section checklist)
+                      </a>
+                      <a
+                        href={`/api/epc-drawing-verifications/${dwgVerificationId}/report.pdf`}
+                        download={`drawing-verification-report-${dwgVerificationId}.pdf`}
+                        className="flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900 hover:underline font-medium"
+                      >
+                        <FileDown className="h-3.5 w-3.5" />
+                        Download PDF
+                      </a>
+                    </div>
                   )}
                 </>
               )}
