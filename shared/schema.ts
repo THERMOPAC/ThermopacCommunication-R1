@@ -12593,7 +12593,7 @@ export type InsertDesignDataSheet = z.infer<typeof insertDesignDataSheetSchema>;
 export type DesignDataSheet = typeof designDataSheets.$inferSelect;
 
 // ============================================================
-// DRAWING VERIFICATION SYSTEM — Step 1
+// DRAWING VERIFICATION SYSTEM
 // ============================================================
 export const drawingRevisions = pgTable('drawing_revisions', {
   id: serial('id').primaryKey(),
@@ -12624,3 +12624,26 @@ export const insertDrawingRevisionSchema = createInsertSchema(drawingRevisions).
 });
 export type InsertDrawingRevision = z.infer<typeof insertDrawingRevisionSchema>;
 export type DrawingRevision = typeof drawingRevisions.$inferSelect;
+
+// ============================================================
+// DRAWING VERIFICATION SYSTEM — Step 2: Extraction Layer
+// ============================================================
+export const drawingExtractions = pgTable('drawing_extractions', {
+  id: serial('id').primaryKey(),
+  drawingRevisionId: integer('drawing_revision_id').notNull().references(() => drawingRevisions.id),
+  extractionStatus: varchar('extraction_status', { length: 20 }).notNull(),
+  extractedAt: timestamp('extracted_at').notNull(),
+  extractionEngine: varchar('extraction_engine', { length: 50 }).notNull(),
+  extractionEngineVersion: varchar('extraction_engine_version', { length: 20 }).notNull(),
+  documentProperties: jsonb('document_properties'),
+  customProperties: jsonb('custom_properties'),
+  sheetInfo: jsonb('sheet_info'),
+  fileInfo: jsonb('file_info').notNull(),
+  validationResults: jsonb('validation_results').notNull(),
+  warnings: jsonb('warnings'),
+  rawError: text('raw_error'),
+}, (table) => ({
+  uniqueRevisionExtraction: uniqueIndex('uq_drawing_extraction_revision').on(table.drawingRevisionId),
+}));
+
+export type DrawingExtraction = typeof drawingExtractions.$inferSelect;

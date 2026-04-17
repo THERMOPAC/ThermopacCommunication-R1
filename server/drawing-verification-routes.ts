@@ -2,9 +2,15 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { createHash } from 'crypto';
 import { db } from './db';
-import { drawingRevisions, projects } from '@shared/schema';
+import { drawingRevisions, drawingExtractions, projects } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import gcsClient, { bucketName } from './utils/storage-config';
+import {
+  extractDrawingProperties,
+  EXTRACTION_ENGINE,
+  EXTRACTION_ENGINE_VERSION,
+  EXTRACTION_TIMEOUT_MS,
+} from './utils/ole-extractor';
 
 const router = express.Router();
 
@@ -224,6 +230,190 @@ router.get('/:id/file', ensureAuthenticated, async (req: Request, res: Response)
   } catch (err: any) {
     console.error('[drawing-verification] File URL error:', err);
     return res.status(500).json({ error: err.message || 'Failed to generate download URL.' });
+  }
+});
+
+// ─── Step 2: Extraction Layer ────────────────────────────────────────────────
+
+router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const force = req.query.force === 'true';
+
+    // Fetch the drawing revision
+    const revRows = await db.select().from(drawingRevisions).where(eq(drawingRevisions.id, id)).limit(1);
+    if (revRows.length === 0) return res.status(404).json({ error: 'Drawing revision not found.' });
+    const revision = revRows[0];
+
+    // Trigger guard: only uploaded revisions in STAGING may be extracted
+    if (revision.status !== 'uploaded') {
+      return res.status(409).json({
+        error: `Extraction is only permitted for revisions with status 'uploaded'. Current status: '${revision.status}'.`,
+      });
+    }
+    if (revision.storageZone !== 'STAGING') {
+      return res.status(409).json({
+        error: `Extraction is only permitted for revisions in STAGING storage zone. Current zone: '${revision.storageZone}'.`,
+      });
+    }
+
+    // Check for existing extraction
+    const existingRows = await db
+      .select()
+      .from(drawingExtractions)
+      .where(eq(drawingExtractions.drawingRevisionId, id))
+      .limit(1);
+
+    const existing = existingRows[0] ?? null;
+
+    if (!force && existing) {
+      const versionMatches = existing.extractionEngineVersion === EXTRACTION_ENGINE_VERSION;
+
+      if (existing.extractionStatus === 'failed') {
+        // Failed: return existing; explicit force required to retry
+        return res.status(200).json({ ...existing, _note: 'Previous extraction failed. Use ?force=true to retry.' });
+      }
+
+      if ((existing.extractionStatus === 'success' || existing.extractionStatus === 'partial') && versionMatches) {
+        // Up-to-date result exists — return it without re-extracting
+        return res.status(200).json(existing);
+      }
+
+      // Version mismatch on a prior success/partial → fall through to re-extract
+    }
+
+    // Write pending status before starting (UPSERT)
+    const now = new Date();
+    const pendingFileInfo = {
+      originalFilename: revision.originalFilename ?? '',
+      sizeBytes: revision.fileSizeBytes ?? 0,
+      checksum: revision.checksum,
+      gcsStagingPath: revision.gcsStagingPath,
+    };
+
+    if (existing) {
+      await db.update(drawingExtractions)
+        .set({
+          extractionStatus: 'pending',
+          extractedAt: now,
+          extractionEngine: EXTRACTION_ENGINE,
+          extractionEngineVersion: EXTRACTION_ENGINE_VERSION,
+          documentProperties: null,
+          customProperties: null,
+          sheetInfo: null,
+          fileInfo: pendingFileInfo,
+          validationResults: { drawingNumberMatch: null, revisionMatch: null, checkedAt: now.toISOString() },
+          warnings: [],
+          rawError: null,
+        })
+        .where(eq(drawingExtractions.drawingRevisionId, id));
+    } else {
+      await db.insert(drawingExtractions).values({
+        drawingRevisionId: id,
+        extractionStatus: 'pending',
+        extractedAt: now,
+        extractionEngine: EXTRACTION_ENGINE,
+        extractionEngineVersion: EXTRACTION_ENGINE_VERSION,
+        documentProperties: null,
+        customProperties: null,
+        sheetInfo: null,
+        fileInfo: pendingFileInfo,
+        validationResults: { drawingNumberMatch: null, revisionMatch: null, checkedAt: now.toISOString() },
+        warnings: [],
+        rawError: null,
+      });
+    }
+
+    // Run extraction with timeout guard
+    let fileBuffer: Buffer;
+    try {
+      const fileContents = await Promise.race([
+        gcsClient.bucket(bucketName).file(revision.gcsStagingPath).download(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('extraction timeout exceeded (30s)')), EXTRACTION_TIMEOUT_MS)
+        ),
+      ]) as [Buffer];
+      fileBuffer = fileContents[0];
+    } catch (dlErr: any) {
+      const errMsg = dlErr?.message ?? 'GCS download failed';
+      await db.update(drawingExtractions)
+        .set({
+          extractionStatus: 'failed',
+          extractedAt: new Date(),
+          extractionEngineVersion: EXTRACTION_ENGINE_VERSION,
+          rawError: errMsg,
+          validationResults: { drawingNumberMatch: null, revisionMatch: null, checkedAt: new Date().toISOString() },
+          warnings: [{ type: 'parse_error', detail: errMsg }],
+        })
+        .where(eq(drawingExtractions.drawingRevisionId, id));
+
+      const failedRows = await db.select().from(drawingExtractions)
+        .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);
+      return res.status(200).json(failedRows[0]);
+    }
+
+    // Run OLE extraction (pure, deterministic)
+    const fileInfo = {
+      originalFilename: revision.originalFilename ?? '',
+      sizeBytes: revision.fileSizeBytes ?? 0,
+      checksum: revision.checksum,
+      gcsStagingPath: revision.gcsStagingPath,
+    };
+
+    const result = extractDrawingProperties(
+      fileBuffer,
+      revision.drawingNumber,
+      revision.revision,
+      fileInfo,
+    );
+
+    // Persist final result (always full overwrite, no silent merge)
+    const finalNow = new Date();
+    await db.update(drawingExtractions)
+      .set({
+        extractionStatus: result.extractionStatus,
+        extractedAt: finalNow,
+        extractionEngine: result.extractionEngine,
+        extractionEngineVersion: result.extractionEngineVersion,
+        documentProperties: result.documentProperties ?? null,
+        customProperties: result.customProperties ?? null,
+        sheetInfo: result.sheetInfo ?? null,
+        fileInfo: result.fileInfo,
+        validationResults: result.validationResults,
+        warnings: result.warnings.length > 0 ? result.warnings : null,
+        rawError: result.rawError ?? null,
+      })
+      .where(eq(drawingExtractions.drawingRevisionId, id));
+
+    const finalRows = await db.select().from(drawingExtractions)
+      .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);
+
+    console.log(`[dvs-extract] revision=${id} status=${result.extractionStatus} engine_version=${EXTRACTION_ENGINE_VERSION} force=${force}`);
+    return res.status(200).json(finalRows[0]);
+  } catch (err: any) {
+    console.error('[dvs-extract] Unexpected error:', err);
+    return res.status(500).json({ error: err.message || 'Extraction failed.' });
+  }
+});
+
+router.get('/:id/extraction', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const revRows = await db.select({ id: drawingRevisions.id })
+      .from(drawingRevisions).where(eq(drawingRevisions.id, id)).limit(1);
+    if (revRows.length === 0) return res.status(404).json({ error: 'Drawing revision not found.' });
+
+    const rows = await db.select().from(drawingExtractions)
+      .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);
+    if (rows.length === 0) return res.status(404).json({ error: 'No extraction record found for this revision. Trigger extraction first.' });
+
+    return res.json(rows[0]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
