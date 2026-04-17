@@ -420,7 +420,7 @@ function Layout({ children }: LayoutProps) {
         { icon: Palette, label: "Design Tools", href: "/design-tools" },
       ]
     }] : []),
-    ...((user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Manager') ? [{
+    ...((user?.role === 'Superuser' || user?.role === 'General Manager' || user?.role === 'Senior Manager' || user?.role === 'Senior Executive' || user?.role === 'Manager') ? [{
       icon: BadgeCheck,
       label: "Drawing Verification",
       isSubmenu: true,
