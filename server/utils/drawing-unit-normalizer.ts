@@ -182,7 +182,7 @@ export function compareNumeric(
 }
 
 // ── String comparison (normalised) ────────────────────────────────────────────
-export function compareString(a: string | null | undefined, b: string | null | undefined): boolean | null {
+export function compareString(a: string | number | null | undefined, b: string | number | null | undefined): boolean | null {
   if (a == null || b == null) return null;
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 }

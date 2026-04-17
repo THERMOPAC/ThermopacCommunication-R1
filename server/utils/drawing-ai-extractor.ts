@@ -276,9 +276,12 @@ function parseGptResponse(
 
   function toField(raw: any): ExtractedField {
     if (!raw || typeof raw !== 'object') return { ...nullField(), source };
+    // Always coerce value and unit to string — GPT-4o Vision sometimes returns numbers
+    const rawValue = raw.value;
+    const rawUnit  = raw.unit;
     return {
-      value: raw.value ?? null,
-      unit: raw.unit ?? null,
+      value: rawValue === null || rawValue === undefined ? null : String(rawValue).trim() || null,
+      unit:  rawUnit  === null || rawUnit  === undefined ? null : String(rawUnit).trim()  || null,
       confidence: typeof raw.confidence === 'number'
         ? Math.max(0, Math.min(1, raw.confidence))
         : 0,
