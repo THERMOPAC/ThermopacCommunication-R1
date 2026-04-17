@@ -12647,3 +12647,23 @@ export const drawingExtractions = pgTable('drawing_extractions', {
 }));
 
 export type DrawingExtraction = typeof drawingExtractions.$inferSelect;
+
+// ============================================================
+// DRAWING VERIFICATION SYSTEM — Step 3: Rule Engine
+// ============================================================
+export const ruleEvaluations = pgTable('rule_evaluations', {
+  id: serial('id').primaryKey(),
+  drawingRevisionId: integer('drawing_revision_id').notNull().references(() => drawingRevisions.id),
+  drawingExtractionId: integer('drawing_extraction_id').notNull().references(() => drawingExtractions.id),
+  ruleEngineVersion: varchar('rule_engine_version', { length: 20 }).notNull(),
+  evaluatedAt: timestamp('evaluated_at').notNull(),
+  evaluatedBy: varchar('evaluated_by', { length: 100 }).notNull(),
+  extractionGate: varchar('extraction_gate', { length: 10 }).notNull(),
+  extractionGateReason: varchar('extraction_gate_reason', { length: 50 }).notNull(),
+  overallVerdict: varchar('overall_verdict', { length: 10 }).notNull(),
+  ruleResults: jsonb('rule_results').notNull(),
+}, (table) => ({
+  uniqueRevisionEvaluation: uniqueIndex('uq_rule_evaluation_revision').on(table.drawingRevisionId),
+}));
+
+export type RuleEvaluation = typeof ruleEvaluations.$inferSelect;
