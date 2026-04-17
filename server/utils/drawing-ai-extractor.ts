@@ -1,23 +1,39 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Drawing AI Extractor — GPT-4o Vision primary, regex fallback
-// Each extracted field carries a confidence score (0–1).
-// confidence >= 0.8  → normal comparison (FAIL if mismatch)
-// 0.5 <= conf < 0.8  → downgrade mismatch from FAIL to WARN
-// confidence < 0.5   → treat field as not found (WARN about low confidence)
+// Drawing AI Extractor
+//
+// PRIMARY  : GPT-4o Vision — PDF pages rendered to PNG via pdftoppm, then sent
+//            as base64 images to the Vision API.  source = 'vision'
+// FALLBACK : pdf-parse text layer → GPT-4o text completion.  source = 'text'
+//
+// Confidence thresholds:
+//   confidence >= 0.7  → normal comparison (FAIL if mismatch)
+//   0.5 <= conf < 0.7  → mismatch downgraded from FAIL to WARN
+//   confidence < 0.5   → treat as missing (WARN — manual review required)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import OpenAI from 'openai';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import { writeFile, readFile, unlink, readdir } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { randomUUID } from 'crypto';
 import { createRequire } from 'module';
+
+const execFileAsync = promisify(execFile);
 const require = createRequire(import.meta.url);
 const pdfParse: (buf: Buffer) => Promise<{ text: string }> = require('pdf-parse');
 
-export const CONFIDENCE_FAIL_THRESHOLD = 0.8;
-export const CONFIDENCE_WARN_THRESHOLD = 0.5;
+// ── Confidence thresholds ─────────────────────────────────────────────────────
+export const CONFIDENCE_FAIL_THRESHOLD = 0.7;   // below → WARN not FAIL
+export const CONFIDENCE_WARN_THRESHOLD = 0.5;   // below → treat as missing
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 export type ExtractedField = {
   value: string | null;
   unit: string | null;
-  confidence: number; // 0–1
+  confidence: number;        // 0–1
+  source: 'vision' | 'text' | 'none';
 };
 
 export type ExtractedSection = {
@@ -60,7 +76,7 @@ export type ExtractedGeneral = {
 };
 
 export type DrawingExtraction = {
-  engine: 'gpt-4o-vision' | 'pdf-text-layer-parser';
+  engine: 'vision-based' | 'text-based fallback';
   drawingNumber: ExtractedField;
   revision: ExtractedField;
   title: ExtractedField;
@@ -86,9 +102,9 @@ export type DrawingExtraction = {
   rawText?: string;
 };
 
-// ── Null field helper ─────────────────────────────────────────────────────────
-function nullField(): ExtractedField {
-  return { value: null, unit: null, confidence: 0 };
+// ── Null helpers ───────────────────────────────────────────────────────────────
+export function nullField(): ExtractedField {
+  return { value: null, unit: null, confidence: 0, source: 'none' };
 }
 
 function nullSection(): ExtractedSection {
@@ -134,12 +150,11 @@ function nullGeneral(): ExtractedGeneral {
   };
 }
 
-// ── GPT-4o extraction prompt ──────────────────────────────────────────────────
+// ── GPT-4o JSON schema prompt (shared by vision + text) ───────────────────────
 const SYSTEM_PROMPT = `You are an expert pressure vessel drawing analyst.
-Given images of a SolidWorks engineering drawing PDF, extract all technical data
-from the title block, data sheet tables, and notes panels.
-
+Extract all technical data from the pressure vessel engineering drawing.
 Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
+
 {
   "drawingNumber":  { "value": null, "unit": null, "confidence": 0.0 },
   "revision":       { "value": null, "unit": null, "confidence": 0.0 },
@@ -201,62 +216,78 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 }
 
 Rules:
-- confidence: 0.9 = clearly visible and unambiguous; 0.7 = readable but unclear; 0.5 = inferred; 0.3 = guessed; 0.0 = not found
-- Always extract the unit separately from the value. value = numeric or text, unit = "barg"/"°C"/etc.
-- If tube or jacket data is present in the drawing, populate the tube/jacket objects with the same structure as shell.
-- If tube or jacket is not on the drawing, set to null.
+- confidence: 0.95 = clearly legible in the drawing; 0.75 = readable; 0.55 = inferred/partially visible; 0.30 = guessed; 0.0 = not found
+- Always separate the numeric value from its unit.
+- If tube or jacket data is present in the drawing, populate those objects with the same structure as shell.
+- If tube or jacket data is absent, set to null.
 - Never invent values. If a field is not visible, set value: null and confidence: 0.0.`;
 
-// ── Convert PDF buffer to base64 image via pdfjs-dist ────────────────────────
-// We use the raw first-page image for GPT-4o. For simplicity in Phase 1,
-// we encode the PDF directly as a base64 data URL (GPT-4o accepts PDFs via URL
-// only, not base64 PDF). Instead we extract the raw text + send as context.
-// Full image rendering requires pdf2pic which needs native ghostscript.
-// Phase 1: send first 4000 chars of text layer as context to GPT-4o with
-// the instruction to extract structured data.
+// ── PDF → PNG images via pdftoppm ─────────────────────────────────────────────
+async function renderPdfToImages(pdfBuffer: Buffer): Promise<string[]> {
+  const uid = randomUUID();
+  const tmpPdf = join(tmpdir(), `dwg-${uid}.pdf`);
+  const tmpPrefix = join(tmpdir(), `dwg-${uid}`);
 
-async function extractWithGPT4o(pdfBuffer: Buffer): Promise<DrawingExtraction> {
-  let rawText = '';
   try {
-    const parsed = await pdfParse(pdfBuffer);
-    rawText = (parsed.text || '').slice(0, 6000);
-  } catch {
-    rawText = '';
+    await writeFile(tmpPdf, pdfBuffer);
+
+    // Convert first 3 pages to PNG, scaled to 2000px wide (good for title blocks)
+    await execFileAsync('pdftoppm', [
+      '-png',
+      '-r', '200',
+      '-scale-to-x', '2000',
+      '-scale-to-y', '-1',
+      '-f', '1',
+      '-l', '3',
+      tmpPdf,
+      tmpPrefix,
+    ]);
+
+    // Collect generated PNGs
+    const dir = tmpdir();
+    const files = await readdir(dir);
+    const pngFiles = files
+      .filter(f => f.startsWith(`dwg-${uid}`) && f.endsWith('.png'))
+      .sort()
+      .slice(0, 3);
+
+    const base64Images: string[] = [];
+    for (const f of pngFiles) {
+      const filePath = join(dir, f);
+      const buf = await readFile(filePath);
+      base64Images.push(`data:image/png;base64,${buf.toString('base64')}`);
+      await unlink(filePath).catch(() => {});
+    }
+
+    return base64Images;
+  } finally {
+    await unlink(tmpPdf).catch(() => {});
   }
+}
 
-  const openai = new OpenAI();
-
-  const userContent = rawText.trim()
-    ? `Here is the text extracted from a pressure vessel engineering drawing PDF:\n\n${rawText}\n\nExtract all technical data according to the schema.`
-    : 'The PDF appears to have no extractable text layer. Return all fields as null with confidence 0.0.';
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    max_tokens: 4096,
-    temperature: 0,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userContent },
-    ],
-  });
-
-  const content = response.choices[0]?.message?.content ?? '{}';
+// ── Parse GPT-4o JSON response → DrawingExtraction ───────────────────────────
+function parseGptResponse(
+  content: string,
+  source: 'vision' | 'text',
+): Omit<DrawingExtraction, 'engine' | 'rawText'> {
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error('GPT-4o returned non-JSON response');
-
   const parsed = JSON.parse(jsonMatch[0]);
 
   function toField(raw: any): ExtractedField {
-    if (!raw || typeof raw !== 'object') return nullField();
+    if (!raw || typeof raw !== 'object') return { ...nullField(), source };
     return {
       value: raw.value ?? null,
       unit: raw.unit ?? null,
-      confidence: typeof raw.confidence === 'number' ? Math.max(0, Math.min(1, raw.confidence)) : 0,
+      confidence: typeof raw.confidence === 'number'
+        ? Math.max(0, Math.min(1, raw.confidence))
+        : 0,
+      source,
     };
   }
 
   function toSection(raw: any): ExtractedSection {
-    if (!raw || typeof raw !== 'object') return nullSection();
+    if (!raw || typeof raw !== 'object') return { ...nullSection() };
     return {
       internalDesignPressureMawp:   toField(raw.internalDesignPressureMawp),
       externalDesignPressureMawp:   toField(raw.externalDesignPressureMawp),
@@ -301,7 +332,6 @@ async function extractWithGPT4o(pdfBuffer: Buffer): Promise<DrawingExtraction> {
   }
 
   return {
-    engine: 'gpt-4o-vision',
     drawingNumber: toField(parsed.drawingNumber),
     revision:      toField(parsed.revision),
     title:         toField(parsed.title),
@@ -324,76 +354,127 @@ async function extractWithGPT4o(pdfBuffer: Buffer): Promise<DrawingExtraction> {
     tube:          parsed.tube ? toSection(parsed.tube) : null,
     jacket:        parsed.jacket ? toSection(parsed.jacket) : null,
     general:       toGeneral(parsed.general),
-    rawText,
   };
 }
 
-// ── Regex fallback (text-layer only) ─────────────────────────────────────────
-async function extractWithRegex(pdfBuffer: Buffer): Promise<DrawingExtraction> {
+// ── PRIMARY: GPT-4o Vision (rendered images) ──────────────────────────────────
+async function extractWithVision(pdfBuffer: Buffer): Promise<DrawingExtraction> {
+  const images = await renderPdfToImages(pdfBuffer);
+
+  if (!images.length) {
+    throw new Error('pdftoppm produced no images — cannot run vision extraction');
+  }
+
+  const openai = new OpenAI();
+
+  const imageContent = images.map(dataUrl => ({
+    type: 'image_url' as const,
+    image_url: { url: dataUrl, detail: 'high' as const },
+  }));
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    max_tokens: 4096,
+    temperature: 0,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `The following ${images.length} image(s) are rendered pages of a pressure vessel engineering drawing PDF. Extract all technical data visible in the title block, data table, and notes sections.`,
+          },
+          ...imageContent,
+        ],
+      },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content ?? '{}';
+  const fields = parseGptResponse(content, 'vision');
+
+  return { engine: 'vision-based', ...fields };
+}
+
+// ── FALLBACK: pdf-parse text → GPT-4o text completion ────────────────────────
+async function extractWithTextFallback(pdfBuffer: Buffer): Promise<DrawingExtraction> {
   let rawText = '';
   try {
     const parsed = await pdfParse(pdfBuffer);
-    rawText = parsed.text || '';
+    rawText = (parsed.text || '').slice(0, 8000);
   } catch {
     rawText = '';
   }
 
-  const t = rawText.toLowerCase();
+  const openai = new OpenAI();
 
-  function findVal(patterns: RegExp[]): ExtractedField {
-    for (const p of patterns) {
-      const m = rawText.match(p);
-      if (m && m[1]?.trim()) {
-        return { value: m[1].trim(), unit: null, confidence: 0.6 };
-      }
-    }
-    return nullField();
-  }
+  const userContent = rawText.trim()
+    ? `Here is the text layer extracted from a pressure vessel engineering drawing PDF:\n\n${rawText}\n\nExtract all technical data according to the schema. Note: this is text-layer extraction only — some fields may not be available.`
+    : 'The PDF has no extractable text layer. Return all fields as null with confidence 0.0.';
 
-  const drawingNumber = findVal([
-    /DWG\.?\s*NO\.?\s*[:\-]?\s*([A-Z0-9][\w.\-\/]{3,50})/i,
-    /DRAWING\s+NO\.?\s*[:\-]?\s*([A-Z0-9][\w.\-\/]{3,50})/i,
-  ]);
-  const revision = findVal([/\bREV(?:ISION)?\.?\s*[:\-]?\s*([A-Z0-9]{1,5})/i]);
-  const title = findVal([/TITLE\s*[:\-]\s*(.+?)(?:\n|DWG|$)/i]);
-  const tagNumber = findVal([/TAG\s*(?:NO\.?|NUMBER)?\s*[:\-]?\s*([A-Z0-9\-\/]{3,40})/i]);
-  const projectCode = findVal([/PROJECT\s*(?:NO\.?|CODE)?\s*[:\-]?\s*([A-Z0-9\-\/]{3,30})/i]);
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    max_tokens: 4096,
+    temperature: 0,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userContent },
+    ],
+  });
 
-  return {
-    engine: 'pdf-text-layer-parser',
-    drawingNumber,
-    revision,
-    title,
-    tagNumber,
-    projectCode,
-    itemCode:      nullField(),
-    designCode:    findVal([/DESIGN\s*CODE\s*[:\-]?\s*(.+?)(?:\n|$)/i]),
-    equipmentType: findVal([/EQUIPMENT\s*TYPE\s*[:\-]?\s*(.+?)(?:\n|$)/i]),
-    clientName:    findVal([/CLIENT\s*[:\-]?\s*(.+?)(?:\n|$)/i]),
-    vendorName:    findVal([/(?:THERMOPAC|VENDOR|MANUFACTURER)\s*[:\-]?\s*(.+?)(?:\n|$)/i]),
-    scale:         findVal([/SCALE\s*[:\-]?\s*([\d:\/NTSnts]+)/i]),
-    units:         findVal([/UNITS?\s*[:\-]?\s*(.+?)(?:\n|$)/i]),
-    date:          findVal([/DATE\s*[:\-]?\s*([\d\/\-\.]+)/i]),
-    drawnBy:       findVal([/DRAWN\s*BY\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\n|DATE|$)/i]),
-    checkedBy:     findVal([/CHECKED?\s*BY\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\n|DATE|$)/i]),
-    approvedBy:    findVal([/APPROVED?\s*BY\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\n|DATE|$)/i]),
-    sheetNumber:   findVal([/SHEET\s*[:\-]?\s*(\d+\s*(?:of|\/)\s*\d+)/i]),
-    ddsReference:  findVal([/DDS\s*(?:REF\.?|REFERENCE)?\s*[:\-]?\s*([A-Z0-9\-\/\.]+)/i]),
-    shell:         nullSection(),
-    tube:          null,
-    jacket:        null,
-    general:       nullGeneral(),
-    rawText,
-  };
+  const content = response.choices[0]?.message?.content ?? '{}';
+  const fields = parseGptResponse(content, 'text');
+
+  return { engine: 'text-based fallback', rawText, ...fields };
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
+// ── PUBLIC ENTRY POINT ────────────────────────────────────────────────────────
 export async function extractDrawingData(pdfBuffer: Buffer): Promise<DrawingExtraction> {
+  // Phase 1: try vision-based (pdftoppm → GPT-4o Vision)
   try {
-    const result = await extractWithGPT4o(pdfBuffer);
+    console.log('[drawing-ai-extractor] Attempting vision-based extraction (pdftoppm + GPT-4o Vision)...');
+    const result = await extractWithVision(pdfBuffer);
+    console.log('[drawing-ai-extractor] Vision extraction successful.');
     return result;
-  } catch (err: any) {
-    console.warn('[drawing-ai-extractor] GPT-4o failed, falling back to regex:', err?.message);
-    return extractWithRegex(pdfBuffer);
+  } catch (visionErr: any) {
+    console.warn('[drawing-ai-extractor] Vision extraction failed, falling back to text-based:', visionErr?.message);
+  }
+
+  // Fallback: text layer → GPT-4o text
+  try {
+    console.log('[drawing-ai-extractor] Attempting text-based fallback extraction...');
+    const result = await extractWithTextFallback(pdfBuffer);
+    console.log('[drawing-ai-extractor] Text-based fallback extraction successful.');
+    return result;
+  } catch (textErr: any) {
+    console.error('[drawing-ai-extractor] Both extraction methods failed:', textErr?.message);
+    // Return a fully null extraction — rule engine will WARN on all fields
+    return {
+      engine: 'text-based fallback',
+      rawText: '',
+      drawingNumber: nullField(),
+      revision:      nullField(),
+      title:         nullField(),
+      tagNumber:     nullField(),
+      projectCode:   nullField(),
+      itemCode:      nullField(),
+      designCode:    nullField(),
+      equipmentType: nullField(),
+      clientName:    nullField(),
+      vendorName:    nullField(),
+      scale:         nullField(),
+      units:         nullField(),
+      date:          nullField(),
+      drawnBy:       nullField(),
+      checkedBy:     nullField(),
+      approvedBy:    nullField(),
+      sheetNumber:   nullField(),
+      ddsReference:  nullField(),
+      shell:         nullSection(),
+      tube:          null,
+      jacket:        null,
+      general:       nullGeneral(),
+    };
   }
 }

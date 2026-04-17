@@ -69,19 +69,21 @@ function confidenceAwareStatus(
   fieldStatus: 'pass' | 'fail' | 'warn',
   confidence: number,
   severity: RuleSeverity,
+  source?: 'vision' | 'text' | 'none',
 ): { status: RuleStatus; severity: RuleSeverity; evidence: string } {
+  const srcLabel = source === 'vision' ? 'vision-based' : source === 'text' ? 'text-based fallback' : 'unknown';
   if (confidence < CONFIDENCE_WARN_THRESHOLD) {
     return {
       status: 'warn',
       severity: 'medium',
-      evidence: `Low extraction confidence (${(confidence * 100).toFixed(0)}%) — value may be inaccurate. Manual verification required.`,
+      evidence: `Field not reliably extracted (confidence ${(confidence * 100).toFixed(0)}%, engine: ${srcLabel}) — manual review required.`,
     };
   }
   if (confidence < CONFIDENCE_FAIL_THRESHOLD && fieldStatus === 'fail') {
     return {
       status: 'warn',
       severity: 'medium',
-      evidence: `Extraction confidence below threshold (${(confidence * 100).toFixed(0)}%) — mismatch downgraded to warning. Manual verification required.`,
+      evidence: `Low confidence (${(confidence * 100).toFixed(0)}%, engine: ${srcLabel}) — mismatch downgraded to WARN. Manual verification required.`,
     };
   }
   return { status: fieldStatus, severity: fieldStatus === 'pass' ? null : severity, evidence: '' };
@@ -103,7 +105,7 @@ function compareField(
   const dds = ddsValue ?? null;
 
   if (extracted.value === null || extracted.confidence === 0) {
-    const conf = confidenceAwareStatus('fail', extracted.confidence, severity);
+    const conf = confidenceAwareStatus('fail', extracted.confidence, severity, extracted.source);
     return {
       layer, checklistSection: section, checklistItem: item, task,
       equipmentConfig, applicableSection,
@@ -151,7 +153,7 @@ function compareField(
     return { layer, checklistSection: section, checklistItem: item, task, equipmentConfig, applicableSection, status: 'pass', severity: null, expected: dds, actual: extracted.value, evidence: 'Values match.' };
   }
 
-  const conf = confidenceAwareStatus('fail', extracted.confidence, severity);
+  const conf = confidenceAwareStatus('fail', extracted.confidence, severity, extracted.source);
   return {
     layer, checklistSection: section, checklistItem: item, task,
     equipmentConfig, applicableSection,
@@ -175,10 +177,10 @@ function presence(
   passNote = 'Present',
 ): RuleResult {
   if (!extracted.value) {
-    const conf = confidenceAwareStatus('fail', extracted.confidence, severity);
+    const conf = confidenceAwareStatus('fail', extracted.confidence, severity, extracted.source);
     return { layer, checklistSection: section, checklistItem: item, task, equipmentConfig, applicableSection, status: conf.status, severity: conf.severity ?? severity, expected: 'Present', actual: 'Not found', evidence: conf.evidence || 'Not found in drawing.' };
   }
-  const conf = confidenceAwareStatus('pass', extracted.confidence, null);
+  const conf = confidenceAwareStatus('pass', extracted.confidence, null, extracted.source);
   if (conf.status === 'warn') {
     return { layer, checklistSection: section, checklistItem: item, task, equipmentConfig, applicableSection, status: 'warn', severity: 'medium', expected: 'Present', actual: extracted.value, evidence: conf.evidence };
   }
@@ -373,12 +375,12 @@ function runLayer2(ext: DrawingExtraction, ap: ApplicableSections, equipmentConf
   pres(5, '5.3', 'MDMT defined — Shell', 'Shell', ext.shell.mdmt, 'high');
   pres(5, '5.4', 'Hydrotest temperature defined', 'Shell', ext.shell.hydroTestTempMinMax, 'medium');
   if (ap.jacket) {
-    pres(5, '5.5', 'Jacket temperatures covered', 'Jacket', ext.jacket?.designTempMinMax ?? { value: null, unit: null, confidence: 0 }, 'critical');
+    pres(5, '5.5', 'Jacket temperatures covered', 'Jacket', ext.jacket?.designTempMinMax ?? { value: null, unit: null, confidence: 0, source: 'none' }, 'critical');
   } else {
     skip(5, '5.5', 'Jacket temperatures covered', 'Jacket', `Not applicable for ${EQ}`);
   }
   if (ap.tube) {
-    pres(5, '5.5b', 'Tube temperatures covered', 'Tube', ext.tube?.designTempMinMax ?? { value: null, unit: null, confidence: 0 }, 'critical');
+    pres(5, '5.5b', 'Tube temperatures covered', 'Tube', ext.tube?.designTempMinMax ?? { value: null, unit: null, confidence: 0, source: 'none' }, 'critical');
   } else {
     skip(5, '5.5b', 'Tube temperatures covered', 'Tube', `Not applicable for ${EQ}`);
   }
@@ -497,23 +499,27 @@ function runLayer2(ext: DrawingExtraction, ap: ApplicableSections, equipmentConf
   pres(19, '19.7', 'Hazard level classification', 'Shell', ext.shell.hazardLevel, 'critical');
   results.push(warn(19, '19.8', 'PV / P×DN calculation for PED/hazard', 'General', 'PV product calculation — manual'));
 
-  // ── 20. Advanced Checks (Phase 1 limited) ────────────────────────────────
-  const extractionQuality = ext.drawingNumber.confidence > 0.7 && ext.title.confidence > 0.7;
+  // ── 20. Advanced Checks ───────────────────────────────────────────────────
+  const extractionQuality = ext.drawingNumber.confidence >= 0.7 && ext.title.confidence >= 0.7;
+  const engineLabel = ext.engine === 'vision-based' ? 'Vision-based (pdftoppm + GPT-4o Vision)' : 'Text-based fallback (pdf-parse + GPT-4o Text)';
   results.push({
-    layer: 2, checklistSection: 20, checklistItem: '20.1', task: 'OCR/title block extraction quality',
+    layer: 2, checklistSection: 20, checklistItem: '20.1', task: 'Extraction engine & quality assessment',
     equipmentConfig: EQ, applicableSection: 'Identity',
     status: extractionQuality ? 'pass' : 'warn', severity: extractionQuality ? null : 'medium',
-    expected: 'Confidence ≥ 0.7', actual: `Drawing No: ${(ext.drawingNumber.confidence * 100).toFixed(0)}%, Title: ${(ext.title.confidence * 100).toFixed(0)}%`,
-    evidence: extractionQuality ? 'Key title block fields extracted with adequate confidence.' : 'Low confidence on key fields — manual title block review required.',
+    expected: `Engine: vision-based | Confidence ≥ 0.7`,
+    actual: `Engine: ${ext.engine} | Drawing No: ${(ext.drawingNumber.confidence * 100).toFixed(0)}%, Title: ${(ext.title.confidence * 100).toFixed(0)}%`,
+    evidence: extractionQuality
+      ? `${engineLabel}. Key title block fields extracted with adequate confidence.`
+      : `${engineLabel}. ${ext.engine !== 'vision-based' ? 'Vision extraction failed — text-based fallback used. ' : ''}Low confidence on key fields — manual title block review required.`,
   });
-  results.push(warn(20, '20.2', 'Pattern recognition for missing required fields', 'General', 'Phase 1: Missing field detection based on confidence scores above'));
-  results.push(warn(20, '20.3', 'AI-based anomaly detection', 'General', 'Phase 1 limited — advanced anomaly detection is Phase 2'));
+  results.push(warn(20, '20.2', 'Pattern recognition for missing required fields', 'General', 'Missing field detection based on confidence scores above'));
+  results.push(warn(20, '20.3', 'AI-based anomaly detection', 'General', 'Advanced anomaly detection — manual review for Phase 1'));
 
   return results;
 }
 
 // Helper to avoid TypeScript error for null field in skip calls above
-function nullF(): ExtractedField { return { value: null, unit: null, confidence: 0 }; }
+function nullF(): ExtractedField { return { value: null, unit: null, confidence: 0, source: 'none' }; }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public entry point
