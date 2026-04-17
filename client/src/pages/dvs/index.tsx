@@ -128,6 +128,8 @@ type RuleResult = {
 type EvaluationData = {
   id: number;
   overallVerdict: string;
+  extractionGate: string | null;
+  extractionGateReason: string | null;
   ruleResults: RuleResult[];
   evaluatedAt: string | null;
 };
@@ -900,6 +902,17 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
               {loadingEval && <Skeleton className="h-32 w-full" />}
               {evaluation && (
                 <div>
+                  {evaluation.extractionGateReason === "extraction_failed" && (
+                    <div className="rounded-md border border-red-200 bg-red-50 p-3 mb-3 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-red-800">Verification incomplete — metadata extraction failed</p>
+                        <p className="text-xs text-red-700 mt-0.5">
+                          Metadata could not be extracted from source file; automated verification is incomplete. All rule results below are inconclusive, not evidence of drawing defects. Manual review is required before approval.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs text-gray-600">Overall verdict:</span>
                     <span
@@ -1014,20 +1027,30 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
 
               {/* Approval form */}
               {idx === 3 && canApprove && (
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => { setApproveDecision("approved"); setApproveOpen(true); }}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    variant="destructive"
-                    onClick={() => { setApproveDecision("rejected"); setApproveOpen(true); }}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" /> Reject
-                  </Button>
+                <div className="space-y-2">
+                  {evaluation?.extractionGateReason === "extraction_failed" && (
+                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <p className="text-xs text-amber-800">
+                        <span className="font-semibold">Verification incomplete.</span> Automated checks could not run because metadata extraction failed. The drawing may still be acceptable — but a written justification is mandatory to approve with incomplete verification evidence.
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => { setApproveDecision("approved"); setApproveOpen(true); }}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      variant="destructive"
+                      onClick={() => { setApproveDecision("rejected"); setApproveOpen(true); }}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" /> Reject
+                    </Button>
+                  </div>
                 </div>
               )}
               {idx === 3 && !canApprove && (
@@ -1165,12 +1188,32 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                 : `You are rejecting ${revision.drawingNumber} Rev ${revision.revision}. Please provide a reason.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {approveDecision === "approved" && evaluation?.extractionGateReason === "extraction_failed" && (
+            <div className="mx-1 mb-1 rounded border border-amber-200 bg-amber-50 px-3 py-2 flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800">
+                <span className="font-semibold">Override approval — verification incomplete.</span> A written justification is required because automated verification could not run. State the basis on which you are satisfied this drawing is acceptable.
+              </p>
+            </div>
+          )}
           <div className="px-1 pb-2">
-            <Label className="text-xs">{approveDecision === "rejected" ? "Rejection reason *" : "Comments (optional)"}</Label>
+            <Label className="text-xs">
+              {approveDecision === "rejected"
+                ? "Rejection reason *"
+                : evaluation?.extractionGateReason === "extraction_failed"
+                ? "Override justification * (mandatory — verification incomplete)"
+                : "Comments (optional)"}
+            </Label>
             <Textarea
               className="mt-1"
               rows={3}
-              placeholder={approveDecision === "rejected" ? "State the reason for rejection…" : "Any notes for this approval…"}
+              placeholder={
+                approveDecision === "rejected"
+                  ? "State the reason for rejection…"
+                  : evaluation?.extractionGateReason === "extraction_failed"
+                  ? "State why this drawing is acceptable despite incomplete automated verification…"
+                  : "Any notes for this approval…"
+              }
               value={approveComment}
               onChange={(e) => setApproveComment(e.target.value)}
             />
@@ -1180,7 +1223,11 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
             <AlertDialogAction
               className={approveDecision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}
               onClick={() => approveMut.mutate()}
-              disabled={approveMut.isPending || (approveDecision === "rejected" && !approveComment.trim())}
+              disabled={
+                approveMut.isPending ||
+                (approveDecision === "rejected" && !approveComment.trim()) ||
+                (approveDecision === "approved" && evaluation?.extractionGateReason === "extraction_failed" && !approveComment.trim())
+              }
             >
               {approveMut.isPending ? "Processing…" : approveDecision === "approved" ? "Confirm Approval" : "Confirm Rejection"}
             </AlertDialogAction>

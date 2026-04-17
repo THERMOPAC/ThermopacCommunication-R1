@@ -126,7 +126,7 @@ function makeRule(opts: MakeRuleOpts): RuleResult {
     return {
       ...base,
       verdict: 'WARN',
-      detail: partialDetail ?? 'Field absent due to partial extraction; attributed to extraction layer, not drawing content.',
+      detail: partialDetail ?? 'Metadata could not be extracted from source file; automated verification is incomplete.',
     };
   }
   // CRITICAL fails become FAIL; STANDARD fails become WARN

@@ -844,6 +844,15 @@ router.post('/:id/approve', ensureAuthenticated, async (req: Request, res: Respo
       });
     }
 
+    // Guard 10b: Extraction failure → approval requires written override justification
+    if (decision === 'APPROVED' && evaluation.extractionGateReason === 'extraction_failed' && !comments?.trim()) {
+      return res.status(400).json({
+        error:  'OVERRIDE_JUSTIFICATION_REQUIRED',
+        reason: 'extraction_failed_override_required',
+        detail: 'Automated verification is incomplete because metadata extraction failed. Approval with incomplete verification requires a written justification. Provide your justification in the comments field.',
+      });
+    }
+
     // Agent report freshness — non-blocking
     const agentRows = await db.select().from(agentReports)
       .where(eq(agentReports.drawingRevisionId, id)).limit(1);
