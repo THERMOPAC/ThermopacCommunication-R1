@@ -422,6 +422,7 @@ function Layout({ children }: LayoutProps) {
         { icon: BarChart3, label: "Design Dashboard", href: "/design-management" },
         { icon: FolderKanban, label: "Design Projects", href: "/design-management/projects" },
         { icon: FileText, label: "Drawing Registry", href: "/design-management/drawings" },
+        { icon: ShieldCheck, label: "Drawing Verification", href: "/design-management/drawing-verification" },
         { icon: CheckSquare, label: "Review & Approval", href: "/design-management/reviews" },
         { icon: Briefcase, label: "Transmittals", href: "/design-management/transmittals" },
         { icon: FileCheck, label: "Standards & Templates", href: "/design-management/standards" },
