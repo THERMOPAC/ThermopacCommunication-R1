@@ -628,16 +628,15 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
     onSuccess: (data: any) => {
       if (data?.extractionStatus === "failed") {
         toast({
-          title: "Extraction failed",
-          description: data?._note ?? "The OLE extractor could not read metadata from this file. Use force re-run or check the file.",
-          variant: "destructive",
+          title: "Extraction could not read file metadata",
+          description: "The pipeline has been advanced — proceed to Evaluate to run automated rule checks.",
         });
       } else {
         toast({ title: data?.extractionStatus === "partial" ? "Extraction partial — some fields missing" : "Extraction complete ✓" });
       }
       invalidate();
     },
-    onError: (e: any) => toast({ title: "Extraction failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Extraction error", description: e.message, variant: "destructive" }),
   });
 
   const evaluateMut = useMutation({
