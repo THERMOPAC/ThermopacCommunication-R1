@@ -277,8 +277,14 @@ function StageCard({
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  useEffect(() => setOpen(defaultOpen), [defaultOpen]);
+  // Active cards are always open (they need user action); done cards can collapse; locked cards are closed
+  const isOpen = state === "active" ? true : state === "locked" ? false : undefined;
+  const [open, setOpen] = useState(isOpen ?? defaultOpen);
+  useEffect(() => {
+    if (state === "active") setOpen(true);
+    else if (state === "locked") setOpen(false);
+    else setOpen(defaultOpen);
+  }, [state, defaultOpen]);
 
   return (
     <div
@@ -290,10 +296,10 @@ function StageCard({
       )}
     >
       <button
-        onClick={() => state !== "locked" && setOpen((o) => !o)}
+        onClick={() => state === "done" && setOpen((o) => !o)}
         className={cn(
           "w-full flex items-center justify-between px-4 py-3 text-left",
-          state === "locked" ? "cursor-not-allowed" : "cursor-pointer hover:bg-black/5",
+          state === "done" ? "cursor-pointer hover:bg-black/5" : "cursor-default",
         )}
       >
         <div className="flex items-center gap-2.5">
