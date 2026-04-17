@@ -418,7 +418,7 @@ function UploadDialog({
       fd.append("projectId", projectId);
       fd.append("drawingNumber", drawingNumber.trim());
       fd.append("revision", revision.trim());
-      if (drawingControlId) fd.append("drawingControlId", drawingControlId);
+      if (drawingControlId && drawingControlId !== "none") fd.append("drawingControlId", drawingControlId);
       if (title.trim()) fd.append("title", title.trim());
       if (itemCode.trim()) fd.append("itemCode", itemCode.trim());
       if (discipline.trim()) fd.append("discipline", discipline.trim());
@@ -482,7 +482,7 @@ function UploadDialog({
                     <SelectValue placeholder="Link to EPC drawing control…" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None (no EPC link)</SelectItem>
                     {drawingControls.map((dc) => (
                       <SelectItem key={dc.id} value={String(dc.id)}>
                         {dc.dwgControlNumber} — {dc.drawingTitle ?? dc.drawingNumber ?? ""}
