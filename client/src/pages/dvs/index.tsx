@@ -163,7 +163,7 @@ type ReleaseData = {
 // ─────────────────────────────────────────────────────────────
 // Status helpers
 // ─────────────────────────────────────────────────────────────
-const STATUS_ORDER = ["uploaded", "extracted", "evaluated", "approved", "released"];
+const STATUS_ORDER = ["uploaded", "extracted", "evaluated", "agent_reviewed", "approved", "released"];
 
 function stageIndex(status: string): number {
   return STATUS_ORDER.indexOf(status);
@@ -174,6 +174,7 @@ function StatusBadge({ status }: { status: string }) {
     uploaded: { label: "Uploaded", className: "bg-blue-100 text-blue-800 border-blue-200" },
     extracted: { label: "Extracted", className: "bg-indigo-100 text-indigo-800 border-indigo-200" },
     evaluated: { label: "Evaluated", className: "bg-amber-100 text-amber-800 border-amber-200" },
+    agent_reviewed: { label: "Agent Reviewed", className: "bg-purple-100 text-purple-800 border-purple-200" },
     approved: { label: "Approved", className: "bg-emerald-100 text-emerald-800 border-emerald-200" },
     released: { label: "Released", className: "bg-green-100 text-green-800 border-green-200" },
     rejected: { label: "Rejected", className: "bg-red-100 text-red-800 border-red-200" },
@@ -215,12 +216,23 @@ type StepState = "done" | "active" | "locked";
 
 const PIPELINE_STEPS = ["Upload", "Extract", "Evaluate", "Approve", "Release"];
 
+// Maps each DB status to the pipeline step that is currently "in progress".
+// agent_reviewed is still inside the Approve step (it's a sub-state before approval is granted).
+const STATUS_TO_PIPELINE_STEP: Record<string, number> = {
+  uploaded: 0,
+  extracted: 1,
+  evaluated: 2,
+  agent_reviewed: 2,
+  approved: 3,
+  released: 4,
+};
+
 function PipelineTracker({ currentStatus }: { currentStatus: string }) {
-  const idx = stageIndex(currentStatus);
+  const pipelineStep = STATUS_TO_PIPELINE_STEP[currentStatus] ?? -1;
   return (
     <div className="flex items-center gap-0 py-3">
       {PIPELINE_STEPS.map((label, i) => {
-        const state: StepState = i <= idx ? "done" : i === idx + 1 ? "active" : "locked";
+        const state: StepState = i <= pipelineStep ? "done" : i === pipelineStep + 1 ? "active" : "locked";
         const isLast = i === PIPELINE_STEPS.length - 1;
         return (
           <div key={label} className="flex items-center gap-0 flex-1 min-w-0">
@@ -926,8 +938,8 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
           <StageCard
             title="Approve"
             icon={ShieldCheck}
-            state={idx >= 3 ? "done" : idx === 2 ? "active" : "locked"}
-            defaultOpen={idx === 2 || idx === 3}
+            state={idx >= 4 ? "done" : idx >= 2 ? "active" : "locked"}
+            defaultOpen={idx >= 2 && idx < 4}
           >
             <div className="mt-3 space-y-3">
               {/* Agent report */}
@@ -1001,7 +1013,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
               )}
 
               {/* Approval form */}
-              {idx === 2 && canApprove && (
+              {idx === 3 && canApprove && (
                 <div className="flex gap-2">
                   <Button
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700"
@@ -1018,7 +1030,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                   </Button>
                 </div>
               )}
-              {idx === 2 && !canApprove && (
+              {idx === 3 && !canApprove && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
                   Approval requires Manager or above role.
                 </p>
@@ -1054,11 +1066,11 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
           <StageCard
             title="Release"
             icon={Lock}
-            state={idx >= 4 ? "done" : idx === 3 ? "active" : "locked"}
-            defaultOpen={idx >= 3}
+            state={idx >= 5 ? "done" : idx === 4 ? "active" : "locked"}
+            defaultOpen={idx >= 4}
           >
             <div className="mt-3 space-y-3">
-              {idx === 3 && !showReleaseForm && (
+              {idx === 4 && !showReleaseForm && (
                 <div className="text-center py-2">
                   <p className="text-sm text-gray-600 mb-1">
                     Release this drawing to the CONTROLLED zone. This action is irreversible.
@@ -1078,7 +1090,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                   )}
                 </div>
               )}
-              {idx === 3 && showReleaseForm && (
+              {idx === 4 && showReleaseForm && (
                 <div className="space-y-3">
                   <div>
                     <Label className="text-xs">Release Notes (optional)</Label>
