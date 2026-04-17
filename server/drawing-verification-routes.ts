@@ -288,7 +288,8 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
     }
 
     // Trigger guard: must be at a valid pipeline stage for (re-)extraction
-    const extractableStatuses = ['uploaded', 'extracted', 'evaluated'];
+    // agent_reviewed and approved are included so metadata can be retried at any pre-release stage
+    const extractableStatuses = ['uploaded', 'extracted', 'evaluated', 'agent_reviewed', 'approved'];
     if (!extractableStatuses.includes(revision.status)) {
       return res.status(409).json({
         error: `Extraction is not permitted for revisions with status '${revision.status}'. Must be one of: ${extractableStatuses.join(', ')}.`,
@@ -424,12 +425,14 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
       })
       .where(eq(drawingExtractions.drawingRevisionId, id));
 
-    // ── Step 2 amendment: always advance to 'extracted' after any extraction attempt ──
-    // Even a failed extraction advances the status so the pipeline can continue.
-    // The evaluate step's extraction gate will flag missing data and produce FAIL verdicts.
-    await db.update(drawingRevisions)
-      .set({ status: 'extracted' })
-      .where(eq(drawingRevisions.id, id));
+    // ── Step 2 amendment: advance to 'extracted' only if still at 'uploaded' ──
+    // If already past 'extracted' (evaluated, agent_reviewed, approved), leave status unchanged
+    // so re-extraction does not roll back pipeline progress.
+    if (revision.status === 'uploaded') {
+      await db.update(drawingRevisions)
+        .set({ status: 'extracted' })
+        .where(eq(drawingRevisions.id, id));
+    }
 
     const finalRows = await db.select().from(drawingExtractions)
       .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);
