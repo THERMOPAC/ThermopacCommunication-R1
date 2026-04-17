@@ -606,6 +606,7 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Digital Marketing' },
                     { type: 'submenu', label: 'Sales and Marketing' },
                     { type: 'submenu', label: 'Project Management' },
+                    { type: 'submenu', label: 'Drawing Verification', skipPermCheck: true },
                     { type: 'submenu', label: 'Design Management' },
                     { type: 'submenu', label: 'Procurement Management' },
                     { type: 'submenu', label: 'Production Management' },
@@ -649,12 +650,12 @@ function Layout({ children }: LayoutProps) {
                         </li>
                       );
                     } else {
-                      // Find submenu item
-                      const item = submenuItems.find(item => 
-                        item.label === orderItem.label && 
-                        hasViewPermission(orderItem.label as Module)
+                      // Find submenu item — role-gated modules use skipPermCheck
+                      const item = submenuItems.find(item =>
+                        item.label === orderItem.label &&
+                        ((orderItem as any).skipPermCheck || hasViewPermission(orderItem.label as Module))
                       );
-                      
+
                       if (!item) return null;
                       
                       const Icon = item.icon;
