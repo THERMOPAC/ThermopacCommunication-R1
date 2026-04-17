@@ -569,32 +569,45 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
 
   const idx = stageIndex(revision.status);
 
-  const { data: extraction, isLoading: loadingExtract } = useQuery<ExtractionData>({
+  // Helper: fetch a DVS sub-resource, returns null on 404
+  const dvsGet = async (path: string) => {
+    const res = await fetch(path, { credentials: "include" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+    return res.json();
+  };
+
+  const { data: extraction, isLoading: loadingExtract } = useQuery<ExtractionData | null>({
     queryKey: ["/api/drawing-revisions", revision.id, "extraction"],
+    queryFn: () => dvsGet(`/api/drawing-revisions/${revision.id}/extraction`),
     enabled: true,
     retry: false,
   });
 
-  const { data: evaluation, isLoading: loadingEval } = useQuery<EvaluationData>({
+  const { data: evaluation, isLoading: loadingEval } = useQuery<EvaluationData | null>({
     queryKey: ["/api/drawing-revisions", revision.id, "evaluation"],
+    queryFn: () => dvsGet(`/api/drawing-revisions/${revision.id}/evaluation`),
     enabled: idx >= 2,
     retry: false,
   });
 
-  const { data: agentReport, isLoading: loadingAgent } = useQuery<AgentReport>({
+  const { data: agentReport, isLoading: loadingAgent } = useQuery<AgentReport | null>({
     queryKey: ["/api/drawing-revisions", revision.id, "agent-report"],
+    queryFn: () => dvsGet(`/api/drawing-revisions/${revision.id}/agent-report`),
     enabled: idx >= 2,
     retry: false,
   });
 
-  const { data: approval, isLoading: loadingApproval } = useQuery<ApprovalData>({
+  const { data: approval, isLoading: loadingApproval } = useQuery<ApprovalData | null>({
     queryKey: ["/api/drawing-revisions", revision.id, "approval"],
+    queryFn: () => dvsGet(`/api/drawing-revisions/${revision.id}/approval`),
     enabled: idx >= 3,
     retry: false,
   });
 
-  const { data: releaseRecord, isLoading: loadingRelease } = useQuery<ReleaseData>({
+  const { data: releaseRecord, isLoading: loadingRelease } = useQuery<ReleaseData | null>({
     queryKey: ["/api/drawing-revisions", revision.id, "release"],
+    queryFn: () => dvsGet(`/api/drawing-revisions/${revision.id}/release`),
     enabled: idx >= 4,
     retry: false,
   });
