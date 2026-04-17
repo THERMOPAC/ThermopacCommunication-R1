@@ -211,7 +211,6 @@ function runLayer1(
     label: 'Shell' | 'Tube' | 'Jacket',
     col: typeof mech.shell | null,
     extSection: typeof ext.shell | null,
-    hazCol: typeof haz?.shell | null,
   ) {
     if (!col || !extSection) return;
     const baseItem = label === 'Shell' ? 'L1.S' : label === 'Tube' ? 'L1.T' : 'L1.J';
@@ -238,9 +237,9 @@ function runLayer1(
     results.push(compareField(1, 11, `${baseItem}.20`, `${label}: Insulation Type/Thickness/Density`, label, EQ, col.insulationTypeThkDensity, extSection.insulationTypeThkDensity, 'medium', 0, false));
   }
 
-  sectionLayer1('Shell', mech.shell, ext.shell, haz?.shell ?? null);
-  if (ap.tube)   sectionLayer1('Tube',   mech.tube   ?? null, ext.tube   ?? null, haz?.tube   ?? null);
-  if (ap.jacket) sectionLayer1('Jacket', mech.jacket ?? null, ext.jacket ?? null, haz?.jacket ?? null);
+  sectionLayer1('Shell', mech.shell, ext.shell);
+  if (ap.tube)   sectionLayer1('Tube',   mech.tube   ?? null, ext.tube   ?? null);
+  if (ap.jacket) sectionLayer1('Jacket', mech.jacket ?? null, ext.jacket ?? null);
 
   // Non-applicable tube/jacket → SKIPPED
   if (!ap.tube)   results.push(skipped(1, 4, 'L1.T', 'Tube section validation', 'Tube', EQ, `Not applicable for ${EQ}`));

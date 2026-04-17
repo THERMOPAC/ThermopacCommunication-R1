@@ -521,6 +521,252 @@ export default function EpcDocumentPanel({
     );
   }
 
+  function renderDwgUploadDialog() {
+    const verRes = dwgVerificationResult;
+    const isPass = verRes?.overallStatus === "pass";
+    const isFail = verRes?.overallStatus === "fail";
+    const isGateBlocked = !!dwgGateError;
+
+    return (
+      <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+        if (!open) { setUploadDialogOpen(false); resetDwgDialog(); }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-blue-600" />
+              {dwgVerifyStep === "pick" ? "Drawing Verification" : "Verification Result"}
+            </DialogTitle>
+            <DialogDescription>
+              DWG — {documentNumber || `Drawing Control #${parentEntityId}`}
+              &nbsp;·&nbsp;PDF only &nbsp;·&nbsp; DDS gate + AI checklist verification required before upload
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step 1: Pick file */}
+          {dwgVerifyStep === "pick" && (
+            <div className="space-y-4 py-2">
+              {gcsPathPreview && (
+                <div className="bg-slate-50 border rounded px-3 py-2">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">GCS Upload Path</label>
+                  <div className="font-mono text-[11px] text-slate-700 break-all mt-0.5">{gcsPathPreview}</div>
+                </div>
+              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-800">2-Step Verification Required</p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Step 1: Select the PDF drawing and click <strong>Run Verification</strong> to check it against the Design Data Sheet.<br/>
+                      Step 2: If it passes, accept and upload the verified drawing.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-1">Drawing PDF <span className="text-red-500">*</span></label>
+                <Input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={(e) => {
+                    setUploadFile(e.target.files?.[0] || null);
+                    setDwgVerificationResult(null);
+                    setDwgGateError(null);
+                    setDwgVerifyStep("pick");
+                  }}
+                />
+                {uploadFile && (
+                  <p className="text-xs text-muted-foreground mt-1">{uploadFile.name} ({formatFileSize(uploadFile.size)})</p>
+                )}
+              </div>
+              {!canUpload && (
+                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded">
+                  <Shield className="h-4 w-4" />
+                  Your role ({userRole}) does not have upload permission.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Verification result */}
+          {dwgVerifyStep === "result" && (
+            <div className="space-y-4 py-2">
+              {/* File info */}
+              {uploadFile && (
+                <div className="bg-slate-50 border rounded px-3 py-2 text-xs text-muted-foreground">
+                  File: <span className="font-medium text-foreground">{uploadFile.name}</span> ({formatFileSize(uploadFile.size)})
+                </div>
+              )}
+
+              {/* Gate error */}
+              {isGateBlocked && (
+                <div className="bg-red-50 border border-red-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <XCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold text-red-800">DDS Prerequisite Not Met — Upload Blocked</p>
+                      <p className="text-xs text-red-700 mt-1">{dwgGateError}</p>
+                      <p className="text-xs text-red-600 mt-2">
+                        Complete and save the Design Data Sheet (with Equipment Configuration set) before uploading this drawing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Verification result */}
+              {!isGateBlocked && verRes && (
+                <>
+                  {/* Status banner */}
+                  <div className={`rounded-lg p-4 border-2 flex items-center gap-4 ${isPass ? "bg-green-50 border-green-400" : "bg-red-50 border-red-400"}`}>
+                    {isPass
+                      ? <CheckCircle2 className="h-7 w-7 text-green-600 shrink-0" />
+                      : <XCircle className="h-7 w-7 text-red-600 shrink-0" />
+                    }
+                    <div>
+                      <p className={`text-base font-bold ${isPass ? "text-green-800" : "text-red-800"}`}>
+                        {isPass ? "VERIFICATION PASSED" : "VERIFICATION FAILED — UPLOAD BLOCKED"}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${isPass ? "text-green-700" : "text-red-700"}`}>
+                        {isPass
+                          ? "Drawing passed all DDS checks. You may proceed to upload."
+                          : "Resolve all failures shown in the report before uploading."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Summary counters */}
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { label: "Total Checks", val: verRes.totalChecks ?? "—", color: "text-slate-700" },
+                      { label: "Critical Fail", val: verRes.criticalFailures ?? 0, color: verRes.criticalFailures > 0 ? "text-red-700 font-bold" : "text-slate-600" },
+                      { label: "High Fail", val: verRes.highFailures ?? 0, color: verRes.highFailures > 0 ? "text-orange-600 font-bold" : "text-slate-600" },
+                      { label: "Warnings", val: verRes.totalWarnings ?? 0, color: "text-amber-600" },
+                      { label: "Skipped", val: verRes.totalSkipped ?? 0, color: "text-slate-400" },
+                    ].map(({ label, val, color }) => (
+                      <div key={label} className="bg-slate-50 rounded border text-center py-2 px-1">
+                        <div className={`text-xl font-bold ${color}`}>{val}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Extracted identity info */}
+                  {(verRes.extractedDrawingNo || verRes.extractedTagNo) && (
+                    <div className="bg-slate-50 border rounded px-3 py-2 space-y-1">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Extracted from Drawing</p>
+                      <div className="flex flex-wrap gap-4 text-xs">
+                        {verRes.extractedDrawingNo && <span><span className="text-muted-foreground">Drawing No:</span> <strong>{verRes.extractedDrawingNo}</strong></span>}
+                        {verRes.extractedTagNo && <span><span className="text-muted-foreground">Tag:</span> <strong>{verRes.extractedTagNo}</strong></span>}
+                        {verRes.extractedRevision && <span><span className="text-muted-foreground">Rev:</span> <strong>{verRes.extractedRevision}</strong></span>}
+                        {verRes.equipmentConfig && <span><span className="text-muted-foreground">Config:</span> <strong>{verRes.equipmentConfig}</strong></span>}
+                        <span><span className="text-muted-foreground">Engine:</span> <strong>{verRes.extractionEngine}</strong></span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Layer 1 critical/high failures */}
+                  {isFail && verRes.layer1Summary?.filter((r: any) => r.status === "fail").length > 0 && (
+                    <div className="border border-red-200 rounded-lg overflow-hidden">
+                      <div className="bg-red-800 text-white text-xs px-3 py-1.5 font-semibold">
+                        Layer 1 Failures — DDS vs Drawing (must resolve before upload)
+                      </div>
+                      <div className="divide-y">
+                        {verRes.layer1Summary.filter((r: any) => r.status === "fail").slice(0, 10).map((r: any, i: number) => (
+                          <div key={i} className="px-3 py-2 text-xs bg-red-50">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium text-slate-700">[{r.item}] {r.task}</span>
+                              {r.severity && (
+                                <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border shrink-0 ${r.severity === "critical" ? "bg-red-100 text-red-700 border-red-300" : "bg-orange-100 text-orange-700 border-orange-300"}`}>
+                                  {r.severity.toUpperCase()}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="mt-1 text-muted-foreground">
+                              Expected: <span className="text-slate-600">{r.expected ?? "—"}</span>
+                              &nbsp;·&nbsp;Actual: <span className="text-slate-600">{r.actual ?? "—"}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {verRes.layer1Summary.filter((r: any) => r.status === "fail").length > 10 && (
+                          <div className="px-3 py-2 text-xs text-muted-foreground bg-white">
+                            + {verRes.layer1Summary.filter((r: any) => r.status === "fail").length - 10} more failures — view full report
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* View full report link */}
+                  {dwgVerificationId && (
+                    <a
+                      href={`/api/epc-drawing-verifications/${dwgVerificationId}/report`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      View full verification report (20-section checklist)
+                    </a>
+                  )}
+                </>
+              )}
+
+              {/* Try again button */}
+              <div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setDwgVerifyStep("pick");
+                    setDwgVerificationResult(null);
+                    setDwgGateError(null);
+                    setUploadFile(null);
+                  }}
+                >
+                  ← Try a Different File
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUploadDialogOpen(false); resetDwgDialog(); }}>
+              Cancel
+            </Button>
+            {dwgVerifyStep === "pick" && (
+              <Button
+                onClick={() => { if (uploadFile) dwgVerifyMutation.mutate(uploadFile); }}
+                disabled={!uploadFile || dwgVerifyMutation.isPending || !canUpload}
+              >
+                {dwgVerifyMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {dwgVerifyMutation.isPending ? "Verifying…" : "Run Verification"}
+              </Button>
+            )}
+            {dwgVerifyStep === "result" && !isGateBlocked && isPass && (
+              <Button
+                onClick={() => handleUpload(dwgVerificationId ?? undefined)}
+                disabled={uploadMutation.isPending || !canUpload}
+                className="bg-green-700 hover:bg-green-800 text-white"
+              >
+                {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {uploadMutation.isPending ? "Uploading…" : "Accept & Upload Drawing"}
+              </Button>
+            )}
+            {dwgVerifyStep === "result" && (isGateBlocked || isFail) && (
+              <Button disabled className="bg-red-100 text-red-600 border border-red-300 cursor-not-allowed">
+                <XCircle className="h-4 w-4 mr-1" />
+                Upload Blocked
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (compact) {
     return (
       <div className="flex items-center gap-1.5">
@@ -544,52 +790,43 @@ export default function EpcDocumentPanel({
           </Button>
         )}
 
-        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload Document Attachment</DialogTitle>
-              <DialogDescription>
-                {docType} — {documentNumber || `Entity #${parentEntityId}`}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              {gcsPathPreview && (
-                <div className="bg-slate-50 border rounded px-3 py-2">
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">GCS Upload Path</label>
-                  <div className="font-mono text-[11px] text-slate-700 break-all mt-0.5">{gcsPathPreview}</div>
-                </div>
-              )}
-              {!REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) && (
+        {docType.toUpperCase() === "DWG" ? renderDwgUploadDialog() : (
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload Document Attachment</DialogTitle>
+                <DialogDescription>{docType} — {documentNumber || `Entity #${parentEntityId}`}</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                {!REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) && (
+                  <div>
+                    <label className="text-sm font-medium block mb-1">Attachment Label <span className="text-red-500">*</span></label>
+                    <Select value={uploadLabel} onValueChange={setUploadLabel}>
+                      <SelectTrigger><SelectValue placeholder="Select label..." /></SelectTrigger>
+                      <SelectContent>
+                        {getEpcLabelOptions(docType).map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
-                  <label className="text-sm font-medium block mb-1">Attachment Label <span className="text-red-500">*</span></label>
-                  <Select value={uploadLabel} onValueChange={setUploadLabel}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select label..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getEpcLabelOptions(docType).map(opt => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[11px] text-muted-foreground mt-1">Select from the approved label vocabulary for this document type.</p>
+                  <label className="text-sm font-medium block mb-1">File</label>
+                  <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+                  {uploadFile && <p className="text-xs text-muted-foreground mt-1">{uploadFile.name} ({formatFileSize(uploadFile.size)})</p>}
                 </div>
-              )}
-              <div>
-                <label className="text-sm font-medium block mb-1">File {docType === "DWG" && <span className="text-muted-foreground font-normal">(PDF only)</span>}</label>
-                <Input type="file" accept={docType === "DWG" ? ".pdf,application/pdf" : undefined} onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
-                {uploadFile && <p className="text-xs text-muted-foreground mt-1">{uploadFile.name} ({formatFileSize(uploadFile.size)})</p>}
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleUpload} disabled={uploadMutation.isPending || !uploadFile || !(docType === "DWG" || uploadLabel.trim())}>
-                {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                Upload
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>Cancel</Button>
+                <Button onClick={() => handleUpload()} disabled={uploadMutation.isPending || !uploadFile || !(REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) || uploadLabel.trim())}>
+                  {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                  Upload
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
         {renderHistoryDialog()}
         {canViewAccessLog && renderAccessLogDialog()}
@@ -819,62 +1056,60 @@ export default function EpcDocumentPanel({
         )}
       </CardContent>
 
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Document Attachment</DialogTitle>
-            <DialogDescription>
-              {docType} — {documentNumber || `Entity #${parentEntityId}`}
-              {isRevControlled && attachmentData?.currentRevision && ` • Rev ${attachmentData.currentRevision}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {!REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) && (
+      {docType.toUpperCase() === "DWG" ? renderDwgUploadDialog() : (
+        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Document Attachment</DialogTitle>
+              <DialogDescription>
+                {docType} — {documentNumber || `Entity #${parentEntityId}`}
+                {isRevControlled && attachmentData?.currentRevision && ` • Rev ${attachmentData.currentRevision}`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              {!REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) && (
+                <div>
+                  <label className="text-sm font-medium block mb-1">Attachment Label <span className="text-red-500">*</span></label>
+                  <Select value={uploadLabel} onValueChange={setUploadLabel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select label..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getEpcLabelOptions(docType).map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">Select from the approved label vocabulary for this document type.</p>
+                </div>
+              )}
               <div>
-                <label className="text-sm font-medium block mb-1">Attachment Label <span className="text-red-500">*</span></label>
-                <Select value={uploadLabel} onValueChange={setUploadLabel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select label..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getEpcLabelOptions(docType).map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[11px] text-muted-foreground mt-1">Select from the approved label vocabulary for this document type.</p>
+                <label className="text-sm font-medium block mb-1">File</label>
+                <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
+                {uploadFile && (
+                  <p className="text-xs text-muted-foreground mt-1">{uploadFile.name} ({formatFileSize(uploadFile.size)})</p>
+                )}
               </div>
-            )}
-            <div>
-              <label className="text-sm font-medium block mb-1">File {docType === "DWG" && <span className="text-muted-foreground font-normal">(PDF only)</span>}</label>
-              <Input type="file" accept={docType === "DWG" ? ".pdf,application/pdf" : undefined} onChange={(e) => setUploadFile(e.target.files?.[0] || null)} />
-              {uploadFile && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {uploadFile.name} ({formatFileSize(uploadFile.size)})
-                </p>
+              {!canUpload && (
+                <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded">
+                  <Shield className="h-4 w-4" />
+                  Your role ({userRole}) does not have upload permission.
+                </div>
               )}
             </div>
-            {!canUpload && (
-              <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded">
-                <Shield className="h-4 w-4" />
-                Your role ({userRole}) does not have upload permission.
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setUploadDialogOpen(false); setUploadLabel(""); setUploadFile(null); }}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={uploadMutation.isPending || !uploadFile || !(REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) || uploadLabel) || !canUpload}
-            >
-              {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Upload
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setUploadDialogOpen(false); setUploadLabel(""); setUploadFile(null); }}>Cancel</Button>
+              <Button
+                onClick={() => handleUpload()}
+                disabled={uploadMutation.isPending || !uploadFile || !(REVISION_CONTROLLED_TYPES.has(docType.toUpperCase()) || uploadLabel) || !canUpload}
+              >
+                {uploadMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Upload
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <Dialog open={withdrawDialog.open} onOpenChange={(open) => { if (!open) { setWithdrawDialog({ open: false, attachmentId: 0, label: "" }); setWithdrawReason(""); } }}>
         <DialogContent>
