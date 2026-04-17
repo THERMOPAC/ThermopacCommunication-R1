@@ -103,6 +103,7 @@ type EpcDrawingControl = {
 
 type ExtractionData = {
   id: number;
+  extractionStatus: "success" | "partial" | "failed" | "pending";
   drawnBy: string | null;
   checkedBy: string | null;
   scaleInfo: string | null;
@@ -114,6 +115,7 @@ type ExtractionData = {
   extractedAt: string | null;
   extractionMethod: string | null;
   rawMetadata: any;
+  _note?: string;
 };
 
 type RuleResult = {
@@ -563,7 +565,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
 
   const { data: extraction, isLoading: loadingExtract } = useQuery<ExtractionData>({
     queryKey: ["/api/drawing-revisions", revision.id, "extraction"],
-    enabled: idx >= 1,
+    enabled: true,
     retry: false,
   });
 
@@ -602,8 +604,20 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
   };
 
   const extractMut = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/drawing-revisions/${revision.id}/extract`),
-    onSuccess: () => { toast({ title: "Extraction complete" }); invalidate(); },
+    mutationFn: (force = false) =>
+      apiRequest<ExtractionData>("POST", `/api/drawing-revisions/${revision.id}/extract${force ? "?force=true" : ""}`),
+    onSuccess: (data: any) => {
+      if (data?.extractionStatus === "failed") {
+        toast({
+          title: "Extraction failed",
+          description: data?._note ?? "The OLE extractor could not read metadata from this file. Use force re-run or check the file.",
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: data?.extractionStatus === "partial" ? "Extraction partial — some fields missing" : "Extraction complete ✓" });
+      }
+      invalidate();
+    },
     onError: (e: any) => toast({ title: "Extraction failed", description: e.message, variant: "destructive" }),
   });
 
@@ -710,13 +724,16 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
             defaultOpen={idx === 0 || idx === 1}
           >
             <div className="mt-3">
-              {idx === 0 && !extraction && (
+              {loadingExtract && <Skeleton className="h-20 w-full" />}
+
+              {/* No extraction yet — show run button */}
+              {!loadingExtract && !extraction && idx === 0 && (
                 <div className="text-center py-2">
                   <p className="text-sm text-gray-600 mb-3">
                     Run the OLE extractor to pull metadata from the SolidWorks binary.
                   </p>
                   <Button
-                    onClick={() => extractMut.mutate()}
+                    onClick={() => extractMut.mutate(false)}
                     disabled={extractMut.isPending}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
@@ -728,9 +745,37 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                   </Button>
                 </div>
               )}
-              {loadingExtract && <Skeleton className="h-20 w-full" />}
-              {extraction && (
+
+              {/* Previous extraction failed — show error + force re-run */}
+              {!loadingExtract && extraction?.extractionStatus === "failed" && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 mb-3">
+                  <p className="text-sm font-semibold text-red-700 mb-1">Previous extraction failed</p>
+                  <p className="text-xs text-red-600 mb-3">
+                    {extraction._note ?? "The OLE extractor could not read metadata from this file."}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => extractMut.mutate(true)}
+                    disabled={extractMut.isPending}
+                  >
+                    {extractMut.isPending ? (
+                      <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Retrying…</>
+                    ) : (
+                      <><RefreshCw className="h-4 w-4 mr-2" /> Force Re-run Extraction</>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Extraction data — success or partial */}
+              {!loadingExtract && extraction && extraction.extractionStatus !== "failed" && (
                 <div className="space-y-0.5">
+                  {extraction.extractionStatus === "partial" && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 mb-2">
+                      <p className="text-xs text-amber-700 font-medium">Partial extraction — some fields could not be read from the binary.</p>
+                    </div>
+                  )}
                   <DetailRow label="Drawn by" value={extraction.drawnBy} />
                   <DetailRow label="Checked by" value={extraction.checkedBy} />
                   <DetailRow label="Scale" value={extraction.scaleInfo} />
@@ -741,6 +786,13 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                   <DetailRow label="Description line 2" value={extraction.descriptionLine2} />
                   <DetailRow label="Method" value={extraction.extractionMethod} />
                   <DetailRow label="Extracted at" value={fmtDate(extraction.extractedAt)} />
+                  {idx === 1 && (
+                    <div className="pt-2 border-t mt-2">
+                      <Button size="sm" variant="outline" onClick={() => extractMut.mutate(true)} disabled={extractMut.isPending}>
+                        {extractMut.isPending ? <><RefreshCw className="h-3 w-3 mr-1.5 animate-spin" /> Re-running…</> : <><RefreshCw className="h-3 w-3 mr-1.5" /> Re-run Extraction</>}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
