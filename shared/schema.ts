@@ -12709,3 +12709,26 @@ export const drawingApprovals = pgTable('drawing_approvals', {
 }));
 
 export type DrawingApproval = typeof drawingApprovals.$inferSelect;
+
+// ============================================================
+// DRAWING VERIFICATION SYSTEM — Step 6: Release Layer
+// ============================================================
+export const drawingReleases = pgTable('drawing_releases', {
+  id:                 serial('id').primaryKey(),
+  drawingRevisionId:  integer('drawing_revision_id').notNull().references(() => drawingRevisions.id),
+  drawingApprovalId:  integer('drawing_approval_id').notNull().references(() => drawingApprovals.id),
+  ruleEvaluationId:   integer('rule_evaluation_id').notNull().references(() => ruleEvaluations.id),
+  releasedBy:         varchar('released_by', { length: 100 }).notNull(),
+  releasedAt:         timestamp('released_at').notNull(),
+  verdictAtRelease:   varchar('verdict_at_release', { length: 10 }).notNull(),
+  approvedBySnapshot: varchar('approved_by_snapshot', { length: 100 }).notNull(),
+  decidedAtSnapshot:  timestamp('decided_at_snapshot').notNull(),
+  checksumAtRelease:  varchar('checksum_at_release', { length: 64 }).notNull(),
+  gcsControlledPath:  text('gcs_controlled_path').notNull(),
+  gcsReleasePdfPath:  text('gcs_release_pdf_path').notNull(),
+  releaseNotes:       text('release_notes'),
+}, (table) => ({
+  uniqueRevisionRelease: uniqueIndex('uq_drawing_release_revision').on(table.drawingRevisionId),
+}));
+
+export type DrawingRelease = typeof drawingReleases.$inferSelect;

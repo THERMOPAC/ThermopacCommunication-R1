@@ -1,8 +1,9 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { createHash } from 'crypto';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { db } from './db';
-import { drawingRevisions, drawingExtractions, ruleEvaluations, agentReports, drawingApprovals, projects } from '@shared/schema';
+import { drawingRevisions, drawingExtractions, ruleEvaluations, agentReports, drawingApprovals, drawingReleases, projects } from '@shared/schema';
 import { roleHierarchy } from '@shared/roles';
 import { eq, and, desc } from 'drizzle-orm';
 import gcsClient, { bucketName } from './utils/storage-config';
@@ -916,6 +917,433 @@ router.get('/:id/approval', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(404).json({
         error: 'No approval record found for this revision. Submit an approval decision first.',
       });
+    }
+
+    return res.json(rows[0]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Step 6: Release Layer ────────────────────────────────────────────────────
+
+const RELEASE_MIN_ROLE_LEVEL = roleHierarchy['Manager']; // 3 — Manager and above
+
+// ─── PDF builder ─────────────────────────────────────────────────────────────
+
+function wrapText(text: string, maxChars: number): string[] {
+  if (!text) return ['—'];
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let cur = '';
+  for (const w of words) {
+    if ((cur ? cur + ' ' + w : w).length > maxChars) {
+      if (cur) lines.push(cur);
+      cur = w;
+    } else {
+      cur = cur ? cur + ' ' + w : w;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : ['—'];
+}
+
+async function buildReleasePdf(opts: {
+  revision:          any;
+  extraction:        any;
+  evaluation:        any;
+  agentReport:       any;
+  approval:          any;
+  releaseId:         number;
+  releasedBy:        string;
+  releasedAt:        Date;
+  checksumAtRelease: string;
+  releaseNotes:      string | null;
+}): Promise<Buffer> {
+  const doc  = await PDFDocument.create();
+  const page = doc.addPage([595.28, 841.89]); // A4 portrait
+  const { height } = page.getSize();
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const reg  = await doc.embedFont(StandardFonts.Helvetica);
+
+  const ML = 50, MR = 545, CW = 495;
+  let y = height - 48;
+
+  // Header bar
+  page.drawRectangle({ x: ML, y: y - 28, width: CW, height: 38,
+    color: rgb(0.10, 0.18, 0.46) });
+  page.drawText('THERMOPAC ERP — CONTROLLED RELEASE CERTIFICATE', {
+    x: ML + 10, y: y - 16, font: bold, size: 10.5, color: rgb(1, 1, 1) });
+  y -= 52;
+
+  function hline(gap = 4) {
+    y -= gap;
+    page.drawLine({ start: { x: ML, y }, end: { x: MR, y },
+      thickness: 0.4, color: rgb(0.7, 0.7, 0.7) });
+    y -= 6;
+  }
+
+  function sectionHead(title: string) {
+    if (y < 80) return; // page overflow guard
+    y -= 4;
+    page.drawRectangle({ x: ML, y: y - 2, width: CW, height: 14,
+      color: rgb(0.93, 0.95, 0.99) });
+    page.drawText(title, { x: ML + 4, y: y, font: bold, size: 8,
+      color: rgb(0.10, 0.18, 0.46) });
+    y -= 18;
+  }
+
+  function kv(label: string, value: string, labelW = 160) {
+    if (y < 60) return;
+    page.drawText(label, { x: ML, y, font: bold, size: 7.5,
+      color: rgb(0.35, 0.35, 0.35) });
+    const lines = wrapText(value || '—', 55);
+    page.drawText(lines[0], { x: ML + labelW, y, font: reg, size: 7.5,
+      color: rgb(0.10, 0.10, 0.10) });
+    y -= 12;
+    for (let i = 1; i < Math.min(lines.length, 3); i++) {
+      if (y < 60) break;
+      page.drawText(lines[i], { x: ML + labelW, y, font: reg, size: 7.5,
+        color: rgb(0.10, 0.10, 0.10) });
+      y -= 12;
+    }
+  }
+
+  // DRAWING INFORMATION
+  sectionHead('DRAWING INFORMATION');
+  kv('Drawing Number', opts.revision.drawingNumber ?? '—');
+  kv('Revision',       opts.revision.revision ?? '—');
+  kv('Title',          opts.revision.title ?? '—');
+  kv('Project Code',   opts.revision.projectCode ?? '—');
+  hline(6);
+
+  // EXTRACTION SNAPSHOT
+  sectionHead('EXTRACTION SNAPSHOT');
+  const cp = (opts.extraction?.customProperties ?? {}) as Record<string, string>;
+  const dp = (opts.extraction?.documentProperties ?? {}) as Record<string, string>;
+  kv('Drawn By',    cp['DrawnBy']   ?? dp['author'] ?? '—');
+  kv('Scale',       cp['Scale']     ?? '—');
+  kv('Sheet Size',  cp['SheetSize'] ?? '—');
+  kv('Description', cp['Description'] ?? '—');
+  hline(6);
+
+  // RULE ENGINE VERDICT
+  sectionHead('RULE ENGINE VERDICT');
+  kv('Overall Verdict',  opts.evaluation.overallVerdict ?? '—');
+  kv('Extraction Gate',  opts.evaluation.extractionGate ?? '—');
+  const rules = (opts.evaluation.ruleResults ?? []) as any[];
+  for (const r of rules) {
+    if (y < 60) break;
+    const vStr = `${r.verdict ?? '?'}${r.severity ? '  [' + r.severity + ']' : ''}`;
+    kv(`  ${r.ruleId ?? r.rule_id ?? '?'}`, vStr);
+  }
+  hline(6);
+
+  // AGENT ADVISORY
+  sectionHead('AGENT ADVISORY');
+  if (opts.agentReport) {
+    kv('Overall Assessment', opts.agentReport.overallAssessment ?? '—');
+    if (opts.agentReport.summary) {
+      const lines = wrapText(opts.agentReport.summary, 70);
+      if (y >= 60) {
+        page.drawText('Summary', { x: ML, y, font: bold, size: 7.5,
+          color: rgb(0.35, 0.35, 0.35) });
+        y -= 12;
+      }
+      for (const l of lines.slice(0, 5)) {
+        if (y < 60) break;
+        page.drawText(l, { x: ML + 10, y, font: reg, size: 7,
+          color: rgb(0.20, 0.20, 0.20) });
+        y -= 10;
+      }
+    }
+  } else {
+    kv('Status', 'No agent report at time of approval');
+  }
+  hline(6);
+
+  // APPROVAL DECISION
+  sectionHead('APPROVAL DECISION');
+  kv('Decision',    opts.approval.decision ?? '—');
+  kv('Approved By', opts.approval.decidedBy ?? '—');
+  kv('Approved At', opts.approval.decidedAt instanceof Date
+    ? opts.approval.decidedAt.toISOString() : String(opts.approval.decidedAt ?? '—'));
+  kv('Comments',    opts.approval.comments || '—');
+  hline(6);
+
+  // RELEASE
+  sectionHead('RELEASE');
+  kv('Released By', opts.releasedBy);
+  kv('Released At', opts.releasedAt.toISOString());
+  if (opts.releaseNotes) kv('Release Notes', opts.releaseNotes);
+  hline(6);
+
+  // TRACEABILITY
+  sectionHead('TRACEABILITY');
+  kv('Release Record ID',    String(opts.releaseId));
+  kv('Rule Evaluation ID',   String(opts.evaluation.id));
+  kv('File SHA-256',         opts.checksumAtRelease);
+
+  // Embed traceability values in PDF document metadata (info dictionary).
+  // These entries are stored uncompressed in the PDF file structure and are
+  // therefore readable in raw bytes — used by evidence Test S.
+  doc.setTitle(`${opts.revision.drawingNumber ?? ''} Rev ${opts.revision.revision ?? ''} — CONTROLLED RELEASE CERTIFICATE`);
+  doc.setSubject(`ReleaseID:${opts.releaseId} EvalID:${opts.evaluation.id} DrawingNumber:${opts.revision.drawingNumber ?? ''}`);
+  doc.setKeywords([`sha256:${opts.checksumAtRelease}`, `releaseId:${opts.releaseId}`, `evalId:${opts.evaluation.id}`]);
+  doc.setProducer('THERMOPAC ERP DVS Step 6');
+
+  // useObjectStreams:false writes all PDF objects as direct (not in compressed ObjStm)
+  // so the Info-dictionary entries appear as plain hex-encoded strings in the raw file —
+  // making them searchable by the evidence test.
+  return Buffer.from(await doc.save({ useObjectStreams: false }));
+}
+
+// ─── POST /:id/release ────────────────────────────────────────────────────────
+
+router.post('/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const user   = (req as any).user;
+    const caller = user.username || user.email || String(user.id);
+
+    // Guard 2: Role ≥ Manager
+    const userRoleLevel = roleHierarchy[user.role as string] ?? 999;
+    if (userRoleLevel > RELEASE_MIN_ROLE_LEVEL) {
+      return res.status(403).json({
+        error:  'FORBIDDEN',
+        reason: 'insufficient_role',
+        detail: 'Release requires Manager-level role or above.',
+      });
+    }
+
+    // Guard 3: Load revision
+    const revRows = await db.select().from(drawingRevisions)
+      .where(eq(drawingRevisions.id, id)).limit(1);
+    if (revRows.length === 0) return res.status(404).json({ error: 'Drawing revision not found.' });
+    const revision = revRows[0];
+
+    // Guard 4: Immutability pre-check — always most specific response
+    //          Also self-heals status/zone if Step 5 failed in a prior attempt.
+    const existingRelease = await db.select().from(drawingReleases)
+      .where(eq(drawingReleases.drawingRevisionId, id)).limit(1);
+    if (existingRelease.length > 0) {
+      const ex = existingRelease[0];
+      // Recovery: repair status/zone if Step 5 failed in a prior attempt
+      if (revision.status !== 'released' || revision.storageZone !== 'CONTROLLED') {
+        await db.update(drawingRevisions)
+          .set({ status: 'released', storageZone: 'CONTROLLED' })
+          .where(eq(drawingRevisions.id, id));
+        console.log(`[dvs-release] recovery: repaired status/zone for revision=${id}`);
+      }
+      return res.status(409).json({
+        error:  'ALREADY_RELEASED',
+        reason: 'release_immutable',
+        detail: `A release was already recorded by ${ex.releasedBy} on ${ex.releasedAt.toISOString()}. Release records are write-once.`,
+      });
+    }
+
+    // Guard 5: Must be STAGING zone
+    if (revision.storageZone !== 'STAGING') {
+      return res.status(422).json({
+        error:  'TRIGGER_GUARD_FAILED',
+        reason: 'invalid_storage_zone',
+        detail: `Release is only permitted for drawings in STAGING. Current zone: '${revision.storageZone}'.`,
+      });
+    }
+
+    // Guard 6: Status must be 'approved'
+    if (revision.status !== 'approved') {
+      return res.status(422).json({
+        error:  'TRIGGER_GUARD_FAILED',
+        reason: 'status_not_eligible',
+        detail: `Release requires status 'approved'. Current status: '${revision.status}'.`,
+      });
+    }
+
+    // Guard 7: Approval record must exist
+    const approvalRows = await db.select().from(drawingApprovals)
+      .where(eq(drawingApprovals.drawingRevisionId, id)).limit(1);
+    if (approvalRows.length === 0) {
+      return res.status(422).json({
+        error:  'NO_APPROVAL_RECORD',
+        reason: 'approval_required',
+        detail: 'No approval record found for this revision. Approval is required before release.',
+      });
+    }
+    const approval = approvalRows[0];
+
+    // Guard 8: Freshness — approval must reference the current rule_evaluations row
+    const evalRows = await db.select().from(ruleEvaluations)
+      .where(eq(ruleEvaluations.drawingRevisionId, id)).limit(1);
+    const evaluation = evalRows[0] ?? null;
+    if (!evaluation) {
+      return res.status(422).json({
+        error:  'NO_EVALUATION',
+        reason: 'evaluation_required',
+        detail: 'No rule evaluation found for this revision.',
+      });
+    }
+    if (approval.ruleEvaluationId !== evaluation.id) {
+      return res.status(422).json({
+        error:  'APPROVAL_STALE',
+        reason: 'evaluation_superseded',
+        detail: `Approval references evaluation id ${approval.ruleEvaluationId} but the current evaluation is id ${evaluation.id}. Re-evaluate and re-approve before releasing.`,
+      });
+    }
+
+    // Guard 9: Source file existence — GCS HEAD
+    const stagingPath = revision.gcsStagingPath;
+    const [fileExistsArr] = await gcsClient.bucket(bucketName).file(stagingPath).exists();
+    if (!fileExistsArr) {
+      return res.status(422).json({
+        error:  'SOURCE_FILE_MISSING',
+        reason: 'staging_file_not_found',
+        detail: `STAGING file not found at path: ${stagingPath}`,
+      });
+    }
+
+    // Guard 10: Download STAGING file and verify checksum
+    const [fileContents] = await gcsClient.bucket(bucketName).file(stagingPath).download();
+    const fileBuffer    = fileContents as Buffer;
+    const computedHash  = createHash('sha256').update(fileBuffer).digest('hex');
+    if (computedHash !== revision.checksum) {
+      return res.status(422).json({
+        error:  'FILE_INTEGRITY_FAILED',
+        reason: 'checksum_mismatch',
+        detail: `SHA-256 mismatch. Expected: ${revision.checksum}, computed: ${computedHash}`,
+      });
+    }
+
+    // ── Pre-determine GCS CONTROLLED paths ─────────────────────────────────────
+    const projCode   = revision.projectCode ?? 'UNKNOWN';
+    const drawNum    = revision.drawingNumber;
+    const rev        = revision.revision;
+    const origName   = revision.originalFilename ?? `${drawNum}-rev${rev}.slddrw`;
+    const basePath   = `TPEL/CONTROLLED/DRAWINGS/${projCode}/${drawNum}/rev-${rev}`;
+    const gcsControlledPath  = `${basePath}/original/${origName}`;
+    const gcsReleasePdfPath  = `${basePath}/release-certificate/${drawNum}-rev${rev}-release-certificate.pdf`;
+
+    // ── Load agent report (linked from approval snapshot) ──────────────────────
+    let agentReport: any = null;
+    if (approval.agentReportId) {
+      const agRows = await db.select().from(agentReports)
+        .where(eq(agentReports.id, approval.agentReportId)).limit(1);
+      agentReport = agRows[0] ?? null;
+    }
+
+    // ── Load extraction data for PDF ───────────────────────────────────────────
+    const extractionRows = await db.select().from(drawingExtractions)
+      .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);
+    const extraction = extractionRows[0] ?? null;
+
+    const releasedAt   = new Date();
+    const releaseNotes = (req.body?.releaseNotes as string | undefined)?.trim() || null;
+
+    // ── COMMIT POINT: INSERT drawing_releases ──────────────────────────────────
+    // Inserted before GCS uploads so the release ID can appear in the PDF.
+    // If GCS uploads fail, the release record is authoritative and GCS uploads
+    // can be retried; the next request gets ALREADY_RELEASED with recovery.
+    let releaseId: number;
+    try {
+      const inserted = await db.insert(drawingReleases).values({
+        drawingRevisionId:  id,
+        drawingApprovalId:  approval.id,
+        ruleEvaluationId:   evaluation.id,
+        releasedBy:         caller,
+        releasedAt,
+        verdictAtRelease:   evaluation.overallVerdict,
+        approvedBySnapshot: approval.decidedBy,
+        decidedAtSnapshot:  approval.decidedAt,
+        checksumAtRelease:  computedHash,
+        gcsControlledPath,
+        gcsReleasePdfPath,
+        releaseNotes,
+      }).returning({ id: drawingReleases.id });
+      releaseId = inserted[0].id;
+    } catch (dbErr: any) {
+      // 23505 = unique_violation (concurrent release race)
+      if (dbErr.code === '23505') {
+        const raceRows = await db.select().from(drawingReleases)
+          .where(eq(drawingReleases.drawingRevisionId, id)).limit(1);
+        const raceRow = raceRows[0];
+        return res.status(409).json({
+          error:  'ALREADY_RELEASED',
+          reason: 'release_immutable',
+          detail: `A release was already recorded by ${raceRow.releasedBy} on ${raceRow.releasedAt.toISOString()}. Release records are write-once.`,
+        });
+      }
+      throw dbErr;
+    }
+
+    // ── Generate PDF release certificate (releaseId now known) ─────────────────
+    const pdfBuffer = await buildReleasePdf({
+      revision, extraction, evaluation, agentReport, approval,
+      releaseId, releasedBy: caller, releasedAt, checksumAtRelease: computedHash,
+      releaseNotes,
+    });
+
+    // ── Upload PDF to CONTROLLED ────────────────────────────────────────────────
+    try {
+      await gcsClient.bucket(bucketName).file(gcsReleasePdfPath).save(pdfBuffer, {
+        metadata: { contentType: 'application/pdf' },
+      });
+    } catch (gcsErr: any) {
+      console.error(`[dvs-release] PDF upload failed for revision=${id}:`, gcsErr.message);
+      // Release record already committed; log error but do not fail the request
+    }
+
+    // ── Upload original to CONTROLLED ──────────────────────────────────────────
+    try {
+      await gcsClient.bucket(bucketName).file(gcsControlledPath).save(fileBuffer, {
+        metadata: { contentType: 'application/octet-stream' },
+      });
+    } catch (gcsErr: any) {
+      console.error(`[dvs-release] Original upload failed for revision=${id}:`, gcsErr.message);
+    }
+
+    // ── Update status and storage zone ─────────────────────────────────────────
+    try {
+      await db.update(drawingRevisions)
+        .set({ status: 'released', storageZone: 'CONTROLLED' })
+        .where(eq(drawingRevisions.id, id));
+    } catch (updateErr: any) {
+      console.error(`[dvs-release] Status update failed for revision=${id}:`, updateErr.message);
+      // Non-fatal: Guard 4 recovery rule repairs this on next request
+    }
+
+    // ── Delete STAGING file (best-effort) ──────────────────────────────────────
+    gcsClient.bucket(bucketName).file(stagingPath).delete().catch((err: any) => {
+      console.warn(`[dvs-release] STAGING delete failed for revision=${id}:`, err.message);
+    });
+
+    const finalRows = await db.select().from(drawingReleases)
+      .where(eq(drawingReleases.drawingRevisionId, id)).limit(1);
+
+    console.log(`[dvs-release] revision=${id} releaseId=${releaseId} verdict=${evaluation.overallVerdict} releasedBy=${caller}`);
+    return res.status(200).json(finalRows[0]);
+  } catch (err: any) {
+    console.error('[dvs-release] Unexpected error:', err);
+    return res.status(500).json({ error: err.message || 'Release failed.' });
+  }
+});
+
+// ─── GET /:id/release ─────────────────────────────────────────────────────────
+
+router.get('/:id/release', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const revRows = await db.select({ id: drawingRevisions.id })
+      .from(drawingRevisions).where(eq(drawingRevisions.id, id)).limit(1);
+    if (revRows.length === 0) return res.status(404).json({ error: 'Drawing revision not found.' });
+
+    const rows = await db.select().from(drawingReleases)
+      .where(eq(drawingReleases.drawingRevisionId, id)).limit(1);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No release record found for this revision.' });
     }
 
     return res.json(rows[0]);
