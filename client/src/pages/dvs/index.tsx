@@ -546,14 +546,17 @@ function UploadDialog({
               <Textarea className="mt-1" rows={2} placeholder="Optional notes for this upload" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <div className="col-span-2">
-              <Label>File (.slddrw) *</Label>
+              <Label>Drawing File *</Label>
               <Input
                 ref={fileRef}
                 type="file"
-                accept=".slddrw"
+                accept=".slddrw,.pdf"
                 className="mt-1"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
+              <p className="text-xs text-gray-400 mt-1">
+                Accepted: <span className="font-medium">.slddrw</span> (SolidWorks native) or <span className="font-medium">.pdf</span> (SolidWorks PDF export — enables title block text extraction)
+              </p>
               {file && (
                 <p className="text-xs text-gray-500 mt-1">{file.name} — {fmtBytes(file.size)}</p>
               )}
@@ -856,7 +859,12 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                 <div className="space-y-0.5">
                   {extraction.extractionStatus === "partial" && (
                     <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 mb-2">
-                      <p className="text-xs text-amber-700 font-medium">Partial extraction — some fields could not be read from the binary.</p>
+                      <p className="text-xs text-amber-700 font-medium">
+                        Partial extraction — some fields could not be read
+                        {extraction.extractionMethod === "pdf-text-layer-parser"
+                          ? " from the PDF text layer."
+                          : " from the file properties."}
+                      </p>
                     </div>
                   )}
                   <DetailRow label="Drawn by" value={extraction.drawnBy} />

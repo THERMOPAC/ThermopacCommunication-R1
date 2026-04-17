@@ -14,6 +14,11 @@ import {
   EXTRACTION_TIMEOUT_MS,
 } from './utils/ole-extractor';
 import {
+  extractPdfProperties,
+  PDF_EXTRACTION_ENGINE,
+  PDF_EXTRACTION_ENGINE_VERSION,
+} from './utils/pdf-extractor';
+import {
   RULE_ENGINE,
   RULE_ENGINE_VERSION,
   computeExtractionGate,
@@ -63,22 +68,35 @@ const KNOWN_INCOMPATIBLE_MIMES = new Set([
   'audio/mpeg',
 ]);
 
-function validateSlddrwFile(
+const ACCEPTED_EXTENSIONS = new Set(['slddrw', 'pdf']);
+
+function validateDrawingFile(
   originalname: string,
   mimetype: string | undefined,
   size: number,
-): string | null {
+): { error: string | null; fileType: 'slddrw' | 'pdf' } {
   const ext = originalname.split('.').pop()?.toLowerCase();
-  if (ext !== 'slddrw') {
-    return `Invalid file type. Only .slddrw files are accepted. Got: .${ext || 'unknown'}`;
+
+  if (!ext || !ACCEPTED_EXTENSIONS.has(ext)) {
+    return {
+      error: `Invalid file type. Accepted: .slddrw (SolidWorks) or .pdf (PDF export). Got: .${ext || 'unknown'}`,
+      fileType: 'slddrw',
+    };
   }
-  if (mimetype && KNOWN_INCOMPATIBLE_MIMES.has(mimetype.toLowerCase())) {
-    return `File MIME type "${mimetype}" is incompatible with .slddrw format. Upload rejected.`;
+
+  if (ext === 'slddrw' && mimetype && KNOWN_INCOMPATIBLE_MIMES.has(mimetype.toLowerCase())) {
+    return {
+      error: `File MIME type "${mimetype}" is incompatible with .slddrw format. Upload rejected.`,
+      fileType: 'slddrw',
+    };
   }
-  if (size > 50 * 1024 * 1024) {
-    return 'File size exceeds 50 MB limit.';
+
+  const limitMb = ext === 'pdf' ? 100 : 50;
+  if (size > limitMb * 1024 * 1024) {
+    return { error: `File size exceeds ${limitMb} MB limit.`, fileType: ext as 'slddrw' | 'pdf' };
   }
-  return null;
+
+  return { error: null, fileType: ext as 'slddrw' | 'pdf' };
 }
 
 // ─── Step 1: Upload ───────────────────────────────────────────────────────────
@@ -92,7 +110,7 @@ router.post('/upload', ensureAuthenticated, upload.single('file'), async (req: R
       return res.status(400).json({ error: 'No file provided.' });
     }
 
-    const validationError = validateSlddrwFile(file.originalname, file.mimetype, file.size);
+    const { error: validationError, fileType } = validateDrawingFile(file.originalname, file.mimetype, file.size);
     if (validationError) {
       return res.status(400).json({ error: validationError });
     }
@@ -164,7 +182,7 @@ router.post('/upload', ensureAuthenticated, upload.single('file'), async (req: R
         title: title?.trim() || null,
         itemCode: itemCode?.trim() || null,
         discipline: discipline?.trim() || null,
-        fileType: 'slddrw',
+        fileType,
         checksum,
         storageZone: 'STAGING',
         uploadedBy: user.username || user.email || String(user.id),
@@ -321,6 +339,11 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
       // Version mismatch on a prior success/partial → fall through to re-extract
     }
 
+    // Select engine constants based on file type
+    const isPdf = revision.fileType === 'pdf';
+    const activeEngine        = isPdf ? PDF_EXTRACTION_ENGINE        : EXTRACTION_ENGINE;
+    const activeEngineVersion = isPdf ? PDF_EXTRACTION_ENGINE_VERSION : EXTRACTION_ENGINE_VERSION;
+
     // Write pending status before starting (UPSERT)
     const now = new Date();
     const pendingFileInfo = {
@@ -335,8 +358,8 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
         .set({
           extractionStatus: 'pending',
           extractedAt: now,
-          extractionEngine: EXTRACTION_ENGINE,
-          extractionEngineVersion: EXTRACTION_ENGINE_VERSION,
+          extractionEngine: activeEngine,
+          extractionEngineVersion: activeEngineVersion,
           documentProperties: null,
           customProperties: null,
           sheetInfo: null,
@@ -351,8 +374,8 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
         drawingRevisionId: id,
         extractionStatus: 'pending',
         extractedAt: now,
-        extractionEngine: EXTRACTION_ENGINE,
-        extractionEngineVersion: EXTRACTION_ENGINE_VERSION,
+        extractionEngine: activeEngine,
+        extractionEngineVersion: activeEngineVersion,
         documentProperties: null,
         customProperties: null,
         sheetInfo: null,
@@ -379,7 +402,7 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
         .set({
           extractionStatus: 'failed',
           extractedAt: new Date(),
-          extractionEngineVersion: EXTRACTION_ENGINE_VERSION,
+          extractionEngineVersion: activeEngineVersion,
           rawError: errMsg,
           validationResults: { drawingNumberMatch: null, revisionMatch: null, checkedAt: new Date().toISOString() },
           warnings: [{ type: 'parse_error', detail: errMsg }],
@@ -392,7 +415,7 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
       return res.status(200).json(failedRows[0]);
     }
 
-    // Run OLE extraction (pure, deterministic)
+    // Run extraction — route to PDF or OLE extractor based on fileType
     const fileInfo = {
       originalFilename: revision.originalFilename ?? '',
       sizeBytes: revision.fileSizeBytes ?? 0,
@@ -400,12 +423,9 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
       gcsStagingPath: revision.gcsStagingPath,
     };
 
-    const result = extractDrawingProperties(
-      fileBuffer,
-      revision.drawingNumber,
-      revision.revision,
-      fileInfo,
-    );
+    const result = revision.fileType === 'pdf'
+      ? await extractPdfProperties(fileBuffer, revision.drawingNumber, revision.revision, fileInfo)
+      : extractDrawingProperties(fileBuffer, revision.drawingNumber, revision.revision, fileInfo);
 
     // Persist final extraction result
     const finalNow = new Date();
@@ -437,7 +457,7 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
     const finalRows = await db.select().from(drawingExtractions)
       .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);
 
-    console.log(`[dvs-extract] revision=${id} status=${result.extractionStatus} engine_version=${EXTRACTION_ENGINE_VERSION} force=${force}`);
+    console.log(`[dvs-extract] revision=${id} fileType=${revision.fileType} status=${result.extractionStatus} engine=${result.extractionEngine} v${result.extractionEngineVersion} force=${force}`);
     return res.status(200).json(finalRows[0]);
   } catch (err: any) {
     console.error('[dvs-extract] Unexpected error:', err);
