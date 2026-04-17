@@ -262,7 +262,7 @@ function PipelineTracker({ currentStatus }: { currentStatus: string }) {
               <div
                 className={cn(
                   "flex-1 h-0.5 mt-[-14px] mx-1",
-                  i < idx ? "bg-emerald-400" : "bg-gray-200",
+                  i < pipelineStep ? "bg-emerald-400" : "bg-gray-200",
                 )}
               />
             )}
