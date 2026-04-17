@@ -103,15 +103,17 @@ function detectDomain(unit: string | null): Domain {
   return 'unknown';
 }
 
-export function normalizeValue(raw: string | null | undefined): NormalizedValue {
-  if (!raw || !raw.trim()) {
+export function normalizeValue(raw: string | number | null | undefined): NormalizedValue {
+  // GPT-4o Vision may return numeric values as numbers rather than strings
+  const rawStr = raw === null || raw === undefined ? '' : String(raw).trim();
+  if (!rawStr) {
     return { raw: '', numeric: null, unit: null, normalizedNumeric: null, normalizedUnit: null, parseOk: false };
   }
 
-  const { numeric, unit } = parseRaw(raw.trim());
+  const { numeric, unit } = parseRaw(rawStr);
 
   if (numeric === null) {
-    return { raw, numeric: null, unit, normalizedNumeric: null, normalizedUnit: null, parseOk: false };
+    return { raw: rawStr, numeric: null, unit, normalizedNumeric: null, normalizedUnit: null, parseOk: false };
   }
 
   const domain = detectDomain(unit);
