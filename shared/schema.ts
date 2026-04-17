@@ -12689,3 +12689,23 @@ export const agentReports = pgTable('agent_reports', {
 }));
 
 export type AgentReport = typeof agentReports.$inferSelect;
+
+// ============================================================
+// DRAWING VERIFICATION SYSTEM — Step 5: Approval Layer
+// ============================================================
+export const drawingApprovals = pgTable('drawing_approvals', {
+  id:                        serial('id').primaryKey(),
+  drawingRevisionId:         integer('drawing_revision_id').notNull().references(() => drawingRevisions.id),
+  ruleEvaluationId:          integer('rule_evaluation_id').notNull().references(() => ruleEvaluations.id),
+  agentReportId:             integer('agent_report_id').references(() => agentReports.id),
+  decision:                  varchar('decision', { length: 10 }).notNull(),
+  decidedBy:                 varchar('decided_by', { length: 100 }).notNull(),
+  decidedAt:                 timestamp('decided_at').notNull(),
+  comments:                  text('comments'),
+  verdictAtDecision:         varchar('verdict_at_decision', { length: 10 }).notNull(),
+  agentAssessmentAtDecision: varchar('agent_assessment_at_decision', { length: 20 }),
+}, (table) => ({
+  uniqueRevisionApproval: uniqueIndex('uq_drawing_approval_revision').on(table.drawingRevisionId),
+}));
+
+export type DrawingApproval = typeof drawingApprovals.$inferSelect;
