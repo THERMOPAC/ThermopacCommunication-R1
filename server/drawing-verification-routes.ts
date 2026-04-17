@@ -15,6 +15,7 @@ import {
 } from './utils/ole-extractor';
 import {
   extractPdfProperties,
+  extractRawTextFromPdf,
   PDF_EXTRACTION_ENGINE,
   PDF_EXTRACTION_ENGINE_VERSION,
 } from './utils/pdf-extractor';
@@ -462,6 +463,39 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
   } catch (err: any) {
     console.error('[dvs-extract] Unexpected error:', err);
     return res.status(500).json({ error: err.message || 'Extraction failed.' });
+  }
+});
+
+// ─── PDF raw-text diagnostic (Superuser only) ─────────────────────────────────
+// GET /api/drawing-revisions/:id/pdf-raw-text
+// Downloads the PDF from GCS and returns the text layer so patterns can be tuned.
+router.get('/:id/pdf-raw-text', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.isSuperuser) return res.status(403).json({ error: 'Superuser access required.' });
+
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const revRows = await db.select().from(drawingRevisions).where(eq(drawingRevisions.id, id)).limit(1);
+    if (!revRows.length) return res.status(404).json({ error: 'Revision not found.' });
+    const revision = revRows[0];
+    if (revision.fileType !== 'pdf') return res.status(400).json({ error: 'This revision is not a PDF.' });
+
+    const [fileContents] = await gcsClient.bucket(bucketName).file(revision.gcsStagingPath).download() as [Buffer];
+    const { text, pageCount, info } = await extractRawTextFromPdf(fileContents);
+
+    return res.status(200).json({
+      revisionId: id,
+      drawingNumber: revision.drawingNumber,
+      revision: revision.revision,
+      pageCount,
+      info,
+      charCount: text.length,
+      text,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Raw text extraction failed.' });
   }
 });
 

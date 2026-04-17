@@ -798,28 +798,41 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                     </div>
                   )}
 
-                  {/* Metadata unavailable (extraction could not read OLE properties) */}
+                  {/* Metadata unavailable (extraction could not read properties) */}
                   {extraction?.extractionStatus === "failed" && (
                     <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                       <p className="text-sm font-semibold text-amber-800 mb-1">Metadata not available in file properties</p>
                       <p className="text-xs text-amber-700 mb-1">
-                        The extractor reads internal OLE storage (SolidWorks custom properties), not the visible title block. Many drawings do not have custom properties populated — this is a data availability limitation, not a system error.
+                        {revision.fileType === "pdf"
+                          ? "The extractor reads the PDF text layer and looks for title block fields using pattern matching. If nothing was found, the title block text format may not match the expected patterns."
+                          : "The extractor reads internal OLE storage (SolidWorks custom properties), not the visible title block. Many drawings do not have custom properties populated — this is a data availability limitation, not a system error."}
                       </p>
                       <p className="text-xs text-amber-600 mb-3">
-                        {extraction._note ?? "The file's OLE property storage returned no usable metadata."}
+                        {extraction._note ?? (revision.fileType === "pdf" ? "No title block fields could be matched in the PDF text layer." : "The file's OLE property storage returned no usable metadata.")}
                       </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => extractMut.mutate(true)}
-                        disabled={extractMut.isPending}
-                      >
-                        {extractMut.isPending ? (
-                          <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Retrying…</>
-                        ) : (
-                          <><RefreshCw className="h-4 w-4 mr-2" /> Retry Extraction</>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => extractMut.mutate(true)}
+                          disabled={extractMut.isPending}
+                        >
+                          {extractMut.isPending ? (
+                            <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Retrying…</>
+                          ) : (
+                            <><RefreshCw className="h-4 w-4 mr-2" /> Retry Extraction</>
+                          )}
+                        </Button>
+                        {revision.fileType === "pdf" && (user as any)?.isSuperuser && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(`/api/drawing-revisions/${revision.id}/pdf-raw-text`, "_blank")}
+                          >
+                            View Raw PDF Text
+                          </Button>
                         )}
-                      </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -834,23 +847,37 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                       <div>
                         <p className="text-sm font-semibold text-amber-800">Metadata not available in file properties</p>
                         <p className="text-xs text-amber-700 mt-0.5">
-                          The extractor reads SolidWorks custom properties (OLE storage) — not the visible title block. Custom properties are not populated in this file, which is common. Automated verification is incomplete; rule results are inconclusive and approval will require a written justification.
+                          {revision.fileType === "pdf"
+                            ? "The PDF text layer was parsed but no title block fields could be matched. The title block layout may not match the expected pattern."
+                            : "The extractor reads SolidWorks custom properties (OLE storage) — not the visible title block. Custom properties are not populated in this file, which is common."}
+                          {" "}Automated verification is incomplete; rule results are inconclusive and approval will require a written justification.
                         </p>
                       </div>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => extractMut.mutate(true)}
-                    disabled={extractMut.isPending}
-                  >
-                    {extractMut.isPending ? (
-                      <><RefreshCw className="h-3 w-3 mr-1.5 animate-spin" /> Retrying…</>
-                    ) : (
-                      <><RefreshCw className="h-3 w-3 mr-1.5" /> Retry Extraction</>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => extractMut.mutate(true)}
+                      disabled={extractMut.isPending}
+                    >
+                      {extractMut.isPending ? (
+                        <><RefreshCw className="h-3 w-3 mr-1.5 animate-spin" /> Retrying…</>
+                      ) : (
+                        <><RefreshCw className="h-3 w-3 mr-1.5" /> Retry Extraction</>
+                      )}
+                    </Button>
+                    {revision.fileType === "pdf" && (user as any)?.isSuperuser && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(`/api/drawing-revisions/${revision.id}/pdf-raw-text`, "_blank")}
+                      >
+                        View Raw PDF Text
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </div>
               )}
 
