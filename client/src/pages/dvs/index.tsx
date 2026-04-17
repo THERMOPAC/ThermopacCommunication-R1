@@ -726,50 +726,64 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
             <div className="mt-3">
               {loadingExtract && <Skeleton className="h-20 w-full" />}
 
-              {/* No extraction yet — show run button */}
-              {!loadingExtract && !extraction && idx === 0 && (
-                <div className="text-center py-2">
-                  <p className="text-sm text-gray-600 mb-3">
-                    Run the OLE extractor to pull metadata from the SolidWorks binary.
-                  </p>
-                  <Button
-                    onClick={() => extractMut.mutate(false)}
-                    disabled={extractMut.isPending}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {extractMut.isPending ? (
-                      <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Extracting…</>
-                    ) : (
-                      <><Cpu className="h-4 w-4 mr-2" /> Run Extraction</>
-                    )}
-                  </Button>
-                </div>
-              )}
+              {/* Revision still in "uploaded" state — needs extraction or re-run */}
+              {!loadingExtract && idx === 0 && (
+                <div className="mb-3">
+                  {/* Pending/stuck or no record at all */}
+                  {(!extraction || extraction.extractionStatus === "pending") && (
+                    <div className="text-center py-2">
+                      {extraction?.extractionStatus === "pending" && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 mb-3 text-left">
+                          <p className="text-xs text-amber-700 font-medium">Previous extraction is stuck in "pending" — it likely timed out. Click Force Re-run to retry.</p>
+                        </div>
+                      )}
+                      {!extraction && (
+                        <p className="text-sm text-gray-600 mb-3">
+                          Run the OLE extractor to pull metadata from the SolidWorks binary.
+                        </p>
+                      )}
+                      <Button
+                        onClick={() => extractMut.mutate(extraction?.extractionStatus === "pending")}
+                        disabled={extractMut.isPending}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {extractMut.isPending ? (
+                          <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Extracting…</>
+                        ) : extraction?.extractionStatus === "pending" ? (
+                          <><RefreshCw className="h-4 w-4 mr-2" /> Force Re-run Extraction</>
+                        ) : (
+                          <><Cpu className="h-4 w-4 mr-2" /> Run Extraction</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
 
-              {/* Previous extraction failed — show error + force re-run */}
-              {!loadingExtract && extraction?.extractionStatus === "failed" && (
-                <div className="rounded-md border border-red-200 bg-red-50 p-3 mb-3">
-                  <p className="text-sm font-semibold text-red-700 mb-1">Previous extraction failed</p>
-                  <p className="text-xs text-red-600 mb-3">
-                    {extraction._note ?? "The OLE extractor could not read metadata from this file."}
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => extractMut.mutate(true)}
-                    disabled={extractMut.isPending}
-                  >
-                    {extractMut.isPending ? (
-                      <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Retrying…</>
-                    ) : (
-                      <><RefreshCw className="h-4 w-4 mr-2" /> Force Re-run Extraction</>
-                    )}
-                  </Button>
+                  {/* Failed extraction */}
+                  {extraction?.extractionStatus === "failed" && (
+                    <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                      <p className="text-sm font-semibold text-red-700 mb-1">Previous extraction failed</p>
+                      <p className="text-xs text-red-600 mb-3">
+                        {extraction._note ?? "The OLE extractor could not read metadata from this file."}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => extractMut.mutate(true)}
+                        disabled={extractMut.isPending}
+                      >
+                        {extractMut.isPending ? (
+                          <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Retrying…</>
+                        ) : (
+                          <><RefreshCw className="h-4 w-4 mr-2" /> Force Re-run Extraction</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Extraction data — success or partial */}
-              {!loadingExtract && extraction && extraction.extractionStatus !== "failed" && (
+              {!loadingExtract && extraction && (extraction.extractionStatus === "success" || extraction.extractionStatus === "partial") && (
                 <div className="space-y-0.5">
                   {extraction.extractionStatus === "partial" && (
                     <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 mb-2">
