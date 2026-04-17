@@ -795,23 +795,26 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                     </div>
                   )}
 
-                  {/* Failed extraction */}
+                  {/* Metadata unavailable (extraction could not read OLE properties) */}
                   {extraction?.extractionStatus === "failed" && (
-                    <div className="rounded-md border border-red-200 bg-red-50 p-3">
-                      <p className="text-sm font-semibold text-red-700 mb-1">Previous extraction failed</p>
-                      <p className="text-xs text-red-600 mb-3">
-                        {extraction._note ?? "The OLE extractor could not read metadata from this file."}
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-semibold text-amber-800 mb-1">Metadata not available in file properties</p>
+                      <p className="text-xs text-amber-700 mb-1">
+                        The extractor reads internal OLE storage (SolidWorks custom properties), not the visible title block. Many drawings do not have custom properties populated — this is a data availability limitation, not a system error.
+                      </p>
+                      <p className="text-xs text-amber-600 mb-3">
+                        {extraction._note ?? "The file's OLE property storage returned no usable metadata."}
                       </p>
                       <Button
                         size="sm"
-                        variant="destructive"
+                        variant="outline"
                         onClick={() => extractMut.mutate(true)}
                         disabled={extractMut.isPending}
                       >
                         {extractMut.isPending ? (
                           <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Retrying…</>
                         ) : (
-                          <><RefreshCw className="h-4 w-4 mr-2" /> Force Re-run Extraction</>
+                          <><RefreshCw className="h-4 w-4 mr-2" /> Retry Extraction</>
                         )}
                       </Button>
                     </div>
@@ -819,30 +822,30 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                 </div>
               )}
 
-              {/* Extraction FAILED — status advanced; pipeline continues but verification is incomplete */}
+              {/* Metadata not available in file properties — pipeline continues with manual review */}
               {!loadingExtract && idx >= 1 && extraction?.extractionStatus === "failed" && (
                 <div className="space-y-2">
-                  <div className="rounded-md border border-red-300 bg-red-50 p-3">
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-sm font-semibold text-red-800">FAILED — Extraction status: failed</p>
-                        <p className="text-xs text-red-700 mt-0.5">
-                          Metadata could not be extracted — automated verification is incomplete. The pipeline can still proceed; all rule results will be inconclusive and any approval will require a written justification.
+                        <p className="text-sm font-semibold text-amber-800">Metadata not available in file properties</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          The extractor reads SolidWorks custom properties (OLE storage) — not the visible title block. Custom properties are not populated in this file, which is common. Automated verification is incomplete; rule results are inconclusive and approval will require a written justification.
                         </p>
                       </div>
                     </div>
                   </div>
                   <Button
                     size="sm"
-                    variant="destructive"
+                    variant="outline"
                     onClick={() => extractMut.mutate(true)}
                     disabled={extractMut.isPending}
                   >
                     {extractMut.isPending ? (
                       <><RefreshCw className="h-3 w-3 mr-1.5 animate-spin" /> Retrying…</>
                     ) : (
-                      <><RefreshCw className="h-3 w-3 mr-1.5" /> Force Re-run Extraction</>
+                      <><RefreshCw className="h-3 w-3 mr-1.5" /> Retry Extraction</>
                     )}
                   </Button>
                 </div>
@@ -886,8 +889,8 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
             defaultOpen={idx === 1 || idx === 2}
             doneLabel={
               evaluation?.extractionGateReason === "extraction_failed" ? (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
-                  <AlertTriangle className="h-3 w-3" /> Incomplete
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                  <AlertTriangle className="h-3 w-3" /> Metadata Unavailable
                 </span>
               ) : undefined
             }
@@ -915,12 +918,12 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
               {evaluation && (
                 <div>
                   {evaluation.extractionGateReason === "extraction_failed" && (
-                    <div className="rounded-md border border-red-200 bg-red-50 p-3 mb-3 flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 mb-3 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-sm font-semibold text-red-800">Verification incomplete — metadata extraction failed</p>
-                        <p className="text-xs text-red-700 mt-0.5">
-                          Metadata could not be extracted from source file; automated verification is incomplete. All rule results below are inconclusive, not evidence of drawing defects. Manual review is required before approval.
+                        <p className="text-sm font-semibold text-amber-800">Verification incomplete — metadata not available in file properties</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          SolidWorks custom properties were not populated in this file. Automated rule checks could not run — all results below are inconclusive and do not reflect drawing quality. This is a data availability limitation, not a drawing defect. Manual review is required before approval.
                         </p>
                       </div>
                     </div>
@@ -1044,7 +1047,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                     <div className="rounded-md border border-amber-300 bg-amber-50 p-3 flex items-start gap-2">
                       <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                       <p className="text-xs text-amber-800">
-                        <span className="font-semibold">Verification incomplete.</span> Automated checks could not run because metadata extraction failed. The drawing may still be acceptable — but a written justification is mandatory to approve with incomplete verification evidence.
+                        <span className="font-semibold">Verification incomplete — metadata not available.</span> SolidWorks custom properties were not populated; automated checks could not run. The drawing may be fully acceptable — but approval requires a written justification to document the basis for manual review.
                       </p>
                     </div>
                   )}
@@ -1204,7 +1207,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
             <div className="mx-1 mb-1 rounded border border-amber-200 bg-amber-50 px-3 py-2 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-800">
-                <span className="font-semibold">Override approval — verification incomplete.</span> A written justification is required because automated verification could not run. State the basis on which you are satisfied this drawing is acceptable.
+                <span className="font-semibold">Manual approval — metadata not available in file properties.</span> SolidWorks custom properties were not populated, so automated checks did not run. Your written justification documents the basis for approving this drawing without automated evidence.
               </p>
             </div>
           )}
@@ -1213,7 +1216,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
               {approveDecision === "rejected"
                 ? "Rejection reason *"
                 : evaluation?.extractionGateReason === "extraction_failed"
-                ? "Override justification * (mandatory — verification incomplete)"
+                ? "Approval justification * (required — metadata not available)"
                 : "Comments (optional)"}
             </Label>
             <Textarea
@@ -1223,7 +1226,7 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                 approveDecision === "rejected"
                   ? "State the reason for rejection…"
                   : evaluation?.extractionGateReason === "extraction_failed"
-                  ? "State why this drawing is acceptable despite incomplete automated verification…"
+                  ? "State the basis for approving — e.g. visually verified title block, referenced EPC control, or known file limitation…"
                   : "Any notes for this approval…"
               }
               value={approveComment}
@@ -1397,8 +1400,8 @@ export default function DrawingVerificationPage() {
                             Rev {r.revision}
                           </span>
                           {r.extractionStatus === "failed" && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
-                              <AlertTriangle className="h-2.5 w-2.5" /> Extraction Failed
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                              <AlertTriangle className="h-2.5 w-2.5" /> Metadata Unavailable
                             </span>
                           )}
                         </div>
