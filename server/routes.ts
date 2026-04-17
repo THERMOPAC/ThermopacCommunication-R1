@@ -674,6 +674,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupDocumentControlRoutes(app);
   registerEpcPermissionRoutes(app);
 
+  // EPC Drawing Verification Gate (inline, pre-upload)
+  const epcDrawingVerificationRouter = (await import('./epc-drawing-verification-routes')).default;
+  app.use('/api', epcDrawingVerificationRouter);
+
   const { setupEpcMonitoringRoutes } = await import('./epc-monitoring-routes');
   setupEpcMonitoringRoutes(app);
 

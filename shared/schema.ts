@@ -12733,3 +12733,34 @@ export const drawingReleases = pgTable('drawing_releases', {
 }));
 
 export type DrawingRelease = typeof drawingReleases.$inferSelect;
+
+// ============================================================
+// EPC DRAWING VERIFICATION — Inline verification gate at
+// /epc/drawing-controls DWG upload (PDF only, Phase 1)
+// ============================================================
+export const epcDrawingVerifications = pgTable('epc_drawing_verifications', {
+  id:                 serial('id').primaryKey(),
+  drawingControlId:   integer('drawing_control_id').notNull().references(() => epcDrawingControls.id, { onDelete: 'cascade' }),
+  ddsId:              integer('dds_id').references(() => designDataSheets.id, { onDelete: 'set null' }),
+  equipmentConfig:    varchar('equipment_config', { length: 60 }),
+  pdfFilename:        varchar('pdf_filename', { length: 255 }).notNull(),
+  pdfSizeBytes:       integer('pdf_size_bytes').notNull(),
+  extractionEngine:   varchar('extraction_engine', { length: 50 }).notNull(),
+  extractionResult:   jsonb('extraction_result'),
+  layer1Results:      jsonb('layer1_results'),
+  layer2Results:      jsonb('layer2_results'),
+  overallStatus:      varchar('overall_status', { length: 30 }).notNull(),
+  criticalFailures:   integer('critical_failures').notNull().default(0),
+  highFailures:       integer('high_failures').notNull().default(0),
+  totalWarnings:      integer('total_warnings').notNull().default(0),
+  totalSkipped:       integer('total_skipped').notNull().default(0),
+  ddsGateResult:      varchar('dds_gate_result', { length: 30 }),
+  ddsGateMessage:     text('dds_gate_message'),
+  attemptedBy:        varchar('attempted_by', { length: 100 }).notNull(),
+  attemptedAt:        timestamp('attempted_at').notNull().defaultNow(),
+  accepted:           boolean('accepted').notNull().default(false),
+  acceptedAt:         timestamp('accepted_at'),
+  attachmentId:       integer('attachment_id'),
+});
+
+export type EpcDrawingVerification = typeof epcDrawingVerifications.$inferSelect;

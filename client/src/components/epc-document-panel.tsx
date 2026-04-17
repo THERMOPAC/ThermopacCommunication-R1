@@ -15,6 +15,7 @@ import {
   Upload, Download, History, Trash2, RotateCcw,
   Loader2, Shield, AlertTriangle,
   Paperclip, FileSearch, ChevronLeft, ChevronRight, ChevronDown,
+  CheckCircle2, XCircle, ExternalLink, ShieldCheck,
 } from "lucide-react";
 import { getLabelOptions, getDocTypeLabelFamily } from "@shared/gcs-label-vocabulary";
 
@@ -109,6 +110,12 @@ export default function EpcDocumentPanel({
   const [accessLogActionFilter, setAccessLogActionFilter] = useState<string>("all");
   const [accessLogPage, setAccessLogPage] = useState(1);
 
+  // DWG 2-step verification state
+  const [dwgVerifyStep, setDwgVerifyStep] = useState<"pick" | "result">("pick");
+  const [dwgVerificationResult, setDwgVerificationResult] = useState<any>(null);
+  const [dwgVerificationId, setDwgVerificationId] = useState<number | null>(null);
+  const [dwgGateError, setDwgGateError] = useState<string | null>(null);
+
   const isRevControlled = REVISION_CONTROLLED_TYPES.has(docType.toUpperCase());
   const canUpload = UPLOAD_ROLES.includes(userRole);
   const canWithdrawReleased = WITHDRAW_RELEASED_ROLES.includes(userRole);
@@ -184,6 +191,37 @@ export default function EpcDocumentPanel({
     },
   });
 
+  const dwgVerifyMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("pdf", file);
+      const res = await fetch(`/api/epc-drawing-controls/${parentEntityId}/verify-pdf`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw Object.assign(new Error(data.error || "Verification failed"), { data });
+      return data;
+    },
+    onSuccess: (data) => {
+      setDwgVerificationResult(data);
+      setDwgVerificationId(data.verificationId);
+      setDwgGateError(null);
+      setDwgVerifyStep("result");
+    },
+    onError: (err: any) => {
+      const data = err?.data;
+      if (data?.gateError) {
+        setDwgGateError(data.gateError.message);
+        setDwgVerifyStep("result");
+        setDwgVerificationResult(null);
+      } else {
+        toast({ title: "Verification failed", description: err.message, variant: "destructive" });
+      }
+    },
+  });
+
   const withdrawMutation = useMutation({
     mutationFn: async ({ attachmentId, reason }: { attachmentId: number; reason: string }) => {
       return apiRequest("POST", `/api/projects/${projectId}/epc-documents/attachments/${attachmentId}/withdraw`, { reason });
@@ -212,7 +250,7 @@ export default function EpcDocumentPanel({
     },
   });
 
-  function handleUpload() {
+  function handleUpload(verificationIdToAccept?: number) {
     const dt = docType.toUpperCase();
     const label = REVISION_CONTROLLED_TYPES.has(dt)
       ? (dt === "BOM" ? "Bill of Materials" : "Drawing PDF")
@@ -221,7 +259,33 @@ export default function EpcDocumentPanel({
     const formData = new FormData();
     formData.append("file", uploadFile);
     formData.append("attachment_label", label);
-    uploadMutation.mutate(formData);
+    uploadMutation.mutate(formData, {
+      onSuccess: async (data) => {
+        if (verificationIdToAccept) {
+          try {
+            await fetch(`/api/epc-drawing-verifications/${verificationIdToAccept}/accept`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ attachmentId: data?.attachmentId ?? null }),
+            });
+          } catch { /* non-critical */ }
+        }
+        setDwgVerifyStep("pick");
+        setDwgVerificationResult(null);
+        setDwgVerificationId(null);
+        setDwgGateError(null);
+      },
+    });
+  }
+
+  function resetDwgDialog() {
+    setDwgVerifyStep("pick");
+    setDwgVerificationResult(null);
+    setDwgVerificationId(null);
+    setDwgGateError(null);
+    setUploadFile(null);
+    setUploadLabel("");
   }
 
   async function handleDownload(attachmentId?: number, context?: string) {
