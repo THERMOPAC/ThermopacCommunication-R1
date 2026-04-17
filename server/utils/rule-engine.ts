@@ -65,9 +65,9 @@ export function computeExtractionGate(extraction: DrawingExtraction | null): Ext
   }
   if (extraction.extractionStatus === 'failed') {
     return {
-      gate: 'BLOCK',
+      gate: 'WARN',
       reason: 'extraction_failed',
-      detail: 'Extraction failed. Re-run extraction with a valid file before evaluating.',
+      detail: 'Extraction failed — no metadata could be read from the file. All metadata-dependent rules will produce FAIL verdicts.',
     };
   }
   if (extraction.extractionEngineVersion !== EXTRACTION_ENGINE_VERSION) {

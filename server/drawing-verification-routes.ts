@@ -412,13 +412,12 @@ router.post('/:id/extract', ensureAuthenticated, async (req: Request, res: Respo
       })
       .where(eq(drawingExtractions.drawingRevisionId, id));
 
-    // ── Step 2 amendment (Step 3 scope): advance status on success/partial ──
-    if (result.extractionStatus === 'success' || result.extractionStatus === 'partial') {
-      await db.update(drawingRevisions)
-        .set({ status: 'extracted' })
-        .where(eq(drawingRevisions.id, id));
-    }
-    // extraction_status = 'failed' → status unchanged (remains as-is)
+    // ── Step 2 amendment: always advance to 'extracted' after any extraction attempt ──
+    // Even a failed extraction advances the status so the pipeline can continue.
+    // The evaluate step's extraction gate will flag missing data and produce FAIL verdicts.
+    await db.update(drawingRevisions)
+      .set({ status: 'extracted' })
+      .where(eq(drawingRevisions.id, id));
 
     const finalRows = await db.select().from(drawingExtractions)
       .where(eq(drawingExtractions.drawingRevisionId, id)).limit(1);

@@ -801,6 +801,35 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                 </div>
               )}
 
+              {/* Extraction failed — but status was advanced; pipeline can still continue */}
+              {!loadingExtract && idx >= 1 && extraction?.extractionStatus === "failed" && (
+                <div className="space-y-2">
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Extraction failed — metadata unavailable</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          {extraction._note ?? "The OLE extractor could not read metadata from this SolidWorks file."} The pipeline can still proceed to evaluation — all metadata rules will produce FAIL verdicts.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => extractMut.mutate(true)}
+                    disabled={extractMut.isPending}
+                  >
+                    {extractMut.isPending ? (
+                      <><RefreshCw className="h-3 w-3 mr-1.5 animate-spin" /> Retrying…</>
+                    ) : (
+                      <><RefreshCw className="h-3 w-3 mr-1.5" /> Force Re-run Extraction</>
+                    )}
+                  </Button>
+                </div>
+              )}
+
               {/* Extraction data — success or partial */}
               {!loadingExtract && extraction && (extraction.extractionStatus === "success" || extraction.extractionStatus === "partial") && (
                 <div className="space-y-0.5">
