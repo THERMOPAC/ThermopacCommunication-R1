@@ -88,6 +88,7 @@ type DrawingRevision = {
   fileSizeBytes: number | null;
   status: string;
   uploaderNotes: string | null;
+  extractionStatus: "success" | "partial" | "failed" | null;
 };
 
 type Project = { id: number; code: string; name?: string };
@@ -283,12 +284,14 @@ function StageCard({
   icon: Icon,
   state,
   defaultOpen = false,
+  doneLabel,
   children,
 }: {
   title: string;
   icon: React.ElementType;
   state: StepState;
   defaultOpen?: boolean;
+  doneLabel?: React.ReactNode;
   children: React.ReactNode;
 }) {
   // Active cards are always open (they need user action); done cards can collapse; locked cards are closed
@@ -336,9 +339,11 @@ function StageCard({
             {title}
           </span>
           {state === "done" && (
-            <span className="text-xs text-emerald-600 font-medium bg-emerald-100 px-1.5 py-0.5 rounded">
-              Complete
-            </span>
+            doneLabel ?? (
+              <span className="text-xs text-emerald-600 font-medium bg-emerald-100 px-1.5 py-0.5 rounded">
+                Complete
+              </span>
+            )
           )}
           {state === "active" && (
             <span className="text-xs text-blue-600 font-medium bg-blue-100 px-1.5 py-0.5 rounded">
@@ -814,23 +819,23 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
                 </div>
               )}
 
-              {/* Extraction failed — but status was advanced; pipeline can still continue */}
+              {/* Extraction FAILED — status advanced; pipeline continues but verification is incomplete */}
               {!loadingExtract && idx >= 1 && extraction?.extractionStatus === "failed" && (
                 <div className="space-y-2">
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                  <div className="rounded-md border border-red-300 bg-red-50 p-3">
                     <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
                       <div>
-                        <p className="text-sm font-semibold text-amber-800">Extraction failed — metadata unavailable</p>
-                        <p className="text-xs text-amber-700 mt-0.5">
-                          {extraction._note ?? "The OLE extractor could not read metadata from this SolidWorks file."} The pipeline can still proceed to evaluation — all metadata rules will produce FAIL verdicts.
+                        <p className="text-sm font-semibold text-red-800">FAILED — Extraction status: failed</p>
+                        <p className="text-xs text-red-700 mt-0.5">
+                          Metadata could not be extracted — automated verification is incomplete. The pipeline can still proceed; all rule results will be inconclusive and any approval will require a written justification.
                         </p>
                       </div>
                     </div>
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="destructive"
                     onClick={() => extractMut.mutate(true)}
                     disabled={extractMut.isPending}
                   >
@@ -879,6 +884,13 @@ function PipelinePanel({ revision }: { revision: DrawingRevision }) {
             icon={FileCheck}
             state={idx >= 2 ? "done" : idx === 1 ? "active" : "locked"}
             defaultOpen={idx === 1 || idx === 2}
+            doneLabel={
+              evaluation?.extractionGateReason === "extraction_failed" ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
+                  <AlertTriangle className="h-3 w-3" /> Incomplete
+                </span>
+              ) : undefined
+            }
           >
             <div className="mt-3">
               {idx === 1 && !evaluation && (
@@ -1384,6 +1396,11 @@ export default function DrawingVerificationPage() {
                           <span className="text-xs font-mono px-1 py-0.5 bg-gray-100 rounded text-gray-600">
                             Rev {r.revision}
                           </span>
+                          {r.extractionStatus === "failed" && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
+                              <AlertTriangle className="h-2.5 w-2.5" /> Extraction Failed
+                            </span>
+                          )}
                         </div>
                         {r.title && <p className="text-xs text-gray-600 truncate mt-0.5">{r.title}</p>}
                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">

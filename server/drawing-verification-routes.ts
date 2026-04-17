@@ -5,7 +5,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { db } from './db';
 import { drawingRevisions, drawingExtractions, ruleEvaluations, agentReports, drawingApprovals, drawingReleases, projects } from '@shared/schema';
 import { roleHierarchy } from '@shared/roles';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import gcsClient, { bucketName } from './utils/storage-config';
 import {
   extractDrawingProperties,
@@ -205,6 +205,18 @@ router.get('/', ensureAuthenticated, async (req: Request, res: Response) => {
     const rows = conditions.length > 0
       ? await db.select().from(drawingRevisions).where(and(...conditions)).orderBy(desc(drawingRevisions.uploadedAt))
       : await db.select().from(drawingRevisions).orderBy(desc(drawingRevisions.uploadedAt));
+
+    // Attach extractionStatus to each row (batch fetch, no N+1)
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      const extractions = await db
+        .select({ drawingRevisionId: drawingExtractions.drawingRevisionId, extractionStatus: drawingExtractions.extractionStatus })
+        .from(drawingExtractions)
+        .where(inArray(drawingExtractions.drawingRevisionId, ids));
+      const exMap = new Map(extractions.map((e) => [e.drawingRevisionId, e.extractionStatus]));
+      const enriched = rows.map((r) => ({ ...r, extractionStatus: exMap.get(r.id) ?? null }));
+      return res.json(enriched);
+    }
 
     return res.json(rows);
   } catch (err: any) {
