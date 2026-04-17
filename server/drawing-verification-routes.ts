@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { createHash } from 'crypto';
 import { db } from './db';
-import { drawingRevisions, drawingExtractions, ruleEvaluations, projects } from '@shared/schema';
+import { drawingRevisions, drawingExtractions, ruleEvaluations, agentReports, projects } from '@shared/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import gcsClient, { bucketName } from './utils/storage-config';
 import {
@@ -18,6 +18,11 @@ import {
   evaluateRules,
   computeOverallVerdict,
 } from './utils/rule-engine';
+import {
+  AGENT_VERSION,
+  runAgentReview,
+  deriveOverallAssessment,
+} from './utils/agent-reviewer';
 
 const router = express.Router();
 
@@ -579,6 +584,158 @@ router.get('/:id/evaluation', ensureAuthenticated, async (req: Request, res: Res
     const rows = await db.select().from(ruleEvaluations)
       .where(eq(ruleEvaluations.drawingRevisionId, id)).limit(1);
     if (rows.length === 0) return res.status(404).json({ error: 'No evaluation record found for this revision. Trigger evaluation first.' });
+
+    return res.json(rows[0]);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Step 4: Agent Layer ──────────────────────────────────────────────────────
+
+router.post('/:id/agent-review', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const force = req.query.force === 'true';
+    const user  = (req as any).user;
+    const caller = user.username || user.email || String(user.id);
+
+    // Load drawing revision
+    const revRows = await db.select().from(drawingRevisions).where(eq(drawingRevisions.id, id)).limit(1);
+    if (revRows.length === 0) return res.status(404).json({ error: 'Drawing revision not found.' });
+    const revision = revRows[0];
+
+    // Trigger guard: must be STAGING
+    if (revision.storageZone !== 'STAGING') {
+      return res.status(422).json({
+        error: 'TRIGGER_GUARD_FAILED',
+        reason: 'invalid_storage_zone',
+        detail: `Agent review is only permitted for drawings in STAGING. Current zone: '${revision.storageZone}'.`,
+      });
+    }
+
+    // Trigger guard: status must be 'evaluated' or 'agent_reviewed'
+    if (revision.status !== 'evaluated' && revision.status !== 'agent_reviewed') {
+      return res.status(422).json({
+        error: 'TRIGGER_GUARD_FAILED',
+        reason: 'status_not_eligible',
+        detail: `Agent review requires status 'evaluated' or 'agent_reviewed'. Current status: '${revision.status}'. Run rule evaluation first.`,
+      });
+    }
+
+    // Load rule_evaluations row — must exist
+    const evalRows = await db.select().from(ruleEvaluations)
+      .where(eq(ruleEvaluations.drawingRevisionId, id)).limit(1);
+    if (evalRows.length === 0) {
+      return res.status(422).json({
+        error: 'NO_EVALUATION',
+        reason: 'evaluation_required',
+        detail: 'No rule evaluation record found for this revision. Run evaluation first.',
+      });
+    }
+    const evaluation = evalRows[0];
+
+    // Safety guard: BLOCKED verdict must never have been written — but guard anyway
+    if (!['PASS', 'WARN', 'FAIL'].includes(evaluation.overallVerdict)) {
+      return res.status(422).json({
+        error: 'EVALUATION_BLOCKED',
+        reason: 'verdict_is_blocked',
+        detail: `Cannot run agent review on a BLOCKED evaluation (verdict: '${evaluation.overallVerdict}').`,
+      });
+    }
+
+    // Load existing agent report
+    const existingRows = await db.select().from(agentReports)
+      .where(eq(agentReports.drawingRevisionId, id)).limit(1);
+    const existing = existingRows[0] ?? null;
+
+    // Freshness check: cached when rule_evaluation_id AND agent_version both match
+    if (!force && existing) {
+      const evalIdFresh     = existing.ruleEvaluationId === evaluation.id;
+      const versionFresh    = existing.agentVersion     === AGENT_VERSION;
+      if (evalIdFresh && versionFresh) {
+        return res.status(200).json({ ...existing, _note: 'cached' });
+      }
+      // Stale on either dimension → fall through to regenerate (caller as generated_by)
+    }
+
+    // Call agent — throws on any failure; caller writes nothing on throw
+    let reportData;
+    try {
+      reportData = await runAgentReview(evaluation);
+    } catch (agentErr: any) {
+      console.error(`[dvs-agent] AI call failed for revision=${id}:`, agentErr.message);
+      return res.status(500).json({ error: agentErr.message || 'Agent review failed.' });
+    }
+
+    const generatedAt = new Date();
+
+    // Upsert agent_reports
+    if (existing) {
+      await db.update(agentReports)
+        .set({
+          ruleEvaluationId:  evaluation.id,
+          agentVersion:      AGENT_VERSION,
+          generatedAt,
+          generatedBy:       caller,
+          overallAssessment: reportData.overallAssessment,
+          summary:           reportData.summary,
+          criticalFailures:  reportData.criticalFailures as any,
+          warnings:          reportData.warnings as any,
+          recommendations:   reportData.recommendations,
+          rawResponse:       reportData.rawResponse,
+        })
+        .where(eq(agentReports.drawingRevisionId, id));
+    } else {
+      await db.insert(agentReports).values({
+        drawingRevisionId:  id,
+        ruleEvaluationId:   evaluation.id,
+        agentVersion:       AGENT_VERSION,
+        generatedAt,
+        generatedBy:        caller,
+        overallAssessment:  reportData.overallAssessment,
+        summary:            reportData.summary,
+        criticalFailures:   reportData.criticalFailures as any,
+        warnings:           reportData.warnings as any,
+        recommendations:    reportData.recommendations,
+        rawResponse:        reportData.rawResponse,
+      });
+    }
+
+    // Advance status to 'agent_reviewed'
+    await db.update(drawingRevisions)
+      .set({ status: 'agent_reviewed' })
+      .where(eq(drawingRevisions.id, id));
+
+    const finalRows = await db.select().from(agentReports)
+      .where(eq(agentReports.drawingRevisionId, id)).limit(1);
+
+    console.log(`[dvs-agent] revision=${id} assessment=${reportData.overallAssessment} agent_version=${AGENT_VERSION} force=${force} stale=${!!existing && (existing.ruleEvaluationId !== evaluation.id || existing.agentVersion !== AGENT_VERSION)}`);
+    return res.status(200).json(finalRows[0]);
+  } catch (err: any) {
+    console.error('[dvs-agent] Unexpected error:', err);
+    return res.status(500).json({ error: err.message || 'Agent review failed.' });
+  }
+});
+
+router.get('/:id/agent-report', ensureAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id.' });
+
+    const revRows = await db.select({ id: drawingRevisions.id })
+      .from(drawingRevisions).where(eq(drawingRevisions.id, id)).limit(1);
+    if (revRows.length === 0) return res.status(404).json({ error: 'Drawing revision not found.' });
+
+    const rows = await db.select().from(agentReports)
+      .where(eq(agentReports.drawingRevisionId, id)).limit(1);
+    if (rows.length === 0) {
+      return res.status(404).json({
+        error: 'No agent report found for this revision. Trigger agent review first.',
+      });
+    }
 
     return res.json(rows[0]);
   } catch (err: any) {

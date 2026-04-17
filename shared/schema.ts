@@ -12667,3 +12667,25 @@ export const ruleEvaluations = pgTable('rule_evaluations', {
 }));
 
 export type RuleEvaluation = typeof ruleEvaluations.$inferSelect;
+
+// ============================================================
+// DRAWING VERIFICATION SYSTEM — Step 4: Agent Layer
+// ============================================================
+export const agentReports = pgTable('agent_reports', {
+  id: serial('id').primaryKey(),
+  drawingRevisionId: integer('drawing_revision_id').notNull().references(() => drawingRevisions.id),
+  ruleEvaluationId: integer('rule_evaluation_id').notNull().references(() => ruleEvaluations.id),
+  agentVersion: varchar('agent_version', { length: 20 }).notNull(),
+  generatedAt: timestamp('generated_at').notNull(),
+  generatedBy: varchar('generated_by', { length: 100 }).notNull(),
+  overallAssessment: varchar('overall_assessment', { length: 20 }).notNull(),
+  summary: text('summary').notNull(),
+  criticalFailures: jsonb('critical_failures').notNull(),
+  warnings: jsonb('warnings').notNull(),
+  recommendations: text('recommendations').notNull(),
+  rawResponse: varchar('raw_response', { length: 2000 }).notNull(),
+}, (table) => ({
+  uniqueRevisionReport: uniqueIndex('uq_agent_report_revision').on(table.drawingRevisionId),
+}));
+
+export type AgentReport = typeof agentReports.$inferSelect;
