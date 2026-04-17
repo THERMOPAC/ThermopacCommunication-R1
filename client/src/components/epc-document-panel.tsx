@@ -535,11 +535,11 @@ export default function EpcDocumentPanel({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-blue-600" />
-              {dwgVerifyStep === "pick" ? "Drawing Verification" : "Verification Result"}
+              {dwgVerifyStep === "pick" ? "Drawing PDF Verification" : "Drawing Verification Result"}
             </DialogTitle>
             <DialogDescription>
-              DWG — {documentNumber || `Drawing Control #${parentEntityId}`}
-              &nbsp;·&nbsp;PDF only &nbsp;·&nbsp; DDS gate + AI checklist verification required before upload
+              {documentNumber || `Drawing Control #${parentEntityId}`}
+              &nbsp;·&nbsp;<strong>PDF only</strong> &nbsp;·&nbsp; DDS gate + AI checklist required before upload
             </DialogDescription>
           </DialogHeader>
 
@@ -565,7 +565,7 @@ export default function EpcDocumentPanel({
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1">Drawing PDF <span className="text-red-500">*</span></label>
+                <label className="text-sm font-medium block mb-1">PDF File <span className="text-muted-foreground font-normal text-xs">(PDF only — DWG/CAD formats not accepted)</span> <span className="text-red-500">*</span></label>
                 <Input
                   type="file"
                   accept=".pdf,application/pdf"
