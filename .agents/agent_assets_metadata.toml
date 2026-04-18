@@ -138,3 +138,9 @@ id = "ioyWRVyylXTOmTkS0kFN5"
 uri = "file://.local/tasks/GCS-Governance-Combined-Plan.md"
 type = "text"
 title = "GCS Governance Remediation Plan — Revision 4"
+
+[[outputs]]
+id = "JteJ2u5tvU8mJ0KbOtaVs"
+uri = "file://ThermopacAgent-Phase1-Package.zip"
+type = "unspecified"
+title = "ThermopacAgent — Phase 1 Installation Package"
