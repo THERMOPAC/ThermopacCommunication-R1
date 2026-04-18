@@ -170,6 +170,7 @@ export default function EpcDrawingControlPage() {
   const [filterProcReleased, setFilterProcReleased] = useState<string>("all");
   const [filterMfgReleased, setFilterMfgReleased] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState<Set<number>>(new Set());
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<DrawingControl | null>(null);
@@ -594,120 +595,153 @@ export default function EpcDrawingControlPage() {
 
                                         {/* 1. Details */}
                                         <Card className="shadow-sm">
-                                          <CardHeader className="py-2 px-3">
-                                            <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
-                                              <FileText className="h-3.5 w-3.5" /> Details
-                                              {rec.status === "draft" && userLevel <= 3 && (
-                                                <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[8px] ml-auto" onClick={(e) => { e.stopPropagation(); openEditDialog(rec); }}>
-                                                  <Edit className="h-2.5 w-2.5 mr-0.5" /> Edit
-                                                </Button>
-                                              )}
-                                            </CardTitle>
-                                          </CardHeader>
-                                          <CardContent className="px-3 pb-3 space-y-2">
-                                          {/* ── Identity ── */}
-                                          <div>
-                                            <div className="font-mono text-[10px] text-muted-foreground">{rec.dwg_control_number}</div>
-                                            <div className="text-[11px] font-medium leading-snug mt-0.5">{rec.drawing_title || <span className="italic text-muted-foreground">No title</span>}</div>
-                                            {rec.item_description && (
-                                              <div className="text-[10px] text-blue-600 mt-0.5 leading-snug">{rec.item_description}</div>
-                                            )}
-                                          </div>
+                                          <CardContent className="px-3 pt-2.5 pb-2.5 space-y-2">
 
-                                          {/* ── Key fields 2-col grid ── */}
-                                          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
-                                            <div className="text-muted-foreground">Drawing No</div>
-                                            <div className="font-mono">{rec.drawing_number || "—"}</div>
-                                            <div className="text-muted-foreground">Item Code</div>
-                                            <div className="font-mono">{rec.item_code || "—"}</div>
-                                            <div className="text-muted-foreground">Revision</div>
-                                            {projectId
-                                              ? <LiveRevisionBadge projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
-                                              : <div className="flex items-center gap-1"><span className="font-mono">{rec.revision_code}</span>{rec.is_current ? <span className="text-green-600 font-semibold">· current</span> : <span className="text-orange-500">· superseded</span>}</div>
-                                            }
-                                            {rec.drawing_purpose && <><div className="text-muted-foreground">Purpose</div><div>{rec.drawing_purpose}</div></>}
-                                            {rec.drawing_category && <><div className="text-muted-foreground">Category</div><div>{rec.drawing_category}</div></>}
-                                            {rec.discipline_code && <><div className="text-muted-foreground">Discipline</div><div>{rec.discipline_code}</div></>}
-                                            {rec.classification_snapshot && <><div className="text-muted-foreground">Classification</div><div>{rec.classification_snapshot}</div></>}
-                                          </div>
-
-                                          {rec.supersedes_id && (
-                                            <div className="flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
-                                              <ArrowUpDown className="h-3 w-3 text-blue-500 mt-0.5 shrink-0" />
-                                              <div>
-                                                <div className="text-[9px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">Supersession Draft</div>
-                                                <div className="text-[9px] text-blue-800">
-                                                  {rec.notes && rec.notes.startsWith("Supersedes Rev")
-                                                    ? rec.notes
-                                                    : `Supersedes drawing #${rec.supersedes_id}`}
+                                            {/* ── Compact header ── */}
+                                            <div className="flex items-start gap-1.5">
+                                              <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span className="font-mono text-[11px] font-bold text-foreground">{rec.drawing_number || rec.dwg_control_number}</span>
+                                                  <Badge variant="outline" className="text-[8px] h-4 px-1 font-normal">{rec.status.replace(/_/g, " ")}</Badge>
+                                                  {rec.status === "draft" && userLevel <= 3 && (
+                                                    <Button size="sm" variant="ghost" className="h-4 px-1 text-[8px] ml-auto" onClick={(e) => { e.stopPropagation(); openEditDialog(rec); }}>
+                                                      <Edit className="h-2.5 w-2.5 mr-0.5" /> Edit
+                                                    </Button>
+                                                  )}
                                                 </div>
+                                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                  {rec.item_code && <span className="text-[9px] text-muted-foreground font-mono">{rec.item_code}</span>}
+                                                  {projectId
+                                                    ? <LiveRevisionBadge projectId={projectId} parentEntityId={rec.id} isCurrent={rec.is_current} />
+                                                    : <span className="text-[9px] font-mono text-foreground/70">Rev {rec.revision_code}{rec.is_current ? <span className="text-green-600"> · current</span> : <span className="text-orange-500"> · superseded</span>}</span>
+                                                  }
+                                                </div>
+                                                {rec.drawing_title && (
+                                                  <div className="text-[10px] font-medium leading-snug mt-0.5 text-foreground/80 truncate" title={rec.drawing_title}>{rec.drawing_title}</div>
+                                                )}
+                                                {rec.item_description && (
+                                                  <div className="text-[9px] text-blue-600 mt-0.5 leading-snug truncate" title={rec.item_description}>{rec.item_description}</div>
+                                                )}
                                               </div>
                                             </div>
-                                          )}
-                                          {rec.notes && !rec.notes.startsWith("Supersedes Rev") && (
-                                            <div className="text-[9px] bg-amber-50 border border-amber-200 rounded px-2 py-1 text-amber-800">{rec.notes}</div>
-                                          )}
 
-                                          {/* ── Release gates ── */}
-                                          <div>
-                                            <div className="text-[9px] text-muted-foreground font-medium mb-1">Release Gates</div>
-                                            <div className="flex flex-wrap gap-1">
-                                              {rec.procurement_release_required ? (
-                                                <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_procurement ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
-                                                  P · {rec.released_for_procurement ? `✓ ${rec.released_for_procurement_at ? new Date(rec.released_for_procurement_at).toLocaleDateString() : "released"}` : "pending"}
-                                                </span>
-                                              ) : (
-                                                <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">P · n/a</span>
-                                              )}
-                                              {rec.manufacturing_release_required ? (
-                                                <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_manufacturing ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
-                                                  M · {rec.released_for_manufacturing ? `✓ ${rec.released_for_manufacturing_at ? new Date(rec.released_for_manufacturing_at).toLocaleDateString() : "released"}` : "pending"}
-                                                </span>
-                                              ) : (
-                                                <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">M · n/a</span>
-                                              )}
-                                              {rec.client_approval_required ? (
-                                                <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.client_approval_status === "approved" ? "bg-green-50 text-green-700 border-green-300" : rec.client_approval_status === "rejected" ? "bg-red-50 text-red-600 border-red-300" : "bg-yellow-50 text-yellow-600 border-yellow-300"}`}>
-                                                  C · {rec.client_approval_status || "pending"}{rec.client_approved_at ? ` ${new Date(rec.client_approved_at).toLocaleDateString()}` : ""}
-                                                </span>
-                                              ) : (
-                                                <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">C · n/a</span>
-                                              )}
+                                            {/* ── Primary 2-col grid ── */}
+                                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
+                                              {rec.drawing_purpose && <><div className="text-muted-foreground">Purpose</div><div className="truncate">{rec.drawing_purpose}</div></>}
+                                              {rec.classification_snapshot && <><div className="text-muted-foreground">Classification</div><div className="truncate">{rec.classification_snapshot}</div></>}
+                                              {rec.discipline_code && <><div className="text-muted-foreground">Discipline</div><div>{rec.discipline_code}</div></>}
+                                              {rec.drawing_category && <><div className="text-muted-foreground">Category</div><div>{rec.drawing_category}</div></>}
+                                              <div className="text-muted-foreground">Created</div>
+                                              <div>{new Date(rec.created_at).toLocaleDateString()}</div>
+                                              {rec.submitted_at && <><div className="text-muted-foreground">Submitted</div><div>{new Date(rec.submitted_at).toLocaleDateString()}</div></>}
                                             </div>
-                                          </div>
 
-                                          {/* ── Audit trail (compact) ── */}
-                                          <div>
-                                            <div className="text-[9px] text-muted-foreground font-medium mb-0.5">Audit</div>
-                                            <div className="space-y-0.5">
-                                              {[
-                                                { label: "Created", date: rec.created_at, note: null },
-                                                { label: "Submitted", date: rec.submitted_at, note: rec.submission_note },
-                                                { label: "Reviewed", date: rec.reviewed_at, note: rec.review_recommendation },
-                                                { label: "Approved", date: rec.approved_at, note: rec.approval_note },
-                                                { label: "Released", date: rec.released_at, note: rec.release_note },
-                                                { label: "Superseded", date: rec.superseded_at, note: rec.supersession_reason },
-                                                { label: "Cancelled", date: rec.cancelled_at, note: rec.cancel_reason },
-                                              ].filter(e => e.date).map(e => (
-                                                <div key={e.label} className="flex items-baseline gap-1.5 text-[9px]">
-                                                  <span className="text-muted-foreground w-16 shrink-0">{e.label}</span>
-                                                  <span className="text-[8px] text-foreground/70">{new Date(e.date!).toLocaleDateString()}</span>
-                                                  {e.note && <span className="text-muted-foreground truncate max-w-[140px]" title={e.note}>— {e.note}</span>}
+                                            {/* ── Notes (inline, not collapsible) ── */}
+                                            {rec.notes && !rec.notes.startsWith("Supersedes Rev") && (
+                                              <div className="text-[9px] bg-amber-50 border border-amber-200 rounded px-2 py-1 text-amber-800">{rec.notes}</div>
+                                            )}
+
+                                            {/* ── Collapsible: low-priority details ── */}
+                                            <div>
+                                              <button
+                                                type="button"
+                                                className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground transition-colors w-full"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setDetailsOpen(prev => {
+                                                    const next = new Set(prev);
+                                                    if (next.has(rec.id)) next.delete(rec.id); else next.add(rec.id);
+                                                    return next;
+                                                  });
+                                                }}
+                                              >
+                                                {detailsOpen.has(rec.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                                <span>{detailsOpen.has(rec.id) ? "Hide" : "Show"} audit · gates · GCS</span>
+                                              </button>
+
+                                              {detailsOpen.has(rec.id) && (
+                                                <div className="mt-1.5 space-y-1.5 pl-1">
+
+                                                  {/* Release gates */}
+                                                  <div>
+                                                    <div className="text-[9px] text-muted-foreground font-medium mb-0.5">Release Gates</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                      {rec.procurement_release_required ? (
+                                                        <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_procurement ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
+                                                          P · {rec.released_for_procurement ? `✓ ${rec.released_for_procurement_at ? new Date(rec.released_for_procurement_at).toLocaleDateString() : "released"}` : "pending"}
+                                                        </span>
+                                                      ) : (
+                                                        <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">P · n/a</span>
+                                                      )}
+                                                      {rec.manufacturing_release_required ? (
+                                                        <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.released_for_manufacturing ? "bg-green-50 text-green-700 border-green-300" : "bg-orange-50 text-orange-600 border-orange-300"}`}>
+                                                          M · {rec.released_for_manufacturing ? `✓ ${rec.released_for_manufacturing_at ? new Date(rec.released_for_manufacturing_at).toLocaleDateString() : "released"}` : "pending"}
+                                                        </span>
+                                                      ) : (
+                                                        <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">M · n/a</span>
+                                                      )}
+                                                      {rec.client_approval_required ? (
+                                                        <span className={`text-[8px] px-1.5 py-0.5 rounded border font-medium ${rec.client_approval_status === "approved" ? "bg-green-50 text-green-700 border-green-300" : rec.client_approval_status === "rejected" ? "bg-red-50 text-red-600 border-red-300" : "bg-yellow-50 text-yellow-600 border-yellow-300"}`}>
+                                                          C · {rec.client_approval_status || "pending"}{rec.client_approved_at ? ` ${new Date(rec.client_approved_at).toLocaleDateString()}` : ""}
+                                                        </span>
+                                                      ) : (
+                                                        <span className="text-[8px] px-1.5 py-0.5 rounded border bg-gray-50 text-gray-400 border-gray-200">C · n/a</span>
+                                                      )}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Supersession */}
+                                                  {rec.supersedes_id && (
+                                                    <div className="flex items-start gap-1.5 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                      <ArrowUpDown className="h-3 w-3 text-blue-500 mt-0.5 shrink-0" />
+                                                      <div>
+                                                        <div className="text-[9px] font-semibold text-blue-700 uppercase tracking-wide mb-0.5">Supersession Draft</div>
+                                                        <div className="text-[9px] text-blue-800">
+                                                          {rec.notes && rec.notes.startsWith("Supersedes Rev")
+                                                            ? rec.notes
+                                                            : `Supersedes drawing #${rec.supersedes_id}`}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  )}
+
+                                                  {/* Audit trail */}
+                                                  <div>
+                                                    <div className="text-[9px] text-muted-foreground font-medium mb-0.5">Audit Trail</div>
+                                                    <div className="space-y-0.5">
+                                                      {[
+                                                        { label: "Created", date: rec.created_at, note: null },
+                                                        { label: "Submitted", date: rec.submitted_at, note: rec.submission_note },
+                                                        { label: "Reviewed", date: rec.reviewed_at, note: rec.review_recommendation },
+                                                        { label: "Approved", date: rec.approved_at, note: rec.approval_note },
+                                                        { label: "Released", date: rec.released_at, note: rec.release_note },
+                                                        { label: "Superseded", date: rec.superseded_at, note: rec.supersession_reason },
+                                                        { label: "Cancelled", date: rec.cancelled_at, note: rec.cancel_reason },
+                                                      ].filter(e => e.date).map(e => (
+                                                        <div key={e.label} className="flex items-baseline gap-1.5 text-[9px]">
+                                                          <span className="text-muted-foreground w-16 shrink-0">{e.label}</span>
+                                                          <span className="text-[8px] text-foreground/70">{new Date(e.date!).toLocaleDateString()}</span>
+                                                          {e.note && <span className="text-muted-foreground truncate max-w-[140px]" title={e.note}>— {e.note}</span>}
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* GCS Storage */}
+                                                  {projectId && (
+                                                    <div>
+                                                      <Separator className="my-1" />
+                                                      <div className="text-[9px] text-muted-foreground font-medium mb-0.5">GCS Storage</div>
+                                                      <GcsPathDisplay projectId={projectId} parentEntityId={rec.id} />
+                                                    </div>
+                                                  )}
                                                 </div>
-                                              ))}
+                                              )}
                                             </div>
-                                          </div>
 
-                                          {/* ── GCS Storage ── */}
-                                          {projectId && (
-                                            <>
-                                              <Separator className="my-1" />
-                                              <div className="text-[9px] text-muted-foreground font-medium mb-0.5">GCS Storage</div>
-                                              <GcsPathDisplay projectId={projectId} parentEntityId={rec.id} />
-                                            </>
-                                          )}
-                                        </CardContent>
-                                      </Card>
+                                          </CardContent>
+                                        </Card>
 
                                       <Card className="shadow-sm">
                                         <CardHeader className="py-2 px-3">
