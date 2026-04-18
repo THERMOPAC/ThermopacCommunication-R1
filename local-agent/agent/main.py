@@ -54,6 +54,25 @@ BANNER = r"""
 _shutdown = False
 
 
+def _print_startup_config(config) -> None:
+    """Print a clear summary of all config values, flagging auto-filled ones."""
+    auto = "[auto]"
+    print("-" * 62)
+    print(f"  api_url    : {config.api_url}"
+          + (f"  {auto} change for production" if "localhost" in config.api_url else ""))
+    print(f"  node_id    : {config.node_id}")
+    print(f"  node_token : {'*' * 8}  (set)")
+    if config.sw_progid:
+        tag = f"  {auto} detected" if getattr(config, "sw_autodetected", False) else ""
+        print(f"  solidworks : {config.sw_progid}{tag}")
+    else:
+        print("  solidworks : NOT DETECTED")
+        print("               WARNING: extraction jobs will fail until SolidWorks")
+        print("               is installed and solidworks_version is set in config.ini")
+    print("-" * 62)
+    print()
+
+
 def _handle_signal(signum, frame):
     global _shutdown
     print("\n[Agent] Shutdown signal received — finishing current job then stopping…")
@@ -91,6 +110,9 @@ def main():
         config.node_id    = args.node_id
     if args.node_token:
         config.node_token = args.node_token
+
+    # ── Startup config summary ────────────────────────────────────────────────
+    _print_startup_config(config)
 
     # ── Logger ────────────────────────────────────────────────────────────────
     logger = build_logger(config.log_dir)
