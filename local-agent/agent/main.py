@@ -160,7 +160,9 @@ def main():
     client = JobClient(config.api_url, config.node_id, config.node_token, logger)
 
     # ── Auto-registration (testing mode only) ─────────────────────────────────
-    if config.mode == "testing" and config.token_auto_generated:
+    # Always re-register in testing mode so the DB token hash stays in sync
+    # with whatever token is currently in config.ini (auto-generated or manual).
+    if config.mode == "testing":
         if not _auto_register_node(config, logger):
             sys.exit(1)
 
@@ -241,9 +243,11 @@ def _run_test(client: JobClient, config, logger, full: bool = False) -> int:
     print(f"{'='*60}\n")
 
     # ── Step 1: Config validation ─────────────────────────────────────────────
-    ok = bool(config.api_url and config.node_id and config.node_token and config.sw_progid)
+    # sw_progid is optional here — SolidWorks may not be installed yet.
+    ok = bool(config.api_url and config.node_id and config.node_token)
+    sw_note = config.sw_progid if config.sw_progid else "not set (SolidWorks required for extraction)"
     if not step("Config loaded and validated", ok,
-                f"api_url={config.api_url} node_id={config.node_id} sw_progid={config.sw_progid}"):
+                f"api_url={config.api_url} node_id={config.node_id} sw_progid={sw_note}"):
         passed = False
 
     # ── Step 2: Network reachability ───────────────────────────────────────────
