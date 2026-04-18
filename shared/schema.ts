@@ -12764,3 +12764,60 @@ export const epcDrawingVerifications = pgTable('epc_drawing_verifications', {
 });
 
 export type EpcDrawingVerification = typeof epcDrawingVerifications.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPC Agent Nodes — per-node registration for SolidWorks extraction agents
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const epcAgentNodes = pgTable('epc_agent_nodes', {
+  id:                serial('id').primaryKey(),
+  nodeId:            varchar('node_id', { length: 100 }).notNull().unique(),
+  tokenHash:         varchar('token_hash', { length: 255 }).notNull(),
+  machineName:       varchar('machine_name', { length: 255 }),
+  label:             varchar('label', { length: 255 }),
+  createdBy:         varchar('created_by', { length: 255 }),
+  createdAt:         timestamp('created_at').notNull().defaultNow(),
+  active:            boolean('active').notNull().default(true),
+  lastSeenAt:        timestamp('last_seen_at'),
+  lastSeenVersion:   varchar('last_seen_version', { length: 50 }),
+});
+
+export type EpcAgentNode = typeof epcAgentNodes.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EPC SolidWorks Extraction Jobs
+// Cloud-side job queue: pending → processing → completed | failed
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const epcSlddrwExtractionJobs = pgTable('epc_slddrw_extraction_jobs', {
+  id:                    serial('id').primaryKey(),
+  drawingControlId:      integer('drawing_control_id')
+                           .notNull()
+                           .references(() => epcDrawingControls.id, { onDelete: 'cascade' }),
+  attachmentId:          integer('attachment_id')
+                           .references(() => epcDocumentAttachments.id, { onDelete: 'set null' }),
+  slddrwGcsPath:         varchar('slddrw_gcs_path', { length: 500 }).notNull(),
+  slddrwFilename:        varchar('slddrw_filename', { length: 255 }),
+  slddrwSha256:          varchar('slddrw_sha256', { length: 64 }),
+  // Job lifecycle
+  status:                varchar('status', { length: 50 }).notNull().default('pending'),
+  // pending | processing | completed | failed
+  nodeId:                varchar('node_id', { length: 100 }),
+  agentVersion:          varchar('agent_version', { length: 50 }),
+  machineName:           varchar('machine_name', { length: 255 }),
+  claimedAt:             timestamp('claimed_at'),
+  completedAt:           timestamp('completed_at'),
+  failedReason:          text('failed_reason'),
+  retryCount:            integer('retry_count').notNull().default(0),
+  // Extraction output
+  extractionResult:      jsonb('extraction_result'),
+  // DDS comparison output
+  ddsComparisonStatus:   varchar('dds_comparison_status', { length: 50 }),
+  // pass | warn | fail | blocked
+  ddsComparisonResult:   jsonb('dds_comparison_result'),
+  // Audit
+  createdBy:             varchar('created_by', { length: 255 }),
+  createdAt:             timestamp('created_at').notNull().defaultNow(),
+});
+
+export type EpcSlddrwExtractionJob = typeof epcSlddrwExtractionJobs.$inferSelect;

@@ -3843,6 +3843,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('ℹ️ VPN disabled for SAP B1 integration - using direct connection mode');
   }
 
+  // ── EPC SolidWorks Extraction Agent API ─────────────────────────────────────
+  const { default: epcSlddrwJobRoutes } = await import('./epc-slddrw-job-routes');
+  app.use('/api', epcSlddrwJobRoutes);
+  console.log('EPC SolidWorks extraction agent routes registered');
+
   const httpServer = createServer(app);
   
   // Extend timeout for SAP B1 integration routes - default is 2 minutes, extend to 6 minutes

@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Layout from "@/components/layout";
 import EpcDocumentPanel from "@/components/epc-document-panel";
 import DrawingEngineeringChanges from "@/components/drawing-engineering-changes";
+import { DrawingVerificationCard } from "@/components/epc/drawing-verification-card";
 import DesignDataGenerator from "@/components/design-data-generator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -556,20 +557,11 @@ export default function EpcDrawingControlPage() {
                                           disciplineCode={projectDisciplineCode}
                                         />
 
-                                        {/* 2. Drawing Verification (placeholder) */}
-                                        <Card className="shadow-sm border-dashed border-blue-200 bg-blue-50/30">
-                                          <CardHeader className="py-2 px-3">
-                                            <CardTitle className="text-[11px] font-medium flex items-center gap-1.5 text-blue-700">
-                                              <ShieldCheck className="h-3.5 w-3.5" /> Drawing Verification
-                                              <span className="ml-auto text-[8px] font-normal bg-blue-100 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">Coming Soon</span>
-                                            </CardTitle>
-                                          </CardHeader>
-                                          <CardContent className="px-3 pb-3">
-                                            <p className="text-[10px] text-blue-600/80 italic">
-                                              Inline drawing verification gate will appear here. PDF verification runs before upload in DWG Attachments below.
-                                            </p>
-                                          </CardContent>
-                                        </Card>
+                                        {/* 2. Drawing Verification */}
+                                        <DrawingVerificationCard
+                                          drawingControlId={rec.id}
+                                          userRole={userRole}
+                                        />
 
                                         {/* 3. Engineering Changes */}
                                         <DrawingEngineeringChanges
