@@ -13,6 +13,14 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/images', express.static(path.join(process.cwd(), 'client/public/images')));
 app.use('/test-static', express.static(path.join(process.cwd(), 'server/public')));
 
+// Agent file downloads — served directly from source, no rebuild needed
+app.get('/agent-dl/main.py', (_req, res) => {
+  res.download(path.join(process.cwd(), 'local-agent/agent/main.py'), 'main.py');
+});
+app.get('/agent-dl/build-windows-agent.yml', (_req, res) => {
+  res.download(path.join(process.cwd(), '.github/workflows/build-windows-agent.yml'), 'build-windows-agent.yml');
+});
+
 // NOTE: All priority endpoints have been moved to registerRoutes() where they execute AFTER setupAuth.
 // This eliminates the authentication bypass vulnerability (B-02).
 console.log('🔒 SECURITY: Priority endpoints now registered after auth setup in registerRoutes()');
