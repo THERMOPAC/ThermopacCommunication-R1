@@ -180,3 +180,9 @@ id = "nS3yxwkk-XgjiaFUd4dFx"
 uri = "file://thermopac-agent-final.zip"
 type = "unspecified"
 title = "thermopac-agent-final.zip — agent/config.py + config.ini"
+
+[[outputs]]
+id = "hFqDd5kQVS81tYCa4jpfh"
+uri = "file://workflow-node24-fix.zip"
+type = "unspecified"
+title = "build-windows-agent.yml (Node 24 fix)"
