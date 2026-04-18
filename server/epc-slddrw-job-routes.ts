@@ -38,7 +38,11 @@ async function requireNodeAuth(req: Request, res: Response, next: NextFunction) 
   const nodeId    = req.headers['x-node-id']    as string | undefined;
   const nodeToken = req.headers['x-node-token'] as string | undefined;
 
+  const tokenPreview = nodeToken ? nodeToken.substring(0, 6) + '…' : '(none)';
+  console.log(`[NodeAuth] node_id="${nodeId ?? '(none)'}" token_prefix="${tokenPreview}"`);
+
   if (!nodeId || !nodeToken) {
+    console.log(`[NodeAuth] FAIL — missing headers`);
     return res.status(401).json({ error: 'Missing x-node-id or x-node-token header' });
   }
 
@@ -49,13 +53,17 @@ async function requireNodeAuth(req: Request, res: Response, next: NextFunction) 
     .limit(1);
 
   if (!node) {
+    console.log(`[NodeAuth] FAIL — node_id="${nodeId}" not found in DB (or inactive)`);
     return res.status(401).json({ error: 'Unknown or inactive node' });
   }
 
+  console.log(`[NodeAuth] node_id="${nodeId}" found — comparing token…`);
   const valid = await bcrypt.compare(nodeToken, node.tokenHash);
   if (!valid) {
+    console.log(`[NodeAuth] FAIL — token mismatch for node_id="${nodeId}" (sent prefix: ${tokenPreview})`);
     return res.status(401).json({ error: 'Invalid node token' });
   }
+  console.log(`[NodeAuth] OK — node_id="${nodeId}" authenticated`);
 
   // Update last seen
   await db
