@@ -450,9 +450,11 @@ router.post('/epc-agent-nodes/auto-register', async (req: Request, res: Response
       });
   }
 
+  const ts = new Date().toISOString();
   console.log(
-    `[AutoReg] Node "${node_id}" ${existing.length ? 'updated' : 'registered'} `
-    + `— machine="${machine_name}" version="${agent_version}" [TESTING MODE]`,
+    `[AutoReg] ${ts} | node_id="${node_id}" | machine_name="${machine_name ?? 'unknown'}" `
+    + `| action="${existing.length ? 'updated' : 'registered'}" | version="${agent_version ?? 'unknown'}" `
+    + `| [TESTING MODE AGENT_AUTO_REGISTER=true]`,
   );
 
   return res.json({ ok: true, node_id, mode: 'testing' });
