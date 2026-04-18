@@ -128,20 +128,25 @@ const extractionResultSchema = z.object({
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get('/epc-slddrw-jobs/pending', requireNodeAuth, async (req: Request, res: Response) => {
-  // Auto-reset stale processing jobs before returning pending list
-  await _resetStaleJobs();
+  try {
+    // Auto-reset stale processing jobs before returning pending list
+    await _resetStaleJobs();
 
-  const jobs = await db
-    .select({
-      id:               epcSlddrwExtractionJobs.id,
-      drawingControlId: epcSlddrwExtractionJobs.drawingControlId,
-      filename:         epcSlddrwExtractionJobs.slddrwFilename,
-    })
-    .from(epcSlddrwExtractionJobs)
-    .where(eq(epcSlddrwExtractionJobs.status, 'pending'))
-    .orderBy(epcSlddrwExtractionJobs.createdAt);
+    const jobs = await db
+      .select({
+        id:               epcSlddrwExtractionJobs.id,
+        drawingControlId: epcSlddrwExtractionJobs.drawingControlId,
+        filename:         epcSlddrwExtractionJobs.slddrwFilename,
+      })
+      .from(epcSlddrwExtractionJobs)
+      .where(eq(epcSlddrwExtractionJobs.status, 'pending'))
+      .orderBy(epcSlddrwExtractionJobs.createdAt);
 
-  return res.json({ jobs });
+    return res.json({ ok: true, jobs });
+  } catch (err: any) {
+    console.error('[Jobs] /pending error:', err?.message ?? err);
+    return res.status(500).json({ ok: false, error: 'Failed to fetch pending jobs' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
