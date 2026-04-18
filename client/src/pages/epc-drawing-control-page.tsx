@@ -540,19 +540,71 @@ export default function EpcDrawingControlPage() {
                               <TableRow className="bg-muted/10">
                                 <TableCell colSpan={12} className="p-3">
                                   <div className="space-y-3">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      <Card className="shadow-sm">
-                                        <CardHeader className="py-2 px-3">
-                                          <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
-                                            <FileText className="h-3.5 w-3.5" /> Details
-                                            {rec.status === "draft" && userLevel <= 3 && (
-                                              <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[8px] ml-auto" onClick={(e) => { e.stopPropagation(); openEditDialog(rec); }}>
-                                                <Edit className="h-2.5 w-2.5 mr-0.5" /> Edit
-                                              </Button>
-                                            )}
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="px-3 pb-3 space-y-2">
+
+                                    {/* ── 2-column responsive grid ── */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+
+                                      {/* ════ LEFT COLUMN ════ */}
+                                      <div className="space-y-3">
+
+                                        {/* 1. Design Data Sheet */}
+                                        <DesignDataGenerator
+                                          drawingControlId={rec.id}
+                                          drawingStatus={rec.status}
+                                          userRole={userRole}
+                                          disciplineCode={projectDisciplineCode}
+                                        />
+
+                                        {/* 2. Drawing Verification (placeholder) */}
+                                        <Card className="shadow-sm border-dashed border-blue-200 bg-blue-50/30">
+                                          <CardHeader className="py-2 px-3">
+                                            <CardTitle className="text-[11px] font-medium flex items-center gap-1.5 text-blue-700">
+                                              <ShieldCheck className="h-3.5 w-3.5" /> Drawing Verification
+                                              <span className="ml-auto text-[8px] font-normal bg-blue-100 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded">Coming Soon</span>
+                                            </CardTitle>
+                                          </CardHeader>
+                                          <CardContent className="px-3 pb-3">
+                                            <p className="text-[10px] text-blue-600/80 italic">
+                                              Inline drawing verification gate will appear here. PDF verification runs before upload in DWG Attachments below.
+                                            </p>
+                                          </CardContent>
+                                        </Card>
+
+                                        {/* 3. Engineering Changes */}
+                                        <DrawingEngineeringChanges
+                                          drawingControlId={rec.id}
+                                          dwgControlNumber={rec.dwg_control_number}
+                                          revisionCode={rec.revision_code}
+                                          userRole={userRole}
+                                          drawingStatus={rec.status}
+                                        />
+
+                                        {/* 4. DWG Attachments (always last) */}
+                                        {projectId && (
+                                          <DwgDocumentPanelWithGcs
+                                            projectId={projectId}
+                                            rec={rec}
+                                            userRole={userRole}
+                                          />
+                                        )}
+                                      </div>
+
+                                      {/* ════ RIGHT COLUMN ════ */}
+                                      <div className="space-y-3">
+
+                                        {/* 1. Details */}
+                                        <Card className="shadow-sm">
+                                          <CardHeader className="py-2 px-3">
+                                            <CardTitle className="text-[11px] font-medium flex items-center gap-1.5">
+                                              <FileText className="h-3.5 w-3.5" /> Details
+                                              {rec.status === "draft" && userLevel <= 3 && (
+                                                <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[8px] ml-auto" onClick={(e) => { e.stopPropagation(); openEditDialog(rec); }}>
+                                                  <Edit className="h-2.5 w-2.5 mr-0.5" /> Edit
+                                                </Button>
+                                              )}
+                                            </CardTitle>
+                                          </CardHeader>
+                                          <CardContent className="px-3 pb-3 space-y-2">
                                           {/* ── Identity ── */}
                                           <div>
                                             <div className="font-mono text-[10px] text-muted-foreground">{rec.dwg_control_number}</div>
@@ -727,29 +779,8 @@ export default function EpcDrawingControlPage() {
                                         </CardContent>
                                       </Card>
 
-                                      <DrawingEngineeringChanges
-                                        drawingControlId={rec.id}
-                                        dwgControlNumber={rec.dwg_control_number}
-                                        revisionCode={rec.revision_code}
-                                        userRole={userRole}
-                                        drawingStatus={rec.status}
-                                      />
-
-                                      <DesignDataGenerator
-                                        drawingControlId={rec.id}
-                                        drawingStatus={rec.status}
-                                        userRole={userRole}
-                                        disciplineCode={projectDisciplineCode}
-                                      />
-                                    </div>
-
-                                    {projectId && (
-                                      <DwgDocumentPanelWithGcs
-                                        projectId={projectId}
-                                        rec={rec}
-                                        userRole={userRole}
-                                      />
-                                    )}
+                                      </div>{/* end right column */}
+                                    </div>{/* end 2-col grid */}
 
                                     <div className="flex items-center gap-2">
                                       <Button size="sm" variant="outline" className="h-6 text-[9px] px-2" asChild>
