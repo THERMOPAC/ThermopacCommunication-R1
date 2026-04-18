@@ -162,3 +162,9 @@ id = "CKJg8ocyllgo8HrdUYB3O"
 uri = "file://setup-iss.zip"
 type = "unspecified"
 title = "setup.iss"
+
+[[outputs]]
+id = "29E-KkgTbPfngEh3wKVaf"
+uri = "file://config-fix.zip"
+type = "unspecified"
+title = "config-fix.zip — agent/config.py + build-windows-agent.yml"

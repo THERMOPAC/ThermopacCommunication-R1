@@ -51,7 +51,6 @@ jobs:
             --distpath dist `
             --workpath build `
             --specpath . `
-            --add-data "config.ini;." `
             --add-data "extractor;extractor" `
             --add-data "agent;agent" `
             --hidden-import win32com `
