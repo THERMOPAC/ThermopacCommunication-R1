@@ -156,3 +156,9 @@ id = "Jc62pySonTZHmdGkR-QPC"
 uri = "file://thermopac-agent-files.zip"
 type = "unspecified"
 title = "thermopac-agent-files.zip — agent/config.py · agent/main.py · config.ini"
+
+[[outputs]]
+id = "CKJg8ocyllgo8HrdUYB3O"
+uri = "file://setup-iss.zip"
+type = "unspecified"
+title = "setup.iss"
