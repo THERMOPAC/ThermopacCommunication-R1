@@ -144,3 +144,9 @@ id = "JteJ2u5tvU8mJ0KbOtaVs"
 uri = "file://ThermopacAgent-Phase1-Package.zip"
 type = "unspecified"
 title = "ThermopacAgent — Phase 1 Package (fixed build workflow)"
+
+[[outputs]]
+id = "Wf0ws2868yS4q4Z_LQiIF"
+uri = "file://client/public/build-windows-agent.yml"
+type = "unspecified"
+title = "build-windows-agent.yml (root-based paths, fixed)"
