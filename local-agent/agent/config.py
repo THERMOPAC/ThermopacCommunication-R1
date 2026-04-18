@@ -37,7 +37,7 @@ SW_VERSION_PROGID = {
 }
 
 _TOKEN_PLACEHOLDER = "REPLACE_WITH_YOUR_TOKEN"
-_DEFAULT_API_URL   = "http://localhost:3000"
+_DEFAULT_API_URL   = "https://thermopac-communication-thermopacllp.replit.app"
 
 
 class AgentConfig:
@@ -53,6 +53,13 @@ class AgentConfig:
 
         cfg = configparser.ConfigParser()
         cfg.read(path, encoding="utf-8")
+
+        # Print api_url immediately after reading so it's visible before any other logic
+        _early_api_url = (
+            cfg.get("cloud", "api_url", fallback="").strip().rstrip("/")
+            or _DEFAULT_API_URL
+        )
+        print(f"[CONFIG] api_url:      {_early_api_url}")
 
         # ── Mode ──────────────────────────────────────────────────────────────
         raw_mode = cfg.get("agent", "mode", fallback="testing").strip().lower()

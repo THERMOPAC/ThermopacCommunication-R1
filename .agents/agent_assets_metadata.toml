@@ -168,3 +168,9 @@ id = "29E-KkgTbPfngEh3wKVaf"
 uri = "file://config-fix.zip"
 type = "unspecified"
 title = "config-fix.zip — agent/config.py + build-windows-agent.yml"
+
+[[outputs]]
+id = "yz8wFL-i779OG86YzK2T-"
+uri = "file://config-url-fix.zip"
+type = "unspecified"
+title = "config-url-fix.zip — agent/config.py + config.ini"
