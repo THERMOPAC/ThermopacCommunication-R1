@@ -186,3 +186,9 @@ id = "hFqDd5kQVS81tYCa4jpfh"
 uri = "file://workflow-node24-fix.zip"
 type = "unspecified"
 title = "build-windows-agent.yml (Node 24 fix)"
+
+[[outputs]]
+id = "MOahdlZK_-88EIaEE2kyh"
+uri = "file://github-upload.zip"
+type = "unspecified"
+title = "github-upload.zip — 3 files for GitHub"
