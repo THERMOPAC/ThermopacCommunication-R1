@@ -288,26 +288,28 @@ def _run_test(client: JobClient, config, logger, full: bool = False) -> int:
                             "pywin32 not installed — run: pip install pywin32")
         passed = False
 
-    # ── Step 7: SolidWorks ProgID check ──────────────────────────────────────
+    # ── Step 7: SolidWorks ProgID check (non-fatal — SW may not be on this machine) ─
     if sw_available:
-        try:
-            import pythoncom
-            pythoncom.CoInitialize()
+        if not config.sw_progid:
+            step("SolidWorks ProgID registered", False,
+                 "sw_progid not set — set solidworks_version in config.ini (not fatal for connectivity test)")
+        else:
             try:
-                import win32com.client as wcc
-                # Just check if ProgID is registered (don't launch SW)
-                clsid = wcc.CLSIDFromProgID(config.sw_progid)
-                step(f"SolidWorks ProgID registered ({config.sw_progid})",
-                     True, f"CLSID={clsid}")
+                import pythoncom
+                pythoncom.CoInitialize()
+                try:
+                    clsid = pythoncom.CLSIDFromProgID(config.sw_progid)
+                    step(f"SolidWorks ProgID registered ({config.sw_progid})",
+                         True, f"CLSID={clsid}")
+                except Exception as e:
+                    step(f"SolidWorks ProgID registered ({config.sw_progid})",
+                         False,
+                         f"{e} — is SolidWorks installed and the correct version set in config.ini?")
+                    # Non-fatal: connectivity test passes, extraction jobs will fail
+                finally:
+                    pythoncom.CoUninitialize()
             except Exception as e:
-                step(f"SolidWorks ProgID registered ({config.sw_progid})",
-                     False,
-                     f"{e} — is SolidWorks installed and the correct version set in config.ini?")
-                # Not fatal for --test; would fail on actual job
-            finally:
-                pythoncom.CoUninitialize()
-        except Exception as e:
-            step("SolidWorks COM check", False, str(e))
+                step("SolidWorks COM check", False, str(e))
 
     # ── Report ─────────────────────────────────────────────────────────────────
     report["overall"] = "PASS" if passed else "FAIL"
