@@ -1,17 +1,29 @@
 """
 config.py — Load, auto-create, and validate config.ini.
 
-Auto-fill behaviour (Phase 1):
+MODES
+─────
+testing    (default)
+  • If node_token is missing/placeholder, a random token is auto-generated
+    and saved into config.ini.
+  • Agent then calls POST /api/epc-agent-nodes/auto-register so the cloud
+    accepts the self-issued token.  The cloud endpoint must have
+    AGENT_AUTO_REGISTER=true set in its environment.
+
+production
+  • node_token must be cloud/admin-issued.  Missing token → hard exit with
+    step-by-step instructions.  No token is ever auto-generated.
+
+OTHER AUTO-FILLS (both modes)
   api_url             → http://localhost:3000  (edit for production)
   node_id             → socket.gethostname()   (Windows machine name)
-  solidworks_version  → highest version found in Windows registry
-  node_token          → NEVER auto-generated; must be cloud-issued (agent exits
-                        with a clear error message if still unset)
+  solidworks_version  → highest version found in Windows registry (if set to 0)
 """
 
 from __future__ import annotations
 import configparser
 import os
+import secrets
 import socket
 import sys
 
@@ -33,12 +45,19 @@ class AgentConfig:
         if path is None:
             path = self._default_path()
 
-        # ── Auto-create config.ini if missing ─────────────────────────────────
+        # Auto-create config.ini if missing
         if not os.path.exists(path):
             _create_default_config(path)
 
         cfg = configparser.ConfigParser()
         cfg.read(path, encoding="utf-8")
+
+        # ── Mode ──────────────────────────────────────────────────────────────
+        raw_mode = cfg.get("agent", "mode", fallback="testing").strip().lower()
+        if raw_mode not in ("testing", "production"):
+            print(f"[CONFIG] ERROR: [agent] mode must be 'testing' or 'production', got '{raw_mode}'")
+            sys.exit(1)
+        self.mode = raw_mode
 
         # ── Cloud ─────────────────────────────────────────────────────────────
         self.api_url = (
@@ -52,8 +71,20 @@ class AgentConfig:
         )
 
         raw_token = cfg.get("cloud", "node_token", fallback="").strip()
+        self.token_auto_generated = False
+
         if not raw_token or raw_token == _TOKEN_PLACEHOLDER:
-            _abort_missing_token(path, self.node_id)
+            if self.mode == "production":
+                _abort_missing_token(path, self.node_id)
+            else:
+                # testing mode — generate, persist, flag for auto-registration
+                raw_token = secrets.token_hex(32)
+                _save_token(cfg, path, raw_token)
+                self.token_auto_generated = True
+                print(f"[CONFIG] Testing mode: auto-generated node_token and saved to config.ini")
+                print(f"[CONFIG] Agent will self-register with the cloud on startup.")
+                print()
+
         self.node_token = raw_token
 
         # ── Agent ─────────────────────────────────────────────────────────────
@@ -72,66 +103,48 @@ class AgentConfig:
 
         explicit_progid = cfg.get("solidworks", "solidworks_progid", fallback="").strip()
         if explicit_progid:
-            self.sw_progid      = explicit_progid
-            self.sw_version     = 0
+            self.sw_progid       = explicit_progid
+            self.sw_version      = 0
             self.sw_autodetected = False
         else:
-            ver_str = cfg.get("solidworks", "solidworks_version", fallback="").strip()
-            if ver_str and ver_str != "0":
-                # Manual override in config.ini
-                ver = int(ver_str)
-                if ver not in SW_VERSION_PROGID:
-                    print(f"[CONFIG] ERROR: solidworks_version={ver} is not supported.")
-                    print(f"[CONFIG]   Supported: {sorted(SW_VERSION_PROGID.keys())}")
-                    print(f"[CONFIG]   Edit [solidworks] solidworks_version in: {path}")
-                    sys.exit(1)
+            ver_str = cfg.get("solidworks", "solidworks_version", fallback="0").strip()
+            ver     = int(ver_str) if ver_str.isdigit() else 0
+
+            if ver and ver not in SW_VERSION_PROGID:
+                print(f"[CONFIG] ERROR: solidworks_version={ver} is not supported.")
+                print(f"[CONFIG]   Supported: {sorted(SW_VERSION_PROGID.keys())}")
+                print(f"[CONFIG]   Edit [solidworks] solidworks_version in: {path}")
+                sys.exit(1)
+
+            if ver:
                 self.sw_version      = ver
                 self.sw_progid       = SW_VERSION_PROGID[ver]
                 self.sw_autodetected = False
             else:
-                # Auto-detect from Windows registry
                 detected = _detect_solidworks_version()
-                if detected:
-                    self.sw_version      = detected
-                    self.sw_progid       = SW_VERSION_PROGID[detected]
-                    self.sw_autodetected = True
-                else:
-                    # Not found — agent can still start and connect;
-                    # actual extraction jobs will fail with a clear error
-                    self.sw_version      = 0
-                    self.sw_progid       = ""
-                    self.sw_autodetected = True
+                self.sw_version      = detected
+                self.sw_progid       = SW_VERSION_PROGID[detected] if detected else ""
+                self.sw_autodetected = True
 
         self._config_path = path
 
-    # ── Public helpers ────────────────────────────────────────────────────────
+    # ── Public ────────────────────────────────────────────────────────────────
 
     def summary(self) -> str:
-        sw = (f"{self.sw_progid}"
-              + (" [auto-detected]" if self.sw_autodetected else ""))
+        sw = (f"{self.sw_progid}" if self.sw_progid else "NOT DETECTED")
+        if self.sw_autodetected and self.sw_progid:
+            sw += " [auto-detected]"
         return (
-            f"api_url={self.api_url} | node_id={self.node_id} | "
-            f"sw={sw} | poll={self.poll_interval_sec}s | "
-            f"timeout={self.job_timeout_sec}s"
+            f"mode={self.mode} | api_url={self.api_url} | node_id={self.node_id} | "
+            f"sw={sw} | poll={self.poll_interval_sec}s | timeout={self.job_timeout_sec}s"
         )
-
-    # ── Private helpers ───────────────────────────────────────────────────────
 
     @staticmethod
     def _default_path() -> str:
-        """
-        Search for config.ini in order:
-          1. Directory of the running EXE (frozen) or this file (source)
-          2. One level up (for running from agent/ subfolder)
-          3. C:\\ThermopacAgent\\config.ini
-        Returns the first match, or candidates[0] if none found
-        (caller will auto-create it at that path).
-        """
         if getattr(sys, "frozen", False):
             base = os.path.dirname(sys.executable)
         else:
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
         candidates = [
             os.path.join(base, "config.ini"),
             os.path.join(base, "..", "config.ini"),
@@ -146,29 +159,31 @@ class AgentConfig:
 # ── Module-level helpers ──────────────────────────────────────────────────────
 
 def _detect_solidworks_version() -> int:
-    """
-    Scan HKEY_CLASSES_ROOT for the highest installed SolidWorks COM ProgID.
-    Returns the version number (e.g. 2019) or 0 if not found / not on Windows.
-    """
+    """Return highest installed SolidWorks version from Windows registry, or 0."""
     try:
         import winreg
         for ver in sorted(SW_VERSION_PROGID.keys(), reverse=True):
-            progid = SW_VERSION_PROGID[ver]
             try:
-                winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid)
+                winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, SW_VERSION_PROGID[ver])
                 return ver
             except OSError:
                 continue
     except ImportError:
-        pass  # Not on Windows (Linux CI, etc.)
+        pass
     return 0
 
 
+def _save_token(cfg: configparser.ConfigParser, path: str, token: str) -> None:
+    """Write the generated token back into config.ini under [cloud] node_token."""
+    if not cfg.has_section("cloud"):
+        cfg.add_section("cloud")
+    cfg.set("cloud", "node_token", token)
+    with open(path, "w", encoding="utf-8") as f:
+        cfg.write(f)
+
+
 def _create_default_config(path: str) -> None:
-    """
-    Write a default config.ini at `path` with auto-filled values.
-    node_token is left as the placeholder — must be set by the user.
-    """
+    """Create a starter config.ini with auto-filled values."""
     machine_name = socket.gethostname()
     detected_ver = _detect_solidworks_version()
     sw_ver_str   = str(detected_ver) if detected_ver else "0"
@@ -179,22 +194,21 @@ def _create_default_config(path: str) -> None:
     )
 
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-
     content = f"""\
 ; ThermopacAgent configuration
-; Auto-created on first run — edit as needed
+; Auto-created on first run
 
 [cloud]
-; Cloud API URL — change to production URL when ready
 api_url    = {_DEFAULT_API_URL}
-
-; Node ID — auto-filled from machine name; change if needed
 node_id    = {machine_name}
-
-; Node token — REQUIRED — obtain from Thermopac admin (see instructions below)
 node_token = {_TOKEN_PLACEHOLDER}
 
 [agent]
+; testing | production
+; testing  — auto-generates token and self-registers with cloud
+; production — requires cloud/admin-issued token, no auto-registration
+mode = testing
+
 poll_interval_sec = 10
 job_timeout_sec   = 600
 max_retries       = 3
@@ -206,7 +220,6 @@ log_dir  = C:\\ThermopacAgent\\logs
 [solidworks]
 {sw_comment}
 solidworks_version = {sw_ver_str}
-; Uncomment to override COM ProgID directly:
 ; solidworks_progid =
 visible = false
 """
@@ -214,33 +227,34 @@ visible = false
         f.write(content)
 
     print(f"[CONFIG] Created default config.ini at: {path}")
-    print(f"[CONFIG]   node_id    = {machine_name}  (auto-filled from machine name)")
-    print(f"[CONFIG]   api_url    = {_DEFAULT_API_URL}  (change for production)")
+    print(f"[CONFIG]   node_id    = {machine_name}  (from machine name)")
+    print(f"[CONFIG]   api_url    = {_DEFAULT_API_URL}  (default)")
     if detected_ver:
-        print(f"[CONFIG]   solidworks_version = {detected_ver}  (auto-detected)")
+        print(f"[CONFIG]   solidworks = {detected_ver}  (auto-detected)")
     else:
-        print(f"[CONFIG]   solidworks_version = 0  (not detected — set manually)")
+        print(f"[CONFIG]   solidworks = not detected — set solidworks_version manually")
     print()
 
 
 def _abort_missing_token(config_path: str, node_id: str) -> None:
-    """Print a clear, actionable error and exit when node_token is not set."""
+    """Production mode: print clear instructions and exit."""
     print()
     print("=" * 62)
-    print("  ERROR: node_token is not set in config.ini")
+    print("  ERROR: node_token is not set  [production mode]")
     print("=" * 62)
     print()
-    print("  The node token cannot be auto-generated.")
-    print("  It must be issued by a Thermopac admin.")
+    print("  Production mode requires a cloud/admin-issued token.")
+    print("  Tokens cannot be auto-generated in production mode.")
     print()
     print("  Steps to get your token:")
     print("    1. Log in to the Thermopac ERP as Superuser")
     print("    2. Go to EPC -> Drawing Controls -> Agent Nodes")
     print(f"    3. Register this node  (suggested ID: {node_id})")
-    print("    4. Copy the token shown — it is displayed ONCE only")
-    print("    5. Open config.ini and paste it under [cloud] node_token")
+    print("    4. Copy the token — displayed ONCE only")
+    print("    5. Paste it into config.ini under [cloud] node_token")
     print()
     print(f"  Config file: {config_path}")
     print()
+    print("  To use testing mode instead, set [agent] mode = testing")
     print("=" * 62)
     sys.exit(1)

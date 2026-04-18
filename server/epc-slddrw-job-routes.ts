@@ -381,6 +381,84 @@ router.post('/epc-slddrw-jobs', async (req: Request, res: Response) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/epc-agent-nodes/auto-register
+//
+// Testing mode only — guarded by AGENT_AUTO_REGISTER=true env var.
+// Agent sends its locally-generated credentials; cloud upserts the node row.
+// Production: this endpoint returns 403 (AGENT_AUTO_REGISTER unset/false).
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post('/epc-agent-nodes/auto-register', async (req: Request, res: Response) => {
+  // ── Testing mode guard ────────────────────────────────────────────────────
+  if (process.env.AGENT_AUTO_REGISTER !== 'true') {
+    return res.status(403).json({
+      error: 'Auto-registration is disabled. '
+           + 'Set AGENT_AUTO_REGISTER=true on the server to enable testing mode.',
+      hint: 'In production, nodes must be registered by an admin via the ERP.',
+    });
+  }
+
+  // ── Validate body ─────────────────────────────────────────────────────────
+  const autoRegSchema = z.object({
+    node_id:       z.string().min(1).max(100),
+    node_token:    z.string().min(16),
+    machine_name:  z.string().optional(),
+    agent_version: z.string().optional(),
+  });
+
+  const parsed = autoRegSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`);
+    return res.status(400).json({ error: 'Invalid request body', issues });
+  }
+
+  const { node_id, node_token, machine_name, agent_version } = parsed.data;
+
+  // ── Hash the agent-generated token ───────────────────────────────────────
+  const tokenHash = await bcrypt.hash(node_token, 10);
+
+  // ── Upsert: create node if new, update token if already exists ────────────
+  const existing = await db
+    .select({ id: epcAgentNodes.id })
+    .from(epcAgentNodes)
+    .where(eq(epcAgentNodes.nodeId, node_id))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(epcAgentNodes)
+      .set({
+        tokenHash,
+        machineName:     machine_name ?? null,
+        lastSeenAt:      new Date(),
+        lastSeenVersion: agent_version ?? null,
+        active:          true,
+      })
+      .where(eq(epcAgentNodes.nodeId, node_id));
+  } else {
+    await db
+      .insert(epcAgentNodes)
+      .values({
+        nodeId:          node_id,
+        tokenHash,
+        machineName:     machine_name ?? null,
+        label:           machine_name ?? node_id,
+        active:          true,
+        lastSeenAt:      new Date(),
+        lastSeenVersion: agent_version ?? null,
+        createdBy:       'auto-register',
+      });
+  }
+
+  console.log(
+    `[AutoReg] Node "${node_id}" ${existing.length ? 'updated' : 'registered'} `
+    + `— machine="${machine_name}" version="${agent_version}" [TESTING MODE]`,
+  );
+
+  return res.json({ ok: true, node_id, mode: 'testing' });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
