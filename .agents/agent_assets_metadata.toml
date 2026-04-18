@@ -150,3 +150,9 @@ id = "Wf0ws2868yS4q4Z_LQiIF"
 uri = "file://client/public/build-windows-agent.yml"
 type = "unspecified"
 title = "build-windows-agent.yml (root-based paths, fixed)"
+
+[[outputs]]
+id = "Jc62pySonTZHmdGkR-QPC"
+uri = "file://thermopac-agent-files.zip"
+type = "unspecified"
+title = "thermopac-agent-files.zip — agent/config.py · agent/main.py · config.ini"
