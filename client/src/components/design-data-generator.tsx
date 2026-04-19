@@ -892,9 +892,13 @@ function SmartMechanicalColumnForm({
   }
 
   const isApiDiscipline = (disciplineCode || '').toLowerCase().includes('api 650');
-  const gateOpen = !!(data.workingPressure && data.operatingTempMinMax);
-  const isGateField = (p: (typeof MECH_PARAM_LABELS)[0]) =>
+  const tier1Open = !!(data.workingPressure && data.operatingTempMinMax);
+  const gvNum = parseFloat(data.grossVolumeLiters || '');
+  const gateOpen = tier1Open && !isNaN(gvNum) && gvNum > 0;
+  const isTier1Key = (p: (typeof MECH_PARAM_LABELS)[0]) =>
     p.key === 'workingPressure' || p.key === 'operatingTempMinMax';
+  const isGateField = (p: (typeof MECH_PARAM_LABELS)[0]) =>
+    isTier1Key(p) || p.key === 'grossVolumeLiters';
 
   const renderRow = (p: (typeof MECH_PARAM_LABELS)[0]) => {
     const val = data[p.key] ?? '';
@@ -1269,6 +1273,39 @@ function SmartMechanicalColumnForm({
           );
         }
 
+        if (p.key === 'grossVolumeLiters') {
+          const gvVal = parseFloat(val);
+          const isEmpty = !val;
+          const isInvalid = !!val && (isNaN(gvVal) || gvVal <= 0);
+          const showError = isEmpty || isInvalid;
+          return (
+            <div key={p.key} className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-4">
+                <Label className={`text-[9px] w-64 shrink-0 text-right leading-tight ${showError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                  {p.label}<span className="text-red-500 ml-0.5">*</span>
+                </Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input
+                    className={`h-6 text-[10px] px-1.5 flex-1 ${showError ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : ''}`}
+                    value={val}
+                    onChange={(e) => handleChange(p.key, e.target.value)}
+                    placeholder="Enter value > 0"
+                  />
+                  {showError && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-red-600 border-red-300 bg-red-50">Required</Badge>
+                  )}
+                </div>
+              </div>
+              {isEmpty && (
+                <div className="text-[8px] text-red-500 pl-[17rem]">Gross Volume is required</div>
+              )}
+              {isInvalid && (
+                <div className="text-[8px] text-red-500 pl-[17rem]">Value must be greater than 0</div>
+              )}
+            </div>
+          );
+        }
+
         if (p.key === 'internalDesignPressureMawp') {
           const isRequired = requiredPressureKeys.includes('internalDesignPressureMawp');
           const isEmpty = !val;
@@ -1400,10 +1437,18 @@ function SmartMechanicalColumnForm({
   return (
     <div className="space-y-1">
       <div className="text-[10px] font-bold text-center uppercase bg-gray-100 py-0.5 rounded">{label}</div>
-      {MECH_PARAM_LABELS.filter(isGateField).map(renderRow)}
-      {!gateOpen && (
+      {MECH_PARAM_LABELS.filter(isTier1Key).map(renderRow)}
+      {!tier1Open && (
         <div className="text-[8px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-center leading-tight">
           Enter Working Pressure and Operating Temperature to enable fields
+        </div>
+      )}
+      <div className={!tier1Open ? 'pointer-events-none opacity-40' : ''}>
+        {MECH_PARAM_LABELS.filter(p => p.key === 'grossVolumeLiters').map(renderRow)}
+      </div>
+      {tier1Open && !gateOpen && (
+        <div className="text-[8px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-center leading-tight">
+          Enter GROSS VOLUME (LITERS) to enable remaining fields
         </div>
       )}
       <div className={!gateOpen ? 'pointer-events-none opacity-40' : ''}>
@@ -2168,6 +2213,15 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     (cols.tube   && !designTempGeOpValid(mechTube))   ||
     (cols.jacket && !designTempGeOpValid(mechJacket));
 
+  const grossVolumeValid = (col: MechanicalColumn): boolean => {
+    const v = parseFloat(col.grossVolumeLiters || '');
+    return !isNaN(v) && v > 0;
+  };
+  const grossVolumeBlocking =
+    !grossVolumeValid(mechShell) ||
+    (cols.tube   && !grossVolumeValid(mechTube))   ||
+    (cols.jacket && !grossVolumeValid(mechJacket));
+
   // ── PDF state & handlers ───────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -2706,7 +2760,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
             </Button>
             <Button
               size="sm"
-              disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || !!designTempBlocking || saveMutation.isPending}
+              disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || !!designTempBlocking || !!grossVolumeBlocking || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
