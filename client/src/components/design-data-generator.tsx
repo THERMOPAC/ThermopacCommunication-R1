@@ -838,12 +838,25 @@ function SmartMechanicalColumnForm({
     }
 
     if (key === 'workingPressure') {
-      // Working pressure does not auto-fill Internal Design Pressure — user must enter it.
-      // Hydro Test Pressure still cascades from whatever Internal Design Pressure is already set.
-      const existingIdp = parseFloat(updated.internalDesignPressureMawp || '');
-      if (!isNaN(existingIdp)) {
+      const newWp = parseFloat(rawValue);
+      const oldWp = parseFloat(data.workingPressure || '');
+      const currentIdp = data.internalDesignPressureMawp;
+      const oldAutoIdp = !isNaN(oldWp) ? Math.round((oldWp + 2) * 1000) / 1000 : null;
+      const idpIsAutoOrEmpty =
+        !currentIdp ||
+        (oldAutoIdp !== null && parseFloat(currentIdp) === oldAutoIdp);
+
+      if (!isNaN(newWp) && idpIsAutoOrEmpty) {
+        const newIdp = Math.round((newWp + 2) * 1000) / 1000;
+        updated.internalDesignPressureMawp = String(newIdp);
         const isApi = (disciplineCode || '').toLowerCase().includes('api 650');
-        updated.hydroTestPressure = isApi ? 'N.A.' : calcHydroTestPressure(existingIdp, disciplineCode);
+        updated.hydroTestPressure = isApi ? 'N.A.' : calcHydroTestPressure(newIdp, disciplineCode);
+      } else {
+        const existingIdp = parseFloat(currentIdp || '');
+        if (!isNaN(existingIdp)) {
+          const isApi = (disciplineCode || '').toLowerCase().includes('api 650');
+          updated.hydroTestPressure = isApi ? 'N.A.' : calcHydroTestPressure(existingIdp, disciplineCode);
+        }
       }
     }
 
@@ -1246,16 +1259,20 @@ function SmartMechanicalColumnForm({
           const isRequired = requiredPressureKeys.includes('internalDesignPressureMawp');
           const isEmpty = !val;
           const isNonNumeric = !!val && isNaN(parseFloat(val));
+          const idpNum = parseFloat(val);
+          const wp = parseFloat(data.workingPressure || '');
+          const idpLtWp = !isNaN(idpNum) && !isNaN(wp) && idpNum < wp;
           const showError = isRequired && (isEmpty || isNonNumeric);
+          const anyError = showError || idpLtWp;
           return (
             <div key={p.key} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-4">
-                <Label className={`text-[9px] w-64 shrink-0 text-right leading-tight ${showError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                <Label className={`text-[9px] w-64 shrink-0 text-right leading-tight ${anyError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
                   {p.label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
                 </Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input
-                    className={`h-6 text-[10px] px-1.5 flex-1 ${showError ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : ''}`}
+                    className={`h-6 text-[10px] px-1.5 flex-1 ${anyError ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : ''}`}
                     value={val}
                     onChange={(e) => handleChange(p.key, e.target.value)}
                     placeholder="Enter numeric value"
@@ -1263,10 +1280,16 @@ function SmartMechanicalColumnForm({
                   {showError && (
                     <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-red-600 border-red-300 bg-red-50">Required</Badge>
                   )}
+                  {idpLtWp && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-red-600 border-red-300 bg-red-50">Invalid</Badge>
+                  )}
                 </div>
               </div>
               {showError && (
                 <div className="text-[8px] text-red-500 pl-[17rem]">Numeric value required</div>
+              )}
+              {idpLtWp && (
+                <div className="text-[8px] text-red-500 pl-[17rem]">Design Pressure must be greater than or equal to Working Pressure</div>
               )}
             </div>
           );
@@ -2050,10 +2073,16 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     const v = col.internalDesignPressureMawp;
     return !!v && !isNaN(parseFloat(v));
   };
+  const idpGeWpValid = (col: MechanicalColumn): boolean => {
+    const idp = parseFloat(col.internalDesignPressureMawp || '');
+    const wp  = parseFloat(col.workingPressure || '');
+    if (isNaN(idp) || isNaN(wp)) return true;
+    return idp >= wp;
+  };
   const idpBlocking =
-    !idpValid(mechShell, 'shell') ||
-    (cols.tube   && !idpValid(mechTube,   'tube')) ||
-    (cols.jacket && !idpValid(mechJacket, 'jacket'));
+    !idpValid(mechShell, 'shell') || !idpGeWpValid(mechShell) ||
+    (cols.tube   && (!idpValid(mechTube,   'tube')   || !idpGeWpValid(mechTube)))   ||
+    (cols.jacket && (!idpValid(mechJacket, 'jacket') || !idpGeWpValid(mechJacket)));
 
   // ── PDF state & handlers ───────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
