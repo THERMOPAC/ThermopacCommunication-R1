@@ -25,7 +25,7 @@ export const RELEASE_GATE_CONFIG = {
   // If true: Material check mismatch is enforced in the comparison.
   // Currently false — MechanicalColumn has no shell material field.
   // Flip to true once schema gap is resolved.
-  enforceMatОrialCheck: false,
+  enforceMaterialCheck: false,
 
   // Per-field severity overrides. Empty = use FIELD_MAP defaults.
   // Example: { insulation: 'warning' } to downgrade insulation to advisory.
