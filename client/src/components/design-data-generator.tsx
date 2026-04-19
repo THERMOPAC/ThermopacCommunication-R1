@@ -1907,7 +1907,9 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   function seedColumn(col: MechanicalColumn): MechanicalColumn {
     const wp = col.workingPressure ?? '0.5';
-    const idp = col.internalDesignPressureMawp ?? null;
+    const wpNum = parseFloat(wp);
+    const storedIdp = col.internalDesignPressureMawp;
+    const idp = storedIdp ?? (!isNaN(wpNum) ? String(Math.round((wpNum + 2) * 1000) / 1000) : null);
     const idpNum = parseFloat(idp || '');
     const isApi = (disciplineCode || '').toLowerCase().includes('api 650');
     const hydro = col.hydroTestPressure ?? (
