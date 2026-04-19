@@ -362,6 +362,20 @@ function parseOperatingMax(operatingTempMinMax: string | null | undefined): numb
   return null;
 }
 
+function parseOperatingMin(operatingTempMinMax: string | null | undefined): number | null {
+  if (!operatingTempMinMax) return null;
+  const parts = operatingTempMinMax.split('/').map(s => s.trim());
+  const min = parseFloat(parts[0]);
+  return isNaN(min) ? null : min;
+}
+
+function computeAutoDesign(operatingTempMinMax: string | null | undefined): string | null {
+  const opMin = parseOperatingMin(operatingTempMinMax);
+  const opMax = parseOperatingMax(operatingTempMinMax);
+  if (opMin === null || opMax === null) return null;
+  return `${opMin} / ${opMax + 30}`;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -868,9 +882,12 @@ function SmartMechanicalColumnForm({
     }
 
     if (key === 'operatingTempMinMax') {
-      const opMax = parseOperatingMax(rawValue);
-      if (opMax !== null && projectMdmt) {
-        updated.designTempMinMax = `${projectMdmt} / ${opMax + 30}`;
+      const oldAutoDesign = computeAutoDesign(data.operatingTempMinMax);
+      const currentDesign = data.designTempMinMax;
+      const designIsAutoOrEmpty = !currentDesign || currentDesign === oldAutoDesign;
+      if (designIsAutoOrEmpty) {
+        const newAutoDesign = computeAutoDesign(rawValue);
+        updated.designTempMinMax = newAutoDesign;
       }
     }
 
@@ -1290,6 +1307,44 @@ function SmartMechanicalColumnForm({
               )}
               {idpLtWp && (
                 <div className="text-[8px] text-red-500 pl-[17rem]">Design Pressure must be greater than or equal to Working Pressure</div>
+              )}
+            </div>
+          );
+        }
+
+        if (p.key === 'designTempMinMax') {
+          const opMin = parseOperatingMin(data.operatingTempMinMax);
+          const opMax = parseOperatingMax(data.operatingTempMinMax);
+          const designParts = (val || '').split('/').map(s => s.trim());
+          const designMin = parseFloat(designParts[0] ?? '');
+          const designMax = parseFloat(designParts[1] ?? '');
+          const designLtOp =
+            (opMin !== null && !isNaN(designMin) && designMin < opMin) ||
+            (opMax !== null && !isNaN(designMax) && designMax < opMax);
+          const autoDesign = computeAutoDesign(data.operatingTempMinMax);
+          const isAutoFilled = !!autoDesign && val === autoDesign;
+          return (
+            <div key={p.key} className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-4">
+                <Label className={`text-[9px] w-64 shrink-0 text-right leading-tight ${designLtOp ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                  {p.label}
+                </Label>
+                <div className="flex-1 flex items-center gap-1">
+                  <Input
+                    className={`h-6 text-[10px] px-1.5 flex-1 ${designLtOp ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : isAutoFilled ? 'bg-green-50' : ''}`}
+                    value={val}
+                    onChange={(e) => handleChange(p.key, e.target.value)}
+                  />
+                  {designLtOp && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-red-600 border-red-300 bg-red-50">Invalid</Badge>
+                  )}
+                  {!designLtOp && isAutoFilled && (
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                  )}
+                </div>
+              </div>
+              {designLtOp && (
+                <div className="text-[8px] text-red-500 pl-[17rem]">Design temperature must be ≥ Operating temperature</div>
               )}
             </div>
           );
@@ -1928,6 +1983,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     const hydro = col.hydroTestPressure ?? (
       !isNaN(idpNum) ? (isApi ? 'N.A.' : calcHydroTestPressure(idpNum, disciplineCode)) : null
     );
+    const design = col.designTempMinMax ?? computeAutoDesign(col.operatingTempMinMax);
     const effectiveServiceFluid = col.serviceFluid ?? 'Hydrocarbon';
     const sgDefault = effectiveServiceFluid === 'Water' ? '1.0 / —'
       : effectiveServiceFluid === 'Steam condensate' ? '1.0 / —'
@@ -1941,6 +1997,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       internalDesignPressureMawp: idp,
       externalDesignPressureMawp: col.externalDesignPressureMawp ?? null,
       hydroTestPressure: hydro,
+      designTempMinMax: design,
       hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
       physicalState: col.physicalState ?? 'Fluid',
       serviceFluid: effectiveServiceFluid,
@@ -2098,6 +2155,21 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     !idpValid(mechShell, 'shell') || !idpGeWpValid(mechShell) ||
     (cols.tube   && (!idpValid(mechTube,   'tube')   || !idpGeWpValid(mechTube)))   ||
     (cols.jacket && (!idpValid(mechJacket, 'jacket') || !idpGeWpValid(mechJacket)));
+
+  const designTempGeOpValid = (col: MechanicalColumn): boolean => {
+    const opMin = parseOperatingMin(col.operatingTempMinMax);
+    const opMax = parseOperatingMax(col.operatingTempMinMax);
+    const parts = (col.designTempMinMax || '').split('/').map(s => s.trim());
+    const designMin = parseFloat(parts[0] ?? '');
+    const designMax = parseFloat(parts[1] ?? '');
+    if (opMin !== null && !isNaN(designMin) && designMin < opMin) return false;
+    if (opMax !== null && !isNaN(designMax) && designMax < opMax) return false;
+    return true;
+  };
+  const designTempBlocking =
+    !designTempGeOpValid(mechShell) ||
+    (cols.tube   && !designTempGeOpValid(mechTube))   ||
+    (cols.jacket && !designTempGeOpValid(mechJacket));
 
   // ── PDF state & handlers ───────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -2637,7 +2709,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
             </Button>
             <Button
               size="sm"
-              disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || saveMutation.isPending}
+              disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || !!designTempBlocking || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
