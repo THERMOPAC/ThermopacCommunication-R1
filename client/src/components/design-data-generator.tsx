@@ -861,7 +861,7 @@ function SmartMechanicalColumnForm({
         if (p.key === 'mdmt') {
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
                   className="h-6 text-[10px] px-1.5 bg-blue-50 text-blue-800"
@@ -877,7 +877,7 @@ function SmartMechanicalColumnForm({
         if (p.key === 'hydroTestPressure' && isApiDiscipline) {
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input className="h-6 text-[10px] px-1.5 bg-slate-100 text-slate-500" value="N.A." readOnly />
                 <span className="text-[8px] text-slate-500 shrink-0">API 650</span>
@@ -891,7 +891,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = val === FIELD_DEFAULTS[p.key];
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={val || ''} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -924,7 +924,7 @@ function SmartMechanicalColumnForm({
             : '';
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
                   className={`h-6 text-[10px] px-1.5 ${levelClass}`}
@@ -947,7 +947,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || defaultVal;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -973,7 +973,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || jeDefault;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
                   className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}
@@ -993,7 +993,7 @@ function SmartMechanicalColumnForm({
           if (!applicable) {
             return (
               <div key={p.key} className="flex items-center gap-2">
-                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
@@ -1006,7 +1006,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val && val !== 'N.A.' ? val : tgDefault;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
                   className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}
@@ -1025,7 +1025,7 @@ function SmartMechanicalColumnForm({
           if (columnRole === 'tube') {
             return (
               <div key={p.key} className="flex items-center gap-2">
-                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
@@ -1038,7 +1038,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || defaultVal;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -1062,7 +1062,7 @@ function SmartMechanicalColumnForm({
           if (columnRole === 'tube') {
             return (
               <div key={p.key} className="flex items-center gap-2">
-                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
@@ -1074,7 +1074,7 @@ function SmartMechanicalColumnForm({
           if (!insulationOn) {
             return (
               <div key={p.key} className="flex items-center gap-2">
-                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">N.A.</Badge>
@@ -1087,7 +1087,7 @@ function SmartMechanicalColumnForm({
           const displayVal = (!val || val === 'N.A.') ? defaultVal : val;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
                   className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}
@@ -1118,7 +1118,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || defaultVal;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -1144,7 +1144,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || defaultVal;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -1169,7 +1169,7 @@ function SmartMechanicalColumnForm({
           if (cfg.mode === 'fixed') {
             return (
               <div key={p.key} className="flex items-center gap-2">
-                <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+                <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value={cfg.fixedValue} readOnly />
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-slate-400 border-slate-300">Fixed</Badge>
@@ -1182,7 +1182,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || cfg.defaultValue;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -1208,7 +1208,7 @@ function SmartMechanicalColumnForm({
           const displayVal = val || defaultVal;
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
                   <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
@@ -1236,7 +1236,7 @@ function SmartMechanicalColumnForm({
           return (
             <div key={p.key} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <Label className={`text-[9px] w-48 shrink-0 text-right ${showError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                <Label className={`text-[9px] w-56 shrink-0 text-right ${showError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
                   {p.label.substring(0, 35)}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
                 </Label>
                 <div className="flex-1 flex items-center gap-1">
@@ -1252,7 +1252,7 @@ function SmartMechanicalColumnForm({
                 </div>
               </div>
               {showError && (
-                <div className="text-[8px] text-red-500 pl-[11.5rem]">Numeric value required</div>
+                <div className="text-[8px] text-red-500 pl-[14.5rem]">Numeric value required</div>
               )}
             </div>
           );
@@ -1265,7 +1265,7 @@ function SmartMechanicalColumnForm({
           const displayVal = storedVal || autoVal || '';
           return (
             <div key={p.key} className="flex items-center gap-2">
-              <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+              <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
                   className={`h-6 text-[10px] px-1.5 flex-1 ${isAutoFilled ? 'bg-green-50 text-green-800' : ''}`}
@@ -1289,7 +1289,7 @@ function SmartMechanicalColumnForm({
 
         return (
           <div key={p.key} className="flex items-center gap-2">
-            <Label className="text-[9px] w-48 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
+            <Label className="text-[9px] w-56 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
             <div className="flex-1 flex items-center gap-1">
               <Input
                 className={`h-6 text-[10px] px-1.5 ${showAutoBadge ? 'bg-green-50' : ''}`}
