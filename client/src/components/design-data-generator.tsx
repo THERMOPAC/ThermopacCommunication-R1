@@ -564,7 +564,6 @@ function DesignDataRenderer({ sheet }: { sheet: DesignDataSheet }) {
 // ─── Smart Mechanical Column Form ─────────────────────────────────────────────
 
 const AUTO_COMPUTED_KEYS: (keyof MechanicalColumn)[] = [
-  'internalDesignPressureMawp',
   'hydroTestPressure',
   'designTempMinMax',
 ];
