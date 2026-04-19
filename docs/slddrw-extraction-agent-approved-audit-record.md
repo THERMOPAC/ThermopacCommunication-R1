@@ -708,6 +708,8 @@ Expected:
 |---|---|---|
 | 2026-04-19 | SolidWorks version detection is automatic. `solidworks_version = 0` triggers registry scan. No hardcoded ProgID in expected outputs. ProgID shown in logs reflects actual machine. | §4 (baseline), §11 `config.ini`, Steps 1, 3, 4 (closure plan) |
 | 2026-04-19 | Exact upload UI path: `EPC app → /epc/drawing-controls → Drawing Control row → Drawing Verification card → Upload`. This is the only valid upload point for extraction jobs. | §11 Step 5 (baseline), Steps 2 and Pre-conditions (closure plan) |
+| 2026-04-19 | Phase 2 — MPa conversion factor corrected from 10.1972 to 10. Tolerance tightened from 2% to 1%. Insulation changed from string to numeric comparison (±1% mm). `missing_drawing` on WARNING fields promotes outcome to `warn` (not `pass`). | `server/utils/drawing-unit-normalizer.ts`, `server/utils/dds-comparison-engine.ts` |
+| 2026-04-19 | Phase 3 — Config key `enforceMatОrialCheck` contained Cyrillic 'О' (U+041E). Corrected to plain ASCII `enforceMaterialCheck`. | `server/utils/release-gate-config.ts` line 31 |
 
 ---
 
@@ -718,5 +720,165 @@ Expected:
 | Frozen Baseline v3 | `docs/slddrw-extraction-agent-baseline-v3.md` | APPROVED 2026-04-18 |
 | Delivery Plan | `docs/slddrw-extraction-agent-delivery-plan.md` | APPROVED 2026-04-19 |
 | **This Combined Audit Record** | **`docs/slddrw-extraction-agent-approved-audit-record.md`** | **APPROVED 2026-04-19** |
+
+---
+
+# PART E — PHASE 2 RECORD
+
+**Phase 2 Implemented: 2026-04-19**
+**Status: IMPLEMENTED — Awaiting end-to-end test with real SolidWorks data**
+
+## Phase 2 Scope
+
+DDS Comparison Engine + Approval Endpoint.
+
+## Changes Implemented
+
+### `server/utils/drawing-unit-normalizer.ts`
+
+- MPa → barg conversion factor: `10.1972` corrected to `10`
+- Default numeric tolerance: `2%` corrected to `1%`
+- Insulation field: changed from string comparison to numeric ±1% mm comparison
+
+### `server/utils/dds-comparison-engine.ts`
+
+- 10 DDS fields mapped with severity (CRITICAL / WARNING) — see §6b
+- `missing_drawing` on a WARNING field: outcome promoted to `warn` (previously remained `pass`)
+- `missing_drawing` on a CRITICAL field: outcome remains `fail`
+
+### `server/epc-slddrw-job-routes.ts` — Approve endpoint
+
+- `POST /api/epc-drawing-controls/:id/approve`
+- Allowed roles: Superuser, General Manager, Senior Manager (case-insensitive, from `RELEASE_GATE_CONFIG.approveAllowedRoles`)
+- Denied roles: Manager, Senior Executive, Employee → 403
+- Gate order:
+  1. Authenticated + correct role
+  2. Latest completed job exists
+  3. DDS status not `fail` or `blocked`
+  4. If DDS status = `warn`: body must have `acknowledge_warnings: true`
+- On pass: writes `approvedBy`, `approvedAt`, `status = 'approved'`
+
+## DDS Field Map (Phase 2)
+
+| Drawing Parameter | DDS Field | Severity | Comparison |
+|---|---|---|---|
+| Design Pressure | `mechanicalData.shell.internalDesignPressureMawp` | CRITICAL | Numeric ±1% (normalised to barg) |
+| Design Temperature | `mechanicalData.shell.designTempMinMax` | CRITICAL | Numeric ±1% (normalised to °C) |
+| Corrosion Allowance | `mechanicalData.shell.internalCorrosionAllowanceMm` | CRITICAL | Numeric ±1% (mm) |
+| Material | `designCode` | CRITICAL | String — BLOCKED (MechanicalColumn has no shell material field) |
+| Hazard Level | `mechanicalData.shell.hazardLevel` | CRITICAL | String case-insensitive |
+| PWHT | `mechanicalData.shell.postWeldHeatTreatment` | WARNING | String case-insensitive |
+| Radiography | `mechanicalData.shell.radiography` | WARNING | String case-insensitive |
+| Joint Efficiency | `mechanicalData.shell.jointEfficiency` | WARNING | Numeric ±1% |
+| Insulation | `mechanicalData.shell.insulation` | WARNING | Numeric ±1% (mm) |
+| Hydro Test Pressure | `mechanicalData.shell.hydroTestPressure` | WARNING | Numeric ±1% (normalised to barg) |
+
+**Material check blocked**: `enforceMaterialCheck: false` in `release-gate-config.ts` until `MechanicalColumn` schema is extended with a shell material field.
+
+---
+
+# PART F — PHASE 3 RECORD
+
+**Phase 3 Implemented: 2026-04-19**
+**Status: IMPLEMENTED — Awaiting user approval**
+
+## Phase 3 Scope
+
+Manufacturing release gate. Senior Manager+ can release an approved drawing for manufacturing. Five sequential gates enforce correctness. Single config file controls all gate rules.
+
+## Changes Implemented
+
+### `server/utils/release-gate-config.ts` — NEW FILE
+
+Single adjustment point for all gate rules. No endpoint or engine changes required when adjusting these values.
+
+```ts
+approveAllowedRoles:              ['Superuser', 'General Manager', 'Senior Manager']
+manufacturingReleaseAllowedRoles: ['Superuser', 'General Manager', 'Senior Manager']
+requirePassForManufacturing:      false   // true = DDS must be 'pass', no 'warn' accepted
+enforceMaterialCheck:             false   // flip to true once schema gap resolved
+fieldSeverityOverrides:           {}      // per-field severity override map
+```
+
+### `server/epc-slddrw-job-routes.ts` — Approve endpoint role fix
+
+Previous role check referenced `'admin'` which does not exist in `shared/roles.ts`.
+Corrected to lookup against `RELEASE_GATE_CONFIG.approveAllowedRoles` with case-insensitive `.some()`.
+
+### `server/epc-slddrw-job-routes.ts` — Manufacturing release endpoint
+
+`POST /api/epc-drawing-controls/:id/release/manufacturing`
+
+Gate order:
+
+| Gate | Check | HTTP on fail |
+|---|---|---|
+| 1 | Authenticated + role in `manufacturingReleaseAllowedRoles` | 401 / 403 |
+| 2 | `manufacturingReleaseRequired = true` | 422 |
+| 3 | `status = 'approved'` | 422 with `current_status` |
+| 4 | If `requirePassForManufacturing`: DDS must be `'pass'` | 422 with `dds_status` |
+| 5 | `releasedForManufacturing = false` (idempotency) | 409 |
+
+DB fields written on release (no other fields touched):
+
+| Field | Value |
+|---|---|
+| `releasedForManufacturing` | `true` |
+| `releasedForManufacturingAt` | `now` |
+| `releasedForManufacturingBy` | `userId` |
+| `releasedBy` | `userId` |
+| `releasedAt` | `now` |
+| `releaseNote` | `body.release_note ?? null` |
+| `status` | `'released'` |
+
+### `client/src/components/epc/drawing-verification-card.tsx`
+
+New props: `drawingControlStatus`, `manufacturingReleaseRequired`, `releasedForManufacturing`, `releasedForManufacturingAt`, `onStatusChange`
+
+Role constant: `ALLOWED_ROLES = ['superuser', 'general manager', 'senior manager']` (lowercase). Denied roles see no approve or release controls.
+
+**Approve gate** — hidden when `drawingControlStatus === 'approved'` or `'released'`.
+
+**Release gate** — visible when `manufacturingReleaseRequired = true` and role allowed:
+
+| State | Renders |
+|---|---|
+| `releasedForManufacturing = true` | Green badge: "Released for Manufacturing · \<relative timestamp\>" |
+| `drawingControlStatus = 'approved'` | Active "Release for Manufacturing" button |
+| `drawingControlStatus = 'draft'` or other | Disabled "Release for Manufacturing — Awaiting Approval" button |
+
+Both mutations call `onStatusChange()` on success to invalidate the parent page query.
+
+### `client/src/pages/epc-drawing-control-page.tsx`
+
+`DrawingVerificationCard` call updated to pass all five new props from the drawing control record, plus `invalidateAll` as `onStatusChange`.
+
+## Role Matrix — Full Pipeline
+
+| Role | Upload .slddrw | Approve | Release for Manufacturing |
+|---|---|---|---|
+| Superuser | ✅ | ✅ | ✅ |
+| General Manager | ✅ | ✅ | ✅ |
+| Senior Manager | ✅ | ✅ | ✅ |
+| Manager | ✅ | ❌ 403 | ❌ 403 |
+| Senior Executive | ✅ | ❌ 403 | ❌ 403 |
+| Employee | ✅ | ❌ 403 | ❌ 403 |
+
+## Open Items
+
+| Item | Status |
+|---|---|
+| Material check (CRITICAL field) | Blocked — `MechanicalColumn` has no `shellMaterial` column. `enforceMaterialCheck: false` until resolved. |
+| End-to-end test with real SolidWorks extraction | Pending — user-side |
+
+---
+
+# PART D — DOCUMENT REGISTRY
+
+| Document | File Path | Status |
+|---|---|---|
+| Frozen Baseline v3 | `docs/slddrw-extraction-agent-baseline-v3.md` | APPROVED 2026-04-18 |
+| Delivery Plan | `docs/slddrw-extraction-agent-delivery-plan.md` | APPROVED 2026-04-19 |
+| **This Combined Audit Record** | **`docs/slddrw-extraction-agent-approved-audit-record.md`** | **APPROVED 2026-04-19 (Phase 1); Phase 3 pending approval** |
 
 *End of approved combined audit record.*
