@@ -633,6 +633,20 @@ function computeAutoExternal(
   return null;
 }
 
+function getEdpSourceType(config: string, role: ColRole): 'atmo' | 'jacket-idp' | 'shell-idp' | 'none' {
+  if (role === 'shell') {
+    if (config === 'Vessel' || config === 'Heat Exchanger') return 'atmo';
+    if (config === 'Jacketed Vessel' || config === 'Jacketed Vessel and Heat Exchanger') return 'jacket-idp';
+  }
+  if (role === 'tube') {
+    if (config === 'Heat Exchanger' || config === 'Jacketed Vessel and Heat Exchanger') return 'shell-idp';
+  }
+  if (role === 'jacket') {
+    if (config === 'Jacketed Vessel' || config === 'Jacketed Vessel and Heat Exchanger') return 'atmo';
+  }
+  return 'none';
+}
+
 function validateRequiredPressures(
   equipmentConfig: string,
   mechShell: MechanicalColumn,
@@ -1260,20 +1274,24 @@ function SmartMechanicalColumnForm({
 
         if (p.key === 'externalDesignPressureMawp') {
           const storedVal = data.externalDesignPressureMawp || '';
-          const autoVal = autoExternalPressure ?? 'N.A.';
-          const isAutoFilled = !storedVal;
-          const displayVal = storedVal || autoVal;
+          const autoVal = autoExternalPressure;
+          const isAutoFilled = !storedVal && autoVal !== null;
+          const isPending = !storedVal && autoVal === null;
+          const displayVal = storedVal || autoVal || '';
           return (
             <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground leading-tight">{p.label}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
-                  className={`h-6 text-[10px] px-1.5 flex-1 ${isAutoFilled ? 'bg-green-50 text-green-800' : ''}`}
+                  className={`h-6 text-[10px] px-1.5 flex-1 ${isAutoFilled ? 'bg-green-50 text-green-800' : isPending ? 'border-amber-400 bg-amber-50' : ''}`}
                   value={displayVal}
                   onChange={(e) => handleChange(p.key, e.target.value)}
+                  placeholder={isPending ? 'Awaiting source IDP' : ''}
                 />
                 {isAutoFilled ? (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
+                ) : isPending ? (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-amber-600 border-amber-300 bg-amber-50">Pending</Badge>
                 ) : storedVal && storedVal === autoVal ? (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-blue-600 border-blue-300 bg-blue-50">OK</Badge>
                 ) : null}
@@ -1839,6 +1857,16 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
   const [envAutoKeys, setEnvAutoKeys] = useState<Set<keyof GeneralData>>(new Set());
   const [colHazard, setColHazard] = useState<ColumnHazardData>(emptyColumnHazardData());
 
+  function handleEquipmentConfigChange(newConfig: string) {
+    if (getEdpSourceType(equipmentConfig, 'shell') !== getEdpSourceType(newConfig, 'shell')) {
+      setMechShell(prev => ({ ...prev, externalDesignPressureMawp: null }));
+    }
+    if (getEdpSourceType(equipmentConfig, 'tube') !== getEdpSourceType(newConfig, 'tube')) {
+      setMechTube(prev => ({ ...prev, externalDesignPressureMawp: null }));
+    }
+    setEquipmentConfig(newConfig);
+  }
+
   const canEdit = ['draft', 'under_review'].includes(drawingStatus) &&
     ['Superuser', 'General Manager', 'Senior Manager', 'Manager', 'Senior Executive'].includes(userRole);
 
@@ -1964,7 +1992,8 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       function applyAutoExternal(col: MechanicalColumn, role: ColRole): MechanicalColumn {
         if (col.externalDesignPressureMawp) return col;
         const autoExt = computeAutoExternal(role, equipmentConfig, mechShell.internalDesignPressureMawp, mechJacket.internalDesignPressureMawp);
-        return { ...col, externalDesignPressureMawp: autoExt ?? 'N.A.' };
+        if (autoExt) return { ...col, externalDesignPressureMawp: autoExt };
+        return col;
       }
       function applyInsulationRule(col: MechanicalColumn, role: ColRole): MechanicalColumn {
         if (role === 'tube') {
@@ -2335,7 +2364,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       </span>
                     )}
                   </Label>
-                  <Select value={equipmentConfig} onValueChange={setEquipmentConfig}>
+                  <Select value={equipmentConfig} onValueChange={handleEquipmentConfigChange}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Select configuration…" />
                     </SelectTrigger>
