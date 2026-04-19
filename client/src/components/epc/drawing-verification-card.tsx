@@ -274,22 +274,20 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
               Retry
             </Button>
           )}
-          {/* ⚠️ TEST MODE — dev only: visible in development build only */}
-          {import.meta.env.DEV && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-5 text-[9px] px-1.5 gap-1 border-amber-400 text-amber-700 hover:bg-amber-50"
-              disabled={mockCompleteMutation.isPending}
-              onClick={() => mockCompleteMutation.mutate(latest.id)}
-              title="[TEST MODE] Simulate extraction completion with mock JSON payload"
-            >
-              {mockCompleteMutation.isPending
-                ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                : <FlaskConical className="h-2.5 w-2.5" />}
-              Simulate
-            </Button>
-          )}
+          {/* ⚠️ TEST MODE — Phase 1 simulation only. Server blocks this in production. */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-5 text-[9px] px-1.5 gap-1 border-amber-400 text-amber-700 hover:bg-amber-50"
+            disabled={mockCompleteMutation.isPending}
+            onClick={() => mockCompleteMutation.mutate(latest.id)}
+            title="[TEST MODE] Simulate extraction completion with mock JSON payload"
+          >
+            {mockCompleteMutation.isPending
+              ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              : <FlaskConical className="h-2.5 w-2.5" />}
+            Simulate
+          </Button>
           <Button
             variant="ghost"
             size="sm"
