@@ -10,8 +10,10 @@
  *   POST /api/epc-slddrw-jobs/:id/complete     — agent uploads result (Zod validated)
  *   POST /api/epc-slddrw-jobs/:id/fail         — agent reports failure
  *
- *   GET  /api/epc-drawing-controls/:id/slddrw-jobs  — UI: list jobs for card
- *   POST /api/epc-slddrw-jobs/:id/retry             — UI: reset failed job
+ *   GET  /api/epc-drawing-controls/:id/slddrw-jobs       — UI: list jobs for card
+ *   POST /api/epc-slddrw-jobs/:id/retry                  — UI: reset failed job
+ *   POST /api/epc-drawing-controls/:id/approve            — UI: approve (Senior Manager+)
+ *   POST /api/epc-drawing-controls/:id/release/manufacturing — UI: release (Senior Manager+)
  *
  * All agent endpoints require x-node-id + x-node-token headers.
  */
@@ -25,6 +27,7 @@ import { db } from './db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { epcAgentNodes, epcSlddrwExtractionJobs, epcDrawingControls } from '@shared/schema';
 import { runDdsComparison } from './utils/dds-comparison-engine';
+import { RELEASE_GATE_CONFIG } from './utils/release-gate-config';
 import gcsClient, { bucketName } from './utils/storage-config';
 
 const upload = multer({
@@ -476,9 +479,11 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
   }
 
   const user = (req as any).user;
-  const role = String(user?.role ?? '').toLowerCase();
-  if (role !== 'superuser' && role !== 'admin') {
-    return res.status(403).json({ error: 'Forbidden — superuser or admin required' });
+  const role = String(user?.role ?? '');
+  const approveAllowed = RELEASE_GATE_CONFIG.approveAllowedRoles
+    .some(r => r.toLowerCase() === role.toLowerCase());
+  if (!approveAllowed) {
+    return res.status(403).json({ error: 'Forbidden — Senior Manager or above required' });
   }
 
   const drawingControlId = parseInt(req.params.id, 10);
@@ -544,6 +549,111 @@ router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Respo
 
   console.log(`[Approve] drawing_control ${drawingControlId} approved by user ${user?.id ?? user?.username} (dds_status=${ddsStatus})`);
   return res.json({ ok: true, status: 'approved' });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/epc-drawing-controls/:id/release/manufacturing
+//
+// Manufacturing release gate — enforces approval pre-condition.
+// Allowed roles: Superuser, General Manager, Senior Manager.
+// Gate order:
+//   1. Authenticated + correct role
+//   2. manufacturingReleaseRequired = true
+//   3. status = 'approved'
+//   4. If config requirePassForManufacturing: DDS must be 'pass'
+//   5. Not already released (idempotency check)
+// Writes: releasedForManufacturing, releasedForManufacturingAt/By,
+//         releasedBy, releasedAt, releaseNote, status = 'released'
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post('/epc-drawing-controls/:id/release/manufacturing', async (req: Request, res: Response) => {
+  if (!(req as any).isAuthenticated?.()) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const user = (req as any).user;
+  const role = String(user?.role ?? '');
+  const releaseAllowed = RELEASE_GATE_CONFIG.manufacturingReleaseAllowedRoles
+    .some(r => r.toLowerCase() === role.toLowerCase());
+  if (!releaseAllowed) {
+    return res.status(403).json({ error: 'Forbidden — Senior Manager or above required' });
+  }
+
+  const drawingControlId = parseInt(req.params.id, 10);
+  if (isNaN(drawingControlId)) return res.status(400).json({ error: 'Invalid ID' });
+
+  const [dc] = await db
+    .select({
+      id:                          epcDrawingControls.id,
+      status:                      epcDrawingControls.status,
+      manufacturingReleaseRequired: epcDrawingControls.manufacturingReleaseRequired,
+      releasedForManufacturing:    epcDrawingControls.releasedForManufacturing,
+    })
+    .from(epcDrawingControls)
+    .where(eq(epcDrawingControls.id, drawingControlId))
+    .limit(1);
+
+  if (!dc) {
+    return res.status(404).json({ error: 'Drawing control not found' });
+  }
+
+  if (!dc.manufacturingReleaseRequired) {
+    return res.status(422).json({ error: 'Manufacturing release is not required for this drawing' });
+  }
+
+  if (dc.status !== 'approved') {
+    return res.status(422).json({
+      error: `Drawing must be approved before release — current status: "${dc.status}"`,
+      current_status: dc.status,
+    });
+  }
+
+  if (dc.releasedForManufacturing) {
+    return res.status(409).json({ error: 'Drawing has already been released for manufacturing' });
+  }
+
+  // Optional config gate: require clean 'pass', not just 'warn'
+  if (RELEASE_GATE_CONFIG.requirePassForManufacturing) {
+    const [latestJob] = await db
+      .select({ ddsComparisonStatus: epcSlddrwExtractionJobs.ddsComparisonStatus })
+      .from(epcSlddrwExtractionJobs)
+      .where(and(
+        eq(epcSlddrwExtractionJobs.drawingControlId, drawingControlId),
+        eq(epcSlddrwExtractionJobs.status, 'completed'),
+      ))
+      .orderBy(desc(epcSlddrwExtractionJobs.createdAt))
+      .limit(1);
+
+    if (latestJob?.ddsComparisonStatus !== 'pass') {
+      return res.status(422).json({
+        error: 'Manufacturing release requires a clean DDS pass — current status has warnings',
+        dds_status: latestJob?.ddsComparisonStatus ?? null,
+      });
+    }
+  }
+
+  const now = new Date();
+  const releaseNote = req.body?.release_note ?? null;
+  const userId = user?.id ? Number(user.id) : null;
+
+  await db
+    .update(epcDrawingControls)
+    .set({
+      releasedForManufacturing:   true,
+      releasedForManufacturingAt: now,
+      releasedForManufacturingBy: userId,
+      releasedBy:                 userId,
+      releasedAt:                 now,
+      releaseNote:                releaseNote,
+      status:                     'released',
+    })
+    .where(eq(epcDrawingControls.id, drawingControlId));
+
+  console.log(
+    `[Release] drawing_control ${drawingControlId} released for manufacturing`
+    + ` by user ${user?.id ?? user?.username} (role=${role})`,
+  );
+  return res.json({ ok: true, status: 'released' });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

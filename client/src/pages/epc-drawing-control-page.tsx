@@ -561,6 +561,11 @@ export default function EpcDrawingControlPage() {
                                         <DrawingVerificationCard
                                           drawingControlId={rec.id}
                                           userRole={userRole}
+                                          drawingControlStatus={rec.status}
+                                          manufacturingReleaseRequired={rec.manufacturing_release_required}
+                                          releasedForManufacturing={rec.released_for_manufacturing}
+                                          releasedForManufacturingAt={rec.released_for_manufacturing_at}
+                                          onStatusChange={invalidateAll}
                                         />
 
                                         {/* 3. Engineering Changes */}

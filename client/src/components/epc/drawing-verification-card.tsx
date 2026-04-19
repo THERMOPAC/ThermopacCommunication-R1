@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import {
   ShieldCheck, ShieldX, ShieldAlert, Shield, RotateCcw, ChevronDown,
   CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
-  Server, Cpu, FileCheck2, Info, Upload, RefreshCw,
+  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, Factory,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -48,13 +48,28 @@ interface ParameterResult {
   note?: string;
 }
 
+// Roles allowed to approve or release (mirrors RELEASE_GATE_CONFIG)
+const ALLOWED_ROLES = ['superuser', 'general manager', 'senior manager'];
+
 interface Props {
   drawingControlId: number;
   userRole: string;
+  drawingControlStatus: string;
+  manufacturingReleaseRequired: boolean;
+  releasedForManufacturing: boolean;
+  releasedForManufacturingAt: string | null;
+  onStatusChange?: () => void;
 }
 
-
-export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
+export function DrawingVerificationCard({
+  drawingControlId,
+  userRole,
+  drawingControlStatus,
+  manufacturingReleaseRequired,
+  releasedForManufacturing,
+  releasedForManufacturingAt,
+  onStatusChange,
+}: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,9 +106,23 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
     onSuccess: () => {
       toast({ title: 'Drawing approved', description: 'Drawing control has been approved.' });
       qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
+      onStatusChange?.();
     },
     onError: (err: any) => {
       toast({ title: 'Approval failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+    },
+  });
+
+  const releaseMutation = useMutation({
+    mutationFn: () =>
+      apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/release/manufacturing`),
+    onSuccess: () => {
+      toast({ title: 'Released for Manufacturing', description: 'Drawing has been released for manufacturing.' });
+      qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
+      onStatusChange?.();
+    },
+    onError: (err: any) => {
+      toast({ title: 'Release failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 
@@ -127,7 +156,7 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
 
   const latest = jobs[0] ?? null;
   const _role = userRole.toLowerCase();
-  const canRetry = _role === 'superuser' || _role === 'admin';
+  const canApproveOrRelease = ALLOWED_ROLES.includes(_role);
   const isUploading = uploadMutation.isPending;
 
   if (isLoading) {
@@ -168,7 +197,7 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
           )}
         </div>
         <div className="flex items-center gap-1">
-          {latest.status === 'failed' && canRetry && (
+          {latest.status === 'failed' && canApproveOrRelease && (
             <Button
               variant="outline"
               size="sm"
@@ -230,8 +259,12 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
         />
       )}
 
-      {/* ── Approve gate ─────────────────────────────────────────────── */}
-      {latest.status === 'completed' && latest.ddsComparisonStatus && canRetry && (
+      {/* ── Approve gate (only when not yet approved) ────────────────── */}
+      {latest.status === 'completed' &&
+       latest.ddsComparisonStatus &&
+       drawingControlStatus !== 'approved' &&
+       drawingControlStatus !== 'released' &&
+       canApproveOrRelease && (
         <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
           {latest.ddsComparisonStatus === 'warn' && (
             <label className="flex items-center gap-1.5 text-[10px] text-amber-700 cursor-pointer select-none">
@@ -270,6 +303,48 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
               ? 'Cannot Approve — DDS Not Found'
               : 'Approve Drawing'}
           </Button>
+        </div>
+      )}
+
+      {/* ── Manufacturing release gate ────────────────────────────────── */}
+      {manufacturingReleaseRequired && canApproveOrRelease && (
+        <div className="mt-2 pt-2 border-t border-border/40">
+          {releasedForManufacturing ? (
+            <div className="flex items-center gap-1.5 text-[10px] text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+              <Factory className="h-3 w-3 shrink-0" />
+              <span>
+                Released for Manufacturing
+                {releasedForManufacturingAt && (
+                  <span className="text-[9px] text-muted-foreground ml-1">
+                    · {formatDistanceToNow(new Date(releasedForManufacturingAt), { addSuffix: true })}
+                  </span>
+                )}
+              </span>
+            </div>
+          ) : drawingControlStatus === 'approved' ? (
+            <Button
+              size="sm"
+              className="h-6 text-[10px] px-2 w-full gap-1.5"
+              variant="default"
+              disabled={releaseMutation.isPending}
+              onClick={() => releaseMutation.mutate()}
+            >
+              {releaseMutation.isPending
+                ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                : <Factory className="h-2.5 w-2.5" />}
+              Release for Manufacturing
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="h-6 text-[10px] px-2 w-full gap-1.5"
+              variant="outline"
+              disabled
+            >
+              <Factory className="h-2.5 w-2.5" />
+              Release for Manufacturing — Awaiting Approval
+            </Button>
+          )}
         </div>
       )}
 
