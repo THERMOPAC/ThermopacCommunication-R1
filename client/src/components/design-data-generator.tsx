@@ -860,7 +860,7 @@ function SmartMechanicalColumnForm({
 
         if (p.key === 'mdmt') {
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
@@ -876,7 +876,7 @@ function SmartMechanicalColumnForm({
 
         if (p.key === 'hydroTestPressure' && isApiDiscipline) {
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input className="h-6 text-[10px] px-1.5 bg-slate-100 text-slate-500" value="N.A." readOnly />
@@ -890,7 +890,7 @@ function SmartMechanicalColumnForm({
           const options = p.key === 'physicalState' ? PHYSICAL_STATE_OPTIONS : SERVICE_FLUID_OPTIONS;
           const isAtDefault = val === FIELD_DEFAULTS[p.key];
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={val || ''} onValueChange={(v) => handleChange(p.key, v)}>
@@ -923,7 +923,7 @@ function SmartMechanicalColumnForm({
                   }[display] || 'bg-slate-50'))
             : '';
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
@@ -946,7 +946,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === defaultVal;
           const displayVal = val || defaultVal;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -972,7 +972,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === jeDefault;
           const displayVal = val || jeDefault;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
@@ -992,7 +992,7 @@ function SmartMechanicalColumnForm({
           const applicable = isTestingGroupApplicable(appliedCode);
           if (!applicable) {
             return (
-              <div key={p.key} className="flex items-center gap-2">
+              <div key={p.key} className="flex items-center gap-4">
                 <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
@@ -1005,7 +1005,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === tgDefault;
           const displayVal = val && val !== 'N.A.' ? val : tgDefault;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
@@ -1024,7 +1024,7 @@ function SmartMechanicalColumnForm({
         if (p.key === 'insulation') {
           if (columnRole === 'tube') {
             return (
-              <div key={p.key} className="flex items-center gap-2">
+              <div key={p.key} className="flex items-center gap-4">
                 <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
@@ -1037,7 +1037,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === defaultVal;
           const displayVal = val || defaultVal;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1061,7 +1061,7 @@ function SmartMechanicalColumnForm({
         if (p.key === 'insulationTypeThkDensity') {
           if (columnRole === 'tube') {
             return (
-              <div key={p.key} className="flex items-center gap-2">
+              <div key={p.key} className="flex items-center gap-4">
                 <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
@@ -1073,7 +1073,7 @@ function SmartMechanicalColumnForm({
           const insulationOn = data.insulation === 'YES';
           if (!insulationOn) {
             return (
-              <div key={p.key} className="flex items-center gap-2">
+              <div key={p.key} className="flex items-center gap-4">
                 <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value="N.A." readOnly />
@@ -1086,7 +1086,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === defaultVal || val === 'N.A.';
           const displayVal = (!val || val === 'N.A.') ? defaultVal : val;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
@@ -1117,7 +1117,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === defaultVal;
           const displayVal = val || defaultVal;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1143,7 +1143,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === defaultVal;
           const displayVal = val || defaultVal;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1168,7 +1168,7 @@ function SmartMechanicalColumnForm({
           const cfg = getFabricationToleranceConfig(appliedCode);
           if (cfg.mode === 'fixed') {
             return (
-              <div key={p.key} className="flex items-center gap-2">
+              <div key={p.key} className="flex items-center gap-4">
                 <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input className="h-6 text-[10px] px-1.5 flex-1 bg-slate-100 text-slate-400" value={cfg.fixedValue} readOnly />
@@ -1181,7 +1181,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === cfg.defaultValue;
           const displayVal = val || cfg.defaultValue;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1207,7 +1207,7 @@ function SmartMechanicalColumnForm({
           const isAtDefault = !val || val === defaultVal;
           const displayVal = val || defaultVal;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1235,7 +1235,7 @@ function SmartMechanicalColumnForm({
           const showError = isRequired && (isEmpty || isNonNumeric);
           return (
             <div key={p.key} className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
                 <Label className={`text-[9px] w-64 shrink-0 text-right ${showError ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
                   {p.label.substring(0, 35)}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
                 </Label>
@@ -1252,7 +1252,7 @@ function SmartMechanicalColumnForm({
                 </div>
               </div>
               {showError && (
-                <div className="text-[8px] text-red-500 pl-[16.5rem]">Numeric value required</div>
+                <div className="text-[8px] text-red-500 pl-[17rem]">Numeric value required</div>
               )}
             </div>
           );
@@ -1264,7 +1264,7 @@ function SmartMechanicalColumnForm({
           const isAutoFilled = !storedVal && !!autoVal;
           const displayVal = storedVal || autoVal || '';
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Input
@@ -1288,7 +1288,7 @@ function SmartMechanicalColumnForm({
         const showAutoBadge = isComputed || isAtDefault;
 
         return (
-          <div key={p.key} className="flex items-center gap-2">
+          <div key={p.key} className="flex items-center gap-4">
             <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 35)}</Label>
             <div className="flex-1 flex items-center gap-1">
               <Input
@@ -1330,7 +1330,7 @@ function GeneralDataForm({
           const isAtDefault = !val || val === HYDRO_TEST_POSITION_DEFAULT;
           const displayVal = val || HYDRO_TEST_POSITION_DEFAULT;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 40)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1355,7 +1355,7 @@ function GeneralDataForm({
           const isAtDefault = !val || val === VESSEL_ORIENTATION_DEFAULT;
           const displayVal = val || VESSEL_ORIENTATION_DEFAULT;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 40)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1380,7 +1380,7 @@ function GeneralDataForm({
           const isAtDefault = !val || val === DESIGN_SERVICE_LIFE_DEFAULT;
           const displayVal = val || DESIGN_SERVICE_LIFE_DEFAULT;
           return (
-            <div key={p.key} className="flex items-center gap-2">
+            <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 40)}</Label>
               <div className="flex-1 flex items-center gap-1">
                 <Select value={displayVal} onValueChange={(v) => handleChange(p.key, v)}>
@@ -1403,7 +1403,7 @@ function GeneralDataForm({
 
         const isEnvAuto = envAutoKeys.has(p.key);
         return (
-          <div key={p.key} className="flex items-center gap-2">
+          <div key={p.key} className="flex items-center gap-4">
             <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground">{p.label.substring(0, 40)}</Label>
             <div className="flex-1 flex items-center gap-1">
               <Input
