@@ -19,11 +19,18 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
+import multer from 'multer';
+import { createHash } from 'crypto';
 import { db } from './db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { epcAgentNodes, epcSlddrwExtractionJobs } from '@shared/schema';
 import { runDdsComparison } from './utils/dds-comparison-engine';
 import gcsClient, { bucketName } from './utils/storage-config';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max for .slddrw
+});
 
 const router = Router();
 
@@ -362,6 +369,69 @@ router.post('/epc-slddrw-jobs/:id/retry', async (req: Request, res: Response) =>
 
   return res.json({ ok: true });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/epc-drawing-controls/:id/upload-slddrw
+// UI upload: accepts multipart .slddrw file, stores to GCS, creates pending job
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post(
+  '/epc-drawing-controls/:id/upload-slddrw',
+  (req: Request, res: Response, next: any) => {
+    if (!(req as any).isAuthenticated?.()) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+  },
+  upload.single('file'),
+  async (req: Request, res: Response) => {
+    const drawingControlId = parseInt(req.params.id, 10);
+    if (isNaN(drawingControlId)) {
+      return res.status(400).json({ error: 'Invalid drawing control ID' });
+    }
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+    if (ext !== 'slddrw') {
+      return res.status(400).json({ error: 'Only .slddrw files are accepted' });
+    }
+
+    const sha256 = createHash('sha256').update(file.buffer).digest('hex');
+    const timestamp = Date.now();
+    const safeFilename = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const gcsPath = `epc-slddrw/${drawingControlId}/${timestamp}-${safeFilename}`;
+
+    try {
+      await gcsClient.bucket(bucketName).file(gcsPath).save(file.buffer, {
+        contentType: 'application/octet-stream',
+        metadata: { sha256, originalFilename: file.originalname },
+      });
+    } catch (e: any) {
+      console.error('[UploadSlddrw] GCS upload failed:', e?.message);
+      return res.status(500).json({ error: 'Failed to store file' });
+    }
+
+    const user = (req as any).user;
+    const [job] = await db
+      .insert(epcSlddrwExtractionJobs)
+      .values({
+        drawingControlId,
+        slddrwGcsPath:  gcsPath,
+        slddrwFilename: file.originalname,
+        slddrwSha256:   sha256,
+        status:         'pending',
+        createdBy:      user?.username ?? user?.email ?? null,
+      })
+      .returning({ id: epcSlddrwExtractionJobs.id });
+
+    console.log(`[UploadSlddrw] Job ${job.id} created for drawing_control ${drawingControlId} — file=${file.originalname}`);
+    return res.status(201).json({ ok: true, jobId: job.id });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/epc-slddrw-jobs  — internal: create job when .slddrw is uploaded

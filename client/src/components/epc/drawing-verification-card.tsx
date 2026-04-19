@@ -1,25 +1,26 @@
 /**
  * DrawingVerificationCard
  *
- * Shows the latest SolidWorks extraction job status and DDS comparison results
- * for a given drawing control record.
+ * Shows the SolidWorks extraction job status for a drawing control.
+ * Provides upload UI to submit a .slddrw file and create a pending extraction job.
  *
  * Data source: GET /api/epc-drawing-controls/:id/slddrw-jobs
+ * Upload:      POST /api/epc-drawing-controls/:id/upload-slddrw
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   ShieldCheck, ShieldX, ShieldAlert, Shield, RotateCcw, ChevronDown,
   CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
-  Server, Cpu, FileCheck2, Info,
+  Server, Cpu, FileCheck2, Info, Upload, RefreshCw,
 } from 'lucide-react';
-import { useState } from 'react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { useRef, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Job {
   id: number;
@@ -54,16 +55,18 @@ interface Props {
 
 export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
   const qc = useQueryClient();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showAllParams, setShowAllParams] = useState(false);
 
   const { data: jobs = [], isLoading } = useQuery<Job[]>({
     queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'],
-    queryFn: () => apiRequest('GET',
-      `/api/epc-drawing-controls/${drawingControlId}/slddrw-jobs`).then(r => r.json()),
-    refetchInterval: (data) => {
-      // Poll every 10s while there's a pending/processing job
-      const latest = Array.isArray(data) && data[0];
+    queryFn: () =>
+      apiRequest('GET', `/api/epc-drawing-controls/${drawingControlId}/slddrw-jobs`) as Promise<Job[]>,
+    refetchInterval: (data: any) => {
+      const rows: Job[] = Array.isArray(data) ? data : (data?.state?.data ?? []);
+      const latest = rows[0];
       if (latest && ['pending', 'processing'].includes(latest.status)) return 10000;
       return false;
     },
@@ -77,9 +80,37 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
     },
   });
 
-  const latest = jobs[0] ?? null;
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/upload-slddrw`, fd);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
+      toast({ title: 'Extraction job created', description: 'Waiting for Windows agent to pick up the job.' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    },
+    onError: (err: any) => {
+      toast({ title: 'Upload failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    },
+  });
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.slddrw')) {
+      toast({ title: 'Invalid file', description: 'Only .slddrw files are accepted.', variant: 'destructive' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    uploadMutation.mutate(file);
+  }
+
+  const latest = jobs[0] ?? null;
   const canRetry = userRole === 'superuser' || userRole === 'admin';
+  const isUploading = uploadMutation.isPending;
 
   if (isLoading) {
     return (
@@ -94,10 +125,14 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
   if (!latest) {
     return (
       <_CardShell status="idle">
-        <p className="text-[10px] text-muted-foreground italic">
-          No extraction job yet. Upload a <span className="font-medium">.slddrw</span> file in DWG
-          Attachments below to trigger extraction.
+        <p className="text-[10px] text-muted-foreground italic mb-2">
+          No extraction job yet. Upload a <span className="font-medium">.slddrw</span> file to trigger extraction.
         </p>
+        <_UploadButton
+          fileInputRef={fileInputRef}
+          isUploading={isUploading}
+          onChange={handleFileChange}
+        />
       </_CardShell>
     );
   }
@@ -171,6 +206,19 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
         </div>
       )}
 
+      {/* ── Upload new (for failed / completed) ─────────────────────── */}
+      {(latest.status === 'failed' || latest.status === 'completed') && (
+        <div className="mt-2 pt-2 border-t border-border/40">
+          <_UploadButton
+            fileInputRef={fileInputRef}
+            isUploading={isUploading}
+            onChange={handleFileChange}
+            label="Upload New .slddrw"
+            icon={<RefreshCw className="h-2.5 w-2.5" />}
+          />
+        </div>
+      )}
+
       {/* ── Detail panel ────────────────────────────────────────────── */}
       {showDetails && (
         <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
@@ -203,6 +251,47 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
         </div>
       )}
     </_CardShell>
+  );
+}
+
+// ── Upload button ────────────────────────────────────────────────────────────
+
+function _UploadButton({
+  fileInputRef,
+  isUploading,
+  onChange,
+  label = 'Upload .slddrw',
+  icon,
+}: {
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  isUploading: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  label?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".slddrw"
+        className="hidden"
+        onChange={onChange}
+        disabled={isUploading}
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-6 text-[10px] px-2 gap-1.5 w-full"
+        disabled={isUploading}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        {isUploading
+          ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+          : (icon ?? <Upload className="h-2.5 w-2.5" />)}
+        {isUploading ? 'Uploading…' : label}
+      </Button>
+    </>
   );
 }
 
