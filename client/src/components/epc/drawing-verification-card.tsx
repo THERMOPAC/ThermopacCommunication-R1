@@ -58,7 +58,6 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [showAllParams, setShowAllParams] = useState(false);
 
   const { data: jobs = [], isLoading } = useQuery<Job[]>({
     queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'],
@@ -173,16 +172,6 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
           </Button>
         </div>
       </div>
-
-      {/* ── DDS comparison summary ──────────────────────────────────── */}
-      {latest.status === 'completed' && latest.ddsComparisonStatus && (
-        <_DdsComparisonBanner
-          status={latest.ddsComparisonStatus}
-          results={latest.ddsComparisonResult ?? []}
-          showAll={showAllParams}
-          onToggleAll={() => setShowAllParams(s => !s)}
-        />
-      )}
 
       {/* ── Pending / processing state ──────────────────────────────── */}
       {['pending', 'processing'].includes(latest.status) && (
