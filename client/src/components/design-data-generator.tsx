@@ -270,6 +270,24 @@ function deriveHazardFields(data: HazardData): HazardData {
   return { ...data, codeNativeClassification: classification, internalHazardLevel: level, hazardBasisNote: note };
 }
 
+function hazardPrerequisitesMet(code: string | null, hazard: HazardData): { met: boolean; missing: string[] } {
+  if (!code) return { met: false, missing: [] };
+  const missing: string[] = [];
+  if (code === 'ASME B31.3') {
+    if (!hazard.fluidServiceCategory) missing.push('Fluid Service Category');
+  } else if (code === 'EN 13445') {
+    if (!hazard.fluidGroup) missing.push('Fluid Group');
+  } else if (code === 'PED 2014/68/EU') {
+    if (!hazard.fluidGroup) missing.push('Fluid Group');
+    if (!hazard.pedCategory) missing.push('PED Category');
+  } else if (code === 'AS 4343:2014') {
+    if (!hazard.as4343EquipmentType) missing.push('Equipment Type');
+    if (!hazard.as4343FluidGroup) missing.push('Fluid Group (A/B/C)');
+    if (hazard.as4343EquipmentType === 'Piping' && !hazard.as4343NominalBoreDN) missing.push('Nominal Bore DN');
+  }
+  return { met: missing.length === 0, missing };
+}
+
 const DESIGN_CODES = [
   'EN 13445-3:2021 + TEMA EDITION-10',
   'EN 13445-3:2021',
@@ -1719,6 +1737,7 @@ function HazardClassificationPanel({
   const isPED   = code === 'PED 2014/68/EU';
   const isAPI   = code === 'API 650';
   const showToxic = isEN || isPED || isAPI;
+  const { missing: missingFields } = hazardPrerequisitesMet(code, data);
 
   const displayLevel = isAS4343 ? (as4343Result?.level ?? null) : data.internalHazardLevel;
   const levelBadgeClass = isAS4343
@@ -1799,7 +1818,7 @@ function HazardClassificationPanel({
 
           {isB31 && (
             <div className="space-y-1 col-span-2">
-              <Label className="text-[10px] text-muted-foreground">Fluid Service Category</Label>
+              <Label className="text-[10px] text-muted-foreground">Fluid Service Category <span className="text-red-500">*</span></Label>
               <Select value={data.fluidServiceCategory || ''} onValueChange={(v) => handleField({ fluidServiceCategory: v })}>
                 <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
                 <SelectContent>{FLUID_SERVICE_CATEGORY_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
@@ -1809,7 +1828,7 @@ function HazardClassificationPanel({
 
           {(isEN || isPED) && (
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Fluid Group {isPED && <span className="text-red-500">*</span>}</Label>
+              <Label className="text-[10px] text-muted-foreground">Fluid Group <span className="text-red-500">*</span></Label>
               <Select value={data.fluidGroup || ''} onValueChange={(v) => handleField({ fluidGroup: v })}>
                 <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Select…" /></SelectTrigger>
                 <SelectContent>{FLUID_GROUP_OPTIONS.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}</SelectContent>
@@ -1889,6 +1908,17 @@ function HazardClassificationPanel({
               )}
             </>
           )}
+        </div>
+      )}
+
+      {missingFields.length > 0 && (
+        <div className="rounded border border-amber-300 bg-amber-50 px-2.5 py-2 space-y-0.5">
+          <div className="text-[9px] font-semibold text-amber-700 uppercase tracking-wide">Required to unlock Mechanical Data</div>
+          {missingFields.map(f => (
+            <div key={f} className="flex items-center gap-1.5 text-[9px] text-amber-700">
+              <span className="text-red-500">•</span>{f}
+            </div>
+          ))}
         </div>
       )}
 
@@ -2680,16 +2710,40 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
               {/* Mechanical columns */}
               {equipmentConfig && (() => {
-                const hasAppliedCode = !!colHazard.shell.appliedCode;
+                const sharedCode = colHazard.shell.appliedCode;
+                const shellPrereq  = hazardPrerequisitesMet(sharedCode, colHazard.shell);
+                const tubePrereq   = cols.tube   ? hazardPrerequisitesMet(sharedCode, colHazard.tube   ?? emptyHazardData()) : { met: true, missing: [] };
+                const jacketPrereq = cols.jacket ? hazardPrerequisitesMet(sharedCode, colHazard.jacket ?? emptyHazardData()) : { met: true, missing: [] };
+                const allPrereqsMet = !!sharedCode && shellPrereq.met && tubePrereq.met && jacketPrereq.met;
 
-                if (!hasAppliedCode) {
+                if (!allPrereqsMet) {
+                  const colGaps = [
+                    { label: 'Shell',  missing: shellPrereq.missing  },
+                    ...(cols.tube   ? [{ label: 'Tube',   missing: tubePrereq.missing   }] : []),
+                    ...(cols.jacket ? [{ label: 'Jacket', missing: jacketPrereq.missing }] : []),
+                  ].filter(c => c.missing.length > 0);
+
                   return (
                     <div>
                       <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
-                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 py-8 flex items-center justify-center gap-2 text-[11px] text-slate-400 select-none">
-                        <Lock className="h-3.5 w-3.5 shrink-0" />
-                        Select Applied Code to enable Mechanical Design Data
-                      </div>
+                      {!sharedCode ? (
+                        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 py-8 flex items-center justify-center gap-2 text-[11px] text-slate-400 select-none">
+                          <Lock className="h-3.5 w-3.5 shrink-0" />
+                          Select Applied Code to enable Mechanical Design Data
+                        </div>
+                      ) : (
+                        <div className="rounded-md border border-dashed border-amber-300 bg-amber-50 py-5 px-4 space-y-2">
+                          <div className="flex items-center gap-2 text-[11px] text-amber-700 font-medium">
+                            <Lock className="h-3.5 w-3.5 shrink-0" />
+                            Complete required classification fields to enable Mechanical Design Data
+                          </div>
+                          {colGaps.map(c => (
+                            <div key={c.label} className="text-[10px] text-amber-800">
+                              <span className="font-semibold">{c.label}:</span> {c.missing.join(', ')}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 }
