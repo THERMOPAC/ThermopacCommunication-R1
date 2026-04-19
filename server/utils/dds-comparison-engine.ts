@@ -94,7 +94,7 @@ const FIELD_MAP: Record<string, FieldDef> = {
   },
   'insulation': {
     severity: 'warning',
-    numericCompare: false,
+    numericCompare: true,
     getDdsValue: dds =>
       (dds.mechanicalData as MechanicalData)?.shell?.insulation ?? null,
   },
@@ -182,6 +182,7 @@ export async function runDdsComparison(
       status = 'missing_drawing';
       note   = 'Parameter not found in drawing Design Data table';
       if (fieldDef.severity === 'critical') hasCriticalMismatch = true;
+      else hasWarningMismatch = true;
     } else {
       // Compare
       const matched = fieldDef.numericCompare
