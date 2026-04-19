@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import {
   ShieldCheck, ShieldX, ShieldAlert, Shield, RotateCcw, ChevronDown,
   CheckCircle2, XCircle, AlertTriangle, HelpCircle, Clock, Loader2,
-  Server, Cpu, FileCheck2, Info, Upload, RefreshCw, FlaskConical,
+  Server, Cpu, FileCheck2, Info, Upload, RefreshCw,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -53,105 +53,6 @@ interface Props {
   userRole: string;
 }
 
-// ⚠️ TEST MODE — Phase 1 simulation payload. Dev only. Remove before Phase 2 production release.
-const MOCK_EXTRACTION_PAYLOAD = {
-  schema_version: '1.0',
-  agent: {
-    node_id: 'TEST-PC-01',
-    agent_version: '1.0.1-test',
-    machine_name: 'TEST-MACHINE',
-    extraction_timestamp: '2026-04-19T05:30:00Z',
-  },
-  file: {
-    original_filename: '21565286 - Issue 2 - DV Drawings.pdf',
-    file_size_bytes: 0,
-    sha256: 'TEST_SHA256_PLACEHOLDER',
-  },
-  properties: {
-    drawing_number: '4823002002001002',
-    revision: '4',
-    title: 'THIN FILM EVAPORATOR (RF/BE/E1)',
-    description: 'Design verification drawing set',
-    author: '',
-    created_date: '',
-    last_saved_date: '',
-    solidworks_version: 'TEST_FROM_PDF_NOT_SW',
-    custom_properties: {
-      client: 'WASTE PETROLEUM COMBUSTION LIMITED',
-      design_verification_no: '21565286',
-      verified_by: 'Shamrose Chaudhry',
-      verified_date: '2025-09-03',
-    },
-  },
-  sheets: [
-    { sheet_name: 'Sheet1', scale: '1:100', paper_size: 'A1', view_count: 0 },
-    { sheet_name: 'Sheet2', scale: '1:10',  paper_size: 'A1', view_count: 0 },
-  ],
-  views: [],
-  dimensions: { total_count: 0, driven_count: 0, tolerance_count: 0, sample: [] },
-  annotations: { notes_count: 0, weld_symbols_count: 0, surface_finish_count: 0, gd_t_count: 0, notes_sample: [] },
-  tables: {
-    bom_found: true,
-    bom_rows: 70,
-    revision_table_found: true,
-    revision_rows: [
-      { rev: '2', date: '2024-06-11', description: 'REVISED DRAWING AS PER COMMENTS' },
-      { rev: '3', date: '2024-06-18', description: 'REVISED DRAWING AS PER COMMENTS' },
-      { rev: '4', date: '2025-07-25', description: 'REF. SHEET 1 OF 2 / REVISED AS PER COMMENTS' },
-    ],
-    general_tolerance_table_found: true,
-  },
-  references: { referenced_models: [], external_references_broken: 0, total_references: 0 },
-  health: { open_errors: [], open_warnings: [], rebuild_errors: 0, rebuild_warnings: 0, dangling_dimensions: 0, dangling_relations: 0 },
-  nozzles: {
-    found: true,
-    nozzle_count: 13,
-    nozzles: [
-      { tag: 'N1', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N2', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N3', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N4', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N5', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N6', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N7', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N7A', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N8', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N8A', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N9', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N10', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N11', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N12', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-      { tag: 'N13', size: 'FROM_DRAWING', rating: '', service: '', facing: '' },
-    ],
-  },
-  design_data_table: {
-    found: true,
-    rows: [
-      { parameter: 'Title',                        value: 'THIN FILM EVAPORATOR (RF/BE/E1)',          unit: '' },
-      { parameter: 'Client',                        value: 'WASTE PETROLEUM COMBUSTION LIMITED',       unit: '' },
-      { parameter: 'Design Verification No',        value: '21565286',                                unit: '' },
-      { parameter: 'Design Code',                   value: 'EN13445-3:2021 + TEMA EDITION-10',        unit: '' },
-      { parameter: 'Design Service Life',           value: '25',                                      unit: 'years' },
-      { parameter: 'Wind Design Velocity',          value: '45',                                      unit: 'm/s' },
-      { parameter: 'Seismic Design Code',           value: 'NZS1170.5:2004+A1',                       unit: '' },
-      { parameter: 'External Design Pressure / MAWP', value: '1.034',                                 unit: 'barg' },
-      { parameter: 'Fluid',                         value: 'WATER THERMIC / BASE OIL',                unit: '' },
-      { parameter: 'Manufacturer',                  value: 'THERMOPAC PROCESS ENGINEERING LLP',       unit: '' },
-    ],
-  },
-  extraction_errors: {
-    properties:        null,
-    sheets:            null,
-    views:             'Not extracted from PDF test payload',
-    dimensions:        'Not extracted from PDF test payload',
-    annotations:       'Not extracted from PDF test payload',
-    tables:            null,
-    references:        'Not extracted from PDF test payload',
-    health:            null,
-    nozzles:           'Nozzle details partially stubbed for testing',
-    design_data_table: null,
-  },
-};
 
 export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
   const qc = useQueryClient();
@@ -193,19 +94,6 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
     onError: (err: any) => {
       toast({ title: 'Upload failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
       if (fileInputRef.current) fileInputRef.current.value = '';
-    },
-  });
-
-  // ⚠️ TEST MODE — dev only
-  const mockCompleteMutation = useMutation({
-    mutationFn: (jobId: number) =>
-      apiRequest('POST', `/api/epc-slddrw-jobs/${jobId}/mock-complete`, MOCK_EXTRACTION_PAYLOAD),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
-      toast({ title: '[TEST MODE] Simulated extraction applied', description: 'Job status set to completed with mock extraction result.' });
-    },
-    onError: (err: any) => {
-      toast({ title: '[TEST MODE] Simulation failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 
@@ -274,20 +162,6 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
               Retry
             </Button>
           )}
-          {/* ⚠️ TEST MODE — Phase 1 simulation only. Server blocks this in production. */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-5 text-[9px] px-1.5 gap-1 border-amber-400 text-amber-700 hover:bg-amber-50"
-            disabled={mockCompleteMutation.isPending}
-            onClick={() => mockCompleteMutation.mutate(latest.id)}
-            title="[TEST MODE] Simulate extraction completion with mock JSON payload"
-          >
-            {mockCompleteMutation.isPending
-              ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
-              : <FlaskConical className="h-2.5 w-2.5" />}
-            Simulate
-          </Button>
           <Button
             variant="ghost"
             size="sm"
