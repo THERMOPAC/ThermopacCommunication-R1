@@ -821,11 +821,12 @@ function SmartMechanicalColumnForm({
     }
 
     if (key === 'workingPressure') {
-      const wp = parseFloat(rawValue);
-      if (!isNaN(wp)) {
-        const idp = wp + 2;
-        updated.internalDesignPressureMawp = idp.toFixed(3);
-        updated.hydroTestPressure = calcHydroTestPressure(idp, disciplineCode);
+      // Working pressure does not auto-fill Internal Design Pressure — user must enter it.
+      // Hydro Test Pressure still cascades from whatever Internal Design Pressure is already set.
+      const existingIdp = parseFloat(updated.internalDesignPressureMawp || '');
+      if (!isNaN(existingIdp)) {
+        const isApi = (disciplineCode || '').toLowerCase().includes('api 650');
+        updated.hydroTestPressure = isApi ? 'N.A.' : calcHydroTestPressure(existingIdp, disciplineCode);
       }
     }
 
@@ -1857,8 +1858,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   function seedColumn(col: MechanicalColumn): MechanicalColumn {
     const wp = col.workingPressure ?? '0.5';
-    const wpNum = parseFloat(wp);
-    const idp = col.internalDesignPressureMawp ?? (!isNaN(wpNum) ? (wpNum + 2).toFixed(3) : null);
+    const idp = col.internalDesignPressureMawp ?? null;
     const idpNum = parseFloat(idp || '');
     const isApi = (disciplineCode || '').toLowerCase().includes('api 650');
     const hydro = col.hydroTestPressure ?? (
