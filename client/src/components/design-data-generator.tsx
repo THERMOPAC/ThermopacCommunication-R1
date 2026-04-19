@@ -1260,9 +1260,9 @@ function SmartMechanicalColumnForm({
 
         if (p.key === 'externalDesignPressureMawp') {
           const storedVal = data.externalDesignPressureMawp || '';
-          const autoVal = autoExternalPressure;
-          const isAutoFilled = !storedVal && !!autoVal;
-          const displayVal = storedVal || autoVal || '';
+          const autoVal = autoExternalPressure ?? 'N.A.';
+          const isAutoFilled = !storedVal;
+          const displayVal = storedVal || autoVal;
           return (
             <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground leading-tight">{p.label}</Label>
@@ -1271,7 +1271,6 @@ function SmartMechanicalColumnForm({
                   className={`h-6 text-[10px] px-1.5 flex-1 ${isAutoFilled ? 'bg-green-50 text-green-800' : ''}`}
                   value={displayVal}
                   onChange={(e) => handleChange(p.key, e.target.value)}
-                  placeholder="N.A."
                 />
                 {isAutoFilled ? (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
@@ -1965,8 +1964,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       function applyAutoExternal(col: MechanicalColumn, role: ColRole): MechanicalColumn {
         if (col.externalDesignPressureMawp) return col;
         const autoExt = computeAutoExternal(role, equipmentConfig, mechShell.internalDesignPressureMawp, mechJacket.internalDesignPressureMawp);
-        if (autoExt) return { ...col, externalDesignPressureMawp: autoExt };
-        return col;
+        return { ...col, externalDesignPressureMawp: autoExt ?? 'N.A.' };
       }
       function applyInsulationRule(col: MechanicalColumn, role: ColRole): MechanicalColumn {
         if (role === 'tube') {
