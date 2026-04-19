@@ -643,7 +643,10 @@ function validateRequiredPressures(
   const check = (col: MechanicalColumn, role: ColRole, label: string) => {
     const req = getPressureRequiredKeys(equipmentConfig, role);
     for (const k of req) {
-      if (!col[k]) errors.push(`${label} Internal Design Pressure / MAWP is required.`);
+      const v = col[k] as string | null;
+      if (!v || isNaN(parseFloat(v))) {
+        errors.push(`${label} Internal Design Pressure / MAWP: Numeric value required.`);
+      }
     }
   };
   check(mechShell, 'shell', 'Shell');
@@ -1228,9 +1231,8 @@ function SmartMechanicalColumnForm({
         if (p.key === 'internalDesignPressureMawp') {
           const isRequired = requiredPressureKeys.includes('internalDesignPressureMawp');
           const isEmpty = !val;
-          const showError = isRequired && isEmpty;
-          const isAutoComputed = AUTO_COMPUTED_KEYS.includes('internalDesignPressureMawp');
-          const showAutoBadge = isAutoComputed && !!val;
+          const isNonNumeric = !!val && isNaN(parseFloat(val));
+          const showError = isRequired && (isEmpty || isNonNumeric);
           return (
             <div key={p.key} className="flex flex-col gap-0.5">
               <div className="flex items-center gap-2">
@@ -1239,21 +1241,18 @@ function SmartMechanicalColumnForm({
                 </Label>
                 <div className="flex-1 flex items-center gap-1">
                   <Input
-                    className={`h-6 text-[10px] px-1.5 flex-1 ${showError ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : showAutoBadge ? 'bg-green-50' : ''}`}
+                    className={`h-6 text-[10px] px-1.5 flex-1 ${showError ? 'border-red-400 bg-red-50 ring-1 ring-red-300' : ''}`}
                     value={val}
                     onChange={(e) => handleChange(p.key, e.target.value)}
-                    placeholder={showError ? 'Required input' : 'N.A.'}
+                    placeholder="Enter numeric value"
                   />
                   {showError && (
                     <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-red-600 border-red-300 bg-red-50">Required</Badge>
                   )}
-                  {!showError && showAutoBadge && (
-                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
-                  )}
                 </div>
               </div>
               {showError && (
-                <div className="text-[8px] text-red-500 pl-[11.5rem]">Required — enter design pressure</div>
+                <div className="text-[8px] text-red-500 pl-[11.5rem]">Numeric value required</div>
               )}
             </div>
           );
@@ -2017,6 +2016,18 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   const cols = getColumns(equipmentConfig);
 
+  // IDP is valid when it is present and parses as a finite number
+  const idpValid = (col: MechanicalColumn, role: ColRole): boolean => {
+    const req = getPressureRequiredKeys(equipmentConfig, role);
+    if (!req.includes('internalDesignPressureMawp')) return true;
+    const v = col.internalDesignPressureMawp;
+    return !!v && !isNaN(parseFloat(v));
+  };
+  const idpBlocking =
+    !idpValid(mechShell, 'shell') ||
+    (cols.tube   && !idpValid(mechTube,   'tube')) ||
+    (cols.jacket && !idpValid(mechJacket, 'jacket'));
+
   // ── PDF state & handlers ───────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -2541,7 +2552,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
             </Button>
             <Button
               size="sm"
-              disabled={!designCode || !equipmentConfig || !inspectionBy || saveMutation.isPending}
+              disabled={!designCode || !equipmentConfig || !inspectionBy || !!idpBlocking || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}

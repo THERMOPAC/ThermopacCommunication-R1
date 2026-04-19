@@ -95,6 +95,25 @@ function normalizeGeneralData(incoming: Partial<GeneralData>): GeneralData {
   return { ...emptyGeneralData(), ...incoming };
 }
 
+// Validates that Internal Design Pressure / MAWP is present and numeric
+// for every column that requires it given the equipment config.
+function validateIdpNumeric(equipmentConfig: string, mech: MechanicalData): string[] {
+  const errors: string[] = [];
+  const check = (col: MechanicalColumn | null, label: string, required: boolean) => {
+    if (!required || !col) return;
+    const v = col.internalDesignPressureMawp;
+    if (!v || isNaN(parseFloat(v))) {
+      errors.push(`${label} Internal Design Pressure / MAWP: Numeric value required.`);
+    }
+  };
+  const hasTube   = equipmentConfig === 'Heat Exchanger' || equipmentConfig === 'Jacketed Vessel and Heat Exchanger';
+  const hasJacket = equipmentConfig === 'Jacketed Vessel'  || equipmentConfig === 'Jacketed Vessel and Heat Exchanger';
+  check(mech.shell,  'Shell',       true);
+  check(mech.tube,   'Tube',        hasTube);
+  check(mech.jacket, 'Jacket 1&2',  hasJacket);
+  return errors;
+}
+
 /**
  * AS 4343:2014 table lookup — mirrors frontend as4343Derive()
  * Vessels:  energyProduct = P(MPa) × V(litres)       → thresholds MPa·L
@@ -652,6 +671,12 @@ router.post('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Res
   const auto = await resolveAutoFields(dwg);
 
   let normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
+
+  const idpErrors = validateIdpNumeric(equipmentConfig, normalizedMechanical);
+  if (idpErrors.length > 0) {
+    return res.status(422).json({ error: idpErrors.join(' ') });
+  }
+
   const normalizedGeneral = normalizeGeneralData(generalData || {});
   const { columnHazardData: processedColHazard, mechanical: finalMechanical } =
     processColumnHazardData(effectiveColHazard, 'draft', normalizedMechanical);
@@ -751,6 +776,12 @@ router.put('/:dwgControlId', ensureAuthenticated, async (req: Request, res: Resp
   const auto = await resolveAutoFields(dwg);
 
   let normalizedMechanical = normalizeMechanicalData(equipmentConfig, mechanicalData || {});
+
+  const idpErrors = validateIdpNumeric(equipmentConfig, normalizedMechanical);
+  if (idpErrors.length > 0) {
+    return res.status(422).json({ error: idpErrors.join(' ') });
+  }
+
   const normalizedGeneral = normalizeGeneralData(generalData || {});
   const { columnHazardData: processedColHazard, mechanical: finalMechanical } =
     processColumnHazardData(effectiveColHazard, dwg.status, normalizedMechanical);
