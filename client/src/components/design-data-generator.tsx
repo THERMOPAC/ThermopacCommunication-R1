@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown } from 'lucide-react';
+import { Loader2, FileSpreadsheet, AlertTriangle, CheckCircle2, Edit3, Shield, ChevronDown, ChevronRight, Download, ExternalLink, RefreshCw, FileDown, Lock } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2513,6 +2513,20 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
               {/* Mechanical columns */}
               {equipmentConfig && (() => {
+                const hasAppliedCode = !!colHazard.shell.appliedCode;
+
+                if (!hasAppliedCode) {
+                  return (
+                    <div>
+                      <div className="text-xs font-semibold mb-3 uppercase tracking-wide text-slate-600">Mechanical Design Data</div>
+                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 py-8 flex items-center justify-center gap-2 text-[11px] text-slate-400 select-none">
+                        <Lock className="h-3.5 w-3.5 shrink-0" />
+                        Select Applied Code to enable Mechanical Design Data
+                      </div>
+                    </div>
+                  );
+                }
+
                 // Compute per-column derived hazard level to display in mechanical form
                 function colLevel(hazard: HazardData | null, mechCol: MechanicalColumn): string | null {
                   if (!hazard?.appliedCode) return null;
