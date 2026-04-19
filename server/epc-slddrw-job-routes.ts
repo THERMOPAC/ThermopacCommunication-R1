@@ -23,7 +23,7 @@ import multer from 'multer';
 import { createHash } from 'crypto';
 import { db } from './db';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { epcAgentNodes, epcSlddrwExtractionJobs } from '@shared/schema';
+import { epcAgentNodes, epcSlddrwExtractionJobs, epcDrawingControls } from '@shared/schema';
 import { runDdsComparison } from './utils/dds-comparison-engine';
 import gcsClient, { bucketName } from './utils/storage-config';
 
@@ -461,6 +461,89 @@ router.post('/epc-slddrw-jobs', async (req: Request, res: Response) => {
 
   console.log(`[Jobs] Created extraction job ${job.id} for drawing_control ${drawingControlId}`);
   return res.status(201).json({ ok: true, jobId: job.id });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/epc-drawing-controls/:id/approve
+//
+// Approval gate — enforces DDS comparison result before allowing approval.
+// Requires authenticated session with superuser or admin role.
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post('/epc-drawing-controls/:id/approve', async (req: Request, res: Response) => {
+  if (!(req as any).isAuthenticated?.()) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const user = (req as any).user;
+  const role = String(user?.role ?? '').toLowerCase();
+  if (role !== 'superuser' && role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden — superuser or admin required' });
+  }
+
+  const drawingControlId = parseInt(req.params.id, 10);
+  if (isNaN(drawingControlId)) return res.status(400).json({ error: 'Invalid ID' });
+
+  // Find the latest completed extraction job for this drawing control
+  const [latestJob] = await db
+    .select({
+      id:                  epcSlddrwExtractionJobs.id,
+      ddsComparisonStatus: epcSlddrwExtractionJobs.ddsComparisonStatus,
+    })
+    .from(epcSlddrwExtractionJobs)
+    .where(and(
+      eq(epcSlddrwExtractionJobs.drawingControlId, drawingControlId),
+      eq(epcSlddrwExtractionJobs.status, 'completed'),
+    ))
+    .orderBy(desc(epcSlddrwExtractionJobs.createdAt))
+    .limit(1);
+
+  if (!latestJob) {
+    return res.status(422).json({ error: 'No completed extraction job found for this drawing control' });
+  }
+
+  const ddsStatus = latestJob.ddsComparisonStatus;
+
+  if (!ddsStatus) {
+    return res.status(422).json({ error: 'DDS comparison not yet complete — please wait and try again' });
+  }
+
+  if (ddsStatus === 'fail') {
+    return res.status(422).json({
+      error: 'DDS comparison failed — critical parameter mismatch blocks approval',
+      dds_status: 'fail',
+    });
+  }
+
+  if (ddsStatus === 'blocked') {
+    return res.status(422).json({
+      error: 'DDS comparison blocked — no DDS record found, resolve before approving',
+      dds_status: 'blocked',
+    });
+  }
+
+  if (ddsStatus === 'warn') {
+    const ack = req.body?.acknowledge_warnings === true;
+    if (!ack) {
+      return res.status(422).json({
+        error: 'DDS comparison has warnings — set acknowledge_warnings: true to confirm you have reviewed them',
+        dds_status: 'warn',
+      });
+    }
+  }
+
+  // Gate passed — approve the drawing control
+  await db
+    .update(epcDrawingControls)
+    .set({
+      approvedBy: user?.id ? Number(user.id) : null,
+      approvedAt: new Date(),
+      status:     'approved',
+    })
+    .where(eq(epcDrawingControls.id, drawingControlId));
+
+  console.log(`[Approve] drawing_control ${drawingControlId} approved by user ${user?.id ?? user?.username} (dds_status=${ddsStatus})`);
+  return res.json({ ok: true, status: 'approved' });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

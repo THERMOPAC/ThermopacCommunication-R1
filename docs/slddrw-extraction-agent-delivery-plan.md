@@ -64,33 +64,35 @@
 
 ---
 
-## Phase 2 — DDS Comparison Engine (Cloud-side)
+## Phase 2 — DDS Comparison Engine (Cloud-side) ✅ COMPLETE
 
 **Trigger: Phase 1 Step 5 confirmed (live extraction working)**
 
 | Item | Description | Status |
 |---|---|---|
-| `dds_comparison_status` column | Already in `epc_slddrw_extraction_jobs` | ✅ Column exists |
-| `drawing-unit-normalizer.ts` | Normalize barg / °C / mm for numeric comparison | ❌ Not built |
-| Comparison trigger | Auto-run when job transitions to `completed` | ❌ Not built |
-| DDS field mapping | 10 fields: 5 CRITICAL + 5 WARNING (defined in baseline §6b) | ❌ Not built |
-| Outcome logic | `pass` / `fail` / `warn` / `blocked` stored to DB | ❌ Not built |
-| Approval gate — backend | `/approve` API rejects if status = `fail` or `blocked` | ❌ Not built |
-| Approval gate — frontend | Approve button disabled based on `dds_comparison_status` | ❌ Not built |
+| `dds_comparison_status` column | Already in `epc_slddrw_extraction_jobs` | ✅ Done |
+| `drawing-unit-normalizer.ts` | `compareNumeric` / `compareString` — barg/°C/mm/MPa/kPa/psi + more | ✅ Done |
+| Comparison trigger | Auto-run (async, non-blocking) when job → `completed` | ✅ Done |
+| DDS field mapping | 10 fields: 5 CRITICAL + 5 WARNING (§6b) in `dds-comparison-engine.ts` | ✅ Done |
+| Outcome logic | `pass` / `fail` / `warn` / `blocked` written to `dds_comparison_status` + `dds_comparison_result` | ✅ Done |
+| Approval gate — backend | `POST /api/epc-drawing-controls/:id/approve` — rejects `fail`/`blocked`, requires `acknowledge_warnings: true` for `warn` | ✅ Done |
+| Approval gate — frontend | DDS banner in card; Approve button gated by status; warn requires checkbox acknowledgement; polls 5s when comparison pending | ✅ Done |
+
+**Phase 2 is CLOSED.**
 
 ---
 
 ## Phase 3 — Drawing Verification UI (Cloud-side)
 
-**Trigger: Phase 2 complete**
+**Trigger: Phase 2 complete (✅ done)**
 
 | Item | Description | Status |
 |---|---|---|
 | Extraction result display card | Show all 10 extraction modules output | ❌ Not built |
-| DDS comparison result card | Show PASS / FAIL / WARN / BLOCKED per field | ❌ Not built |
-| Warning acknowledgement | Approver must acknowledge WARNING mismatches | ❌ Not built |
-| Approve button + approval flow | Gated by DDS comparison status | ❌ Not built |
-| Release flow | Mark drawing as released after approval | ❌ Not built |
+| DDS comparison result card | Show PASS / FAIL / WARN / BLOCKED per field | ✅ Built in Phase 2 (`_DdsComparisonBanner`) |
+| Warning acknowledgement | Approver must acknowledge WARNING mismatches | ✅ Built in Phase 2 |
+| Approve button + approval flow | Gated by DDS comparison status | ✅ Built in Phase 2 |
+| Release flow | Mark drawing as released after approval (procurement / manufacturing) | ❌ Not built |
 
 ---
 

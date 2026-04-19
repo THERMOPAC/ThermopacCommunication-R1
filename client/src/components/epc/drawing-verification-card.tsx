@@ -59,6 +59,8 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showAllParams, setShowAllParams] = useState(false);
+  const [warnAcknowledged, setWarnAcknowledged] = useState(false);
 
   const { data: jobs = [], isLoading } = useQuery<Job[]>({
     queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'],
@@ -68,6 +70,7 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
       const rows: Job[] = Array.isArray(data) ? data : (data?.state?.data ?? []);
       const latest = rows[0];
       if (latest && ['pending', 'processing'].includes(latest.status)) return 10000;
+      if (latest && latest.status === 'completed' && !latest.ddsComparisonStatus) return 5000;
       return false;
     },
   });
@@ -77,6 +80,20 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
       apiRequest('POST', `/api/epc-slddrw-jobs/${jobId}/retry`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: ({ acknowledgeWarnings }: { acknowledgeWarnings: boolean }) =>
+      apiRequest('POST', `/api/epc-drawing-controls/${drawingControlId}/approve`, {
+        acknowledge_warnings: acknowledgeWarnings,
+      }),
+    onSuccess: () => {
+      toast({ title: 'Drawing approved', description: 'Drawing control has been approved.' });
+      qc.invalidateQueries({ queryKey: ['/api/epc-drawing-controls', drawingControlId, 'slddrw-jobs'] });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Approval failed', description: err?.message ?? 'Unknown error', variant: 'destructive' });
     },
   });
 
@@ -109,7 +126,8 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
   }
 
   const latest = jobs[0] ?? null;
-  const canRetry = userRole === 'superuser' || userRole === 'admin';
+  const _role = userRole.toLowerCase();
+  const canRetry = _role === 'superuser' || _role === 'admin';
   const isUploading = uploadMutation.isPending;
 
   if (isLoading) {
@@ -193,6 +211,65 @@ export function DrawingVerificationCard({ drawingControlId, userRole }: Props) {
               ({latest.retryCount} attempt{latest.retryCount > 1 ? 's' : ''})
             </span>
           )}
+        </div>
+      )}
+
+      {/* ── DDS comparison (completed jobs) ─────────────────────────── */}
+      {latest.status === 'completed' && !latest.ddsComparisonStatus && (
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Analysing drawing against DDS…
+        </div>
+      )}
+      {latest.status === 'completed' && latest.ddsComparisonStatus && latest.ddsComparisonResult && (
+        <_DdsComparisonBanner
+          status={latest.ddsComparisonStatus}
+          results={latest.ddsComparisonResult}
+          showAll={showAllParams}
+          onToggleAll={() => setShowAllParams(s => !s)}
+        />
+      )}
+
+      {/* ── Approve gate ─────────────────────────────────────────────── */}
+      {latest.status === 'completed' && latest.ddsComparisonStatus && canRetry && (
+        <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+          {latest.ddsComparisonStatus === 'warn' && (
+            <label className="flex items-center gap-1.5 text-[10px] text-amber-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="h-3 w-3 accent-amber-600"
+                checked={warnAcknowledged}
+                onChange={e => setWarnAcknowledged(e.target.checked)}
+              />
+              I have reviewed and acknowledge these warnings
+            </label>
+          )}
+          <Button
+            size="sm"
+            className="h-6 text-[10px] px-2 w-full gap-1.5"
+            variant={
+              (latest.ddsComparisonStatus === 'pass' ||
+               (latest.ddsComparisonStatus === 'warn' && warnAcknowledged))
+                ? 'default'
+                : 'outline'
+            }
+            disabled={
+              approveMutation.isPending ||
+              latest.ddsComparisonStatus === 'fail' ||
+              latest.ddsComparisonStatus === 'blocked' ||
+              (latest.ddsComparisonStatus === 'warn' && !warnAcknowledged)
+            }
+            onClick={() => approveMutation.mutate({ acknowledgeWarnings: warnAcknowledged })}
+          >
+            {approveMutation.isPending
+              ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              : <ShieldCheck className="h-2.5 w-2.5" />}
+            {latest.ddsComparisonStatus === 'fail'
+              ? 'Cannot Approve — Critical DDS Mismatch'
+              : latest.ddsComparisonStatus === 'blocked'
+              ? 'Cannot Approve — DDS Not Found'
+              : 'Approve Drawing'}
+          </Button>
         </div>
       )}
 

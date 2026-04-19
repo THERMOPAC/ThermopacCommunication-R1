@@ -155,9 +155,10 @@ export function normalizeValue(raw: string | number | null | undefined): Normali
 }
 
 // ── Numeric comparison with tolerance ─────────────────────────────────────────
-// Returns { match, percentDiff } after unit-normalizing both values.
 // tolerancePct: e.g. 2 = ±2%
-export function compareNumeric(
+
+/** Full detail — includes normalized values and percent diff. */
+export function compareNumericDetail(
   a: string | null | undefined,
   b: string | null | undefined,
   tolerancePct = 2,
@@ -179,6 +180,18 @@ export function compareNumeric(
 
   const percentDiff = Math.abs((va - vb) / vb) * 100;
   return { match: percentDiff <= tolerancePct, percentDiff, normalizedA: na, normalizedB: nb };
+}
+
+/**
+ * Simple comparison expected by dds-comparison-engine.ts.
+ * Returns: true (match) | false (mismatch) | null (low confidence / unparseable)
+ */
+export function compareNumeric(
+  a: string | null | undefined,
+  b: string | null | undefined,
+  tolerancePct = 2,
+): boolean | null {
+  return compareNumericDetail(a, b, tolerancePct).match;
 }
 
 // ── String comparison (normalised) ────────────────────────────────────────────
