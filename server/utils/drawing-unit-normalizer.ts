@@ -24,9 +24,9 @@ const PRESSURE_TO_BARG: Record<string, number> = {
   psig: 1 / 14.5038,
   psia: 1 / 14.5038,
   kpa:  1 / 100,
-  mpa:  10.1972,
-  'n/mm2': 10.1972,
-  'n/mm²': 10.1972,
+  mpa:  10,
+  'n/mm2': 10,
+  'n/mm²': 10,
   atm:  1.01325,
   kgcm2: 0.980665,
   'kg/cm2': 0.980665,
@@ -155,13 +155,13 @@ export function normalizeValue(raw: string | number | null | undefined): Normali
 }
 
 // ── Numeric comparison with tolerance ─────────────────────────────────────────
-// tolerancePct: e.g. 2 = ±2%
+// tolerancePct: e.g. 1 = ±1%  (baseline REL_TOL = 0.01)
 
 /** Full detail — includes normalized values and percent diff. */
 export function compareNumericDetail(
   a: string | null | undefined,
   b: string | null | undefined,
-  tolerancePct = 2,
+  tolerancePct = 1,
 ): { match: boolean | null; percentDiff: number | null; normalizedA: NormalizedValue; normalizedB: NormalizedValue } {
   const na = normalizeValue(a ?? null);
   const nb = normalizeValue(b ?? null);
@@ -189,7 +189,7 @@ export function compareNumericDetail(
 export function compareNumeric(
   a: string | null | undefined,
   b: string | null | undefined,
-  tolerancePct = 2,
+  tolerancePct = 1,
 ): boolean | null {
   return compareNumericDetail(a, b, tolerancePct).match;
 }
