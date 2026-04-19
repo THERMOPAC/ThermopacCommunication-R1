@@ -355,11 +355,8 @@ function calcHydroTestPressure(internalPressureBarg: number, disciplineCode: str
 function parseOperatingMax(operatingTempMinMax: string | null | undefined): number | null {
   if (!operatingTempMinMax) return null;
   const parts = operatingTempMinMax.split('/').map(s => s.trim());
-  if (parts.length >= 2) {
-    const max = parseFloat(parts[1]);
-    return isNaN(max) ? null : max;
-  }
-  return null;
+  const max = parseFloat(parts.length >= 2 ? parts[1] : parts[0]);
+  return isNaN(max) ? null : max;
 }
 
 function parseOperatingMin(operatingTempMinMax: string | null | undefined): number | null {
