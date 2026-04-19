@@ -878,12 +878,12 @@ function SmartMechanicalColumnForm({
   }
 
   const isApiDiscipline = (disciplineCode || '').toLowerCase().includes('api 650');
+  const gateOpen = !!(data.workingPressure && data.operatingTempMinMax);
+  const isGateField = (p: (typeof MECH_PARAM_LABELS)[0]) =>
+    p.key === 'workingPressure' || p.key === 'operatingTempMinMax';
 
-  return (
-    <div className="space-y-1">
-      <div className="text-[10px] font-bold text-center uppercase bg-gray-100 py-0.5 rounded">{label}</div>
-      {MECH_PARAM_LABELS.map((p) => {
-        const val = data[p.key] ?? '';
+  const renderRow = (p: (typeof MECH_PARAM_LABELS)[0]) => {
+    const val = data[p.key] ?? '';
 
         if (p.key === 'mdmt') {
           return (
@@ -1343,7 +1343,20 @@ function SmartMechanicalColumnForm({
             </div>
           </div>
         );
-      })}
+  };
+
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] font-bold text-center uppercase bg-gray-100 py-0.5 rounded">{label}</div>
+      {MECH_PARAM_LABELS.filter(isGateField).map(renderRow)}
+      {!gateOpen && (
+        <div className="text-[8px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 text-center leading-tight">
+          Enter Working Pressure and Operating Temperature to enable fields
+        </div>
+      )}
+      <div className={!gateOpen ? 'pointer-events-none opacity-40' : ''}>
+        {MECH_PARAM_LABELS.filter(p => !isGateField(p)).map(renderRow)}
+      </div>
     </div>
   );
 }
