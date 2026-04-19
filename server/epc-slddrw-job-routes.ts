@@ -371,6 +371,64 @@ router.post('/epc-slddrw-jobs/:id/retry', async (req: Request, res: Response) =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ⚠️  TEST MODE ONLY
+// POST /api/epc-slddrw-jobs/:id/mock-complete
+// Simulates agent extraction completion for Phase 1 pipeline validation
+// without SolidWorks. Returns 403 in production (NODE_ENV=production).
+// Does NOT touch the production /complete endpoint.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const mockExtractionResultSchema = extractionResultSchema.extend({
+  file: z.object({
+    original_filename: z.string().min(1),
+    sha256:            z.string(),    // relaxed: accepts TEST_SHA256_PLACEHOLDER
+    file_size_bytes:   z.number(),    // relaxed: accepts 0
+  }),
+});
+
+router.post('/epc-slddrw-jobs/:id/mock-complete', async (req: Request, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ error: '[TEST MODE] This endpoint is disabled in production.' });
+  }
+
+  const jobId = parseInt(req.params.id, 10);
+  if (isNaN(jobId)) return res.status(400).json({ error: 'Invalid job ID' });
+
+  const [job] = await db
+    .select({ id: epcSlddrwExtractionJobs.id, status: epcSlddrwExtractionJobs.status })
+    .from(epcSlddrwExtractionJobs)
+    .where(eq(epcSlddrwExtractionJobs.id, jobId))
+    .limit(1);
+
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  const parseResult = mockExtractionResultSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({
+      error: '[TEST MODE] Invalid extraction result',
+      details: parseResult.error.flatten(),
+    });
+  }
+
+  const extraction = parseResult.data;
+
+  await db
+    .update(epcSlddrwExtractionJobs)
+    .set({
+      status:           'completed',
+      extractionResult: extraction as any,
+      completedAt:      new Date(),
+      nodeId:           extraction.agent.node_id,
+      agentVersion:     extraction.agent.agent_version,
+      machineName:      extraction.agent.machine_name ?? null,
+    })
+    .where(eq(epcSlddrwExtractionJobs.id, jobId));
+
+  console.log(`[TEST MODE] mock-complete applied to job ${jobId} — node=${extraction.agent.node_id}`);
+  return res.json({ ok: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/epc-drawing-controls/:id/upload-slddrw
 // UI upload: accepts multipart .slddrw file, stores to GCS, creates pending job
 // ─────────────────────────────────────────────────────────────────────────────
