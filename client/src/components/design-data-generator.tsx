@@ -612,6 +612,13 @@ const FIELD_DEFAULTS: Partial<Record<keyof MechanicalColumn, string>> = {
 
 const PHYSICAL_STATE_OPTIONS = ['Fluid', 'Vapor', 'Mixture of Fluid and Vapor'];
 const SERVICE_FLUID_OPTIONS = ['Water', 'Hydrocarbon', 'Caustic (NaOH)', 'Steam condensate', 'Thermic Fluid'];
+const SG_BY_SERVICE_FLUID: Record<string, string> = {
+  'Water':             '1.00 / —',
+  'Hydrocarbon':       '0.85 / —',
+  'Caustic (NaOH)':   '1.20 / —',
+  'Steam condensate':  '1.00 / —',
+  'Thermic Fluid':     '0.90 / —',
+};
 const CORROSION_ALLOWANCE_OPTIONS = ['1', '1.5', '2', '2.5', '3'];
 const RADIOGRAPHY_OPTIONS = ['FULL RADIOGRAPHY (100% RT)', 'SPOT RADIOGRAPHY 10%', 'SPOT RADIOGRAPHY 5%'];
 const PWHT_OPTIONS = ['NOT REQUIRED', 'REQUIRED'];
@@ -904,6 +911,11 @@ function SmartMechanicalColumnForm({
         const newAutoDesign = computeAutoDesign(rawValue);
         updated.designTempMinMax = newAutoDesign;
       }
+    }
+
+    if (key === 'serviceFluid') {
+      const sg = SG_BY_SERVICE_FLUID[rawValue];
+      if (sg) updated.specificGravity = sg;
     }
 
     onChange(updated);
@@ -1435,6 +1447,34 @@ function SmartMechanicalColumnForm({
                 ) : storedVal && storedVal === autoVal ? (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-blue-600 border-blue-300 bg-blue-50">OK</Badge>
                 ) : null}
+              </div>
+            </div>
+          );
+        }
+
+        if (p.key === 'specificGravity') {
+          const sfVal = data.serviceFluid || '';
+          const isSynced = !!SG_BY_SERVICE_FLUID[sfVal];
+          const displayVal = val || '0.85 / —';
+          return (
+            <div key={p.key} className="flex items-center gap-4">
+              <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground leading-tight">{p.label}</Label>
+              <div className="flex-1 flex items-center gap-1">
+                {isSynced ? (
+                  <div className="h-6 text-[10px] px-1.5 flex-1 flex items-center rounded border border-blue-200 bg-blue-50 text-blue-800 select-none cursor-default">
+                    {displayVal}
+                  </div>
+                ) : (
+                  <Input
+                    className="h-6 text-[10px] px-1.5 flex-1"
+                    value={displayVal}
+                    onChange={(e) => handleChange(p.key, e.target.value)}
+                    placeholder="N.A."
+                  />
+                )}
+                {isSynced && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-blue-600 border-blue-300 bg-blue-50">Synced</Badge>
+                )}
               </div>
             </div>
           );
@@ -2065,11 +2105,6 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     );
     const design = col.designTempMinMax ?? computeAutoDesign(col.operatingTempMinMax);
     const effectiveServiceFluid = col.serviceFluid ?? 'Hydrocarbon';
-    const sgDefault = effectiveServiceFluid === 'Water' ? '1.0 / —'
-      : effectiveServiceFluid === 'Steam condensate' ? '1.0 / —'
-      : effectiveServiceFluid === 'Thermic Fluid' ? '0.90 / —'
-      : effectiveServiceFluid === 'Caustic (NaOH)' ? '1.25 / —'
-      : '0.85 / —';
     return {
       ...col,
       mdmt: projMdmt,
@@ -2081,7 +2116,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
       physicalState: hazardFluidState ?? col.physicalState ?? 'Fluid',
       serviceFluid: effectiveServiceFluid,
-      specificGravity: col.specificGravity ?? sgDefault,
+      specificGravity: SG_BY_SERVICE_FLUID[effectiveServiceFluid] ?? col.specificGravity ?? '0.85 / —',
       internalCorrosionAllowanceMm: col.internalCorrosionAllowanceMm ?? '1.5',
       externalCorrosionAllowanceMm: col.externalCorrosionAllowanceMm ?? '1.5',
       radiography: col.radiography ?? 'FULL RADIOGRAPHY (100% RT)',
