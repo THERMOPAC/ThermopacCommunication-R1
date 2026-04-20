@@ -620,7 +620,7 @@ const SG_BY_SERVICE_FLUID: Record<string, string> = {
   'Thermic Fluid':     '0.90 / —',
 };
 const CORROSION_ALLOWANCE_OPTIONS = ['1', '1.5', '2', '2.5', '3'];
-const RADIOGRAPHY_OPTIONS = ['FULL RADIOGRAPHY (100% RT)', 'SPOT RADIOGRAPHY 10%', 'SPOT RADIOGRAPHY 5%'];
+const RADIOGRAPHY_OPTIONS = ['FULL RADIOGRAPHY (100% RT)', 'SPOT RADIOGRAPHY (10% RT)', 'SPOT RADIOGRAPHY (5% RT)', 'NO RADIOGRAPHY'];
 const PWHT_OPTIONS = ['NOT REQUIRED', 'REQUIRED'];
 const TYPE_OF_HEADS_OPTIONS = ['TORISPHERICAL (10%)', 'ELLIPSOIDAL (2:1)', 'HEMISPHERICAL', 'FLAT HEAD', 'CONICAL HEAD', 'DISHED END (F&D)', 'N.A.'];
 const INSULATION_OPTIONS = ['YES', 'NO'];
@@ -769,9 +769,10 @@ function seedLocationAndQty(
 }
 
 const JOINT_EFFICIENCY_BY_RADIOGRAPHY: Record<string, string> = {
-  'FULL RADIOGRAPHY (100% RT)': '1 / 1 / 1',
-  'SPOT RADIOGRAPHY 10%': '0.85 / 0.85 / 0.85',
-  'SPOT RADIOGRAPHY 5%': '0.7 / 0.7 / 0.7',
+  'FULL RADIOGRAPHY (100% RT)':  '1 / 1 / 1',
+  'SPOT RADIOGRAPHY (10% RT)':   '1 / 1 / 1',
+  'SPOT RADIOGRAPHY (5% RT)':    '0.85 / 0.85 / 0.85',
+  'NO RADIOGRAPHY':              '0.70 / 0.70 / 0.70',
 };
 
 function deriveJointEfficiencyDefault(radiography: string | null | undefined): string {
@@ -779,9 +780,10 @@ function deriveJointEfficiencyDefault(radiography: string | null | undefined): s
 }
 
 const TESTING_GROUP_BY_RADIOGRAPHY: Record<string, string> = {
-  'FULL RADIOGRAPHY (100% RT)': 'Testing Group 1',
-  'SPOT RADIOGRAPHY 10%': 'Testing Group 2',
-  'SPOT RADIOGRAPHY 5%': 'Testing Group 3',
+  'FULL RADIOGRAPHY (100% RT)':  'Testing Group 1',
+  'SPOT RADIOGRAPHY (10% RT)':   'Testing Group 1',
+  'SPOT RADIOGRAPHY (5% RT)':    'Testing Group 2',
+  'NO RADIOGRAPHY':              'Testing Group 3',
 };
 
 function isTestingGroupApplicable(appliedCode: string | null | undefined): boolean {
