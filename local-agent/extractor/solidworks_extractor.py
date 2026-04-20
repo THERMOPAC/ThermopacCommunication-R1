@@ -184,8 +184,10 @@ def _prepare_sw_makepy_cache(progid: str, logger) -> None:
         tla = tl.GetLibAttr()
         clsid_b = str(tla[0]); major_b = tla[3]; minor_b = tla[4]
         logger.info(f"[Makepy-B] TypeLib attrs: {clsid_b}  v{major_b}.{minor_b}")
+        # Pass the ITypeLib object (not the CLSID string) so EnsureModule
+        # uses the already-loaded library without going back to the registry.
         win32com.client.gencache.EnsureModule(
-            clsid_b, 0, major_b, minor_b, bForDemand=False, bBuildHidden=True)
+            tl, 0, major_b, minor_b, bForDemand=False, bBuildHidden=True)
         logger.info("[Makepy-B] Success — cache seeded via sldworks.exe LocalServer32")
         return
 
@@ -271,8 +273,10 @@ def _prepare_sw_makepy_cache(progid: str, logger) -> None:
                         logger.debug(f"[Makepy-C] {os.path.basename(candidate)}: "
                                      f"CLSID {clsid_c} ≠ {tl_clsid} — skipping")
                         continue
+                    # Pass the ITypeLib object (not the CLSID string) so EnsureModule
+                    # uses the already-loaded library without going back to the registry.
                     win32com.client.gencache.EnsureModule(
-                        clsid_c, 0, major_c, minor_c,
+                        tl, 0, major_c, minor_c,
                         bForDemand=False, bBuildHidden=True)
                     logger.info(f"[Makepy-C] Success — cache seeded from {candidate}")
                     return
@@ -352,8 +356,9 @@ def _seed_makepy_from_com_object(com_obj, logger) -> bool:
         tla = tlib.GetLibAttr()
         clsid_e = str(tla[0]); major_e = tla[3]; minor_e = tla[4]
         logger.info(f"[Makepy-E] COM object TypeLib: {clsid_e}  v{major_e}.{minor_e}")
+        # Pass the ITypeLib object directly — bypasses registry lookup
         win32com.client.gencache.EnsureModule(
-            clsid_e, 0, major_e, minor_e, bForDemand=False, bBuildHidden=True)
+            tlib, 0, major_e, minor_e, bForDemand=False, bBuildHidden=True)
         logger.info("[Makepy-E] Post-connect cache seeded — CastTo now available")
         return True
     except Exception as e:
