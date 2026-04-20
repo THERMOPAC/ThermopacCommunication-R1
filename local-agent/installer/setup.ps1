@@ -465,6 +465,9 @@ Write-Step "Creating run scripts..."
 $run_bat = @"
 @echo off
 title ThermopacAgent v$AGENT_VERSION
+:: UTF-8 output — prevents UnicodeEncodeError on Windows cp1252 consoles
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
 echo.
 echo  ThermopacAgent — SolidWorks Extraction Agent
 echo  THERMOPAC ERP Integration

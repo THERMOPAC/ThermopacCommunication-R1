@@ -84,6 +84,8 @@ jobs:
       - name: Run agent self-test (--test mode)
         working-directory: local-agent
         env:
+          PYTHONIOENCODING: utf-8   # prevent UnicodeEncodeError on Windows cp1252 console
+          PYTHONUTF8: "1"           # Python 3.7+ UTF-8 mode — applies to all I/O streams
           THERMOPAC_API_URL: ${{ secrets.THERMOPAC_API_URL }}
           THERMOPAC_NODE_ID: ${{ secrets.THERMOPAC_NODE_ID }}
           THERMOPAC_NODE_TOKEN: ${{ secrets.THERMOPAC_NODE_TOKEN }}
