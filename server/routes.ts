@@ -177,16 +177,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/auth/google/callback', handleOAuthCallback);
   
   // Agent file download (no auth required — Windows PC needs this)
-  app.get('/downloads/solidworks_extractor.py', (req: any, res: any) => {
+  app.get('/api/agent-files/solidworks_extractor.py', (req: any, res: any) => {
     const path = require('path');
     const fs = require('fs');
-    const filePath = path.join(process.cwd(), 'client', 'public', 'solidworks_extractor.py');
+    const filePath = path.resolve(process.cwd(), 'client', 'public', 'solidworks_extractor.py');
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
     }
-    res.setHeader('Content-Disposition', 'attachment; filename="solidworks_extractor.py"');
-    res.setHeader('Content-Type', 'text/x-python');
-    res.sendFile(filePath);
+    res.download(filePath, 'solidworks_extractor.py');
   });
 
   // Register sample Excel download route BEFORE authentication to avoid middleware issues
