@@ -208,6 +208,21 @@ def run_extraction(temp_path: str, config, cancel_event: threading.Event,
             except Exception:
                 pass
 
+        # Apply model_search_path from config so SW can find referenced parts/assemblies
+        # swSearchFolderTypes_e: 1=Parts, 2=Assemblies, 4=Drawings, 7=ReferencedDocuments
+        if getattr(config, "sw_model_search_path", ""):
+            raw = config.sw_model_search_path
+            # SW expects newline-delimited list; accept both ";" and "\n" from config
+            folder_list = "\r\n".join(
+                p.strip() for p in raw.replace(";", "\n").splitlines() if p.strip()
+            )
+            for folder_type in [1, 2, 7]:
+                try:
+                    swApp.SetSearchFolders(folder_type, folder_list)
+                except Exception:
+                    pass
+            logger.info(f"[Extractor] SW model search path applied: {raw}")
+
         swModel  = None
         pass_num = 0
         err_val  = 0
