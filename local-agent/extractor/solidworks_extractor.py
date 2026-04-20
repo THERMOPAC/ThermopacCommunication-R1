@@ -32,11 +32,6 @@ try:
 except ImportError:
     WIN32GUI_AVAILABLE = False
 
-try:
-    import winreg
-    WINREG_AVAILABLE = True
-except ImportError:
-    WINREG_AVAILABLE = False
 
 from extractor.extract_properties    import ExtractProperties
 from extractor.extract_sheets        import ExtractSheets
@@ -80,59 +75,6 @@ def _decode_sw_error(code: int) -> str:
         return "0 (none)"
     parts = [name for bit, name in _SW_OPEN_ERRORS.items() if code & bit]
     return f"{code} ({', '.join(parts) if parts else 'unknown'})"
-
-
-def _ensure_sw_makepy(progid: str, logger) -> bool:
-    """
-    Generate win32com makepy (early-binding) cache for the SolidWorks type library
-    using only the Windows registry — no COM instance is created.
-
-    Without this cache, win32com.client.CastTo('IDrawingDoc') fails with
-    'cannot automate the makepy process'.  With the cache, IDrawingDoc-specific
-    methods (GetCurrentSheet, GetFirstView, ActivateSheet) are accessible.
-
-    Returns True if cache is confirmed present, False if unavailable.
-    """
-    if not WINREG_AVAILABLE or not PYWIN32_AVAILABLE:
-        logger.warning("[Extractor] winreg/pywin32 unavailable — makepy skipped")
-        return False
-
-    try:
-        # 1. Resolve TypeLib CLSID from ProgID registry entry
-        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, f"{progid}\\TypeLib") as k:
-            typelib_clsid = winreg.QueryValue(k, "")
-        logger.info(f"[Extractor] SW TypeLib CLSID: {typelib_clsid}")
-
-        # 2. Find the highest available version under TypeLib\{CLSID}
-        versions = []
-        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, f"TypeLib\\{typelib_clsid}") as k:
-            idx = 0
-            while True:
-                try:
-                    ver_str = winreg.EnumKey(k, idx)
-                    idx += 1
-                    try:
-                        parts = ver_str.split(".")
-                        major = int(parts[0])
-                        minor = int(parts[1]) if len(parts) > 1 else 0
-                        versions.append((major, minor))
-                    except Exception:
-                        pass
-                except OSError:
-                    break
-        if not versions:
-            raise ValueError(f"No version entries found for TypeLib {typelib_clsid}")
-        major, minor = sorted(versions)[-1]
-        logger.info(f"[Extractor] SW TypeLib version: {major}.{minor}")
-
-        # 3. Generate (or confirm) the makepy cache module
-        win32com.client.gencache.EnsureModule(typelib_clsid, 0, major, minor)
-        logger.info(f"[Extractor] makepy cache ready — CastTo(IDrawingDoc) available")
-        return True
-
-    except Exception as e:
-        logger.warning(f"[Extractor] makepy cache generation failed: {e}")
-        return False
 
 
 def _get_user_sw_search_paths(progid: str, logger) -> dict:
@@ -281,16 +223,19 @@ def run_extraction(temp_path: str, config, cancel_event: threading.Event,
         _check_cancel(cancel_event, "before SW launch")
         logger.info(f"[Extractor] Launching SolidWorks ({config.sw_progid})…")
         t_launch = time.monotonic()
-        # ── Generate makepy cache (required for CastTo IDrawingDoc) ──────────
-        # Reads SolidWorks type library info from Windows registry — no COM
-        # instance created.  Must run before DispatchEx so the cache is ready
-        # when we call CastTo after OpenDoc.
-        _ensure_sw_makepy(config.sw_progid, logger)
-
         # ── Inherit search paths from user's running SW session (read-only) ───
         inherited_paths = _get_user_sw_search_paths(config.sw_progid, logger)
 
-        swApp = win32com.client.DispatchEx(config.sw_progid)
+        # ── Launch SW via gencache.EnsureDispatch ────────────────────────────
+        # gencache.EnsureDispatch connects to the SolidWorks COM server and reads
+        # its type library, generating the makepy early-binding cache on demand.
+        # Without this, win32com.client.CastTo("IDrawingDoc") fails with
+        # "cannot automate the makepy process".
+        # Using the version-independent ProgID "SldWorks.Application" so the
+        # cache is generated for whatever SW version is installed.
+        logger.info("[Extractor] Loading SolidWorks type library via gencache.EnsureDispatch…")
+        swApp = win32com.client.gencache.EnsureDispatch("SldWorks.Application")
+        logger.info("[Extractor] makepy loaded — SolidWorks type library available")
         swApp.Visible = config.sw_visible
         swApp.UserControlBackground = True
         logger.info(f"[Extractor] SolidWorks ready ({time.monotonic() - t_launch:.1f}s)")
@@ -475,14 +420,19 @@ def run_extraction(temp_path: str, config, cancel_event: threading.Event,
 
         # ── QueryInterface to IDrawingDoc ─────────────────────────────────────
         # OpenDoc returns IModelDoc2. Drawing-specific methods (GetCurrentSheet,
-        # GetFirstView, GetNextView, ActivateSheet) are defined on IDrawingDoc,
-        # not IModelDoc2. CastTo() performs a COM QueryInterface to that interface.
-        swDraw = swModel  # safe fallback (IModelDoc2)
+        # GetFirstView, GetNextView, ActivateSheet) live on IDrawingDoc.
+        # CastTo() uses the makepy cache generated by gencache.EnsureDispatch
+        # above to perform a COM QueryInterface to IDrawingDoc.
+        # No IModelDoc2 fallback — drawing extraction REQUIRES IDrawingDoc.
+        swDraw = win32com.client.CastTo(swModel, "IDrawingDoc")
+        logger.info("[Extractor] CastTo IDrawingDoc: OK")
+
+        # Confirm GetFirstView is accessible
         try:
-            swDraw = win32com.client.CastTo(swModel, "IDrawingDoc")
-            logger.info("[Extractor] CastTo IDrawingDoc: OK — drawing-specific methods available")
+            _test_view = swDraw.GetFirstView()
+            logger.info(f"[Extractor] GetFirstView confirmed accessible (returned {'view' if _test_view else 'None — sheet may not be active yet'})")
         except Exception as e:
-            logger.warning(f"[Extractor] CastTo IDrawingDoc failed ({e}); using IModelDoc2")
+            raise RuntimeError(f"IDrawingDoc.GetFirstView not accessible after CastTo: {e}")
 
         # ── Run modules ───────────────────────────────────────────────────────
         modules = [
