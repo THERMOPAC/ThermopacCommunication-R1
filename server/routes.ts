@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
 import { setupAuth } from "./auth";
 import { ensureAuthenticated } from "./auth-middleware";
 import { storage } from "./storage";
@@ -178,8 +180,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Agent file download (no auth required — Windows PC needs this)
   app.get('/api/agent-files/solidworks_extractor.py', (req: any, res: any) => {
-    const path = require('path');
-    const fs = require('fs');
     const filePath = path.resolve(process.cwd(), 'client', 'public', 'solidworks_extractor.py');
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
