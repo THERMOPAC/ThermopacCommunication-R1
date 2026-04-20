@@ -52,84 +52,27 @@ jobs:
           Write-Host "::notice::Building version $ver"
           echo "ver=$ver" >> $env:GITHUB_OUTPUT
 
-      # ── Python 3.11 (build toolchain) ─────────────────────────────────────────
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          architecture: 'x64'
-
-      # ── Install build dependencies ────────────────────────────────────────────
-      - name: Install Python dependencies
+      # ── Stage agent source files ──────────────────────────────────────────────
+      # Instead of compiling to an EXE (which triggers AV/Defender blocks),
+      # ship the raw Python source.  The bundled Python embeddable (next step)
+      # runs main.py directly — no binary, no false-positive detections.
+      - name: Stage agent source files
         working-directory: local-agent
         run: |
-          python -m pip install --upgrade pip
-          pip install pywin32 requests pyinstaller pywin32-ctypes
+          $dest = "dist\ThermopacAgent"
+          New-Item -ItemType Directory -Path $dest -Force | Out-Null
 
-      # ── PyInstaller — build ThermopacAgent.exe ────────────────────────────────
-      - name: Build EXE with PyInstaller
-        working-directory: local-agent
-        env:
-          PYTHONUTF8: "1"
-          PYTHONIOENCODING: utf-8
-        run: |
-          pyinstaller `
-            --name ThermopacAgent `
-            --onedir `
-            --console `
-            --clean `
-            --noconfirm `
-            --distpath dist `
-            --workpath build `
-            --specpath . `
-            --add-data "extractor;extractor" `
-            --add-data "agent;agent" `
-            --hidden-import win32com `
-            --hidden-import win32com.client `
-            --hidden-import win32com.client.gencache `
-            --hidden-import pythoncom `
-            --hidden-import pywintypes `
-            --hidden-import win32api `
-            --hidden-import win32con `
-            --hidden-import winreg `
-            --hidden-import requests `
-            --hidden-import configparser `
-            --paths agent `
-            --paths extractor `
-            agent\main.py
+          # Copy Python source packages
+          Copy-Item -Path "agent"     -Destination "$dest\agent"     -Recurse -Force
+          Copy-Item -Path "extractor" -Destination "$dest\extractor" -Recurse -Force
 
-      # ── Verify EXE ────────────────────────────────────────────────────────────
-      - name: Verify EXE
-        working-directory: local-agent
-        run: |
-          $exe = "dist\ThermopacAgent\ThermopacAgent.exe"
-          if (!(Test-Path $exe)) {
-            Write-Error "ThermopacAgent.exe not found"
-            Get-ChildItem dist -Recurse -ErrorAction SilentlyContinue
-            exit 1
-          }
-          $sizeMB = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-          Write-Host "EXE OK: $exe ($sizeMB MB)"
-
-      # ── Self-test (no SolidWorks needed) ──────────────────────────────────────
-      - name: Run agent self-test
-        working-directory: local-agent
-        env:
-          PYTHONUTF8: "1"
-          PYTHONIOENCODING: utf-8
-          THERMOPAC_API_URL: ${{ secrets.THERMOPAC_API_URL }}
-          THERMOPAC_NODE_ID: ${{ secrets.THERMOPAC_NODE_ID }}
-          THERMOPAC_NODE_TOKEN: ${{ secrets.THERMOPAC_NODE_TOKEN }}
-        run: |
-          & "dist\ThermopacAgent\ThermopacAgent.exe" --test `
-            --api-url    "$env:THERMOPAC_API_URL" `
-            --node-id    "$env:THERMOPAC_NODE_ID" `
-            --node-token "$env:THERMOPAC_NODE_TOKEN"
-        continue-on-error: true   # non-fatal — cloud secrets may not be set in CI
+          Write-Host "Staged source files:"
+          Get-ChildItem $dest -Recurse | Select-Object FullName | Format-Table -HideTableHeaders
 
       # ── Download Python embeddable for bundling ───────────────────────────────
       # Provides dist\python\ so InnoSetup can bundle a complete Python runtime.
-      # Users then get a self-contained installer with no separate Python install.
+      # Users get a self-contained installer with no separate Python install.
+      # run.bat uses this bundled python.exe to run agent\main.py directly.
       - name: Download and prepare Python embeddable
         working-directory: local-agent
         run: |
@@ -161,17 +104,21 @@ jobs:
           & "$pyDir\python.exe" $getPip --no-warn-script-location --quiet
           Write-Host "pip installed"
 
-          # Install required packages
+          # Install required packages into the embeddable Python
           & "$pyDir\python.exe" -m pip install pywin32 requests --no-warn-script-location --quiet
           Write-Host "pywin32 + requests installed"
 
-          # pywin32 post-install: registers COM DLLs
+          # pywin32 post-install: copies DLLs to the right locations
           $postinstall = Get-ChildItem $pyDir -Filter "pywin32_postinstall.py" -Recurse |
                          Select-Object -First 1
           if ($postinstall) {
             & "$pyDir\python.exe" $postinstall.FullName -install 2>&1 | Out-Null
             Write-Host "pywin32 post-install done"
           }
+
+          # Quick smoke test: can the bundled python import win32com?
+          $testOut = & "$pyDir\python.exe" -c "import win32com.client; print('win32com OK')" 2>&1
+          Write-Host "Smoke test: $testOut"
 
           # Report size
           $sizeMB = [math]::Round((Get-ChildItem $pyDir -Recurse |
@@ -210,7 +157,7 @@ jobs:
           }
 
           Write-Host "dist\ThermopacAgent contents:"
-          Get-ChildItem "dist\ThermopacAgent" -ErrorAction SilentlyContinue |
+          Get-ChildItem "dist\ThermopacAgent" -Recurse -ErrorAction SilentlyContinue |
             Select-Object Name | Format-Table -HideTableHeaders
 
           Write-Host "dist\python top-level:"
@@ -258,7 +205,7 @@ jobs:
             local-agent/installer_output/SHA256SUMS.txt
           retention-days: 30
 
-      # ── Upload raw dist (debugging) ───────────────────────────────────────────
+      # ── Upload staged source (debugging) ──────────────────────────────────────
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
