@@ -124,20 +124,10 @@ const extractionResultSchema = z.object({
     nozzles:           z.string().nullable(),
     design_data_table: z.string().nullable(),
   }),
-  design_data_table: z.union([
-    // Full mode: found=true, rows required
-    z.object({
-      found:    z.literal(true),
-      rows:     z.array(designDataRowSchema).min(1, 'design_data_table.rows must be non-empty when found=true'),
-      ldr_mode: z.boolean().optional(),
-    }),
-    // LDR / soft-fail: found=false, rows empty/absent
-    z.object({
-      found:    z.literal(false),
-      rows:     z.array(designDataRowSchema).optional(),
-      ldr_mode: z.boolean().optional(),
-    }),
-  ]),
+  design_data_table: z.object({
+    found: z.literal(true),
+    rows:  z.array(designDataRowSchema).min(1, 'design_data_table.rows must be non-empty'),
+  }),
   // All other sections optional but type-checked if present
   sheets:     z.array(z.object({}).passthrough()).optional(),
   views:      z.array(z.object({}).passthrough()).optional(),

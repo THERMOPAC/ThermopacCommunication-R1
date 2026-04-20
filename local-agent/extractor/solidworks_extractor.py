@@ -288,31 +288,33 @@ def run_extraction(temp_path: str, config, cancel_event: threading.Event,
                         stop_dismiss.set()
                         dismisser.join(timeout=2)
 
-        # ViewOnly (LDR) pass — only tried if all full-mode attempts above failed
+        # ── ViewOnly (LDR) — diagnostics only, NOT a valid extraction path ──────
         if swModel is None:
-            errors   = win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)
-            warnings = win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)
-            swModel  = swApp.OpenDoc6(
+            ldr_errors   = win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)
+            ldr_warnings = win32com.client.VARIANT(pythoncom.VT_BYREF | pythoncom.VT_I4, 0)
+            ldr_model    = swApp.OpenDoc6(
                 temp_path, SW_DOC_DRAWING,
-                SW_OPEN_READ_ONLY | SW_OPEN_SILENT | SW_OPEN_VIEW_ONLY, "", errors, warnings)
-            err_val  = errors.value
-            warn_val = warnings.value
-            pass_num = 2
-            logger.info(f"[Extractor] OpenDoc6 pass 2 (LDR/ViewOnly): "
-                        f"model={'OK' if swModel else 'None'} "
-                        f"errors={_decode_sw_error(err_val)} "
-                        f"warnings={_decode_sw_error(warn_val)}")
+                SW_OPEN_READ_ONLY | SW_OPEN_SILENT | SW_OPEN_VIEW_ONLY, "",
+                ldr_errors, ldr_warnings)
+            logger.info(f"[Extractor] OpenDoc6 LDR/ViewOnly (diagnostics): "
+                        f"model={'OK' if ldr_model else 'None'} "
+                        f"errors={_decode_sw_error(ldr_errors.value)} "
+                        f"warnings={_decode_sw_error(ldr_warnings.value)}")
+            if ldr_model is not None:
+                try:
+                    swApp.CloseDoc(temp_path)
+                except Exception:
+                    pass
 
         if swModel is None:
             raise RuntimeError(
-                f"All open attempts returned None — cannot open {filename}. "
-                f"Errors={_decode_sw_error(err_val)} Warnings={_decode_sw_error(warn_val)}"
+                f"Full-mode open failed — cannot extract DDS from {filename}. "
+                f"All passes (OpenDoc7, OpenDoc6-Silent, dialog-dismiss, LoadModel) returned None. "
+                f"LDR/ViewOnly is available but does not support table extraction. "
+                f"Last errors={_decode_sw_error(err_val)} warnings={_decode_sw_error(warn_val)}"
             )
 
-        # LDR mode only when ViewOnly pass (pass_num==2) succeeded
-        # Passes 0, 1, D, 3 = full mode
-        ldr_mode = (pass_num == 2)
-        logger.info(f"[Extractor] Document open OK (pass={pass_num} ldr_mode={ldr_mode})")
+        logger.info(f"[Extractor] Document open OK in full mode (pass={pass_num})")
 
         # SolidWorks DrawingDoc interface
         swDraw = swModel  # IDrawingDoc is the same COM object for .slddrw
@@ -329,7 +331,7 @@ def run_extraction(temp_path: str, config, cancel_event: threading.Event,
             ("health",            lambda: ExtractHealth(swApp, swModel, swDraw, logger)),
             ("nozzles",           lambda: ExtractNozzles(swApp, swModel, swDraw, logger)),
             ("design_data_table", lambda: ExtractDesignDataTable(
-                swApp, swModel, swDraw, logger, ldr_mode=ldr_mode)),
+                swApp, swModel, swDraw, logger)),
         ]
 
         for key, fn in modules:
