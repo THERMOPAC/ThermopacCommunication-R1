@@ -11,7 +11,7 @@
 ;   - dist\python\          Python 3.11 embeddable (downloaded by build-installer.bat)
 
 #define AppName      "ThermopacAgent"
-#define AppVersion   "1.0.32"
+#define AppVersion   "1.0.33"
 #define AppPublisher "Thermopac"
 #define AppURL       "https://thermopac-communication-thermopacllp.replit.app"
 #define AppExeName   "run.bat"
@@ -224,12 +224,12 @@ begin
       if FileExists(Ps1) then
       begin
         MsgBox(
-          'Python was not bundled in this installer.' + #13#10 +
-          'setup.ps1 will now download Python 3.11 from python.org.' + #13#10 + #13#10 +
-          'A PowerShell window will open — leave it running until complete.',
+          'A PowerShell window will now download Python 3.11 and install' + #13#10 +
+          'required packages (pywin32, requests).' + #13#10 + #13#10 +
+          'Leave it running until it says "Done" and closes automatically.',
           mbInformation, MB_OK);
         Exec('powershell.exe',
-          '-ExecutionPolicy Bypass -File "' + Ps1 + '"',
+          '-ExecutionPolicy Bypass -File "' + Ps1 + '" -Silent',
           ExpandConstant('{app}'), SW_SHOW, ewWaitUntilTerminated, ResultCode);
       end else
         MsgBox(

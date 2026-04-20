@@ -15,7 +15,6 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  PY_EMBED_VERSION: "3.11.9"
 
 jobs:
   build:
@@ -68,62 +67,6 @@ jobs:
 
           Write-Host "Staged source files:"
           Get-ChildItem $dest -Recurse | Select-Object FullName | Format-Table -HideTableHeaders
-
-      # ── Download Python embeddable for bundling ───────────────────────────────
-      # Provides dist\python\ so InnoSetup can bundle a complete Python runtime.
-      # Users get a self-contained installer with no separate Python install.
-      # run.bat uses this bundled python.exe to run agent\main.py directly.
-      - name: Download and prepare Python embeddable
-        working-directory: local-agent
-        run: |
-          $pyVer  = "${{ env.PY_EMBED_VERSION }}"
-          $pyZip  = "python-$pyVer-embed-amd64.zip"
-          $pyUrl  = "https://www.python.org/ftp/python/$pyVer/$pyZip"
-          $tmpZip = "$env:TEMP\$pyZip"
-          $pyDir  = "dist\python"
-
-          Write-Host "Downloading Python $pyVer embeddable..."
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Invoke-WebRequest -Uri $pyUrl -OutFile $tmpZip -UseBasicParsing
-          Write-Host "Downloaded: $tmpZip"
-
-          New-Item -ItemType Directory -Path $pyDir -Force | Out-Null
-          Expand-Archive -Path $tmpZip -DestinationPath $pyDir -Force
-          Write-Host "Extracted Python to $pyDir"
-
-          # Enable site-packages (required for pip and installed packages)
-          $pth = Get-ChildItem $pyDir -Filter "python*._pth" | Select-Object -First 1
-          if ($pth) {
-            (Get-Content $pth.FullName) -replace '#import site','import site' | Set-Content $pth.FullName
-            Write-Host "Enabled site-packages in $($pth.Name)"
-          }
-
-          # Install pip
-          $getPip = "$env:TEMP\get-pip.py"
-          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile $getPip -UseBasicParsing
-          & "$pyDir\python.exe" $getPip --no-warn-script-location --quiet
-          Write-Host "pip installed"
-
-          # Install required packages into the embeddable Python
-          & "$pyDir\python.exe" -m pip install pywin32 requests --no-warn-script-location --quiet
-          Write-Host "pywin32 + requests installed"
-
-          # pywin32 post-install: copies DLLs to the right locations
-          $postinstall = Get-ChildItem $pyDir -Filter "pywin32_postinstall.py" -Recurse |
-                         Select-Object -First 1
-          if ($postinstall) {
-            & "$pyDir\python.exe" $postinstall.FullName -install 2>&1 | Out-Null
-            Write-Host "pywin32 post-install done"
-          }
-
-          # Quick smoke test: can the bundled python import win32com?
-          $testOut = & "$pyDir\python.exe" -c "import win32com.client; print('win32com OK')" 2>&1
-          Write-Host "Smoke test: $testOut"
-
-          # Report size
-          $sizeMB = [math]::Round((Get-ChildItem $pyDir -Recurse |
-                    Measure-Object -Property Length -Sum).Sum / 1MB, 1)
-          Write-Host "Python bundle size: $sizeMB MB"
 
       # ── Install Inno Setup 6 ──────────────────────────────────────────────────
       - name: Install Inno Setup 6
