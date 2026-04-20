@@ -952,19 +952,29 @@ function SmartMechanicalColumnForm({
         if (p.key === 'physicalState' || p.key === 'serviceFluid') {
           const options = p.key === 'physicalState' ? PHYSICAL_STATE_OPTIONS : SERVICE_FLUID_OPTIONS;
           const isAtDefault = val === FIELD_DEFAULTS[p.key];
+          const isSynced = p.key === 'physicalState' && !!appliedCode && appliedCode !== 'AS 4343:2014';
           return (
             <div key={p.key} className="flex items-center gap-4">
               <Label className="text-[9px] w-64 shrink-0 text-right text-muted-foreground leading-tight">{p.label}</Label>
               <div className="flex-1 flex items-center gap-1">
-                <Select value={val || ''} onValueChange={(v) => handleChange(p.key, v)}>
-                  <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {isAtDefault && (
+                {isSynced ? (
+                  <div className="h-6 text-[10px] px-1.5 flex-1 flex items-center rounded border border-blue-200 bg-blue-50 text-blue-800 select-none cursor-default">
+                    {val || '—'}
+                  </div>
+                ) : (
+                  <Select value={val || ''} onValueChange={(v) => handleChange(p.key, v)}>
+                    <SelectTrigger className={`h-6 text-[10px] px-1.5 flex-1 ${isAtDefault ? 'bg-green-50' : ''}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {options.map(o => <SelectItem key={o} value={o} className="text-[10px]">{o}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+                {isSynced && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-blue-600 border-blue-300 bg-blue-50">Synced</Badge>
+                )}
+                {!isSynced && isAtDefault && (
                   <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0 text-green-700 border-green-300 bg-green-50">Auto</Badge>
                 )}
               </div>
@@ -2045,7 +2055,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
 
   const projMdmt = autoFields.projectMdmt || null;
 
-  function seedColumn(col: MechanicalColumn): MechanicalColumn {
+  function seedColumn(col: MechanicalColumn, hazardFluidState?: string): MechanicalColumn {
     const wp = col.workingPressure ?? '0.5';
     const wpNum = parseFloat(wp);
     const storedIdp = col.internalDesignPressureMawp;
@@ -2071,7 +2081,7 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
       hydroTestPressure: hydro,
       designTempMinMax: design,
       hydroTestTempMinMax: col.hydroTestTempMinMax ?? '17 / 48',
-      physicalState: col.physicalState ?? 'Fluid',
+      physicalState: hazardFluidState ?? col.physicalState ?? 'Fluid',
       serviceFluid: effectiveServiceFluid,
       specificGravity: col.specificGravity ?? sgDefault,
       internalCorrosionAllowanceMm: col.internalCorrosionAllowanceMm ?? '1.5',
@@ -2107,15 +2117,18 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
     setDesignCode(s.design_code);
     setEquipmentConfig(s.equipment_config);
     setInspectionBy(s.inspection_by);
-    setMechShell(seedColumn(s.mechanical_data.shell || emptyMechanicalColumn()));
-    setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn()));
-    setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn()));
+    const loadedHazard = loadColumnHazardFromSheet(s.hazard_data);
+    const notAS4343 = loadedHazard.shell.appliedCode !== 'AS 4343:2014';
+    const fluidFor = (h: HazardData | null) => notAS4343 ? (h?.fluidState ?? undefined) : undefined;
+    setMechShell(seedColumn(s.mechanical_data.shell || emptyMechanicalColumn(), fluidFor(loadedHazard.shell)));
+    setMechTube(seedColumn(s.mechanical_data.tube || emptyMechanicalColumn(), fluidFor(loadedHazard.tube)));
+    setMechJacket(seedColumn(s.mechanical_data.jacket || emptyMechanicalColumn(), fluidFor(loadedHazard.jacket)));
     const base = s.general_data || emptyGeneralData();
     const { seeded: s1, autoKeys: k1 } = applyCountryEnvDefaults(base, autoFields.customerCountry || null);
     const { seeded: s2, autoKeys: k2 } = seedLocationAndQty(s1, autoFields);
     setGeneralData(applyGeneralDataDefaults(s2));
     setEnvAutoKeys(new Set([...k1, ...k2]));
-    setColHazard(loadColumnHazardFromSheet(s.hazard_data));
+    setColHazard(loadedHazard);
   }
 
   function handleStartEdit() {
@@ -2649,11 +2662,15 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                     };
 
                     function handleSharedCodeChange(newCode: string | null) {
-                      setColHazard(prev => ({
-                        shell:  deriveHazardFields({ ...clearCodeSpecificFields(prev.shell),  appliedCode: newCode }),
-                        tube:   prev.tube   ? deriveHazardFields({ ...clearCodeSpecificFields(prev.tube),   appliedCode: newCode }) : null,
-                        jacket: prev.jacket ? deriveHazardFields({ ...clearCodeSpecificFields(prev.jacket), appliedCode: newCode }) : null,
-                      }));
+                      const newShell  = deriveHazardFields({ ...clearCodeSpecificFields(colHazard.shell),  appliedCode: newCode });
+                      const newTube   = colHazard.tube   ? deriveHazardFields({ ...clearCodeSpecificFields(colHazard.tube),   appliedCode: newCode }) : null;
+                      const newJacket = colHazard.jacket ? deriveHazardFields({ ...clearCodeSpecificFields(colHazard.jacket), appliedCode: newCode }) : null;
+                      setColHazard({ shell: newShell, tube: newTube, jacket: newJacket });
+                      if (newCode !== 'AS 4343:2014') {
+                        setMechShell(p => ({ ...p, physicalState: newShell.fluidState }));
+                        if (newTube)   setMechTube(p =>   ({ ...p, physicalState: newTube.fluidState }));
+                        if (newJacket) setMechJacket(p => ({ ...p, physicalState: newJacket.fluidState }));
+                      }
                     }
 
                     function makeOnChange(
@@ -2662,10 +2679,15 @@ export default function DesignDataGenerator({ drawingControlId, drawingStatus, u
                       setMech: (fn: (prev: MechanicalColumn) => MechanicalColumn) => void,
                     ) {
                       return (d: HazardData) => {
-                        if (d.fluidState && d.fluidState !== prevData.fluidState) {
-                          const sg = SG_BY_FLUID[d.fluidState];
-                          if (sg) setMech(prev => ({ ...prev, specificGravity: sg }));
-                        }
+                        setMech(prev => {
+                          const updates: Partial<MechanicalColumn> = {};
+                          if (d.fluidState !== prevData.fluidState) {
+                            const sg = SG_BY_FLUID[d.fluidState];
+                            if (sg) updates.specificGravity = sg;
+                          }
+                          if (d.appliedCode !== 'AS 4343:2014') updates.physicalState = d.fluidState;
+                          return Object.keys(updates).length ? { ...prev, ...updates } : prev;
+                        });
                         setColHazard(prev => ({ ...prev, [colKey]: d }));
                       };
                     }
